@@ -25,6 +25,18 @@ const FAULTS = {
 await import("./markdown-render.test.mjs");
 const { openEditor } = await import("../src/markdown-render/index.mjs");
 
+// The inherited small DOM does not model the browser's `button.disabled === false` default.
+// Limit that native default to buttons created while this new battery opens an editor.
+const open = (...args) => {
+  const createElement = document.createElement;
+  document.createElement = function createElementWithButtonDefault(name) {
+    const element = createElement.call(this, name);
+    if (String(name).toLowerCase() === "button") element.disabled = false;
+    return element;
+  };
+  try { return openEditor(...args); } finally { document.createElement = createElement; }
+};
+
 const byTag = (root, name) => {
   const found = [];
   (function walk(node) { for (const child of node.childNodes) if (child.nodeType === 1) {
@@ -55,7 +67,7 @@ const saved = async () => ({ kind: "saved", link: "https://example.test/commit/3
 // expect: line 2 shows the finding in its compiler form, the other line remains unmarked, and Save stays offered
 test("TST-343001 setMarks shows later findings beside their lines without blocking Save", () => {
   const target = document.createElement("div");
-  const editor = openEditor(target, "first\nsecond", { marks: () => [], save: saved });
+  const editor = open(target, "first\nsecond", { marks: () => [], save: saved });
   const finding = { artifact: "UC-019", line: 2, kind: "warning", rule: "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT",
     what: "the participant kept an unclear line", fix: "make the change concrete" };
 
@@ -76,7 +88,7 @@ test("TST-343002 showDraft keeps the draft in the editor beside its difference f
   const CURRENT = "Rule one.\nRule two.\n";
   const DRAFT = "Rule one.\nRule two, made checkable.\nRule three.\n";
   const target = document.createElement("div");
-  const editor = openEditor(target, CURRENT, { marks: () => [], save: saved });
+  const editor = open(target, CURRENT, { marks: () => [], save: saved });
 
   editor.showDraft(DRAFT, CURRENT);
 
@@ -101,7 +113,7 @@ test("TST-343003 close asks before discarding an unsaved edit", () => {
   Object.defineProperty(globalThis, "confirm", { configurable: true, value: (message) => { asked.push(message); return answers.shift(); } });
   try {
     const target = document.createElement("div");
-    const editor = openEditor(target, "current\n", { marks: () => [], save: saved });
+    const editor = open(target, "current\n", { marks: () => [], save: saved });
     type(byTag(target, "textarea")[0], "changed\n");
 
     editor.close();
@@ -125,12 +137,12 @@ test("TST-343004 close does not ask without an edit or after a successful save",
   Object.defineProperty(globalThis, "confirm", { configurable: true, value: (message) => { asked.push(message); return true; } });
   try {
     const untouched = document.createElement("div");
-    const unopenedEdit = openEditor(untouched, "current\n", { marks: () => [], save: saved });
+    const unopenedEdit = open(untouched, "current\n", { marks: () => [], save: saved });
     unopenedEdit.close();
     assert.equal(byClass(untouched, "editor").length, 0);
 
     const savedTarget = document.createElement("div");
-    const editor = openEditor(savedTarget, "current\n", { marks: () => [], save: saved });
+    const editor = open(savedTarget, "current\n", { marks: () => [], save: saved });
     type(byTag(savedTarget, "textarea")[0], "saved\n");
     await clickSave(savedTarget);
     editor.close();
