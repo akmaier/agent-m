@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { documentFindings, loadSchema, readRegister } from "../documents/index.mjs";
+import { processDriver } from "./processes.mjs";
 
 const OWNER = "MOD-agent-processes";
 const SCHEMA_FILE = new URL("./agents.schema.md", import.meta.url);
@@ -70,12 +71,36 @@ function ownLoginEnvironment() {
 function valueAt(value, path) {
   return path.reduce((part, key) => part?.[key], value);
 }
-function answerOf(task, stdout) {
+function answerFor(task, stdout) {
   if (task.finalAnswer.format === "text") return stdout.trim();
   const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
   const values = events.filter((event) => event.type === task.finalAnswer.eventType)
     .map((event) => valueAt(event, task.finalAnswer.path)).filter((value) => typeof value === "string");
   return values.at(-1)?.trim() ?? "";
+}
+function usageFor(task, stdout) {
+  if (!task.usage) return null;
+  const events = stdout.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+  const values = events.filter((event) => event.type === task.usage.eventType)
+    .map((event) => valueAt(event, task.usage.path)).filter((value) => value && typeof value === "object");
+  const tokens = values.at(-1);
+  if (!tokens) return null;
+  return {
+    inputTokens: typeof tokens[task.usage.input] === "number" ? tokens[task.usage.input] : null,
+    outputTokens: typeof tokens[task.usage.output] === "number" ? tokens[task.usage.output] : null,
+    minutes: null,
+    cost: null,
+  };
+}
+const agentConfiguration = (name) => rows.find((row) => row.name === name) ?? null;
+
+export function agentDriver(agent, options, participant) {
+  return processDriver(agent, options, participant, {
+    configuration: agentConfiguration,
+    answer: answerFor,
+    usage: usageFor,
+    ownLoginEnvironment,
+  });
 }
 
 /** @returns {Promise<Agent[]>} */
@@ -98,7 +123,7 @@ export async function testAgent(agent) {
   if (!result.ok) return { answered: false, reason: (result.stderr || result.error?.message || `exit ${result.status}`).trim() };
   let answer;
   try {
-    answer = answerOf(row.task, result.stdout);
+    answer = answerFor(row.task, result.stdout);
   } catch (error) {
     return { answered: false, reason: error instanceof Error ? error.message : String(error) };
   }
