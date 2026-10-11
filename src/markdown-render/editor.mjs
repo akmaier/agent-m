@@ -31,6 +31,8 @@ export function openEditor(target, text, { marks, save }) {
   const button = element("button", null, "Save");
   button.setAttribute("type", "button");
   const result = element("p", "result"), newer = element("div", "newer");
+  let currentMarks = [];
+  let lastSaved = area.value;
   target.replaceChildren(element("div", "editor", element("div", "text", area, rows), preview), element("p", null, button), result,
     newer);
 
@@ -42,7 +44,8 @@ export function openEditor(target, text, { marks, save }) {
   }
   function update() {
     preview.replaceChildren(renderArtifact(area.value));
-    showMarks(marks(area.value));
+    currentMarks = marks(area.value);
+    showMarks(currentMarks);
   }
   area.addEventListener("input", update);
 
@@ -53,6 +56,7 @@ export function openEditor(target, text, { marks, save }) {
     try {
       const answer = await save(edited);
       if (answer.kind === "saved") {
+        lastSaved = edited;
         const link = element("a", null, answer.link);
         link.setAttribute("href", answer.link);
         result.replaceChildren("Saved — ", link);
@@ -74,5 +78,20 @@ export function openEditor(target, text, { marks, save }) {
   });
 
   update();
-  return { text: () => area.value };
+  return {
+    text: () => area.value,
+    setMarks(findings) {
+      currentMarks = findings;
+      showMarks(currentMarks);
+    },
+    showDraft(draft, against) {
+      area.value = draft;
+      update();
+      newer.replaceChildren(element("h4", null, "Difference — from the current text to the draft"), difference(against, draft));
+    },
+    close() {
+      if (area.value !== lastSaved && !confirm("Discard unsaved changes?")) return;
+      target.replaceChildren();
+    },
+  };
 }

@@ -1,14 +1,14 @@
 // MOD-markdown-render — Markdown and Mermaid, rendered safely, edited and compared (docs/architecture/MOD-markdown-render.md):
-// its interface. Of it, ITM-220 builds, for what UC-002's page needs, renderArtifact — Markdown rendered to sanitised HTML, a
-// Mermaid block shown as its source with the reason — and openEditor, whose Editor offers text(). renderMermaid and the
-// diagram library, showDifference, renderArtifact's front matter as a table and its links for identifiers, the Editor's
-// showDraft, setMarks and close, and asking before unsaved changes are left are not built yet.
+// its interface. renderArtifact renders Markdown to sanitised HTML, draws Mermaid through the local library, and presents front
+// matter as a table when asked. renderMermaid draws one Mermaid source and showDifference presents a bounded line difference.
+// openEditor offers the Editor text(), setMarks(), showDraft() and close() interface, including its leaving-unsaved-changes
+// flow.
 //
 // Module: MOD-markdown-render
 //
 // It belongs to the Site (ARC-038) and runs in a browser. It uses MOD-text-tools' formatFinding and lineDiff. Every other file
-// of this folder is private to it; vendor/ holds marked and DOMPurify (ARC-049), each beside its licence file, named with its
-// version in vendor/README.md.
+// of this folder is private to it; vendor/ holds marked, DOMPurify and Mermaid (ARC-049), each beside its licence file, named
+// with its version in vendor/README.md.
 
 /**
  * What the caller's `save` returns to the editor.
@@ -16,9 +16,12 @@
  */
 
 /**
- * The editor openEditor returns: the text in it now.
- * @typedef {{ text(): string }} Editor
+ * The editor openEditor returns: the text in it now, caller-supplied marks, a draft against its current text, and closing.
+ * @typedef {{ text(): string, setMarks(findings: Finding[]): void, showDraft(draft: string, against: string): void,
+ *   close(): void }} Editor
  */
 
 export { renderArtifact } from "./render.mjs";
+export { renderMermaid } from "./mermaid.mjs";
+export { showDifference } from "./difference.mjs";
 export { openEditor } from "./editor.mjs";
