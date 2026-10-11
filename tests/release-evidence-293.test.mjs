@@ -19,11 +19,11 @@ const CANDIDATE_COMMIT = "c".repeat(40);
 const RUNNING_COMMIT = "e".repeat(40);
 const Z_95 = 1.959963984540054;
 const FAULTS = {
-  "TST-293001": [
+  "TST-293101": [
     "return `; current ${row.now}, running version ${row.then}; two-sided 95% Wilson confidence interval [${lower.toFixed(4)}, ${upper.toFixed(4)}]`;",
     "return \"\";",
   ],
-  "TST-293002": [
+  "TST-293102": [
     "const worse = worseRows.filter((r) => r.worse).map((r) => r.test).sort();",
     "const worse = worseRows.map((r) => r.test).sort();",
   ],
@@ -155,7 +155,7 @@ function reportInputs(id, currentRuns, runningRuns = "8 of 10") {
   return { at: snapshotOf(atFiles), results: snapshotOf(resultFiles) };
 }
 
-// TST-293001
+// TST-293101
 // level: unit
 // module: MOD-release-evidence
 // guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
@@ -164,12 +164,12 @@ function reportInputs(id, currentRuns, runningRuns = "8 of 10") {
 // input: releaseReport(at, results, candidate)
 // expect: its public Limitations text names the test, current and running rates, and the two-sided 95% Wilson interval
 //         calculated independently by score-test inversion; the NIST 20/25 check rounds to [0.609, 0.911]
-test("TST-293001 releaseReport — a worse 6-of-10 model rate has its two-sided 95% Wilson interval in the public finding", async () => {
+test("TST-293101 releaseReport — a worse 6-of-10 model rate has its two-sided 95% Wilson interval in the public finding", async () => {
   const nist = wilson95ByScoreInversion(20, 25);
   assert.ok(Math.abs(nist.lower - 0.609) < 0.002 && Math.abs(nist.upper - 0.911) < 0.002,
     "known positive: score inversion agrees with NIST's 20-of-25 Wilson interval");
 
-  const id = "TST-293001";
+  const id = "TST-293101";
   const { at, results } = reportInputs(id, "6 of 10");
   const report = await releaseReport(at, results, {
     version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "Rate finding.",
@@ -193,7 +193,7 @@ test("TST-293001 releaseReport — a worse 6-of-10 model rate has its two-sided 
   assert.ok(Math.abs(upper - expected.upper) <= 0.00005, "the displayed upper bound rounds the independent oracle to four decimals");
 });
 
-// TST-293002
+// TST-293102
 // level: unit
 // module: MOD-release-evidence
 // guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
@@ -202,14 +202,14 @@ test("TST-293001 releaseReport — a worse 6-of-10 model rate has its two-sided 
 // input: releaseReport(at, results, candidate) for each report
 // expect: no worse-rate finding or Wilson interval is added; the returned `worse` stays empty and the existing report
 //         return does not make an acceptance decision
-test("TST-293002 releaseReport — unchanged, improved, and no-baseline rates add no confidence finding or automatic decision", async () => {
+test("TST-293102 releaseReport — unchanged, improved, and no-baseline rates add no confidence finding or automatic decision", async () => {
   const cases = [
     ["8 of 10", "8 of 10"],
     ["9 of 10", "8 of 10"],
     ["6 of 10", null],
   ];
   for (const [current, running] of cases) {
-    const { at, results } = reportInputs("TST-293002", current, running);
+    const { at, results } = reportInputs("TST-293102", current, running);
     const report = await releaseReport(at, results, {
       version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "No finding.",
     });
