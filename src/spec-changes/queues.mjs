@@ -31,6 +31,7 @@ import { blobSha } from "../text-tools/index.mjs";
 const OWNER = "MOD-spec-changes";
 const INDEX_SCHEMA_FILE = new URL("./queue-index.schema.md", import.meta.url);
 const DECISIONS_SCHEMA_FILE = new URL("./queue-decisions.schema.md", import.meta.url);
+const RATIONALE_SCHEMA_FILE = new URL("./queue-rationale.schema.md", import.meta.url);
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 
 // In a browser: the module's own file, from the address the module itself was loaded from. Throws an Error naming
@@ -43,6 +44,9 @@ async function ownFile(url) {
 
 const queueIndexSchema = loadSchema(
   disk ? disk.readFileSync(INDEX_SCHEMA_FILE, "utf8") : await ownFile(INDEX_SCHEMA_FILE), OWNER);
+// The schema of an entry's rationale, which the writer of classified candidates (propose.mjs) writes its rationales in.
+export const queueRationaleSchema = loadSchema(
+  disk ? disk.readFileSync(RATIONALE_SCHEMA_FILE, "utf8") : await ownFile(RATIONALE_SCHEMA_FILE), OWNER);
 const queueDecisionsSchema = loadSchema(
   disk ? disk.readFileSync(DECISIONS_SCHEMA_FILE, "utf8") : await ownFile(DECISIONS_SCHEMA_FILE), OWNER);
 
