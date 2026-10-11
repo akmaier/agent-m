@@ -3,10 +3,11 @@
 // listJobs, recordsNewestFirst and jobCost, as its file states them: a job's identifier, none of those its product holds; the start of its
 // record; a record read with every part appended to it, each kind of part as the file writes it — the lines
 // `gate record:`, `works on:` and `jobs at once:` with their spaces, a question to the author under `## Gate reached`,
-// an End's `draft:` as one fenced JSON block, its End without a round record (MOD-job-runner's roundsText, which no
-// item has built and no job has written yet); its state from its last part and, for a job that has not ended, from its
-// runtime's live state; and every job of the products given, newest first, with its cost. appendToRecord and takeJob
-// belong to the routes of UC-010/UC-011 and are not built yet.
+// an End's `draft:` as one fenced JSON block; its state from its last part and, for a job that has not ended, from its
+// runtime's live state; and every job of the products given, newest first, with its cost. ITM-317 adds appendToRecord, a
+// part appended after the record's last section in the form the schema reads back — an End with its round record in
+// MOD-job-runner's roundsText form, which the reader now reads back into the End's `rounds` —, and takeJob, which takes a job
+// with one commit on the head it read.
 //
 // Module: MOD-job-ledger
 //
@@ -14,10 +15,13 @@
 // own data file job.schema.md — the job record's schema, in MOD-documents' language —, once, when the module is loaded:
 // from the disk in Node, from the module's own address in a browser, as src/participant-list/index.mjs reads its schema.
 // A schema that cannot be read, or that breaks the language, stops the module's load. listJobs reads docs/jobs/ of the
-// snapshots it is given, through MOD-repository-hosts' Snapshot; nothing else here crosses the network. It uses
-// MOD-documents only through its index.mjs. Every other file of this folder is private to it.
+// snapshots it is given, through MOD-repository-hosts' Snapshot, and takeJob reads and commits through the host it is given;
+// nothing else here crosses the network. It uses MOD-documents, MOD-job-runner, MOD-repository-hosts' Host and MOD-text-tools
+// only through their index.mjs. Every other file of this folder is private to it.
 
-import { loadSchema, readDocument, writeDocument } from "../documents/index.mjs";
+import { appendSection, loadSchema, readDocument, writeDocument } from "../documents/index.mjs";
+import { roundsText } from "../job-runner/index.mjs";
+import { parseFinding } from "../text-tools/index.mjs";
 import { jobState } from "./states.mjs";
 import { jobCost } from "./cost.mjs";
 
@@ -252,15 +256,37 @@ export function startRecord(job) {
 // The appended chunks of one heading, in the order they stand.
 const chunksOf = (doc, heading) => doc.appended.filter((chunk) => chunk.heading === heading);
 
+// The rounds of "## Rounds", the round record MOD-job-runner's roundsText writes: for each "### Round <n> — …", the findings
+// under it, each with the answer beneath — `fixed`, `justified: …` or `answered: …`. What follows the rounds (the line
+// `Left: …` and the findings a person decides) is not read. A Round's `changed` is not in that form and is left out.
+function roundsFrom(text) {
+  const rounds = [];
+  for (const raw of (text ?? "").split("\n")) {
+    const heading = /^### Round (\d+) — /.exec(raw);
+    if (heading) { rounds.push({ number: Number(heading[1]), findings: [], answers: [] }); continue; }
+    if (raw.startsWith("Left:")) break;
+    if (rounds.length === 0) continue;
+    const round = rounds[rounds.length - 1];
+    const answer = /^ {2}- (fixed|justified|answered)(?:: (.*))?$/.exec(raw);
+    if (answer) {
+      const found = round.findings[round.findings.length - 1];
+      if (found) round.answers.push({ finding: found, how: answer[1], text: answer[2] ?? null });
+      continue;
+    }
+    const found = raw.startsWith("- ") ? parseFinding(raw.slice(2)) : null;
+    if (found) round.findings.push(found);
+  }
+  return rounds;
+}
+
 // The record MOD-documents' Document gives, as this module's JobRecord (Data: a job's record; Interfaces: JobRecord).
 // Pairing a "## Gate reached" (named gate or question, the Data table's two forms of the one heading) with the
 // "## Resumed" that ends its wait is positional, in the order each stands — a job waits at one gate at a time
 // (MOD-job-ledger.md, Data). `gates` holds only the named gates; `question` is the current question — that of the
 // record's last "## Gate reached", when it is a question and nothing has resumed it yet, else null (so a question
 // already resumed, like a named gate already resumed, does not leave the record "waiting at a gate" — states.mjs).
-// Its End is read without a round record: no item has built MOD-job-runner's roundsText yet, and no job has written one
-// (ITM-252's Outcome); its draft, where its kind hands one back, is the one fenced json block of the End's raw text,
-// read the same way "## Parameters" is (job.schema.md, its own note).
+// Its End's rounds are those of the "## Rounds" that follows it (roundsFrom); its draft, where its kind hands one back, is
+// the one fenced json block of the End's raw text, read the same way "## Parameters" is (job.schema.md, its own note).
 function recordFromDocument(doc) {
   const f = doc.fields;
   const destinations = doc.sections.find((s) => s.heading === "## Destinations");
@@ -316,7 +342,7 @@ function recordFromDocument(doc) {
       state: end.fields.state,
       results: asList(end.fields.results),
       draft: parseFencedJson(end.text, null),
-      rounds: [],
+      rounds: roundsFrom(chunksOf(doc, "## Rounds")[0]?.text),
       usage: decodeJsonField(end.fields.usage),
       cost: decodeJsonField(end.fields.cost),
       reason: end.fields.reason ?? null,
@@ -403,5 +429,105 @@ export async function* recordsNewestFirst(snapshot) {
     const text = await snapshot.read(path);
     if (text === null) throw new Error(`job record is not held: ${path}`);
     yield recordFromDocument(readDocument(jobSchema, path, text));
+  }
+}
+
+// ---------------------------------------------------------------- appendToRecord
+
+// A failure of the module's own, by name.
+const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
+
+// The count of a heading among the sections appended to a record.
+const countOf = (doc, heading) => chunksOf(doc, heading).length;
+
+// The text with the section appended after its last line, every byte of the text as it was. MOD-documents' appendSection
+// renders and checks the section, but returns the text with its trailing lines trimmed and the section's own added; only the
+// section is taken from it.
+function appended(text, heading, fields) {
+  const section = appendSection(jobSchema, text, heading, fields).slice(text.replace(/\n+$/, "").length).replace(/^\n+/, "");
+  return `${text}${text.endsWith("\n\n") ? "" : text.endsWith("\n") ? "\n" : "\n\n"}${section}`;
+}
+
+// The fenced json block of a draft, as the End's raw text holds it.
+const fenced = (value) => `\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\`\n`;
+
+/**
+ * appendToRecord(text: string, part: RecordPart) -> string — the record with the part appended after its last section, every
+ * byte before it as it was, the part in the form job.schema.md reads back: its heading, `at:` and its own lines. A question is
+ * a `## Gate reached` with `question:`. An End writes its draft, where there is one, as one fenced json block, and its round
+ * record, where there are rounds, as MOD-job-runner's roundsText writes it under `## Rounds` after it: what is left is the last
+ * round's findings unless the loop passed or checked nothing, what a person decides is the part's optional `forPerson`, why the
+ * loop stopped its optional `stoppedBecause` — `passed` if the last round has no finding, else `limit` —, and the limit the
+ * record's own. Throws RecordEnded for a record that has its End, and NotWaiting for a resumption of a job that has not
+ * reached a gate, or whose gate is resumed.
+ * @param {string} text
+ * @param {RecordPart & { stoppedBecause?: string, forPerson?: object[] }} part
+ * @returns {string}
+ */
+export function appendToRecord(text, part) {
+  const doc = readDocument(jobSchema, "docs/jobs/record.md", text);
+  if (countOf(doc, "## End") > 0) throw failure("RecordEnded", `the record ${doc.fields.id} has its end: nothing is appended to it`);
+  if (part.part === "resumed" && countOf(doc, "## Gate reached") <= countOf(doc, "## Resumed")) {
+    throw failure("NotWaiting", `the job ${doc.fields.id} is not at a gate: there is nothing to resume`);
+  }
+  const at = formatTime(part.at);
+  switch (part.part) {
+    case "taken": return appended(text, "## Taken", { at, by: part.by });
+    case "gate reached": return appended(text, "## Gate reached", { at, gate: part.gate, decider: part.decider });
+    case "question": return appended(text, "## Gate reached", { at, question: part.question });
+    case "resumed": return appended(text, "## Resumed", { at, "gate record": part.gateRecord });
+    case "job started":
+      return appended(text, "## Job started", { at, job: part.job, kind: part.kind, "works on": part.worksOn });
+    case "limits raised":
+      return appended(text, "## Limits raised", { at, by: part.by, "jobs at once": part.limits.jobsAtOnce,
+        ...(part.limits.cost === null ? {} : { cost: part.limits.cost }), rounds: part.limits.rounds });
+    case "end": {
+      let out = appended(text, "## End", { at, state: part.state, results: part.results,
+        ...(part.usage === null ? {} : { usage: JSON.stringify(part.usage) }), cost: JSON.stringify(part.cost),
+        ...(part.reason === null ? {} : { reason: part.reason }), ...(part.log === null ? {} : { log: part.log }) });
+      if (part.draft !== null) out += fenced(part.draft);
+      if (part.rounds.length > 0) {
+        const last = part.rounds[part.rounds.length - 1].findings;
+        const stoppedBecause = part.stoppedBecause ?? (last.length === 0 ? "passed" : "limit");
+        const left = ["passed", "not checked"].includes(stoppedBecause) ? [] : last;
+        out += `\n${roundsText(part.rounds, left, part.forPerson ?? [], stoppedBecause, doc.fields.limit)}`;
+      }
+      return out;
+    }
+    default: throw new TypeError(`appendToRecord: not a part of a record: ${part.part}`);
+  }
+}
+
+// ---------------------------------------------------------------- takeJob
+
+/**
+ * takeJob(host: Host, path: string, by: string, head: string) -> Promise<{ taken: true, commit: string } | { taken: false,
+ * by: string | null }> — reads the record at `path` at the commit `head`, and, unless it has been taken, appends `## Taken`
+ * (the time of the call and `by`) and commits it on the default branch only on that head. When the branch has moved, the host
+ * refuses with Moved { head }: the record is read again at the head the branch has, and the job is taken there, or — if the
+ * record has been taken meanwhile — not, and who took it is reported. A record that is taken at the head read is not
+ * committed again. Crosses the network, through the host, and fails as the host fails; a record the commit does not hold fails
+ * with NotFound { what: path }. A Moved that names the head the commit was made on is passed on, not tried again.
+ * @param {object} host
+ * @param {string} path
+ * @param {string} by
+ * @param {string} head
+ */
+export async function takeJob(host, path, by, head) {
+  const { defaultBranch } = await host.repositoryInfo();
+  const id = /([^/]+)\.md$/.exec(path)?.[1] ?? path;
+  for (let at = head; ; ) {
+    const text = await (await host.readSnapshot(at)).read(path);
+    if (text === null) throw failure("NotFound", `${path} is not held at ${at}`, { what: path });
+    const taken = recordFromDocument(readDocument(jobSchema, path, text)).taken;
+    if (taken) return { taken: false, by: taken.by };
+    try {
+      const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: at,
+        files: [{ path, text: appendToRecord(text, { part: "taken", at: new Date(), by }) }], message: `take ${id} (${by})` });
+      return { taken: true, commit };
+    } catch (error) {
+      if (error?.name !== "Moved" || error.head === at) throw error;
+      at = error.head;
+    }
   }
 }

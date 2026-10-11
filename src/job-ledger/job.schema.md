@@ -19,8 +19,8 @@ example shows.
   check a section's fields yet (MOD-documents, checks.mjs).
 - `## End`'s `usage:` and `cost:` hold the `Usage` and `Cost` values as one line of JSON each, for a value no scalar type
   of this language expresses (the Data table fixes no other form for them). Its round record (`roundsText`,
-  MOD-job-runner, `rounds.schema.md`) is a later item's concern — no item has built it and no job has written one yet —
-  and is left out of this schema's fields. A job's kind handing back a draft (`draft:`, one fenced `json` block) is, like
+  MOD-job-runner, `rounds.schema.md`) follows it as the appended section `## Rounds`, which names no fields: MOD-job-ledger
+  writes the text and reads the rounds from it (ITM-317). A job's kind handing back a draft (`draft:`, one fenced `json` block) is, like
   `## Parameters`, not a field this schema names: MOD-job-ledger reads the block from the section's raw text itself, the
   same way it reads `## Parameters` (ITM-252's Outcome).
 
@@ -83,6 +83,7 @@ example shows.
       "cost": { "type": "number", "required": false },
       "rounds": { "type": "number", "required": true }
     } },
+    { "heading": "## Rounds", "repeat": false },
     { "heading": "## End", "repeat": false, "fields": {
       "at": { "type": "time", "required": true },
       "state": { "type": "enum", "values": ["done", "failed", "cancelled"], "required": true },
