@@ -548,6 +548,27 @@ test("MOD-review-pages use-case/<id> — without a token on GitHub: GitHub's pre
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL (A GITHUB PRODUCT USES A TOKEN OF ITS OWN)
+// given: a GitHub product with no token of its own stored in this browser; the instance's own token is stored, and is no token
+//        of this product; UC-041 open
+// input: the route use-case rendered with the id UC-041, and the list
+// expect: no Accept, no tick, no Accept ticked; the link to GitHub's new-file page with the record's path and the record, nothing
+//         else; nothing written
+test("MOD-review-pages use-case/<id> — a GitHub product without a token of its own: the instance's token is none, GitHub's page is offered", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const one = (await show(fake, { id: "UC-041" }, { token: false, instanceToken: true })).target;
+  assert.equal(byClass(one, "button", "accept").length, 0, "no Accept");
+  const link = byClass(one, "a", "github-page")[0];
+  assert.ok(link, "a link to GitHub's page");
+  const page = new URL(link.getAttribute("href"));
+  assert.deepEqual([...page.searchParams.keys()].sort(), ["filename", "value"], "the path and the record, nothing else");
+  assert.equal(page.searchParams.get("filename"), recordOf("UC-041", P41, UC41)[0]);
+  const list = (await show(fake, {}, { token: false, instanceToken: true })).target;
+  assert.equal(find(list, (node) => node.localName === "input").length + byClass(list, "button", "accept-ticked").length, 0, "no tick, no Accept ticked");
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 // given: a product on a GitLab server, no token of its own stored in this browser — the instance's GitHub token is stored, and is
 //        no token for a GitLab server; the list and UC-041
