@@ -1,10 +1,11 @@
 // MOD-runtimes — the three routes a job takes (docs/architecture/MOD-runtimes.md): its interface. Of it, this item
 // (ITM-253) builds Route and queueJob for the CI route alone: the job's start record committed on the head that was
 // read, as the person's commit, whose push starts the product's job workflow; WorkflowMissing, naming the job
-// workflow's file, for a product without it; and the host's other failures, by name. RouteOffer, ResourceNeed,
-// routesFor, runOnTab, bridgeAgentDriver, resumeJob, liveState, jobLog, cancelJob, retryJob, jobWorkflowFiles and
-// routeStrategies are not part of this item (UC-010, UC-011, UC-036) and are not built yet; neither is queueJob's tab
-// or Bridge route, nor a job of a run (start.run, MOD-job-ledger's appendToRecord).
+// workflow's file, for a product without it; and the host's other failures, by name. ITM-318 builds RouteOffer, ResourceNeed
+// and routesFor (routes.mjs): the routes a participant offers, with the reason of each that cannot be taken. runOnTab,
+// bridgeAgentDriver, resumeJob, liveState, jobLog, cancelJob, retryJob, jobWorkflowFiles and routeStrategies are not part of
+// this item (UC-010, UC-011, UC-036) and are not built yet; neither is queueJob's tab or Bridge route, nor a job of a run
+// (start.run, MOD-job-ledger's appendToRecord).
 //
 // Module: MOD-runtimes
 //
@@ -12,6 +13,8 @@
 // index.mjs. ci.mjs is private to it, besides the RuntimeError it re-exports here.
 
 import { queueOnCi } from "./ci.mjs";
+
+export { routesFor } from "./routes.mjs";
 
 export { RuntimeError } from "./ci.mjs";
 
