@@ -112,6 +112,17 @@ def _site_frame_asset(text: str, at: int) -> bool:
             or (window.startswith('createElement("img")') and 'logo.setAttribute("src", PRL_LOGO)' in window))
 
 
+MERMAID_LIBRARY_LOADING = "the diagram library beside MOD-markdown-render, resolved from the module address"
+
+
+def _mermaid_library_script(text: str, at: int) -> bool:
+    """MOD-markdown-render loads only its declared Mermaid vendor file from its own module address."""
+    return (text[at:].startswith('createElement("script")')
+            and 'script.setAttribute("src", new URL("./vendor/mermaid.min.js", import.meta.url).href);' in text
+            and 'libraryScript = script;' in text
+            and 'appendChild(script);' in text)
+
+
 def _own_data_file(text: str, at: int) -> bool:
     """A module's own data file, read as MOD-spec-document reads its skeleton: the fetch is fetch(url) in ownFile(url), and
     every address the file builds is resolved from a path beginning with ./ against the module's own address — so what
@@ -175,6 +186,7 @@ PERMITTED_CHANNELS = {
     ("src/site-frame/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/personal-data/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/", "loading element"): (3, FRAME_ASSET_LOADING, _site_frame_asset),  # link, source and img
+    ("src/markdown-render/mermaid.mjs", "loading element"): (1, MERMAID_LIBRARY_LOADING, _mermaid_library_script),
     ("src/approvals/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/spec-changes/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/work-plans/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -188,6 +200,9 @@ PERMITTED_CHANNELS = {
     ("docs/assets/vendor/mermaid.min.js", "Worker"): (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
     ("docs/assets/vendor/mermaid.min.js", "loading element"): (1, "KaTeX's \\includegraphics, rendered only when trusted; mermaid renders KaTeX untrusted", None),
     ("docs/assets/vendor/mermaid.min.js", "@import"): (1, "the name of the at-rule in mermaid's CSS parser, not a style sheet", None),
+    ("src/markdown-render/vendor/mermaid.min.js", "Worker"): (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
+    ("src/markdown-render/vendor/mermaid.min.js", "loading element"): (1, "KaTeX's \\includegraphics, rendered only when trusted; mermaid renders KaTeX untrusted", None),
+    ("src/markdown-render/vendor/mermaid.min.js", "@import"): (1, "the name of the at-rule in mermaid's CSS parser, not a style sheet", None),
 }
 
 
@@ -433,6 +448,16 @@ class NoServer(unittest.TestCase):
                                                         "src/markdown-render/index.mjs": text}.items()
                if not f.startswith(VENDOR) and foreign_hosts(t)}
         self.assertEqual(own, {"src/markdown-render/index.mjs": ["www.w3.org"]})
+        loader = ('const script = document.createElement("script");\n'
+                  'script.setAttribute("src", new URL("./vendor/mermaid.min.js", import.meta.url).href);\n'
+                  'libraryScript = script;\n(document.body ?? document.documentElement).appendChild(script);\n')
+        vendor = 'new Worker(a); document.createElement("img"); var css = "@import";'
+        files = {"src/markdown-render/mermaid.mjs": loader, "src/markdown-render/vendor/mermaid.min.js": vendor}
+        self.assertEqual(channel_findings(files), [])
+        self.assertEqual(len(channel_findings({**files, "src/markdown-render/extra.mjs": loader})), 1)
+        foreign = loader.replace('"./vendor/mermaid.min.js"', '"https://tracker.example/mermaid.js"')
+        self.assertEqual(channel_findings({"src/markdown-render/mermaid.mjs": foreign}),
+                         [f"src/markdown-render/mermaid.mjs:1: loading element: not {MERMAID_LIBRARY_LOADING}"])
 
     def test_counter_proof_a_markdown_file_that_loads_from_another_host(self):
         text = ("![flow](https://tracker.example/p.png)\n<img src='//cdn.example/x.svg'>\n<iframe src=\"https://embed.example/\"></iframe>\n"
