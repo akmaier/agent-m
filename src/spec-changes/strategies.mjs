@@ -1,6 +1,5 @@
 // strategies.mjs — the recipes of requirements of specStrategies (MOD-spec-changes, Parts: strategies.mjs; Interfaces: specStrategies).
-// Of it, ITM-337 builds the recipes `chosen-requirements`, `named-requirements` and `spec-with-queues`; the recipe `whole-spec` and the
-// writer `queue-entries` are not built yet.
+// Of it, ITM-337 builds the recipes `chosen-requirements`, `named-requirements` and `spec-with-queues`, ITM-438 the recipe `whole-spec`; the writer `queue-entries` is not built yet.
 //
 // Module: MOD-spec-changes
 //
@@ -86,6 +85,14 @@ async function withQueues(context) {
     artifacts: listed.map(({ requirement }) => ({ id: requirement.name, keys: [requirement.name, requirement.rule ?? ""] })) }];
 }
 
+// The SPEC as it stands, as one part: its bytes, untouched. The job runner sets the part's size. A product without a SPEC.md is
+// SpecNotFound { path }: a recipe never gives a part from less than the SPEC.
+async function wholeSpec(context) {
+  const text = await context.product.snapshot.read(SPEC_PATH);
+  if (text === null || text === undefined) throw failure("SpecNotFound", `the product holds no ${SPEC_PATH}`, { path: SPEC_PATH });
+  return [partOf(SPEC_PATH, text)];
+}
+
 /**
  * specStrategies: Partial<Strategies> — the strategies this module offers the job runner (ARC-046):
  * - recipe `chosen-requirements`: the requirements the job's parameter `requirements` names, in the order given, one part each, named by
@@ -95,12 +102,14 @@ async function withQueues(context) {
  *   holding the whole section it stands in, byte for byte. Throws as `chosen-requirements` does;
  * - recipe `spec-with-queues`: every requirement of the SPEC and of every open entry of every queue, each with its section and state, as
  *   one part, which carries each of them as an artifact — its name as the identifier, its name and its rule as the key — against which
- *   `candidate-classes` classifies a draft; no part for a product without a requirement.
+ *   `candidate-classes` classifies a draft; no part for a product without a requirement;
+ * - recipe `whole-spec`: the SPEC as it stands, byte for byte, as one part named SPEC.md. Throws SpecNotFound { path } for a product without one.
  */
 export const specStrategies = {
   recipes: {
     "chosen-requirements": chosen,
     "named-requirements": sectionsOfNamed,
     "spec-with-queues": withQueues,
+    "whole-spec": wholeSpec,
   },
 };
