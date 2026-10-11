@@ -124,7 +124,7 @@ export function entrySections(spec, draft, classes, source) {
 //   - A candidate's `source` names a source it points to; `linkedVersion` over the product's links and the instance's register gives none for one the product does not link, and the candidate
 //     is not written: the note names the candidate and the source, as the hint to link it first (UC-005 5a).
 //   - A queue's folder is `docs/spec-freigaben/<date><letter>_<slug>/`: the day of the job and the first letter, none, b, c …, that no queue of the day in the repository has, and the kind
-//     and the job as the slug, with `-process` after it for the instance's queue, so that a product that is its own instance keeps its two queues in two folders. Its entries are named by their section, and `SPEC.md` is every entry's target. `entscheidungen.md` is written with no decision.
+//     and the job as the slug, the folders this call has named counted among those the repository has, so that a product that is its own instance keeps its two queues of the day in the day and the day with b. Its entries are named by their section, and `SPEC.md` is every entry's target. `entscheidungen.md` is written with no decision.
 //   - The impact list of an entry names, for each requirement it changes, the artifacts MOD-trace-graph's requirementImpact finds that name it, or that none does; a new requirement has none.
 //   - Nothing is written to a repository when every section already stands as written; the SPEC is never written.
 
@@ -221,10 +221,12 @@ export async function queueEntries(result, context) {
   const job = { source, instruction, agentM: context.agentM, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds?.length ?? 0, date };
   const slug = slugOf([context.kind?.name, context.jobId].filter(Boolean).join("-")) || "candidates";
   const targets = [
-    { where: context.product, mine: writable.filter((candidate) => candidate.constrains !== "process"), decide: false, slug },
-    { where: context.instance, mine: writable.filter((candidate) => candidate.constrains === "process"), decide: true, slug: `${slug}-process` },
+    { where: context.product, mine: writable.filter((candidate) => candidate.constrains !== "process"), decide: false },
+    { where: context.instance, mine: writable.filter((candidate) => candidate.constrains === "process"), decide: true },
   ];
-  for (const { where, mine, decide, slug } of targets) {
+  // The folders this call has named for a repository, so that a second queue of the day in it is not given the first's name before the first is written.
+  const named = new Map();
+  for (const { where, mine, decide } of targets) {
     if (mine.length === 0) continue;
     const specText = await where.snapshot.read("SPEC.md");
     if (specText === null) { notes.push(`${mine.map((candidate) => candidate.name).join(", ")}: the SPEC of the repository could not be read; nothing is written there.`); continue; }
@@ -253,7 +255,9 @@ export async function queueEntries(result, context) {
     const host = where.host;
     if (!host) throw Object.assign(new Error("the repository the queue belongs to has no host to commit to"), { name: "NoHost" });
     const graph = await traceGraph(where.snapshot);
-    const { day, folder } = folderFor(where.snapshot.paths, date, slug);
+    const taken = named.get(where.snapshot) ?? [];
+    const { day, folder } = folderFor([...where.snapshot.paths, ...taken.map((each) => `${each}/index.md`)], date, slug);
+    named.set(where.snapshot, [...taken, folder]);
     const title = `Candidates of ${context.kind?.name ?? "a job"} from ${source}`;
     const composed = composable.map((each) => ({ each, candidate: mine.find((candidate) => candidate.name === each.refs[0]) })).filter(({ candidate }) => candidate);
     const files = [];
