@@ -115,15 +115,18 @@ When the user rejects a design, derive the next one from these principles again;
 5. **A rule is quoted, not remembered.** Anyone relying on a rule reads it first
    and names the document and location. Verify that the cited rule applies to the task at hand.
 
-6. **Search first, then ask.** A question to a human is itself a claim —
+6. **Search first, then ask.** **A question to the user is admissible only if solving the task requires a change of the
+   SPEC, a use case or the architecture. If the task can be solved without such a change, do not ask.**
+   A question to a human is itself a claim —
    namely that the matter could not be resolved independently. Before asking, research:
    the repository’s textbook first, the relevant original documents, available evidence and current practice.
-   **Whatever remains unresolved is asked — but together with a sentence explaining why it could not be clarified.**
-   A question without that sentence has not been properly checked.
+   **What remains unresolved and needs such a change is asked — but together with a sentence explaining why it could not
+   be clarified.** A question without that sentence has not been properly checked.
 
 7. **Read what a rule says, not what it might mean.** A reading that adds a word the text does not contain —
    *only*, *every*, *the same as* — is an open question, quoted with the sentence it reads, never a finding.
-   A message from the user that can refer to more than one thing is the same: ask which before acting.
+   A message from the user that can refer to more than one thing is the same: where item 6 admits a question, ask which
+   before acting; otherwise act on the reading the SPEC, the use cases and the architecture support, and name it.
 
 ## 7. Separate data and code (test cases)
 
