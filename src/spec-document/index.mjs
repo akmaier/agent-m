@@ -2,8 +2,10 @@
 // builds specSkeleton, the SPEC a new product starts with (ADDING A PRODUCT CREATES ITS LAYOUT, UC-001), ITM-214 builds
 // parseSpec, with Spec, SpecSection and Requirement, the SPEC read in its form (A REQUIREMENT HAS FOUR FIELDS, UC-002),
 // ITM-224 keeps the module loading when its skeleton cannot be read, ITM-301 builds requirementFindings, the findings of a
-// requirement (A REQUIREMENT HAS FOUR FIELDS, UC-005 and UC-018), and ITM-379 has parseSpec read a head line whose name is not in
-// capitals as a requirement too and requirementFindings name it (EVERY ARTIFACT HAS AN IDENTIFIER).
+// requirement (A REQUIREMENT HAS FOUR FIELDS, UC-005 and UC-018), ITM-379 has parseSpec read a head line whose name is not in
+// capitals as a requirement too and requirementFindings name it (EVERY ARTIFACT HAS AN IDENTIFIER), and ITM-302 builds sectionText,
+// replaceSection, requirementNamesIn and renamedRequirements, a section's exact bytes, its replacement and the names it holds
+// (THE APPROVED TEXT IS TAKEN VERBATIM, UC-006 and UC-018).
 //
 // Module: MOD-spec-document
 //
@@ -36,6 +38,7 @@
 
 export { parseSpec } from "./parse.mjs";
 export { requirementFindings } from "./checks.mjs";
+export { sectionText, replaceSection, requirementNamesIn, renamedRequirements } from "./sections.mjs";
 
 // Where the product's name stands in skeleton.md.
 const PRODUCT = "<product>";
