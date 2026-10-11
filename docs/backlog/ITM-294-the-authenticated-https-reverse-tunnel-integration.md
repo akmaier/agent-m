@@ -28,6 +28,7 @@ builds_on:
   - ITM-287
   - ITM-288
   - ITM-291
+  - ITM-404
 tests:
   - component
 origin:
@@ -42,8 +43,9 @@ origin:
 ## Outcome
 
 Integrate the delivered configured-HTTPS path needed by UC-003 alternative 2a: the public Settings endpoint route
-stores and tests an own-model endpoint through an authenticated HTTPS jump-host route, its real loopback reverse
-tunnel, and the production composed Bridge and endpoint handler. The controlled model observes the short request
+stores and tests an own-model endpoint whose configuration names a Bridge reached through the jump host — at the
+jump host's HTTPS address with that Bridge's path `/bridge/<name>` —, through an authenticated HTTPS jump-host route,
+its real loopback reverse tunnel, and the production composed Bridge and endpoint handler. The controlled model observes the short request
 and the page shows the real answer. Use the existing public interfaces and actual emitted Apache/nginx configurations;
 no result stub or direct fetch to the Bridge replaces the HTTPS or tunnel segment.
 
@@ -62,7 +64,7 @@ updates, agent installation, watch/mail workflow, signing/distribution or new AP
   real controlled-model answer, and the UC-003 refusal behavior without discarding the saved endpoint/key. Ordinary
   remote endpoints retain browser-direct behavior.
 - Verify the accepted failure boundaries at their real nodes: refused web-server login forwards nothing; instance-only
-  CORS/preflight is handled by the web server without forwarding; the session path reaches the loopback reverse end;
+  CORS/preflight is handled by the web server without forwarding; the Bridge's path reaches its loopback reverse end;
   refused Bridge token reaches no model. Credentials do not enter URLs, repository writes or configuration cookies.
 - Use a fixture CA trusted only by the controlled test client/process, with hostname verification; never disable TLS
   verification, change system trust or describe a fixture certificate as an authority trusted by current browsers.

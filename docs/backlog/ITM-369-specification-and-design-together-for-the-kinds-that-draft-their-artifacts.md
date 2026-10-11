@@ -22,6 +22,7 @@ builds_on:
   - ITM-328
   - ITM-330
   - ITM-329
+  - ITM-387
 tests:
   - component
 origin:
@@ -37,16 +38,16 @@ origin:
 
 Component tests of the strategies with which Specification and design drafts its artifacts: `derive-use-cases`,
 `change-use-case` and `change-requirements` prepared and run through MOD-job-runner with the three modules' strategies,
-the source register's chapters and the built-in checks registered, a fixture participant and a fixture repository host.
-The check `candidate-classes`, which two of these kinds name and the runner does not register, is stood in by a fixture
-check of that name. A fault the tests find is fixed in the folder of the module it names.
+the source register's chapters and the built-in checks registered, `candidate-classes` among them (ITM-387), a fixture
+participant and a fixture repository host. A fault the tests find is fixed in the folder of the module it names.
 
 ## Acceptance
 
-- Component tests that name the three modules state, before they run: a drafted use case naming an unknown requirement
-  sent back once and written open under the next identifier after its correction; a drafted change of an existing use
-  case written into its file; a changed requirement held for the person's *Save* and then written as a queue entry
-  beside its section, `SPEC.md` byte-identical; the provenance lines of each commit.
-- Every new test's counter-proof is recorded in the pull request.
+- Component tests run each kind from preparation to its writer's commit, with the parts each recipe gives, the
+  candidates classed against the artifacts the parts carry, a finding sent back and fixed, and the provenance lines on
+  the commit; each states its input, precondition and expected result readable without running it.
+- The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
+  request.
 - The existing tests stay green, with no expected result changed.
-- Only the folders of the three modules and the tests that name them change.
+- Only the tests that name MOD-approvals, MOD-spec-changes or MOD-artifact-edits change, and, for a fault a test finds,
+  the folder of the module it names.

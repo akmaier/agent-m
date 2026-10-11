@@ -26,13 +26,14 @@ MOD-documents' `Candidate`, `Classified` and `classifyCandidates(candidates, exi
 part `candidates.mjs`: candidates with the same normalised key merged into one, naming every passage; a candidate whose
 normalised key equals an existing artifact's classed as a duplicate of it, by rule; every other candidate keeping its
 participant's class. Keys are normalised for case, white space, quotation marks and dashes; the caller gives the key.
-The writer `queue-entries` (ITM-338) calls it. The check `candidate-classes` is not part of this item.
+The check `candidate-classes` (ITM-387) and the writer `queue-entries`, for the candidates that constrain the
+development process (ITM-338), call it.
 
 ## Acceptance
 
-- Unit tests that name MOD-documents state, before the code exists: two candidates of one rule merged with both
-  passages; a candidate proposed `new` whose name equals an existing requirement's classed `duplicate` by rule; one
-  differing only in case, quotation marks or dashes the same; a `conflict` kept as proposed.
+- Unit tests that name MOD-documents state, before the code exists: two candidates of one key merged naming both
+  passages; an exact duplicate of an existing artifact classed by rule whatever its participant said; keys differing
+  only in case, white space, quotation marks or dashes taken as one; every other class kept.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.

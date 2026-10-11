@@ -40,11 +40,12 @@ authenticated tunnel-state handlers. Settings and Tunnels are reachable in the e
 Use the accepted public readExport, tunnelCommands, ensureKey, openTunnels, closeTunnels, tunnelState and tunnelHandlers;
 keep main/preload/window's fixed-call boundary and the existing source entry, own-file protocol and loopback server.
 
-The accepted settings.json shape supplies name, port, products, interval, paused, jumpHost and tunnel plans in the
-instance's private per-user folder. Taking over an export keeps only products, jump-host and remote-session:<name>
-values for the matching instance. Refuse another instance. No repository token, endpoint key, mailbox or sign-in secret
-is retained. The person's own-computer choice creates forward plans for the remote sessions; choosing this computer's
-remote-session name creates its reverse plan and takes its name/port/pairing token as the contract states. Plans come
+The accepted settings.json shape supplies name, port, the offered agents with their working folders (set in the
+window's Agents view, ITM-407), products, interval, paused, jumpHost and tunnel plans in the instance's private per-user
+folder. Taking over an export keeps only products, jump-host and the `bridge:<name>`
+entries reached through the jump host, for the matching instance. Refuse another instance. No repository token, endpoint key, mailbox or sign-in secret
+is retained. The person's own-computer choice creates forward plans for those Bridges; choosing which of them this computer is
+creates its reverse plan and takes that entry's name/port/pairing token as the contract states. Plans come
 from the same public tunnelCommands as the dashboard; their keyFile is always the Bridge's own key. Plain and locked
 exports use readExport, with the passphrase in memory; no duplicate codec, exported private key or repository write.
 

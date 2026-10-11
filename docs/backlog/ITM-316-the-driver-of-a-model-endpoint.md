@@ -34,15 +34,17 @@ the job runner's `DriverInput` into one chat request to an OpenAI-compatible or 
 documents it, and returns the answer's text and the usage the endpoint reported, or `null` where it reports none —
 nothing is estimated; one `send` is one request, never repeated; a failure throws `EndpointFailed { diagnosis }` with
 `diagnoseEndpoint`'s reason — a refused key, a call the browser blocked, the network, a request refused for its length,
-which is never answered by cutting the input —; a cancel through the signal aborts the request. The tab's route
-(ITM-319) and the job workflow's entries (ITM-365) use it. Nothing else of the module is part of this item.
+which is never answered by cutting the input —; a cancel through the signal aborts the request. Wherever it runs it
+calls the endpoint directly and neither selects nor reaches a Bridge. The tab's route (ITM-319), the job workflow's
+entries (ITM-365) and a Bridge answering an endpoint ask in Node (ITM-408) use it. Nothing else of the module is part of
+this item.
 
 ## Acceptance
 
 - Unit tests that name MOD-endpoint-calls state, before the code exists, with constructed answers and no paid service:
   the request each kind of endpoint receives for a fixture input; the text and the reported usage; `null` usage where
-  none is reported; a refused key, a request too long and a blocked call failing as `EndpointFailed` with their
-  reasons and no second request; an aborted signal.
+  none is reported; a refused key, a request too long and a blocked call failing as `EndpointFailed` with their reasons
+  and no second request; an aborted signal; the same driver run in Node.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.
