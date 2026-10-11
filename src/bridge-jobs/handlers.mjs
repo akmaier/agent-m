@@ -1,3 +1,4 @@
+import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
 import { testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 
 function validEndpointConfig(value) {
@@ -12,8 +13,49 @@ function failure(code, message) {
   return error;
 }
 
-export function jobHandlers({ testEndpoint = nodeTestEndpoint } = {}) {
+// An ask's failure as the page reads it: the failure and, where the agent said anything, its last output.
+const reasonOf = (error) => (error?.lastOutput ? `${error.message}: ${error.lastOutput}` : error?.message ?? "The agent failed.");
+
+// A drafting request to an agent, in its working folder, through its driver: the answer and the usage, or the failure.
+async function drafted({ name, folder }, prompt) {
+  const agent = (await installedAgents()).find((candidate) => candidate.name === name);
+  return agentDriver(agent, { workdir: folder, keyVariable: null }, { name }).send({ prompt, parts: [], output: null, findings: [], previous: null, workdir: null });
+}
+
+/**
+ * jobHandlers({ testEndpoint, agents }) — the handlers of the jobs routes. `agents` are the agents the Bridge offers, as its settings name
+ * them with their working folders: `{ name, folder }`. The asks in flight are kept in memory only.
+ */
+export function jobHandlers({ testEndpoint = nodeTestEndpoint, agents = [] } = {}) {
+  const offered = (name) => (typeof name === "string" ? agents.find((candidate) => candidate.name === name) : undefined);
+  const asks = new Map();
   return {
+    "GET /v1/agents": async () => {
+      const found = await installedAgents();
+      return {
+        agents: found.filter((agent) => agent.installed && offered(agent.name)).map((agent) => ({
+          name: agent.name, version: agent.version, ready: agent.loggedIn === true && Boolean(offered(agent.name).folder), loggedIn: agent.loggedIn })),
+        missing: found.filter((agent) => !agent.installed).map((agent) => ({ name: agent.name })),
+      };
+    },
+    "POST /v1/probes/agent": async ({ body }) => {
+      const wanted = offered(body?.args?.agent);
+      if (!wanted) throw failure("invalid-request", "This Bridge does not offer that agent.");
+      return { answer: await testAgent((await installedAgents()).find((agent) => agent.name === wanted.name)) };
+    },
+    "POST /v1/ask": async ({ body }) => {
+      const wanted = offered(body?.agent);
+      if (!wanted?.folder || typeof body.input !== "string") throw failure("invalid-request", "This Bridge offers no such agent with a working folder, or the input is no text.");
+      const ask = globalThis.crypto.randomUUID(), entry = { state: "running", text: null, usage: null, error: null };
+      asks.set(ask, entry);
+      drafted(wanted, body.input).then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }),
+        (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));
+      return { ask };
+    },
+    "GET /v1/ask/{ask}": async ({ params }) => {
+      if (!asks.has(params.ask)) throw failure("not-found", "This Bridge knows no such ask.");
+      return { ...asks.get(params.ask) };
+    },
     "POST /v1/probes/endpoint-test": async ({ body }) => {
       if (!validEndpointConfig(body?.args)) throw failure("invalid-request", "Endpoint-test configuration is invalid.");
       try {
