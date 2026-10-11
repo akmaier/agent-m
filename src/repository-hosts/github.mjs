@@ -4,8 +4,8 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), listTags(), commitFiles(change), createTag(name, commit), createBranch(name, from) — and adds what
-// both adapters share.
+// readFile(commit, path), history(path, { ref, limit }), listTags(), commitFiles(change), createTag(name, commit),
+// createBranch(name, from) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -13,6 +13,12 @@ const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
 const PAGE = 100, MAX_PAGES = 1000;
 const JSON_ACCEPT = "application/vnd.github+json", RAW_ACCEPT = "application/vnd.github.raw+json";
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
+
+// A file of "Get a commit" as the change the commit made to it: its status — a copy is an addition, a change of mode a
+// modification —, and for a rename the path it came from. A file the commit left unchanged is no change.
+const CHANGES = { added: "added", copied: "added", removed: "deleted", renamed: "renamed", modified: "modified", changed: "modified" };
+const changeOf = (f) => (CHANGES[f.status]
+  ? [{ path: f.filename, change: CHANGES[f.status], ...(f.status === "renamed" ? { from: f.previous_filename } : {}) }] : []);
 
 // The bytes of a file as base64, in pieces small enough for String.fromCharCode.
 function base64(bytes) {
@@ -106,6 +112,34 @@ export function githubAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       return tags;
+    },
+
+    // The commits that changed a path — the repository where the path is null —, newest first, from `ref` (the default branch where
+    // none is given), at most `limit` of them (all where none is given), each with the files it changed. "List commits" (sha,
+    // path, per_page up to 100, page) names the commits, page by page as listTags reads the tags; "Get a commit" gives the
+    // files of one, up to 100 to a page here, read page by page for a commit that changed more.
+    async history(path, { ref, limit } = {}) {
+      const what = ref ? `${address.web} at ${ref}` : address.web;
+      const per = limit === undefined ? PAGE : Math.max(1, Math.min(PAGE, limit));
+      const query = `per_page=${per}${ref ? `&sha=${encodeURIComponent(ref)}` : ""}${path ? `&path=${encodeURIComponent(path)}` : ""}`;
+      const listed = [];
+      for (let page = 1; page <= MAX_PAGES && (limit === undefined || listed.length < limit); page++) {
+        const items = await read(`${repo}/commits?${query}&page=${page}`, { what });
+        listed.push(...items);
+        if (items.length < per) break;
+      }
+      const entries = [];
+      for (const c of limit === undefined ? listed : listed.slice(0, limit)) {
+        const changes = [];
+        for (let page = 1; page <= MAX_PAGES; page++) {
+          const { files } = await read(`${repo}/commits/${c.sha}?per_page=${PAGE}&page=${page}`, { what: `${address.web} at ${c.sha}` });
+          changes.push(...files.flatMap(changeOf));
+          if (files.length < PAGE) break;
+        }
+        entries.push({ commit: c.sha, parents: c.parents.map((p) => p.sha), author: { account: c.author?.login ?? null, name: c.commit.author.name },
+          date: c.commit.committer.date, message: c.commit.message, changes });
+      }
+      return entries;
     },
 
     // One file's text at a commit, or null where the commit does not hold it: with a token through the API — the only place

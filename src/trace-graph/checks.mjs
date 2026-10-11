@@ -11,6 +11,7 @@
 
 import { pagesAddress } from "../identifiers/index.mjs";
 import { finding } from "../text-tools/index.mjs";
+import { unmatchedNames } from "./derive.mjs";
 
 const REALISES = "A USE CASE REALISES NAMED REQUIREMENTS";
 const ORIGIN = "EVERY ARTIFACT NAMES ITS ORIGIN";
@@ -32,19 +33,18 @@ const edgesVia = (graph, via) => graph.edges.filter((edge) => edge.via === via);
 const moduleOf = (edge) => edge.to.split(".")[0];
 
 // A name where an identifier is expected is the `to` of an edge. One that is the title of a group is an error under A GROUP CARRIES
-// NO IDENTIFIER, and is not also reported as a name that matches nothing. A name in `realises`, `forced_by` or `guards` must be a
-// requirement or a use case: a use case's `realises` is A USE CASE REALISES NAMED REQUIREMENTS, every other the origin its
-// artifact names.
-const NAMED = new Set(["realises", "forced_by", "guards"]);
-const ORIGINS = new Set(["requirement", "UC"]);
+// NO IDENTIFIER, and is not also reported as a name that matches nothing. A name in `realises`, `forced_by` or `guards` that is
+// neither a requirement nor a use case (unmatchedNames) is an error: a use case's `realises` under A USE CASE REALISES NAMED
+// REQUIREMENTS, every other under the origin its artifact names.
 function names(graph) {
   const titles = new Set(nodesOf(graph, "group").map((group) => group.title));
+  const unmatched = new Set(unmatchedNames(graph));
   const found = [];
   for (const edge of graph.edges) {
     if (titles.has(edge.to)) {
       found.push(error(edge.from, edge.line, GROUP, `${edge.via} "${edge.to}" is the title of a group, which carries no identifier`,
         "name the artifact by its identifier, not by the title of a group"));
-    } else if (NAMED.has(edge.via) && !ORIGINS.has(graph.nodes.get(edge.to)?.kind)) {
+    } else if (unmatched.has(edge)) {
       const rule = edge.via === "realises" && graph.nodes.get(edge.from)?.kind === "UC" ? REALISES : ORIGIN;
       found.push(error(edge.from, edge.line, rule, `${edge.via} "${edge.to}" matches no requirement or use case`,
         "use an existing name or remove the line"));

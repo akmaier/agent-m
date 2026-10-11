@@ -3,8 +3,8 @@
 // permittedPlaces, the processing places to which the content of a source may be given. ITM-228 adds to sourceSchemas the
 // schema of a product's links file. readContent, which reads a version's files with their hashes checked (content.mjs),
 // linkedVersion, and sourceStrategies with the recipe source-excerpt and the four recipes of the book's chapters
-// (strategies.mjs) come with the job runner. Registering and fetching a source's content and the module's other functions
-// are not built yet.
+// (strategies.mjs) come with the job runner. ITM-315 adds sourceFindings, the requirements that name no source the product
+// links. Registering and fetching a source's content and the module's other functions are not built yet.
 //
 // Module: MOD-source-register
 //
@@ -17,8 +17,9 @@
 // this folder is private to the module.
 
 // Schema and Document, in the types below, are MOD-documents' types of those names; Host is MOD-repository-hosts'; Strategies
-// is MOD-job-runner's.
+// is MOD-job-runner's; Requirement is MOD-spec-document's and Finding MOD-text-tools'.
 import { loadSchema } from "../documents/index.mjs";
+import { finding } from "../text-tools/index.mjs";
 import { strategiesOf } from "./strategies.mjs";
 import { unquoted, versionRecord } from "./content.mjs";
 
@@ -85,6 +86,23 @@ export function permittedPlaces(entry) {
 const namesOf = (entry) => [entry.id, entry.fields.title, entry.fields.kind === "standard" ? entry.fields.designation : null]
   .filter((name) => typeof name === "string" && name !== "");
 
+// The register entry a source item names: the one whose identifier, title or — for a standard — designation the item begins
+// with, the longest such match, followed by the end of the item or by `, ` and the part it draws on; null when the item
+// begins with no entry's name.
+function entryNamed(register, item) {
+  let entry = null, longest = -1;
+  for (const each of register) {
+    for (const name of namesOf(each)) {
+      if ((item === name || item.startsWith(`${name}, `)) && name.length > longest) [entry, longest] = [each, name.length];
+    }
+  }
+  return entry;
+}
+
+// The row of a product's links file that links a register entry, or undefined when the product links none of it.
+const linkOf = (links, entry) => links.sections.flatMap((section) => section.rows ?? [])
+  .find((row) => unquoted(row.cells.Source) === entry.id);
+
 /**
  * linkedVersion(links: Document, register: Document[], source: string) -> LinkedVersion | null — the version a product links
  * of the source that `source` names, an identifier or an item of a requirement's source: the register entry whose
@@ -98,19 +116,41 @@ const namesOf = (entry) => [entry.id, entry.fields.title, entry.fields.kind === 
  * @returns {{ source: Document, version: SourceVersion, part: string | null } | null}
  */
 export function linkedVersion(links, register, source) {
-  let entry = null, longest = -1;
-  for (const each of register) {
-    for (const name of namesOf(each)) {
-      if ((source === name || source.startsWith(`${name}, `)) && name.length > longest) [entry, longest] = [each, name.length];
-    }
-  }
+  const entry = entryNamed(register, source);
   if (!entry) return null;
-  const link = links.sections.flatMap((section) => section.rows ?? []).find((row) => unquoted(row.cells.Source) === entry.id);
+  const link = linkOf(links, entry);
   if (!link) return null;
   const version = versionRecord(entry, unquoted(link.cells.Version), unquoted(link.cells.Hash));
   if (!version) return null;
   const part = typeof link.cells.Part === "string" && link.cells.Part.trim() ? link.cells.Part.trim() : null;
   return { source: entry, version, part };
+}
+
+const REGISTERED_SOURCE = "A REQUIREMENT HAS A REGISTERED SOURCE";
+
+/**
+ * sourceFindings(requirements: Requirement[], links: Document, register: Document[]) -> Finding[] — an error under A
+ * REQUIREMENT HAS A REGISTERED SOURCE for each requirement none of whose source items names a source the product links,
+ * naming the requirement, its line and its items; a requirement with no source item names none. An item names the register
+ * entry whose identifier, title or — for a standard — designation it begins with, the longest such match, followed by the
+ * end of the item or by `, ` and the part; the product links the source when its links file holds a row for that entry.
+ * @param {Array<{ name: string, sources: string[], line: number }>} requirements — as MOD-spec-document's parseSpec reads them
+ * @param {Document} links — a product's links file, read with the schema sourceSchemas gives
+ * @param {Document[]} register — the instance's register entries
+ */
+export function sourceFindings(requirements, links, register) {
+  return requirements.flatMap((requirement) => {
+    const items = requirement.sources ?? [];
+    const linked = items.some((item) => {
+      const entry = entryNamed(register, item);
+      return entry !== null && linkOf(links, entry) !== undefined;
+    });
+    if (linked) return [];
+    return [finding({ artifact: requirement.name, line: requirement.line, kind: "error", rule: REGISTERED_SOURCE,
+      what: items.length ? `no source item names a source the product links: ${items.map((item) => `"${item}"`).join("; ")}`
+        : "it names no source",
+      fix: "begin a source item with the identifier, the title or the designation of a register entry that the product links" })];
+  });
 }
 
 /**

@@ -21,12 +21,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { join, normalize } from "node:path";
 import { readDocument } from "../src/documents/index.mjs";
 import { planSchemas } from "../src/work-plans/index.mjs";
-import { repoServer, openDashboard, REPO } from "./app-harness.mjs";
+import { repoServer, openDashboard, REPO, unesc } from "./app-harness.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const inMain = (selector) => globalThis.document.getElementById("main").querySelector(selector);
+// The style sheets the review page links, as paths of the repository — the site's src/theme/lme.css and docs/assets/style.css.
+const linkedSheets = () => [...read("docs/index.html").matchAll(/<link rel="stylesheet" href="([^"]+)">/g)]
+  .map(([, href]) => normalize(join("docs", href)));
 
 // ---------------------------------------------------------------- fakes of GitHub's pulls API and of "Create a reference"
 
@@ -108,8 +112,27 @@ const PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: 
     title: "Tidy the README", head: { ref: "team/tidy", sha: "b".repeat(40) } },
   pr({ number: 4, item: "ITM-005", base: "experiment/x", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T15:00:00Z" })];
 
-async function backlogPage({ created = [] } = {}) {
-  const server = await repoServer({ files: fixtureFiles(), handlers: [pullsApi(PRS), refsApi(created)] });
+// A same-day sprint: team1's sprint 01 starts on 2026-09-14 with ITM-001, ITM-002 and ITM-005; ITM-001 is merged into its
+// branch at 09:30 UTC that day and ITM-005 at 11:45 UTC, and ITM-002's pull request is open.
+const SAME_DAY_SPRINT = "---\nsprint: 1\ngoal: Store and show\nstart: 2026-09-14\nend:\ncloser: alice\nbranch: sprint/team1/01\n"
+  + "selection:\n  - ITM-001\n  - ITM-002\n  - ITM-005\n---\n# team1 Sprint 01\n";
+const SAME_DAY_PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: "2026-09-14T08:00:00Z", merged: "2026-09-14T09:30:00Z" }),
+  pr({ number: 2, item: "ITM-002", base: "sprint/team1/01", created: "2026-09-14T08:10:00Z" }),
+  pr({ number: 5, item: "ITM-005", base: "sprint/team1/01", created: "2026-09-14T08:20:00Z", merged: "2026-09-14T11:45:00Z" })];
+
+// A closed sprint with merges: team2's sprint 01 ran from 2026-09-01 to 2026-09-07 with ITM-003, ITM-004 and ITM-006; ITM-003
+// was merged into the default branch on 2026-09-02 at 10:15 UTC and ITM-004 on 2026-09-03 at 16:40 UTC; ITM-006 went back to
+// the backlog and was merged only after the sprint's end, on 2026-09-10.
+const CLOSED_SPRINT = "---\nsprint: 1\ngoal: Mail\nstart: 2026-09-01\nend: 2026-09-07\ncloser: bob\nbranch:\nselection:\n  - ITM-003\n"
+  + "  - ITM-004\n  - ITM-006\n---\n# team2 Sprint 01\n\n## Review\n\nITM-003 and ITM-004 are done.\n\n## Unfinished items\n\n"
+  + "to the backlog: ITM-006\ninto the next sprint:\n\nITM-006 waits for its requirement.\n\n## Retrospective\n\n- change: smaller items.\n";
+const CLOSED_PRS = [...PRS,
+  pr({ number: 6, item: "ITM-003", base: "main", created: "2026-09-01T09:00:00Z", merged: "2026-09-02T10:15:00Z" }),
+  pr({ number: 7, item: "ITM-004", base: "main", created: "2026-09-02T11:00:00Z", merged: "2026-09-03T16:40:00Z" }),
+  pr({ number: 8, item: "ITM-006", base: "main", created: "2026-09-08T09:00:00Z", merged: "2026-09-10T09:00:00Z" })];
+
+async function backlogPage({ created = [], files = fixtureFiles(), prs = PRS } = {}) {
+  const server = await repoServer({ files, handlers: [pullsApi(prs), refsApi(created)] });
   const page = await openDashboard({ server, hash: "#backlog" });
   return { server, page, created };
 }
@@ -154,6 +177,49 @@ test("#backlog — a team's running sprint: its items with their states and modu
   assert.match(row(team1, "ITM-002"), /in progress/);
   assert.match(team1, /<code class="language-mermaid">xychart-beta/);
   assert.match(team1, /line \[2, 1/);
+});
+
+// guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the same-day sprint — team1's sprint 01 starts on 2026-09-14 with three items; ITM-001 is merged at 09:30 UTC and
+//        ITM-005 at 11:45 UTC that day, and ITM-002's pull request is open
+// input: open #backlog
+// expect: team1's chart shows four points — the start, the two merges by their time and now — with 3, 2, 1 and 1 items left
+test("#backlog — a running sprint's chart: the items left at its start, after each merge, and now", async () => {
+  const { page } = await backlogPage({ files: { ...fixtureFiles(), [TEAM1_SPRINT]: SAME_DAY_SPRINT }, prs: SAME_DAY_PRS });
+  const team1 = part(page.main(), 'data-team="team1"');
+  assert.match(team1, /<code class="language-mermaid">xychart-beta/);
+  assert.match(team1, /x-axis \[&quot;start&quot;, &quot;09:30&quot;, &quot;11:45&quot;, &quot;now&quot;\]/);
+  assert.match(team1, /line \[3, 2, 1, 1\]/);
+});
+
+// guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: team2's closed sprint 01, from 2026-09-01 to 2026-09-07, with ITM-003, ITM-004 and ITM-006; ITM-003 merged into the
+//        default branch on 2026-09-02 at 10:15 UTC and ITM-004 on 2026-09-03 at 16:40 UTC; ITM-006 went back to the backlog
+//        and was merged only on 2026-09-10, after the sprint's end
+// input: open #backlog
+// expect: team2's panel still says it runs no sprint, names its last sprint and offers Plan sprint, and shows that sprint's
+//         final chart: start, the two merges by their date and time, and end — 3, 2, 1 and 1 items left —, with no merge
+//         after its end and no "now"
+test("#backlog — a team's closed sprint: its final chart from start through each merge to end", async () => {
+  const { page } = await backlogPage({ files: { ...fixtureFiles(), [TEAM2_SPRINT]: CLOSED_SPRINT }, prs: CLOSED_PRS });
+  const team2 = part(page.main(), 'data-team="team2"');
+  assert.match(team2, /no running sprint/i);
+  assert.match(team2, /Its last sprint, .*team2\/01/s);
+  assert.match(team2, /data-plan="team2"/);
+  assert.match(team2, /x-axis \[&quot;start&quot;, &quot;09-02 10:15&quot;, &quot;09-03 16:40&quot;, &quot;end&quot;\]/);
+  assert.match(team2, /line \[3, 2, 1, 1\]/);
+  assert.doesNotMatch(team2, /&quot;now&quot;/);
+});
+
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product, whose pull requests fit into one page of GitHub's pulls API
+// input: open #backlog
+// expect: the load lists the pull requests in one request, and makes 20 requests in all — as many as before the chart showed
+//         each merge: the merge times come from the pull requests the page reads anyway
+test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 20 requests in all", async () => {
+  const { page } = await backlogPage();
+  assert.equal(page.requests.filter((r) => /\/pulls(?:\?|\/|$)/.test(r)).length, 1, page.requests.join(" | "));
+  assert.equal(page.requests.length, 20, page.requests.join(" | "));
 });
 
 // guards: UC-032 step 6; UC-035
@@ -271,9 +337,9 @@ test("#backlog — Plan sprint lists every item the other teams' sprints hold, w
 // given: the fixture product, its plan for team2 open
 // input: open #backlog, click Plan sprint for team2
 // expect: the title in a section.head, every button a btn and every folded explanation a details.explain; the page holds
-//         no style attribute, none of the old board's classes, and no class docs/assets/style.css — the
-//         stylesheet of #uc and #arc — does not define, but for the language of the burn-down's diagram, which the Markdown
-//         renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
+//         no style attribute, none of the old board's classes, and no class the style sheets the review page links — the
+//         site's and docs/assets/style.css, the one of #uc and #arc — do not define, but for the language of the burn-down's
+//         diagram, which the Markdown renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
 test("#backlog — the page is laid out as #uc and #arc are: panels, list tables, buttons and badges, no style of its own", async () => {
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
@@ -289,13 +355,73 @@ test("#backlog — the page is laid out as #uc and #arc are: panels, list tables
   assert.deepEqual(tags("details").filter((tag) => !classesOf(tag).includes("explain")), [], "every details is an explain");
   assert.doesNotMatch(html, /\sstyle="/);
   assert.doesNotMatch(html, /class="(board|column|card|cards|step)\b/);
-  const style = read("docs/assets/style.css");
+  const style = linkedSheets().map(read).join("\n");
   const defined = (name) => new RegExp(`\\.${name}(?![\\w-])`).test(style);
   assert.ok(defined("panel") && !defined("board"), "known positive and negative of the search");
   const classes = new Set([...html.matchAll(/\sclass="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/).filter(Boolean)));
   assert.ok(classes.has("language-mermaid"), "known positive: the burn-down's diagram is on the page");
-  for (const name of classes) if (name !== "language-mermaid") assert.ok(defined(name), `${name} is a class of docs/assets/style.css`);
+  for (const name of classes) if (name !== "language-mermaid") assert.ok(defined(name), `${name} is a class of a style sheet the page links`);
   const panels = html.split('<section class="panel"').slice(1);
   assert.ok(panels.length >= 4, "the teams, the backlog, what no item realises, the plan");
   for (const panel of panels) assert.match(panel, /<details class="explain"><summary>What is this\?<\/summary>/);
+});
+
+// ---------------------------------------------------------------- the page on a phone, and its chart
+
+// guards: UC-032; UC-035; the user's layout on a phone
+// given: the fixture product, its plan for team2 open
+// input: open #backlog, click Plan sprint for team2
+// expect: each of the page's four tables — team1's sprint, the plan, what the other teams' sprints hold and the backlog —
+//         stands alone in a box whose class a style sheet under src/ that the page links lets scroll sideways
+test("#backlog — every table stands in a box of its own that scrolls sideways", async () => {
+  const { page } = await backlogPage();
+  await page.click('[data-plan="team2"]');
+  const html = page.main();
+  const tables = html.match(/<table\b/g) ?? [];
+  assert.equal(tables.length, 4, "known positive: team1's sprint, the plan, the held items and the backlog each show a table");
+  const boxes = [...html.matchAll(/<div class="([\w-]+)">\s*<table\b[\s\S]*?<\/table>\s*<\/div>/g)].map(([, name]) => name);
+  assert.equal(boxes.length, tables.length, `every table stands alone in a box: ${boxes.length} of ${tables.length}`);
+  const sheets = linkedSheets().filter((path) => path.startsWith("src/")).map(read).join("\n");
+  assert.match(sheets, /\.menu\s*\{[^}]*overflow-x:\s*auto/, "known positive: the menu scrolls sideways on a phone");
+  for (const name of new Set(boxes)) {
+    assert.match(sheets, new RegExp(`\\.${name}\\s*\\{[^}]*overflow-x:\\s*(auto|scroll)`), `.${name} lets its table scroll sideways`);
+  }
+});
+
+// guards: UC-035; the user's chart: its text as large as the page's text
+// given: the fixture product, on a page whose body text the browser draws at 17px
+// input: open #backlog
+// expect: team1's chart is configured to draw its title and its axes' labels and titles — five sizes — at 17px, and is
+//         still the same chart
+test("#backlog — the chart's text is as large as the page's body text", async () => {
+  const before = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = (element) => ({ fontSize: element === globalThis.document?.body ? "17px" : "" });
+  try {
+    const { page } = await backlogPage();
+    const source = unesc(/<code class="language-mermaid">([\s\S]*?)<\/code>/.exec(part(page.main(), 'data-team="team1"'))?.[1] ?? "");
+    const config = /^---\n([\s\S]*?)\n---\n/.exec(source)?.[1] ?? "";
+    assert.match(config, /xyChart:[\s\S]*xAxis:[\s\S]*yAxis:/, `the chart carries its configuration: ${source}`);
+    assert.deepEqual([...config.matchAll(/FontSize:\s*(\d+)/g)].map(([, size]) => size), ["17", "17", "17", "17", "17"], config);
+    assert.match(source, /\n---\nxychart-beta\n[\s\S]*line \[2, 1/);
+  } finally {
+    if (before) globalThis.getComputedStyle = before;
+    else delete globalThis.getComputedStyle;
+  }
+});
+
+// guards: UC-035; the user's chart: its text as large as the page's text, at the width the site keeps the chart at
+// given: the fixture product, on a page whose style keeps the burn-down chart 640px wide
+// input: open #backlog
+// expect: team1's chart is configured to be drawn 640px wide, the width at which the page shows it
+test("#backlog — the chart is drawn as wide as the page keeps it", async () => {
+  const before = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = () => ({ fontSize: "", getPropertyValue: (name) => (name === "--burn-down-width" ? " 640px" : "") });
+  try {
+    const { page } = await backlogPage();
+    const source = unesc(/<code class="language-mermaid">([\s\S]*?)<\/code>/.exec(part(page.main(), 'data-team="team1"'))?.[1] ?? "");
+    assert.match(/^---\n([\s\S]*?)\n---\n/.exec(source)?.[1] ?? "", /^ {2}xyChart:\n {4}width: 640$/m, source);
+  } finally {
+    if (before) globalThis.getComputedStyle = before;
+    else delete globalThis.getComputedStyle;
+  }
 });

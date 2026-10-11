@@ -22,6 +22,7 @@ builds_on:
   - ITM-340
   - ITM-342
   - ITM-355
+  - ITM-454
 tests:
   - unit
 origin:

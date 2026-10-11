@@ -1,0 +1,101 @@
+// strategies.mjs — the recipes and the precondition of approvalStrategies (MOD-approvals, Parts: strategies.mjs; Interfaces:
+// approvalStrategies). Of it, ITM-332 builds the recipes `use-cases` and `use-case-with-neighbours` and the precondition
+// `rests-on-accepted` for requirements and use cases; the recipes `accepted-use-cases` and `whole-architecture`, the
+// precondition `architecture-ready` and the architecture's part of `rests-on-accepted` are not built yet.
+//
+// Module: MOD-approvals
+//
+// Strategies, JobContext and Part are MOD-job-runner's types, Finding MOD-text-tools'. A strategy reads the product of the
+// job's context through its snapshot: the use cases and the SPEC, and the status of every use case from the records beside
+// them (statuses). The job's parameters are read by name: `useCase`, the identifier of the use case a change is asked of;
+// `requirements`, the names, and `useCases`, the identifiers, of the selection a job rests on.
+
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
+import { finding } from "../text-tools/index.mjs";
+import { statuses } from "./status.mjs";
+
+const SPEC_PATH = "SPEC.md";
+const ACCEPTED_FIRST = "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED";
+
+// A failure of the module's own, by name, with the fields its message names.
+const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
+
+// Every use case of the product, in the order its files stand in the snapshot: its identifier, path, status and text, and the
+// document that the use-case schema reads from the text.
+async function useCasesOf(snapshot) {
+  const found = [];
+  for (const [path, { id, kind, status }] of statuses(snapshot)) {
+    if (kind !== "use-case") continue;
+    const text = await snapshot.read(path);
+    found.push({ id, path, status, text, document: readDocument(artifactSchemas().useCase, path, text) });
+  }
+  return found;
+}
+
+// The part of a use case: its file's path and its status in its name, the whole file as its text. The job runner sets its size
+// and the recipe it fills.
+const partOf = ({ path, status, text }) => ({ name: `${path} — ${status}`, text, size: 0, sources: [], required: true });
+
+// The part of a requirement, named by it: the requirement as the SPEC states it — its name and source, its rule, its check.
+const requirementPart = ({ name, source, rule, check }) => ({ name, size: 0, sources: [], required: true,
+  text: [`**${name}**${source === null ? "" : ` *(${source})*`}`, rule, check === null ? null : `*Check:* ${check}`]
+    .filter((line) => line !== null).join("\n") });
+
+// The values of a parameter that is a list of texts; none for any other.
+const listOf = (value) => (Array.isArray(value) ? value.filter((each) => typeof each === "string") : []);
+
+// How a use case that is not accepted stands, by its status.
+const NOT_ACCEPTED = { open: "is open", changed: "has changed since it was accepted" };
+
+/**
+ * approvalStrategies: Strategies — the strategies this module offers the job runner (ARC-046):
+ * - recipe `use-cases`: every use case of the product as one part per file, whose name holds the file's path and the use case's
+ *   status — open, accepted or changed — and whose text is the file; the part carries the use case as an artifact, its
+ *   identifier and the key of the use-case format (artifactSchemas), against which `candidate-classes` classifies a draft;
+ * - recipe `use-case-with-neighbours`: the use case the parameter `useCase` names, as a part like those of `use-cases`; then one
+ *   part for each requirement it realises that the SPEC holds, named by the requirement, holding its text from the SPEC, in the
+ *   order the use case names them; then every other use case as a part like the first. Throws UseCaseNotFound { useCase } when
+ *   the product has no use case of that identifier;
+ * - precondition `rests-on-accepted`: one error finding, under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, that names every
+ *   requirement of the parameter `requirements` that the SPEC does not hold and every use case of the parameter `useCases` that
+ *   no record names the current text of, or that is no use case of the product; none when all are accepted, or when the job
+ *   names no selection.
+ */
+export const approvalStrategies = {
+  recipes: {
+    "use-cases": async (context) => (await useCasesOf(context.product.snapshot)).map((each) => ({ ...partOf(each),
+      artifacts: [{ id: each.id,
+        keys: artifactSchemas().useCase.key.map((field) => String(each.document.fields[field] ?? "")) }] })),
+    "use-case-with-neighbours": async (context, params) => {
+      const { snapshot } = context.product;
+      const all = await useCasesOf(snapshot);
+      const target = all.find((each) => each.id === params.useCase);
+      if (!target) {
+        throw failure("UseCaseNotFound", `the product has no use case ${params.useCase}`, { useCase: params.useCase });
+      }
+      const spec = parseSpec((await snapshot.read(SPEC_PATH)) ?? "");
+      const realised = [...new Set([target.document.fields.realises ?? []].flat())]
+        .map((name) => spec.requirements.get(name)).filter((requirement) => requirement !== undefined);
+      return [partOf(target), ...realised.map(requirementPart), ...all.filter((each) => each !== target).map(partOf)];
+    },
+  },
+  preconditions: {
+    "rests-on-accepted": async (context) => {
+      const { snapshot, address } = context.product;
+      const requirements = listOf(context.params.requirements), useCases = listOf(context.params.useCases);
+      const spec = parseSpec((await snapshot.read(SPEC_PATH)) ?? "");
+      const status = new Map([...statuses(snapshot).values()].filter((each) => each.kind === "use-case")
+        .map((each) => [each.id, each.status]));
+      const open = [
+        ...requirements.filter((name) => !spec.requirements.has(name))
+          .map((name) => `the requirement ${name} is not in the SPEC`),
+        ...useCases.filter((id) => status.get(id) !== "accepted").map((id) =>
+          `the use case ${id} ${NOT_ACCEPTED[status.get(id)] ?? "is no use case of the product"}`),
+      ];
+      return open.length === 0 ? null : finding({ artifact: address, line: 1, kind: "error", rule: ACCEPTED_FIRST,
+        what: `the job rests on what is not accepted: ${open.join("; ")}`,
+        fix: "accept them first, or take them out of the job's selection" });
+    },
+  },
+};

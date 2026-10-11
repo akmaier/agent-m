@@ -1,11 +1,13 @@
 // The addresses of the servers' own pages for one repository — the pages UC-001 opens: the page for a new token, the list of
-// the person's tokens, a GitLab project's Access tokens page, the page for a new repository. Navigation only; nothing here is
-// requested, and no page carries a credential (A CREDENTIAL IS NEVER PLACED IN A URL).
+// the person's tokens, a GitLab project's Access tokens page, the page for a new repository; and the pages of the fallback
+// without a token (UC-006 4b, UC-008 3b, UC-018 4a): GitHub's new-file page with a path and a record filled in, and the editor
+// page of a file. Navigation only; nothing here is requested, and no page carries a credential (A CREDENTIAL IS NEVER PLACED IN
+// A URL).
 //
 // Module: MOD-repository-hosts
 //
-// WebLinks' other pages — the CI secrets, the fallback's new-file and edit pages, the runs, pipeline schedules, Pages settings
-// and the fork — are added by the items whose use cases open them.
+// WebLinks' other pages — the CI secrets, the runs, pipeline schedules, Pages settings and the fork — are added by the items
+// whose use cases open them.
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: the permissions of the one fine-grained token, as the parameters and access levels of
 // GitHub's prefilled token page ("Pre-filling fine-grained personal access token details using URL parameters", table
@@ -14,6 +16,14 @@ const GITHUB_PERMISSIONS = Object.freeze([["contents", "write"], ["issues", "wri
   ["actions", "write"], ["workflows", "write"], ["metadata", "read"]]);
 
 const GITHUB_TOKENS = "https://github.com/settings/personal-access-tokens";
+
+// The branch the pages of a file are for: "main", the default of the model (docs/assets/dashboard-app.mjs, deriveTarget). The
+// module file names none, and no request is made that could read the default branch's name; HEAD is not used, for GitHub resolves
+// it to a commit, not to a branch.
+const BRANCH = "main";
+
+// A path in an address: each folder and file name encoded, the slashes kept.
+const encodedPath = (path) => path.split("/").map(encodeURIComponent).join("/");
 
 // address: a RepositoryAddress -> WebLinks, with the pages this item needs.
 export function webLinks(address) {
@@ -33,6 +43,12 @@ export function webLinks(address) {
       tokens: GITHUB_TOKENS,
       projectTokens: null,
       newRepository: "https://github.com/new",
+      // WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK: the new-file page of the default branch with the file's path and an
+      // approval record filled in, and nothing else — no reviewed text (NO TEXT TRAVELS IN A URL) and no credential travels in the
+      // address. The model is newFileUrl in docs/assets/git-host.mjs.
+      newFile: (path, record) => `${address.web}/new/${BRANCH}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(record)}`,
+      // The editor page of a file. The model is editUrl in docs/assets/git-host.mjs.
+      editFile: (path) => `${address.web}/edit/${BRANCH}/${encodedPath(path)}`,
     });
   }
   // A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the project's Access tokens page, where the person creates the project access
@@ -43,5 +59,8 @@ export function webLinks(address) {
     tokens: projectTokens,
     projectTokens,
     newRepository: `${address.origin}/projects/new`,
+    // GitLab has no new-file page that takes a record (UC-008 3c): null. Its single-file editor, as GitLab links it itself.
+    newFile: () => null,
+    editFile: (path) => `${address.web}/-/edit/${BRANCH}/${encodedPath(path)}`,
   });
 }

@@ -1,0 +1,23 @@
+---
+gate: Development → Release testing
+job:
+decider: po-sol
+role: Product Owner
+decision: passed
+on: 64b3bbf87b99b8aa7b58cd0af607047a23126318
+pull_request: https://github.com/akmaier/agent-m/pull/362
+date: 2026-10-11T15:50:25Z
+---
+## Reason
+
+ITM-324 passes its single precise rework and the applicable five source checks/default Definition of Done. I implemented none of the behavior or tests. The immutable rejection on151792c1, gate blob43fa7339766375e624e3952f683da9f602b5ade4, remains unchanged. Its sole condition is repaired: src/bridge-client/index.mjs:113 testBridge → apiRoute GET /v1/pair → public bridgeApi.routes accepted descriptor → call with pairRoute.path/method → existing token headers and finite timeout → fetch → pair answer combined with agents. Actual approved pair-datum mergea7e67a1b supplies the dependency; normal integration58da5148 has parents151792c1 and a7e67a1b. Only the two request-construction lines differ from the rejected client source. Legacy pair remains unchanged and outside that condition.
+
+Relative to approved sprint basea7e67a1b, only src/bridge-client/index.mjs (selected client implementation) and new tests/bridge-client-324.test.mjs (named MOD-bridge-client unit battery) change. Complete source/diff and five-case battery satisfy the bounded item Acceptance as far as reading and tests show: pair then agents, committed hand-over identity, agent/endpoint ask body and polling, usage/error propagation, agent probe, named transport errors and no request without token. Existing test expectations remain unchanged; the five-case battery and fault map retain blob50d7c907e301f78ca98f218f2c8e1b4e100bf862. No fallback, other module or accepted artifact changes.
+
+The original first tests-only344d5558 and its own red CI38145292869 were independently reviewed in the first gate; their immutable evidence is retained. The initial generation reading-order gap remains recorded, not retrospectively compliant. Corrected tests preceded source; the intermediate malformed logger/compiler run supplies no counter-proof. This precise rework introduces no new first-red obligation.
+
+Final Ubuntu CI38152204154 is green on actual checkout95a78c1d3e0fb1d10ee7f8aa1255d64842a77ee2, parentsa7e67a1b and64b3bbf8. Its complete tree589d391d08894e50151550dde5596c3ec15ac3e6 equals the reviewed head. Live PR362 head/base and both SUCCESS checks are verified. Node1358 passed/0 failed/8 existing TODO; Python441 successful; jobs83/87 seconds meet120 seconds. All1807 raw case identities/outcomes reconcile without unmatched cases to immutable test-results65a4449d79917721ca289e96ef428a8a84101418, runs/95a78c1d3e0fb1d10ee7f8aa1255d64842a77ee2/20261011-1539-pull-request-be16-324.md; all five selected cases pass.
+
+I read the complete selected repeated fault/restoration outputs. Five new measurements appended on main2755a598 preserve every previous canonical byte and match decoded original raw JSON. Each unique valid fault has matching source/test/fault/restored SHA-256, ordered timestamps, recorded argv/copied cwd/child flag, null signals/errors, selected failure/status1 followed by exact restoration and same-case positive/status0. Observed failures are test:28:411 agents omitted, :33:499 commit altered, :38:388 usage discarded, source probe:138:48/test:43:751 agent refused, and test:48:518 token refusal remapped. The fourth is the guarded runtime TypeError, not a compiler/import failure; the other four are AssertionErrors. These proofs plus the current source data-flow inspection and passing two-request case substantiate the repair.
+
+Reading receipt: full current original Start/AGENTS, item, rejected gate, accepted client/HTTP and approvals, current public source/protocol, implementation job, complete commit history/battery/diffs and refreshed PR description were personally read. Own completed full SPEC/process/model/roles/instructions/Sprint21/Team1 Sprint16, UC011/017, original working callers/guards and source register/books9–13 were retained only after unchanged identities were verified. AGENTS92de37251471b1211f936b732c0444e6fe7094bc and SPEC7a309483c1edbb7f622f8f2b249f08a02863ac30 remain current; stale REGISTER filename references replace neither. Complete original logs are retained under /private/tmp/agent-m-21-324-rework-green-*; review covers checkout/totals/case outcomes and complete relevant proofs, without claiming every unrelated log line was personally read. This approves only exact PR362 head for Development → Release testing. Aggregate Release/Main and whole-use-case completion remain later. No local runtime, source/test edit, push or merge occurred; usage/cost unknown.
