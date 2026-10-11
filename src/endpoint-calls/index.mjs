@@ -11,7 +11,7 @@
 const ONE_WORD_PROMPT = "Reply with one word: ok.";
 const DRIVER_MAX_TOKENS = 1024;
 
-export class EndpointFailed extends Error {
+class EndpointFailed extends Error {
   constructor(diagnosis) {
     super(diagnosis.message);
     this.name = "EndpointFailed";
