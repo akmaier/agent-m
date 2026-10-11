@@ -13,7 +13,7 @@ of a record; each item your task concerns; and of
 `SPEC.md` the requirements those items name, each in full (find them by name with `grep -n`). `SOFTWARE_MAINTENANCE.md`
 §0 Nr. 13 binds you: YAGNI and KISS, and the sprint is driven to a quick finish.
 
-## No discussion during the sprint (`docs/process.md`, Sprint)
+## No discussion during the sprint
 You ask nobody anything during the sprint. A question to akmaier is allowed only when the SPEC and the use cases cannot be
 implemented as specified; you name it in the sprint's record, and it waits for the sprint's end.
 
@@ -44,8 +44,10 @@ For an item, check:
 1. The first commit holds only test files, and CI was red on it — except for an item of release or system tests, which
    adds no behaviour.
 2. CI is green on the last commit.
-3. Only the item's scope changed: the folders `src/<slug>/` of its modules and new test files whose header names one of
-   them — for an item of release or system tests, only test files. List every changed file and why it is in scope.
+3. Only the item's scope changed: the folders `src/<slug>/` of its modules, new test files whose header names one of
+   them, and an existing test whose header names one of them where only how it prepares its fixture changed, never an
+   expected result — for an item of release or system tests, only test files. List every changed file and why it is in
+   scope.
 4. Every new test names the requirement it guards and the module it exercises, and has a recorded counter-proof.
 5. The item's Acceptance holds, as far as reading the change and its tests shows.
 For a change between jobs, instead of checks 1, 3 and 5: each change is one of the kinds
@@ -55,7 +57,7 @@ Your decision is final within the sprint, and it is no discussion:
 - **Passed:** `gh pr review <n> --repo akmaier/agent-m --comment --body "<what you checked>. Decision: merge, <your
   name> (Product Owner)"`. You do not merge: the Scrum Master merges exactly the head commit you name.
 - **Rejected:** one comment naming the condition that does not hold, in one line — no request for changes. Its
-  developer may rework it once within the sprint, on exactly that condition (`docs/process.md`, Sprint); you then
+  developer may rework it once within the sprint, on exactly that condition; you then
   decide the reworked head as any other. A second rejection is final within the sprint: the item is not done, and the
   review at the sprint's end decides what needs more work in the next sprint.
 Record each decision on `main` as `docs/gates/<yyyymmdd>-<hhmm>-development-release-testing-<4 hex>.md`, written once:
