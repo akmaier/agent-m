@@ -25,9 +25,11 @@
 //     snapshot cannot read gives no evidence, and the entry keeps the state ITM-234 derived (open, or approved by the record's name).
 //   - An entry a decision row names is in SPEC, whatever else the snapshot shows (stale and waiting for its anchor are for entries
 //     not decided yet), and nobody creates its anchor.
-//   - An earlier entry is one above it in the queue's index, and it creates an anchor when its proposal holds that heading, unless it
-//     has the same anchor itself.
-//   - An entry with a record is judged by the record, an entry without one by its anchor.
+//   - An earlier entry is one above it in the queue's index, and it creates an anchor when its proposal holds that heading as a section
+//     (a heading line outside fenced code, not a mention of it), unless it has the same anchor itself; of several, the first creates it.
+//   - An entry with a record is judged by the record, an entry without one by its anchor: a record that names the proposal's current
+//     blob approves the entry whether or not its anchor is there yet, and a record that names no section is not an approval of the
+//     section that holds.
 //   - For an entry that waits for its anchor, as for a new section, there is no section that holds now: `current` is null, and
 //     `createdBy` names the entry that will create it.
 //   - `referencedBy` names each referencing artifact once, in the order requirementImpact lists them; a requirement is changed when
@@ -218,7 +220,8 @@ test("queues — an entry whose section changed after it was shown reads stale",
 //        (PROPOSAL_RENAMED) while the entry's file holds PROPOSAL now; and, to show the same fixture giving approved, a record under the
 //        blob of the proposal as it holds now
 // input: queues(snapshot) for each
-// expect: approved for the record under the current blob; stale for the record under the earlier blob, with that record as its record
+// expect: approved for the record under the current blob, with that record as its record; stale for the record under the earlier blob,
+//         with no record of its own — no record names the proposal as it holds now
 test("queues — an entry whose proposal changed after it was approved reads stale", async () => {
   const item = entry(1, "## 1. Reading", PROPOSAL);
   const approvedOn = async (proposal) => {
@@ -228,9 +231,10 @@ test("queues — an entry whose proposal changed after it was approved reads sta
   };
   const current = await approvedOn(PROPOSAL);
   assert.equal(current.found.state, "approved", "known positive: the record names the proposal's current blob");
+  assert.equal(current.found.record, current.r.path);
   const earlier = await approvedOn(PROPOSAL_RENAMED);
   assert.equal(earlier.found.state, "stale");
-  assert.equal(earlier.found.record, earlier.r.path);
+  assert.equal(earlier.found.record, null, "no record names the proposal as it holds now");
   assert.equal(earlier.found.proposal.blob, gitBlob(PROPOSAL), "the proposal is the one that holds now");
 });
 
@@ -315,6 +319,64 @@ test("queues — an entry a decision row names is in SPEC, whatever else the sna
   assert.deepEqual(queue.entries.map((e) => [e.number, e.state, e.createdBy]),
     [[1, "in SPEC", null], [2, "open", null], [3, "in SPEC", null], [4, "waiting for its anchor", 2]]);
   assert.equal(queue.entries[0].decision, decided[0].record.path);
+});
+
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
+// given: the waiting test's two entries, to show the same call finding the entry that waits; then the same two with entry 01's proposal
+//        holding the heading "## 1a. Added" only as a mention — in a line of prose and in a fenced block of code — and not as a section
+// input: queues(snapshot) for each
+// expect: entry 02 waiting for entry 01 in the first; in the second both entries open with createdBy null, since a heading that is only
+//         mentioned is not created
+test("queues — a mention of a heading is no creation of it", async () => {
+  const mention = PROPOSAL + "See ## 1a. Added for more.\n\n```text\n## 1a. Added\n```\n";
+  const states = async (creating) => (await queues(snapshotOf(repositoryFiles({ entries: [entry(1, "## 1. Reading", creating), entry(2, "## 1a. Added", ADDED_CHANGED)] }))))[0]
+    .entries.map((e) => [e.number, e.state, e.createdBy]);
+  assert.deepEqual(await states(PROPOSAL + ADDED), [[1, "open", null], [2, "waiting for its anchor", 1]], "known positive: the heading is a section");
+  assert.deepEqual(await states(mention), [[1, "open", null], [2, "open", null]]);
+});
+
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
+// given: entry 01 on "## 1. Reading" and entry 02 on "## 2. Writing", both with proposals that hold the heading "## 1a. Added", and
+//        entry 03 on "## 1a. Added", which the SPEC does not hold
+// input: queues(snapshot)
+// expect: entry 03 waits for its anchor, which entry 01 creates — the first entry of the index that holds it — and not entry 02;
+//         entries 01 and 02 are open with createdBy null
+test("queues — of several earlier entries that hold a heading, the first creates it", async () => {
+  const entries = [entry(1, "## 1. Reading", PROPOSAL + ADDED), entry(2, "## 2. Writing", WRITING + "\n" + ADDED), entry(3, "## 1a. Added", ADDED_CHANGED)];
+  const [queue] = await queues(snapshotOf(repositoryFiles({ entries })));
+  assert.deepEqual(queue.entries.map((e) => [e.number, e.state, e.createdBy]), [[1, "open", null], [2, "open", null], [3, "waiting for its anchor", 1]]);
+});
+
+// guards: A STALE APPROVAL IS NOT APPLIED; UC-006
+// given: entry 01 with a record under its current blob that names the section as it holds now, to show the same call finding it
+//        approved; and the same record with its `section` line taken out
+// input: queues(snapshot) for each
+// expect: approved for the first; stale for the second, with the record as its record: a record that names no section is not an approval
+//         of the section that holds
+test("queues — a record that names no section does not approve the section that holds", async () => {
+  const item = entry(1, "## 1. Reading", PROPOSAL);
+  const whole = record(item, { section: READING });
+  const [held] = await queues(snapshotOf(repositoryFiles({ entries: [item], records: [whole] })));
+  assert.equal(held.entries[0].state, "approved", "known positive: the record names the section that holds");
+  const without = { ...whole, text: whole.text.split("\n").filter((line) => !line.startsWith("section:")).join("\n") };
+  const [bare] = await queues(snapshotOf(repositoryFiles({ entries: [item], records: [without] })));
+  assert.equal(bare.entries[0].state, "stale");
+  assert.equal(bare.entries[0].record, without.path);
+});
+
+// guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
+// given: entry 01 on "## 1. Reading", whose proposal creates "## 1a. Added", and entry 02 on "## 1a. Added", a heading the SPEC does not
+//        hold, with a record under its proposal's current blob that names the section as entry 01 will write it
+// input: queues(snapshot)
+// expect: entry 01 open with createdBy null; entry 02 approved, with the record as its record and createdBy 1 — it is approved, no
+//         section holds now to compare the record with, and it comes after entry 01
+test("queues — an entry whose record names its current proposal is approved though an earlier entry creates its anchor", async () => {
+  const creating = entry(1, "## 1. Reading", PROPOSAL + ADDED);
+  const after = entry(2, "## 1a. Added", ADDED_CHANGED);
+  const approval = record(after, { section: ADDED });
+  const [queue] = await queues(snapshotOf(repositoryFiles({ entries: [creating, after], records: [approval] })));
+  assert.deepEqual(queue.entries.map((e) => [e.number, e.state, e.createdBy]), [[1, "open", null], [2, "approved", 1]]);
+  assert.equal(queue.entries[1].record, approval.path);
 });
 
 // ---------------------------------------------------------------- entryView
