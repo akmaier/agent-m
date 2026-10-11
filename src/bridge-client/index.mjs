@@ -1,9 +1,10 @@
 // The page's client for the Bridge API used by UC-003 endpoint tests.
 //
 // Module: MOD-bridge-client
-// Public: BridgeError, bridgeAt, pair, testBridge, handOver, ask, probe
+// Public: BridgeError, settingsOf, bridgeAt, pair, testBridge, handOver, ask, probe
 
 import { bridgeApi } from "../bridge-http/index.mjs";
+import { bridgePath } from "./paths.mjs";
 export { allocatePort, tunnelCommands } from "./tunnels.mjs";
 export { proxyConfiguration } from "./proxy.mjs";
 
@@ -98,10 +99,26 @@ export function bridgeAt(settings) {
   return bridge;
 }
 
-export async function pair(address, pairingToken) {
-  const bridge = bridgeAt({ address, token: pairingToken });
-  await call(bridge, "/v1/pair", { method: "GET" });
-  return { address: bridge.address, token: pairingToken };
+// settingsOf(entry, jumpHost) -> BridgeSettings — the settings of a stored Bridge. A Bridge with an address keeps it and carries no login. A Bridge
+// at a port is reached at the jump host's HTTPS address with its path (bridgePath, in paths.mjs, which proxyConfiguration uses as well) and the web
+// server's login, or, where the jump host has no HTTPS address, by the forward of its port. Throws JumpHostMissing without a jump host. No request.
+export function settingsOf(entry, jumpHost) {
+  const { name, token } = entry;
+  if (typeof entry.address === "string") return { name, address: entry.address, token };
+  if (!jumpHost) throw new BridgeError("JumpHostMissing", {}, `Bridge ${name} is reached through the jump host, and none is stored.`);
+  if (typeof jumpHost.httpsAddress !== "string" || !jumpHost.httpsAddress) return { name, address: `http://localhost:${entry.port}`, token };
+  return { name, address: `${jumpHost.httpsAddress.replace(/\/+$/, "")}${bridgePath(name)}`, token,
+    ...(jumpHost.login ? { login: { ...jumpHost.login } } : {}) };
+}
+
+// pair(address, pairingToken, login?) -> the settings it was given, { address, token, login? }, which carry in addition, not enumerable, the name
+// the Bridge reports (`name`) and the settings to store under it (`settings`: { name, address, token, login? }).
+export async function pair(address, pairingToken, login) {
+  const bridge = bridgeAt({ address, token: pairingToken, login });
+  const answer = await call(bridge, "/v1/pair", { method: "GET" });
+  const given = { address: bridge.address, token: pairingToken, ...(login ? { login: { ...login } } : {}) };
+  const name = answer?.bridge?.name;
+  return Object.defineProperties(given, { name: { value: name }, settings: { value: { name, ...given } } });
 }
 
 function apiRoute(method, path) {

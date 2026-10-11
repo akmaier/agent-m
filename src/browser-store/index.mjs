@@ -1,7 +1,7 @@
 // MOD-browser-store — one person's configuration in their browser (docs/architecture/MOD-browser-store.md): its public
 // interface. It stores and clears the implemented catalogue keys under the instance's localStorage prefix and lists
 // their metadata without returning stored values. The implemented catalogue includes instance and product tokens,
-// products, notifications, endpoints, the paired Bridge, the jump host, named remote sessions and recorded setting tests.
+// products, notifications, endpoints, the paired Bridge, each Bridge under its name, the jump host, named remote sessions and recorded setting tests.
 // Its canonical settings export is implemented in export.mjs. expiringSoon is not.
 //
 // Module: MOD-browser-store
@@ -62,6 +62,7 @@ function settingDescription(key) {
   if (key.startsWith("github-token:")) return { label: `GitHub token: ${key.slice("github-token:".length)}`, secret: true, grants: "access to one GitHub product", setUpIn: "add-product" };
   if (key.startsWith("gitlab-token:")) return { label: `GitLab token: ${key.slice("gitlab-token:".length)}`, secret: true, grants: "access to one GitLab product", setUpIn: "add-product" };
   if (key.startsWith("endpoint:")) return { label: `Endpoint: ${key.slice("endpoint:".length)}`, secret: true, grants: "access to a model endpoint", setUpIn: "endpoints" };
+  if (key.startsWith("bridge:")) return { label: `Bridge: ${key.slice("bridge:".length)}`, secret: true, grants: "access to one Bridge", setUpIn: "bridge" };
   if (key.startsWith("remote-session:")) return { label: `Remote session: ${key.slice("remote-session:".length)}`, secret: true, grants: "access to a remote Bridge session", setUpIn: "bridge" };
   if (key.startsWith("last-test:")) return { label: `Last test: ${key.slice("last-test:".length)}`, secret: false, grants: "the recorded result of a setting test", setUpIn: "settings" };
   if (key.startsWith("acknowledged:")) return { label: `Acknowledged: ${key.slice("acknowledged:".length)}`, secret: false, grants: "the recorded acknowledgement date", setUpIn: "settings" };
@@ -106,7 +107,7 @@ function secretOf(key, value) {
   if (!value || typeof value !== "object") return null;
   if (key === "github-token" || key.startsWith("github-token:") || key.startsWith("gitlab-token:")) return text(value.value);
   if (key.startsWith("endpoint:")) return text(value.key);
-  if (key === "bridge" || key.startsWith("remote-session:")) return text(value.token);
+  if (key === "bridge" || key.startsWith("bridge:") || key.startsWith("remote-session:")) return text(value.token);
   if (key === "jump-host") return text(value.login) ?? text(value.login?.password);
   return null;
 }
