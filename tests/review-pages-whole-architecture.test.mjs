@@ -87,22 +87,30 @@ const MOD_SHELF = module_("MOD-shelf", "The shelf");
 const MOD_QUEUE = module_("MOD-queue", "The queue");
 const recordOf = (id, kind, path, body) => [`docs/approvals/${id}-${blobOf(body).slice(0, 12)}.md`, text(`kind: ${kind}`, `file: ${path}`, `blob: ${blobOf(body)}`)];
 
-// The job that drafted the architecture: its End holds two rounds. Round 1: two findings, one fixed and one answered; round 2: one
-// finding, left (the loop stopped at its limit).
+// The job that drafted the architecture: its End holds two rounds. Round 1: two findings, one fixed and one answered; round 2: two
+// findings, one justified and one that no answer follows (left). A newer job of another kind has rounds of its own.
 const F1 = finding({ artifact: "ARC-002", line: 14, kind: "warning", rule: "A MODULE IS CHECKED AGAINST ITS SUBSYSTEM",
   what: "MOD-desk offers no way to return a book", fix: "add return or say where it is" });
 const F2 = finding({ artifact: "ARC-003", line: 9, kind: "warning", rule: "A SUBSYSTEM IS CHECKED AGAINST THE SYSTEM",
   what: "the shelf also keeps dates", fix: "move the dates to the desk" });
 const F3 = finding({ artifact: "UC-001", line: 1, kind: "warning", rule: "EVERY USE CASE IS CHECKED AGAINST THE ARCHITECTURE",
   what: "the scenario of UC-001 names no subsystem for the barcode", fix: "name the desk" });
+const F5 = finding({ artifact: "ARC-004", line: 20, kind: "warning", rule: "A REUSE DECISION RECORDS ITS DUE DILIGENCE",
+  what: "scan-lib is listed without a release date", fix: "add the date or drop the alternative" });
+const F6 = finding({ artifact: "UC-005", line: 3, kind: "warning", rule: "A USE CASE REALISES NAMED REQUIREMENTS", what: "realises a requirement twice", fix: "name it once" });
 const ROUNDS = [
   { number: 1, findings: [F1, F2], answers: [{ finding: F1, how: "fixed", text: null },
     { finding: F2, how: "answered", text: "the shelf keeps only the number; dates are the desk's." }], changed: true },
-  { number: 2, findings: [F3], answers: [], changed: true },
+  { number: 2, findings: [F3, F5], answers: [{ finding: F5, how: "justified", text: "the registry shows no date for it." }], changed: true },
 ];
 const JOB = { id: "JOB-20261007-0900-a1b2", kind: "derive-architecture", worksOn: [RULE, "UC-001"], participant: "drafter-a", model: "example-model",
   route: "tab", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-07T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc123def456" },
   inputs: ["SPEC.md@deadbeefcafe"], limit: 2, destinations: [{ participant: "drafter-a", place: "this machine", parts: ["the whole SPEC", "every use case"] }], params: {} };
+const OTHER = { ...JOB, id: "JOB-20261008-1000-c3d4", kind: "derive-use-cases", start: new Date("2026-10-08T10:00:00Z") };
+const otherStarted = startRecord(OTHER);
+const OTHER_RECORD = appendToRecord(appendToRecord(otherStarted.text, { part: "taken", at: new Date("2026-10-08T10:01:00Z"), by: "tab" }),
+  { part: "end", at: new Date("2026-10-08T10:20:00Z"), state: "done", results: [], draft: null, usage: null, cost: { known: false, usage: null },
+    reason: null, log: null, rounds: [{ number: 1, findings: [F6], answers: [{ finding: F6, how: "fixed", text: null }], changed: true }] });
 const started = startRecord(JOB);
 const JOB_RECORD = appendToRecord(appendToRecord(started.text, { part: "taken", at: new Date("2026-10-07T09:01:00Z"), by: "tab" }),
   { part: "end", at: new Date("2026-10-07T09:20:00Z"), state: "done", results: ["waits for a person"], draft: null, rounds: ROUNDS, usage: null,
@@ -113,7 +121,7 @@ const JOB_RECORD = appendToRecord(appendToRecord(started.text, { part: "taken", 
 const stepsOf = ({ reserve = false } = {}) => [
   { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "docs/use-cases/UC-001-borrow-a-book.md": UC1, "docs/use-cases/UC-002-reserve-a-book.md": UC2,
     [A(1, "lending")]: ARC1, [A(2, "desk")]: ARC2, [A(3, "shelf")]: ARC3_OLD, [A(4, "barcodes")]: ARC4, [A(6, "dates")]: ARC6,
-    [M("desk")]: MOD_DESK, [M("shelf")]: MOD_SHELF, [started.path]: JOB_RECORD,
+    [M("desk")]: MOD_DESK, [M("shelf")]: MOD_SHELF, [started.path]: JOB_RECORD, [otherStarted.path]: OTHER_RECORD,
     ...(reserve ? { [A(5, "reservations")]: ARC5, [M("queue")]: MOD_QUEUE } : {}) },
   Object.fromEntries([recordOf("UC-001", "use-case", "docs/use-cases/UC-001-borrow-a-book.md", UC1), recordOf("ARC-001", "architecture-decision", A(1, "lending"), ARC1),
     recordOf("ARC-006", "architecture-decision", A(6, "dates"), ARC6), recordOf("ARC-003", "architecture-decision", A(3, "shelf"), ARC3_OLD),
@@ -222,15 +230,17 @@ test("MOD-review-pages decision/all — the files of the whole architecture in t
 });
 
 // guards: UC-022; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
-// given: the architecture above with the system's decision still open, and a further decision, a subsystem's decision and a module
-//        file of it
+// given: the architecture above, in which another writer has put the decision that states the system as ARC-007 — it refines no
+//        other —, and ARC-001, changed since acceptance, now refines it and designs no module
 // input: the route decision rendered with the id all
-// expect: the decision that states the system first, then the subsystems' decisions by identifier, the module files, the further decisions
+// expect: the decision that states the system, ARC-007, first — though its identifier is the highest —, then the subsystems' decisions
+//         by identifier, the module files, the further decisions by identifier
 test("MOD-review-pages decision/all — the decision that states the system first, then the subsystems, the modules, the further decisions", async () => {
   const fake = fakeHost();
-  fake.land({ [A(1, "lending")]: decision({ id: "ARC-001", title: "Lending as a whole", forced: [RULE, "UC-001"], sentence: "Lending is a desk and a shelf." }) });
+  fake.land({ [A(7, "system")]: decision({ id: "ARC-007", title: "The whole lending system", forced: [RULE, "UC-001"], sentence: "Lending is a desk and a shelf." }),
+    [A(1, "lending")]: decision({ id: "ARC-001", title: "Lending as a whole", refines: "ARC-007", forced: [RULE, "UC-001"], sentence: "Lending is a desk and a shelf." }) });
   const target = await show(fake);
-  assert.deepEqual(filesOf(target), ["ARC-001", "ARC-002", "ARC-003", "MOD-desk", "ARC-004"]);
+  assert.deepEqual(filesOf(target), ["ARC-007", "ARC-002", "ARC-003", "MOD-desk", "ARC-001", "ARC-004"]);
 });
 
 // ---------------------------------------------------------------- due diligence and rounds
@@ -255,11 +265,13 @@ test("MOD-review-pages decision/all — a further decision with its due-diligenc
 
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-022
 // given: the record of the job that drafted the architecture: two rounds — the first with two findings, one fixed and one answered
-//        with its reason, the second with one finding that no answer follows, the loop having stopped at its limit
+//        with its reason, the second with two findings, one justified and one that no answer follows —, and the record of a newer job
+//        of another kind, which has a round of its own
 // input: the route decision rendered with the id all
-// expect: a rounds section with two rounds; in the first the finding on ARC-002 with "fixed" and the finding on ARC-003 with "answered:"
-//         and the reason; in the second the finding on UC-001 marked left, and no other finding marked left; each finding with its
-//         file, line, what it says and the rule it names
+// expect: a rounds section of the drafting job's two rounds and not of the other job's; in the first the finding on ARC-002 with
+//         "fixed" and the finding on ARC-003 with "answered:" and the reason; in the second the finding on ARC-004 with "justified:" and
+//         its reason, not left, and the finding on UC-001 marked left, the only one; each finding with its file, line, what it says and
+//         the rule it names; the count left, 1 finding
 test("MOD-review-pages decision/all — the rounds of the drafting job, each finding with its correction or answer and the findings left", async () => {
   const target = await show(fakeHost());
   const rounds = byClass(target, "section", "rounds")[0];
@@ -274,11 +286,16 @@ test("MOD-review-pages decision/all — the rounds of the drafting job, each fin
   assert.equal(byClass(first[0], "span", "answer")[0].textContent, "fixed");
   assert.match(byClass(first[1], "span", "answer")[0].textContent, /^answered: the shelf keeps only the number; dates are the desk's\.$/);
   const second = byClass(round[1], "li", "finding");
-  assert.equal(second.length, 1);
+  assert.equal(second.length, 2);
   assert.match(second[0].textContent, /UC-001:1/);
   assert.ok(second[0].className.split(" ").includes("left"), "the last round's unanswered finding is left");
   assert.match(second[0].textContent, /left/);
+  assert.match(second[1].textContent, /ARC-004:20/);
+  assert.match(byClass(second[1], "span", "answer")[0].textContent, /^justified: the registry shows no date for it\.$/);
+  assert.ok(!second[1].className.split(" ").includes("left"), "a finding the drafter justified is not left");
   assert.equal(byClass(rounds, "li", "left").length, 1, "no other finding is left");
+  assert.ok(!rounds.textContent.includes("realises a requirement twice"), "not the rounds of another job");
+  assert.match(byClass(rounds, "p", "left-count")[0].textContent, /^Left: 1 finding$/);
 });
 
 // ---------------------------------------------------------------- Accept all N shown
