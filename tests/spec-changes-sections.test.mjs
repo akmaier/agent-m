@@ -194,4 +194,33 @@ test("entrySections — the job's source is text", () => {
   assert.equal(compose([item], undefined, JOB).length, 1, "known positive");
   assert.throws(() => compose([item], undefined, ""), TypeError);
   assert.throws(() => compose([item], undefined, 5), TypeError);
+  assert.throws(() => compose([item], undefined, { trim: () => "Job Source" }), TypeError, "an object that only looks like text");
+  assert.throws(() => compose([item], undefined, "  "), TypeError, "white space only");
+});
+
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005
+// given: a new candidate and a change whose rule and check run over several lines, with runs of white space
+// input: entrySections(SPEC, draft, classes, "Job Source")
+// expect: each rule on one line and each check on one line, white space folded to single blanks, in the new block and in the changed one
+test("entrySections — a rule and a check are written on one line each", () => {
+  const nu = candidate("A NEW RULE", { rule: "A thing\n  happens   twice.", check: "`tests/new.test.mjs`\nand more" });
+  const change = candidate("A CHANGED RULE", { rule: "A reader\nreads  a file.", check: "no automatic check;\n at review", class: "change", of: "A WRITE RULE" });
+  const [section] = compose([nu, change]);
+  assert.equal(section.anchor, "## 2. Writing");
+  assert.ok(section.text.includes("**A WRITE RULE** *(Fixture PO; Job Source, ch. 8)*\nA reader reads a file.\n*Check:* no automatic check; at review\n"));
+  assert.ok(section.text.includes("**A NEW RULE** *(Job Source, ch. 8)*\nA thing happens twice.\n*Check:* `tests/new.test.mjs` and more"));
+});
+
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT
+// given: a SPEC whose last requirement is the last line, with no line end after it, and a change of it, and a duplicate of it
+// input: entrySections(spec, draft, classes, "Job Source")
+// expect: the section ends as the SPEC does, with no line end added, for each
+test("entrySections — a requirement that ends the SPEC keeps its end as it was", () => {
+  const bare = SPEC.slice(0, -1);
+  const change = candidate("A CHANGED RULE", { rule: "A writer writes.", check: "no automatic check; at review", class: "change", of: "A WRITE RULE" });
+  const duplicate = candidate("RESTATES IT", { class: "duplicate", of: "A WRITE RULE" });
+  const [changed] = compose([change], undefined, JOB, bare);
+  assert.equal(changed.text, text("## 2. Writing", "", "**A WRITE RULE** *(Fixture PO; Job Source, ch. 8)*", "A writer writes.", "*Check:* no automatic check; at review").slice(0, -1));
+  const [added] = compose([duplicate], undefined, JOB, bare);
+  assert.equal(added.text, SECTION_2.slice(0, -1).replace("*(Fixture PO)*", "*(Fixture PO; Job Source, ch. 8)*"));
 });
