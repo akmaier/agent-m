@@ -82,8 +82,10 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
  */
 
 /**
- * What a writer did; `shown` is what return-draft hands back.
- * @typedef {{ commits: string[], files: string[], pullRequest: string | null, shown: unknown }} WriteOutcome
+ * What a writer did; `shown` is what return-draft hands back; `notes` what the writer changed of the draft while writing, one line
+ * each, which the job's end record lists. A writer whose every file already stands on the head as it would write it commits nothing:
+ * its outcome has no commit. The runner hands an outcome on as the writer gave it.
+ * @typedef {{ commits: string[], files: string[], pullRequest: string | null, shown: unknown, notes: string[] }} WriteOutcome
  */
 
 /**
