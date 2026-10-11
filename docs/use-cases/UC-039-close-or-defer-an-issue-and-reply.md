@@ -6,7 +6,7 @@ actors:
   - Author
   - Reporter
   - Participant
-  - Mail provider or local bridge
+  - Mail provider or Bridge
   - Mail server
   - Issue tracker
 realises:
@@ -62,15 +62,16 @@ mailbox, and the replies wait in the mailbox's own *Drafts* folder.
 - **Author** — decides, reads and releases every mail.
 - **Reporter** — receives the reply; may answer in the same thread.
 - **Participant** — a model endpoint or CLI agent (UC-017) that drafts the reply; it cannot send.
-- **Mail provider or local bridge** — the route to the mailbox (UC-037): finds mails by identifier,
-  stores drafts, sends.
+- **Mail provider or Bridge** — the route to the mailbox (UC-037), the provider's web API or the Bridge the
+  connection names: finds mails by identifier, stores drafts, sends.
 - **Mail server** — holds the mails and delivers the reply.
 - **Issue tracker** — the product's issues on GitHub or its GitLab server.
 
 ## Precondition
 
 - The issue lists at least one `MAIL-` identifier (UC-038).
-- A mailbox is connected in this browser and can send (UC-037); on the IMAP route, the bridge runs.
+- A mailbox is connected in this browser and can send (UC-037); on the IMAP route, the Bridge the connection
+  names runs.
 
 ## Main flow
 
@@ -96,7 +97,7 @@ mailbox, and the replies wait in the mailbox's own *Drafts* folder.
 5. The author presses **Send** on one draft: one click; the confirmation is part of the button's dialog,
    which repeats recipient and subject. On the web-API route, the dashboard sends the draft through the
    provider; on the IMAP route, it passes the mail with a single-use confirmation carrying its SHA-256 to
-   the bridge, which checks token, confirmation and hash, sends over TLS, stores a copy in *Sent* and
+   the connection's Bridge, which checks token, confirmation and hash, sends over TLS, stores a copy in *Sent* and
    forgets the password.
 6. Agent M removes the draft from *Drafts* — the provider does so by itself on the web-API route — and
    comments on the issue: *Reply sent to MAIL-… on 2026-…* — identifier and date only.
@@ -108,7 +109,7 @@ sequenceDiagram
     participant D as Mail dashboard
     participant I as Issue tracker
     participant P as Participant
-    participant B as Provider API or bridge
+    participant B as Provider API or Bridge
     participant S as Mailbox
     A->>D: Mail, Replies
     D->>I: issues with MAIL identifiers, reply notes, labels
@@ -138,13 +139,13 @@ sequenceDiagram
   issue *No reply to MAIL-…, decided on …*, and the draft leaves the list.
 - **3a. The author writes the reply without a participant.** An empty draft with the quoted original
   opens; everything from step 4 applies.
-- **3b. The participant is a CLI agent.** It receives the job through the bridge and returns texts; its
-  job contains no sending, and the bridge sends nothing without the confirmation of step 5.
+- **3b. The participant is a CLI agent.** It receives the job through the Bridge the participant names and returns
+  texts; its job contains no sending, and no Bridge sends anything without the confirmation of step 5.
 - **5a. The author edits the text after the preview.** The dialog shows the edited mail again before
   anything is sent; on the IMAP route its hash changes with it.
 - **5b. The same request arrives twice** — a reload, a double click. The single-use confirmation is
-  spent; the bridge sends nothing the second time.
-- **6a. Sending fails** — the provider refuses, SMTP refused, bridge not running. Nothing is noted in the issue; the draft
+  spent; the Bridge sends nothing the second time.
+- **6a. Sending fails** — the provider refuses, SMTP refused, the connection's Bridge not running. Nothing is noted in the issue; the draft
   stays. Agent M shows the server's answer.
 - **1a. Ask the reporter.** On an open issue, the author presses **Ask the reporter**; a question is
   drafted (by a participant or by hand), shown complete as in step 4, and sent with **Send and wait** —

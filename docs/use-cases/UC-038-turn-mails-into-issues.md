@@ -5,7 +5,7 @@ area: evolution
 actors:
   - Author
   - Reporter
-  - Mail provider or local bridge
+  - Mail provider or Bridge
   - Mail server
   - Participant
   - Checking participants
@@ -62,9 +62,9 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 - **Author** — decides which mail becomes which issue.
 - **Reporter** — sent the mail; not a user of Agent M.
-- **Mail provider or local bridge** — the route to the mailbox (UC-037): the provider's web API for
-  Microsoft 365, the bridge over IMAP otherwise — Gmail included; the bridge also hands mails to a CLI agent if
-  one is chosen.
+- **Mail provider or Bridge** — the route to the mailbox (UC-037): the provider's web API for
+  Microsoft 365, IMAP through the Bridge the connection names otherwise — Gmail included; the Bridge a chosen CLI
+  agent runs on hands the mails to it.
 - **Mail server** — holds the mailbox.
 - **Participant** — a model endpoint or CLI agent (UC-017) that proposes the issue.
 - **Checking participants** — three LLM participants with three different models (UC-017) that each read
@@ -73,7 +73,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 ## Precondition
 
-- A mailbox is connected in this browser (UC-037); on the IMAP route, the bridge runs.
+- A mailbox is connected in this browser (UC-037); on the IMAP route, the Bridge the connection names runs.
 - The instance manages at least one product (UC-001), and the stored token may create issues in it.
 - At least one participant that can draft text is configured (UC-017), and three LLM participants with
   three different models check the rewritten texts.
@@ -82,7 +82,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 
 1. The author opens **Mail** on the dashboard and presses **Read mailbox**.
 2. Agent M reads the named folders — through the provider's web API, or on the IMAP route through the
-   bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
+   connection's Bridge, which then forgets the password —, read-only: nothing is marked as read, moved or flagged. Agent M gives each mail its identifier `MAIL-` plus the first sixteen hex digits of the
    SHA-256 of its `Message-ID`, and reads the issues of every managed product for the identifiers they
    list.
 3. Mails that an issue already lists, or that the author marked *not an issue* in this browser, are
@@ -128,7 +128,7 @@ Nothing else is kept: no copy of a mail, no list of reporters, no flags in the m
 sequenceDiagram
     actor A as Author
     participant D as Dashboard
-    participant B as Provider API or bridge
+    participant B as Provider API or Bridge
     participant S as Mail server
     participant P as Participant
     participant I as Issue tracker
@@ -150,10 +150,10 @@ sequenceDiagram
 
 ## Alternative flows
 
-- **2a. The mailbox cannot be reached** — the bridge does not answer, or the provider's sign-in has
+- **2a. The mailbox cannot be reached** — the connection's Bridge does not answer, or the provider's sign-in has
   expired. Nothing is read; Agent M names the reason (UC-037, 7a or 3b).
-- **4a. The chosen participant is a CLI agent.** The dashboard hands the job to the bridge; the mails
-  go to the agent on the same machine and do not travel further than that agent's own processing
+- **4a. The chosen participant is a CLI agent.** The dashboard hands the job to the Bridge the participant names; the
+  mails go to the agent on that Bridge's computer and do not travel further than that agent's own processing
   place, which the panel states.
 - **4b. The author does not press Propose.** Nothing is sent to any participant; the author can still
   decide each mail by hand in step 7, with an empty proposal.
