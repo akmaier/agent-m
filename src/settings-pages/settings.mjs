@@ -639,19 +639,19 @@ async function productControls(context) {
     el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
 }
 
-// The tabs of the page: the one whose id `chosen` names is selected, else the first; `choose` hears each id selected.
-function tabbedSettings(panes, chosen, choose) {
+// The tabs of the page: the one whose id `chosenId` names is selected, else the first; `choose` hears each id selected.
+function tabbedSettings(panes, chosenId, choose) {
   const tabs = el("div", "settings-tabs");
   attribute(tabs, "role", "tablist");
   const buttons = [];
   const select = (selected) => {
     for (const { button, pane, id } of buttons) {
-      const isChosen = button === selected;
-      attribute(button, "aria-selected", String(isChosen));
-      button.className = isChosen ? "settings-tab btn primary" : "settings-tab btn";
-      button.tabIndex = isChosen ? 0 : -1;
-      pane.hidden = !isChosen;
-      if (isChosen) choose(id);
+      const chosen = button === selected;
+      attribute(button, "aria-selected", String(chosen));
+      button.className = chosen ? "settings-tab btn primary" : "settings-tab btn";
+      button.tabIndex = chosen ? 0 : -1;
+      pane.hidden = !chosen;
+      if (chosen) choose(id);
     }
     selected.focus();
   };
@@ -672,7 +672,7 @@ function tabbedSettings(panes, chosen, choose) {
     buttons.push({ button, pane: pane.node, id: pane.id });
     tabs.append(button);
   }
-  select((buttons.find((entry) => entry.id === chosen) ?? buttons[0]).button);
+  select((buttons.find((entry) => entry.id === chosenId) ?? buttons[0]).button);
   return { tabs, panels: panes.map((pane) => pane.node) };
 }
 
