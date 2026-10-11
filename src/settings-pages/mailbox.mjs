@@ -1,6 +1,6 @@
-// MOD-settings-pages' route `mailbox`, for the IMAP route (UC-037 steps 1 and 4 to 8): the address and the route routeFor preselects, the servers, the
-// password behind its notice, the Bridge the connection goes through, the folders, the processing places, and Store and test. The Microsoft route is
-// ITM-428's; Disconnect and the places changed later are ITM-429's.
+// MOD-settings-pages' route `mailbox` (UC-037 steps 1 to 8): the address and the route routeFor preselects; for the IMAP route the servers, the password behind its notice
+// and the Bridge the connection goes through; for the Microsoft route the app registration's steps, the client identifier and Sign in with Microsoft; the folders, the
+// processing places, and Store and test. Disconnect and the places changed later are ITM-429's.
 //
 // Module: MOD-settings-pages
 //
@@ -10,11 +10,16 @@
 //   - A place is inside the EU when it is `this machine` (the example connection of MOD-mail-routes gives it outsideEu false) or its words name the EU, the
 //     European Union or a member state; any other declared place is outside it.
 //   - A Bridge at a port of the jump host is reached through the jump host, whether by its HTTPS address or by the forward: the forward ends on it too.
+//   - The return address of the app registration is MOD-identifiers' pagesAddress of the instance. Sign in does not store the connection (the sign-in library keeps its own token
+//     cache as it signs in): Store and test stores it — the address, the route, the folders, the places and the client identifier with the account, no password — and is refused
+//     while no account is signed in. A declined permission is named with what would not work without it; a refused registration says what to ask the administrators for and
+//     offers the IMAP route; an expired sign-in is shown at the use that finds it, with the sign-in offered again, the connection stored and shown as untested.
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { readRegister } from "../documents/index.mjs";
-import { mailbox, routeFor } from "../mail-routes/index.mjs";
+import { mailbox, providerLinks, routeFor, signIn } from "../mail-routes/index.mjs";
+import { pagesAddress } from "../identifiers/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
@@ -56,6 +61,31 @@ async function placesOf(host) {
     .filter((place) => place && place !== "—");
   return [...new Set(places)];
 }
+
+const SCOPES = ["Mail.ReadWrite", "Mail.Send", "offline_access"];
+const WITHOUT = {
+  "Mail.ReadWrite": "mails cannot be read and no draft can be created",
+  "Mail.Send": "replies cannot be sent; reading mails and creating drafts still work",
+  offline_access: "the sign-in is not kept: you sign in again at every use",
+};
+
+// What a failed sign-in says, for the page's return address (UC-037 3a, 2a).
+function signInFailure(error, returnAddress) {
+  if (error?.name === "PermissionDeclined") {
+    const explained = WITHOUT[error.permission];
+    return `✗ The permission ${error.permission} was not granted${explained ? `: without it ${explained}` : ""}. Nothing was stored.`;
+  }
+  if (error?.name === "RegistrationRefused") {
+    return `✗ Microsoft refused the registration: ${error.message} Your institution may allow app registrations only to its administrators. Ask them to register a single-page application `
+      + `named Agent M with the return address ${returnAddress} and the permissions ${SCOPES.join(", ")}. Until it is registered, the IMAP route can serve if your provider also offers IMAP.`;
+  }
+  return `✗ ${error?.message ?? error}`;
+}
+
+// What a failed test through Microsoft Graph says.
+const graphFailureText = (error) => (error?.name === "SignInExpired"
+  ? "✗ The sign-in has expired: sign in with Microsoft again. The connection is stored and shown as untested."
+  : `✗ ${error?.message ?? error} The connection is stored and shown as untested.`);
 
 const failureText = (error, connection) => {
   const bridge = connection.imap.bridge;
@@ -99,6 +129,24 @@ export const route = {
     const setup = el("button", "mailbox-bridge-setup btn", "Set up a Bridge");
     const parts = el("ul", "mailbox-parts");
     const connected = el("p", "mailbox-connected");
+    const returnAddress = (() => { try { return pagesAddress(context.instance.repository); } catch { return ""; } })();
+    const clientId = el("input", "mailbox-client-id");
+    clientId.value = ""; clientId.autocomplete = "off"; clientId.spellcheck = false;
+    const registrationLink = el("a", "mailbox-app-registration-link", "Open Microsoft's page for a new app registration ↗");
+    registrationLink.setAttribute("href", providerLinks().appRegistration);
+    registrationLink.setAttribute("target", "_blank"); registrationLink.setAttribute("rel", "noopener");
+    const returnShown = el("code", "mailbox-return-address", returnAddress);
+    const copyReturn = el("button", "mailbox-return-address-copy btn small", "Copy");
+    const copied = el("span", "mailbox-return-address-copied");
+    const signInButton = el("button", "mailbox-sign-in btn primary", "Sign in with Microsoft");
+    const signInResult = el("p", "mailbox-sign-in-result");
+    const useImap = el("button", "mailbox-use-imap btn", "Connect over IMAP meanwhile");
+    useImap.hidden = true;
+    let signedInAccount = null;
+    const imapPart = el("div", "mailbox-imap");
+    const graphPart = el("div", "mailbox-graph");
+    graphPart.hidden = true;
+    imapPart.hidden = false;
 
     for (const input of [address, imapHost, smtpHost, account, password, folders]) { input.autocomplete = "off"; input.spellcheck = false; }
     for (const select of [imapSecurity, smtpSecurity]) for (const value of ["tls", "starttls", "none"]) select.append(el("option", null, value));
@@ -112,6 +160,28 @@ export const route = {
     jumpNotice.hidden = true; placeNotice.hidden = true; setup.hidden = true;
     jumpRead.hidden = true; placeRead.hidden = true;
 
+    const showRoute = () => { graphPart.hidden = routeSelect.value !== "graph"; imapPart.hidden = routeSelect.value === "graph"; };
+    routeSelect.addEventListener("change", showRoute);
+    copyReturn.addEventListener("click", async () => {
+      try { await globalThis.navigator.clipboard.writeText(returnAddress); copied.textContent = "Return address copied."; } catch (error) { copied.textContent = `Not copied: ${error?.message ?? error}`; }
+    });
+    signInButton.addEventListener("click", async () => {
+      useImap.hidden = true;
+      const id = clientId.value.trim();
+      if (!id) { signInResult.textContent = "Enter the app's client identifier first: it comes from the app registration above."; return; }
+      signInResult.textContent = "Opening Microsoft's sign-in window…";
+      try {
+        const { account: signed } = await signIn(id, address.value.trim() || null);
+        signedInAccount = signed;
+        signInResult.textContent = `Signed in as ${signed}. Press Store and test.`;
+      } catch (error) {
+        signedInAccount = null;
+        signInResult.textContent = signInFailure(error, returnAddress);
+        useImap.hidden = error?.name !== "RegistrationRefused";
+      }
+    });
+    useImap.addEventListener("click", () => { routeSelect.value = "imap"; showRoute(); });
+
     let accountTouched = false;
     const syncAccount = () => { if (!accountTouched) account.value = address.value.trim(); };
     account.addEventListener("change", () => { accountTouched = true; });
@@ -120,6 +190,7 @@ export const route = {
         const found = await routeFor(address.value);
         routeSelect.value = found.route;
         reason.textContent = found.reason;
+        showRoute();
         if (found.servers) {
           imapHost.value = found.servers.imap.host; imapPort.value = String(found.servers.imap.port); imapSecurity.value = found.servers.imap.security;
           smtpHost.value = found.servers.smtp.host; smtpPort.value = String(found.servers.smtp.port); smtpSecurity.value = found.servers.smtp.security;
@@ -163,18 +234,59 @@ export const route = {
 
     function showConnected() {
       const stored = readSetting(store, "mailbox");
-      if (!stored?.imap) { connected.textContent = ""; return; }
+      if (!stored?.imap && !stored?.graph) { connected.textContent = ""; return; }
       const last = readSetting(store, "last-test:mailbox");
       const state = last?.outcome === "working" ? "connected" : "untested";
-      connected.textContent = `${stored.address} · IMAP through ${stored.imap.bridge} · folders ${stored.folders.join(", ")} · ${state}`;
+      const how = stored.graph ? "Microsoft 365 (web API)" : `IMAP through ${stored.imap.bridge}`;
+      connected.textContent = `${stored.address} · ${how} · folders ${stored.folders.join(", ")} · ${state}`;
       if (state === "connected") connected.textContent = `Connected: ${connected.textContent}`;
     }
     showConnected();
 
+    // The tested mailbox's parts, shown (the same for both routes).
+    function showTested(tested, where) {
+      result.textContent = `✓ Stored and tested${where}.`;
+      for (const [folder, count] of Object.entries(tested.counts ?? {})) parts.append(el("li", null, `✓ ${folder}: ${count} mails`));
+      parts.append(el("li", null, tested.drafts ? "✓ Drafts folder found" : "✗ Drafts folder not found"), el("li", null, tested.sent ? "✓ Sent folder found" : "✗ Sent folder not found"));
+      if (tested.sending === "works") parts.append(el("li", null, "✓ Sending works (nothing was sent to find out)"));
+      else {
+        parts.append(el("li", null, `✗ Sending does not work: ${tested.sending}`));
+        result.textContent = "Reading is possible, sending is not: reading mails (UC-038) works, sending replies (UC-039) does not until this is corrected.";
+      }
+      parts.append(el("li", null, `Route: ${tested.route} · Encryption: ${tested.encryption}`));
+    }
+
+    async function storeAndTestMicrosoft(say) {
+      const mail = address.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { say("Enter the mail address first. Nothing was stored."); return; }
+      if (!clientId.value.trim()) { say("Enter the client identifier of your Microsoft app first. Nothing was stored."); return; }
+      if (!signedInAccount) { say("Sign in with Microsoft first. Nothing was stored."); return; }
+      const ticked = placeBoxes.filter(({ box }) => box.checked).map(({ place }) => place);
+      if (ticked.some(isOutsideEu) && !placeRead.checked) { say("A place outside the EU is ticked: read the notice and tick I have read this. Nothing was stored."); return; }
+      const connection = {
+        address: mail, route: "graph",
+        folders: folders.value.split(",").map((name) => name.trim()).filter(Boolean),
+        places: ticked.map((place) => (isOutsideEu(place) ? { place, outsideEu: true, notCompliantNoted: true } : { place, outsideEu: false })),
+        graph: { clientId: clientId.value.trim(), account: signedInAccount },
+      };
+      if (!connection.folders.length) connection.folders = ["INBOX"];
+      writeSetting(store, "mailbox", connection);
+      say("Stored in this browser. Testing through Microsoft Graph…");
+      let outcome = "refused";
+      try {
+        showTested(await mailbox(connection, null).test(), " through Microsoft Graph");
+        outcome = "working";
+      } catch (error) {
+        say(graphFailureText(error));
+      }
+      writeSetting(store, "last-test:mailbox", { at: new Date().toISOString(), outcome });
+      showConnected();
+    }
+
     storeTest.addEventListener("click", async () => {
       parts.replaceChildren(); resultExplanation.replaceChildren(); setup.hidden = true;
       const say = (text) => { result.textContent = text; };
-      if (routeSelect.value !== "imap") { say("The Microsoft 365 route signs in in Microsoft's own window, which is not on this page yet. Nothing was stored."); return; }
+      if (routeSelect.value === "graph") { await storeAndTestMicrosoft(say); return; }
       const mail = address.value.trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { say("Enter the mail address first. Nothing was stored."); return; }
       if (!imapHost.value.trim() || !smtpHost.value.trim()) { say("Enter the IMAP and the SMTP server. Nothing was stored."); return; }
@@ -224,6 +336,14 @@ export const route = {
       el("h2", null, "Connect a mailbox"),
       labelled("Mail address", address),
       labelled("Route", routeSelect), reason, explain("mailbox-routes"),
+      graphPart, imapPart,
+      el("h3", null, "Folders"),
+      labelled("Folders to read, separated by commas", folders),
+      el("h3", null, "Where the mail may be processed"),
+      placesBox, placesResult, placeNotice, el("p", null, el("label", null, placeRead, " I have read this")), explain("mailbox-processing-places"),
+      el("p", null, storeTest), result, resultExplanation, setup, parts, connected,
+    );
+    imapPart.append(
       el("h3", null, "Servers"),
       labelled("IMAP server", imapHost, " port ", imapPort, " encryption ", imapSecurity),
       labelled("SMTP server", smtpHost, " port ", smtpPort, " encryption ", smtpSecurity),
@@ -234,11 +354,19 @@ export const route = {
       labelled("Password", password), explain("gmail-app-password"),
       el("h3", null, "Bridge"),
       labelled("Bridge", bridgeSelect), jumpNotice, el("p", null, el("label", null, jumpRead, " I have read this")),
-      el("h3", null, "Folders"),
-      labelled("Folders to read, separated by commas", folders),
-      el("h3", null, "Where the mail may be processed"),
-      placesBox, placesResult, placeNotice, el("p", null, el("label", null, placeRead, " I have read this")), explain("mailbox-processing-places"),
-      el("p", null, storeTest), result, resultExplanation, setup, parts, connected,
+    );
+    graphPart.append(
+      el("h3", null, "Register the app"),
+      el("div", "mailbox-app-registration-steps",
+        el("p", null, "To sign in with Microsoft, register an app with Microsoft once: ", registrationLink),
+        el("p", null, "Enter the name Agent M and choose the kind single-page application. As its return address enter: ", returnShown, " ", copyReturn, copied),
+        el("p", null, "Then copy the app's client ID into the field below.")),
+      explain("mailbox-app-registration"),
+      labelled("Client ID of the app", clientId),
+      el("h3", null, "Sign in"),
+      el("p", "notice mailbox-permissions", "Agent M asks Microsoft for three permissions and nothing else. Mail.ReadWrite: read mail and create drafts; Microsoft offers no narrower permission for drafts, "
+        + "and it would also allow changing and deleting mail, which Agent M never does. Mail.Send: send mail, only when you send a reply. offline_access: stay signed in."),
+      el("p", null, signInButton), signInResult, el("p", null, useImap),
     );
   },
 };
