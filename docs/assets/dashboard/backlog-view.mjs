@@ -179,18 +179,19 @@ function ownerOf(ctx, team) {
 }
 
 // The items a sprint has left over time: at its start, after each merge of one of its items, in time order, and now — or, for
-// a closed sprint, at its end, which counts no merge after its end date. An item merged before the sprint's start is done from
-// the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
-function remainingOverTime(items, mergedAt, start, { final = false, end = "" } = {}) {
+// a closed sprint, at its end, the last day of its burn-down, after which no merge counts. An item merged before the sprint's
+// start is done from the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another
+// day than the start.
+function remainingOverTime(items, mergedAt, start, end = "") {
   const merges = items.map((id) => mergedAt.get(id)).filter(Boolean).sort();
   const before = merges.filter((at) => at.slice(0, 10) < start).length;
-  const during = merges.filter((at) => at.slice(0, 10) >= start && !(final && end && at.slice(0, 10) > end));
+  const during = merges.filter((at) => at.slice(0, 10) >= start && !(end && at.slice(0, 10) > end));
   const oneDay = during.every((at) => at.slice(0, 10) === start);
   const label = (at) => (oneDay ? at.slice(11, 16) : `${at.slice(5, 10)} ${at.slice(11, 16)}`);
   let remaining = items.length - before;
   const points = [{ label: "start", remaining }];
   for (const at of during) points.push({ label: label(at), remaining: --remaining });
-  points.push({ label: final ? "end" : "now", remaining });
+  points.push({ label: end ? "end" : "now", remaining });
   return points;
 }
 
@@ -225,10 +226,8 @@ function teamPanel(app, ctx, d, team) {
   if (!newest || !entry || entry.final) {
     const last = newest ? `<p class="muted">Its last sprint, ${fileLink(app, newest.record.path, `<b>${h(newest.name)}</b>`)}, `
       + `${text(newest.record.fields.end) ? `ended on ${h(newest.record.fields.end)}` : "is closed"}.</p>` : `<p class="muted">It has run no sprint yet.</p>`;
-    const end = text(newest?.record.fields.end)
-      || text((newest?.record.appended ?? []).find((s) => s?.heading === "## Ended")?.fields?.at);
     const final = newest && entry?.final && entry.burnDown.length ? chartOf(remainingOverTime(entry.items.map((st) => st.item),
-      d.mergedAt, text(newest.record.fields.start), { final: true, end })) : "";
+      d.mergedAt, text(newest.record.fields.start), entry.burnDown.at(-1).day)) : "";
     return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — no running sprint</h3>${last}${final}
       <p>${plan("Plan sprint", true)}</p>${why}</section>`;
   }
