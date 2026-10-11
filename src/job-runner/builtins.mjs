@@ -1,11 +1,12 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
-// `instruction` and `draft`, the writer `return-draft` and the checks `document-schema` and `requirement-form`. The other
-// built-in checks on the artifact model come with the modules they use.
+// `instruction` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form` and
+// `test-declarations`. The other built-in checks on the artifact model come with the modules they use.
 //
 // Module: MOD-job-runner
 
 import { artifactSchemas, documentFindings, readDocument } from "../documents/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
+import { testDeclarations, testFindings } from "../test-document/index.mjs";
 
 const part = (name, text) => ({ name, text, size: 0, sources: [], required: true });
 
@@ -49,6 +50,19 @@ export const builtins = {
       const source = folded(context.params.source);
       return requirementFindings(parseSpec(["## Candidates", ...draft.candidates.map((candidate) => written(candidate, source))]
         .join("\n\n")));
+    },
+    // MOD-test-document's testFindings on every declaration in the files that the branch the coding participant reports adds
+    // or changes: the branch is read through the product's host with readSnapshot, and a file counts as changed when its blob
+    // differs from its blob in the product's own snapshot, where a file the branch adds has none. A host that fails is thrown.
+    "test-declarations": async (draft, context) => {
+      const { host, snapshot } = context.product;
+      const branch = await host.readSnapshot(draft.branch);
+      const found = [];
+      for (const path of branch.paths) {
+        if (branch.blob(path) === snapshot.blob(path)) continue;
+        for (const declaration of testDeclarations(path, await branch.read(path))) found.push(...testFindings(declaration));
+      }
+      return found;
     },
   },
   writers: {
