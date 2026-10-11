@@ -117,14 +117,15 @@ const SAME_DAY_PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", 
   pr({ number: 5, item: "ITM-005", base: "sprint/team1/01", created: "2026-09-14T08:20:00Z", merged: "2026-09-14T11:45:00Z" })];
 
 // A closed sprint with merges: team2's sprint 01 ran from 2026-09-01 to 2026-09-07 with ITM-003, ITM-004 and ITM-006; ITM-003
-// was merged into the default branch on 2026-09-02 at 10:15 UTC and ITM-004 on 2026-09-03 at 16:40 UTC, and ITM-006 went back
-// to the backlog.
+// was merged into the default branch on 2026-09-02 at 10:15 UTC and ITM-004 on 2026-09-03 at 16:40 UTC; ITM-006 went back to
+// the backlog and was merged only after the sprint's end, on 2026-09-10.
 const CLOSED_SPRINT = "---\nsprint: 1\ngoal: Mail\nstart: 2026-09-01\nend: 2026-09-07\ncloser: bob\nbranch:\nselection:\n  - ITM-003\n"
   + "  - ITM-004\n  - ITM-006\n---\n# team2 Sprint 01\n\n## Review\n\nITM-003 and ITM-004 are done.\n\n## Unfinished items\n\n"
   + "to the backlog: ITM-006\ninto the next sprint:\n\nITM-006 waits for its requirement.\n\n## Retrospective\n\n- change: smaller items.\n";
 const CLOSED_PRS = [...PRS,
   pr({ number: 6, item: "ITM-003", base: "main", created: "2026-09-01T09:00:00Z", merged: "2026-09-02T10:15:00Z" }),
-  pr({ number: 7, item: "ITM-004", base: "main", created: "2026-09-02T11:00:00Z", merged: "2026-09-03T16:40:00Z" })];
+  pr({ number: 7, item: "ITM-004", base: "main", created: "2026-09-02T11:00:00Z", merged: "2026-09-03T16:40:00Z" }),
+  pr({ number: 8, item: "ITM-006", base: "main", created: "2026-09-08T09:00:00Z", merged: "2026-09-10T09:00:00Z" })];
 
 async function backlogPage({ created = [], files = fixtureFiles(), prs = PRS } = {}) {
   const server = await repoServer({ files, handlers: [pullsApi(prs), refsApi(created)] });
@@ -190,9 +191,11 @@ test("#backlog — a running sprint's chart: the items left at its start, after 
 // guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: team2's closed sprint 01, from 2026-09-01 to 2026-09-07, with ITM-003, ITM-004 and ITM-006; ITM-003 merged into the
 //        default branch on 2026-09-02 at 10:15 UTC and ITM-004 on 2026-09-03 at 16:40 UTC; ITM-006 went back to the backlog
+//        and was merged only on 2026-09-10, after the sprint's end
 // input: open #backlog
 // expect: team2's panel still says it runs no sprint, names its last sprint and offers Plan sprint, and shows that sprint's
-//         final chart: start, the two merges by their date and time, and end — 3, 2, 1 and 1 items left — and no "now"
+//         final chart: start, the two merges by their date and time, and end — 3, 2, 1 and 1 items left —, with no merge
+//         after its end and no "now"
 test("#backlog — a team's closed sprint: its final chart from start through each merge to end", async () => {
   const { page } = await backlogPage({ files: { ...fixtureFiles(), [TEAM2_SPRINT]: CLOSED_SPRINT }, prs: CLOSED_PRS });
   const team2 = part(page.main(), 'data-team="team2"');
