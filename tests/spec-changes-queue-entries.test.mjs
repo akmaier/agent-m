@@ -323,18 +323,25 @@ test("queue-entries — the candidates of a section are written in the order of 
 });
 
 // guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-005 5b
-// given: a product that is its own instance — one repository, one host, one SPEC — and a result with a candidate for the product and one that constrains the process
+// given: a product that is its own instance — one repository, one host, one SPEC — and a result with a candidate for the product and one that constrains the process; and, apart, a product and an
+//        instance that are two repositories
 // input: the writer
-// expect: two commits to that host, each with a queue of its own: two folders, neither overwriting the other's files, the process queue's slug naming it
-test("queue-entries — a product that is its own instance gets two queues in two folders", async () => {
+// expect: in one repository two commits whose queues are of one day: the first the day, the second the day with the letter b, no file written twice; in two repositories each queue the day alone
+test("queue-entries — two queues of one day in one repository get the day and then the day with b", async () => {
   const f = fixture();
-  const shared = { snapshot: f.product.snapshot, host: f.product.host };
-  f.context.instance = { ...shared, checkout: null };
+  f.context.instance = { snapshot: f.product.snapshot, host: f.product.host, checkout: null };
   await writer(resultOf([NEW, candidate("A PROCESS RULE", { constrains: "process" })]), f.context);
   assert.equal(f.product.host.commits.length, 2);
   const [first, second] = f.product.host.commits.map((commit) => folderOf(commit)[0]);
-  assert.notEqual(first, second, "two queues, two folders");
-  assert.match(second, /process/);
+  assert.match(first, /^docs\/spec-freigaben\/2026-10-12_derive-requirements/);
+  assert.match(second, /^docs\/spec-freigaben\/2026-10-12b_derive-requirements/);
+  assert.equal(first.replace("2026-10-12_", "").length > 0, true);
+  assert.equal(second.replace("2026-10-12b_", ""), first.replace("2026-10-12_", ""), "the slug is the same: the letter tells them apart");
   const paths = f.product.host.commits.flatMap((commit) => commit.files.map((file) => file.path));
   assert.equal(new Set(paths).size, paths.length, "no file is written twice");
+
+  const g = fixture();
+  await writer(resultOf([NEW, candidate("A PROCESS RULE", { constrains: "process" })]), g.context);
+  assert.match(folderOf(g.product.host.commits[0])[0], /^docs\/spec-freigaben\/2026-10-12_/);
+  assert.match(folderOf(g.instance.host.commits[0])[0], /^docs\/spec-freigaben\/2026-10-12_/, "another repository: no letter");
 });
