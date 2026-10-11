@@ -48,7 +48,7 @@ test("TST-320001: discovery reports register agents' version and own-login outco
     assert.deepEqual(Object.keys(agents.find((agent) => agent.name === "opencode").install).sort(), ["linux", "macos", "windows"]);
     const missing = agents.find((agent) => agent.name === "opencode");
     assert.deepEqual({ installed: missing.installed, version: missing.version, loggedIn: missing.loggedIn }, { installed: false, version: null, loggedIn: null });
-    for (const url of Object.values(missing.install)) assert.match(url, /^https:\/\/opencode\.ai\/docs\/installation(?:\/|$)/);
+    for (const url of Object.values(missing.install)) assert.match(url, /^https:\/\/opencode\.ai\/docs\/(?:#install|#windows|windows(?:\/|$))/);
     assert.deepEqual(readFileSync(calls, "utf8").trim().split("\n").sort(), ["--version", "--version", "auth status", "login status"].sort());
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
