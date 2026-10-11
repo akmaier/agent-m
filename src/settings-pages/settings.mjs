@@ -282,16 +282,21 @@ function jumpHostLine(target, context) {
   );
 }
 
-function exportNotice(store) {
+// Whether the export would carry the mailbox's sign-in tokens: the sign-in library's keys are no setting of their own, so the export itself says.
+async function carriesSignIn(store) {
+  return Object.keys(JSON.parse(await exportSettings(store)).foreign ?? {}).length > 0;
+}
+
+function exportNotice(store, signIn) {
   const secrets = listSettings(store)
-    .filter((setting) => setting.secret && readSetting(store, setting.key) !== null)
+    .filter((setting) => setting.secret && (readSetting(store, setting.key) !== null || (setting.key === "mailbox-sign-in" && signIn)))
     .map((setting) => `${setting.label} (${setting.grants})`);
   const contained = secrets.length ? secrets.join("; ") : "no stored secret";
   return `This file contains every stored token, key and password. Whoever holds it can use: ${contained}. You may lock it with a passphrase; it cannot be recovered.`;
 }
 
-function exportImportControls(context) {
-  const notice = el("p", "settings-export-notice", exportNotice(context.store));
+function exportImportControls(context, signIn) {
+  const notice = el("p", "settings-export-notice", exportNotice(context.store, signIn));
   const passphrase = el("input", "settings-export-passphrase");
   const download = el("button", "settings-export-download btn primary", "Export settings");
   const file = el("input", "settings-import-file");
@@ -847,7 +852,7 @@ export const route = {
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
-      exportImportControls(context), browserClearControls(context));
+      exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
     const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
