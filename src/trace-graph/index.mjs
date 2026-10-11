@@ -1,11 +1,13 @@
 // MOD-trace-graph — the trace graph and everything derived from it (docs/architecture/MOD-trace-graph.md): its
-// interface. Of it, traceGraph and tracesTo are built. traceGraph reads, of its Data, SPEC.md through MOD-spec-document, the
-// test files through MOD-test-document, the use cases, the architecture decisions, the module files, the plan steps and the
-// backlog items through MOD-documents, and the group files through MOD-group-document, so that its graph holds every
-// requirement, test, document and group with the edges it states and the facts the checks across artifacts need, and lists a
-// file it cannot read with the reason. tracesTo gives a requirement the sources its node keeps and the tests that guard it. The
-// code files and their imports, graphFindings, coverageGaps, requirementImpact, architectureImpact, moduleOrder, moduleRows,
-// compareGraphs and selfSufficiencyFindings are not built yet.
+// interface. Of it, traceGraph, graphFindings, tracesTo and selfSufficiencyFindings are built. traceGraph reads, of its Data,
+// SPEC.md through MOD-spec-document, the test files through MOD-test-document, the use cases, the architecture decisions, the
+// module files, the plan steps and the backlog items through MOD-documents, and the group files through MOD-group-document, so
+// that its graph holds every requirement, test, document and group with the edges it states and the facts the checks across
+// artifacts need, and lists a file it cannot read with the reason. graphFindings decides from the graph alone the checks across
+// artifacts, and selfSufficiencyFindings the links that reach a path the product repository does not hold, or the instance's
+// repository or dashboard; both are in checks.mjs. tracesTo gives a requirement the sources its node keeps and the tests that
+// guard it. The code files and their imports, coverageGaps, requirementImpact, architectureImpact, moduleOrder, moduleRows and
+// compareGraphs are not built yet.
 //
 // Module: MOD-trace-graph
 //
@@ -94,4 +96,5 @@
  */
 
 export { traceGraph } from "./build.mjs";
+export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
 export { tracesTo } from "./derive.mjs";
