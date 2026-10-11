@@ -1,8 +1,8 @@
 // MOD-markdown-render — Markdown and Mermaid, rendered safely, edited and compared (docs/architecture/MOD-markdown-render.md):
 // its interface. renderArtifact renders Markdown to sanitised HTML, draws Mermaid through the local library, and presents front
 // matter as a table when asked. renderMermaid draws one Mermaid source and showDifference presents a bounded line difference.
-// openEditor offers the existing Editor text() interface; its later Editor methods and leaving-unsaved-changes flow are outside
-// this module's current interface.
+// openEditor offers the Editor text(), setMarks(), showDraft() and close() interface, including its leaving-unsaved-changes
+// flow.
 //
 // Module: MOD-markdown-render
 //
@@ -16,8 +16,9 @@
  */
 
 /**
- * The editor openEditor returns: the text in it now.
- * @typedef {{ text(): string }} Editor
+ * The editor openEditor returns: the text in it now, caller-supplied marks, a draft against its current text, and closing.
+ * @typedef {{ text(): string, setMarks(findings: Finding[]): void, showDraft(draft: string, against: string): void,
+ *   close(): void }} Editor
  */
 
 export { renderArtifact } from "./render.mjs";

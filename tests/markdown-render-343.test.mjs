@@ -16,10 +16,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const FAULTS = {
-  "TST-343001": ["src/markdown-render/editor.mjs", "button.disabled = false;", "button.disabled = true;"],
+  "TST-343001": ["src/markdown-render/editor.mjs", "currentMarks = findings;", "currentMarks = [];"],
   "TST-343002": ["src/markdown-render/editor.mjs", "difference(against, draft)", "difference(draft, against)"],
   "TST-343003": ["src/markdown-render/editor.mjs", "confirm(\"Discard unsaved changes?\")", "false"],
-  "TST-343004": ["src/markdown-render/editor.mjs", "lastSaved = area.value;", "lastSaved = \"\";"],
+  "TST-343004": ["src/markdown-render/editor.mjs", "lastSaved = edited;", "lastSaved = \"\";"],
 };
 
 await import("./markdown-render.test.mjs");
