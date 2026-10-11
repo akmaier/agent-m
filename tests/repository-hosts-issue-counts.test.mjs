@@ -198,6 +198,29 @@ test("MOD-repository-hosts issueCounts — pull requests are not counted (GitHub
   assert.deepEqual(gl, { open: 1, closed: 0 }, "GitLab");
 });
 
+// ---------------------------------------------------------------- a private repository
+
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-022
+// given: a private repository on GitHub and a private project on a GitLab server, each serving a client only if it sends the right
+//        token — to any other GitHub's search answers 422, as it does for a repository it does not hold, and GitLab 404 —, each
+//        holding three open and two closed issues and pull or merge requests; a token stored for each
+// input: connect(address, { token }).issueCounts(), and connect(address, {}).issueCounts() without a token
+// expect: with the token { open: 3, closed: 2 } from each, the token sent to the API of the server that issued it, GitHub's search
+//         included — Authorization: Bearer <token> on each of the two searches, PRIVATE-TOKEN on the request for the statistics;
+//         without a token NotFound naming the repository or the project
+test("MOD-repository-hosts issueCounts — a private repository is counted with the token, which is sent to the search too, and is not found without one (GitHub, GitLab)", async () => {
+  const [gh, gl, { github, gitlab }] = await onBoth((address) => connect(address, { token: address === GITHUB ? GH_TOKEN : GL_TOKEN }).issueCounts(),
+    { gh: { priv: true }, gl: { priv: true } });
+  assert.deepEqual(gh, { open: 3, closed: 2 }, "GitHub");
+  assert.deepEqual(gl, { open: 3, closed: 2 }, "GitLab");
+  assert.deepEqual(github.searches().map((r) => r.headers.authorization), [`Bearer ${GH_TOKEN}`, `Bearer ${GH_TOKEN}`], "GitHub: the token is sent with each search");
+  assert.deepEqual(gitlab.statistics().map((r) => r.headers["private-token"]), [GL_TOKEN], "GitLab: the token is sent with the request");
+
+  const [ghWithout, glWithout] = await onBoth((address) => failure(connect(address, {}).issueCounts()), { gh: { priv: true }, gl: { priv: true } });
+  assert.deepEqual([ghWithout?.name, /release-tool/.test(String(ghWithout?.what))], ["NotFound", true], "GitHub, without a token");
+  assert.deepEqual([glWithout?.name, /release-tool/.test(String(glWithout?.what))], ["NotFound", true], "GitLab, without a token");
+});
+
 // ---------------------------------------------------------------- the search limit
 
 // guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
