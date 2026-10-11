@@ -190,7 +190,7 @@ test("TST-321002: local and CI invocations keep credentials out of command argum
 // level: unit
 // module: MOD-agent-processes
 // guards: A CANCELLED JOB WRITES NOTHING MORE; UC-010
-// given: a controlled Claude executable that starts a child scheduled to write a later marker and announces that it started.
+// given: a controlled Claude executable whose child first installs a SIGTERM handler that remains alive, signals readiness over IPC with no inherited stdio, then schedules a later marker.
 // input: send a prepared DriverInput with an AbortSignal aborted after the announced output.
 // expect: send throws Cancelled and stops the fixture and its child before the child can write the later marker.
 test("TST-321003: abort stops the agent and its child before later output", async () => {
@@ -199,10 +199,15 @@ test("TST-321003: abort stops the agent and its child before later output", asyn
   try {
     executable(folder, "claude", `
       import { spawn } from "node:child_process";
-      import { writeFileSync } from "node:fs";
-      const child = spawn(${JSON.stringify(node)}, ["-e", ${JSON.stringify(`setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, "later"), 250)`)}]);
-      child.unref();
-      process.stdout.write("started\\n");
+      const child = spawn(${JSON.stringify(node)}, ["-e", ${JSON.stringify(`
+        process.on("SIGTERM", () => {});
+        process.send("ready");
+        setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(marker)}, "later"), 250);
+        setInterval(() => {}, 1_000);
+      `)}], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
+      child.once("message", (message) => {
+        if (message === "ready") process.stdout.write("started\\n");
+      });
       setInterval(() => {}, 1_000);
     `);
     const controller = new AbortController();
