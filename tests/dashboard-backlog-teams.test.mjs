@@ -21,12 +21,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { join, normalize } from "node:path";
 import { readDocument } from "../src/documents/index.mjs";
 import { planSchemas } from "../src/work-plans/index.mjs";
-import { repoServer, openDashboard, REPO } from "./app-harness.mjs";
+import { repoServer, openDashboard, REPO, unesc } from "./app-harness.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const inMain = (selector) => globalThis.document.getElementById("main").querySelector(selector);
+// The style sheets the review page links, as paths of the repository — the site's src/theme/lme.css and docs/assets/style.css.
+const linkedSheets = () => [...read("docs/index.html").matchAll(/<link rel="stylesheet" href="([^"]+)">/g)]
+  .map(([, href]) => normalize(join("docs", href)));
 
 // ---------------------------------------------------------------- fakes of GitHub's pulls API and of "Create a reference"
 
@@ -333,9 +337,9 @@ test("#backlog — Plan sprint lists every item the other teams' sprints hold, w
 // given: the fixture product, its plan for team2 open
 // input: open #backlog, click Plan sprint for team2
 // expect: the title in a section.head, every button a btn and every folded explanation a details.explain; the page holds
-//         no style attribute, none of the old board's classes, and no class docs/assets/style.css — the
-//         stylesheet of #uc and #arc — does not define, but for the language of the burn-down's diagram, which the Markdown
-//         renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
+//         no style attribute, none of the old board's classes, and no class the style sheets the review page links — the
+//         site's and docs/assets/style.css, the one of #uc and #arc — do not define, but for the language of the burn-down's
+//         diagram, which the Markdown renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
 test("#backlog — the page is laid out as #uc and #arc are: panels, list tables, buttons and badges, no style of its own", async () => {
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
@@ -351,13 +355,73 @@ test("#backlog — the page is laid out as #uc and #arc are: panels, list tables
   assert.deepEqual(tags("details").filter((tag) => !classesOf(tag).includes("explain")), [], "every details is an explain");
   assert.doesNotMatch(html, /\sstyle="/);
   assert.doesNotMatch(html, /class="(board|column|card|cards|step)\b/);
-  const style = read("docs/assets/style.css");
+  const style = linkedSheets().map(read).join("\n");
   const defined = (name) => new RegExp(`\\.${name}(?![\\w-])`).test(style);
   assert.ok(defined("panel") && !defined("board"), "known positive and negative of the search");
   const classes = new Set([...html.matchAll(/\sclass="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/).filter(Boolean)));
   assert.ok(classes.has("language-mermaid"), "known positive: the burn-down's diagram is on the page");
-  for (const name of classes) if (name !== "language-mermaid") assert.ok(defined(name), `${name} is a class of docs/assets/style.css`);
+  for (const name of classes) if (name !== "language-mermaid") assert.ok(defined(name), `${name} is a class of a style sheet the page links`);
   const panels = html.split('<section class="panel"').slice(1);
   assert.ok(panels.length >= 4, "the teams, the backlog, what no item realises, the plan");
   for (const panel of panels) assert.match(panel, /<details class="explain"><summary>What is this\?<\/summary>/);
+});
+
+// ---------------------------------------------------------------- the page on a phone, and its chart
+
+// guards: UC-032; UC-035; the user's layout on a phone
+// given: the fixture product, its plan for team2 open
+// input: open #backlog, click Plan sprint for team2
+// expect: each of the page's four tables — team1's sprint, the plan, what the other teams' sprints hold and the backlog —
+//         stands alone in a box whose class a style sheet under src/ that the page links lets scroll sideways
+test("#backlog — every table stands in a box of its own that scrolls sideways", async () => {
+  const { page } = await backlogPage();
+  await page.click('[data-plan="team2"]');
+  const html = page.main();
+  const tables = html.match(/<table\b/g) ?? [];
+  assert.equal(tables.length, 4, "known positive: team1's sprint, the plan, the held items and the backlog each show a table");
+  const boxes = [...html.matchAll(/<div class="([\w-]+)">\s*<table\b[\s\S]*?<\/table>\s*<\/div>/g)].map(([, name]) => name);
+  assert.equal(boxes.length, tables.length, `every table stands alone in a box: ${boxes.length} of ${tables.length}`);
+  const sheets = linkedSheets().filter((path) => path.startsWith("src/")).map(read).join("\n");
+  assert.match(sheets, /\.menu\s*\{[^}]*overflow-x:\s*auto/, "known positive: the menu scrolls sideways on a phone");
+  for (const name of new Set(boxes)) {
+    assert.match(sheets, new RegExp(`\\.${name}\\s*\\{[^}]*overflow-x:\\s*(auto|scroll)`), `.${name} lets its table scroll sideways`);
+  }
+});
+
+// guards: UC-035; the user's chart: its text as large as the page's text
+// given: the fixture product, on a page whose body text the browser draws at 17px
+// input: open #backlog
+// expect: team1's chart is configured to draw its title and its axes' labels and titles — five sizes — at 17px, and is
+//         still the same chart
+test("#backlog — the chart's text is as large as the page's body text", async () => {
+  const before = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = (element) => ({ fontSize: element === globalThis.document?.body ? "17px" : "" });
+  try {
+    const { page } = await backlogPage();
+    const source = unesc(/<code class="language-mermaid">([\s\S]*?)<\/code>/.exec(part(page.main(), 'data-team="team1"'))?.[1] ?? "");
+    const config = /^---\n([\s\S]*?)\n---\n/.exec(source)?.[1] ?? "";
+    assert.match(config, /xyChart:[\s\S]*xAxis:[\s\S]*yAxis:/, `the chart carries its configuration: ${source}`);
+    assert.deepEqual([...config.matchAll(/FontSize:\s*(\d+)/g)].map(([, size]) => size), ["17", "17", "17", "17", "17"], config);
+    assert.match(source, /\n---\nxychart-beta\n[\s\S]*line \[2, 1/);
+  } finally {
+    if (before) globalThis.getComputedStyle = before;
+    else delete globalThis.getComputedStyle;
+  }
+});
+
+// guards: UC-035; the user's chart: its text as large as the page's text, at the width the site keeps the chart at
+// given: the fixture product, on a page whose style keeps the burn-down chart 640px wide
+// input: open #backlog
+// expect: team1's chart is configured to be drawn 640px wide, the width at which the page shows it
+test("#backlog — the chart is drawn as wide as the page keeps it", async () => {
+  const before = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = () => ({ fontSize: "", getPropertyValue: (name) => (name === "--burn-down-width" ? " 640px" : "") });
+  try {
+    const { page } = await backlogPage();
+    const source = unesc(/<code class="language-mermaid">([\s\S]*?)<\/code>/.exec(part(page.main(), 'data-team="team1"'))?.[1] ?? "");
+    assert.match(/^---\n([\s\S]*?)\n---\n/.exec(source)?.[1] ?? "", /^ {2}xyChart:\n {4}width: 640$/m, source);
+  } finally {
+    if (before) globalThis.getComputedStyle = before;
+    else delete globalThis.getComputedStyle;
+  }
 });

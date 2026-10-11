@@ -6,7 +6,10 @@
 // sprint commits the team's sprint through MOD-work-plans' startSprint, as the person's own commit — the one write of this
 // view, on the person's click. Everything else is read from the product's repository and its pull requests and derived when
 // shown; nothing is stored (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains itself (EVERY STEP EXPLAINS
-// ITSELF). The layout is the one of #uc and #arc: a head, panels, list tables, buttons and badges — no style of its own.
+// ITSELF). The layout is the one of #uc and #arc: a head, panels, list tables, buttons and badges — no style of its own; each
+// table stands in a box that scrolls sideways where the page is narrower than the table, and the burn-down chart keeps the
+// width at which its text is the size of the page's body text, scrolling sideways in its box where the page is narrower —
+// widths and sizes as the site's src/theme/lme.css gives them.
 //
 // Module: MOD-dashboard-app
 //
@@ -195,10 +198,19 @@ function remainingOverTime(items, mergedAt, start, end = "") {
   return points;
 }
 
-// The Mermaid chart of a sprint's items left over time.
-function burnDownChart(name, points) {
+// The size of the page's body text, and the width the site keeps the burn-down chart at (src/theme/lme.css), in px, as the
+// browser draws the page; null where nothing is drawn.
+const bodyTextSize = () => parseFloat(globalThis.getComputedStyle?.(document.body)?.fontSize) || null;
+const burnDownWidth = () => parseFloat(globalThis.getComputedStyle?.(document.documentElement)?.getPropertyValue?.("--burn-down-width")) || null;
+
+// The Mermaid chart of a sprint's items left over time. Given `width`, it is drawn that wide; given `size`, its title and its
+// axes' labels and titles are drawn at `size` px — both by Mermaid's own configuration of the chart.
+function burnDownChart(name, points, { width = null, size = null } = {}) {
   const most = Math.max(1, ...points.map((p) => p.remaining));
-  return ["xychart-beta", `  title "${name} — items remaining, times in UTC"`, `  x-axis [${points.map((p) => `"${p.label}"`).join(", ")}]`,
+  const axis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
+  const settings = [...(width ? [`    width: ${width}`] : []), ...(size ? [`    titleFontSize: ${size}`, `    xAxis: ${axis}`, `    yAxis: ${axis}`] : [])];
+  const config = settings.length ? ["---", "config:", "  xyChart:", ...settings, "---"] : [];
+  return [...config, "xychart-beta", `  title "${name} — items remaining, times in UTC"`, `  x-axis [${points.map((p) => `"${p.label}"`).join(", ")}]`,
     `  y-axis "Items remaining" 0 --> ${most}`, `  line [${points.map((p) => p.remaining).join(", ")}]`].join("\n");
 }
 
@@ -222,7 +234,7 @@ function teamPanel(app, ctx, d, team) {
     "that changes or uses the same modules. The chart counts the selected items not done yet: at the sprint's start, after each " +
     "merge of one of its items, at the time of that merge in UTC, and now — or, once the sprint is closed, at its end — derived " +
     "now from the sprint's record and the pull requests the page reads anyway, never stored (book ch. 7 §5).</p>");
-  const chartOf = (points) => `<div class="md" data-burn-down="${h(team)}">${md(`\`\`\`mermaid\n${burnDownChart(newest.name, points)}\n\`\`\`\n`)}</div>`;
+  const chartOf = (points) => `<div class="md" data-burn-down="${h(team)}">${md(`\`\`\`mermaid\n${burnDownChart(newest.name, points, { width: burnDownWidth(), size: bodyTextSize() })}\n\`\`\`\n`)}</div>`;
   if (!newest || !entry || entry.final) {
     const last = newest ? `<p class="muted">Its last sprint, ${fileLink(app, newest.record.path, `<b>${h(newest.name)}</b>`)}, `
       + `${text(newest.record.fields.end) ? `ended on ${h(newest.record.fields.end)}` : "is closed"}.</p>` : `<p class="muted">It has run no sprint yet.</p>`;
@@ -247,7 +259,7 @@ function teamPanel(app, ctx, d, team) {
       <dt>Ends</dt><dd>${f.end ? h(f.end) : "when its items are done or the Product Owner ends it — no time box"}</dd>
       <dt>Branch</dt><dd>${f.branch ? `<code>${h(f.branch)}</code>` : `none: <code>${h(app.T.ref)}</code>`}</dd><dt>Closed by</dt><dd>${h(f.closer)}</dd></dl>
     ${wipLine(app, ctx, d, entry)}
-    <table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${chart}
     <p>${plan("Change the selection", false)}</p>${why}</section>`;
 }
@@ -282,8 +294,8 @@ function backlogPanel(app, ctx, d) {
   }).join("");
   return `<section class="panel" data-part="backlog"><h3>The backlog</h3>
     <p class="muted">${h(order.length)} items, each after the items it builds on.</p>
-    <table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
-      <tbody>${rows}</tbody></table>
+    <div class="table-scroll"><table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
     ${explain("<p>The backlog is everything the product is meant to do, one Markdown file per item under <code>docs/backlog/</code> " +
       "(UC-032). It keeps no order of its own: each item is listed after the items it builds on, and what is worth doing next is " +
       "decided at sprint planning. A state is never stored: it is derived now from the pull requests that name the item — in their " +
@@ -330,8 +342,8 @@ function planPanel(app, ctx, d, team) {
     <p><label>Goal <input data-sprint-goal value="${h(running?.fields.goal ?? "")}"></label></p>
     <p><label>Start <input type="date" data-sprint-start value="${h(today())}"></label>
       <label>Closed by <input data-sprint-closer value="${h(running?.fields.closer ?? ownerOf(ctx, team))}"></label></p>
-    <table class="list"><thead><tr><th>Select</th><th>Item</th><th>Title</th><th>State</th><th>Why it cannot be selected</th></tr></thead>
-      <tbody>${rows}</tbody></table>
+    <div class="table-scroll"><table class="list"><thead><tr><th>Select</th><th>Item</th><th>Title</th><th>State</th><th>Why it cannot be selected</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
     <p><button class="btn primary" data-start-sprint="${h(team)}"${token ? "" : " disabled"}>Start sprint</button>
       <button class="btn" data-cancel-plan>Cancel</button></p>
     ${token ? "" : `<p class="muted small">Starting a sprint commits to the product's repository: store a token for it first (<a href="#settings">Settings</a>).</p>`}
@@ -354,8 +366,8 @@ function heldPanel(app, ctx, d, team) {
       <td>${h(x.sprint)}</td><td class="small">${x.changes.map(h).join(", ") || "—"}</td><td class="small">${x.uses.map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
   return `<section class="panel" data-part="held"><h3>What the other teams' sprints hold</h3>
-    ${others.length ? `<table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
-      <tbody>${rows}</tbody></table>` : `<p class="muted">No other team's sprint holds an item.</p>`}
+    ${others.length ? `<div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>` : `<p class="muted">No other team's sprint holds an item.</p>`}
     ${explain("<p>A sprint holds the items it selected from its start until their change is merged into the default branch or " +
       "they go back to the backlog — after its close too, while its increment waits on its own branch. While another team's " +
       "sprint holds an item, this team selects neither that item nor one that changes a module the item changes or uses, or " +
