@@ -244,7 +244,7 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
     assert.equal((await work()).status, 503);
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Resume').click()");
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
-    assert.equal((await work()).status, 404);
+    assert.equal((await work()).status, 422); // the agent probe is handled now: an empty args names no offered agent (invalid-request)
     await quit(app);
     didQuit = true;
     await assert.rejects(fetch(`http://127.0.0.1:${app.port}/v1/pair`));
