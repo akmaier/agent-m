@@ -1,10 +1,10 @@
 // MOD-job-runner — the one runner of every job kind (docs/architecture/MOD-job-runner.md): its interface — the registry of
 // strategies (registry.mjs) with the built-in recipes `instruction` and `draft`, the writer `return-draft` and the checks
-// `document-schema`, `requirement-form`, `test-declarations` and `candidate-classes` (builtins.mjs); prepareJob
-// (prepare.mjs), what a run panel shows before the person's click; runJob with the correction loop, and writeResult
-// (loop.mjs); provenanceLines and roundsText (provenance.mjs), with the round record's schema rounds.schema.md. The other
-// built-in checks on the artifact model are registered once the modules they use offer what they call: MOD-trace-graph's
-// graphFindings and selfSufficiencyFindings, MOD-group-document.
+// `document-schema`, `requirement-form`, `test-declarations`, `candidate-classes` and `group-rules` (builtins.mjs);
+// prepareJob (prepare.mjs), what a run panel shows before the person's click; runJob with the correction loop, and
+// writeResult (loop.mjs); provenanceLines and roundsText (provenance.mjs), with the round record's schema rounds.schema.md.
+// The other built-in checks on the artifact model are registered once the modules they use offer what they call:
+// MOD-trace-graph's graphFindings and selfSufficiencyFindings.
 //
 // Module: MOD-job-runner
 //
