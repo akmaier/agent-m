@@ -1,5 +1,4 @@
-// MOD-endpoint-calls — the direct short test and diagnosis that UC-003 needs. The endpoint driver, job execution,
-// correction loop, and Bridge composition are intentionally not part of ITM-260.
+// MOD-endpoint-calls — direct endpoint tests, diagnoses, and model drivers for browser and Node callers.
 
 /**
  * @typedef {{ name: string, kind: "openai-compatible" | "anthropic", baseUrl: string, model: string, key: string | null }} EndpointConfig
@@ -10,12 +9,25 @@
  */
 
 const ONE_WORD_PROMPT = "Reply with one word: ok.";
+const DRIVER_MAX_TOKENS = 1024;
+
+class EndpointFailed extends Error {
+  constructor(diagnosis) {
+    super(diagnosis.message);
+    this.name = "EndpointFailed";
+    this.diagnosis = diagnosis;
+  }
+}
 
 function endpointUrl(baseUrl, path) {
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
 function requestFor(config) {
+  return providerRequest(config, ONE_WORD_PROMPT, { maxTokens: 1 });
+}
+
+function providerRequest(config, prompt, { maxTokens = null, signal } = {}) {
   if (config.kind === "anthropic") {
     const headers = {
       "content-type": "application/json",
@@ -25,11 +37,8 @@ function requestFor(config) {
     if (config.key !== null) headers["x-api-key"] = config.key;
     return {
       url: endpointUrl(config.baseUrl, "/messages"),
-      init: {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ model: config.model, max_tokens: 1, messages: [{ role: "user", content: ONE_WORD_PROMPT }] }),
-      },
+      init: { method: "POST", headers, signal,
+        body: JSON.stringify({ model: config.model, max_tokens: maxTokens, messages: [{ role: "user", content: prompt }] }) },
     };
   }
 
@@ -37,11 +46,8 @@ function requestFor(config) {
   if (config.key !== null) headers.Authorization = `Bearer ${config.key}`;
   return {
     url: endpointUrl(config.baseUrl, "/chat/completions"),
-    init: {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ model: config.model, messages: [{ role: "user", content: ONE_WORD_PROMPT }], max_tokens: 1 }),
-    },
+    init: { method: "POST", headers, signal,
+      body: JSON.stringify(maxTokens === null ? { model: config.model, messages: [{ role: "user", content: prompt }] } : { model: config.model, messages: [{ role: "user", content: prompt }], max_tokens: maxTokens }) },
   };
 }
 
@@ -52,6 +58,44 @@ async function responseMessage(response) {
   } catch {
     return `Endpoint returned HTTP ${response.status}.`;
   }
+}
+
+function driverRequest(config, prompt, signal) {
+  return providerRequest(config, prompt, { maxTokens: config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null, signal });
+}
+
+function usageOf(usage) {
+  if (!usage) return null;
+  const inputTokens = usage.prompt_tokens ?? usage.input_tokens ?? null;
+  const outputTokens = usage.completion_tokens ?? usage.output_tokens ?? null;
+  if (inputTokens === null && outputTokens === null) return null;
+  return { inputTokens, outputTokens, minutes: null, cost: null };
+}
+
+function answerOf(body, kind) {
+  return kind === "anthropic" ? body?.content?.find((part) => part.type === "text")?.text : body?.choices?.[0]?.message?.content;
+}
+
+// endpointDriver(config, participant) -> Driver — one direct exchange for a prepared job prompt; no route selection,
+// retries, input cutting, or part duplication belongs here.
+export function endpointDriver(config, participant) {
+  return { participant, async send(input, options = {}) {
+    const where = typeof window === "undefined" ? "node" : "browser";
+    const { url, init } = driverRequest(config, input.prompt, options.signal);
+    let response;
+    try {
+      response = await fetch(url, init);
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      throw new EndpointFailed(diagnoseEndpoint(error, config, where));
+    }
+    if (!response.ok) {
+      const message = await responseMessage(response);
+      throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message }, config, where));
+    }
+    const body = await response.json();
+    return { text: answerOf(body, config.kind), usage: usageOf(body?.usage) };
+  } };
 }
 
 // testEndpoint(config: EndpointConfig) -> Promise<{ works: true, model: string } | { works: false, diagnosis: Diagnosis }>
