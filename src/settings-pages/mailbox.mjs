@@ -1,0 +1,244 @@
+// MOD-settings-pages' route `mailbox`, for the IMAP route (UC-037 steps 1 and 4 to 8): the address and the route routeFor preselects, the servers, the
+// password behind its notice, the Bridge the connection goes through, the folders, the processing places, and Store and test. The Microsoft route is
+// ITM-428's; Disconnect and the places changed later are ITM-429's.
+//
+// Module: MOD-settings-pages
+//
+// Where the texts leave a reading open, this file states the one it takes:
+//   - "This computer's" Bridge is one reached on the loopback (MOD-bridge-client's handle route `loopback`): it is preset.
+//   - The usual encryption for a port is that of UC-037 step 4.1: IMAP 993 TLS; SMTP 587 STARTTLS and 465 TLS. Another port presets nothing.
+//   - A place is inside the EU when it is `this machine` (the example connection of MOD-mail-routes gives it outsideEu false) or its words name the EU, the
+//     European Union or a member state; any other declared place is outside it.
+//   - A Bridge at a port of the jump host is reached through the jump host, whether by its HTTPS address or by the forward: the forward ends on it too.
+
+import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
+import { listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { readRegister } from "../documents/index.mjs";
+import { mailbox, routeFor } from "../mail-routes/index.mjs";
+import { participantSchema } from "../participant-list/index.mjs";
+import { explain } from "../site-frame/index.mjs";
+
+const SECURITY_OF_PORT = { imap: { 993: "tls" }, smtp: { 587: "starttls", 465: "tls" } };
+const MEMBER_STATES = ["Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany",
+  "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia",
+  "Spain", "Sweden"];
+const INSIDE_THE_EU = new RegExp(`\\b(?:EU|European Union|${MEMBER_STATES.join("|")})\\b`, "i");
+
+// Whether a processing place, as a participant declares it, is outside the EU.
+export const isOutsideEu = (place) => !(place.trim().toLowerCase() === "this machine" || INSIDE_THE_EU.test(place));
+
+function el(name, className, ...children) {
+  const node = document.createElement(name);
+  if (className) node.className = className;
+  node.append(...children);
+  return node;
+}
+const labelled = (text, ...nodes) => el("p", null, el("label", null, text, " ", ...nodes));
+
+// The Bridges this browser keeps under their names, with how each is reached: { name, entry, settings | null, route, throughJumpHost }.
+function bridgesOf(store) {
+  const jumpHost = readSetting(store, "jump-host");
+  return listSettings(store).filter((info) => info.key.startsWith("bridge:")).map((info) => {
+    const name = info.key.slice("bridge:".length);
+    const entry = readSetting(store, info.key) ?? {};
+    let settings = null, route = null;
+    try { settings = settingsOf({ name, ...entry }, jumpHost); route = bridgeAt(settings).route; } catch { /* a Bridge at a port with no jump host stays unreachable */ }
+    return { name, entry, settings, route, throughJumpHost: Number.isInteger(entry.port) || route === "jump-host" };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// The processing places the instance's participants declare, once each, in the order they stand.
+async function placesOf(host) {
+  const { defaultBranch } = await host.repositoryInfo();
+  const text = await (await host.readSnapshot(defaultBranch)).read("docs/participants.md");
+  if (text === null || text === undefined) return [];
+  const places = readRegister(participantSchema(), "docs/participants.md", text).rows.map(({ cells }) => String(cells["Processing place"] ?? "").trim())
+    .filter((place) => place && place !== "—");
+  return [...new Set(places)];
+}
+
+const failureText = (error, connection) => {
+  const bridge = connection.imap.bridge;
+  if (error?.name === "BridgeUnavailable") {
+    const causes = error.likely?.length ? ` Possible causes: ${error.likely.join(", ")}.` : "";
+    return `✗ The Bridge ${bridge} did not answer: ${error.reason}.${causes} The connection is stored and shown as untested.`;
+  }
+  if (error?.name === "NoEncryption") return `✗ ${error.server} offers no encryption. The Bridge sent no login to it: the password would travel in clear text. Correct the port or the encryption setting.`;
+  if (error?.name === "LoginRefused") return `✗ The mail server refused the login: ${error.answer}`;
+  if (error?.name === "FolderNotFound") return `✗ The folder ${error.folder} does not exist in this mailbox. Correct the folders.`;
+  if (error?.name === "Unreachable") return `✗ The mail server could not be reached: ${error.reason}`;
+  return `✗ The mailbox could not be tested: ${error?.message ?? error}`;
+};
+
+export const route = {
+  name: "mailbox",
+  entry: "settings",
+  title: "Mailbox",
+  async render(target, context) {
+    const store = context.store;
+    const owner = String(context.instance?.repository ?? "").split("/")[0];
+    const address = el("input", "mailbox-address");
+    const routeSelect = el("select", "mailbox-route", el("option", null, "imap"), el("option", null, "graph"));
+    const reason = el("p", "mailbox-route-reason");
+    const imapHost = el("input", "mailbox-imap-host"), imapPort = el("input", "mailbox-imap-port"), imapSecurity = el("select", "mailbox-imap-security");
+    const smtpHost = el("input", "mailbox-smtp-host"), smtpPort = el("input", "mailbox-smtp-port"), smtpSecurity = el("select", "mailbox-smtp-security");
+    const account = el("input", "mailbox-account");
+    const passwordRead = el("input", "mailbox-password-notice-read");
+    const password = el("input", "mailbox-password");
+    const bridgeSelect = el("select", "mailbox-bridge");
+    const jumpNotice = el("p", "notice mailbox-jump-notice", "The password and the mails pass the jump host on their way to this Bridge. Whoever administers the jump host can read them there.");
+    const jumpRead = el("input", "mailbox-jump-notice-read");
+    const folders = el("input", "mailbox-folders");
+    const placesBox = el("div", "mailbox-places");
+    const placesResult = el("p", "mailbox-places-result");
+    const placeNotice = el("p", "notice mailbox-place-notice", "Processing personal data there does not comply with the EU's rules — the GDPR for transferring personal data, and the EU AI Act. You can still allow it; this connection will record that you did.");
+    const placeRead = el("input", "mailbox-place-notice-read");
+    const storeTest = el("button", "mailbox-store-test btn primary", "Store and test");
+    const result = el("p", "mailbox-result");
+    const resultExplanation = el("div", "mailbox-result-explanation");
+    const setup = el("button", "mailbox-bridge-setup btn", "Set up a Bridge");
+    const parts = el("ul", "mailbox-parts");
+    const connected = el("p", "mailbox-connected");
+
+    for (const input of [address, imapHost, smtpHost, account, password, folders]) { input.autocomplete = "off"; input.spellcheck = false; }
+    for (const select of [imapSecurity, smtpSecurity]) for (const value of ["tls", "starttls", "none"]) select.append(el("option", null, value));
+    for (const checkbox of [passwordRead, jumpRead, placeRead]) checkbox.type = "checkbox";
+    password.type = "password";
+    password.disabled = true;
+    address.placeholder = "name@example.org";
+    imapPort.value = "993"; imapSecurity.value = "tls"; smtpPort.value = "587"; smtpSecurity.value = "starttls";
+    routeSelect.value = "imap";
+    folders.value = "INBOX";
+    jumpNotice.hidden = true; placeNotice.hidden = true; setup.hidden = true;
+    jumpRead.hidden = true; placeRead.hidden = true;
+
+    let accountTouched = false;
+    const syncAccount = () => { if (!accountTouched) account.value = address.value.trim(); };
+    account.addEventListener("change", () => { accountTouched = true; });
+    address.addEventListener("change", async () => {
+      try {
+        const found = await routeFor(address.value);
+        routeSelect.value = found.route;
+        reason.textContent = found.reason;
+        if (found.servers) {
+          imapHost.value = found.servers.imap.host; imapPort.value = String(found.servers.imap.port); imapSecurity.value = found.servers.imap.security;
+          smtpHost.value = found.servers.smtp.host; smtpPort.value = String(found.servers.smtp.port); smtpSecurity.value = found.servers.smtp.security;
+        }
+      } catch (error) { reason.textContent = error?.message ?? String(error); }
+      syncAccount();
+    });
+    imapPort.addEventListener("change", () => { const security = SECURITY_OF_PORT.imap[Number(imapPort.value)]; if (security) imapSecurity.value = security; });
+    smtpPort.addEventListener("change", () => { const security = SECURITY_OF_PORT.smtp[Number(smtpPort.value)]; if (security) smtpSecurity.value = security; });
+    passwordRead.addEventListener("change", () => { password.disabled = !passwordRead.checked; });
+
+    const bridges = bridgesOf(store);
+    bridgeSelect.append(el("option", null, ""), ...bridges.map((bridge) => el("option", null, bridge.name)));
+    for (const option of bridgeSelect.childNodes) option.value = option.textContent;
+    bridgeSelect.value = bridges.find((bridge) => bridge.route === "loopback")?.name ?? "";
+    const chosen = () => bridges.find((bridge) => bridge.name === bridgeSelect.value) ?? null;
+    const showJumpNotice = () => { jumpNotice.hidden = !chosen()?.throughJumpHost; jumpRead.hidden = jumpNotice.hidden; jumpRead.checked = false; };
+    bridgeSelect.addEventListener("change", showJumpNotice);
+    showJumpNotice();
+
+    const placeBoxes = [];
+    const showPlaceNotice = () => {
+      const outside = placeBoxes.some(({ box, place }) => box.checked && isOutsideEu(place));
+      placeNotice.hidden = !outside; placeRead.hidden = placeNotice.hidden;
+      if (!outside) placeRead.checked = false;
+    };
+    if (context.instance?.host) {
+      try {
+        for (const place of await placesOf(context.instance.host)) {
+          const box = el("input", "mailbox-place");
+          box.type = "checkbox";
+          box.setAttribute("data-place", place);
+          box.addEventListener("change", showPlaceNotice);
+          placeBoxes.push({ box, place });
+          placesBox.append(el("p", null, el("label", null, box, " ", place)));
+        }
+      } catch (error) {
+        placesResult.textContent = `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`;
+      }
+    }
+
+    function showConnected() {
+      const stored = readSetting(store, "mailbox");
+      if (!stored?.imap) { connected.textContent = ""; return; }
+      const last = readSetting(store, "last-test:mailbox");
+      const state = last?.outcome === "working" ? "connected" : "untested";
+      connected.textContent = `${stored.address} · IMAP through ${stored.imap.bridge} · folders ${stored.folders.join(", ")} · ${state}`;
+      if (state === "connected") connected.textContent = `Connected: ${connected.textContent}`;
+    }
+    showConnected();
+
+    storeTest.addEventListener("click", async () => {
+      parts.replaceChildren(); resultExplanation.replaceChildren(); setup.hidden = true;
+      const say = (text) => { result.textContent = text; };
+      if (routeSelect.value !== "imap") { say("The Microsoft 365 route signs in in Microsoft's own window, which is not on this page yet. Nothing was stored."); return; }
+      const mail = address.value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { say("Enter the mail address first. Nothing was stored."); return; }
+      if (!imapHost.value.trim() || !smtpHost.value.trim()) { say("Enter the IMAP and the SMTP server. Nothing was stored."); return; }
+      if (!passwordRead.checked) { say("Read the notice about the password and tick I have read this before entering it. Nothing was stored."); return; }
+      if (!password.value) { say("Enter the password. Nothing was stored."); return; }
+      const bridge = chosen();
+      if (!bridge) { say("Choose the Bridge this connection goes through (a Bridge paired on the Bridge page). Nothing was stored."); return; }
+      if (bridge.throughJumpHost && !jumpRead.checked) { say("This Bridge is reached through the jump host: read the notice and tick I have read this. Nothing was stored."); return; }
+      const ticked = placeBoxes.filter(({ box }) => box.checked).map(({ place }) => place);
+      if (ticked.some(isOutsideEu) && !placeRead.checked) { say("A place outside the EU is ticked: read the notice and tick I have read this. Nothing was stored."); return; }
+      const server = (host, port, security) => ({ host: host.value.trim(), port: Number(port.value), security: security.value });
+      const connection = {
+        address: mail, route: "imap",
+        folders: folders.value.split(",").map((name) => name.trim()).filter(Boolean),
+        places: ticked.map((place) => (isOutsideEu(place) ? { place, outsideEu: true, notCompliantNoted: true } : { place, outsideEu: false })),
+        imap: { bridge: bridge.name, jumpHostNoted: bridge.throughJumpHost, imap: server(imapHost, imapPort, imapSecurity), smtp: server(smtpHost, smtpPort, smtpSecurity),
+          account: account.value.trim() || mail, password: password.value },
+      };
+      if (!connection.folders.length) connection.folders = ["INBOX"];
+      writeSetting(store, "mailbox", connection);
+      say("Stored in this browser. Testing through the Bridge…");
+      let outcome = "refused";
+      try {
+        if (!bridge.settings) throw Object.assign(new Error(`${bridge.name} is reached through the jump host, and none is stored.`), { name: "BridgeUnavailable", reason: "no jump host is stored" });
+        const tested = await mailbox(connection, bridgeAt(bridge.settings)).test();
+        outcome = "working";
+        say(`✓ Stored and tested through ${bridge.name}.`);
+        for (const [folder, count] of Object.entries(tested.counts ?? {})) parts.append(el("li", null, `✓ ${folder}: ${count} mails`));
+        parts.append(el("li", null, tested.drafts ? "✓ Drafts folder found" : "✗ Drafts folder not found"), el("li", null, tested.sent ? "✓ Sent folder found" : "✗ Sent folder not found"));
+        if (tested.sending === "works") parts.append(el("li", null, "✓ Sending works (a login to the SMTP server; nothing was sent)"));
+        else {
+          parts.append(el("li", null, `✗ Sending does not work: ${tested.sending}`));
+          say("Reading is possible, sending is not: reading mails (UC-038) works, sending replies (UC-039) does not until this is corrected.");
+        }
+        parts.append(el("li", null, `Route: ${tested.route} · Encryption: ${tested.encryption}`));
+      } catch (error) {
+        say(failureText(error, connection));
+        if (error?.name === "LoginRefused") resultExplanation.append(explain("gmail-app-password"));
+        if (error?.name === "BridgeUnavailable") setup.hidden = false;
+      }
+      writeSetting(store, "last-test:mailbox", { at: new Date().toISOString(), outcome });
+      showConnected();
+    });
+    setup.addEventListener("click", () => context.go("bridge", {}));
+
+    target.replaceChildren(
+      el("h2", null, "Connect a mailbox"),
+      labelled("Mail address", address),
+      labelled("Route", routeSelect), reason, explain("mailbox-routes"),
+      el("h3", null, "Servers"),
+      labelled("IMAP server", imapHost, " port ", imapPort, " encryption ", imapSecurity),
+      labelled("SMTP server", smtpHost, " port ", smtpPort, " encryption ", smtpSecurity),
+      labelled("Account", account), explain("mail-server-settings"),
+      el("h3", null, "Password"),
+      el("p", "notice mailbox-password-notice", `The password is stored in this browser. Every GitHub Pages site under ${owner}.github.io can read it — here: the sites of ${owner}. With it, anyone can read all mail in this mailbox and send mail in its name. It goes to no server except the Bridge this connection names. Recommended: run this instance under a GitHub owner you use for nothing else.`),
+      el("p", null, el("label", null, passwordRead, " I have read this")),
+      labelled("Password", password), explain("gmail-app-password"),
+      el("h3", null, "Bridge"),
+      labelled("Bridge", bridgeSelect), jumpNotice, el("p", null, el("label", null, jumpRead, " I have read this")),
+      el("h3", null, "Folders"),
+      labelled("Folders to read, separated by commas", folders),
+      el("h3", null, "Where the mail may be processed"),
+      placesBox, placesResult, placeNotice, el("p", null, el("label", null, placeRead, " I have read this")), explain("mailbox-processing-places"),
+      el("p", null, storeTest), result, resultExplanation, setup, parts, connected,
+    );
+  },
+};

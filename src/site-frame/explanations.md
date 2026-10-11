@@ -544,3 +544,55 @@ ticked at first: until you tick a place, mails are only read and never handed to
 European Union, Agent M tells you before saving that processing personal data there does not comply with the EU's rules, the GDPR
 for transferring personal data and the EU AI Act. You can still allow it, and this connection records that you did. You can change
 the places later under Settings, Mailbox, Processing places; a mail already handed to a participant is not recalled.
+
+## what-is-an-architecture
+
+An architecture is the fundamental organization of a system: its components, their relationships to each other and to the
+environment, and the principles guiding its design and evolution. Agent M derives it from all the requirements and use cases at
+once, so a product's first architecture is drafted in one piece, with no selection. It describes the system down to its modules and
+their interfaces, and leaves to the implementation what only an implementation can answer. The *system* is decomposed into
+*subsystems*, each with one responsibility, and each subsystem into *modules*. The architecture is written in four kinds of file:
+the decision that states the system, with its patterns, subsystems, views and one scenario for every use case; one decision for
+each subsystem; further decisions, one for each significant choice such as a format or a library; and one file for each module.
+It is described in four views: the *logical* view of the subsystems and their abstractions, the *process* view of how they
+interact at runtime, the *development* view of the modules and their folders, and the *physical* view of where each part runs,
+tied together by the scenarios. It combines *patterns* from three families: structuring patterns, adaptable-system patterns and
+distributed-system patterns. And it follows design principles: divide and conquer, design to test, KISS, YAGNI, DRY, the principle
+of least astonishment, the open-closed principle, and developing against interfaces. In the book *Vibe Coding*: chapter 10.
+
+## architecture-reviewer
+
+Before you see the draft, a second participant, the *reviewing participant*, checks it as a whole against the whole SPEC. It is a
+participant other than the deriving one and uses another model.
+It checks level by level: every use case against the system, whether its scenario is possible with the subsystems and their
+interfaces; every subsystem against the system, whether it fulfils the responsibility and offers the interface the system's
+decision gives it; and every module against its subsystem. It does not check the modules against the use cases. Each finding
+names the file and line, the requirement it concerns and what does not fit, and counts as a warning. A reviewer can be wrong, so
+the deriving participant weighs each finding: it corrects what holds and answers what does not hold with the reason. The corrected
+draft is checked again, and each repetition is a *round*. Rounds go on until no finding is left, until the round limit is
+reached, or until a round leaves the findings unchanged. Findings left over are shown to you with the rounds, each finding beside
+the correction or the answer it got, and a finding that only you can decide is shown to you and not sent back. No test and no CI
+run checks the draft.
+
+## due-diligence
+
+Before you accept a library, Agent M does a *due diligence*: it looks up the facts about every reuse candidate and every
+alternative in the package registry and the source repository. It reads whether the package exists, its licence, the dates of its
+releases, its open and closed issues, and its adoption, which is the number of dependents or downloads. Each fact is stored with the
+address it was read from and the date, so you can check it. A candidate that is not found in its registry is not proposed: the
+name may be invented. If the registry cannot be read from the browser, a participant that can reach the web fetches the facts, and
+until then the reuse decision is shown without due diligence and cannot be written. Next to each candidate's licence stands your
+product's own. A package with no maintenance and unclear ownership should make you hesitate even if it is widely used. In the
+book *Vibe Coding*: chapter 6, section 5, on reuse.
+
+## licence-permits
+
+A licence is the permission under which you may use someone else's software; the licence says what you may do with it and what you
+must do in return. Without a licence you have no permission: code is under exclusive copyright by default, and being able to see
+or fork it on a code host does not allow you to use it. A *permissive* licence such as MIT or Apache-2.0 lets you use, change and
+distribute the software, even commercially, and mainly asks you to keep the copyright and licence notices. A *copyleft* licence such
+as the GPL also lets you do that, but asks you to make the source code available, under the same licence, for larger works that use
+it. So a licence can restrict how your own product may be distributed. Agent M reads each candidate's licence and your product's
+own, from its `LICENSE` file, and marks a candidate whose licence is not known to be compatible; if the licence is missing,
+unknown or restrictive, the table says so in its row and you decide. Without a `LICENSE` file in the product, every candidate's
+licence is marked *not checked*, and the product's own licence decides which libraries it may reuse.

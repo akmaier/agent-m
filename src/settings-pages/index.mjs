@@ -5,6 +5,7 @@
 import { route as addProduct } from "./products.mjs";
 import { route as endpoints } from "./endpoints.mjs";
 import { route as bridge } from "./bridge.mjs";
+import { route as mailbox } from "./mailbox.mjs";
 import { route as settings } from "./settings.mjs";
 
-export const view = { routes: [settings, addProduct, endpoints, bridge], strategies: [] };
+export const view = { routes: [settings, addProduct, endpoints, bridge, mailbox], strategies: [] };
