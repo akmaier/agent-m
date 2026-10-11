@@ -88,20 +88,26 @@ test("TST-320002: discovery names missing supported commands without a task", as
 // level: unit
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-011
-// given: a controlled Claude executable that records its complete argument vector and returns exactly one word.
+// given: a controlled Claude executable that records its complete argument vector, rejects a constructed inherited ANTHROPIC_API_KEY at its task invocation, and returns exactly one word otherwise.
 // input: testAgent(the discovered public Claude Agent).
 // expect: its documented print-mode task asks for one word and returns `{ answered: true, version }`; no other agent executable is reachable.
 test("TST-320003: harmless agent test sends a one-word task", async () => {
   const folder = fixture();
+  const priorKey = process.env.ANTHROPIC_API_KEY;
   try {
     const record = join(folder, "arguments");
-    command(folder, "claude", `case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) [ \"$#\" = 2 ] && [ \"$1\" = '-p' ] && [ \"$2\" = 'Reply with one word: ok.' ] && printf '%s\\n' \"$@\" > ${record} && echo yes || exit 64;; esac`);
+    command(folder, "claude", `case \"$*\" in '--version') echo 2.1.300;; 'auth status') echo '{\"authMethod\":\"claude.ai\"}';; *) [ -z \"$ANTHROPIC_API_KEY\" ] && [ \"$#\" = 2 ] && [ \"$1\" = '-p' ] && [ \"$2\" = 'Reply with one word: ok.' ] && printf '%s\\n' \"$@\" > ${record} && echo yes || exit 64;; esac`);
+    process.env.ANTHROPIC_API_KEY = "constructed-parent-fixture-key";
     const agent = (await withPath(folder, () => installedAgents())).find((value) => value.name === "claude");
     const answer = await withPath(folder, () => testAgent(agent));
     assert.deepEqual(answer, { answered: true, version: "2.1.300" });
     const argv = readFileSync(record, "utf8").trim().split("\n");
     assert.deepEqual(argv, ["-p", "Reply with one word: ok."]);
-  } finally { rmSync(folder, { recursive: true, force: true }); }
+  } finally {
+    if (priorKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = priorKey;
+    rmSync(folder, { recursive: true, force: true });
+  }
 });
 
 // TST-320004
