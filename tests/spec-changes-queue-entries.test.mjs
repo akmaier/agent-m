@@ -321,3 +321,20 @@ test("queue-entries — the candidates of a section are written in the order of 
   const body = filesOf(f.product.host.commits[0])[`${folder}/01-writing.md`];
   assert.ok(body.indexOf("**A WRITE RULE**") < body.indexOf("**FIRST NEW RULE**") && body.indexOf("**FIRST NEW RULE**") < body.indexOf("**SECOND NEW RULE**"));
 });
+
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-005 5b
+// given: a product that is its own instance — one repository, one host, one SPEC — and a result with a candidate for the product and one that constrains the process
+// input: the writer
+// expect: two commits to that host, each with a queue of its own: two folders, neither overwriting the other's files, the process queue's slug naming it
+test("queue-entries — a product that is its own instance gets two queues in two folders", async () => {
+  const f = fixture();
+  const shared = { snapshot: f.product.snapshot, host: f.product.host };
+  f.context.instance = { ...shared, checkout: null };
+  await writer(resultOf([NEW, candidate("A PROCESS RULE", { constrains: "process" })]), f.context);
+  assert.equal(f.product.host.commits.length, 2);
+  const [first, second] = f.product.host.commits.map((commit) => folderOf(commit)[0]);
+  assert.notEqual(first, second, "two queues, two folders");
+  assert.match(second, /process/);
+  const paths = f.product.host.commits.flatMap((commit) => commit.files.map((file) => file.path));
+  assert.equal(new Set(paths).size, paths.length, "no file is written twice");
+});
