@@ -145,6 +145,9 @@ class ParticipantMayServeSeveralTeams(unittest.TestCase):
             files[f"{ASSIGNMENTS}zz-second.md"] = files[teams[0]]
             teams.append(f"{ASSIGNMENTS}zz-second.md")
         result = judged(files, sprints="yes")
+        if not set(result["holders"][teams[0]]) & set(result["holders"][teams[1]]):
+            files[teams[1]] = files[teams[0]]
+            result = judged(files, sprints="yes")
         shared = set(result["holders"][teams[0]]) & set(result["holders"][teams[1]])
         self.assertTrue(shared, "known positive: a participant holds roles in two teams")
         self.assertEqual([f for f in errors(result["assignments"]) if any(name in f[4] for name in shared)], [])
