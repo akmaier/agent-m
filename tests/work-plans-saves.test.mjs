@@ -182,7 +182,8 @@ const CLOSE = { sprint: "team1/01",
 // input: closeSprint(host, the close, context at HEAD)
 // expect: one commit on main of the sprint's file only, appended to: ## Review naming the increment ITM-001, ITM-002 not done,
 //         the feedback and who took part; ## Unfinished items with ITM-002 to the backlog and its reason; ## Retrospective
-//         with the change — and, read again, ITM-002 is no longer held by the sprint
+//         with the change — and, read again, the closed sprint holds no item: ITM-002 went back to the backlog, and no pull
+//         request of ITM-001 is known as merged
 test("closeSprint — the review, the unfinished items and the retrospective are appended to the sprint's record in one commit", async () => {
   const path = "docs/backlog/sprints/team1/01.md";
   const host = hostWith({ ...ITEMS, [path]: OPEN });
@@ -202,7 +203,7 @@ test("closeSprint — the review, the unfinished items and the retrospective are
   assert.deepEqual(record.appended[1].fields, { "to the backlog": ["ITM-002"], "into the next sprint": [] });
   assert.ok(record.appended[1].text.includes("the pages wait for a layout decision"));
   assert.ok(record.appended[2].text.includes("Split the pages' work smaller.") && record.appended[2].text.includes("team agreement"));
-  assert.deepEqual(heldItems([record], [], ARCHITECTURE, []).map((h) => h.item), ["ITM-001", "ITM-002"].filter((i) => i !== "ITM-002"));
+  assert.deepEqual(heldItems([record], [], ARCHITECTURE, []).map((h) => h.item), []);
 });
 
 // guards: A SPRINT ENDS WITH A RETROSPECTIVE; UC-041 6a
