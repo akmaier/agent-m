@@ -1,5 +1,5 @@
 // strategies.mjs — the recipes of requirements of specStrategies (MOD-spec-changes, Parts: strategies.mjs; Interfaces: specStrategies).
-// Of it, ITM-337 builds the recipes `chosen-requirements`, `named-requirements` and `spec-with-queues`, ITM-438 the recipe `whole-spec`; the writer `queue-entries` is not built yet.
+// Of it, ITM-337 builds the recipes `chosen-requirements`, `named-requirements` and `spec-with-queues`, ITM-438 the recipe `whole-spec`, and ITM-338 the writer `queue-entries` (propose.mjs).
 //
 // Module: MOD-spec-changes
 //
@@ -24,6 +24,7 @@
 
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
+import { queueEntries } from "./propose.mjs";
 import { queues } from "./queues.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -111,5 +112,8 @@ export const specStrategies = {
     "named-requirements": sectionsOfNamed,
     "spec-with-queues": withQueues,
     "whole-spec": wholeSpec,
+  },
+  writers: {
+    "queue-entries": queueEntries,
   },
 };
