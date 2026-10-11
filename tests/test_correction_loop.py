@@ -26,8 +26,8 @@ const standIns = {
   recipes: Object.fromEntries(["chosen-requirements", "use-cases", "chapters-for-requirements", "source-excerpt",
     "spec-with-queues", "whole-spec", "accepted-use-cases", "chapters-for-architecture"]
     .map((name) => [name, async () => [{ name, text: `the text of ${name}`, size: 0, sources: [], required: true }]])),
-  checks: Object.fromEntries(["document-schema", "graph-checks", "candidate-classes", "requirement-form"]
-    .map((name) => [name, (draft) => (name === "graph-checks" ? find(draft) : [])])),
+  checks: Object.fromEntries(["document-schema", "graph-checks stand-in", "candidate-classes", "requirement-form"]
+    .map((name) => [name, (draft) => (name === "graph-checks stand-in" ? find(draft) : [])])),
   steps: { "due-diligence": async (draft) => ({ draft, findings: [] }) },
   writers: Object.fromEntries(["open-files", "queue-entries"].map((name) => [name,
     async (result) => ({ commits: [], files: [], pullRequest: null, shown: result.draft })])),
@@ -51,9 +51,12 @@ async function run(kindName, { drafterAnswers, reviewerAnswers = null, limit, at
     commit: "0".repeat(40) }, jobId: "JOB-20261011-0800-abcd" };
   const reviewers = reviewerAnswers ? [reviewerP] : [];
   // These runs drive the loop with the findings they set. Their drafts are no documents of the artifact model, which the
-  // runner's own check document-schema judges (tests/job-runner-document-schema.test.mjs), so their kinds run without it.
+  // runner's own check document-schema judges (tests/job-runner-document-schema.test.mjs), so their kinds run without it; and
+  // the runner registers graph-checks itself (tests/job-runner-graph-checks.test.mjs), so its stand-in, registered under a name
+  // of its own, is put in its place.
   const prepared = await jobRunner.prepareJob(kindName, context, { drafter: drafterP, reviewers, limit });
-  const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "document-schema") } };
+  const job = { ...prepared, kind: { ...prepared.kind, checks: prepared.kind.checks.filter((check) => check !== "document-schema")
+    .map((check) => (check === "graph-checks" ? "graph-checks stand-in" : check)) } };
   const drafter = driver(drafterP, drafterAnswers);
   const reviewerDrivers = reviewerAnswers ? [driver(reviewerP, reviewerAnswers)] : [];
   const result = await jobRunner.runJob(job, { drafter, reviewers: reviewerDrivers }, { attended, context });
