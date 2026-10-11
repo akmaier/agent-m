@@ -1,14 +1,16 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
 // `instruction` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form`,
-// `test-declarations` and `candidate-classes`, what a built-in check needs of a job's context, and the classes the last of
-// them finds. The other built-in checks on the artifact model come with the modules they use.
+// `test-declarations`, `candidate-classes` and `group-rules`, what a built-in check needs of a job's context, and the
+// classes `candidate-classes` finds. The other built-in checks on the artifact model come with the modules they use.
 //
 // Module: MOD-job-runner
 
 import { artifactSchemaOf, classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
+import { applyMoves, hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 import { isTestFile, testDeclarations, testFindings } from "../test-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
+import { traceGraph } from "../trace-graph/index.mjs";
 
 const part = (name, text) => ({ name, text, size: 0, sources: [], required: true });
 
@@ -23,6 +25,8 @@ const EXPECTED_RESULT = "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS";
 const GOES_BACK = "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT";
 const EXACT_DUPLICATE = "EXACT DUPLICATES ARE FOUND WITHOUT A MODEL";
 const CLASS_NAMES_ARTIFACT = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT";
+// The kind of node, in MOD-trace-graph's graph, that the group file of each kind arranges.
+const ARRANGED = { requirements: "requirement", "use-cases": "UC", architecture: "ARC", modules: "MOD", tests: "TST" };
 
 // The classes of a draft's candidates against the artifacts the job's parts carry, and the findings on the classes its drafter
 // gave. A candidate is a requirement, as a draft of `{ candidates }` holds it — the module file gives the key values of a
@@ -120,6 +124,26 @@ export const builtins = {
     // runJob hands to a check as its third argument: the findings of `classification`. The classes of the last round are the
     // result's, which runJob asks of classesOf.
     "candidate-classes": (draft, context, parts = []) => classification(draft, parts).findings,
+    // MOD-group-document's applyMoves of the drafted moves on the group file of the kind the job's parameter `kind` names,
+    // read from the product's snapshot — a product with none yet has an empty one —: each refused move is an error under A
+    // DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT, on the place of the move in the answer; and then the findings
+    // `hierarchy` reports for the result against the items of the kind, which the graph of the snapshot holds. No move puts a
+    // member in two places or titles a group by an identifier, so those findings are of the file as it stands, and the moves
+    // mend them.
+    "group-rules": async (draft, context) => {
+      const { snapshot } = context.product;
+      const path = `docs/groups/${context.params.kind}.md`;
+      const moves = Array.isArray(draft?.moves) ? draft.moves : [];
+      const { tree, refused } = applyMoves(parseGroupFile(path, (await snapshot.read(path)) ?? ""), moves);
+      const items = [...(await traceGraph(snapshot)).nodes.values()]
+        .filter((node) => node.kind === ARRANGED[context.params.kind]).map((node) => node.id);
+      return [
+        ...refused.map(({ move, reason }) => finding({ artifact: "answer", line: moves.indexOf(move) + 1, kind: "error",
+          rule: GOES_BACK, what: `the move ${JSON.stringify(move)} is refused: ${reason}`,
+          fix: "correct the move, or leave it out" })),
+        ...hierarchy(tree, items).findings,
+      ];
+    },
   },
   writers: {
     // Writes nothing; hands the result to the caller.
