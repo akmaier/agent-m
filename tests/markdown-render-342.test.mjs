@@ -74,6 +74,34 @@ function installMermaid(svg = SAFE_SVG, vertices = new Map()) {
   return calls;
 }
 
+// This stand-in follows Mermaid's public parser shape: each parse clears the shared database,
+// yields at the parser await, and returns a Diagram that still reads that database through
+// getVertices(). It therefore lets two public renderArtifact calls expose the same ownership
+// boundary as the vendored flowchart parser without changing the established small DOM.
+function installSharedDbMermaid() {
+  const calls = [];
+  const shared = { vertices: new Map() };
+  globalThis.mermaid = {
+    initialize(options) { calls.push({ kind: "initialize", options }); },
+    mermaidAPI: {
+      async getDiagramFromText(source) {
+        calls.push({ kind: "getDiagramFromText", source });
+        shared.vertices = new Map();
+        await Promise.resolve();
+        shared.vertices.set(source.includes("asset@") ? "asset" : "plain", source.includes("asset@")
+          ? { id: "asset", img: "https://outside.example/diagram.png" }
+          : { id: "plain" });
+        return { db: { getVertices: () => shared.vertices } };
+      },
+    },
+    async run({ nodes }) {
+      calls.push({ kind: "run", sources: [...nodes].map((node) => node.textContent) });
+      for (const node of nodes) node.innerHTML = SAFE_SVG;
+    },
+  };
+  return calls;
+}
+
 // TST-342001
 // guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW; NO SERVER
 // given: a public Markdown renderer with a Mermaid source block and prose beside it
@@ -133,6 +161,38 @@ test("TST-342006 Mermaid image metadata is refused before the drawing boundary",
   assert.equal(refused.className, "unrendered");
   assert.match(refused.textContent, /image|resource|Diagram error/i);
   assert.match(refused.textContent, /outside\.example/);
+}));
+
+// TST-342007
+// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; NO SERVER
+// given: the public renderer with a Mermaid parser whose Diagram objects read the vendor-style shared flowchart database
+// input: renderArtifact() for a lone image, a lone plain diagram, then image-first and plain-second Mermaid fences
+// expect: the lone image is refused, the plain control draws, and overlapping fences never send the image source to drawing
+test("TST-342007 overlapping Mermaid fences keep image metadata outside the drawing boundary", async () => withSvg(async () => {
+  const image = 'flowchart LR\n  asset@{ img: "https://outside.example/diagram.png" }';
+  const plain = "flowchart LR\n  plain[Plain]";
+  const calls = installSharedDbMermaid();
+  const fence = (source) => `\`\`\`mermaid\n${source}\n\`\`\``;
+
+  const loneImage = renderArtifact(fence(image));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.filter((call) => call.kind === "run").length, 0,
+    "known positive: a lone image-bearing diagram is refused");
+  assert.match(loneImage.textContent, /outside\.example/);
+
+  const lonePlain = renderArtifact(fence(plain));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(calls.some((call) => call.kind === "run" && call.sources.includes(plain)),
+    "known positive: a plain diagram reaches drawing");
+
+  calls.length = 0;
+  const overlapping = renderArtifact(`${fence(image)}\n\n${fence(plain)}`);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.ok(calls.some((call) => call.kind === "run" && call.sources.includes(plain)),
+    "the plain second fence remains drawable");
+  assert.ok(!calls.some((call) => call.kind === "run" && call.sources.includes(image)),
+    "an image-first fence never reaches drawing after a later parse clears shared metadata");
+  assert.match(overlapping.textContent, /outside\.example/);
 }));
 
 // TST-342002
