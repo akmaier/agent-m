@@ -181,7 +181,7 @@ export const builtins = {
   },
   writers: {
     // Writes nothing; hands the result to the caller.
-    "return-draft": async (result) => ({ commits: [], files: [], pullRequest: null, shown: result.draft }),
+    "return-draft": async (result) => ({ commits: [], files: [], pullRequest: null, shown: result.draft, notes: [] }),
   },
 };
 
