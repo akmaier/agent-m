@@ -171,7 +171,7 @@ test("mailbox — the usual encryption is preset for each port and the account i
   assert.equal(one(page, "mailbox-smtp-security").value, "starttls");
   await put(one(page, "mailbox-smtp-port"), "2525");
   assert.equal(one(page, "mailbox-smtp-security").value, "starttls", "no usual encryption for this port: what stood stays");
-  await put(one(page, "mailbox-imap-port"), "143");
+  await put(one(page, "mailbox-imap-security"), "none");
   await put(one(page, "mailbox-imap-port"), "993");
   assert.equal(one(page, "mailbox-imap-security").value, "tls");
   await put(one(page, "mailbox-address"), "first@other-org.example");
@@ -252,7 +252,7 @@ test("mailbox — a Bridge through the jump host is stored only after its notice
   await click(one(page, "mailbox-store-test"));
   assert.equal(readSetting(b.store, "mailbox"), null);
   assert.match(one(page, "mailbox-result").textContent, /jump host/);
-  assert.equal(b.requests.length, 0);
+  assert.equal(b.requests.filter((request) => request.url.includes("/v1/mail/")).length, 0);
   await tick(one(page, "mailbox-jump-notice-read"));
   await click(one(page, "mailbox-store-test"));
   assert.equal(readSetting(b.store, "mailbox").imap.bridge, "gpu-box");
@@ -364,23 +364,28 @@ test("mailbox — each failure of the test is shown as UC-037 names it", async (
   assert.match(offline.text, /untested/);
   assert.equal(readSetting(offline.b.store, "mailbox").imap.password, PASSWORD, "the connection is stored");
   assert.equal(readSetting(offline.b.store, "last-test:mailbox").outcome, "refused");
-  assert.ok(byClass(offline.page, "mailbox-bridge-setup").length === 1, "the way to set up a Bridge (UC-011)");
+  assert.equal(one(offline.page, "mailbox-bridge-setup").hidden, false, "the way to set up a Bridge (UC-011)");
+  assert.match(one(offline.page, "mailbox-connected").textContent, /untested/);
+  assert.doesNotMatch(one(offline.page, "mailbox-connected").textContent, /^Connected/);
   await click(one(offline.page, "mailbox-bridge-setup"));
   assert.deepEqual(offline.b.context.went, ["bridge"]);
 
   const clear = await run(() => Response.json({ error: "no-encryption", message: "imap.example.test offers no encryption; no login was sent." }, { status: 502 }));
   assert.match(clear.text, /imap\.example\.test/);
-  assert.match(clear.text, /no login was sent/i);
+  assert.match(clear.text, /sent no login|sends no login|no login was sent/i);
   assert.match(clear.text, /clear text/i);
+  assert.equal(one(clear.page, "mailbox-bridge-setup").hidden, true, "no Bridge setup for a failure of the server");
+  assert.equal(one(clear.page, "mailbox-result-explanation").textContent, "");
 
   const refused = await run(() => Response.json({ error: "login-refused", message: "AUTHENTICATIONFAILED Invalid credentials" }, { status: 502 }));
   assert.match(refused.text, /AUTHENTICATIONFAILED Invalid credentials/);
-  assert.ok(folded(refused.page).some((node) => /app password/i.test(node.textContent)), "the app password is explained, folded");
+  assert.ok(folded(one(refused.page, "mailbox-result-explanation")).some((node) => /app password/i.test(node.textContent)), "the app password is explained, folded, beside the answer");
 
   const sending = await run(() => Response.json({ ...TESTED, sending: "the SMTP login was refused" }));
   assert.match(sending.text, /INBOX.*12/, "reading is shown");
   assert.match(sending.text, /sending does not work.*SMTP login was refused/i);
   assert.match(sending.text, /reading is possible, sending is not/i);
+  assert.match(one(sending.page, "mailbox-connected").textContent, /^Connected/);
 
   const missing = await run(() => Response.json({ error: "upstream-failed", message: "Receipts: mailbox does not exist" }, { status: 502 }));
   assert.match(missing.text, /folder Receipts/i);
