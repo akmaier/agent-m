@@ -1,16 +1,25 @@
 // Mermaid drawing boundary: a local library produces a strict, safe SVG diagram.
 // Module: MOD-markdown-render
 import DOMPurify from "./vendor/purify.es.mjs";
-const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+})[c]);
 let ready = false;
 let loading;
 let libraryScript;
-const failed = (source, error) => { const e = document.createElement("div"); e.className = "unrendered"; e.innerHTML = `<p>Diagram error: ${esc(error?.message ?? error)}</p><pre><code>${esc(source)}</code></pre>`; return e; };
+const failed = (source, error) => {
+  const element = document.createElement("div");
+  element.className = "unrendered";
+  element.innerHTML = `<p>Diagram error: ${esc(error?.message ?? error)}</p><pre><code>${esc(source)}</code></pre>`;
+  return element;
+};
 const PRESENTATION = new Set(["fill", "stroke", "filter", "marker-start", "marker-mid", "marker-end", "clip-path", "mask", "cursor"]);
 function unsafeCss(value) {
   if (/@|\\|\/\*|\bimage-set\s*\(/i.test(value)) return true;
   const allowed = new Set(["url", "rgb", "rgba", "hsl", "hsla", "drop-shadow", "var", "not", "is", "where", "nth-child"]);
-  for (const match of value.matchAll(/\b([a-z-]+)\s*\(/gi)) if (!allowed.has(match[1].toLowerCase())) return true;
+  for (const match of value.matchAll(/\b([a-z-]+)\s*\(/gi)) {
+    if (!allowed.has(match[1].toLowerCase())) return true;
+  }
   for (const match of value.matchAll(/\burl\(([^)]*)\)/gi)) {
     if (!/^\s*(?:#[-\w:.]+|'#[-\w:.]+'|"#[-\w:.]+")\s*$/.test(match[1])) return true;
   }
@@ -21,7 +30,8 @@ function unsafeCss(value) {
 function safeSvg(root) {
   for (const node of root.getElementsByTagName("*")) {
     for (const attribute of node.attributes ?? []) {
-      const name = attribute.name.toLowerCase(), value = attribute.value;
+      const name = attribute.name.toLowerCase();
+      const value = attribute.value;
       if ((name === "href" || name === "xlink:href") && !value.startsWith("#")) return false;
       if ((name === "style" || PRESENTATION.has(name)) && unsafeCss(value)) return false;
     }
@@ -54,15 +64,19 @@ export async function renderMermaid(source) {
       m.initialize({ startOnLoad: false, securityLevel: "strict", htmlLabels: false });
       ready = true;
     }
-    const e = document.createElement("div"); e.className = "mermaid"; e.textContent = source;
-    await m.run({ nodes: [e] });
-    e.innerHTML = DOMPurify.sanitize(e.innerHTML, {
+    const element = document.createElement("div");
+    element.className = "mermaid";
+    element.textContent = source;
+    await m.run({ nodes: [element] });
+    element.innerHTML = DOMPurify.sanitize(element.innerHTML, {
       USE_PROFILES: { svg: true, svgFilters: true },
       FORBID_TAGS: ["foreignObject", "image", "feImage"],
       FORBID_ATTR: ["href", "xlink:href"],
     });
-    if (!safeSvg(e)) throw new Error("the diagram contains an external resource");
-    return e;
+    if (!safeSvg(element)) throw new Error("the diagram contains an external resource");
+    return element;
   }
-  catch (error) { return failed(source, error); }
+  catch (error) {
+    return failed(source, error);
+  }
 }

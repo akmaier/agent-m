@@ -30,7 +30,8 @@ const markdown = new Marked({
     // A Mermaid block is shown as its source; every other block as marked writes it.
     code({ text, lang }) {
       if (!/^mermaid(?:\s|$)/.test(lang ?? "")) return false;
-      return typeof SVGElement === "undefined" ? unrendered(text, NOT_DRAWN) : `<pre><code class="language-mermaid">${h(text)}</code></pre>`;
+      if (typeof SVGElement === "undefined") return unrendered(text, NOT_DRAWN);
+      return `<pre><code class="language-mermaid">${h(text)}</code></pre>`;
     },
   },
 });
@@ -50,9 +51,14 @@ export function renderArtifact(text, { frontMatter = "table" } = {}) {
   try {
     if (!DOMPurify.isSupported) throw new Error("this browser cannot sanitise HTML");
     const parsed = parseFrontMatter(text);
-    const table = frontMatter === "hidden" || !parsed.order.length ? "" : `<table class="frontmatter"><tbody>${parsed.order.map(k => `<tr><th>${h(k)}</th><td>${h(Array.isArray(parsed.fields[k]) ? parsed.fields[k].join(", ") : parsed.fields[k])}</td></tr>`).join("")}</tbody></table>`;
+    const rows = parsed.order.map((key) => {
+      const value = Array.isArray(parsed.fields[key]) ? parsed.fields[key].join(", ") : parsed.fields[key];
+      return `<tr><th>${h(key)}</th><td>${h(value)}</td></tr>`;
+    }).join("");
+    const table = frontMatter === "hidden" || !parsed.order.length ? "" : `<table class="frontmatter"><tbody>${rows}</tbody></table>`;
     rendered.innerHTML = table + DOMPurify.sanitize(markdown.parse(parsed.body), SANITISE);
-    for (const code of rendered.getElementsByTagName("code")) if (/language-mermaid/.test(code.className)) {
+    for (const code of rendered.getElementsByTagName("code")) {
+      if (!/language-mermaid/.test(code.className)) continue;
       const parent = code.parentNode;
       renderMermaid(code.textContent).then((diagram) => {
         parent.parentNode.insertBefore(diagram, parent);

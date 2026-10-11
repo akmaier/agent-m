@@ -86,6 +86,10 @@ test("TST-342001 renderMermaid draws strict SVG and leaves no hostile diagram ma
     "hostile SVG content never reaches the page");
   assert.match(drawn.innerHTML, /<text>drawn<\/text>|drawn/, "readable SVG label is retained");
   assert.match(drawn.innerHTML, /var\(--mermaid-font-family\)|rgb\(1,2,3\)/);
+  const path = drawn.getElementsByTagName("path")[0];
+  assert.equal(path.getAttribute("marker-start"), "url(#one)");
+  assert.equal(path.getAttribute("marker-mid"), "url('#two')");
+  assert.equal(path.getAttribute("marker-end"), 'url("#three")');
   for (const css of ['url(../outside.svg)', 'url(\\#escaped)', 'image(url(#one))', 'image-set(url(#one) 1x)']) {
     installMermaid(`<svg><style>.node{fill:${css}}</style><text>drawn</text></svg>`);
     const refused = await renderMermaid("flowchart LR\n  Unsafe --> Resource");
@@ -141,6 +145,7 @@ test("TST-342003 a Mermaid parse failure shows its message beside the escaped so
 // expect: a diagram first acquires the local vendor script and records a draw; after that detector is cleared, prose renders
 //         without another acquisition, initialisation or draw
 test("TST-342005 an artifact without a diagram loads no diagram library", async () => withSvg(async () => {
+  const priorMermaid = Object.getOwnPropertyDescriptor(globalThis, "mermaid");
   delete globalThis.mermaid;
   const body = document.body;
   for (const script of document.getElementsByTagName("script")) script.remove();
@@ -158,15 +163,19 @@ test("TST-342005 an artifact without a diagram loads no diagram library", async 
   };
   try {
     await renderMermaid("flowchart LR\n  Vendor --> Loaded");
-  assert.equal(acquired.length, 1, "a Mermaid block acquires exactly one local library script");
-  assert.match(acquired[0].getAttribute("src"), /vendor\/mermaid\.min\.js$/, "the acquired script is the vendored library");
-  assert.equal(calls.filter((call) => call.kind === "run").length, 1, "known positive: the detector records a diagram draw");
-  calls.length = 0;
-  const shown = renderArtifact("# Prose only\n");
-  assert.match(shown.innerHTML, /<h1>Prose only<\/h1>/);
-  assert.deepEqual(calls, [], "plain prose neither acquires nor calls the diagram library");
+    assert.equal(acquired.length, 1, "a Mermaid block acquires exactly one local library script");
+    assert.match(acquired[0].getAttribute("src"), /vendor\/mermaid\.min\.js$/, "the acquired script is the vendored library");
+    assert.equal(calls.filter((call) => call.kind === "run").length, 1, "known positive: the detector records a diagram draw");
+    calls.length = 0;
+    const shown = renderArtifact("# Prose only\n");
+    assert.match(shown.innerHTML, /<h1>Prose only<\/h1>/);
+    assert.deepEqual(calls, [], "plain prose neither acquires nor calls the diagram library");
     assert.equal(acquired.length, 1, "plain prose does not append a vendor script");
-  } finally { body.appendChild = appendChild; delete globalThis.mermaid; }
+  } finally {
+    body.appendChild = appendChild;
+    if (priorMermaid) Object.defineProperty(globalThis, "mermaid", priorMermaid);
+    else delete globalThis.mermaid;
+  }
 }));
 
 // TST-342004
@@ -198,9 +207,20 @@ after(() => {
       const invoke = () => { const env = { ...process.env, AGENT_M_342_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
         return spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/markdown-render-342.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env }); };
       const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/markdown-render-342.test.mjs")));
-      const faultStarted = new Date().toISOString(); writeFileSync(source, original.toString().replace(needle, replacement));
-      const faultHash = digest(readFileSync(source)), failed = invoke(), faultEnded = new Date().toISOString(); const restoreStarted = new Date().toISOString(); writeFileSync(source, original);
-      const restoredHash = digest(readFileSync(source)), passed = invoke(), restoredEnded = new Date().toISOString();
+      let faultHash, failed, faultEnded, restoreStarted, restoredHash, passed, restoredEnded;
+      const faultStarted = new Date().toISOString();
+      try {
+        writeFileSync(source, original.toString().replace(needle, replacement));
+        faultHash = digest(readFileSync(source));
+        failed = invoke();
+        faultEnded = new Date().toISOString();
+      } finally {
+        restoreStarted = new Date().toISOString();
+        writeFileSync(source, original);
+        restoredHash = digest(readFileSync(source));
+        restoredEnded = new Date().toISOString();
+      }
+      passed = invoke();
       console.log("TST342-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/markdown-render-342.test.mjs"], cwd: copied, childflag: "AGENT_M_342_FAULT_CHILD=1",
         failed: { status: failed.status, signal: failed.signal, error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
       assert.equal(failed.status, 1, id); assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));

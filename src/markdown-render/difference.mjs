@@ -22,9 +22,22 @@ export function difference(before, after) {
   return shown;
 }
 export function showDifference(before, after, { context = 3 } = {}) {
-  const lines = lineDiff(before, after), keep = new Set();
-  lines.forEach((line, i) => { if (line.op !== "same") for (let j = Math.max(0, i - context); j <= Math.min(lines.length - 1, i + context); j++) keep.add(j); });
-  const shown = document.createElement("pre"); shown.className = "diff";
-  lines.forEach((line, i) => { if (!keep.has(i)) return; const row = document.createElement("span"); row.className = CLASS[line.op]; row.textContent = `${SIGN[line.op]} ${line.text}`; shown.append(row, "\n"); });
+  const lines = lineDiff(before, after);
+  const keep = new Set();
+  lines.forEach((line, index) => {
+    if (line.op === "same") return;
+    for (let nearby = Math.max(0, index - context); nearby <= Math.min(lines.length - 1, index + context); nearby++) {
+      keep.add(nearby);
+    }
+  });
+  const shown = document.createElement("pre");
+  shown.className = "diff";
+  lines.forEach((line, index) => {
+    if (!keep.has(index)) return;
+    const row = document.createElement("span");
+    row.className = CLASS[line.op];
+    row.textContent = `${SIGN[line.op]} ${line.text}`;
+    shown.append(row, "\n");
+  });
   return shown;
 }

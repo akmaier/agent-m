@@ -7,8 +7,8 @@
 // Module: MOD-markdown-render
 //
 // It belongs to the Site (ARC-038) and runs in a browser. It uses MOD-text-tools' formatFinding and lineDiff. Every other file
-// of this folder is private to it; vendor/ holds marked and DOMPurify (ARC-049), each beside its licence file, named with its
-// version in vendor/README.md.
+// of this folder is private to it; vendor/ holds marked, DOMPurify and Mermaid (ARC-049), each beside its licence file, named
+// with its version in vendor/README.md.
 
 /**
  * What the caller's `save` returns to the editor.
