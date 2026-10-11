@@ -330,15 +330,41 @@ test("graphFindings — a uses edge whose interface the used module's node does 
 
 // ---------------------------------------------------------------- a cycle among the modules' uses
 
+// A third module, which no cycle runs through.
+const ASIDE_PATH = "docs/architecture/MOD-aside.md";
+const ASIDE_LINES = [
+  "---",
+  "id: MOD-aside",
+  "title: Aside",
+  "folder: src/aside/",
+  "realises:",
+  `  - ${REQUIREMENT}`,
+  "follows:",
+  "  - ARC-001",
+  "uses: []",
+  "provides:",
+  "  - helper",
+  "---",
+  "# MOD-aside Aside",
+  "",
+];
+
 // guards: MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE; UC-007; UC-019
-// given: the fixture, with MOD-text also using MOD-reader.readFile, so that MOD-reader uses MOD-text and MOD-text uses MOD-reader
+// given: the fixture, with a third module MOD-aside, designed by ARC-001, that MOD-reader uses before it uses MOD-text, and with
+//        MOD-text also using MOD-reader.readFile, so that MOD-reader uses MOD-text and MOD-text uses MOD-reader
 // input: graphFindings of its graph
 // expect: one error under MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE, at the module of the cycle whose identifier comes first,
-//         MOD-reader, and the line of its use that stays in the cycle, naming both modules
+//         MOD-reader, and the line of its use that stays in the cycle — not that of its use of MOD-aside, which stays outside it —,
+//         naming MOD-reader and MOD-text, and not MOD-aside
 test("graphFindings — a cycle among the modules' uses is an error", async () => {
-  const { lines, graph } = await repository({ [TEXT_PATH]: replace("uses: []", "uses:", "  - MOD-reader.readFile") });
-  assertFindings(graphFindings(graph),
-    [want("MOD-reader", lineOf(lines[READER_PATH], "  - MOD-text.readLines"), CYCLE, "MOD-reader", "MOD-text")]);
+  const { lines, graph } = await repository({
+    [ARC1_PATH]: replace("  - MOD-text", "  - MOD-text", "  - MOD-aside"),
+    [READER_PATH]: replace("uses:", "uses:", "  - MOD-aside.helper"),
+    [TEXT_PATH]: replace("uses: []", "uses:", "  - MOD-reader.readFile"),
+  }, { extra: { [ASIDE_PATH]: ASIDE_LINES } });
+  const found = graphFindings(graph);
+  assertFindings(found, [want("MOD-reader", lineOf(lines[READER_PATH], "  - MOD-text.readLines"), CYCLE, "MOD-reader", "MOD-text")]);
+  assert.ok(!found[0].what.includes("MOD-aside"), "MOD-aside is not part of the cycle");
 });
 
 // ---------------------------------------------------------------- the decision that designs a module
@@ -516,25 +542,34 @@ test("selfSufficiencyFindings — a link target is read as an address: the file 
 
 // guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; AN INSTANCE IS A FORK OF AGENT M; UC-007; UC-018; UC-019
 // given: the fixture, with the use case also linking to a file of the repository of the instance fixture-owner/agent-m; to the
-//        repository itself; to its dashboard, at the address MOD-identifiers' pagesAddress gives; to a page of the dashboard; to
-//        another repository of the same owner, agent-m-tools; to a page of another owner's site of the same name; and to an address
-//        without a scheme, //example.org/standard
+//        repository itself; to its dashboard, at the address MOD-identifiers' pagesAddress gives, to a page of it, and written
+//        without its closing slash; to another repository of the same owner, agent-m-tools; to a page of another owner's site of
+//        the same name; to the same owner and name on another host; to another site of the same owner whose name begins the same;
+//        and to an address without a scheme, //example.org/standard
 // input: selfSufficiencyFindings of the graph of each, for the instance fixture-owner/agent-m
-// expect: for the first four, the one error at UC-001 and the line of the link, under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT,
-//         naming the target; for the last three none, which are other places
+// expect: for the first five, the one error at UC-001 and the line of the link, under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT,
+//         naming the target; for the others none, which are other places
 test("selfSufficiencyFindings — a link to the instance's repository or to its dashboard is an error, a link to another place is none", async () => {
   const flagged = [
     "https://github.com/fixture-owner/agent-m/blob/main/SPEC.md",
     "https://github.com/fixture-owner/agent-m",
     "https://fixture-owner.github.io/agent-m/",
     "https://fixture-owner.github.io/agent-m/#settings",
+    "https://fixture-owner.github.io/agent-m",
   ];
   for (const target of flagged) {
     const goal = `${GOAL} See [Agent M](${target}).`;
     const { lines, graph } = await repository({ [UC_PATH]: replace(GOAL, goal) });
     assertFindings(selfSufficiencyFindings(graph, INSTANCE), [want("UC-001", lineOf(lines[UC_PATH], goal), SELF, target)], target);
   }
-  for (const target of ["https://github.com/fixture-owner/agent-m-tools", "https://other-owner.github.io/agent-m/", "//example.org/standard"]) {
+  const elsewhere = [
+    "https://github.com/fixture-owner/agent-m-tools",
+    "https://other-owner.github.io/agent-m/",
+    "https://gitlab.com/fixture-owner/agent-m",
+    "https://fixture-owner.github.io/agent-m-tools/",
+    "//example.org/standard",
+  ];
+  for (const target of elsewhere) {
     const { graph } = await repository({ [UC_PATH]: replace(GOAL, `${GOAL} See [elsewhere](${target}).`) });
     assert.ok(graph.links.some((link) => link.target === target), `known positive: the graph holds the link to ${target}`);
     assert.deepEqual(selfSufficiencyFindings(graph, INSTANCE), [], target);
