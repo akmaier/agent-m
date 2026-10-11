@@ -115,8 +115,9 @@ When the user rejects a design, derive the next one from these principles again;
 5. **A rule is quoted, not remembered.** Anyone relying on a rule reads it first
    and names the document and location. Verify that the cited rule applies to the task at hand.
 
-6. **Search first, then ask.** **A question to the user is admissible only if solving the task requires a change of the
-   SPEC, a use case or the architecture. If the task can be solved without such a change, do not ask.**
+6. **Search first, then ask.** **A question to the user is admissible only if no implementation is possible without a
+   change of the SPEC, a use case or the architecture. If an implementation is possible without such a change, do not
+   ask: take the reading of the texts that allows it, and name it.**
    A question to a human is itself a claim —
    namely that the matter could not be resolved independently. Before asking, research:
    the repository’s textbook first, the relevant original documents, available evidence and current practice.
