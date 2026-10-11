@@ -17,8 +17,11 @@ export const failure = (name, message, fields) => Object.assign(new Error(messag
 export const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, "");
 
 // The files of a version and their SHA-256, as the table under `### Files of <version>` in the entry's `## Versions` lists
-// them — the version written with or without backticks.
+// them — the version written with or without backticks. A file is stored unless the Files cell of the version's row names it
+// after `not stored:`, the names of the files only hashed separated by a comma and a space (registrationCommits writes it).
 function filesOf(versions, version) {
+  const note = /not stored: (.*)$/.exec(String(versions.rows?.find((each) => unquoted(each.cells.Version) === version)?.cells.Files ?? ""));
+  const hashedOnly = note ? note[1].split(", ") : [];
   const lines = versions.text.split("\n");
   const at = lines.findIndex((line) => line.trim() === `### Files of ${version}` || line.trim() === `### Files of \`${version}\``);
   if (at < 0) return [];
@@ -26,7 +29,7 @@ function filesOf(versions, version) {
   for (const line of lines.slice(at + 1)) {
     if (/^#{1,3} /.test(line)) break;
     const row = /^\| `([^`]+)` \| `([0-9a-f]{64})` \|/.exec(line.trim());
-    if (row) files.push({ name: row[1], sha256: row[2], stored: true });
+    if (row) files.push({ name: row[1], sha256: row[2], stored: !hashedOnly.includes(row[1]) });
   }
   return files;
 }
