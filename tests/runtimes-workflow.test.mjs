@@ -25,6 +25,12 @@
 // is returned as the text of `.gitlab-ci.yml` to add, a second file. Each test states its input and its expected result before it runs
 // (given / input / expect). A name the module does not provide yet is undefined here, so that each test fails by itself. Nothing reaches
 // the network. The counter-proofs are recorded in the pull request.
+//
+// The templates are files beside the module (workflow/github.yml, workflow/gitlab.yml). The repository's check NO SERVER (tests/
+// test_no_backend.py) lets a module fetch its own data files only where it lists the module, and it does not list MOD-runtimes: so
+// the templates are read from the disk, in Node, and in a browser, where there is none, jobWorkflowFiles fails by name — an Error that
+// says the templates are read in Node — and the rest of the module stays usable. The last test shows that, on a copy of the module
+// loaded without the disk.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -222,4 +228,32 @@ test("jobWorkflowFiles — the secrets are named and never valued, the token is 
     assert.throws(() => jobWorkflowFiles("github", { repository, commit: COMMIT }, SECRETS, []), TypeError, `repository ${JSON.stringify(repository)}`);
   }
   assert.throws(() => files("github", ["my gpu"]), TypeError, "a label");
+});
+
+// ---------------------------------------------------------------- without a disk
+
+// guards: AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-010
+// given: the module loaded as a browser loads it, where `process.getBuiltinModule` gives no disk — a second copy of ci.mjs, loaded
+//        under another address, with that function taken away while it loads — and, as the known positive, the copy loaded as it is
+// input: jobWorkflowFiles on each server, from each copy; and queueJob's other export, RuntimeError, from the copy
+// expect: the copy with the disk gives the files; the copy without it throws an Error, not a TypeError, that says the templates are
+//         read in Node, for each server; and the copy loads, so that the rest of the module stays usable
+test("jobWorkflowFiles — in a browser, where the templates cannot be read yet, it fails by name and the module still loads", async () => {
+  const load = async (tag, withDisk) => {
+    const getBuiltinModule = process.getBuiltinModule;
+    if (!withDisk) process.getBuiltinModule = undefined;
+    try {
+      return await import(`../src/runtimes/ci.mjs?${tag}`);
+    } finally {
+      process.getBuiltinModule = getBuiltinModule;
+    }
+  };
+  const withDisk = await load("with-disk", true), without = await load("without-disk", false);
+
+  assert.equal(withDisk.jobWorkflowFiles("github", INSTANCE, SECRETS, RUNNERS).length, 1, "known positive");
+  for (const server of ["github", "gitlab"]) {
+    assert.throws(() => without.jobWorkflowFiles(server, INSTANCE, SECRETS, RUNNERS),
+      (error) => error.constructor === Error && /read in Node/.test(error.message), server);
+  }
+  assert.equal(typeof without.RuntimeError, "function");
 });
