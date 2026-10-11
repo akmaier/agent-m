@@ -114,7 +114,7 @@ test("MOD-repository-hosts clone — a commit the clone lacks is fetched from th
 // given: the clone, whose snapshot of `main` was read; a change of two files — one new, one changed — at that commit
 // input: commitFiles({ branch: "main", expectedHead: that commit, files, message })
 // expect: one commit on the origin's `main`, whose parent is the commit it was made on, holding the two files with their texts
-//         and the old ones as they were, its message as given; the result { commit: that commit, url } with a string url
+//         and the old ones as they were, its message as given; the result { commit: that commit, url: GitHub's page of the commit }
 test("MOD-repository-hosts clone — two files committed and pushed in one commit while the origin's branch stands at the expected head", async () => {
   await withFixture(async ({ origin, clone, first }) => {
     const host = connect(ADDRESS, { clone });
@@ -130,7 +130,7 @@ test("MOD-repository-hosts clone — two files committed and pushed in one commi
     assert.equal(git(origin, "show", "main:docs/new/c.md"), "Text of c.", "the new file");
     assert.equal(git(origin, "show", "main:README.md"), "# Release tool", "the file left alone");
     assert.equal(git(origin, "log", "-1", "--format=%B", "main"), "Change two files", "the message as given");
-    assert.equal(typeof result.url, "string", "an address");
+    assert.equal(result.url, `${ADDRESS.web}/commit/${result.commit}`, "the address of the commit on GitHub");
   });
 });
 
@@ -187,5 +187,34 @@ test("MOD-repository-hosts clone — a pull request through the clone, and the o
       assert.ok(e instanceof HostError, `${label}: a HostError, not ${e}`);
       assert.equal(e.name, "NotSupported", label);
     }
+  });
+});
+
+// given: a clone whose origin cannot be reached any more — its folder is gone — and an identifier the clone lacks
+// input: readSnapshot(that identifier)
+// expect: HostError Unreachable giving git's reason, not NotFound: the origin could not be asked, which is not that it lacks the commit
+test("MOD-repository-hosts clone — an origin that cannot be reached is Unreachable, not a commit it lacks", async () => {
+  await withFixture(async ({ origin, clone }) => {
+    rmSync(origin, { recursive: true, force: true });
+    const e = await failure(connect(ADDRESS, { clone }).readSnapshot("b".repeat(40)));
+    assert.ok(e instanceof HostError, `a HostError, not ${e}`);
+    assert.equal(e.name, "Unreachable");
+    assert.match(String(e.reason), /\S/, "git's reason is given");
+  });
+});
+
+// given: the clone, and a change that deletes docs/a.md and writes docs/blob.bin as bytes (0, 255, 1, 128), for a product on GitLab
+// input: commitFiles({ branch: "main", expectedHead, files, message })
+// expect: the origin's `main` without docs/a.md, with docs/blob.bin holding exactly those four bytes; the result's url GitLab's
+//         page of the commit, the server's address followed by /-/commit/ and the commit
+test("MOD-repository-hosts clone — a file deleted and a file written as bytes, for a GitLab product", async () => {
+  await withFixture(async ({ origin, clone, first }) => {
+    const gitlab = parseAddress("https://gitlab.example.org/space/release-tool");
+    const result = await connect(gitlab, { clone }).commitFiles({ branch: "main", expectedHead: first,
+      files: [{ path: "docs/a.md", delete: true }, { path: "docs/blob.bin", bytes: new Uint8Array([0, 255, 1, 128]) }], message: "Delete and write" });
+    assert.equal(git(origin, "ls-tree", "-r", "--name-only", "main").split("\n").sort().join(","), "README.md,docs/blob.bin", "a.md deleted");
+    const bytes = spawnSync("git", ["cat-file", "blob", "main:docs/blob.bin"], { cwd: origin }).stdout;
+    assert.deepEqual([...bytes], [0, 255, 1, 128], "the bytes as given");
+    assert.equal(result.url, `${gitlab.web}/-/commit/${result.commit}`, "GitLab's page of the commit");
   });
 });
