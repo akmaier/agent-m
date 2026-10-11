@@ -48,19 +48,21 @@ test.after(() => {
       delete env.NODE_TEST_CONTEXT;
       return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env });
     };
-    let failed, passed, faultHash, restoredHash;
+    let failed, passed, faultHash, restoredHash, faultEnded, restoreStarted;
     const faultStarted = new Date().toISOString();
     try {
       writeFileSync(source, original.toString().replace(needle, replacement));
       faultHash = digest(readFileSync(source));
       failed = invoke();
-    } finally { writeFileSync(source, original); }
+      faultEnded = new Date().toISOString();
+    } finally { restoreStarted = new Date().toISOString(); writeFileSync(source, original); }
     const restoredEnded = new Date().toISOString();
     restoredHash = digest(readFileSync(source));
     passed = invoke();
     const positiveEnded = new Date().toISOString();
-    console.log("TST453-counterproof " + JSON.stringify({ sourceHash, testHash, faultHash, restoredHash, faultStarted, restoredEnded, positiveEnded, argv, cwd: copied, childflag: "AGENT_M_453_FAULT_CHILD=1", failed, passed }));
-    assert.equal(failed.status, 1); assert.match(`${failed.stdout}\n${failed.stderr}`, /not ok \d+ - TST-453001/);
+    const outcome = (result) => ({ status: result.status, signal: result.signal, error: result.error?.message ?? null, stdout: result.stdout, stderr: result.stderr });
+    console.log("TST453-counterproof " + JSON.stringify({ id: "TST-453001", file: "src/bridge-http/protocol.mjs", needle, replacement, sourceHash, testHash, faultHash, restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv, cwd: copied, childflag: "AGENT_M_453_FAULT_CHILD=1", failed: outcome(failed), passed: outcome(passed) }));
+    assert.equal(failed.status, 1); assert.match(`${failed.stdout}\n${failed.stderr}`, /not ok \d+ - TST-453001/); assert.match(`${failed.stdout}\n${failed.stderr}`, /AssertionError|ERR_ASSERTION/);
     assert.equal(restoredHash, sourceHash); assert.equal(passed.status, 0); assert.match(`${passed.stdout}\n${passed.stderr}`, /ok \d+ - TST-453001/);
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
