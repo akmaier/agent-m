@@ -4,7 +4,8 @@ Return the requirements that result, as candidates, under the rules of a derivat
 `rule` — one statement in the required target state —, a `check` saying how and what a test verifies, without example
 values, whether it `constrains` the `product` or the development `process`, the `passage` of the instruction or the
 requirement it comes from, and a `class`: `new`, `change` of the requirement named in `of` — keep that name —,
-`duplicate` of the one in `of`, or `conflict` with the one in `of`. Change nothing the instruction does not ask for.
+`duplicate` of the one in `of`, or `conflict` with the one in `of`. Where a candidate points to a rule of another source, give that source as `source`; leave it out otherwise.
+Change nothing the instruction does not ask for.
 
 ## The person's instruction
 

@@ -10,6 +10,8 @@ a test verifies, without example values, whether it `constrains` the `product` o
 - `duplicate` — it restates the existing requirement named in `of`;
 - `conflict` — it contradicts the existing requirement named in `of`.
 
+Where a candidate points to a rule of another source than this one, give that source as `source`; leave it out otherwise.
+
 Write one statement per requirement; a rule that needs "and" is two requirements. Invent nothing the excerpt does not
 say.
 

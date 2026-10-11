@@ -448,3 +448,99 @@ instance and the product, and the Bridge refuses the job and names the repositor
 Some browsers block the call to the Bridge's local address, `http://127.0.0.1`, as Safari does. The site then says why and points
 to the other route: the Bridge reached over HTTPS through the jump host. Use that route when your browser blocks the local
 address. The same route reaches a machine behind NAT.
+
+## source-kinds
+
+A source is where rules come from, and the library keeps four kinds of them. An *EU legal text* is a law or regulation of the
+European Union, for example the AI Act: you paste its EUR-Lex or ELI address and Agent M recognises the number in it. A
+*standard* is a norm published by a standards body, for example IEC 62304: you enter its full designation. *Documents* are
+files you have, PDF, Word or Markdown files or a zip file holding them, for example a customer's requirements specification.
+A *repository* is a repository on GitHub or GitLab, public or private, for example a project's guidelines kept in Git. Choose
+the kind that matches what you have; the rest of the form follows from it.
+
+## source-name
+
+The name is how the library and the products that link the source call it, for example *AI Act* or *IEC 62304*. Choose a name
+you would recognise in a list, since it is shown wherever the source is linked. If the source is already in the library, do not
+register it again: add a new version of the existing one.
+
+## source-authority
+
+Authority says how much the source binds. *Normative* means its rules must be followed, for example a law or a standard you must
+comply with. *Advisory* means they are recommended, for example a guideline. *Informational* means they are background that
+helps you understand, for example a handbook. A normative source does not win automatically when it contradicts something in a
+product: a person still decides, because the product may be out of that source's scope.
+
+## source-licence
+
+The licence says whether the source's content may be republished. *May be republished* is for texts such as EU law or openly
+licensed guides: their content is stored in the public instance beside the register entry. *Restricted* is for content such as a
+bought norm or internal documents: it is kept in a repository you name, never in the public instance. If you do not know the
+licence, the source is treated as restricted until someone records it.
+
+## standard-designation
+
+A standard is registered by its full designation, and that includes the edition and its amendments, for example
+`IEC 62304:2006+AMD1:2015`. You find it on the norm's cover page, next to the title: the number, the year of the edition after the
+colon, and any amendments added with a plus sign. The amendment matters because an amendment changes the text of the norm, so a
+requirement taken from the edition alone may differ from the one the amended norm states; the full designation says exactly
+which version was used. The licence of a standard is preset to restricted.
+
+## file-only-hashed
+
+If you only have a printed or local copy of a norm and do not want to upload it, select the file anyway. Your browser computes the
+file's SHA-256, a fingerprint of its exact content, without sending the file anywhere. Only the designation and that hash are
+recorded, with a note where your copy is kept, so the text itself is not stored. Anyone holding the same copy can compute the
+hash and check that it is the version that was used.
+
+## source-public
+
+Before you save, Agent M states what becomes public, because the instance is a public fork. The register entry always becomes
+public: the name, kind, authority, licence, versions, identifiers and hashes. The content becomes public only if its licence
+says it may be republished; restricted content goes to the repository you name, and it is public only as far as that repository
+is.
+
+## mailbox-routes
+
+There are two ways to connect a mailbox, and your mail provider decides which one you use. The *web API* route is for Microsoft
+365 and goes directly from the dashboard: you sign in with the provider's own sign-in, so Agent M never sees your password, and
+you register an app with Microsoft once, whose return address is this dashboard. It works because Microsoft allows web pages to
+call its mail API. The *IMAP and SMTP* route is for every other mail server, for example Gmail, FAU's Exchange, a university's
+IMAP server or a small provider. You give the mailbox password, which is stored in this browser after a notice, and you need a
+Bridge running and paired with this browser. It needs the Bridge because browsers let no web page open an IMAP or SMTP
+connection. Agent M proposes the route from your mail address, and you can change it.
+
+## mailbox-app-registration
+
+To sign in with Microsoft, you register an app with Microsoft once. The dashboard opens Microsoft's page for a new app
+registration and shows what to enter there: the name `Agent M`, the kind *single-page application*, and the return address of this
+dashboard, with a copy button. Then you copy the app's client ID back into the dashboard. Many institutions allow this only to
+their administrators. If Microsoft refuses the registration, ask the administrator of your institution's Microsoft account, and
+tell them what you need: a single-page application with this return address and the three mail permissions. Until it is
+registered, the IMAP route can serve in the meantime if your provider also offers IMAP.
+
+## mail-server-settings
+
+For the IMAP route you enter the IMAP server and the SMTP server with their ports. A mail provider usually lists these settings in
+its help pages, or in the mail settings of your account, under a heading such as *IMAP* or *server settings*. The dashboard presets
+the usual encryption for each port: port 993 with implicit TLS for IMAP, and port 587 with STARTTLS or port 465 with implicit TLS
+for SMTP. It also presets the account name as your address. Correct whatever differs for your provider.
+
+## gmail-app-password
+
+Gmail refuses your account password over IMAP. It accepts an *app password* instead: a password that Google creates for one
+program. An app password needs 2-Step Verification to be switched on for your Google account, so switch that on first, then create
+the app password in your account's security settings, on Google's page
+[Create and manage your app passwords](https://myaccount.google.com/apppasswords), and enter it as the mailbox password. Work or school accounts may not offer
+app passwords; then the organisation's administrator decides whether you can connect. The same applies when a mail server refuses
+the login although the password is right: some providers require an app password instead of the account password when two-factor
+login is on.
+
+## mailbox-processing-places
+
+Processing places are the places where the participants of this instance process the data they are given, for example *this
+machine*, *FAU data centre (EU)* or *US cloud provider*. You tick the places to which this mailbox's mails may be given. Nothing is
+ticked at first: until you tick a place, mails are only read and never handed to a participant. If you tick a place outside the
+European Union, Agent M tells you before saving that processing personal data there does not comply with the EU's rules, the GDPR
+for transferring personal data and the EU AI Act. You can still allow it, and this connection records that you did. You can change
+the places later under Settings, Mailbox, Processing places; a mail already handed to a participant is not recalled.

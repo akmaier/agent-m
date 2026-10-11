@@ -36,6 +36,9 @@
           },
           "of": {
             "type": "string"
+          },
+          "source": {
+            "type": "string"
           }
         },
         "required": [
