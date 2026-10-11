@@ -1,6 +1,6 @@
 // MOD-mail-routes — one mailbox interface over Microsoft Graph and over the Bridge (docs/architecture/MOD-mail-routes.md): its
-// interface. ITM-423 builds the format MailConnection, routeFor and providerLinks, ITM-424 signIn (graph-route.mjs). mailbox and Mailbox
-// (ITM-425), the mail parser and the operations of UC-038 and UC-039 are not built yet.
+// interface. ITM-423 builds the format MailConnection, routeFor and providerLinks, ITM-424 signIn (graph-route.mjs), ITM-425 mailbox and the
+// mailbox's test (graph-route.mjs, bridge-route.mjs). The rest of Mailbox, the mail parser and the operations of UC-038 and UC-039 are not built yet.
 //
 // Module: MOD-mail-routes
 //
@@ -8,6 +8,10 @@
 // origin the page names: routeFor's one lookup, and those of the sign-in library signIn uses; providerLinks makes none. It keeps nothing: the connection is written by MOD-settings-pages.
 
 import PROVIDERS from "./providers.json" with { type: "json" };
+
+import { graphMailbox } from "./graph-route.mjs";
+import { bridgeMailbox } from "./bridge-route.mjs";
+import { failure } from "./errors.mjs";
 
 export { signIn } from "./graph-route.mjs";
 
@@ -61,4 +65,18 @@ const unreachable = (why) => ({ route: "imap", servers: null,
  */
 export function providerLinks() {
   return { appRegistration: "https://entra.microsoft.com", accessWithdrawal: "https://myapps.microsoft.com" };
+}
+
+/**
+ * mailbox(connection: MailConnection, bridge: Bridge | null) -> Mailbox — the mailbox on the connection's route; `bridge` is Access's
+ * Bridge for the one the connection names, needed on the Bridge route only. Makes no request. Throws BridgeNeeded on the Bridge route
+ * without one. ITM-425 builds its `test()`; reading, finding, drafts and sending are UC-038's and UC-039's.
+ * @param {MailConnection} connection
+ * @param {object | null} bridge
+ */
+export function mailbox(connection, bridge) {
+  if (connection.route === "graph") return graphMailbox(connection);
+  if (connection.route !== "imap") throw new TypeError(`a mailbox is reached on the route graph or imap, not ${connection.route}`);
+  if (!bridge) throw failure("BridgeNeeded", {}, `The mailbox ${connection.address} is reached through a Bridge: choose one.`);
+  return bridgeMailbox(connection, bridge);
 }
