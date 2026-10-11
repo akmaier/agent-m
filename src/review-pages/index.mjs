@@ -1,5 +1,6 @@
 // MOD-review-pages — the review pages of the dashboard (docs/architecture/MOD-review-pages.md): its interface. ITM-355 builds the
-// view with the route of the use cases: the list with each use case's status, one use case, and accepting it.
+// view with the route of the use cases: the list with each use case's status, one use case, and accepting it; ITM-356 adds
+// Review all: `use-case/id=all`, every use case not yet accepted in sequence, and accepting what is shown.
 //
 // Module: MOD-review-pages
 //
@@ -7,7 +8,9 @@
 // person clicks Accept or Accept ticked. Every other file of this folder is private to the module.
 
 import { reviewRoute } from "./flow.mjs";
-import { USE_CASES } from "./kinds.mjs";
+import { DECISIONS, MODULES, USE_CASES } from "./kinds.mjs";
 
 // view — what the frame loads: one route for the use cases, `use-case` (the list) and `use-case/id=<id>` (one use case).
-export const view = { routes: [reviewRoute(USE_CASES)], strategies: [] };
+// `use-case/id=all` is Review all. ITM-440 adds the routes `decision` and `module` in the same form: the files with their status, one
+// file with the section of what it rests on that is not accepted, and accepting it.
+export const view = { routes: [reviewRoute(USE_CASES), reviewRoute(DECISIONS), reviewRoute(MODULES)], strategies: [] };

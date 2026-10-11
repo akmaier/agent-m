@@ -33,7 +33,7 @@ function filesOf(versions, version) {
 
 // A version's hash: the SHA-256 of the lines `<SHA-256 of the file>  <file name>`, one per file, sorted by name, each ending
 // with a line break (Data).
-async function versionHash(files) {
+export async function versionHash(files) {
   const lines = [...files].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
     .map((file) => `${file.sha256}  ${file.name}\n`);
   return sha256(lines.join(""));

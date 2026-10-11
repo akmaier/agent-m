@@ -1,13 +1,15 @@
 // MOD-mail-routes — one mailbox interface over Microsoft Graph and over the Bridge (docs/architecture/MOD-mail-routes.md): its
-// interface. ITM-423 builds the format MailConnection, routeFor and providerLinks. signIn (ITM-424), mailbox and Mailbox (ITM-425), the
-// mail parser and the operations of UC-038 and UC-039 are not built yet.
+// interface. ITM-423 builds the format MailConnection, routeFor and providerLinks, ITM-424 signIn (graph-route.mjs). mailbox and Mailbox
+// (ITM-425), the mail parser and the operations of UC-038 and UC-039 are not built yet.
 //
 // Module: MOD-mail-routes
 //
-// It belongs to Issues and mail (ARC-044) and runs in the browser. Its one request is routeFor's, to Microsoft's sign-in service, the
-// provider's one origin the page names; providerLinks makes none. It keeps nothing: the connection is written by MOD-settings-pages.
+// It belongs to Issues and mail (ARC-044) and runs in the browser. Its requests go to Microsoft's sign-in service, the provider's one
+// origin the page names: routeFor's one lookup, and those of the sign-in library signIn uses; providerLinks makes none. It keeps nothing: the connection is written by MOD-settings-pages.
 
 import PROVIDERS from "./providers.json" with { type: "json" };
+
+export { signIn } from "./graph-route.mjs";
 
 /**
  * A mailbox connection, which Access keeps in this browser (MOD-browser-store) and nowhere else: `route` is "graph" or "imap", and only

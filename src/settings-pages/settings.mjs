@@ -9,7 +9,7 @@ import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs"
 import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
-import { pair } from "../bridge-client/index.mjs";
+import { bridgeAt, pair, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 
@@ -143,9 +143,100 @@ function bridgeLine(target, context) {
   );
 }
 
+// What a failed Bridge or jump-host test says, as far as a browser lets a page know why.
+function bridgeTestFailure(error) {
+  if (error?.name === "NoAnswer") return `The Bridge gave no answer. Possible causes: ${error.likely?.join(", ") ?? "its address"}.`;
+  if (error?.name === "TokenRefused") return "The Bridge refused its pairing token. Copy its current token and pair it again.";
+  if (error?.name === "JumpHostLoginRefused") return "The jump host refused its web login. Check that login in Bridge settings and save it again.";
+  if (error?.name === "JumpHostMissing") return "This Bridge is reached through the jump host, and no jump host is stored. Set it up on the Bridge page.";
+  if (error?.name === "Timeout") return "The Bridge did not answer in time. Check that it is running, then test again.";
+  return error?.message ?? String(error);
+}
+
+// The Bridges this browser keeps, each under its name: `bridge:<name>`.
+function bridgeNamedLine(target, context, info) {
+  const name = info.key.slice("bridge:".length);
+  const entry = readSetting(context.store, info.key);
+  if (!entry || typeof entry !== "object") return null;
+  const token = el("input", "settings-bridge-named-token");
+  const show = el("button", "settings-bridge-named-show btn small", "Show");
+  const test = el("button", "settings-bridge-named-test btn", "Test");
+  const change = el("button", "settings-bridge-named-change btn", "Change");
+  const clear = el("button", "settings-bridge-named-clear btn", "Clear");
+  const result = el("p", "settings-bridge-named-result");
+  const status = el("p", "settings-bridge-named-status", stateText(info.lastTest));
+  token.type = "password";
+  token.value = entry.token ?? "";
+  token.autocomplete = "off";
+  token.spellcheck = false;
+  const where = () => (typeof entry.address === "string" ? entry.address : `port ${entry.port} of the jump host`);
+  show.addEventListener("click", () => {
+    const hidden = token.type === "password";
+    token.type = hidden ? "text" : "password";
+    show.textContent = hidden ? "Hide" : "Show";
+  });
+  change.addEventListener("click", () => context.go("bridge", { name }));
+  test.addEventListener("click", async () => {
+    let lastTest;
+    try {
+      const settings = settingsOf({ name, ...entry }, readSetting(context.store, "jump-host"));
+      result.textContent = `Testing ${name} at ${settings.address}…`;
+      await testBridge(bridgeAt(settings));
+      lastTest = { at: new Date().toISOString(), outcome: "working" };
+      result.textContent = `✓ ${name} answers at ${settings.address}.`;
+    } catch (error) {
+      lastTest = { at: new Date().toISOString(), outcome: "refused" };
+      result.textContent = `✗ ${bridgeTestFailure(error)}`;
+    }
+    writeSetting(context.store, `last-test:${info.key}`, lastTest);
+    status.textContent = stateText(lastTest);
+  });
+  clear.addEventListener("click", async () => {
+    const naming = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
+      .filter((setting) => readSetting(context.store, setting.key)?.bridge === name).map((setting) => endpointName(setting.key));
+    const consequence = naming.length ? `${naming.length === 1 ? "The endpoint" : "The endpoints"} ${naming.join(", ")} ${naming.length === 1 ? "names" : "name"} this Bridge and will have none to call through.` : "No endpoint names this Bridge.";
+    if (typeof globalThis.confirm !== "function" || !globalThis.confirm(`Clear the Bridge ${name} from this browser? ${consequence}`)) return;
+    clearSetting(context.store, info.key);
+    clearSetting(context.store, `last-test:${info.key}`);
+    await route.render(target, context, {});
+  });
+  return el("section", "settings-bridge-named panel",
+    el("h3", null, "Bridge: ", el("span", "settings-bridge-named-name", name)), status,
+    el("p", null, `Reached at: ${where()}`),
+    el("p", null, el("label", null, "Pairing token ", token, " ", show)),
+    whatIsThis("This browser keeps the Bridge's address, or its port on the jump host, and its pairing token under the name the Bridge reports. Anyone able to read this browser's Pages storage can read them."),
+    el("p", null, test, " ", change, " ", clear), result,
+  );
+}
+
 function jumpHostLine(target, context) {
   const setting = readSetting(context.store, "jump-host");
   if (!setting) return null;
+  const test = el("button", "settings-jump-host-test btn", "Test");
+  const result = el("p", "settings-jump-host-result");
+  const status = el("p", "settings-jump-host-status", stateText(readSetting(context.store, "last-test:jump-host")));
+  test.addEventListener("click", async () => {
+    if (!setting.httpsAddress) { result.textContent = "No HTTPS address is stored for the jump host, so there is nothing to call."; return; }
+    let outcome = "working";
+    try {
+      result.textContent = `Calling ${setting.httpsAddress}…`;
+      // The jump host serves only the paths of Bridges: the path asked for is answered by its web server after the login, not by a Bridge,
+      // and the placeholder in the token header is no secret.
+      await testBridge(bridgeAt({ address: setting.httpsAddress, token: "jump-host-test", ...(setting.login ? { login: setting.login } : {}) }));
+      result.textContent = `✓ The jump host's web server answers at ${setting.httpsAddress}.`;
+    } catch (error) {
+      if (error?.name === "BridgeFailed" || (error?.name === "TokenRefused" && setting.login)) {
+        result.textContent = `✓ The jump host's web server answers at ${setting.httpsAddress} and accepted its login.`;
+      } else {
+        outcome = "refused";
+        result.textContent = error?.name === "JumpHostLoginRefused" ? "✗ The jump host's web server refused its login. Check the web login and save it again."
+          : `✗ ${bridgeTestFailure(error)}`;
+      }
+    }
+    const lastTest = { at: new Date().toISOString(), outcome };
+    writeSetting(context.store, "last-test:jump-host", lastTest);
+    status.textContent = stateText(lastTest);
+  });
   const change = el("button", "settings-jump-host-change btn", "Change");
   const clear = el("button", "settings-jump-host-clear btn", "Clear");
   change.addEventListener("click", () => context.go("bridge", {}));
@@ -158,7 +249,7 @@ function jumpHostLine(target, context) {
     el("p", null, `Host: ${setting.hostname}`),
     el("p", null, `HTTPS address: ${setting.httpsAddress ?? "Not configured."}`),
     whatIsThis("This browser keeps the jump-host connection details so the Bridge can prepare remote sessions. Anyone able to read this browser's Pages storage can read them."),
-    el("p", null, change, " ", clear),
+    status, el("p", null, test, " ", change, " ", clear), result,
   );
 }
 
@@ -721,6 +812,8 @@ export const route = {
     const bridge = bridgeLine(target, inPlace);
     const jumpHost = jumpHostLine(target, inPlace);
     const remoteSessions = listSettings(context.store).map((info) => remoteSessionLine(target, inPlace, info)).filter(Boolean);
+    const namedBridges = listSettings(context.store).filter((info) => info.key.startsWith("bridge:"))
+      .map((info) => bridgeNamedLine(target, inPlace, info)).filter(Boolean);
     const general = el("section", "settings-tab-panel",
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
@@ -738,7 +831,7 @@ export const route = {
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
       configurationControls(inPlace), form,
-      ...(bridge ? [bridge] : []), ...(jumpHost ? [jumpHost] : []),
+      ...(bridge ? [bridge] : []), ...namedBridges, ...(jumpHost ? [jumpHost] : []),
       ...remoteSessions,
       endpoints);
     const usability = el("section", "settings-tab-panel",
