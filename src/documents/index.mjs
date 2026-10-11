@@ -5,8 +5,8 @@
 // table found by its header row. ITM-252 adds appendSection, and, for a section's or an appended section's fields, a key
 // that is words of a front matter key's form separated by single spaces, such as `gate record` — a front matter key itself
 // stays as MOD-text-tools states it. artifactSchemas gives the four schemas this module owns — the use case, the decision,
-// the module and the item —; and the schema language reads a path written { pattern, rule } and a condition on the path.
-// classifyCandidates is not built yet.
+// the module and the item —, and artifactSchemaOf the one whose path pattern a path matches; and the schema language reads a
+// path written { pattern, rule } and a condition on the path. classifyCandidates is not built yet.
 //
 // Module: MOD-documents
 //
@@ -53,7 +53,7 @@ export { loadSchema } from "./schema-language.mjs";
 export { readDocument, writeDocument, readRegister, appendSection } from "./read-write.mjs";
 export { documentFindings } from "./checks.mjs";
 
-import { loadSchema as load } from "./schema-language.mjs";
+import { compiledOf, loadSchema as load, matchesPath } from "./schema-language.mjs";
 
 const OWNER = "MOD-documents";
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -80,4 +80,15 @@ const OWN = Object.freeze(Object.fromEntries(await Promise.all(Object.entries(SC
  */
 export function artifactSchemas() {
   return OWN;
+}
+
+/**
+ * artifactSchemaOf(path) -> Schema | null — the one of the four schemas artifactSchemas gives whose path pattern the path
+ * matches, or null. The patterns are the ones the schemas compiled and pathRule matches, with the placeholders as the schema
+ * language defines them: a caller that holds only a path, such as a drafted file's, needs no copy of the patterns.
+ * @param {string} path
+ * @returns {Schema | null}
+ */
+export function artifactSchemaOf(path) {
+  return Object.values(OWN).find((schema) => matchesPath(compiledOf(schema), path)) ?? null;
 }

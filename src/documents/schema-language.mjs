@@ -451,10 +451,17 @@ function checker(owner) {
 const pathEntries = (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]);
 const entryPattern = (entry) => (typeof entry === "string" ? entry : entry?.pattern);
 
+// The first of the schema's path patterns that `path` matches.
+const patternOf = (compiled, path) => compiled.patterns.find((pattern) => pattern.re.test(String(path ?? "")));
+
+// matchesPath(compiled, path) -> boolean — whether `path` matches one of the schema's path patterns: the whole path, with the
+// placeholders as the language defines them.
+export const matchesPath = (compiled, path) => patternOf(compiled, path) !== undefined;
+
 // pathRule(compiled, path) -> string | null — the rule the first of the schema's patterns that `path` matches names, where it
 // names one: a document at that path names it in place of the schema's own rule.
 export function pathRule(compiled, path) {
-  return compiled.patterns.find((pattern) => pattern.re.test(String(path ?? "")))?.rule ?? null;
+  return patternOf(compiled, path)?.rule ?? null;
 }
 
 const LOADED = new WeakMap();
