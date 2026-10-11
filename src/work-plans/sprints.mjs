@@ -7,7 +7,8 @@
 //
 // A team's sprint is the record docs/backlog/sprints/<team>/<nn>.md, read with planSchemas.sprint; <team> is the name of the
 // team's role assignment, and the sprint is named <team>/<nn>. A record that stands in no team's folder is no team's sprint
-// and holds nothing. An item and a module file are Documents as MOD-documents' readDocument gives them: an item's `modules`
+// and holds nothing. A sprint is closed once its record holds the ## Review its close appends, as closeSprint decides it.
+// An item and a module file are Documents as MOD-documents' readDocument gives them: an item's `modules`
 // are the modules it changes, a module file's `uses` the interfaces it uses, `MOD-<slug>.<name>`. A pull request is in the
 // form of MOD-repository-hosts' PullRequest: `branch` its head branch, `base` the branch it goes into.
 
@@ -44,6 +45,9 @@ function sentOn(record) {
   return new Set([...list(close?.fields?.["to the backlog"]), ...list(close?.fields?.["into the next sprint"])]);
 }
 
+// Whether a sprint's close is recorded: its record holds the ## Review its close appends.
+const closedRecord = (record) => (record?.appended ?? []).some((section) => section?.heading === "## Review");
+
 // The modules whose interfaces `modules` use, by the architecture's module files, in the order of their identifiers.
 function usedBy(modules, architecture) {
   const files = new Map((architecture ?? []).map((file) => [idOf(file), file]));
@@ -58,6 +62,10 @@ const naming = (pullRequest, id) => {
   return pattern.test(text(pullRequest?.branch)) || pattern.test(text(pullRequest?.title));
 };
 const time = (value) => Date.parse(text(value));
+
+// Whether a pull request of the item is merged, into whichever branch.
+const mergedAnywhere = (id, pullRequests) => pullRequests.some((pullRequest) => pullRequest?.state === "merged"
+  && naming(pullRequest, id));
 
 // Whether an item's change is merged into the default branch: a merged pull request of the item into a branch other than its
 // sprint's own branch — without one, into the default branch —; or, with a branch of its own, the item merged into that
@@ -80,8 +88,9 @@ function inDefaultBranch(id, branch, pullRequests) {
  * heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown") ->
  * Held[] — every item a team's sprint holds, in the order of the sprints and of their selections: from its selection until a
  * pull request with its change is merged into the default branch, or until its sprint's close sends it back to the backlog or
- * on to the next sprint (A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH). With the pull requests "unknown" — a
- * host that could not read them —, a selected item counts as held. An item the backlog lacks is held with no module.
+ * on to the next sprint — once the close is recorded, every item none of whose pull requests is merged — (A SPRINT HOLDS ITS
+ * ITEMS UNTIL THEY REACH THE DEFAULT BRANCH). With the pull requests "unknown" — a host that could not read them —, a
+ * selected item counts as held. An item the backlog lacks is held with no module.
  * @param {object[]} sprints @param {object[]} items @param {object[]} architecture @param {object[] | "unknown"} pullRequests
  * @returns {Held[]}
  */
@@ -93,9 +102,11 @@ export function heldItems(sprints, items, architecture, pullRequests) {
     const of = sprintOf(record);
     if (!of) continue;
     const gone = sentOn(record);
+    const closed = closedRecord(record);
     const branch = text(record?.fields?.branch).trim();
     for (const item of selectionOf(record)) {
       if (gone.has(item) || (known && inDefaultBranch(item, branch, known))) continue;
+      if (known && closed && !mergedAnywhere(item, known)) continue;
       const changes = modulesOf(byId.get(item));
       held.push({ item, sprint: of.name, team: of.team, changes, uses: usedBy(changes, architecture) });
     }

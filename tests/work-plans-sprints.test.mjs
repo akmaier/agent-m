@@ -193,6 +193,54 @@ test("heldItems — a sprint record outside a team's folder holds nothing", () =
     .map((h) => [h.item, h.sprint]), [["ITM-001", "team1/01"]]);
 });
 
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041 step 6
+// given: team1's sprint 01, without a branch of its own, selecting ITM-001 and ITM-003, closed — its record holds ## Review,
+//        ## Unfinished items stating its decision in prose only, without fields, as older records do, and ## Retrospective —;
+//        ITM-001's pull request into the default branch open, ITM-003 without one
+// input: heldItems(that sprint, the items, the architecture, ITM-001's open pull request)
+// expect: nothing held — the close sent every item it did not finish back to the backlog or into the team's next sprint
+test("heldItems — a closed sprint holds none of its items that has no merged pull request, in whatever form its close names them", () => {
+  const closed = sprint("team1", "01", { selection: ["ITM-001", "ITM-003"], appended: [
+    "## Review", "", "No item is done.", "",
+    "## Unfinished items", "", "Every item of the selection that is not done goes into the next sprint of this team.", "",
+    "## Retrospective", "", "- change: smaller items.",
+  ] });
+  assert.deepEqual(heldItems([closed], ITEMS, ARCHITECTURE, [pr(1, "ITM-001", "main")]), []);
+});
+
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
+// given: team1's sprint 01 with its own branch sprint/team1/01, selecting ITM-001 and ITM-003, closed as Close sprint writes
+//        it — ## Review, ## Unfinished items sending ITM-003 back to the backlog, ## Retrospective —; ITM-001's pull request
+//        merged into the sprint's branch on 2026-10-13; and the increment's pull request from that branch into the default
+//        branch (a) open, (b) merged on 2026-10-14, after ITM-001's merge
+// input: heldItems(that sprint, the items, the architecture, the pull requests of each case)
+// expect: (a) ITM-001 held — its change is in the sprint's branch, not yet in the default branch —; (b) nothing held
+test("heldItems — a closed sprint keeps an item merged into its own branch held until that branch is merged into the default branch, and not after", () => {
+  const closed = sprint("team1", "01", { selection: ["ITM-001", "ITM-003"], branch: "sprint/team1/01", appended: [
+    "## Review", "", "The increment is ITM-001.", "",
+    "## Unfinished items", "", "to the backlog: ITM-003", "into the next sprint:", "", "ITM-003 waits for the mail server.", "",
+    "## Retrospective", "", "- change: smaller items.",
+  ] });
+  const work = pr(1, "ITM-001", "sprint/team1/01", "merged", "2026-10-13T10:00:00Z");
+  assert.deepEqual(heldIds(heldItems([closed], ITEMS, ARCHITECTURE, [work, increment(2, "sprint/team1/01")])), ["ITM-001"]);
+  assert.deepEqual(heldIds(heldItems([closed], ITEMS, ARCHITECTURE,
+    [work, increment(2, "sprint/team1/01", "merged", "2026-10-14T18:00:00Z")])), []);
+});
+
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team1's sprint 01, without a branch of its own, selecting ITM-001, then a new start decision (## Selection)
+//        selecting ITM-001 and ITM-003, then its end (## Ended) — not closed: its record holds no ## Review —; ITM-001's pull
+//        request into the default branch open, ITM-003 without one
+// input: heldItems(that sprint, the items, the architecture, ITM-001's open pull request)
+// expect: both held, in the order of the selection
+test("heldItems — a sprint not yet closed holds its items that have no merged pull request", () => {
+  const ended = sprint("team1", "01", { selection: ["ITM-001"], appended: [
+    "## Selection", "", "at: 2026-10-13", "selection: ITM-001, ITM-003", "",
+    "## Ended", "", "at: 2026-10-15",
+  ] });
+  assert.deepEqual(heldIds(heldItems([ended], ITEMS, ARCHITECTURE, [pr(1, "ITM-001", "main")])), ["ITM-001", "ITM-003"]);
+});
+
 // ---------------------------------------------------------------- conflicts
 
 // The items team2's sprint 01 holds — ITM-002 (changes MOD-pages, uses MOD-store) and ITM-004 (changes MOD-feed, uses
