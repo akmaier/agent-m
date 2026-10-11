@@ -6,7 +6,9 @@ import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { installedAgents, testAgent } from "../src/agent-processes/index.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -26,6 +28,13 @@ const registerFixture = (folder, mutate = (text) => text) => {
   const path = join(folder, "src", "agent-processes", "agents.md");
   writeFileSync(path, mutate(readFileSync(path, "utf8")));
   return join(folder, "src", "agent-processes", "index.mjs");
+};
+const FAULTS = {
+  "TST-320001": ["installed: false", "installed: true"],
+  "TST-320002": ["const loggedIn = loginMatches(row.login, login);", "const loggedIn = true;"],
+  "TST-320003": ["return { answered: true, version: agent.version };", "return { answered: false, reason: 'forced failure' };"],
+  "TST-320004": ["if (!result.ok) return { answered: false, reason: (result.stderr || result.error?.message || `exit ${result.status}`).trim() };", "if (!result.ok) return { answered: true, version: agent.version };"],
+  "TST-320005": ["if (findings.length) throw new Error", "if (false) throw new Error"],
 };
 
 // TST-320001
@@ -133,4 +142,54 @@ test("TST-320005: corrupt copied agent register refuses module load", async () =
     });
     await assert.rejects(import(new URL(`file://${corrupt}`).href), (error) => error?.code !== "ERR_MODULE_NOT_FOUND" && error?.name !== "SyntaxError" && /command|register|schema/i.test(String(error.message)));
   } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+after(() => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_320_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-320-fault-"));
+  const copied = join(temporary, "repo");
+  const digest = (value) => createHash("sha256").update(value).digest("hex");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    for (const [id, [needle, replacement]] of Object.entries(FAULTS)) {
+      const source = join(copied, "src", "agent-processes", "index.mjs");
+      const original = readFileSync(source);
+      const argv = [process.execPath, "--test", "--test-name-pattern", id, "tests/agent-processes-320.test.mjs"];
+      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
+      const invoke = () => {
+        const env = { ...process.env, AGENT_M_320_FAULT_CHILD: "1" };
+        delete env.NODE_TEST_CONTEXT;
+        return spawnSync(argv[0], argv.slice(1), { cwd: copied, encoding: "utf8", timeout: 15_000, env });
+      };
+      const sourceHash = digest(original);
+      const testHash = digest(readFileSync(join(copied, "tests", "agent-processes-320.test.mjs")));
+      let failed, passed, faultHash, restoredHash, faultEnded, restoreStarted, restoredEnded, positiveEnded;
+      const faultStarted = new Date().toISOString();
+      try {
+        writeFileSync(source, original.toString().replace(needle, replacement));
+        faultHash = digest(readFileSync(source));
+        failed = invoke();
+        faultEnded = new Date().toISOString();
+      } finally {
+        restoreStarted = new Date().toISOString();
+        writeFileSync(source, original);
+        restoredHash = digest(readFileSync(source));
+        restoredEnded = new Date().toISOString();
+      }
+      passed = invoke();
+      positiveEnded = new Date().toISOString();
+      console.log("TST320-counterproof " + JSON.stringify({ id, source, needle, replacement, sourceHash, testHash, faultHash,
+        restoredHash, faultStarted, faultEnded, restoreStarted, restoredEnded, positiveEnded, argv, cwd: copied,
+        childflag: "AGENT_M_320_FAULT_CHILD=1", failed: { status: failed.status, signal: failed.signal,
+          error: failed.error?.message ?? null, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status,
+          signal: passed.signal, error: passed.error?.message ?? null, stdout: passed.stdout, stderr: passed.stderr } }));
+      assert.equal(failed.status, 1, id);
+      assert.match(`${failed.stdout}\n${failed.stderr}`, new RegExp(`not ok \\d+ - ${id}\\b`));
+      assert.equal(restoredHash, sourceHash, id);
+      assert.equal(passed.status, 0, id);
+      assert.match(`${passed.stdout}\n${passed.stderr}`, new RegExp(`ok \\d+ - ${id}\\b`));
+    }
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
 });
