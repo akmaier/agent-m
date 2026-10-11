@@ -1,7 +1,9 @@
 // MOD-approvals — approval records and the status of reviewed files (docs/architecture/MOD-approvals.md): its interface.
 // Of it, ITM-233 builds approvalSchema, the approval record's schema, and statuses, the status — open, accepted or
-// changed — of every reviewed file of a snapshot from one pass over docs/approvals/ (status.mjs). statusOf,
-// lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink and approvalStrategies are not built yet.
+// changed — of every reviewed file of a snapshot from one pass over docs/approvals/ (status.mjs). ITM-332 builds
+// approvalStrategies with the recipes use-cases and use-case-with-neighbours and the precondition rests-on-accepted for
+// requirements and use cases (strategies.mjs); its other recipes and preconditions are not built yet, and neither are
+// statusOf, lastAcceptedText, acceptShown, acceptanceBlockers and fallbackAcceptLink.
 //
 // Module: MOD-approvals
 //
@@ -11,8 +13,9 @@
 // or that breaks the language, stops the module's load, as MOD-documents' file says of a broken schema: it stops that
 // module, never a single document. statuses reads nothing itself: it is given a snapshot already held in memory (every
 // path and every blob SHA of the tree), and derives status from the records' own names, matched by identifier
-// (MOD-identifiers.kindOfIdentifier) — it never reads a record's text, and nothing here crosses the network. It uses
-// MOD-documents and MOD-identifiers only through their index.mjs. Every other file of this folder is private to it.
+// (MOD-identifiers.kindOfIdentifier) — it never reads a record's text. The strategies read the use cases and the SPEC through
+// the product's snapshot of the job's context, whose read fetches a file once. It uses MOD-documents, MOD-identifiers,
+// MOD-spec-document and MOD-text-tools only through their index.mjs. Every other file of this folder is private to it.
 
 // Schema, in the type below, is MOD-documents' type of that name; Snapshot is MOD-repository-hosts'.
 import { loadSchema } from "../documents/index.mjs";
@@ -38,3 +41,4 @@ export const approvalSchema = loadSchema(
   disk ? disk.readFileSync(SCHEMA_FILE, "utf8") : await ownFile(SCHEMA_FILE), OWNER);
 
 export { statuses } from "./status.mjs";
+export { approvalStrategies } from "./strategies.mjs";
