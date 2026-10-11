@@ -302,3 +302,65 @@ there, and the commit is yours as before; then reload the dashboard. Without wri
 commit a pull request, a proposal for the maintainers to review, and the change counts once a maintainer merges it. If the
 record does not arrive filled in, the dashboard shows it with a copy button and the exact path of the file. On a GitLab server
 there is no such page, so the dashboard needs the project's own token there. In the book *Vibe Coding*: chapter 12, section 10.
+
+## requirements-to-cover
+
+The requirements to cover are the requirements the drafted use cases should realise. By default they are all the requirements
+that no use case realises yet, so a first run covers what is still uncovered; you can change the selection to cover fewer
+requirements, or other ones.
+
+## drafting-participant
+
+The participant is the model or agent that writes the draft. The dashboard offers only participants from this instance's list
+that are declared able to draft text, and next to each it shows where it processes data, because whatever is sent goes to that
+place. Choose one whose place you are content with; nothing is sent until you press *Run*.
+
+## run-panel
+
+The run panel appears before anything is sent. It names every participant that will receive something, where it processes
+data, and exactly what it receives, part by part, with the size of each part against how much the participant's context can
+hold: the requirements to cover, every existing use case, a chapter of the book on requirements engineering, and the prompt.
+If the whole does not fit, nothing is sent, the panel says how much there is and how much fits, and you can choose a
+participant with a larger context; nothing is left out silently. *Run* is the one click that sends.
+
+## correction-loop
+
+Before you see a draft, Agent M checks it without a model: each use case needs its five parts, a diagram, and realised names
+that match real requirements. Every finding is sent back to the participant as one line, like a message from a compiler, naming
+the file and line, whether it is an *error* or a *warning*, the rule and the correction expected. An error must be fixed; a
+warning is fixed or kept with a one-line reason. This repeats until the draft passes, until the limit of rounds shown on the
+run panel is reached, or until a round changes nothing. The number of rounds is counted and shown with the draft, and any
+finding left over is shown beside it for you to deal with.
+
+## drafted-use-cases
+
+Drafted use cases are written as one file each in `docs/use-cases/`, on the default branch, and each is *open*: a proposal,
+not yet accepted. Nothing relies on a use case until you accept it. You review and accept each use case on its own, in the
+review of use cases, which writes an approval record for exactly the text you read.
+
+## change-instruction
+
+The instruction is one sentence that says what should change; the participant drafts the change from it, with the use case or
+requirement and everything related in front of it. Examples: split a requirement into two; make a rule checkable; add an
+alternative flow to a use case; align a use case with a requirement that has changed. Say what you want changed and leave the
+rest alone: what the instruction does not ask for should come back unchanged.
+
+## draft-difference
+
+The difference shows the draft against the current text, line by line: lines removed on one side, lines added on the other, so
+that you read only what changed. A name dropped from the list of realised requirements shows up in it too; that is not an
+error, it may be what you wanted. You can edit the draft freely, or give a follow-up instruction to refine it, before you save.
+
+## save-use-case
+
+*Save* is one click. For a use case it commits the file to the default branch as *open*, not accepted, so the saved text is
+the draft you edited. The commit records the instruction, the participant, its model, the Agent M version, the date and how many
+correction rounds the draft needed. If the file changed while the participant was drafting, nothing is written and your draft
+stays in the editor beside the newer version.
+
+## ci-agent-draft
+
+A CI agent is a participant that runs in a GitHub Actions workflow, so nobody is waiting at the dashboard while it drafts. The
+workflow runs the same correction loop, then commits the draft to the default branch: a use case as *open*, and a change to
+requirements as an entry in a new change queue, leaving the SPEC itself untouched. You review it afterwards on the dashboard,
+a use case in the review of use cases and a queue entry beside the current SPEC section. Nothing counts before you accept it.
