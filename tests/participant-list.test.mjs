@@ -148,14 +148,14 @@ const namedCells = (cells) => Object.fromEntries(NAMED.filter((column) => column
 //         - akmaier: Type person, Capabilities all six, no Model and no Processing place;
 //         - developer-opus-d: Type CLI agent, Model claude-opus-5-5, Capabilities all six, Processing place
 //           "Anthropic, a provider in the USA" — one place, its comma kept;
-//         - reviewer-sonnet: Type CLI agent, Model claude-sonnet-5, the same capabilities and place
+//         - reviewer-sonnet: Type CLI agent, Model claude-sonnet-5-5, the same capabilities and place
 test("participantSchema — this instance's register read into participants, each with its type, capabilities, processing place and model", () => {
   const { rows } = readRegister(participantSchema(), REGISTER_PATH, readFileSync(INSTANCE_REGISTER, "utf8"));
   const byName = new Map(rows.map((row) => [row.cells.Name, row.cells]));
   assert.deepEqual(namedCells(byName.get("akmaier") ?? {}), { Type: "person", Capabilities: CAPABILITIES }, "akmaier");
   assert.deepEqual(namedCells(byName.get("developer-opus-d") ?? {}), { Type: "CLI agent", Model: "claude-opus-5-5",
     "Processing place": "Anthropic, a provider in the USA", Capabilities: CAPABILITIES }, "developer-opus-d");
-  assert.deepEqual(namedCells(byName.get("reviewer-sonnet") ?? {}), { Type: "CLI agent", Model: "claude-sonnet-5",
+  assert.deepEqual(namedCells(byName.get("reviewer-sonnet") ?? {}), { Type: "CLI agent", Model: "claude-sonnet-5-5",
     "Processing place": "Anthropic, a provider in the USA", Capabilities: CAPABILITIES }, "reviewer-sonnet");
 });
 
