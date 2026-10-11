@@ -175,7 +175,7 @@ test("queue-entries — a candidate that constrains the process goes to the inst
   assert.ok(section.includes("**GATES ARE NAMED** *(Product Owner; SRC-fixture-book, ch. 8)*"), "restated by rule: a source added, not a requirement");
   assert.ok(!section.includes("**GATES ARE LISTED**"));
   assert.ok(!Object.values(written).some((body) => body.includes("A PROCESS IDEA RESTATED")));
-  assert.ok(outcome.notes.some((note) => note.includes("A PROCESS IDEA RESTATED") && note.includes("A PROCESS IDEA")), "the restated open entry is noted by name");
+  assert.ok(outcome.notes.some((note) => note.includes("A PROCESS IDEA RESTATED") && note.includes("A PROCESS IDEA") && /open queue/.test(note) && note.includes("2026-10-10_open-idea")), "the restated open entry is noted by name, with its open queue");
 });
 
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; UC-005 5a
@@ -192,7 +192,7 @@ test("queue-entries — a candidate of a source the product does not link is lef
   assert.ok(bodies.includes("FROM A LINKED SOURCE") && bodies.includes("FROM THE JOB'S SOURCE"));
   assert.ok(!bodies.includes("FROM AN UNLINKED SOURCE"));
   const note = outcome.notes.find((each) => each.includes("FROM AN UNLINKED SOURCE"));
-  assert.ok(note && note.includes("SRC-unlinked") && /link/i.test(note), "named with its source and the hint to link it first");
+  assert.ok(note && note.includes("SRC-unlinked") && /link the source first/i.test(note), "named with its source and the hint to link it first");
   assert.equal(outcome.notes.filter((each) => each.includes("SRC-fixture-book")).length, 0);
 });
 
@@ -273,4 +273,51 @@ test("queue-entries — the queue of the day takes the next letter", async () =>
   const g = fixture();
   await writer(resultOf([NEW]), g.context);
   assert.match(folderOf(g.product.host.commits[0])[0], /^docs\/spec-freigaben\/2026-10-12_/);
+});
+
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-019 6b
+// given: a job of change-requirements whose parameters carry the person's own source and their instruction
+// input: the writer
+// expect: the requirement names that source with the passage; the rationale's origin names the instruction; the commit's message ends with the provenance lines, the instruction among them
+test("queue-entries — a change by prompt names the person's source and records the instruction", async () => {
+  const f = fixture();
+  f.context.kind = { name: "change-requirements" };
+  f.context.params = { source: "SRC-fixture-book", instruction: "Make the reader say why a file cannot be read.\nKeep the rest." };
+  await writer(resultOf([CHANGE]), f.context);
+  const commit = f.product.host.commits[0];
+  const written = filesOf(commit);
+  const [folder] = folderOf(commit);
+  assert.match(folder, /_change-requirements-job-20261012-0900-ab12$/);
+  assert.ok(written[`${folder}/01-reading.md`].includes("*(Product Owner; SRC-fixture-book, ch. 8)*"));
+  assert.ok(written[`${folder}/01-reading.begruendung.md`].includes("Instruction: Make the reader say why a file cannot be read. Keep the rest."));
+  const trailers = provenanceLines({ agentM: { version: "unreleased", commit: "c".repeat(40) }, jobId: "JOB-20261012-0900-ab12", kind: "change-requirements", participant: DRAFTER, rounds: 2,
+    instruction: "Make the reader say why a file cannot be read.\nKeep the rest." });
+  assert.ok(trailers.some((line) => line.startsWith("Agent-M-Instruction: ")));
+  assert.ok(commit.message.endsWith(trailers.join("\n")));
+});
+
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005 6
+// given: a change of a requirement the SPEC does not hold, beside a change of one it holds
+// input: the writer
+// expect: the first is not written and the outcome's notes name it with the requirement it says it changes; the second is written; nothing throws
+test("queue-entries — a change of a requirement the SPEC does not hold is left out and noted", async () => {
+  const f = fixture();
+  const missing = candidate("CHANGES A GHOST", { class: "change", of: "A GHOST REQUIREMENT" });
+  const outcome = await writer(resultOf([missing, CHANGE]), f.context);
+  const bodies = Object.values(filesOf(f.product.host.commits[0])).join("\n");
+  assert.ok(bodies.includes("A BETTER NAME") === false && bodies.includes("A reader reads a file whole, or says why not."), "the change that can be written is");
+  assert.ok(!bodies.includes("CHANGES A GHOST"));
+  assert.ok(outcome.notes.some((note) => note.includes("CHANGES A GHOST") && note.includes("A GHOST REQUIREMENT")));
+});
+
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005 8
+// given: two new requirements of one section, in the order the draft gives them
+// input: the writer
+// expect: the section holds them in that order, after the section's own requirements
+test("queue-entries — the candidates of a section are written in the order of the draft", async () => {
+  const f = fixture();
+  await writer(resultOf([candidate("FIRST NEW RULE"), candidate("SECOND NEW RULE")]), f.context);
+  const [folder] = folderOf(f.product.host.commits[0]);
+  const body = filesOf(f.product.host.commits[0])[`${folder}/01-writing.md`];
+  assert.ok(body.indexOf("**A WRITE RULE**") < body.indexOf("**FIRST NEW RULE**") && body.indexOf("**FIRST NEW RULE**") < body.indexOf("**SECOND NEW RULE**"));
 });
