@@ -1,6 +1,6 @@
 // MOD-bridge-http — public pair-route protocol datum (ITM-453).
 // Module: MOD-bridge-http
-// Guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+// Guards: A DATA FORMAT IS DEFINED ONCE
 // Level: unit
 
 import test from "node:test";
