@@ -1,13 +1,12 @@
 // The addresses of the servers' own pages for one repository — the pages UC-001 opens: the page for a new token, the list of
-// the person's tokens, a GitLab project's Access tokens page, the page for a new repository; and the pages of the fallback
+// the person's tokens, a GitLab project's Access tokens page, the page for a new repository; the pages of CI secrets, of the workflow runs or pipelines and of one run (UC-010); and the pages of the fallback
 // without a token (UC-006 4b, UC-008 3b, UC-018 4a): GitHub's new-file page with a path and a record filled in, and the editor
 // page of a file. Navigation only; nothing here is requested, and no page carries a credential (A CREDENTIAL IS NEVER PLACED IN
 // A URL).
 //
 // Module: MOD-repository-hosts
 //
-// WebLinks' other pages — the CI secrets, the runs, pipeline schedules, Pages settings and the fork — are added by the items
-// whose use cases open them.
+// WebLinks' other pages — pipeline schedules, Pages settings and the fork — are added by the items whose use cases open them.
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: the permissions of the one fine-grained token, as the parameters and access levels of
 // GitHub's prefilled token page ("Pre-filling fine-grained personal access token details using URL parameters", table
@@ -49,6 +48,11 @@ export function webLinks(address) {
       newFile: (path, record) => `${address.web}/new/${BRANCH}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(record)}`,
       // The editor page of a file. The model is editUrl in docs/assets/git-host.mjs.
       editFile: (path) => `${address.web}/edit/${BRANCH}/${encodedPath(path)}`,
+      // UC-010: the repository's Settings > Secrets and variables > Actions, where the person stores a secret's value — the address names
+      // no secret and carries no value (A CREDENTIAL IS NEVER PLACED IN A URL) —, its workflow runs, and one run.
+      secrets: `${address.web}/settings/secrets/actions`,
+      actions: `${address.web}/actions`,
+      run: (id) => `${address.web}/actions/runs/${encodeURIComponent(id)}`,
     });
   }
   // A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the project's Access tokens page, where the person creates the project access
@@ -62,5 +66,9 @@ export function webLinks(address) {
     // GitLab has no new-file page that takes a record (UC-008 3c): null. Its single-file editor, as GitLab links it itself.
     newFile: () => null,
     editFile: (path) => `${address.web}/-/edit/${BRANCH}/${encodedPath(path)}`,
+    // UC-010: the project's Settings > CI/CD, where its Variables are, its pipelines, and one pipeline.
+    secrets: `${address.web}/-/settings/ci_cd`,
+    actions: `${address.web}/-/pipelines`,
+    run: (id) => `${address.web}/-/pipelines/${encodeURIComponent(id)}`,
   });
 }
