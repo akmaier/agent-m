@@ -117,10 +117,11 @@ MERMAID_LIBRARY_LOADING = "the diagram library beside MOD-markdown-render, resol
 
 def _mermaid_library_script(text: str, at: int) -> bool:
     """MOD-markdown-render loads only its declared Mermaid vendor file from its own module address."""
-    return (text[at:].startswith('createElement("script")')
-            and 'script.setAttribute("src", new URL("./vendor/mermaid.min.js", import.meta.url).href);' in text
-            and 'libraryScript = script;' in text
-            and 'appendChild(script);' in text)
+    window = text[at:at + 300]
+    return (window.startswith('createElement("script")')
+            and 'script.setAttribute("src", new URL("./vendor/mermaid.min.js", import.meta.url).href);' in window
+            and 'libraryScript = script;' in window
+            and 'appendChild(script);' in window)
 
 
 def _own_data_file(text: str, at: int) -> bool:
@@ -166,6 +167,11 @@ def _bridge_client_transport(text: str, at: int) -> bool:
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
 ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
 BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
+MERMAID_VENDOR_CHANNELS = {
+    "Worker": (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
+    "loading element": (1, "KaTeX's \\includegraphics, rendered only when trusted; mermaid renders KaTeX untrusted", None),
+    "@import": (1, "the name of the at-rule in mermaid's CSS parser, not a style sheet", None),
+}
 
 # (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
 # An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
@@ -197,12 +203,8 @@ PERMITTED_CHANNELS = {
                                                   lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("docs/assets/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("docs/assets/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
-    ("docs/assets/vendor/mermaid.min.js", "Worker"): (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
-    ("docs/assets/vendor/mermaid.min.js", "loading element"): (1, "KaTeX's \\includegraphics, rendered only when trusted; mermaid renders KaTeX untrusted", None),
-    ("docs/assets/vendor/mermaid.min.js", "@import"): (1, "the name of the at-rule in mermaid's CSS parser, not a style sheet", None),
-    ("src/markdown-render/vendor/mermaid.min.js", "Worker"): (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
-    ("src/markdown-render/vendor/mermaid.min.js", "loading element"): (1, "KaTeX's \\includegraphics, rendered only when trusted; mermaid renders KaTeX untrusted", None),
-    ("src/markdown-render/vendor/mermaid.min.js", "@import"): (1, "the name of the at-rule in mermaid's CSS parser, not a style sheet", None),
+    **{(path, channel): rule for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js")
+       for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
 }
 
 
@@ -296,9 +298,12 @@ class NoServer(unittest.TestCase):
 
     def test_mermaid_renders_katex_untrusted(self):
         # The evidence for KaTeX's image element: \includegraphics is rendered only when the trust setting allows it.
-        calls = re.findall(r"renderToString\([^,]+,\{([^}]*)\}", self.files["docs/assets/vendor/mermaid.min.js"])
-        self.assertTrue(calls, "no renderToString call found — the evidence would be vacuous")
-        self.assertEqual([c for c in calls if "trust" in c], [])
+        for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js"):
+            if path not in self.files:
+                continue
+            calls = re.findall(r"renderToString\([^,]+,\{([^}]*)\}", self.files[path])
+            self.assertTrue(calls, f"{path}: no renderToString call found — the evidence would be vacuous")
+            self.assertEqual([c for c in calls if "trust" in c], [])
 
     def test_no_served_markdown_loads_from_another_host(self):
         found = {}
