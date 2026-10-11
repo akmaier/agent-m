@@ -8,7 +8,7 @@
 // Level: unit
 //
 // The product is a snapshot this file builds, never Agent M's own SPEC.md (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Its SPEC is written to
-// show that "as it stands" is byte for byte: CR LF line ends, a trailing blank, a non-ASCII letter, and no line end at the end. Beside it
+// show that "as it stands" is byte for byte: CR LF line ends, trailing blanks, a blank line before the first and after the last line, a non-ASCII letter, and no line end at the end. Beside it
 // stands a change queue with an open entry, which the recipe does not read. The expected texts are the fixture's own, never the code's.
 // Where the module file leaves a reading open, the test states the reading it takes, and the pull request names it:
 //   - The part is named by the file, `SPEC.md`, shows no source and no artifact, is required, and carries size 0: the job runner sets a
@@ -27,7 +27,7 @@ import * as specChanges from "../src/spec-changes/index.mjs";
 const { specStrategies } = specChanges;
 const OWNER = "tests/spec-changes-whole-spec.test.mjs";
 
-const SPEC = "# Fixture product — Specification  \r\n\r\n## 1. Reading\r\n\r\n**A SAMPLE RULE** *(Product Owner)*\r\nA reader liest Bücher whole.\r\n*Check:* no automatic check; at review\r\n\r\n   \r\n## 2. Writing\r\n\r\n**A WRITE RULE** *(Product Owner)*\r\nA writer writes a file whole.\r\n*Check:* no automatic check; at review";
+const SPEC = "\r\n# Fixture product — Specification  \r\n\r\n## 1. Reading\r\n\r\n**A SAMPLE RULE** *(Product Owner)*\r\nA reader liest Bücher whole.\r\n*Check:* no automatic check; at review\r\n\r\n   \r\n## 2. Writing\r\n\r\n**A WRITE RULE** *(Product Owner)*\r\nA writer writes a file whole.\r\n*Check:* no automatic check; at review\r\n\r\n  ";
 const OPEN_ENTRY = "## 2. Writing\n\n**AN OPEN ENTRY RULE** *(Product Owner)*\nSomething not in the SPEC yet.\n*Check:* no automatic check; at review\n";
 const FILES = {
   "SPEC.md": SPEC,
@@ -40,7 +40,7 @@ const run = (snapshot, params = {}) => specStrategies.recipes["whole-spec"](
   { params, product: { address: "https://github.com/alice/product", snapshot, host: null } }, params);
 
 // guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; UC-022
-// given: the fixture product, whose SPEC has CR LF line ends, trailing blanks, a non-ASCII letter and no final line end, and beside it a queue with an open entry
+// given: the fixture product, whose SPEC has CR LF line ends, blank lines and blanks at both ends, trailing blanks, a non-ASCII letter and no final line end, and beside it a queue with an open entry
 // input: specStrategies.recipes["whole-spec"](context, params)
 // expect: one part named SPEC.md whose text is the SPEC's bytes as they stand, with no source, no artifact, required, size 0
 test("whole-spec — the SPEC as it stands, byte for byte, as one part", async () => {
