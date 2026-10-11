@@ -14,6 +14,7 @@ uses:
   - MOD-bridge-jobs.jobHandlers
   - MOD-bridge-jobs.startWatching
   - MOD-bridge-jobs.stopWatching
+  - MOD-bridge-jobs.testAccess
   - MOD-mail-protocols.mailHandlers
   - MOD-tunnels.ensureKey
   - MOD-tunnels.openTunnels
@@ -22,7 +23,7 @@ uses:
   - MOD-tunnels.tunnelHandlers
   - MOD-bridge-client.TunnelPlan
   - MOD-bridge-client.JumpHost
-  - MOD-bridge-client.RemoteSession
+  - MOD-bridge-client.BridgeEntry
   - MOD-bridge-client.tunnelCommands
   - MOD-browser-store.readExport
   - MOD-agent-processes.Agent
@@ -59,8 +60,8 @@ provides:
 It belongs to the Bridge (ARC-040). It is the app of ARC-050: it composes the Bridge's other modules and the shared ones
 into one program, and it is everything a person sees of the Bridge. It starts by a double click and runs with its icon in
 the menu bar or the tray, or with its window open where there is no tray (`THE BRIDGE RUNS AS AN APP`). Its window, drawn
-with the site's frame and renderer, shows the agents of this computer and how to install a missing one, the pairing
-token, the jump host with the Bridge's public key, the tunnels, the settings and a newer release. It keeps the Bridge's
+with the site's frame and renderer, shows the agents of this computer and how to install a missing one, which of them
+the Bridge offers and the working folder of each, the pairing token, the jump host with the Bridge's public key, the tunnels, the settings and a newer release. It keeps the Bridge's
 settings, set in the window or taken from the dashboard's export; it pauses and quits; and it installs a newer release
 only after the person's click and only with the publisher's signature. Its main process runs in Node, inside Electron;
 its window runs in Electron's browser part. The window serves UC-044 and UC-011.
@@ -87,6 +88,7 @@ Bridge's per-user data folder, written only by this module.
 
 ```json
 { "agent-m-bridge-settings": 1, "name": "lab-pc", "port": 4711,
+  "agents": [{ "name": "claude", "folder": "/home/alice/agent-m-work/claude" }],
   "products": ["https://github.com/alice/example-product"], "every": 300, "paused": false,
   "jumpHost": { "hostname": "jump.example.org", "user": "alice", "sshPort": 22 },
   "tunnels": [{ "direction": "reverse", "jumpHost": "jump.example.org", "user": "alice", "sshPort": 22,
@@ -97,6 +99,10 @@ Bridge's per-user data folder, written only by this module.
 - `name` — the Bridge's name, which the route of its participants carries in the instance's `docs/participants.md`
   (`bridge <name> agent <agent>`); by default the computer's own name.
 - `port` — the port on loopback the API listens on; by default the one `bridgeApi` names.
+- `agents` — the agents the Bridge offers, each a supported agent installed on this computer and chosen by the person in
+  the window, with its working folder, chosen there too, in which MOD-bridge-jobs keeps that agent's clones (`THE BRIDGE
+  FINDS THE INSTALLED AGENTS`, `THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`); an agent no longer installed
+  stays listed and is shown as missing.
 - `products` — the addresses of the product repositories whose queued jobs and runs this Bridge serves.
 - `every` — the seconds between two readings of the served products; by default 300.
 - `paused` — whether the Bridge was paused when it last ran; it starts paused again.
@@ -106,10 +112,10 @@ Bridge's per-user data folder, written only by this module.
   always the Bridge's own key.
 
 **Taking over an export** (`THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT`). Of the settings Access's
-`readExport` returns, the Bridge takes `products`, `jump-host` and the `remote-session:<name>` entries. The person says in
-the window whether this computer is their own — then each remote session becomes a forward — or which remote session it
-is — then the session's name becomes the Bridge's name, its port that of the reverse tunnel, and its token the pairing
-token, so that the dashboard reaches this Bridge with the token it already holds. The plans are made by MOD-bridge-client's
+`readExport` returns, the Bridge takes `products`, `jump-host` and the `bridge:<name>` entries reached through the jump
+host. The person says in the window whether this computer is their own — then each of those Bridges becomes a forward —
+or which of them it is — then that entry's name becomes the Bridge's name, its port that of the reverse tunnel, and its
+token the pairing token, so that the dashboard reaches this Bridge with the token it already holds. The plans are made by MOD-bridge-client's
 `tunnelCommands`, the function that writes the dashboard's commands, so both ends agree. Nothing else of the export is
 kept: no token of a repository server, no endpoint key, no mailbox connection or password (`THE MAILBOX PASSWORD LEAVES
 THE BROWSER ONLY TO THE BRIDGE`), no sign-in token. An export of another instance is refused, since the Bridge answers
@@ -118,8 +124,8 @@ only its own instance's origin.
 **The Bridge's per-user data folder**: a folder named after the app's identifier, in the platform's place for an app's
 per-user data — `~/Library/Application Support/` on macOS, `%APPDATA%` on Windows, `~/.config/` on Linux —, readable and
 writable by its user only, so that the Bridges of two instances on one computer never share one. It holds
-`settings.json`, MOD-bridge-http's `pairing-token`, MOD-tunnels' `ssh/` and MOD-bridge-jobs' clones. Nothing in it enters
-a repository or an export.
+`settings.json`, MOD-bridge-http's `pairing-token` and MOD-tunnels' `ssh/`. Nothing in it enters a repository or an
+export. The clones lie in the working folders of the agents the Bridge offers, which the person chooses.
 
 **What the build places among the app's resources**, read at start:
 
@@ -159,7 +165,9 @@ The rest of its surface faces the person, not another module:
 - **The window's views**, drawn with the site's frame as the page `bridge`, each with its explanation:
   - *Agents* — every supported agent with its version, ready and logged in, or missing with its vendor's installation
     page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
-    INSTALLATION OF A MISSING AGENT`).
+    INSTALLATION OF A MISSING AGENT`); a tick for each installed agent the Bridge is to offer, and the working folder of
+    each ticked one, chosen with the system's folder dialog; *Test access*, through MOD-bridge-jobs' `testAccess`,
+    which names each repository this computer's own git login does not reach, with the reason.
   - *Pairing* — the Bridge's address and its pairing token with *Copy* (`THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS
     WINDOW`), and *Pair anew*, a decision that names that every paired browser must pair again (`THE BRIDGE IS PAIRED
     ONCE`).
@@ -193,14 +201,16 @@ signature does not hold. Writes no repository file; the jobs it composes write t
 ## Uses
 
 - `MOD-bridge-http.bridgeApi`, `BridgeHandlers`, `serveBridge`, `pairAnew` — the server with the Bridge's handlers and its
-  default port; the pairing token shown, and renewed on *Pair anew* or with a remote session's token.
-- `MOD-bridge-jobs.jobHandlers`, `startWatching`, `stopWatching` — the jobs routes; watching the served products while
-  not paused; the running jobs named before quitting or installing.
+  default port; the pairing token shown, and renewed on *Pair anew* or with the token of a Bridge reached through the
+  jump host, from an export.
+- `MOD-bridge-jobs.jobHandlers`, `startWatching`, `stopWatching`, `testAccess` — the jobs routes; watching the served
+  products while not paused; the running jobs named before quitting or installing; the test of the computer's git login.
 - `MOD-mail-protocols.mailHandlers` — the mail routes.
 - `MOD-tunnels.ensureKey`, `openTunnels`, `closeTunnels`, `tunnelState`, `tunnelHandlers` — the key shown; the tunnels
   opened, closed and shown; the tunnels route.
-- `MOD-bridge-client.TunnelPlan`, `JumpHost`, `RemoteSession`, `tunnelCommands` — the plans in the settings, made from an
-  export's jump host and remote sessions by the same function that writes the dashboard's commands.
+- `MOD-bridge-client.TunnelPlan`, `JumpHost`, `BridgeEntry`, `tunnelCommands` — the plans in the settings, made from an
+  export's jump host and its Bridges reached through the jump host by the same function that writes the dashboard's
+  commands.
 - `MOD-browser-store.readExport` — reading the dashboard's export with the code that writes it.
 - `MOD-agent-processes.Agent`, `installedAgents` — the agents of this computer, with their vendors' installation pages.
 - `MOD-job-runner.registerStrategies` — the registry of the Bridge's job runner, filled with the strategies of every kind

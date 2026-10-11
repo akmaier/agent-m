@@ -5,7 +5,7 @@ area: setup
 actors:
   - Author
   - Mail provider
-  - Local bridge
+  - Bridge
   - Mail server
 realises:
   - A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
@@ -14,6 +14,7 @@ realises:
   - THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER
   - THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE
   - THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
+  - A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE
   - THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST
   - THE MAIL SERVER IS REACHED ONLY OVER TLS
   - READING THE MAILBOX CHANGES NOTHING IN IT
@@ -40,11 +41,11 @@ alone.
 
 **Two routes, decided by the mailbox's provider:**
 
-| | **Web API** — directly from the dashboard | **IMAP and SMTP** — through the local bridge |
+| | **Web API** — directly from the dashboard | **IMAP and SMTP** — through a Bridge |
 |---|---|---|
 | for | Microsoft 365 (Microsoft Graph) | every other mail server — Gmail, FAU's Exchange, a university's IMAP server, a small provider |
 | signing in | the provider's own sign-in; Agent M never sees a password | the mailbox password, stored in this browser after a notice |
-| needs | a one-time app registration with the provider, whose return address is this dashboard | the local bridge running (UC-011) |
+| needs | a one-time app registration with the provider, whose return address is this dashboard | a Bridge running and paired with this browser (UC-011, UC-044) |
 | why | the provider allows web pages to call it (measured 2026-09-29) | browsers let no web page open an IMAP or SMTP connection |
 
 **The accepted risk on the IMAP route, stated plainly** (PO decision 2026-09-24): the password is
@@ -53,20 +54,21 @@ origin `https://<owner>.github.io`, not to the path, so **every GitHub Pages sit
 read it** — measured 2026-09-23: seven sites share `https://akmaier.github.io`. Agent M says so before
 storing, and recommends running the instance under an owner used for nothing else (UC-014, step 1). On
 the web-API route the same holds for the sign-in token, which the provider limits to mail and lets the
-author withdraw on the provider's page.
+author withdraw on the provider's page. When the connection's Bridge is reached through the jump host, the password and
+the mails also pass the jump host, where they can be read; Agent M says so before saving (step 4).
 
 ## Actors
 
 - **Author** — owns the mailbox and runs the instance.
 - **Mail provider** — Microsoft: signs the author in and serves the mail API.
-- **Local bridge** — the loopback program on the author's machine (UC-011); speaks IMAP and SMTP.
+- **Bridge** — an Agent M Bridge paired with this browser and kept under its name (UC-011, UC-044), on this computer or
+  reached through an SSH forward or the jump host; it speaks IMAP and SMTP.
 - **Mail server** — the IMAP and SMTP servers of a mailbox on the bridge route.
 
 ## Precondition
 
 - The author has an instance with its token stored in this browser (UC-014).
-- For the IMAP route: the local bridge runs on the author's machine and is paired with this browser
-  (UC-011).
+- For the IMAP route: a Bridge runs and is paired with this browser (UC-011, UC-044).
 
 ## Main flow
 
@@ -96,8 +98,12 @@ author withdraw on the provider's page.
    3. **The notice.** Before the password field is enabled, Agent M shows: *"The password is stored in
       this browser. Every GitHub Pages site under `<owner>.github.io` can read it — here: the sites of
       `<owner>`. With it, anyone can read all mail in this mailbox and send mail in its name. It goes
-      to no server except your bridge on this machine. Recommended: run this instance under a GitHub
+      to no server except the Bridge this connection names. Recommended: run this instance under a GitHub
       owner you use for nothing else."* The author ticks **I have read this** and enters the password.
+   4. **The Bridge.** The author chooses, among the Bridges this browser keeps, the one the connection goes through;
+      this computer's, where there is one, is preset. When the chosen Bridge is reached through the jump host, Agent M
+      states before saving: *"The password and the mails pass the jump host on their way to this Bridge. Whoever
+      administers the jump host can read them there."* The author ticks **I have read this**.
 5. **Folders.** The folders Agent M reads are preset to `INBOX`; the author adds the folders into which
    they file reported mails, so that an issue's mails are found again when it is answered (UC-039).
    *Drafts* and *Sent* are recognised by the mailbox's own markings.
@@ -112,7 +118,7 @@ author withdraw on the provider's page.
    under the instance's key — no cookie, nothing in the URL, nothing in any repository — and tests it:
    - **web API:** reads the number of mails in each named folder and finds *Drafts* and *Sent*,
      changing nothing;
-   - **IMAP:** sends one test request to the bridge with the bridge token; the bridge logs in to the
+   - **IMAP:** sends one test request to the connection's Bridge with that Bridge's token; the Bridge logs in to the
      IMAP server over TLS, opens the named folders read-only and counts the mails, logs in to the SMTP
      server over TLS and disconnects without sending, then forgets the password.
 
@@ -127,7 +133,7 @@ sequenceDiagram
     participant D as Dashboard (browser)
     participant L as localStorage
     participant M as Mail provider API
-    participant B as Local bridge (127.0.0.1)
+    participant B as Bridge
     participant S as Mail server (IMAP, SMTP)
     A->>D: Connect a mailbox, address
     D-->>A: route: web API or IMAP through the bridge
@@ -159,7 +165,7 @@ sequenceDiagram
   which permission is missing and what would not work without it.
 - **3b. The sign-in expires.** At the next use, the dashboard asks for the provider's sign-in again, in
   the provider's window; nothing else changes.
-- **7a. The bridge does not answer.** Agent M names the reason — not running, wrong address, bridge
+- **7a. The connection's Bridge does not answer.** Agent M names the reason — not running, wrong address, bridge
   token missing — and links UC-011. The connection is stored and shown as *untested*.
 - **7b. A server offers no encryption.** The bridge sends no login to it; Agent M says which server and
   that the password would travel in clear text. The author corrects the port or encryption setting.
@@ -178,12 +184,13 @@ sequenceDiagram
   (UC-042) brings the whole connection, password or sign-in token included. A provider's sign-in token
   that has expired meanwhile is renewed by signing in once more (3b).
 - **4a. The author does not tick the notice.** The password field stays disabled; nothing is stored.
+- **4b. The author does not tick the jump host's notice.** Nothing is stored; the author may choose another Bridge.
 
 ## Postcondition
 
 - The mailbox connection exists only in this browser's `localStorage`; no repository, cookie or URL
   contains any part of it.
 - On the web-API route, Agent M never saw the mailbox password; its token reaches mail only and goes
-  only to the provider. On the IMAP route, the password has left the browser only towards the bridge on
-  the author's machine, and from there only over encrypted connections; the bridge keeps no copy.
+  only to the provider. On the IMAP route, the password has left the browser only towards the Bridge the
+  connection names, and from there only over encrypted connections; the Bridge keeps no copy.
 - The mailbox is unchanged: nothing was read as new, moved, flagged or sent.

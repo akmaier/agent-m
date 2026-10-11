@@ -30,7 +30,8 @@ provides:
 It belongs to Issues and mail (ARC-044). It reaches a mailbox through one interface, `Mailbox`, with two routes as
 plug-ins (`A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE`): a Microsoft 365 mailbox directly
 from the page through Microsoft Graph, opened by Microsoft's own sign-in (ARC-053); every other mailbox — Gmail included
-— through Access's Bridge client to the Bridge, which speaks IMAP and SMTP (ARC-051, MOD-mail-protocols). On both routes
+— through Access's Bridge client to the Bridge its connection names, which speaks IMAP and SMTP (ARC-051,
+MOD-mail-protocols). On both routes
 reading changes nothing in the mailbox, a reply waits as a draft in the mailbox's Drafts folder, and a draft is sent only
 as the exact mail a person was shown. It runs in the browser.
 
@@ -61,6 +62,8 @@ them (`MAIL STAYS IN THE MAILBOX`). It owns the format of a mailbox connection, 
   ],
   "graph": { "clientId": "the app registration's client identifier", "account": "reports@example.org" },
   "imap": {
+    "bridge": "lab-pc",
+    "jumpHostNoted": true,
     "imap": { "host": "imap.example.org", "port": 993, "security": "tls" },
     "smtp": { "host": "smtp.example.org", "port": 587, "security": "starttls" },
     "account": "reports@example.org",
@@ -72,8 +75,11 @@ them (`MAIL STAYS IN THE MAILBOX`). It owns the format of a mailbox connection, 
 `folders` are read and searched — `INBOX` unless others are named; `places` are the processing places to which this
 mailbox's mails may be given (`THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED`), a place outside the EU recorded with
 the fact that the person saw the notice; `graph` belongs to the web-API route, `imap` to the Bridge route, and only one of
-them is present. The password is stored only after its own notice was acknowledged on the page (`THE MAILBOX PASSWORD IS
-STORED ONLY AFTER ITS OWN DISCLOSURE`). The tokens of the Graph route are not part of the connection: Microsoft's library
+them is present. On the Bridge route, `bridge` names the Bridge the connection goes through, by the name under which the
+browser keeps it, and `jumpHostNoted` records that the person acknowledged, before saving, that the jump host can read
+the password and the mails, where that Bridge is reached through the jump host (`A MAILBOX THROUGH THE JUMP HOST IS NAMED
+AS READABLE THERE`). The password is stored only after its own notice was acknowledged on the page (`THE MAILBOX PASSWORD
+IS STORED ONLY AFTER ITS OWN DISCLOSURE`). The tokens of the Graph route are not part of the connection: Microsoft's library
 keeps them in its own cache in `localStorage`, whose keys Access lists among the browser's settings and removes on a clear
 (ARC-053).
 
@@ -108,8 +114,8 @@ keeps them in its own cache in `localStorage`, whose keys Access lists among the
   `RegistrationRefused` with Microsoft's message — the client identifier or the return address is not registered —,
   `Unreachable`.
 - `mailbox(connection: MailConnection, bridge: Bridge | null) -> Mailbox` — the mailbox on the connection's route;
-  `bridge` is Access's Bridge from `bridgeAt` and is needed only on the Bridge route. Errors: `BridgeNeeded` on the Bridge
-  route without one.
+  `bridge` is Access's Bridge from `bridgeAt` for the Bridge the connection names, and is needed only on the Bridge route.
+  Errors: `BridgeNeeded` on the Bridge route without one.
 - `Mailbox` — the one interface over both routes. Every operation crosses the network — to Microsoft Graph, or to the
   Bridge and from there to the mail servers — and fails with `SignInExpired` (sign in again; Microsoft's refresh tokens
   for a single-page application expire after a day, ARC-053), `PermissionDeclined`, `Throttled` with the time to wait,
@@ -147,7 +153,8 @@ own: the connection is written by Access, the sign-in library's cache under the 
 
 ## Uses
 
-- `MOD-bridge-client.mailCall` — every operation of the Bridge route, with the connection and its password in the body of
-  that one request (`THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE`).
+- `MOD-bridge-client.mailCall` — every operation of the Bridge route, on the Bridge the connection names, with the
+  connection and its password in the body of that one request (`THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE
+  BRIDGE`).
 - `MOD-mail-records.mailId` — the identifier of each mail read on the Graph route, and the search of `find`.
 - `MOD-text-tools.sha256` — the SHA-256 of a draft's bytes on the Graph route, compared before it is sent.

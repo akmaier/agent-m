@@ -32,6 +32,7 @@ uses:
   - MOD-repository-hosts.startWorkflow
   - MOD-repository-hosts.listReleaseAssets
   - MOD-repository-hosts.webLinks
+  - MOD-bridge-client.settingsOf
   - MOD-bridge-client.bridgeAt
   - MOD-bridge-client.pair
   - MOD-bridge-client.testBridge
@@ -92,7 +93,7 @@ It belongs to the Site (ARC-038). Its one responsibility is the menu entry Setti
 page — what this browser keeps, what the instance repository keeps, what each product's repository keeps
 (`EVERY SETTING IS REACHED FROM ONE PAGE`) — and the guided pages that first set them up: getting one's own Agent M and
 finishing its setup, adding a product, model endpoints, participants, the source library and a product's links to it,
-resources, the mailbox, and the Agent M Bridge with the jump host and remote sessions. Every register is edited in a
+resources, the mailbox, and the Agent M Bridges with the jump host. Every register is edited in a
 form built from its owner's schema; every notice a setting needs stands before the setting is stored.
 
 It serves UC-001, UC-003, UC-004, UC-011, UC-014, UC-015, UC-016, UC-017, UC-037, UC-040, UC-042, UC-044 and UC-047.
@@ -117,7 +118,9 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
 - `view: View` — its routes, and the strategies of `resourceStrategies`:
   - `settings` — three sections — this browser, the instance, each product —, one line per setting with its state:
     works, with the date of the last successful test; expires on, from fourteen days before a token's recorded expiry;
-    refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*. The line
+    refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*; each Bridge is a
+    line of its own, under its name, and its *Clear* names first the endpoints, participants, mailbox and resources that
+    name it (UC-042, 2a). The line
     *Notifications* of this browser's section (UC-047) shows the state `notificationState` gives: *off*, or switched on
     without this browser's permission yet, with *Switch on*, whose click asks the browser's permission; *on*, with how
     many files were notified, *Test* and *Switch off*, which is its clear; *blocked*, when the person or the browser
@@ -139,12 +142,14 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   - `add-product` — the address recognised as GitHub or GitLab; the token's step for that server with the names filled
     in, or the GitLab project access token; *Check*; *Add product*, which writes the missing review layout and adds the
     address to this browser's list; each step with its explanation.
-  - `endpoints` — address, model and key of a model endpoint, a local model server named as reached through a Bridge; the
-    test request, and the reason and the routes that would work when a browser may not call it; *Clear*.
+  - `endpoints` — address, model and key of a model endpoint, and, for one the browser cannot call, the Bridge that
+    reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, and the
+    reason and the routes that would work when a browser may not call it; *Clear*.
   - `participants` — the instance's participants in a form from the participant schema: type, model, context and price,
-    capabilities, processing place, route; for a CLI or sandboxed agent, the agents the paired Bridge reports and *Test*;
-    a self-hosted runner refused for a repository the server reports as public; a change to a participant that products
-    use, with those products and roles named.
+    capabilities, processing place, route; for a CLI or sandboxed agent, the Bridge it runs on, chosen among this
+    browser's Bridges, the agents that Bridge offers, and *Test* through it; for a self-hosted runner, the explanation
+    that it serves private repositories only and is refused when a public product's job would run on it (`routesFor`); a
+    change to a participant that products use, with those products and roles named.
   - `library`, `library/<source>`, `sources` — the instance's register of sources and a source's versions; *+ Register
     source* by route — EU legal text, standard, documents, repository — with the files hashed in the browser and what
     becomes public stated before *Save*, which commits the entry and its content where its licence allows — the instance,
@@ -154,17 +159,23 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     with the requirements that name the source listed first.
   - `resources`, `resources/instance` — a product's or the instance's resources in a form from the resource schema; the
     pin, licence and maintainer read where they can be; the route; the secret by name only; the processing place;
-    *Check* through the Bridge, or as a check job on its runner with its run panel; a newer state upstream with *Move*;
+    *Check* through the Bridge the route names, or as a check job on its runner with its run panel; a newer state
+    upstream with *Move*;
     *Copy from the instance*.
   - `mailbox` — the route recognised from the address; for Microsoft 365 the app registration's steps and the sign-in
     with its permissions named before the provider's window opens; for every other mailbox the servers and ports, the
-    notice before the password field, and an app password explained; the folders; the processing places the mail may go
-    to, a place outside the EU stated as not compliant before saving; *Store and test*; *Disconnect*.
+    notice before the password field, and an app password explained; the Bridge the connection goes through, chosen
+    among this browser's Bridges, and, for one reached through the jump host, the notice that the jump host can read the
+    password and the mails, before saving; the folders; the processing places the mail may go to, a place outside the EU
+    stated as not compliant before saving; *Store and test*; *Disconnect*.
   - `bridge` — the release's file for this computer's system with its size and the SHA-256 the server reports for it, or,
-    where the server reports none, a link to the release's checksum file; pairing with the token the Bridge's window
-    shows; the jump host and its port range, HTTPS address and web-server login; *+ Remote session* with its port, and the
-    two tunnel commands for a computer without a Bridge; the jump host's web-server configuration; *Test* of the HTTPS
-    address, a certificate the browser does not trust named as a possible cause.
+    where the server reports none, a link to the release's checksum file; the Bridges this browser keeps, each under its
+    name: pairing one on this computer or at a forwarded address with the token its window shows, kept under the name it
+    reports; *+ Bridge through the jump host*, named by the person, with its port from the range and the two tunnel
+    commands for a computer without a Bridge; the jump host and its port range, HTTPS address and web-server login; the
+    jump host's web-server configuration for every Bridge reached through it; *Test* of a Bridge at its address — for one
+    reached through the jump host its HTTPS address —, a certificate the browser does not trust named as a possible
+    cause.
 
 ## Files
 
@@ -193,9 +204,10 @@ reaches.
   files; MOD-repository-hosts.startWorkflow — *Fetch again*; MOD-repository-hosts.listReleaseAssets — the Bridge's files
   with their sizes and SHA-256; MOD-repository-hosts.webLinks — the server's token, fork, Pages, Actions, secrets and
   access-token pages.
-- MOD-bridge-client.bridgeAt, MOD-bridge-client.pair, MOD-bridge-client.testBridge, MOD-bridge-client.probe — pairing,
-  tests, the agents a Bridge reports, a resource's check; MOD-bridge-client.allocatePort,
-  MOD-bridge-client.tunnelCommands, MOD-bridge-client.proxyConfiguration — remote sessions and the jump host.
+- MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt, MOD-bridge-client.pair, MOD-bridge-client.testBridge,
+  MOD-bridge-client.probe — each Bridge's address, pairing, tests, the agents a Bridge offers, a resource's check;
+  MOD-bridge-client.allocatePort, MOD-bridge-client.tunnelCommands, MOD-bridge-client.proxyConfiguration — the Bridges
+  reached through the jump host, and the jump host.
 - MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an endpoint's test and why a browser may not
   call it.
 - MOD-mail-routes.routeFor, MOD-mail-routes.signIn, MOD-mail-routes.mailbox, MOD-mail-routes.providerLinks — the

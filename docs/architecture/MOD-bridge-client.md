@@ -9,16 +9,17 @@ uses:
   - MOD-bridge-http.bridgeApi
 provides:
   - Bridge
+  - BridgeEntry
   - BridgeSettings
   - JumpHost
-  - RemoteSession
   - TunnelPlan
   - BridgeError
+  - settingsOf
   - bridgeAt
   - pair
   - testBridge
   - handOver
-  - askAgent
+  - ask
   - bridgeJobs
   - bridgeJobLog
   - cancelOnBridge
@@ -37,8 +38,9 @@ It belongs to Access (ARC-047). It is the client side of the Bridge's API (ARC-0
 and answer fields, its error codes; the protocol is the Bridge's, and this client reads it from `bridgeApi` itself, so the
 two never disagree. It reaches a Bridge directly on the computer's loopback, through a forward to the jump host, or at the
 jump host's HTTPS address with the web server's own login, always with the Bridge's token (`THE LOCAL BRIDGE REQUIRES A
-TOKEN`); it pairs, tests, hands over jobs, asks an agent to draft, follows and cancels jobs, passes mail operations and
-probes; and it names why a Bridge cannot be reached, as far as a browser lets a page know. It also owns the plan of a
+TOKEN`); a person may pair several Bridges, each known by its name. It pairs, tests, hands over jobs, asks an agent to
+draft or a model endpoint to answer, follows and cancels jobs, passes mail operations and probes; and it names why a
+Bridge cannot be reached, as far as a browser lets a page know. It also owns the plan of a
 tunnel to a computer behind NAT, and writes for a person the commands of both ends and the configuration of the jump
 host's web server (`THE DASHBOARD WRITES THE TUNNEL COMMANDS`). It runs in a browser and in Node.
 
@@ -51,8 +53,9 @@ host's web server (`THE DASHBOARD WRITES THE TUNNEL COMMANDS`). It runs in a bro
 
 ## Data
 
-It keeps nothing; its callers read the Bridge's address and token, the jump host and the remote sessions from the
-browser's store and hand them in. It owns the **tunnel plan**, which the Bridge's MOD-tunnels opens and the commands
+It keeps nothing; its callers read the Bridges, each under its name, and the jump host from the browser's store and hand
+them in. A Bridge reached through the jump host is addressed at the path `/bridge/<name>` of the jump host's HTTPS
+address; the path is made in one place of this module, which `settingsOf` and `proxyConfiguration` both use. It owns the **tunnel plan**, which the Bridge's MOD-tunnels opens and the commands
 below write out:
 
 ```json
@@ -72,12 +75,15 @@ uses; the key itself stays on its computer.
   returns and every call below takes — its address, and whether it is reached on this computer's loopback, through a
   forward to the jump host, or at the jump host's HTTPS address. It carries the Bridge's token, and the jump host web
   server's login, for its own requests only, and exposes neither.
-- `BridgeSettings` — `{ address: string, token: string, login?: { user: string, password: string } }`: the Bridge's
-  address — `http://127.0.0.1:<port>`, a forwarded `http://localhost:<port>`, or the jump host's HTTPS address of a remote
-  session —, its pairing token, and the jump host web server's login where the address is the jump host's.
+- `BridgeEntry` — `{ name: string, address: string, token: string } | { name: string, port: number, token: string }`: a
+  Bridge as the browser's store keeps it under its name — reached directly at its address, or through the jump host at
+  its port of the jump host's range.
+- `BridgeSettings` — `{ name: string, address: string, token: string, login?: { user: string, password: string } }`: the
+  Bridge's name and address — `http://127.0.0.1:<port>`, a forwarded `http://localhost:<port>`, the jump host's HTTPS
+  address with the Bridge's path, or, without one, the forward `http://localhost:<port>` of its port —, its pairing
+  token, and the jump host web server's login where the address is the jump host's.
 - `JumpHost` — `{ hostname: string, user: string, sshPort: number, portRange: [number, number], httpsAddress?: string,
   login?: { user: string, password: string } }`.
-- `RemoteSession` — `{ name: string, port: number, token: string }`.
 - `TunnelPlan` — as defined under Data.
 - `BridgeError` — the failures of every call below that reaches a Bridge:
   `TokenMissing` — no token is stored for this Bridge; no request is made.
@@ -96,27 +102,34 @@ uses; the key itself stays on its computer.
   `bridgeApi`, with the message the Bridge gave.
   `AskFailed { message: string }` — the agent asked to draft failed; `message` is the `error` of the ask's answer.
   `Timeout` — a request got no answer in time; what it asked for may still be carried out on the Bridge.
+- `settingsOf(entry: BridgeEntry, jumpHost: JumpHost | null) -> BridgeSettings` — the settings of a stored Bridge: its
+  own address, or, for one reached through the jump host, the jump host's HTTPS address with the path `/bridge/<name>`
+  and the web server's login, or the forward of its port where the jump host has no HTTPS address. Throws
+  `JumpHostMissing` for a Bridge at a port while no jump host is stored. No request is made.
 - `bridgeAt(settings: BridgeSettings) -> Bridge` — the handle of a Bridge for these settings; no request is made.
-- `pair(address: string, pairingToken: string) -> Promise<BridgeSettings>` — `GET /v1/pair` at the address, with the token
-  the person copied from the Bridge's window, and returns the settings to store (`THE BRIDGE IS PAIRED ONCE`). The page
-  proposes `http://127.0.0.1` with `bridgeApi`'s default port as the address. Crosses the network; fails with `NoAnswer`,
-  `TokenRefused`, `JumpHostLoginRefused`, `Timeout`.
+- `pair(address: string, pairingToken: string, login?: { user: string, password: string }) -> Promise<{ name: string,
+  settings: BridgeSettings }>` — `GET /v1/pair` at the address, with the token the person copied from the Bridge's
+  window, and returns the name the Bridge reports and the settings to store under it (`THE BRIDGE IS PAIRED ONCE`). The
+  page proposes `http://127.0.0.1` with `bridgeApi`'s default port as the address. Crosses the network; fails with
+  `NoAnswer`, `TokenRefused`, `JumpHostLoginRefused`, `Timeout`.
 - `testBridge(bridge: Bridge) -> Promise<{ bridge: { name: string, version: string, platform: string }, origin: string,
   agents: { name: string, version: string, ready: boolean, loggedIn: boolean }[], missing: { name: string }[] }>` — a
   harmless test in two requests: `GET /v1/pair`, whose answer names the Bridge and the `origin` it is paired with — the
-  instance's Pages origin it answers —, and `GET /v1/agents`, the coding agents installed on its computer, each ready or
-  not and logged in or not, and the supported agents missing there (UC-044, UC-017). Crosses the network; fails with
+  instance's Pages origin it answers —, and `GET /v1/agents`, the coding agents it offers, each ready or not and logged
+  in or not, and the supported agents missing on its computer (UC-044, UC-017). Crosses the network; fails with
   every `BridgeError` but `AskFailed`.
 - `handOver(bridge: Bridge, job: { product: string, record: string, commit: string }) -> Promise<{ accepted: string }>` —
   `POST /v1/jobs`: hands over a job whose start record is committed — the product's address, the path of its start
   record, and the commit that holds it. The Bridge runs the job from that record, so nothing else travels with it;
   `accepted` is the job's identifier. Crosses the network; fails with every `BridgeError` but `AskFailed`, among them
   `BridgeFailed` with `paused` while the Bridge is paused.
-- `askAgent(bridge: Bridge, agent: string, input: unknown) -> Promise<{ text: string, usage: unknown | null }>` —
-  `POST /v1/ask` with `{ agent, input }`, then `GET /v1/ask/{ask}` until the answer's state is `done` or `failed`: the
-  agent's draft and the usage it reported. MOD-runtimes makes a participant driver of it. Crosses the network; fails with
-  every `BridgeError`, `AskFailed` when the answer's state is `failed`, and `BridgeFailed` with `paused` while the Bridge
-  is paused.
+- `ask(bridge: Bridge, target: { agent: string } | { endpoint: bridgeApi's endpoint configuration }, input: unknown) ->
+  Promise<{ text: string, usage: unknown | null }>` — `POST /v1/ask` with `{ agent, input }` or `{ endpoint, input }`,
+  then `GET /v1/ask/{ask}` until the answer's state is `done` or `failed`: the draft of an agent the Bridge offers, or the
+  answer of a model endpoint the Bridge calls, and the usage reported. The endpoint's configuration and key travel only in
+  that request's body. MOD-runtimes makes a participant driver of it. Crosses the network; fails with every
+  `BridgeError`, `AskFailed` when the answer's state is `failed`, and `BridgeFailed` with `paused` while the Bridge is
+  paused.
 - `bridgeJobs(bridge: Bridge) -> Promise<{ id: string, product: string, kind: string, agent: string, state: string,
   started: string, usage: unknown | null }[]>` — `GET /v1/jobs`: the jobs the Bridge runs or ran since it started.
   Crosses the network; fails with every `BridgeError` but `AskFailed`.
@@ -139,25 +152,28 @@ uses; the key itself stays on its computer.
   endpoint-test answer>` — `POST /v1/probes/{kind}` with `{ args }`, resolving with the answer's
   `answer`: an agent answers a harmless request, an endpoint lists its served models, the explicitly chosen local
   endpoint configuration receives UC-003's short test on the Bridge, or a cluster lists its partitions. The endpoints
-  page maps its saved `{ url, kind, model, key?, throughBridge }` record to the Bridge API endpoint-test configuration only for
-  `throughBridge: true`: its selected name and kind, `url` as `baseUrl`, optional `key` as `key ?? null`, and model.
+  page maps its saved `{ url, kind, model, key?, bridge }` record to the Bridge API endpoint configuration only for the
+  Bridge its `bridge` names: its selected name and kind, `url` as `baseUrl`, optional `key` as `key ?? null`, and
+  model.
   A result with `works: false` is the provider or local-endpoint diagnosis returned by `testEndpoint`; an invalid body or
   Bridge transport failure is the named `BridgeError`, not a diagnosis. Crosses the network; fails with every
   `BridgeError` but `AskFailed`, among them `BridgeFailed` with `upstream-failed` or `paused`.
-- `allocatePort(range: [number, number], sessions: RemoteSession[]) -> number` — the lowest port of the range that no
-  session holds (`EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE`). Throws `NoFreePort` naming the range.
-- `tunnelCommands(jumpHost: JumpHost, session: RemoteSession, bridgePort: number, keyFiles: { remote: string, local:
-  string }) -> { reverse: string, forward: string, plans: TunnelPlan[], service: string }` — the two commands of UC-011,
+- `allocatePort(range: [number, number], bridges: BridgeEntry[]) -> number` — the lowest port of the range that no Bridge
+  reached through the jump host holds (`EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE`). Throws
+  `NoFreePort` naming the range.
+- `tunnelCommands(jumpHost: JumpHost, bridge: { name: string, port: number }, bridgePort: number, keyFiles: { remote:
+  string, local: string }) -> { reverse: string, forward: string, plans: TunnelPlan[], service: string }` — the two
+  commands of UC-011,
   filled in: the reverse tunnel for the computer behind NAT, `ssh -N -R 127.0.0.1:<port>:127.0.0.1:<bridge port>`, and
   the forward for the person's computer, `ssh -N -L <port>:127.0.0.1:<port>`, each with keep-alive options and the key
   file it uses, to `<user>@<jump host>`; the plans they carry out; and how to keep the reverse tunnel running as a
   service. No request is made.
-- `proxyConfiguration(jumpHost: JumpHost, sessions: RemoteSession[], instanceOrigin: string, server: "apache" | "nginx")
-  -> string` — the configuration of the jump host's web server for the route over HTTPS: its own login over TLS before
+- `proxyConfiguration(jumpHost: JumpHost, bridges: { name: string, port: number }[], instanceOrigin: string, server:
+  "apache" | "nginx") -> string` — the configuration of the jump host's web server for the route over HTTPS: its own login over TLS before
   anything is forwarded (`THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); cross-origin requests allowed
   for the instance's Pages origin only, preflights answered by the web server itself and never forwarded (`THE JUMP HOST
-  ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE`); each session's path forwarded to its port on the jump host's
-  loopback (`A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST`); and the note that its certificate must come from
+  ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE`); each Bridge's path `/bridge/<name>` forwarded to its port on the
+  jump host's loopback (`A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST`); and the note that its certificate must come from
   an authority the browsers trust. No request is made.
 
 ## Files

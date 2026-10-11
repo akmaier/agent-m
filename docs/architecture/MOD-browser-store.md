@@ -30,8 +30,8 @@ provides:
 ## Responsibility
 
 It belongs to Access (ARC-047). It keeps everything that belongs to one person on one browser — tokens with their
-expiry, the list of products, endpoints and their keys, the Bridge's address and token, the mailbox connection, the jump
-host and remote sessions, the mails marked *not an issue*, the notifications of what waits for acceptance and what they
+expiry, the list of products, endpoints and their keys, each Bridge under its name with its address or its port on the
+jump host and its token, the mailbox connection, the jump host, the mails marked *not an issue*, the notifications of what waits for acceptance and what they
 notified — in that browser's `localStorage` and nowhere else
 (`CONFIGURATION LIVES IN THE BROWSER`, `CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE`); it knows every key it
 writes, so that each can be shown, tested and cleared on one page (`EVERY SETTING IS REACHED FROM ONE PAGE`); and it
@@ -58,10 +58,9 @@ instances in one browser never share an entry. Each value is JSON. The settings 
 | `github-token:<owner>/<repository>` | `{ value, name, expires, stored }` — the fine-grained token of one GitHub product (`A GITHUB PRODUCT USES A TOKEN OF ITS OWN`) | yes |
 | `gitlab-token:<server>/<project>` | `{ value, name, expires, stored }` — the project access token of one GitLab product | yes |
 | `products` | the addresses of the products this browser manages (`THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER`) | no |
-| `endpoint:<name>` | `{ url, kind, model, key?, throughBridge }` — a model endpoint | the key |
-| `bridge` | `{ address, token }` — the paired Bridge | the token |
+| `endpoint:<name>` | `{ url, kind, model, key?, bridge? }` — a model endpoint; `bridge` names the Bridge that calls it, where the browser cannot, and is left out where the browser calls it directly | the key |
+| `bridge:<name>` | `{ address, token }` — a Bridge reached directly, on this computer's loopback or at an SSH forward's address — or `{ port, token }` — a Bridge reached through the jump host, at its port of the jump host's range (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`); `<name>` is the Bridge's name, which its own settings and its participants' routes carry | the token |
 | `jump-host` | `{ hostname, user, sshPort, portRange, httpsAddress?, login? }` (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`) | the login |
-| `remote-session:<name>` | `{ port, token }` — a CLI session reached through the jump host | the token |
 | `mailbox` | the connection's fields as MOD-mail-routes defines them — route, address, folders, allowed places, the client identifier of the app registration, or servers and password | the password |
 | `mailbox-sign-in` | not a key of its own: the keys the Microsoft sign-in library writes for its token cache under its own names (ARC-053), found by the client identifier the `mailbox` entry names and by the library's own key names | yes |
 | `not-an-issue` | the identifiers of mails marked *not an issue* | no |
