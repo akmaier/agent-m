@@ -19,6 +19,7 @@ uses:
   - MOD-test-document.testDeclarations
   - MOD-test-document.TestDeclaration
   - MOD-group-document.parseGroupFile
+  - MOD-text-tools.blobSha
   - MOD-text-tools.finding
   - MOD-text-tools.Finding
 provides:
@@ -57,7 +58,7 @@ MATRIX IS DERIVED`). It runs in a browser and in Node; it reads only through the
 ## Parts
 
 - `index.mjs` — the interface.
-- `build.mjs` — reading the artifacts of a repository into the graph.
+- `build.mjs` — reading the artifacts of a repository into the graph, with the facts its checks need.
 - `code.mjs` — code files by module folder, and the imports between module folders.
 - `checks.mjs` — the checks across artifacts.
 - `derive.mjs` — traces, gaps, impact lists, module order and rows, comparison.
@@ -79,15 +80,35 @@ What it reads, and as what:
 A code file belongs to the module whose `folder` holds it; a module's folder is named after its identifier (`A MODULE IS
 A FOLDER`).
 
+The graph keeps, while it is built, every fact a check across artifacts needs, so that each check is decided from the
+graph alone and no file is read twice:
+
+- a node keeps from its file what the checks read: a module its `folder` and the interfaces it `provides`, a plan step or
+  backlog item its `level` and its `tests`, a requirement the items of its source as written;
+- a `uses` edge keeps the interface it names after the module, such as `parseSpec` in `MOD-spec-document.parseSpec`;
+- a group's title is a node of the kind `group`, keyed by its file and line, since a group carries no identifier (`A
+  GROUP CARRIES NO IDENTIFIER`);
+- the graph keeps the path of every file of the repository, each link an artifact writes — a Markdown link
+  `[text](target)` or an autolink `<target>` — with its target as written, and the references by position that
+  MOD-identifiers' `positionalReferences` finds in each artifact's text.
+
+The sources a requirement names are kept on its node, not as links: no file the graph reads names a source by an
+identifier, and which register entry an item names is MOD-source-register's to say.
+
 ## Interfaces
 
 - `TextSource` — `{ paths: string[], read(path: string) -> Promise<string | null> }`: the files of one repository at one
   commit, as the caller hands them; a snapshot of Access fits it.
-- `Graph` — `{ commit: string | null, nodes: Map<string, { id: string, kind: IdentifierKind | "code", path: string, line:
-  number, title: string | null, blob: string | null }>, edges: { from: string, to: string, via: "realises" | "forced_by" |
-  "designs" | "follows" | "refines" | "uses" | "guards" | "exercises" | "changes" | "builds_on" | "source" | "imports" |
-  "names", path: string, line: number }[], unread: { path: string, reason: string }[] }` — every node and every link, and
-  the files it could not read with the reason.
+- `Graph` — `{ commit: string | null, nodes: Map<string, { id: string, kind: IdentifierKind | "code" | "group", path:
+  string, line: number, title: string | null, blob: string | null, folder: string | null, provides: string[] | null,
+  level: string | null, tests: string[] | null, sources: string[] | null }>, edges: { from: string, to: string, via:
+  "realises" | "forced_by" | "designs" | "follows" | "refines" | "uses" | "guards" | "exercises" | "changes" | "builds_on" |
+  "imports" | "names", interface: string | null, path: string, line: number }[], files: string[], links: { from: string,
+  target: string, path: string, line: number }[], positions: Finding[], unread: { path: string, reason: string }[] }` —
+  every node and every link, with the facts listed under Data: a node's field that its kind does not have is `null`, and a
+  group's node is keyed `<path>:<line>`; an edge's `interface` is `null` but for `uses`; `files` every path the
+  `TextSource` lists; `links` each link an artifact writes, `from` the artifact's identifier; `positions` the warnings of
+  `positionalReferences`, as it gives them; `unread` the files it could not read, with the reason.
 - `Traces` — `{ sources: string[], useCases: string[], decisions: string[], modules: string[], tests: string[], items:
   string[] }`.
 - `Gaps` — `{ requirementsWithoutUseCase: string[], requirementsWithoutModule: string[], requirementsWithoutTest:
@@ -105,23 +126,26 @@ A FOLDER`).
 - `Comparison` — `{ requirements: { added: string[], changed: string[], removed: string[] }, coverage: { gained: { name:
   string, by: string }[], lost: { name: string, by: string }[] } }`.
 - `traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph>` — reads the repository's artifacts and
-  code files as listed under Data and builds the graph. A file that cannot be read, or not read as its format, is listed
+  code files as listed under Data and builds the graph, keeping the facts listed there. A file that cannot be read, or not
+  read as its format, is listed
   in `unread` with the reason, never left out silently; the findings of a single document's format are MOD-documents' and
   are not repeated here. Rejects only when `source.read` itself rejects, with that error.
-- `graphFindings(graph: Graph) -> Finding[]` — the checks across artifacts, each an error naming the artifact and line:
+- `graphFindings(graph: Graph) -> Finding[]` — the checks across artifacts, each decided from the graph alone and each an
+  error naming the artifact and line:
   a name in `realises`, `forced_by`, an item's `realises` or a test's `guards` that matches no requirement or use case
-  (`A USE CASE REALISES NAMED REQUIREMENTS`, `EVERY ARTIFACT NAMES ITS ORIGIN`); a used interface that its module does not
-  provide (`DEVELOP AGAINST INTERFACES`); a cycle among the modules' uses (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`);
+  (`A USE CASE REALISES NAMED REQUIREMENTS`, `EVERY ARTIFACT NAMES ITS ORIGIN`); a `uses` edge whose interface the used
+  module's node does not provide (`DEVELOP AGAINST INTERFACES`); a cycle among the modules' uses (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`);
   a module designed by no decision or by more than one, or that does not follow the decision that designs it (`A MODULE
   BELONGS TO ONE SUBSYSTEM`); more or fewer than one decision without `refines`, or a decision that does not refine it
   (`ONE DECISION STATES THE WHOLE ARCHITECTURE`); an item that names a module the architecture does not describe (`A
-  BACKLOG ITEM NAMES THE MODULES IT CHANGES`), or a plan step whose tests are not those of its level (`A PLAN STEP NAMES
-  THE TESTS OF ITS LEVEL`); a module whose folder is not named after its identifier, or lies inside another module's
-  folder (`A MODULE IS A FOLDER`); a name where an identifier is expected that is the title of a group (`A GROUP CARRIES
-  NO IDENTIFIER`); and a reference by position (`A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION`).
-- `tracesTo(graph: Graph, name: string) -> Traces` — for a requirement, its sources and every use case, decision, module,
-  test and item that names it (`A REQUIREMENT SHOWS WHAT TRACES TO IT`); a module traces to a requirement through the
-  tests of it that guard the requirement.
+  BACKLOG ITEM NAMES THE MODULES IT CHANGES`), or a plan step whose `tests` are not those of its `level` (`A PLAN STEP
+  NAMES THE TESTS OF ITS LEVEL`); a module whose `folder` is not named after its identifier, or lies inside another
+  module's folder (`A MODULE IS A FOLDER`); a name where an identifier is expected that is the title of a `group` node (`A
+  GROUP CARRIES NO IDENTIFIER`); and, as the warnings they are, the graph's `positions` (`A REFERENCE NAMES THE
+  IDENTIFIER, NOT THE POSITION`).
+- `tracesTo(graph: Graph, name: string) -> Traces` — for a requirement, the items of its source its node keeps, and every
+  use case, decision, module, test and item that names it (`A REQUIREMENT SHOWS WHAT TRACES TO IT`); a module traces to a
+  requirement through the tests of it that guard the requirement.
 - `coverageGaps(graph: Graph) -> Gaps` — the requirements no use case realises and — once modules and tests exist — no
   module realises and no test guards; the use cases that realise nothing; every name that matches no requirement, with
   what names it (`UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN`). The gaps are shown; none blocks anything.
@@ -146,9 +170,9 @@ A FOLDER`).
 - `compareGraphs(earlier: Graph, later: Graph) -> Comparison` — the requirements added, changed and removed between two
   versions, and the coverage gained and lost (UC-020).
 - `selfSufficiencyFindings(graph: Graph, instance: string) -> Finding[]` — an error under `THE PRODUCT REPOSITORY IS
-  SELF-SUFFICIENT` for each link in an artifact to a file that the repository does not hold, to the instance's
-  repository `instance`, given as `owner/name`, or to its dashboard at the address MOD-identifiers' `pagesAddress` gives it
-  (`AN INSTANCE IS A FORK OF AGENT M`). MOD-job-runner's check `graph-checks` runs it on every draft.
+  SELF-SUFFICIENT` for each of the graph's `links` whose target is a path of the repository that `files` does not hold,
+  the instance's repository `instance`, given as `owner/name`, or its dashboard at the address MOD-identifiers'
+  `pagesAddress` gives it (`AN INSTANCE IS A FORK OF AGENT M`). MOD-job-runner's check `graph-checks` runs it on every draft.
 
 ## Files
 
@@ -164,4 +188,5 @@ It reads, through the `TextSource` it is given, the files listed under Data. It 
 - `MOD-spec-document.parseSpec` and the type `MOD-spec-document.Spec` — to read the requirements.
 - `MOD-test-document.testDeclarations` and the type `MOD-test-document.TestDeclaration` — to read the tests.
 - `MOD-group-document.parseGroupFile` — to read the groups' titles.
+- `MOD-text-tools.blobSha` — the blob of each node.
 - `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — the findings it reports.
