@@ -201,7 +201,7 @@ test("TST-321003: abort stops the agent and its child before later output", asyn
 // TST-321004
 // level: unit
 // module: MOD-agent-processes
-// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-011; UC-017
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-011
 // given: a missing agent, an installed but logged-out agent, a controlled Claude executable that exits 23 after output, and an already-aborted signal.
 // input: construct a driver for each condition and call send with the same prepared DriverInput.
 // expect: the four conditions throw AgentMissing, AgentNotLoggedIn, AgentFailed with its exitCode and lastOutput, and Cancelled.
