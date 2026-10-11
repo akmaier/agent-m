@@ -12,13 +12,14 @@
 //
 // The product is a small repository this file holds, in memory, behind a snapshot of its own (paths, blob and read, as MOD-repository-
 // hosts' Snapshot gives them): a SPEC; use cases of three statuses, UC-001 and UC-003 accepted, UC-002 open and UC-004 changed; and,
-// where a test needs them, an architecture decision and a change queue of two entries, the first decided by a row of its
-// entscheidungen.md. A strategy is called as the job runner calls it: a recipe with the job's context and its parameters, a
+// where a test needs them, an architecture decision and a change queue of three entries: the first accepted by an approval record that
+// names its proposal, the second named only by a decision row, the third by a record that names an earlier text of its proposal. A strategy is called as the job runner calls it: a recipe with the job's context and its parameters, a
 // precondition with the context. The module file words neither the findings nor the name of an open SPEC change, and a precondition
 // returns one finding: this file asks of each finding its kind, its rule, that it is one line and what it names, and reads the
 // precondition as returning, of the three, the first that holds — the architecture that exists, the use cases not accepted, the open
 // SPEC changes —, since UC-022 1c opens UC-023 instead, and 1a blocks before 1b only warns. An open SPEC change is named by its
-// proposal's path. A name the module does not provide yet is undefined here, so that each test fails by itself. Each test states its
+// proposal's path, and is open when no approval record names its proposal (MOD-spec-changes, Data), whatever a decision row says.
+// A name the module does not provide yet is undefined here, so that each test fails by itself. Each test states its
 // input and its expected result before it runs (given / input / expect). Nothing reaches the network. The counter-proofs are recorded
 // in the pull request.
 
@@ -48,17 +49,25 @@ const MOD_PATH = "docs/architecture/MOD-sample.md";
 const MODULE = text("---", "id: MOD-sample", "title: Sample", "folder: src/sample/", "---", "# MOD-sample Sample");
 const ARC = text("---", "id: ARC-001", "title: The system", "forced_by:", "  - UC-001", "---", "# ARC-001 The system");
 
-// A queue of two entries: 01 decided by a row of its entscheidungen.md, 02 not.
+// A queue of three entries. 01 is accepted: an approval record names its proposal. 02 has a decision row and no record. 03 has a
+// record that names an earlier text of its proposal. A record is docs/approvals/spec-<queue>-<NN>-<first twelve digits of the blob>.md.
 const QUEUE = "docs/spec-freigaben/2026-10-01_fixture";
-const ENTRY1 = `${QUEUE}/01-a-decided-rule.md`, ENTRY2 = `${QUEUE}/02-an-open-rule.md`;
+const ENTRY1 = `${QUEUE}/01-an-accepted-rule.md`, ENTRY2 = `${QUEUE}/02-a-rule-with-a-row.md`, ENTRY3 = `${QUEUE}/03-a-changed-rule.md`;
+const PROPOSAL1 = text("**AN ACCEPTED RULE** *(Product Owner)*", "A rule."), PROPOSAL2 = text("**A RULE WITH A ROW** *(Product Owner)*", "A rule."),
+  PROPOSAL3 = text("**A CHANGED RULE** *(Product Owner)*", "A rule, changed since it was accepted."),
+  PROPOSAL3_EARLIER = text("**A CHANGED RULE** *(Product Owner)*", "A rule.");
+const specRecord = (number, proposal) => ({ [`docs/approvals/spec-2026-10-01_fixture-${number}-${blobOf(proposal).slice(0, 12)}.md`]:
+  text("kind: spec", "queue: docs/spec-freigaben/2026-10-01_fixture", `entry: ${number}`, `blob: ${blobOf(proposal)}`) });
 const QUEUE_FILES = {
   [`${QUEUE}/index.md`]: text("# SPEC approvals — queue 2026-10-01 · fixture", "", "| Nr | Datei |", "|---|---|", "| 01 | `SPEC.md` |",
-    "| 02 | `SPEC.md` |"),
-  [ENTRY1]: text("**A DECIDED RULE** *(Product Owner)*", "A rule."), [`${QUEUE}/01-a-decided-rule.begruendung.md`]: text("Why."),
-  [ENTRY2]: text("**AN OPEN RULE** *(Product Owner)*", "A rule."), [`${QUEUE}/02-an-open-rule.begruendung.md`]: text("Why."),
+    "| 02 | `SPEC.md` |", "| 03 | `SPEC.md` |"),
+  [ENTRY1]: PROPOSAL1, [`${QUEUE}/01-an-accepted-rule.begruendung.md`]: text("Why."),
+  [ENTRY2]: PROPOSAL2, [`${QUEUE}/02-a-rule-with-a-row.begruendung.md`]: text("Why."),
+  [ENTRY3]: PROPOSAL3, [`${QUEUE}/03-a-changed-rule.begruendung.md`]: text("Why."),
   [`${QUEUE}/entscheidungen.md`]: text("# Decisions — queue 2026-10-01 fixture", "", "Append-only.",
-    "| 2026-10-01 10:10 UTC | 1 | uebernommen | approval:spec-2026-10-01_fixture-01-0123456789ab.md |"),
+    "| 2026-10-01 10:10 UTC | 2 | uebernommen | 8fc690f44a4570f45777abc9a7142728bce2737d |"),
 };
+const QUEUE_RECORDS = { ...specRecord("01", PROPOSAL1), ...specRecord("03", PROPOSAL3_EARLIER) };
 
 // A second queue, only begun: its index and a proposal, and no entscheidungen.md yet.
 const FRESH = "docs/spec-freigaben/2026-10-02_fresh";
@@ -70,11 +79,9 @@ const record = (id, file, body) => [`docs/approvals/${id}-${blobOf(body).slice(0
   text("kind: use-case", `file: ${file}`, `blob: ${blobOf(body)}`)];
 const RECORDS = Object.fromEntries([record("UC-001", UC1_PATH, UC1), record("UC-003", UC3_PATH, UC3), record("UC-004", UC4_PATH, UC4_EARLIER)]);
 const BASE = { "SPEC.md": SPEC, "README.md": "# Fixture product\n", [UC1_PATH]: UC1, [UC2_PATH]: UC2, [UC3_PATH]: UC3, [UC4_PATH]: UC4, ...RECORDS };
-// A ready product: every use case accepted, no architecture, and no SPEC change open.
-const READY = { ...BASE, ...Object.fromEntries([record("UC-002", UC2_PATH, UC2), record("UC-004", UC4_PATH, UC4)]),
-  ...QUEUE_FILES, [`${QUEUE}/entscheidungen.md`]: text("# Decisions", "", "Append-only.",
-    "| 2026-10-01 10:10 UTC | 1 | uebernommen | approval:spec-2026-10-01_fixture-01-0123456789ab.md |",
-    "| 2026-10-01 10:11 UTC | 2 | uebernommen | approval:spec-2026-10-01_fixture-02-ba9876543210.md |") };
+// A ready product: every use case accepted, no architecture, and every entry of the queue named by a record of its current proposal.
+const READY = { ...BASE, ...Object.fromEntries([record("UC-002", UC2_PATH, UC2), record("UC-004", UC4_PATH, UC4)]), ...QUEUE_FILES,
+  ...specRecord("01", PROPOSAL1), ...specRecord("02", PROPOSAL2), ...specRecord("03", PROPOSAL3) };
 
 const contextOf = (files, params = {}) => ({ params, product: { address: "https://github.com/alice/product", host: null,
   snapshot: { repository: { server: "github", origin: "https://github.com", path: "alice/product", web: "https://github.com/alice/product" },
@@ -141,22 +148,23 @@ test("architecture-ready — a product that has an architecture already is point
 });
 
 // guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
-// given: a product whose use cases are all accepted, no architecture, a change queue whose entry 01 a decision row names and
-//        whose entry 02 no row names, and a second queue with an entry and no decisions file yet
+// given: a product whose use cases are all accepted, no architecture, a change queue whose entry 01 a record of its proposal names,
+//        whose entry 02 only a decision row names, and whose entry 03 a record of an earlier text of its proposal names; and a
+//        second queue with an entry and no decisions file yet
 // input: the precondition architecture-ready
-// expect: one finding, a warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that names the open entry's
-//         proposal and the second queue's, not the decided one's, and nothing else of the queues
-test("architecture-ready — a warning names each SPEC change that is open", async () => {
-  const files = { ...READY, ...QUEUE_FILES, ...FRESH_FILES };
+// expect: one finding, a warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that names the proposals of
+//         entries 02 and 03 and of the second queue's, not entry 01's, and nothing else of the queues
+test("architecture-ready — a warning names each SPEC change whose proposal no approval record names", async () => {
+  const files = { ...READY, ...QUEUE_FILES, ...QUEUE_RECORDS, ...FRESH_FILES };
+  for (const path of Object.keys(files)) if (/spec-2026-10-01_fixture-0[23]-/.test(path) && !(path in QUEUE_RECORDS)) delete files[path];
 
   const found = await approvalStrategies.preconditions["architecture-ready"](contextOf(files));
 
   assert.equal(found.kind, "warning");
   assert.equal(found.rule, WHOLE);
-  assert.ok(words(found).includes(ENTRY2), words(found));
-  assert.ok(words(found).includes(FRESH_ENTRY), words(found));
+  for (const open of [ENTRY2, ENTRY3, FRESH_ENTRY]) assert.ok(words(found).includes(open), `${open} is named in: ${words(found)}`);
   assert.ok(!words(found).includes(ENTRY1), words(found));
-  assert.equal(words(found).match(/docs\/spec-freigaben\//g).length, 2, `only the two proposals are named, no rationale or file of a queue: ${words(found)}`);
+  assert.equal(words(found).match(/docs\/spec-freigaben\//g).length, 3, `only the three proposals are named, no rationale or file of a queue: ${words(found)}`);
   for (const own of [found.what, found.fix]) assert.match(own, /^[^\n]+$/);
 });
 
