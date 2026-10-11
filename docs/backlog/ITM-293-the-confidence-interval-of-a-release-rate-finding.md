@@ -32,7 +32,8 @@ the existing acceptance route retains that person's decision and reason.
 
 Only MOD-release-evidence source and its module-named tests are authored in the source job. No result-records,
 test-pages/dashboard caller, process/model/participant/workflow or accepted SPEC/use-case/module edit is needed.
-ITM-257 remains independent test-only work; its current red confidence-interval regression and expectations are retained.
+ITM-257 remains separate dashboard test-only work. Its original expectations and any retained returned-branch evidence
+remain unchanged; this item does not replay that branch or claim its dashboard outcome delivered.
 
 ## Acceptance
 
@@ -40,17 +41,11 @@ ITM-257 remains independent test-only work; its current red confidence-interval 
   confidence interval with its stated method/level in the actual public report text; merely including the words is insufficient.
 - Positive unchanged/improved/no-baseline cases and existing failure/limitation/complete/rate/refusal behavior remain
   consistent with the accepted contracts. The report makes no automatic acceptance decision.
-- Independent public UC0133b verification through the existing dashboard Release route shows that same finding and
-  preserves the person's required reason and recorded decision. Original ITM257 regression assertions are not weakened.
+- Independent release verification through the owned public releaseReport and acceptAndRelease APIs shows that same
+  finding and preserves the person's required reason, refusal and recorded decision on a controlled repository-host
+  fixture. No real release is made. The dashboard Release-route composition remains separate ITM-257 scope; its original
+  assertions and all existing expectations remain unchanged.
 - The source job's first commit contains only tests and its actual product-red CI is read before implementation.
   Each final new case has canonical unique numeric declarations/real traces and a relevant guarded-code fault,
   SAME-case failure, exact restoration and SAME-case pass with complete raw commands/times/streams/hashes.
 - Exact changed-head complete Ubuntu CI, independent source/release gates and every declared job bound hold.
-
-## Ordering
-
-This correction precedes completion of ITM-257 and is selected in Sprint19's fourth WIP slot after bounded292's
-actual source and independent release delivery. Selected292 remains done;290/291/257/293 are the four in-progress
-outcomes. Developer-terra-c owns the source; developer-terra-e follows independently after source delivery and a
-fresh guarded provenance check. Root publishes the selection and a fresh source Start before tests-only actual
-product-red CI and implementation.
