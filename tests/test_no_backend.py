@@ -96,6 +96,20 @@ def _mail_routes_lookup(text: str, at: int) -> bool:
             and 'const SIGN_IN_SERVICE = "https://login.microsoftonline.com";' in text)
 
 
+GRAPH_ADDRESS = "https://graph.microsoft.com/v1.0"
+
+
+def _mail_routes_graph(text: str, at: int) -> bool:
+    """MOD-mail-routes: a request to Microsoft Graph, the mail provider's API, whose address begins with the file's constant for Graph's
+    version 1.0 address, declared there once."""
+    name = re.match(r"fetch\(`\$\{(\w+)\}", text[at:])
+    return bool(name) and len(re.findall(rf'^const {name.group(1)} = "{re.escape(GRAPH_ADDRESS)}";$', text, re.M)) == 1
+
+
+def _mail_routes_request(text: str, at: int) -> bool:
+    return _mail_routes_lookup(text, at) or _mail_routes_graph(text, at)
+
+
 def _prepared(text: str, at: int) -> bool:
     """git-host.mjs: the fetch sends the URL that prepare() returned in the lines just above it."""
     before = text[:at].split("\n")[-3:]
@@ -204,7 +218,8 @@ def _bridge_client_transport(text: str, at: int) -> bool:
             and "body: JSON.stringify({ args })" in text)
 
 
-MAIL_ROUTES_LOOKUP = "the one lookup at Microsoft's sign-in service, login.microsoftonline.com"
+MAIL_ROUTES_LOOKUP = ("the one lookup at Microsoft's sign-in service, login.microsoftonline.com, and the one request function to Microsoft Graph, "
+                      "graph.microsoft.com")
 MSAL_VERSION = ('Il="@azure/msal-browser",wl="5.24.0";',)
 
 
@@ -251,7 +266,7 @@ PERMITTED_CHANNELS = {
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
     ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
     ("src/bridge-client/", "fetch"): (1, BRIDGE_CLIENT_TRANSPORT, _bridge_client_transport),
-    ("src/mail-routes/", "fetch"): (1, MAIL_ROUTES_LOOKUP, _mail_routes_lookup),
+    ("src/mail-routes/", "fetch"): (2, MAIL_ROUTES_LOOKUP, _mail_routes_request),
     # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -496,13 +511,60 @@ class NoServer(unittest.TestCase):
         self.assertEqual(len(channel_findings({path: other_origin})), 1)
         self.assertEqual(foreign_by_file({path: other_origin}), {path: ["login.example.org"]})
         extra = accepted + "fetch(address);\n"
-        self.assertEqual(len(channel_findings({path: extra})), 2)
+        self.assertEqual(len(channel_findings({path: extra})), 1)  # the fetch is a second one, which the folder allows to Graph's address alone
         other_link = accepted.replace("https://myapps.microsoft.com", "https://tracker.example")
         self.assertEqual(foreign_by_file({path: other_link}), {path: ["tracker.example"]})
         # What the module is allowed is the module's alone: the same text in another module's folder is found, in its lookup and its links.
         elsewhere = {"src/home/home.mjs": accepted}
         self.assertEqual(len(channel_findings(elsewhere)), 1)
         self.assertEqual(foreign_by_file(elsewhere), {"src/home/home.mjs": ["entra.microsoft.com", "myapps.microsoft.com"]})
+
+    def test_counter_proof_mail_routes_graph_requests_are_allowed_beside_the_lookup(self):
+        # MOD-mail-routes (docs/architecture/MOD-mail-routes.md, Mailbox: "Every operation crosses the network — to Microsoft Graph") and ITM-425
+        # (the Microsoft route "through Microsoft Graph, the token ... only in the authorisation header of those requests"): the module's requests
+        # to Microsoft Graph, the mail provider's API that NO SERVER permits, beside the one lookup at the sign-in service. A Graph request is a
+        # fetch whose address begins with the module's constant for Graph's version 1.0 address, declared once in the file; the module sends them
+        # through one request function, and the check allows two fetches in the folder: that one and the lookup.
+        path = "src/mail-routes/index.mjs"
+        lookup = ('const SIGN_IN_SERVICE = "https://login.microsoftonline.com";\n'
+                  'export async function routeFor(address) {\n'
+                  '  const status = (await fetch(`${SIGN_IN_SERVICE}/${encodeURIComponent(domain)}/v2.0/.well-known/openid-configuration`, '
+                  '{ credentials: "omit", cache: "no-store" })).status;\n}\n')
+        graph = ('const GRAPH = "https://graph.microsoft.com/v1.0";\n'
+                 'async function graphRequest(token, path) {\n'
+                 '  return fetch(`${GRAPH}${path}`, { headers: { Authorization: `Bearer ${token}` }, credentials: "omit", cache: "no-store" });\n}\n')
+        accepted = lookup + graph
+        # Known positives: the lookup alone is allowed as before; the same fetch in another module's folder is found; the Graph address is no
+        # foreign host.
+        self.assertEqual(channel_findings({path: lookup}), [])
+        self.assertEqual(len(channel_findings({"src/home/home.mjs": graph})), 1)
+        self.assertEqual(foreign_by_file({path: graph}), {})
+        self.assertEqual(channel_findings({path: accepted}), [])
+        self.assertEqual(channel_findings({path: graph}), [])
+        # Planted: a fetch whose address is not Graph's constant, one to another origin, a constant of another address, a lookalike host, an
+        # insecure address, a version that is not 1.0, a second request function, and the constant declared nowhere are found.
+        for planted, note in (
+            (accepted.replace("fetch(`${GRAPH}${path}`", "fetch(path"), "an address from a variable"),
+            (accepted.replace("fetch(`${GRAPH}${path}`", "fetch(`https://example.org${path}`"), "another origin"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"https://graph.example.org/v1.0"'), "a constant of another host"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"https://graph.microsoft.com.example.org/v1.0"'), "a lookalike host"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"http://graph.microsoft.com/v1.0"'), "an insecure address"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"https://graph.microsoft.com/beta"'), "a version that is not 1.0"),
+            (accepted.replace("const GRAPH = ", "const OTHER = "), "the constant declared nowhere"),
+            (accepted + 'const GRAPH = "https://graph.microsoft.com/v1.0";\n', "the constant declared twice"),
+            (accepted + "async function again(path) { return fetch(`${GRAPH}${path}`); }\n", "a second request function"),
+            (accepted + "fetch(address);\n", "a fetch at a variable address"),
+            (graph + graph.replace("graphRequest", "second") + lookup, "the request function twice"),
+        ):
+            with self.subTest(note):
+                self.assertTrue(channel_findings({path: planted}), note)
+        # The constant is read by name from the file, not assumed: another name for it is allowed.
+        renamed = accepted.replace("GRAPH", "GRAPH_API")
+        self.assertEqual(channel_findings({path: renamed}), [])
+        # Only fetch is opened: the other channels stay findings in the folder, and a link to another Microsoft page does too.
+        for channel in ("new WebSocket(`wss://graph.microsoft.com`);\n", "navigator.sendBeacon(GRAPH);\n", "new XMLHttpRequest();\n"):
+            self.assertTrue(channel_findings({path: accepted + channel}), channel)
+        self.assertEqual(foreign_by_file({path: accepted + 'const page = "https://tracker.example/";\n'}), {path: ["tracker.example"]})
 
     def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
         accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
