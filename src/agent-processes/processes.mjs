@@ -22,13 +22,21 @@ function environmentFor(keyVariable, ownLoginEnvironment) {
 function stop(child) {
   if (!child.pid) return Promise.resolve();
   if (process.platform !== "win32") {
-    process.kill(-child.pid, "SIGTERM");
-    return Promise.resolve();
+    try {
+      process.kill(-child.pid, "SIGKILL");
+      return Promise.resolve();
+    } catch (error) {
+      if (error?.code === "ESRCH") return Promise.resolve();
+      return Promise.reject(error);
+    }
   }
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-    killer.once("error", resolve);
-    killer.once("close", resolve);
+    killer.once("error", reject);
+    killer.once("close", (status) => {
+      if (status === 0) resolve();
+      else reject(Object.assign(new Error(`taskkill exited ${status}`), { exitCode: status }));
+    });
   });
 }
 
@@ -41,17 +49,17 @@ function started(command, args, workdir, keyVariable, options, ownLoginEnvironme
       detached: process.platform !== "win32",
       ...(environment ? { env: environment } : {}),
     });
-    let stdout = "", stderr = "", aborted = options.signal?.aborted === true, settled = false, stopping = null;
+    let stdout = "", stderr = "", aborted = options.signal?.aborted === true, settled = false, stopping = null, stopError = null;
     const cancel = () => {
       aborted = true;
-      stopping ??= stop(child).catch(() => {});
+      stopping ??= stop(child).catch((error) => { stopError = error; });
     };
     const finish = async (result) => {
       if (settled) return;
       settled = true;
       options.signal?.removeEventListener("abort", cancel);
       await stopping;
-      resolve(result);
+      resolve({ ...result, stopError });
     };
     options.signal?.addEventListener("abort", cancel, { once: true });
     if (aborted) cancel();
@@ -82,6 +90,12 @@ export function processDriver(agent, { workdir, keyVariable }, participant, help
       if (!row) throw failure("AgentMissing", "the selected agent is not supported");
       const result = await started(row.command, row.task.args.map((arg) => arg === "{prompt}" ? input.prompt : arg),
         input.workdir ?? workdir, keyVariable, options, helpers.ownLoginEnvironment);
+      if (result.stopError) {
+        throw failure("AgentFailed", "the agent process could not be stopped", {
+          exitCode: result.stopError.exitCode ?? result.status,
+          lastOutput: result.stopError.message,
+        });
+      }
       if (result.aborted) throw failure("Cancelled", "the job was cancelled");
       if (result.error || result.status !== 0) {
         const lastOutput = (result.stderr || result.stdout).trim();
