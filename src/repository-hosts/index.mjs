@@ -7,7 +7,8 @@
 //
 // The interface of the module (docs/architecture/MOD-repository-hosts.md, Interfaces); every other file of this folder is
 // private to it. The adapters are plug-ins: github.mjs for GitHub's REST API, gitlab.mjs for GitLab's REST API v4. A local clone
-// (local-git.mjs, Node only) is not part of this folder yet: connect refuses one with NotSupported.
+// (local-git.mjs, Node only) serves a host connected with a clone: its snapshot, its files and its commits; a browser's connect
+// refuses a clone with NotSupported.
 
 import { HostError } from "./failures.mjs";
 import { githubAdapter } from "./github.mjs";
@@ -113,6 +114,30 @@ function refuseSecrets(files, secrets) {
   }
 }
 
+// A clone is worked in by the git command, which only Node runs: the adapter is loaded when it is first used, and only there.
+const IN_NODE = typeof process !== "undefined" && Boolean(process.versions?.node);
+
+// The adapter of a host with a clone: the snapshot, the files and the commit through the clone, loaded when first used; every
+// other function through the REST adapter where a token is given (`rest`), else NotSupported.
+function throughClone(repository, folder, rest) {
+  let local = null;
+  const clone = async () => (local ??= (await import("./local-git.mjs")).localAdapter(repository, folder));
+  const without = (what) => async () => {
+    throw new HostError("NotSupported", { what }, `${what} needs the server's API, which a clone without a token does not reach; store a token first.`);
+  };
+  return {
+    repositoryInfo: rest ? (...a) => rest.repositoryInfo(...a) : without("the repository's information"),
+    history: rest ? (...a) => rest.history(...a) : without("the history"),
+    listTags: rest ? (...a) => rest.listTags(...a) : without("the tags"),
+    issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
+    createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
+    createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
+    snapshot: async (ref) => (await clone()).snapshot(ref),
+    readFile: async (commit, path) => (await clone()).readFile(commit, path),
+    commitFiles: async (change) => (await clone()).commitFiles(change),
+  };
+}
+
 // connect(address, credentials) -> Host — a host for one repository. credentials: { token, tokenName, clone, secrets }: the
 // token and the name the person stored it under; the values of every configured secret, which no commit may contain. The token
 // goes only into the authorisation header of requests to the API of the server that issued it, for this repository; a token
@@ -121,8 +146,11 @@ export function connect(address, credentials = {}) {
   const repository = checkedAddress(address);
   const { token = null, tokenName = null, clone = null, secrets = [] } = credentials ?? {};
   if (clone !== null && clone !== undefined) {
-    throw new HostError("NotSupported", { what: "working in a local clone" }, "This host reads and writes through the server's API; " +
-      "a local clone is not supported here.");
+    if (typeof clone !== "string" || !clone.trim()) throw new TypeError("a clone is the folder of a local clone");
+    if (!IN_NODE) {
+      throw new HostError("NotSupported", { what: "working in a local clone" }, "A local clone is worked in by the git command, " +
+        "which only Node runs; this host reads and writes through the server's API.");
+    }
   }
   if (token !== null && token !== "" && typeof token !== "string") throw new TypeError("a token is a text");
   const github = repository.server === "github";
@@ -133,7 +161,8 @@ export function connect(address, credentials = {}) {
   if (!Array.isArray(secrets) || secrets.some((s) => typeof s !== "string")) throw new TypeError("the secrets are a list of texts");
   const links = webLinks(repository);
   const name = tokenName || (github ? "GitHub token" : `GitLab project token for ${repository.web}`);
-  const adapter = (github ? githubAdapter : gitlabAdapter)(repository, { token: token || null, tokenName: name }, links);
+  const rest = (github ? githubAdapter : gitlabAdapter)(repository, { token: token || null, tokenName: name }, links);
+  const adapter = clone ? throughClone(repository, clone, token ? rest : null) : rest;
   const refused = [...secrets, ...(token ? [token] : [])].filter((s) => s.length > 0);
   // The texts of the blobs read through this host, by their blob SHA: each blob is read once.
   const texts = new Map();
@@ -214,6 +243,13 @@ export function connect(address, credentials = {}) {
           "A branch is created only with a token that may write to the repository; store one first.");
       }
       return adapter.createBranch(name, from);
+    },
+
+    // openPullRequest(request) -> PullRequest — a pull request is the server's: through a clone NotSupported. Its adapter for GitHub
+    // and GitLab is not built yet, and until it is, nor is it offered.
+    async openPullRequest() {
+      throw new HostError("NotSupported", { what: clone ? "a pull request through a local clone" : "a pull request" },
+        clone ? "A pull request is opened on the server, not in a clone." : "Opening a pull request is not built yet.");
     },
 
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.
