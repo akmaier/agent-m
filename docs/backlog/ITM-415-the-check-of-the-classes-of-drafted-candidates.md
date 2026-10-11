@@ -32,7 +32,7 @@ origin:
 `classifyCandidates`, MOD-job-runner's check `candidate-classes` (ITM-387) and MOD-spec-changes' `entrySections`
 (ITM-393) with the writer `queue-entries` (ITM-338), over fixture candidates. The rate of `THE MODEL'S CLASSIFICATION IS
 MEASURED, NOT TRUSTED` needs a model's answers and belongs to a nightly run; the architecture fixtures of `THE
-DERIVATION RULES HOLD FOR ARCHITECTURE` wait for the items of UC-022.
+DERIVATION RULES HOLD FOR ARCHITECTURE` are ITM-447's.
 
 ## Acceptance
 

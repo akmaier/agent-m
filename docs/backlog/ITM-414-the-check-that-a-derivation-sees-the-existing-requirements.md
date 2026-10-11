@@ -25,7 +25,7 @@ origin:
 `tests/test_derivation_context.py`, the check SPEC.md names for these requirements, for the kinds that write
 requirements: a job of `derive-requirements` and of `change-requirements` prepared with MOD-job-runner's `prepareJob`
 and MOD-spec-changes' recipe `spec-with-queues` (ITM-337) over a fixture product with open queues. The architecture's
-rules that name the same check wait for the items of UC-022, which the backlog does not hold.
+rules that name the same check are ITM-447's.
 
 ## Acceptance
 
