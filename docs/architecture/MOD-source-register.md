@@ -56,8 +56,9 @@ SOURCE`); EU legal texts recognised by their CELEX number or ELI and fetched fro
 recipe that gives a job the excerpt of a linked version; and the recipes that give a job the chapters of the book *Vibe
 Coding* for its kind of work (`A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING`, `A TEST JOB
 RECEIVES THE CHAPTER ON TESTING`, `AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND
-IMPLEMENTATION`, `AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING`). It runs in a
-browser and in Node; fetching a legal text runs in Node, in the instance's workflow (ARC-039).
+IMPLEMENTATION`, `AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING`), in a
+checkout of the instance by their files there (`A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE`). It runs
+in a browser and in Node; fetching a legal text runs in Node, in the instance's workflow (ARC-039).
 
 ## Parts
 
@@ -180,15 +181,18 @@ names no source.
   `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through
   `readContent`, and returns one part per chapter of its row above, in the order of their numbers: the whole file,
   naming `SRC-vibe-coding` as its source and, in the part's name, the file, the version and the version's hash as its
-  pin. None of these parts may be left out:
-  a participant whose context cannot hold them is named as not fitting, and nothing is cut. Throws as `readContent`
-  throws, `NotRegistered { source }` when the instance has no entry `SRC-vibe-coding`, and `ChapterMissing { chapter,
-  version }` when the version holds no file for a chapter.
+  pin. For a job whose participant works in a checkout of the instance — the context's `instance.checkout` —, each part
+  holds instead the path of the chapter's file in that checkout and none of its text, once the file read there has the
+  SHA-256 the version records (`A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE`). None of these parts may
+  be left out: a participant whose context cannot hold them is named as not fitting, and nothing is cut. Throws as
+  `readContent` throws, `NotRegistered { source }` when the instance has no entry `SRC-vibe-coding`, and `ChapterMissing
+  { chapter, version }` when the version holds no file for a chapter.
 
 ## Files
 
-It reads `docs/sources/` of the instance, a product's `docs/sources.md`, a product's `SPEC.md`, and the content of source
-versions where they lie; it returns what to write, and the caller commits it. Its own schema files are data.
+It reads `docs/sources/` of the instance, a product's `docs/sources.md`, a product's `SPEC.md`, the content of source
+versions where they lie, and, for a job in a checkout of the instance, the book's chapter files in that checkout; it
+returns what to write, and the caller commits it. Its own schema files are data.
 
 ## Uses
 

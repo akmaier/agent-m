@@ -157,7 +157,11 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   host: Host | null }, instance: { snapshot: Snapshot, host: Host | null }, connect: (address: string) => Promise<Host>,
   participants: Participant[], places: { sources: Record<string, string[]>, mailbox: string[] | null }, gates: { name:
   string, point: string, passed: boolean }[], person: string | null, now: Date, agentM: { version: string, commit: string
-  }, jobId: string | null }`: everything a strategy may read. `connect` opens another repository with the credentials of
+  }, jobId: string | null }`, its `instance` also holding `checkout: string | null`: everything a strategy may read.
+  `instance.checkout` is the folder of a checkout of the instance in which the participant works and reads files itself
+  — on a Bridge the instance at the job's `agent_m` commit in the offered agent's working folder (MOD-bridge-jobs), in
+  CI the job workflow's checkout of the instance —, from which the instance's `snapshot` is then read; it is `null` in a
+  browser. `connect` opens another repository with the credentials of
   the program — the token in a browser, the CI secret in CI, the computer's login on a Bridge; `places` gives, for every
   restricted source and for the mailbox, the places they allow; `gates` the gates of the product's workflow at this job's
   points, with whether their decisions are recorded.
