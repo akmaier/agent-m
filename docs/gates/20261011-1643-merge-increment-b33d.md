@@ -20,9 +20,7 @@ a branch of its own (`A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN`, UC-04
 who wrote neither the review nor the retrospective it rests on (`docs/process.md`, Sprint close).
 
 Decision: merge `befdb57724cfe8e57bde520f2c11858a2fd739c0`. Both gates before it passed on this head: Release testing →
-Sprint review (`   2ad8f29d..094a1b96  HEAD -> main
-094a1b9`) and Retrospective → Sprint planning (`   094a1b96..522163db  HEAD -> main
-522163d`). CI is green on the pull request (run
+Sprint review (`094a1b9`) and Retrospective → Sprint planning (`522163d`). CI is green on the pull request (run
 38156422026), on its merge into `main` as it stands but for gate records, and GitHub reports it mergeable.
 scrum-master-opus merges it; the nine done items are then no longer held (step 7). Should another team's increment
 reach `main` first, UC-041 7c applies: the pull request is brought up to date with `main` — its head then adds to
