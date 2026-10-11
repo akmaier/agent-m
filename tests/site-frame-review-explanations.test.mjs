@@ -56,7 +56,8 @@ function assertClaims(topic, claims) {
 // given: explanations.md, and the six topics of reviewing, accepting and editing
 // input: explain(topic) for each
 // expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What
-//         is this?</summary> and then the topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it
+//         is this?</summary> and then the topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it, in
+//         which no asterisk or backtick of the Markdown source is left standing
 test("explain — each topic of reviewing, accepting and editing is a folded What is this? with its text", () => {
   for (const topic of TOPICS) {
     const text = topicText(topic);
@@ -68,6 +69,8 @@ test("explain — each topic of reviewing, accepting and editing is a folded Wha
     const [summary, body, ...more] = folded.children;
     assert.deepEqual([summary.localName, summary.textContent, more.length], ["summary", "What is this?", 0], topic);
     assert.equal(body.innerHTML, renderArtifact(text).innerHTML, `${topic}: its body is its text, rendered`);
+    assert.match(text, /[*`]/, `known positive: ${topic} is written with Markdown emphasis or code`);
+    assert.doesNotMatch(bodyText(topic), /[*`]/, `${topic}: it shows no stray Markdown`);
   }
 });
 
@@ -75,13 +78,14 @@ test("explain — each topic of reviewing, accepting and editing is a folded Wha
 //   CLICK; UC-008 (steps 3 to 5, 3d, 3e); UC-006 (steps 4 and 6)
 // given: the topic accepting
 // input: explain("accepting")
-// expect: text saying accepting is a commit under the accepting person's own account, which Git records with who and when; that it
-//         adds an approval record, a file under docs/approvals/ that names the blob SHA of exactly the text shown; that several
-//         files accepted at once get one record each, a file that changed after it was shown left out and named; and that for a
-//         SPEC change the same commit replaces the section byte for byte and adds the decision
+// expect: text saying accepting is a commit — one saved change to the repository — under the accepting person's own account, which
+//         Git records with who and when; that it adds an approval record, a file under docs/approvals/ that names the blob SHA of
+//         exactly the text shown; that several files accepted at once get one record each, a file that changed after it was shown
+//         left out and named; and that for a SPEC change the same commit replaces the section byte for byte and adds the decision
 test("explain — accepting: what accepting does and what an approval record is (UC-006, UC-008)", () => {
   assertClaims("accepting", [
     [/Accepting is a commit made under your own account/, "accepting is a commit made under the accepting person's own account"],
+    [/a commit is one saved change to the repository/, "what a commit is"],
     [/who accepted and when/, "Git records who accepted and when"],
     [/approval record/, "what it adds is an approval record"],
     [/docs\/approvals\//, "where the record stands"],
@@ -189,13 +193,16 @@ test("explain — change-queue: what a change queue is, and its order (UC-006, U
 //   TOKEN; UC-008 (steps 3b, 3c, 4a); UC-006 (step 4b); UC-018 (step 4a)
 // given: the topic github-page-without-token
 // input: explain("github-page-without-token")
-// expect: text saying that without a token the dashboard opens GitHub's own page — the page for a new file with the record
-//         filled in to accept, GitHub's editor with the text on the clipboard to edit —, that the link never carries the reviewed
-//         text, that Commit changes there makes the commit, that without write access GitHub makes a pull request which counts once
-//         a maintainer merges it, that a record that did not arrive is shown with a copy button, and that GitLab has no such page
+// expect: text saying that a token is a key created on GitHub and stored in this browser, with which the dashboard makes the
+//         commit; that without a token it opens GitHub's own page — the page for a new file with the record filled in to accept,
+//         GitHub's editor with the text on the clipboard to edit —, and that the link never carries the reviewed text; that Commit
+//         changes there makes the commit; that without write access GitHub makes a pull request, a proposal for the maintainers to
+//         review, which counts once a maintainer merges it; that a record that did not arrive is shown with a copy button; and that
+//         GitLab has no such page and needs the project's own token
 test("explain — github-page-without-token: what GitHub's page is when no token is stored (UC-006, UC-008, UC-018)", () => {
   assertClaims("github-page-without-token", [
     [/With a token[^.]*the dashboard makes the commit for you/, "with a token the dashboard makes the commit"],
+    [/a key you create on GitHub and store in this browser/, "what a token is"],
     [/Without a token it cannot/, "without a token it cannot"],
     [/as far as GitHub allows/, "GitHub's page is prepared as far as GitHub allows"],
     [/page for a new file/, "to accept, GitHub's page for a new file"],
@@ -204,7 +211,9 @@ test("explain — github-page-without-token: what GitHub's page is when no token
     [/never the text you reviewed/, "the link never carries the reviewed text"],
     [/Commit changes/, "the commit is made there"],
     [/reload the dashboard/, "then the dashboard is reloaded"],
-    [/Without write access to the repository, GitHub makes your commit a pull request/, "without write access it becomes a pull request"],
+    [/Without write access to the repository, GitHub makes your commit a pull request/,
+      "without write access it becomes a pull request"],
+    [/a proposal for the maintainers to review/, "what a pull request is"],
     [/a maintainer merges it/, "it counts once a maintainer merges it"],
     [/copy button/, "a record that did not arrive is shown with a copy button"],
     [/exact path/, "and the exact path of the file"],
@@ -223,11 +232,11 @@ test("explain — github-page-without-token: what GitHub's page is when no token
 //         requirements evolve; the topic about a blob SHA, on which the book has no passage, needs none
 test("explain — the topics of reviewing, accepting and editing point to the book where it treats them", () => {
   const POINTERS = [
-    ["accepting", /Vibe Coding: chapter 12, section 10/],
-    ["edit-after-acceptance", /Vibe Coding: chapter 12, section 10/],
-    ["github-page-without-token", /Vibe Coding: chapter 12, section 10/],
-    ["spec-edit-waits-for-approval", /Vibe Coding: chapter 8, section 6/],
-    ["change-queue", /Vibe Coding: chapter 8, section 6/],
+    ["accepting", /In the book Vibe Coding: chapter 12, section 10\./],
+    ["edit-after-acceptance", /In the book Vibe Coding: chapter 12, section 10\./],
+    ["github-page-without-token", /In the book Vibe Coding: chapter 12, section 10\./],
+    ["spec-edit-waits-for-approval", /In the book Vibe Coding: chapter 8, section 6\./],
+    ["change-queue", /In the book Vibe Coding: chapter 8, section 6\./],
   ];
   for (const [topic, pointer] of POINTERS) {
     assert.ok(topicText(topic)?.trim(), `known positive: explanations.md holds the topic ${topic}`);
