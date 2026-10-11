@@ -11,9 +11,13 @@
 
 import { isKnownKey } from "./catalogue.mjs";
 import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError } from "./store.mjs";
+import { removeSignIn, signInOf, viewOfStorage } from "./sign-in.mjs";
 export { exportSettings, importSettings, readExport } from "./export.mjs";
 
 export { StoreError };
+
+// The mailbox's sign-in: no key of its own, the sign-in library's keys for the connection.
+const MAILBOX_SIGN_IN = "mailbox-sign-in";
 
 // openStore(instance: string) -> Store — the store for the instance "owner/repository" in this browser. Throws
 // StorageUnavailable.
@@ -37,22 +41,33 @@ export function writeSetting(store, key, value) {
 
 // clearSetting(store, key) -> void — removes the entry from localStorage itself, not only from a form (A CLEAR IS A
 // REAL CLEAR).
+// The sign-in library's keys for the connection the `mailbox` entry names, as the store holds them now.
+function signInOfStore(store) {
+  return signInOf(viewOfStorage(store.storage), readSetting(store, "mailbox")?.graph?.clientId);
+}
+
 export function clearSetting(store, key) {
-  removeRaw(store, key);
+  const signIn = key === "mailbox" || key === MAILBOX_SIGN_IN ? signInOfStore(store) : null;
+  if (key !== MAILBOX_SIGN_IN) removeRaw(store, key);
+  if (signIn) removeSignIn(store.storage, signIn);
 }
 
 // clearEverything(store) -> void — removes every raw localStorage entry of this instance, including an entry that no
 // longer belongs to the current catalogue, while leaving every other instance and unrelated browser state untouched.
 export function clearEverything(store) {
+  const signIn = signInOfStore(store);
   for (let index = store.storage.length - 1; index >= 0; index -= 1) {
     const storageKey = store.storage.key(index);
     if (storageKey?.startsWith(store.prefix)) store.storage.removeItem(storageKey);
   }
+  removeSignIn(store.storage, signIn);
 }
 
-const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host"];
+const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host", "mailbox", MAILBOX_SIGN_IN];
 
 function settingDescription(key) {
+  if (key === "mailbox") return { label: "Mailbox", secret: true, grants: "access to the mailbox", setUpIn: "mailbox" };
+  if (key === MAILBOX_SIGN_IN) return { label: "Mailbox sign-in", secret: true, grants: "access to the Microsoft 365 mailbox", setUpIn: "mailbox" };
   if (key === "github-token") return { label: "GitHub token", secret: true, grants: "access to the instance repository", setUpIn: "settings" };
   if (key === "products") return { label: "Products", secret: false, grants: "the managed product list", setUpIn: "add-product" };
   if (key === "notifications") return { label: "Notifications", secret: false, grants: "acceptance notifications", setUpIn: "notifications" };
@@ -108,6 +123,7 @@ function secretOf(key, value) {
   if (key === "github-token" || key.startsWith("github-token:") || key.startsWith("gitlab-token:")) return text(value.value);
   if (key.startsWith("endpoint:")) return text(value.key);
   if (key === "bridge" || key.startsWith("bridge:") || key.startsWith("remote-session:")) return text(value.token);
+  if (key === "mailbox") return text(value.imap?.password);
   if (key === "jump-host") return text(value.login) ?? text(value.login?.password);
   return null;
 }
@@ -115,6 +131,6 @@ function secretOf(key, value) {
 // secretValues(store) -> string[] — the actual credential strings in the implemented catalogue families. It deliberately
 // omits configuration values, labels, products, notifications and recorded test metadata.
 export function secretValues(store) {
-  const keys = ["github-token", "bridge", "jump-host", ...storedSettingKeys(store)];
-  return keys.map((key) => secretOf(key, readSetting(store, key))).filter((value) => value !== null);
+  const keys = ["github-token", "bridge", "jump-host", "mailbox", ...storedSettingKeys(store)];
+  return [...keys.map((key) => secretOf(key, readSetting(store, key))).filter((value) => value !== null), ...signInOfStore(store).secrets];
 }

@@ -4,7 +4,7 @@
 //
 // Module: MOD-browser-store
 
-const LITERAL_KEYS = new Set(["github-token", "products", "notifications", "notified", "bridge", "jump-host"]);
+const LITERAL_KEYS = new Set(["github-token", "products", "notifications", "notified", "bridge", "jump-host", "mailbox"]);
 
 // Key families this item names, each parameterised after its prefix: a GitHub product's own token
 // (A GITHUB PRODUCT USES A TOKEN OF ITS OWN), a GitLab project's access token (A GITLAB PRODUCT USES A PROJECT ACCESS
