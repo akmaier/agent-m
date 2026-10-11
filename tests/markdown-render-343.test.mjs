@@ -97,8 +97,8 @@ test("TST-343002 showDraft keeps the draft in the editor beside its difference f
   assert.deepEqual(byClass(target, "diff")[0].children.map((row) => [row.className, row.textContent]), [
     ["dctx", "  Rule one."],
     ["dadd", "+ Rule two, made checkable."],
-    ["ddel", "- Rule two."],
     ["dadd", "+ Rule three."],
+    ["ddel", "- Rule two."],
   ]);
 });
 
