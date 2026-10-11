@@ -1,7 +1,7 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
 // `instruction` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form`,
-// `test-declarations`, `candidate-classes` and `group-rules`, what a built-in check needs of a job's context, and the
-// classes `candidate-classes` finds. The other built-in checks on the artifact model come with the modules they use.
+// `test-declarations`, `candidate-classes`, `group-rules` and `graph-checks`, what a built-in check needs of a job's context,
+// and the classes `candidate-classes` finds.
 //
 // Module: MOD-job-runner
 
@@ -10,7 +10,7 @@ import { applyMoves, hierarchy, parseGroupFile } from "../group-document/index.m
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 import { isTestFile, testDeclarations, testFindings } from "../test-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { traceGraph } from "../trace-graph/index.mjs";
+import { graphFindings, selfSufficiencyFindings, traceGraph } from "../trace-graph/index.mjs";
 
 const part = (name, text) => ({ name, text, size: 0, sources: [], required: true });
 
@@ -59,6 +59,27 @@ function classification(draft, parts) {
     return [];
   });
   return { classes, findings };
+}
+
+// The findings of MOD-trace-graph's two checks across artifacts on a repository: graphFindings, and selfSufficiencyFindings
+// against the instance `owner/name`.
+async function acrossArtifacts(source, instance) {
+  const graph = await traceGraph(source);
+  return [...graphFindings(graph), ...selfSufficiencyFindings(graph, instance)];
+}
+
+// The findings of `found` that the repository does not hold already: each finding of `held` covers one of `found` that has the
+// same artifact, kind, rule and words, wherever it stands, so that a second one with the same words is not covered. The line is
+// left out of the comparison, since a draft that changes a file moves its lines.
+function notHeld(found, held) {
+  const words = (each) => JSON.stringify([each.artifact, each.kind, each.rule, each.what]);
+  const covered = new Map();
+  for (const each of held) covered.set(words(each), (covered.get(words(each)) ?? 0) + 1);
+  return found.filter((each) => {
+    const left = covered.get(words(each)) ?? 0;
+    if (left > 0) covered.set(words(each), left - 1);
+    return left === 0;
+  });
 }
 
 // The classes of the last round's draft, for a kind that names candidate-classes; null for any other.
@@ -143,6 +164,19 @@ export const builtins = {
           fix: "correct the move, or leave it out" })),
         ...hierarchy(tree, items).findings,
       ];
+    },
+    // MOD-trace-graph's graphFindings on the product's snapshot with the drafted files put in place of their paths, and its
+    // selfSufficiencyFindings there against the instance's repository, the `owner/name` of the context's instance snapshot. The
+    // repository holds findings of its own, which the draft did not make and cannot mend, and A DRAFT THAT FAILS A CHECK GOES
+    // BACK TO ITS PARTICIPANT with its own findings only: the same two functions run on the snapshot as it stands, and what they
+    // find there is left out of what they find with the draft in place (notHeld).
+    "graph-checks": async (draft, context) => {
+      const { snapshot } = context.product;
+      const instance = context.instance.snapshot.repository.path;
+      const drafted = new Map((Array.isArray(draft?.files) ? draft.files : []).map(({ path, text }) => [path, text]));
+      const inPlace = { paths: [...new Set([...snapshot.paths, ...drafted.keys()])],
+        read: async (path) => (drafted.has(path) ? drafted.get(path) : snapshot.read(path)) };
+      return notHeld(await acrossArtifacts(inPlace, instance), await acrossArtifacts(snapshot, instance));
     },
   },
   writers: {
