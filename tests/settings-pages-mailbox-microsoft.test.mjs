@@ -65,7 +65,8 @@ const put = async (node, value) => { node.value = value; await fire(node, "chang
 const folded = (root) => byClass(root, "explain");
 
 const libraryError = (name, errorCode, errorMessage) => Object.assign(new Error(`${errorCode}: ${errorMessage}`), { name, errorCode, errorMessage, subError: "" });
-const SIGNED_IN = { account: { username: ADDRESS, homeAccountId: "x.y", tenantId: "t" }, accessToken: TOKEN, scopes: SCOPES };
+const ACCOUNT = "signed.in@example.test";
+const SIGNED_IN = { account: { username: ACCOUNT, homeAccountId: "x.y", tenantId: "t" }, accessToken: TOKEN, scopes: SCOPES };
 
 // The stand-in for the library's client. login: what loginPopup answers — an Error to throw, or the result — or a function of the page asked just before the window opens; silent: what
 // acquireTokenSilent answers, an Error to throw or the token's answer. Everything it is asked is recorded.
@@ -109,7 +110,7 @@ const PARTICIPANTS = `# Participants of this instance
 const FOLDERS = { inbox: 12, Receipts: 3 };
 
 // A browser: the store, the instance host, a cookie and an address that record every write, and a fake of fetch for Microsoft Graph and Microsoft's sign-in service.
-function browser(t, { graph = null } = {}) {
+function browser(t, { graph = null, lookup = 400 } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "crypto", { configurable: true, value: webcrypto });
   const store = openStore(INSTANCE);
@@ -118,7 +119,7 @@ function browser(t, { graph = null } = {}) {
   globalThis.fetch = async (url, init = {}) => {
     requests.push({ url: String(url), init });
     const text = String(url);
-    if (text.startsWith("https://login.microsoftonline.com/")) return new Response("{}", { status: 400 });
+    if (text.startsWith("https://login.microsoftonline.com/")) return new Response("{}", { status: lookup });
     if (graph) return graph(text, init, requests);
     const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
     if (text.includes("/me/mailFolders/inbox?")) return json({ totalItemCount: FOLDERS.inbox });
@@ -200,7 +201,7 @@ test("mailbox — Sign in with Microsoft names the three permissions before the 
   await put(one(page, "mailbox-route"), "graph");
   await click(one(page, "mailbox-sign-in"));
   assert.equal(seen.logins.length, 0, "no window without a client identifier");
-  assert.match(one(page, "mailbox-sign-in-result").textContent, /client identifier/i);
+  assert.match(one(page, "mailbox-sign-in-result").textContent, /client identifier.*app registration above/i);
   await put(one(page, "mailbox-client-id"), CLIENT);
   const permissions = one(page, "mailbox-permissions").textContent;
   for (const scope of SCOPES) assert.ok(permissions.includes(scope), `${scope} is named`);
@@ -211,7 +212,7 @@ test("mailbox — Sign in with Microsoft names the three permissions before the 
   assert.deepEqual([...seen.logins[0].scopes].sort(), [...SCOPES].sort());
   assert.equal(seen.logins[0].loginHint, ADDRESS);
   for (const scope of SCOPES) assert.ok(seen.pageAtLogin[0].includes(scope), `${scope} was in the page when the window opened`);
-  assert.match(one(page, "mailbox-sign-in-result").textContent, new RegExp(`Signed in as ${ADDRESS}`));
+  assert.match(one(page, "mailbox-sign-in-result").textContent, new RegExp(`Signed in as ${ACCOUNT}`));
   assert.equal(readSetting(b.store, "mailbox"), null, "signing in stores no connection");
   assert.deepEqual(b.writes, []);
 });
@@ -291,7 +292,7 @@ test("mailbox — Store and test on the Microsoft route stores the client identi
   assert.equal(readSetting(b.store, "mailbox"), null);
   await click(one(page, "mailbox-store-test"));
   assert.deepEqual(readSetting(b.store, "mailbox"), { address: ADDRESS, route: "graph", folders: ["INBOX", "Receipts"], places: [{ place: "this machine", outsideEu: false }],
-    graph: { clientId: CLIENT, account: ADDRESS } });
+    graph: { clientId: CLIENT, account: ACCOUNT } });
   assert.ok(!JSON.stringify(readSetting(b.store, "mailbox")).includes("password"));
   const shown = one(page, "mailbox-parts").textContent;
   for (const part of [/INBOX.*12/, /Receipts.*3/, /Drafts/, /Sent/, /sending works/i, /graph/i]) assert.match(shown, part);
@@ -373,4 +374,18 @@ test("mailbox — a place outside the EU is stored on the Microsoft route only a
   tick.checked = true; await fire(tick, "change");
   await click(one(page, "mailbox-store-test"));
   assert.deepEqual(readSetting(b.store, "mailbox").places, [{ place: "Anthropic, a provider in the USA", outsideEu: true, notCompliantNoted: true }]);
+});
+
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037 1
+// given: an address whose domain Microsoft's sign-in service knows
+// input: the address field
+// expect: the route preselected as the Microsoft one, and its part shown with the IMAP part hidden, without the person choosing it
+test("mailbox — an address of a Microsoft 365 domain shows the Microsoft part", async (t) => {
+  const b = browser(t, { lookup: 200 });
+  standIn();
+  const page = await b.page();
+  await put(one(page, "mailbox-address"), "me@org.example");
+  assert.equal(one(page, "mailbox-route").value, "graph");
+  assert.equal(one(page, "mailbox-graph").hidden, false);
+  assert.equal(one(page, "mailbox-imap").hidden, true);
 });
