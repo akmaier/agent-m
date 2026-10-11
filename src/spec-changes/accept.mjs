@@ -1,13 +1,14 @@
-// accept.mjs — what the reviewer sees of an entry before accepting it (MOD-spec-changes, Interfaces: entryView). ITM-339 builds
-// entryView; acceptEntries and applyApproved, which accept.mjs will hold too, are not built yet (index.mjs).
+// accept.mjs — what the reviewer sees of an entry before accepting it, and accepting entries in their queue's order (MOD-spec-changes,
+// Interfaces: entryView, acceptEntries, applyApproved). ITM-339 builds entryView; ITM-340 builds acceptEntries and applyApproved.
 //
 // Module: MOD-spec-changes
 //
-// entryView reads one queue's entry through queues.mjs and the files it names. Where the module file leaves a reading open, this
-// file states the one it takes:
+// entryView reads one queue's entry through queues.mjs and the files it names. acceptEntries and applyApproved are one planner, which
+// takes the entries to write from the entries shown, or from the records no decision row names, and computes the files of one commit:
+// the same checks, the same bytes. Where the module file leaves a reading open, this file states the one it takes:
 //
-//   - `queue` is the queue's folder as Queue.folder gives it, docs/spec-freigaben/<folder>; a queue or an entry the snapshot does
-//     not hold is a RangeError.
+//   - `queue` is the queue's folder as Queue.folder gives it, docs/spec-freigaben/<folder>; a queue or an entry the snapshot does not
+//     hold is a RangeError (entryView) or a refusal (acceptEntries, applyApproved).
 //   - `current` is the section that holds now: MOD-spec-document's sectionText of the entry's target — the file its own row names —
 //     for its anchor, with the blob of those exact bytes. Where the target does not hold the anchor — a new section, or an entry
 //     that waits for its anchor — or the snapshot cannot read the target, there is none and `current` is null; `createdBy` names
@@ -17,11 +18,33 @@
 //     hold (added) or holds with another source, rule or check (changed). A name it states word for word is not listed. Each name
 //     comes with the identifier of every artifact that names it, once, in the order MOD-trace-graph's requirementImpact lists them.
 //   - A rationale the queue does not hold is the empty text.
+//
+// The planner works queue by queue, oldest folder first, each in the order of its index, on the target as the entries before it have
+// left it:
+//   - `sectionBlob` of a shown entry is the blob of the section shown beside the proposal (entryView's current.blob), checked against
+//     the section as it stands when the entry is applied: of two entries that replace one section, the second is stale. For an entry
+//     shown with none — it waits for its anchor — it is "": the target, as it was read, must then not hold the anchor, and the
+//     entry before it that creates the anchor has written the section it replaces. An entry whose anchor the target does not hold
+//     when its turn comes is refused, naming the entry that creates it, or saying that none does.
+//   - A record's `section` is the blob of the section the entry replaces, as it stands when the entry is applied; a record's name is
+//     spec-<queue folder>-<NN>-<the first twelve digits of the proposal's blob>.md and its text is what MOD-documents writes for
+//     MOD-approvals' schema. A decision row is appended to the bytes of the queue's entscheidungen.md, which a rewrite of the table
+//     would change where an earlier form of its rows stands.
+//   - acceptEntries writes nothing while any entry is refused, and names every one: also an entry or a queue that the repository lacks,
+//     and a proposal or a target that is gone. applyApproved refuses record by record; it takes the target, the anchor and the proposal
+//     of an entry from the queue's index and refuses a record that names others or lacks a field; it leaves alone a record that a
+//     decision row names, also where its entry has left the index, and a record of an entry that a decision row names; it reads the
+//     product's links from docs/sources.md and the whole register from docs/sources/, so that an item names the longest title, linked
+//     or not.
+//   - The commit's message names the entries and, as MOD-approvals' acceptShown does, the person who accepted.
 
-import { parseSpec, renamedRequirements, sectionText } from "../spec-document/index.mjs";
+import { parseSpec, renamedRequirements, replaceSection, sectionText } from "../spec-document/index.mjs";
 import { blobSha, lineDiff } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
-import { queueAt } from "./queues.mjs";
+import { readDocument, writeDocument } from "../documents/index.mjs";
+import { approvalSchema } from "../approvals/index.mjs";
+import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
+import { queueAt, queues } from "./queues.mjs";
 
 // Whether a requirement stated by the proposal is another than the one the section holds under its name: its source, rule or check.
 const differs = (was, is) => was.source !== is.source || was.rule !== is.rule || was.check !== is.check;
@@ -69,4 +92,166 @@ export async function entryView(queue, entry, snapshot) {
     state: item.state,
     createdBy: item.createdBy,
   };
+}
+
+// ---------------------------------------------------------------- accepting
+
+const APPROVALS = "docs/approvals/";
+const SPEC_RECORD = /^docs\/approvals\/spec-[^/]+\.md$/;
+const SPEC_KEYS = ["kind", "queue", "entry", "proposal", "blob", "target", "anchor", "section"];
+// The record a row of entscheidungen.md names, approval:<file> in its fourth cell (MOD-spec-changes, Data).
+const DECISION_REFERENCE = /\|\s*approval:([^\s|]+)\s*\|/g;
+const pad2 = (number) => String(number).padStart(2, "0");
+
+// The row appended to a queue's entscheidungen.md: when, the entry, the decision, the record (MOD-spec-changes, Data).
+const decisionRow = (number, recordFile, now) => `| ${now.toISOString().slice(0, 16).replace("T", " ")} UTC | ${number} | uebernommen | approval:${recordFile} |\n`;
+
+// The files of one acceptance, computed from `snapshot` alone. items: the entries to write, each { queue, entry, proposalBlob,
+// sectionBlob, record: the record's path, claims?: what a committed record says of its entry }; loaded: the queues of the snapshot by
+// folder; sources: the product's links and the register; verb: how the reviewer knew the text ("shown", "approved"); records: whether
+// the records are written too. -> { files: Map(path -> text), applied: [{ item, id }], refused: [{ item, reason }] }
+async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
+  const texts = new Map(), initial = new Map(), changed = new Set(), files = new Map(), applied = [], refused = [];
+  const get = async (path) => {
+    if (!texts.has(path)) {
+      const text = await snapshot.read(path);
+      texts.set(path, text);
+      initial.set(path, text);
+    }
+    return texts.get(path);
+  };
+  const put = (path, text) => { texts.set(path, text); changed.add(path); };
+  const refuse = (item, reason) => refused.push({ item, reason });
+
+  for (const folder of [...new Set(items.map((item) => item.queue))].sort()) {
+    const queue = loaded.get(folder) ?? null;
+    const ofQueue = items.filter((item) => item.queue === folder);
+    if (queue === null) {
+      for (const item of ofQueue) refuse(item, `the queue ${folder} is not in the repository`);
+      continue;
+    }
+    const position = (item) => queue.entries.findIndex((each) => each.number === item.entry);
+    const rows = [];
+    for (const item of [...ofQueue].sort((a, b) => position(a) - position(b))) {
+      const entry = queue.entries.find((each) => each.number === item.entry);
+      if (!entry) { refuse(item, "the entry is no longer in the queue's index"); continue; }
+      if (entry.decision !== null) { refuse(item, "already written into the SPEC"); continue; }
+      const claims = item.claims;
+      if (claims && claims.anchor !== entry.anchor) { refuse(item, `the record's anchor “${claims.anchor}” is not the queue's anchor “${entry.anchor}” for entry ${pad2(entry.number)}`); continue; }
+      if (claims && claims.target !== entry.file) { refuse(item, `the record names the target ${claims.target}, not the entry's ${entry.file}`); continue; }
+      if (claims && claims.proposal !== entry.proposal.path) { refuse(item, `the record names the proposal ${claims.proposal}, not the entry's ${entry.proposal.path}`); continue; }
+      const proposal = entry.proposal.path ? await get(entry.proposal.path) : null;
+      if (typeof proposal !== "string") { refuse(item, "the proposal no longer exists"); continue; }
+      if (entry.proposal.blob !== item.proposalBlob) { refuse(item, `the proposal changed after it was ${verb} — open it again`); continue; }
+      const unsourced = sourceFindings([...parseSpec(proposal).requirements.values()], sources.links, sources.register);
+      if (unsourced.length) {
+        refuse(item, `a requirement of its proposal names no source the product links: ${unsourced.map((each) => `${each.artifact} (${each.what})`).join("; ")}`);
+        continue;
+      }
+      const spec = await get(entry.file);
+      if (typeof spec !== "string") { refuse(item, `the target ${entry.file} does not exist`); continue; }
+      const before = sectionText(spec, entry.anchor);
+      if (before === null) {
+        const by = entry.createdBy;
+        refuse(item, by === null ? `its heading “${entry.anchor}” is not in ${entry.file}, and no entry of the queue creates it`
+          : `its heading “${entry.anchor}” is created by entry ${pad2(by)} of the queue — it goes only with or after entry ${pad2(by)}`);
+        continue;
+      }
+      if (item.sectionBlob === "") {
+        if (sectionText(initial.get(entry.file), entry.anchor) !== null) {
+          refuse(item, `the SPEC holds the section “${entry.anchor}”, which was not shown beside it — the section changed after it was ${verb} — open it again`);
+          continue;
+        }
+      } else if (await blobSha(before) !== item.sectionBlob) {
+        refuse(item, `the SPEC section changed after it was ${verb} — open it again`);
+        continue;
+      }
+      put(entry.file, replaceSection(spec, entry.anchor, proposal));
+      const recordFile = item.record.slice(APPROVALS.length);
+      if (records) {
+        files.set(item.record, writeDocument(approvalSchema, { fields: { kind: "spec", queue: queue.folder, entry: pad2(entry.number),
+          proposal: entry.proposal.path, blob: item.proposalBlob, target: entry.file, anchor: entry.anchor, section: await blobSha(before) } }));
+      }
+      rows.push(decisionRow(entry.number, recordFile, now));
+      applied.push({ item, id: `spec-${folder.split("/").pop()}-${pad2(entry.number)}` });
+    }
+    if (rows.length) {
+      const decisions = (await get(`${folder}/entscheidungen.md`)) ?? "";
+      put(`${folder}/entscheidungen.md`, (decisions && !decisions.endsWith("\n") ? `${decisions}\n` : decisions) + rows.join(""));
+    }
+  }
+  for (const path of changed) files.set(path, texts.get(path));
+  return { files, applied, refused };
+}
+
+/**
+ * acceptEntries(host: Host, shown: Array<{ queue: string, entry: number, proposalBlob: string, sectionBlob: string }>, person: string,
+ *   now: Date, sources: { links: Document, register: Document[] }) -> Promise<{ commit: string } | { refused: Array<{ queue: string,
+ *   entry: number, reason: string }> }> — accepts the entries shown in one commit on the default branch of the host, on the head it
+ * read, with the token the host was connected with, so under the person's account: for each, in the order of its queue's index, its
+ * approval record, the target's section replaced by the proposal byte for byte, and its decision row (A QUEUE IS ACCEPTED IN ITS
+ * ORDER). While any entry is refused — its proposal or section no longer has the blob that was shown, a requirement of its proposal
+ * names no source the product links, its anchor is created by an entry that is not accepted with it — nothing is written, and every
+ * such entry is named with the reason. Nothing shown is a TypeError. Crosses the network, through the host; fails with its failures,
+ * unchanged — Moved, SecretRefused, TokenRefused, PermissionMissing, RateLimited, Unreachable —, and writes nothing then.
+ */
+export async function acceptEntries(host, shown, person, now, sources) {
+  if (!Array.isArray(shown) || shown.length === 0) throw new TypeError("acceptEntries: nothing is shown");
+  const { defaultBranch } = await host.repositoryInfo();
+  const head = await host.readSnapshot(defaultBranch);
+  const folders = [...new Set(shown.map(({ queue }) => queue))];
+  const loaded = new Map(await Promise.all(folders.map(async (folder) => [folder, await queueAt(head, folder)])));
+  const items = shown.map(({ queue, entry: number, proposalBlob, sectionBlob }) => ({ queue, entry: number, proposalBlob, sectionBlob,
+    record: `${APPROVALS}spec-${queue.split("/").pop()}-${pad2(number)}-${String(proposalBlob).slice(0, 12)}.md` }));
+  const { files, applied, refused } = await plan(head, loaded, items, { sources, now, verb: "shown", records: true });
+  if (refused.length) return { refused: refused.map(({ item, reason }) => ({ queue: item.queue, entry: item.entry, reason })) };
+  const message = `accept ${applied.map(({ id }) => id).join(", ")} (Agent M dashboard)\n\nAccepted by ${person}.\n`;
+  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head.commit,
+    files: [...files].map(([path, text]) => ({ path, text })), message });
+  return { commit };
+}
+
+// The product's links and the instance's register, read from docs/sources.md and every entry directly under docs/sources/.
+async function sourcesOf(snapshot) {
+  const { entry: entrySchema, links: linksSchema } = sourceSchemas();
+  const links = readDocument(linksSchema, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? "");
+  const paths = snapshot.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
+  const register = await Promise.all(paths.map(async (path) => readDocument(entrySchema, path, (await snapshot.read(path)) ?? "")));
+  return { links, register };
+}
+
+/**
+ * applyApproved(snapshot: Snapshot, now: Date) -> Promise<{ files: Record<string, string>, applied: string[], refused: Array<{
+ *   record: string, reason: string }> }> — for every record of kind spec under docs/approvals/ that no decision row names, and whose
+ * entry no decision row names, queues oldest first and each in the order of its index: the same checks as acceptEntries makes —
+ * the proposal and the section still have the blobs the record names, the record's anchor, target and proposal are its entry's,
+ * every requirement of the proposal names a source the repository links — and the same bytes: the target with the section replaced
+ * and the queue's decisions with the row appended. `applied` names the records applied, `refused` the others with the reason; a
+ * record that fails a check changes nothing. It writes nothing itself: the instance's workflow commits `files`.
+ */
+export async function applyApproved(snapshot, now) {
+  const read = await queues(snapshot);
+  const decided = new Set();
+  for (const queue of read) {
+    const rows = (await snapshot.read(`${queue.folder}/entscheidungen.md`)) ?? "";
+    for (const row of rows.matchAll(DECISION_REFERENCE)) decided.add(`${APPROVALS}${row[1]}`);
+  }
+  const loaded = new Map(read.map((queue) => [queue.folder, queue]));
+  const items = [], refused = [];
+  for (const path of snapshot.paths) {
+    if (!SPEC_RECORD.test(path) || decided.has(path)) continue;
+    const fields = readDocument(approvalSchema, path, (await snapshot.read(path)) ?? "").fields;
+    if (fields.kind !== "spec") continue;
+    const missing = SPEC_KEYS.filter((key) => !fields[key]);
+    if (missing.length) { refused.push({ record: path, reason: `the record lacks ${missing.join(", ")}` }); continue; }
+    const number = /^\d+$/.test(fields.entry) ? Number(fields.entry) : null;
+    if (number === null) { refused.push({ record: path, reason: `the record's entry “${fields.entry}” is not a number` }); continue; }
+    const queue = fields.queue.replace(/\/+$/, "");
+    if (loaded.get(queue)?.entries.find((each) => each.number === number)?.decision) continue;
+    items.push({ queue, entry: number, proposalBlob: fields.blob, sectionBlob: fields.section, record: path,
+      claims: { anchor: fields.anchor, target: fields.target, proposal: fields.proposal } });
+  }
+  const done = await plan(snapshot, loaded, items, { sources: await sourcesOf(snapshot), now, verb: "approved", records: false });
+  return { files: Object.fromEntries(done.files), applied: done.applied.map(({ item }) => item.record),
+    refused: [...refused, ...done.refused.map(({ item, reason }) => ({ record: item.record, reason }))] };
 }
