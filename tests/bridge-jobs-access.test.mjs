@@ -52,7 +52,8 @@ function repository(root, name) {
   git(root, "clone", "-q", origin, clone);
   return { origin, clone };
 }
-// Everything a clone is: its files with their sizes and times, its branches, its head and its working tree's state.
+// Everything a clone is: its files with their sizes and times, its branches, its head and its working tree's state — asked without the
+// lock that would refresh its index, which would change what is measured.
 function stateOf(folder) {
   const files = [];
   (function walk(dir) {
@@ -61,7 +62,7 @@ function stateOf(folder) {
       if (stat.isDirectory()) walk(path); else files.push(`${path.slice(folder.length)}:${stat.size}:${stat.mtimeMs}`);
     }
   })(folder);
-  return { files, refs: git(folder, "for-each-ref"), head: git(folder, "rev-parse", "HEAD"), status: git(folder, "status", "--porcelain") };
+  return { files, refs: git(folder, "for-each-ref"), head: git(folder, "rev-parse", "HEAD"), status: git(folder, "--no-optional-locks", "status", "--porcelain") };
 }
 async function withRepositories(run) {
   const root = mkdtempSync(join(tmpdir(), "agent-m-access-"));
