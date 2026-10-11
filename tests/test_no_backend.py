@@ -429,6 +429,31 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": duplicate_driver}),
                          [f"src/endpoint-calls/index.mjs: fetch found 3 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
 
+    def test_counter_proof_only_the_mail_routes_lookup_and_links_are_allowed(self):
+        # MOD-mail-routes (docs/architecture/MOD-mail-routes.md): routeFor asks Microsoft's sign-in service, the provider's one origin the page
+        # names; providerLinks() gives the addresses of Microsoft's pages for registering the app and for withdrawing its access, linked only.
+        path = "src/mail-routes/index.mjs"
+        accepted = ('const SIGN_IN_SERVICE = "https://login.microsoftonline.com";\n'
+                    'export async function routeFor(address) {\n'
+                    '  const status = (await fetch(`${SIGN_IN_SERVICE}/${encodeURIComponent(domain)}/v2.0/.well-known/openid-configuration`, '
+                    '{ credentials: "omit", cache: "no-store" })).status;\n}\n'
+                    'export function providerLinks() {\n'
+                    '  return { appRegistration: "https://entra.microsoft.com", accessWithdrawal: "https://myapps.microsoft.com" };\n}\n')
+        self.assertEqual(channel_findings({path: accepted}), [])
+        self.assertEqual(foreign_by_file({path: accepted}), {})
+        # The lookup at another origin, the lookup with a second call, and a link to another page are found.
+        other_origin = accepted.replace('"https://login.microsoftonline.com"', '"https://login.example.org"')
+        self.assertEqual(len(channel_findings({path: other_origin})), 1)
+        self.assertEqual(foreign_by_file({path: other_origin}), {path: ["login.example.org"]})
+        extra = accepted + "fetch(address);\n"
+        self.assertEqual(len(channel_findings({path: extra})), 2)
+        other_link = accepted.replace("https://myapps.microsoft.com", "https://tracker.example")
+        self.assertEqual(foreign_by_file({path: other_link}), {path: ["tracker.example"]})
+        # What the module is allowed is the module's alone: the same text in another module's folder is found, in its lookup and its links.
+        elsewhere = {"src/home/home.mjs": accepted}
+        self.assertEqual(len(channel_findings(elsewhere)), 1)
+        self.assertEqual(foreign_by_file(elsewhere), {"src/home/home.mjs": ["entra.microsoft.com", "myapps.microsoft.com"]})
+
     def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
         accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
                     'function requestHeaders(bridge, contentType = false) {\n'
