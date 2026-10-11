@@ -1,8 +1,8 @@
 // MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Of it, ITM-221 builds
 // what UC-002's page needs: the types View, Route and ViewContext; schemaForm (forms.mjs), without its options secretKeys
-// and readOnly; and explain, with UC-002's topics in explanations.md, after stepHtml of docs/assets/dashboard-app.mjs.
-// PageSetup, startPage, embedRoute, menuOf, instanceOf, chosenProduct, runPanel, confirmDecision, notice, the frame's own
-// check of the topics, look.css and brand/ are not built yet.
+// and readOnly; and explain, with UC-002's topics in explanations.md, after stepHtml of docs/assets/dashboard-app.mjs; ITM-344
+// builds runPanel (run-panel.mjs). PageSetup, startPage, embedRoute, menuOf, instanceOf, chosenProduct, confirmDecision, notice,
+// the frame's own check of the topics, look.css and brand/ are not built yet.
 //
 // Module: MOD-site-frame
 //
@@ -17,6 +17,7 @@ import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 
 export { schemaForm } from "./forms.mjs";
+export { runPanel } from "./run-panel.mjs";
 
 const UPSTREAM = "akmaier/agent-m";
 let notices = null;
