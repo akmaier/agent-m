@@ -27,9 +27,12 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
 // TST-323001
 // given: the public Bridge protocol
 // input: inspect its additive agents, jobs and asks route declarations
-// expect: exactly the seven selected routes and their declared methods are public
+// expect: every selected route and its declared method are public
  test("TST-323001: bridgeApi declares the selected agents, jobs and asks routes", () => {
-  assert.deepEqual(bridgeApi.routes.slice(0, 7).map(({ method, path }) => [method, path]), [
+  const selected = bridgeApi.routes.filter(({ method, path }) => [
+    "GET /v1/agents", "POST /v1/jobs", "GET /v1/jobs", "GET /v1/jobs/{id}/log", "POST /v1/jobs/{id}/cancel", "POST /v1/ask", "GET /v1/ask/{ask}",
+  ].includes(`${method} ${path}`));
+  assert.deepEqual(selected.map(({ method, path }) => [method, path]), [
     ["GET", "/v1/agents"], ["POST", "/v1/jobs"], ["GET", "/v1/jobs"], ["GET", "/v1/jobs/{id}/log"],
     ["POST", "/v1/jobs/{id}/cancel"], ["POST", "/v1/ask"], ["GET", "/v1/ask/{ask}"],
   ]);
@@ -52,11 +55,35 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
   ];
   for (const [path, options = {}] of calls) assert.equal((await request(bridge, path, options)).status, 200);
   assert.deepEqual(seen.map(([key]) => key), ["GET /v1/agents", "POST /v1/jobs", "GET /v1/jobs", "GET /v1/jobs/{id}/log", "POST /v1/jobs/{id}/cancel", "POST /v1/ask", "POST /v1/ask", "GET /v1/ask/{ask}"]);
+  assert.deepEqual(seen[0][1], { params: {}, query: {}, body: {} });
+  assert.deepEqual(seen[1][1], { params: {}, query: {}, body: { product: "a/b", record: "docs/jobs/JOB-323.md", commit: "abc" } });
+  assert.deepEqual(seen[2][1], { params: {}, query: {}, body: {} });
   assert.deepEqual(seen[3][1], { params: { id: "JOB-323" }, query: { from: "7" }, body: {} });
   assert.deepEqual(seen[4][1], { params: { id: "JOB-323" }, query: {}, body: {} });
   assert.deepEqual(seen[5][1].body, { agent: "codex", input: "draft" });
   assert.deepEqual(seen[6][1].body, { endpoint: ENDPOINT, input: "draft" });
   assert.deepEqual(seen[7][1], { params: { ask: "ASK-323" }, query: {}, body: {} });
+});
+
+// TST-323006
+// given: a paired Bridge whose request log is captured and selected ask/log handlers
+// input: an ask body and a job-log query carry distinct private sentinel values
+// expect: logs retain only method, route, status and duration, never either value
+test("TST-323006: selected route logs exclude ask bodies and job-log query values", async (t) => {
+  const lines = [], prior = console.info;
+  console.info = (...values) => lines.push(values.join(" "));
+  t.after(() => { console.info = prior; });
+  const bridge = await running(t, { jobs: {
+    "POST /v1/ask": async () => ({ ask: "ASK-323" }),
+    "GET /v1/jobs/{id}/log": async () => ({ lines: [], next: 0, ended: false }),
+  } });
+  await request(bridge, "/v1/ask", { method: "POST", body: { agent: "codex", input: "body-secret-323" } });
+  await request(bridge, "/v1/jobs/JOB-323/log?from=query-secret-323");
+  const text = lines.join("\n");
+  assert.match(text, /\"method\":\"POST\".*\"path\":\"\/v1\/ask\".*\"status\":200.*\"duration\":\d+/);
+  assert.match(text, /\"method\":\"GET\".*\"path\":\"\/v1\/jobs\/JOB-323\/log\".*\"status\":200.*\"duration\":\d+/);
+  assert.equal(text.includes("body-secret-323"), false);
+  assert.equal(text.includes("query-secret-323"), false);
 });
 
 // TST-323003
