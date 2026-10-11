@@ -46,12 +46,13 @@
 /**
  * The hierarchy of the items of one kind: the tree with every item in its one place, the identifiers of the items that no
  * group named and that stand at the top level of the tree now, the identifiers of the members that match no item, and the
- * findings. A group the moves create, and a member placed for an item the file did not list, stand at line 0.
+ * findings, each a MOD-text-tools `Finding`. A group the moves create, and a member placed for an item the file did not
+ * list, stand at line 0.
  * @typedef {{
  *   tree: GroupTree,
  *   ungrouped: string[],
  *   unknown: string[],
- *   findings: import("../text-tools/index.mjs").Finding[],
+ *   findings: Finding[],
  * }} Hierarchy
  */
 
