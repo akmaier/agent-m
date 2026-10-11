@@ -49,6 +49,11 @@ const SPEC_TEXT = SPEC_LINES.join("\n");
 const GUARDED = "A GUARDED REQUIREMENT";
 const UNGUARDED = "AN UNGUARDED REQUIREMENT";
 
+// A node and an edge as the cases below assert them: what ITM-249 built. The facts that later items add to a node — folder, provides,
+// level, tests and sources — and the interface of an edge are left out here and asserted in tests/trace-graph-facts.test.mjs.
+const core = ({ id, kind, path, line, title, blob }) => ({ id, kind, path, line, title, blob });
+const kept = ({ from, to, via, path, line }) => ({ from, to, via, path, line });
+
 const requirementNode = (id, line) => ({ id, kind: "requirement", path: "SPEC.md", line, title: null, blob: null });
 const testNode = (id, path, line) => ({ id, kind: "TST", path, line, title: null, blob: null });
 
@@ -57,8 +62,8 @@ const testNode = (id, path, line) => ({ id, kind: "TST", path, line, title: null
 test("the requirements of SPEC.md are nodes — MOD-trace-graph", async () => {
   const graph = await traceGraph(source({ "SPEC.md": SPEC_TEXT }));
   assert.deepEqual([...graph.nodes.keys()].sort(), [GUARDED, UNGUARDED].sort());
-  assert.deepEqual(graph.nodes.get(GUARDED), requirementNode(GUARDED, 5));
-  assert.deepEqual(graph.nodes.get(UNGUARDED), requirementNode(UNGUARDED, 9));
+  assert.deepEqual(core(graph.nodes.get(GUARDED)), requirementNode(GUARDED, 5));
+  assert.deepEqual(core(graph.nodes.get(UNGUARDED)), requirementNode(UNGUARDED, 9));
   assert.deepEqual(graph.edges, []);
 });
 
@@ -83,9 +88,9 @@ const SAMPLE_TEXT = SAMPLE_LINES.join("\n");
 test("the tests of a test file are nodes, with a guards edge from each to what it guards — MOD-trace-graph", async () => {
   const graph = await traceGraph(source({ [SAMPLE_PATH]: SAMPLE_TEXT }));
   assert.deepEqual([...graph.nodes.keys()].sort(), ["TST-001", "TST-002"]);
-  assert.deepEqual(graph.nodes.get("TST-001"), testNode("TST-001", SAMPLE_PATH, 1));
-  assert.deepEqual(graph.nodes.get("TST-002"), testNode("TST-002", SAMPLE_PATH, 5));
-  assert.deepEqual(graph.edges, [
+  assert.deepEqual(core(graph.nodes.get("TST-001")), testNode("TST-001", SAMPLE_PATH, 1));
+  assert.deepEqual(core(graph.nodes.get("TST-002")), testNode("TST-002", SAMPLE_PATH, 5));
+  assert.deepEqual(graph.edges.map(kept), [
     { from: "TST-001", to: GUARDED, via: "guards", path: SAMPLE_PATH, line: 1 },
     { from: "TST-002", to: GUARDED, via: "guards", path: SAMPLE_PATH, line: 5 },
     { from: "TST-002", to: UNGUARDED, via: "guards", path: SAMPLE_PATH, line: 5 },
@@ -120,10 +125,11 @@ const OTHER_LINES = [
   "",
 ];
 
+// Both requirements name "Product Owner" as their source, which tracesTo gives from their nodes (ITM-382).
 test("tracesTo gives the tests that guard a requirement, and none for a requirement that no test guards — MOD-trace-graph", async () => {
   const graph = await traceGraph(source({ "SPEC.md": SPEC_TEXT, [OTHER_PATH]: OTHER_LINES.join("\n") }));
   assert.deepEqual(tracesTo(graph, GUARDED),
-    { sources: [], useCases: [], decisions: [], modules: [], tests: ["TST-003", "TST-007"], items: [] });
+    { sources: ["Product Owner"], useCases: [], decisions: [], modules: [], tests: ["TST-003", "TST-007"], items: [] });
   assert.deepEqual(tracesTo(graph, UNGUARDED),
-    { sources: [], useCases: [], decisions: [], modules: [], tests: [], items: [] });
+    { sources: ["Product Owner"], useCases: [], decisions: [], modules: [], tests: [], items: [] });
 });
