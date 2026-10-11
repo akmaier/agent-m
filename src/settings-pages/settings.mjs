@@ -10,11 +10,15 @@ import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { pair } from "../bridge-client/index.mjs";
-import { route as endpointsRoute } from "./endpoints.mjs";
+import { recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 
 // The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");
+
+// The tab each Settings page shows, by the page's own context: a render the page asks for itself keeps the tab the person
+// chose; Settings opened anew, with a context of its own, shows its first tab.
+const chosenTabs = new WeakMap();
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -86,8 +90,7 @@ function endpointLine(target, context, info) {
     }
     result.textContent = "Testing the endpoint…";
     const checked = await testEndpoint(endpointConfig(name, setting));
-    const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused" };
-    writeSetting(context.store, `last-test:${info.key}`, lastTest);
+    const lastTest = recordTest(context.store, info.key, checked);
     result.textContent = resultText(checked);
     status.textContent = stateText(lastTest);
   });
@@ -636,17 +639,19 @@ async function productControls(context) {
     el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
 }
 
-function tabbedSettings(panes) {
+// The tabs of the page: the one whose id `chosen` names is selected, else the first; `choose` hears each id selected.
+function tabbedSettings(panes, chosen, choose) {
   const tabs = el("div", "settings-tabs");
   attribute(tabs, "role", "tablist");
   const buttons = [];
   const select = (selected) => {
-    for (const { button, pane } of buttons) {
-      const chosen = button === selected;
-      attribute(button, "aria-selected", String(chosen));
-      button.className = chosen ? "settings-tab btn primary" : "settings-tab btn";
-      button.tabIndex = chosen ? 0 : -1;
-      pane.hidden = !chosen;
+    for (const { button, pane, id } of buttons) {
+      const isChosen = button === selected;
+      attribute(button, "aria-selected", String(isChosen));
+      button.className = isChosen ? "settings-tab btn primary" : "settings-tab btn";
+      button.tabIndex = isChosen ? 0 : -1;
+      pane.hidden = !isChosen;
+      if (isChosen) choose(id);
     }
     selected.focus();
   };
@@ -664,10 +669,10 @@ function tabbedSettings(panes) {
       const index = buttons.findIndex((candidate) => candidate.button === button);
       select(buttons[(index + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length].button);
     });
-    buttons.push({ button, pane: pane.node });
+    buttons.push({ button, pane: pane.node, id: pane.id });
     tabs.append(button);
   }
-  select(buttons[0].button);
+  select((buttons.find((entry) => entry.id === chosen) ?? buttons[0]).button);
   return { tabs, panels: panes.map((pane) => pane.node) };
 }
 
@@ -693,6 +698,13 @@ export const route = {
     const form = el("div", "settings-configure-form panel");
     const productForm = el("div", "settings-product-form panel");
     form.hidden = productForm.hidden = true;
+    // The endpoints this browser keeps, one line each, listed anew whenever the endpoint form in place stored, tested or
+    // cleared one (UC-042 step 2), while the form stays open with its result.
+    const endpoints = el("div", "settings-endpoints");
+    const listEndpoints = () => endpoints.replaceChildren(...listSettings(context.store)
+      .filter((setting) => setting.key.startsWith("endpoint:"))
+      .map((setting) => endpointLine(target, inPlace, setting))
+      .filter(Boolean));
     const inPlace = {
       ...context,
       [PAGE]: context,
@@ -703,11 +715,9 @@ export const route = {
         place.hidden = false;
         await guided.render(place, inPlace, params);
       },
+      endpointsChanged: listEndpoints,
     };
-    const endpoints = listSettings(context.store)
-      .filter((setting) => setting.key.startsWith("endpoint:"))
-      .map((setting) => endpointLine(target, inPlace, setting))
-      .filter(Boolean);
+    listEndpoints();
     const bridge = bridgeLine(target, inPlace);
     const jumpHost = jumpHostLine(target, inPlace);
     const remoteSessions = listSettings(context.store).map((info) => remoteSessionLine(target, inPlace, info)).filter(Boolean);
@@ -730,7 +740,7 @@ export const route = {
       configurationControls(inPlace), form,
       ...(bridge ? [bridge] : []), ...(jumpHost ? [jumpHost] : []),
       ...remoteSessions,
-      el("div", "settings-endpoints", ...endpoints));
+      endpoints);
     const usability = el("section", "settings-tab-panel",
       el("h3", null, "Usability · this browser"), notificationsControls(context));
     const tabbed = tabbedSettings([
@@ -738,7 +748,7 @@ export const route = {
       { name: "Repositories", id: "settings-repositories", node: repositories },
       { name: "Endpoints & Agents", id: "settings-endpoints-agents", node: endpointPane },
       { name: "Usability", id: "settings-usability", node: usability },
-    ]);
+    ], chosenTabs.get(context), (id) => chosenTabs.set(context, id));
     target.replaceChildren(el("section", "head", el("h2", null, "Settings")), tabbed.tabs, ...tabbed.panels);
   },
 };

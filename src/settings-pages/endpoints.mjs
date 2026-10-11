@@ -18,6 +18,15 @@ function endpointKey(name) {
   return name ? `endpoint:${name}` : null;
 }
 
+// recordTest(store, key, checked) -> { at, outcome } — the endpoint's last test, kept beside it as the Settings page shows
+// it on the endpoint's line (A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN): when it ran, and whether the
+// endpoint answered. The form's Save and test and the line's Test record it alike.
+export function recordTest(store, key, checked) {
+  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused" };
+  writeSetting(store, `last-test:${key}`, lastTest);
+  return lastTest;
+}
+
 function sharedPagesNotice(context) {
   const owner = String(context.instance?.repository ?? "").split("/")[0];
   return `Everything Agent M stores in this browser is stored for the address https://${owner}.github.io — every GitHub Pages site under that same ${owner}.github.io domain can read it.`;
@@ -133,32 +142,46 @@ export const route = {
       const stored = settingFrom(fields);
       const storeKey = endpointKey(chosenName);
       writeSetting(context.store, storeKey, stored);
-      if (stored.throughBridge) {
-        const settings = bridgeSettings(context.store);
-        if (!settings) {
-          const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
-          setup.addEventListener("click", () => context.go("bridge", {}));
-          result.replaceChildren("This local model needs Bridge setup before it can be tested. Its endpoint setting remains stored. ", setup);
+      // A value just stored starts untested; an earlier test of the name never sticks to it.
+      clearSetting(context.store, `last-test:${storeKey}`);
+      // On the Settings page, the stored endpoints are listed anew once the outcome is known (UC-042 step 2).
+      try {
+        if (stored.throughBridge) {
+          const settings = bridgeSettings(context.store);
+          if (!settings) {
+            const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
+            setup.addEventListener("click", () => context.go("bridge", {}));
+            result.replaceChildren("This local model needs Bridge setup before it can be tested. Its endpoint setting remains stored. ", setup);
+            return;
+          }
+          result.textContent = "Testing the endpoint through the Bridge…";
+          try {
+            const checked = await probe(bridgeAt(settings), "endpoint-test", endpointConfig(chosenName, stored));
+            recordTest(context.store, storeKey, checked);
+            result.textContent = resultText(checked);
+          } catch (error) {
+            result.textContent = bridgeFailureText(error);
+          }
           return;
         }
-        result.textContent = "Testing the endpoint through the Bridge…";
-        try {
-          result.textContent = resultText(await probe(bridgeAt(settings), "endpoint-test", endpointConfig(chosenName, stored)));
-        } catch (error) {
-          result.textContent = bridgeFailureText(error);
-        }
-        return;
+        result.textContent = "Testing the endpoint…";
+        const checked = await testEndpoint(endpointConfig(chosenName, stored));
+        recordTest(context.store, storeKey, checked);
+        result.textContent = resultText(checked);
+      } finally {
+        await context.endpointsChanged?.();
       }
-      result.textContent = "Testing the endpoint…";
-      const checked = await testEndpoint(endpointConfig(chosenName, stored));
-      result.textContent = resultText(checked);
     });
 
-    clear.addEventListener("click", () => {
+    clear.addEventListener("click", async () => {
       const chosenName = name.value.trim();
-      if (chosenName) clearSetting(context.store, endpointKey(chosenName));
+      if (chosenName) {
+        clearSetting(context.store, endpointKey(chosenName));
+        clearSetting(context.store, `last-test:${endpointKey(chosenName)}`);
+      }
       applySetting(fields, "", null);
       result.textContent = "The endpoint configuration is cleared from this browser.";
+      await context.endpointsChanged?.();
     });
 
     target.replaceChildren(
