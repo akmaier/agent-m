@@ -6,7 +6,8 @@
 // that is words of a front matter key's form separated by single spaces, such as `gate record` — a front matter key itself
 // stays as MOD-text-tools states it. artifactSchemas gives the four schemas this module owns — the use case, the decision,
 // the module and the item —, and artifactSchemaOf the one whose path pattern a path matches; and the schema language reads a
-// path written { pattern, rule } and a condition on the path. classifyCandidates is not built yet.
+// path written { pattern, rule } and a condition on the path. classifyCandidates decides the classes of a run's candidates
+// (candidates.mjs): the candidates of one key merged, an exact duplicate of an existing artifact found by rule.
 //
 // Module: MOD-documents
 //
@@ -49,9 +50,25 @@
  *   body: string }} Document
  */
 
+/**
+ * One drafted candidate: its reference within the draft, the values of its kind's key — for a requirement its name and its
+ * rule —, the passages it came from, and the class its participant proposed, with the existing artifact that class names, or
+ * null for `new`.
+ * @typedef {{ ref: string, keys: string[], from: string[],
+ *   proposed: { class: "new" | "change" | "duplicate" | "conflict", of: string | null } }} Candidate
+ */
+
+/**
+ * One class for the candidates merged into it: their references and every passage they came from, its class, the existing
+ * artifact it names or null, and whether the rule or the participant decided it.
+ * @typedef {{ refs: string[], from: string[], class: "new" | "change" | "duplicate" | "conflict", of: string | null,
+ *   decidedBy: "rule" | "participant" }} Classified
+ */
+
 export { loadSchema } from "./schema-language.mjs";
 export { readDocument, writeDocument, readRegister, appendSection } from "./read-write.mjs";
 export { documentFindings } from "./checks.mjs";
+export { classifyCandidates } from "./candidates.mjs";
 
 import { compiledOf, loadSchema as load, matchesPath } from "./schema-language.mjs";
 

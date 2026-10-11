@@ -1,0 +1,60 @@
+// The classes of candidates — MOD-documents' classifyCandidates (docs/architecture/MOD-documents.md, Interfaces: Candidate,
+// Classified and classifyCandidates): the candidates of one run merged where they share a key, and each class decided by rule
+// where the key is an existing artifact's.
+//
+// Module: MOD-documents
+//
+// The rules are those of A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT, CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
+// and EXACT DUPLICATES ARE FOUND WITHOUT A MODEL, and they are the same for every kind of artifact: only the key differs, and
+// the caller gives it, as the list of values `keys` — for a requirement its name and its rule, for an architecture decision its
+// title. Nothing here reads a schema, a document or a file.
+
+// A value of a key as it is compared: in lower case, every run of white space one blank and none at either end, every quotation
+// mark one mark and every dash one dash.
+const normalised = (value) => String(value ?? "").toLowerCase()
+  .replace(/[\p{Pi}\p{Pf}"'\u201A\u201E]/gu, "'")
+  .replace(/\p{Pd}/gu, "-")
+  .replace(/\s+/g, " ")
+  .trim();
+
+// Whether two keys, their values normalised, are one key: they have a value in common at the same place. A requirement's key is
+// its name and its rule, so a name that equals, or a rule that equals, is the same requirement (EXACT DUPLICATES ARE FOUND
+// WITHOUT A MODEL). A blank value names nothing, and is no value in common.
+const same = (a, b) => a.some((value, i) => value !== "" && value === b[i]);
+
+/**
+ * classifyCandidates(candidates, existing) -> Classified[] — the classes of one run's candidates against the existing artifacts
+ * of their kind. First the candidates that share a normalised key are merged into one, which names every passage they came
+ * from; the sharing is followed from one candidate to the next. Then a merged candidate that shares a normalised key with an
+ * existing artifact is a duplicate of it — of the first such artifact in `existing` —, decided by rule, whatever its
+ * participant proposed. Every other candidate keeps the class and the artifact its participant proposed, those of the first of
+ * them for candidates merged into one. The classes stand in the order of their first candidates.
+ * @param {Array<{ ref: string, keys: string[], from: string[], proposed: { class: string, of: string | null } }>} candidates
+ * @param {Array<{ id: string, keys: string[] }>} existing
+ * @returns {Array<{ refs: string[], from: string[], class: string, of: string | null, decidedBy: "rule" | "participant" }>}
+ */
+export function classifyCandidates(candidates, existing) {
+  const keys = candidates.map((candidate) => candidate.keys.map(normalised));
+  const known = existing.map((artifact) => ({ id: artifact.id, keys: artifact.keys.map(normalised) }));
+
+  // The groups of candidates that share a key, each as the places of its candidates in the draft, in order. A candidate joins
+  // every group it shares a key with, and so joins those groups into one.
+  let groups = [];
+  candidates.forEach((_, i) => {
+    const joined = groups.filter((members) => members.some((j) => same(keys[i], keys[j])));
+    groups = [...groups.filter((members) => !joined.includes(members)), [...joined.flat(), i].sort((a, b) => a - b)];
+  });
+  groups.sort((a, b) => a[0] - b[0]);
+
+  return groups.map((members) => {
+    const first = candidates[members[0]];
+    const duplicateOf = known.find((artifact) => members.some((i) => same(keys[i], artifact.keys)));
+    return {
+      refs: members.map((i) => candidates[i].ref),
+      from: [...new Set(members.flatMap((i) => candidates[i].from))],
+      class: duplicateOf ? "duplicate" : first.proposed.class,
+      of: duplicateOf ? duplicateOf.id : first.proposed.of,
+      decidedBy: duplicateOf ? "rule" : "participant",
+    };
+  });
+}
