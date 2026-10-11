@@ -16,10 +16,10 @@
 //   - What the snapshot cannot read gives no evidence: without the target's text, or a record's, the entry keeps the state
 //     ITM-234 derived. The target of an entry is the file its own row names (Datei).
 //
-// openQueueOf, proposeSection, saveEntry, entrySections, acceptEntries, applyApproved, requirementHistory and specStrategies
-// are not built yet (index.mjs); entryView, which reads an entry through this file, is accept.mjs's. Its own data files, the
-// two schemas below, are read once, when the module is loaded: from the disk in Node, from the module's own address in a
-// browser — as MOD-approvals' index.mjs reads its own.
+// openQueueOf, proposeSection, saveEntry, entrySections and requirementHistory are not built yet (index.mjs); entryView, which reads
+// an entry through this file, is accept.mjs's, and specStrategies' recipe spec-with-queues, which reads every queue through it,
+// strategies.mjs's. Its own data files, the two schemas below, are read once, when the module is loaded: from the disk in Node, from the
+// module's own address in a browser — as MOD-approvals' index.mjs reads its own.
 //
 // Module: MOD-spec-changes
 
