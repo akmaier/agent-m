@@ -9,7 +9,7 @@
 // Guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // Level: unit
 //
-// The instance is a fixture: a host whose docs/participants.md names two agents on the Bridge lab-pc and one on laptop, beside rows whose route only
+// The instance is a fixture: a host, whose default branch is trunk, whose docs/participants.md names two agents on the Bridge lab-pc and one on laptop, beside rows whose route only
 // looks like theirs; the host records every commit. The store is a Map-backed localStorage; the DOM is the small one the other tests of this module use.
 // Where the module file leaves a reading open, the test states the reading it takes, and the pull request names it:
 //   - A participant names a Bridge when its route is exactly `bridge <name> agent <agent>`; it is named by its name and its agent. The mailbox names it
@@ -83,10 +83,10 @@ function fixture(t, { participants = PARTICIPANTS, mailbox = IMAP, host = "ok" }
   if (mailbox) writeSetting(store, "mailbox", mailbox);
   const events = { commits: [], reads: [], questions: [] };
   const instanceHost = {
-    repositoryInfo: async () => ({ defaultBranch: "main", canWrite: true }),
-    readSnapshot: async () => {
+    repositoryInfo: async () => ({ defaultBranch: "trunk", canWrite: true }),
+    readSnapshot: async (branch) => {
       if (host === "unreadable") throw Object.assign(new Error("rate limited"), { name: "RateLimited" });
-      return { paths: ["docs/participants.md"], blob: () => "b".repeat(40), read: async (path) => { events.reads.push(path); return path === "docs/participants.md" ? participants : null; } };
+      return { paths: ["docs/participants.md"], blob: () => "b".repeat(40), read: async (path) => { events.reads.push(path); return path === "docs/participants.md" && branch === "trunk" ? participants : null; } };
     },
     commitFiles: async (...args) => { events.commits.push(args); return { commit: "c".repeat(40) }; },
   };
