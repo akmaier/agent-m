@@ -88,9 +88,9 @@ function inDefaultBranch(id, branch, pullRequests) {
  * heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown") ->
  * Held[] — every item a team's sprint holds, in the order of the sprints and of their selections: from its selection until a
  * pull request with its change is merged into the default branch, or until its sprint's close sends it back to the backlog or
- * on to the next sprint — once the close is recorded, every item none of whose pull requests is merged, in whatever form the
- * close names them (A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH). With the pull requests "unknown" — a host
- * that could not read them —, a selected item counts as held. An item the backlog lacks is held with no module.
+ * on to the next sprint — once the close is recorded, every item none of whose pull requests is merged — (A SPRINT HOLDS ITS
+ * ITEMS UNTIL THEY REACH THE DEFAULT BRANCH). With the pull requests "unknown" — a host that could not read them —, a
+ * selected item counts as held. An item the backlog lacks is held with no module.
  * @param {object[]} sprints @param {object[]} items @param {object[]} architecture @param {object[] | "unknown"} pullRequests
  * @returns {Held[]}
  */
