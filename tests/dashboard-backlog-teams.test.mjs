@@ -408,3 +408,20 @@ test("#backlog — the chart's text is as large as the page's body text", async 
     else delete globalThis.getComputedStyle;
   }
 });
+
+// guards: UC-035; the user's chart: its text as large as the page's text, at the width the site keeps the chart at
+// given: the fixture product, on a page whose style keeps the burn-down chart 640px wide
+// input: open #backlog
+// expect: team1's chart is configured to be drawn 640px wide, the width at which the page shows it
+test("#backlog — the chart is drawn as wide as the page keeps it", async () => {
+  const before = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = () => ({ fontSize: "", getPropertyValue: (name) => (name === "--burn-down-width" ? " 640px" : "") });
+  try {
+    const { page } = await backlogPage();
+    const source = unesc(/<code class="language-mermaid">([\s\S]*?)<\/code>/.exec(part(page.main(), 'data-team="team1"'))?.[1] ?? "");
+    assert.match(/^---\n([\s\S]*?)\n---\n/.exec(source)?.[1] ?? "", /^ {2}xyChart:\n {4}width: 640$/m, source);
+  } finally {
+    if (before) globalThis.getComputedStyle = before;
+    else delete globalThis.getComputedStyle;
+  }
+});
