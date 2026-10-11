@@ -1,7 +1,7 @@
 // The page's client for the Bridge API used by UC-003 endpoint tests.
 //
 // Module: MOD-bridge-client
-// Public: BridgeError, bridgeAt, pair, probe
+// Public: BridgeError, bridgeAt, pair, testBridge, handOver, ask, probe
 
 import { bridgeApi } from "../bridge-http/index.mjs";
 export { allocatePort, tunnelCommands } from "./tunnels.mjs";
@@ -74,7 +74,8 @@ async function call(bridge, path, init) {
   } catch (error) {
     if (error?.name === "TimeoutError") throw new BridgeError("Timeout", {}, "The Bridge request timed out.");
     const likely = likelyNoAnswer(bridge);
-    throw new BridgeError("NoAnswer", { likely }, `The Bridge gave no answer: ${String(error?.message ?? error)}`);
+    const httpsRoute = bridge.route === "loopback" ? " Use the HTTPS route through the jump host." : "";
+    throw new BridgeError("NoAnswer", { likely }, `The Bridge gave no answer: ${String(error?.message ?? error)}${httpsRoute}`);
   }
   if (answer.ok) return body;
   if (answer.status === 401) {
@@ -103,10 +104,40 @@ export async function pair(address, pairingToken) {
   return { address: bridge.address, token: pairingToken };
 }
 
+function apiRoute(method, path) {
+  const route = bridgeApi.routes.find((candidate) => candidate.method === method && candidate.path === path);
+  if (!route) throw new TypeError(`bridgeApi does not define ${method} ${path}`);
+  return route;
+}
+
+export async function testBridge(bridge) {
+  const pairRoute = apiRoute("GET", "/v1/pair");
+  const paired = await call(bridge, pairRoute.path, { method: pairRoute.method });
+  const route = apiRoute("GET", "/v1/agents");
+  const agents = await call(bridge, route.path, { method: route.method });
+  return { ...paired, ...agents };
+}
+
+export async function handOver(bridge, job) {
+  const route = apiRoute("POST", "/v1/jobs");
+  return call(bridge, route.path, { method: route.method, body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit }) });
+}
+
+export async function ask(bridge, target, input) {
+  const start = apiRoute("POST", "/v1/ask");
+  const { ask: id } = await call(bridge, start.path, { method: start.method, body: JSON.stringify({ ...target, input }) });
+  const follow = apiRoute("GET", "/v1/ask/{ask}");
+  for (;;) {
+    const answer = await call(bridge, follow.path.replace("{ask}", id), { method: follow.method });
+    if (answer.state === "done") return { text: answer.text, usage: answer.usage ?? null };
+    if (answer.state === "failed") throw new BridgeError("AskFailed", {}, answer.error ?? "The Bridge ask failed.");
+  }
+}
+
 export async function probe(bridge, kind, args) {
-  if (kind !== "endpoint-test") throw new TypeError("this Bridge client implements endpoint-test probes");
+  if (!["endpoint-test", "agent"].includes(kind)) throw new TypeError("this Bridge client implements endpoint-test and agent probes");
   const route = bridgeApi.routes.find((candidate) => candidate.method === "POST" && candidate.path === "/v1/probes/{kind}" && candidate.kinds.includes(kind));
-  if (!route) throw new TypeError("bridgeApi does not define endpoint-test");
+  if (!route) throw new TypeError(`bridgeApi does not define ${kind}`);
   const body = await call(bridge, route.path.replace("{kind}", kind), { method: route.method, body: JSON.stringify({ args }) });
   return body?.answer;
 }
