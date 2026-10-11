@@ -35,7 +35,22 @@ const FAULTS = {
 // given: one prepared DriverInput and constructed OpenAI-compatible and Anthropic answers in Node.
 // input: send the same public Driver input through each provider shape.
 // expect: each makes one direct request containing the prepared prompt once and returns the provider answer kind.
-test("TST-316901: prepared input is one direct request for both provider shapes", async (t) => { const calls = []; withFetch(t, async (url, init) => { calls.push({ url, init }); return String(url).includes("claude") ? reply(200, { content: [{ type: "text", text: "anthropic" }] }) : reply(200, { choices: [{ message: { content: "openai" } }], usage: { prompt_tokens: 3, completion_tokens: 2 } }); }); assert.deepEqual(await endpointDriver(OPENAI, PARTICIPANT).send(INPUT), { text: "openai", usage: { inputTokens: 3, outputTokens: 2, minutes: null, cost: null } }); assert.deepEqual(await endpointDriver(ANTHROPIC, PARTICIPANT).send(INPUT), { text: "anthropic", usage: null }); assert.equal(calls.length, 2); assert.ok(calls.every(({ init }) => JSON.parse(init.body).messages[0].content === INPUT.prompt && !init.body.includes(INPUT.parts[0].text))); });
+test("TST-316901: prepared input is one direct request for both provider shapes", async (t) => {
+  const calls = [];
+  withFetch(t, async (url, init) => {
+    calls.push({ url, init });
+    return String(url).includes("claude")
+      ? reply(200, { content: [{ type: "text", text: "anthropic" }] })
+      : reply(200, { choices: [{ message: { content: "openai" } }], usage: { prompt_tokens: 3, completion_tokens: 2 } });
+  });
+  assert.deepEqual(await endpointDriver(OPENAI, PARTICIPANT).send(INPUT), {
+    text: "openai", usage: { inputTokens: 3, outputTokens: 2, minutes: null, cost: null },
+  });
+  assert.deepEqual(await endpointDriver(ANTHROPIC, PARTICIPANT).send(INPUT), { text: "anthropic", usage: null });
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(({ init }) => JSON.parse(init.body).messages[0].content === INPUT.prompt
+    && !init.body.includes(INPUT.parts[0].text)));
+});
 
 // TST-316902
 // given: a controlled browser-context driver and an endpoint answer without usage.
