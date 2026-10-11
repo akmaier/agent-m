@@ -32,9 +32,20 @@ export function dueDiligenceSection(section) {
 const findingText = (found) => `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}`;
 const answerText = (answer) => (answer.text ? `${answer.how}: ${answer.text}` : answer.how);
 
+// Why the loop stopped, as the record's `Left:` line states it: "Left: … · stopped because: <why> · limit: <n>". null where the record
+// has no such line.
+export function stoppedBecause(recordText) {
+  return /^Left: .*? · stopped because: (.+?) · limit: /m.exec(recordText ?? "")?.[1] ?? null;
+}
+
+// What is left, as the record's writer counts it (MOD-job-ledger appendToRecord): the findings of the last round, answered or not,
+// unless the loop passed or checked nothing. Without a stated reason the writer's own default holds: passed if the last round has no
+// finding, else the limit.
+export const isLeft = (stopped, round, last) => round === last && !["passed", "not checked"].includes(stopped ?? (last.findings.length === 0 ? "passed" : "limit"));
+
 // The rounds of the job that drafted the architecture, as its record holds them: each round with its findings, each finding with the
-// drafter's answer; a finding of the last round that no answer follows is left.
-export function roundsSection(rounds) {
+// drafter's answer; the findings of the last round are left unless the loop passed or checked nothing (`stopped`, why it stopped).
+export function roundsSection(rounds, stopped = null) {
   const section = el("section", "rounds", el("h3", null, "Rounds"));
   const last = rounds[rounds.length - 1];
   let left = 0;
@@ -42,9 +53,10 @@ export function roundsSection(rounds) {
     const list = el("ul");
     for (const found of round.findings) {
       const answer = round.answers.find((each) => each.finding === found || findingText(each.finding) === findingText(found));
-      const item = el("li", answer ? "finding" : round === last ? "finding left" : "finding", findingText(found), " ");
-      if (answer) item.append(el("span", "answer", answerText(answer)));
-      else if (round === last) { item.append(el("span", "answer", "left")); left += 1; }
+      const isOne = isLeft(stopped, round, last);
+      const item = el("li", isOne ? "finding left" : "finding", findingText(found), " ");
+      if (answer) item.append(el("span", "answer", answerText(answer)), " ");
+      if (isOne) { item.append(el("span", "left-mark", "left")); left += 1; }
       list.append(item);
     }
     const count = round.findings.length;

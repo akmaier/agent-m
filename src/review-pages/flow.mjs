@@ -13,7 +13,7 @@ import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { splitDueDiligence, dueDiligenceSection, roundsSection } from "./sections.mjs";
+import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
 
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 const TOKEN_STEP = "#add-product";
@@ -96,13 +96,15 @@ function architectureOrder(entries, texts) {
   return entries.map((file) => ({ file, group: group(file) })).sort((a, b) => a.group - b.group || a.file.id.localeCompare(b.file.id)).map(({ file }) => file);
 }
 
-// The rounds of the newest job that drafted an architecture and has ended, as its record holds them; null where there is none.
+// The rounds of the newest job that drafted an architecture and has ended, as its record holds them, with why its loop stopped, which
+// the record's `Left:` line states; null where there is no such job.
 async function draftingRounds(where) {
   try {
     const address = where.context.product?.address ?? where.context.instance.repository;
     const rows = await listJobs([{ address, snapshot: where.snapshot }], new Map());
     const row = rows.find((each) => each.record.kind === ARCHITECTURE_JOB && each.record.end);
-    return row && row.record.end.rounds.length ? row.record.end.rounds : null;
+    if (!row || !row.record.end.rounds.length) return null;
+    return { rounds: row.record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(row.record.path)) };
   } catch { return null; }
 }
 
@@ -228,7 +230,7 @@ export function reviewRoute(kind) {
     }
     if (kind.whole) {
       const rounds = await draftingRounds(where);
-      if (rounds) target.append(roundsSection(rounds));
+      if (rounds) target.append(roundsSection(rounds.rounds, rounds.stopped));
     }
     const heading = `Accept all ${shown.length} shown`;
     if (token) {
