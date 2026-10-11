@@ -14,5 +14,5 @@ export const USE_CASES = {
   plural: "use cases",
   noun: "use case",
   heading: (body) => /^# (.+)$/m.exec(body)?.[1] ?? "",
-  explain: { list: "accepting", one: "accepting", changed: "edit-after-acceptance", fallback: "github-page-without-token" },
+  explain: { list: "accepting", all: "accepting", one: "accepting", changed: "edit-after-acceptance", fallback: "github-page-without-token" },
 };

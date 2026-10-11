@@ -1,5 +1,5 @@
 // flow.mjs — the one review flow every reviewed kind goes through (MOD-review-pages, Parts): the files of a kind with their status
-// and a tick, one file with its text and its difference to the last accepted text, and accepting what was shown.
+// and a tick, one file with its text and its difference to the last accepted text, accepting what was shown, and Review all: every file not yet accepted on one page, with the acceptance of what it shows.
 //
 // Module: MOD-review-pages
 //
@@ -15,6 +15,8 @@ import { explain } from "../site-frame/index.mjs";
 
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 const TOKEN_STEP = "#add-product";
+// The id of the page that shows every file not yet accepted: #<route>/id=all.
+const REVIEW_ALL = "all";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -56,6 +58,17 @@ const recordOf = (id, kind, path, blob) => ({ path: `docs/approvals/${id}-${blob
 
 const shortBody = (body) => body.replace(/^---\n[^]*?\n---\n/, "");
 
+// What an acceptance of several files came to: the commit, and each file left out with its reason and the names it rests on.
+function acceptedMessage(result, idOf) {
+  const message = el("p", "result", `Accepted in commit ${result.commit.slice(0, 7)}.`);
+  for (const out of result.leftOut) {
+    message.append(el("br"), `${idOf(out.path)} was left out: ${out.reason}${out.names.length ? ` (${out.names.join(", ")})` : ""}.`);
+  }
+  return message;
+}
+// What a refused acceptance of several files says: the failure, and each file it left out with its reason.
+const refusedText = (failure, idOf) => [failure.message, ...(failure.leftOut ?? []).map((out) => `${idOf(out.path)}: ${out.reason}`)].join(" ");
+
 // What a read that fails says: a private repository without a token that reaches it is named, and nothing is shown.
 function problem(failure, token) {
   const text = failure.name === "NotFound" && !token
@@ -84,7 +97,8 @@ export function reviewRoute(kind) {
       return;
     }
     const where = { host, token, snapshot, context, target };
-    if (params.id) await showOne(where, params.id);
+    if (params.id === REVIEW_ALL) await showAll(where);
+    else if (params.id) await showOne(where, params.id);
     else await showList(where);
   }
 
@@ -119,22 +133,17 @@ export function reviewRoute(kind) {
       rows.append(row);
     }
     const heading = el("h2", null, kind.title);
-    target.append(heading, explain(kind.explain.list));
+    target.append(heading, link(`#${kind.route}/id=${REVIEW_ALL}`, "review-all", "Review all"), explain(kind.explain.list));
     if (bar) {
       bar.addEventListener("click", async () => {
         bar.disabled = true;
         const shown = [...ticks].map(([path, blob]) => ({ path, blob }));
         try {
           const result = await acceptShown(where.host, shown, token.name);
-          const message = el("p", "result", `Accepted in commit ${result.commit.slice(0, 7)}.`);
-          for (const out of result.leftOut) {
-            message.append(el("br"), `${idOf(out.path, snapshot)} was left out: ${out.reason}${out.names.length ? ` (${out.names.join(", ")})` : ""}.`);
-          }
-          await redraw(where, {}, message);
+          await redraw(where, {}, acceptedMessage(result, (path) => idOf(path, snapshot)));
         } catch (failure) {
-          const left = (failure.leftOut ?? []).map((out) => `${idOf(out.path, snapshot)}: ${out.reason}`);
           bar.disabled = ticks.size === 0;
-          target.append(el("p", "result problem", [failure.message, ...left].join(" ")));
+          target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));
         }
       });
     } else if (context.product && parseServer(context) === "gitlab") {
@@ -142,6 +151,59 @@ export function reviewRoute(kind) {
     }
     target.append(el("table", "list", el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status"))), rows));
     if (bar) target.append(bar);
+  }
+
+  // Review all: every file not yet accepted in sequence — a changed one as its difference to the last accepted text, a new one in
+  // full — and, below them, the acceptance of exactly what is shown.
+  async function showAll(where) {
+    const { target, snapshot, token, host, context } = where;
+    const shown = files(snapshot).filter((file) => file.status !== "accepted");
+    target.append(el("h2", null, `Review all — ${kind.title}`), explain(kind.explain.all));
+    if (shown.length === 0) {
+      target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
+      return;
+    }
+    const records = [];
+    for (const file of shown) {
+      const body = await snapshot.read(file.path);
+      const blob = snapshot.blob(file.path);
+      records.push({ file, record: recordOf(file.id, kind.kind, file.path, blob), blob });
+      const section = el("section", "review-file", el("h3", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]));
+      section.setAttribute("data-id", file.id);
+      if (file.status === "changed") {
+        const diff = el("section", "accepted-diff", el("h4", null, "Changed since it was last accepted"));
+        try {
+          const last = await lastAcceptedText(file.id, host);
+          if (last) diff.append(showDifference(last.text, body));
+        } catch (failure) {
+          diff.append(el("p", "problem", failure.message));
+        }
+        section.append(diff);
+      } else section.append(renderArtifact(shortBody(body)));
+      target.append(section);
+    }
+    const heading = `Accept all ${shown.length} shown`;
+    if (token) {
+      const accept = button("btn accept-all", heading);
+      accept.addEventListener("click", async () => {
+        accept.disabled = true;
+        try {
+          const result = await acceptShown(host, records.map(({ file, blob }) => ({ path: file.path, blob })), token.name);
+          await redraw(where, { id: REVIEW_ALL }, acceptedMessage(result, (path) => idOf(path, snapshot)));
+        } catch (failure) {
+          accept.disabled = false;
+          target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));
+        }
+      });
+      target.append(accept);
+    } else if (parseServer(context) === "gitlab") {
+      target.append(el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+    } else {
+      for (const { file, record } of records) {
+        const offered = fallbackAcceptLink(record, snapshot);
+        target.append(el("p", "github-fallback", `${file.id}: `, link(offered.url, "github-page", "Open GitHub's page to commit the record")));
+      }
+    }
   }
 
   async function showOne(where, id) {
