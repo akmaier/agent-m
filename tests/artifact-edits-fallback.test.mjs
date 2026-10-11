@@ -97,8 +97,8 @@ const FILES = [
 // expect: two results, in the order of the files — for the use case GitHub's editor page of `main`,
 //         https://github.com/alice/thesis-tool/edit/main/docs/use-cases/UC-041-check-out-a-book.md; for the entry GitHub's
 //         new-file page of `main`, https://github.com/alice/thesis-tool/new/main, whose query holds the path as `filename` and an
-//         empty `value` — each with its path and its text as given, for the clipboard, and no line of any text anywhere in
-//         its link, as written or decoded; none refused
+//         empty `value` — each with its path and its text as given, for the clipboard, and nothing else but `differs`, and no
+//         line of any text anywhere in its link, as written or decoded; none refused
 test("fallbackEditLinks — the editor for an existing file, the new-file page for a new one, the link without the text, the text returned", async () => {
   const fake = fakeHost(BRANCH);
   const snapshot = await fake.host.readSnapshot("main");
@@ -112,6 +112,7 @@ test("fallbackEditLinks — the editor for an existing file, the new-file page f
   assert.equal(page.origin + page.pathname, "https://github.com/alice/thesis-tool/new/main", "the new-file page");
   assert.deepEqual([...page.searchParams], [["filename", ENTRY], ["value", ""]], "the path only; the record empty");
   for (const [i, file] of FILES.entries()) {
+    assert.deepEqual(Object.keys(links[i]).sort(), ["differs", "path", "text", "url"], `${file.path}: a link, its path, its text, differs`);
     assert.equal(links[i].path, file.path, `${file.path}: its path`);
     assert.equal(links[i].text, file.text, `${file.path}: its text, for the clipboard`);
     for (const line of file.text.split("\n").filter((l) => l.length > 20)) {
