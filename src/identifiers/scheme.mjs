@@ -1,5 +1,5 @@
 // scheme.mjs — the pattern of each kind (MOD-identifiers' Data: docs/architecture/MOD-identifiers.md), the kind of a string by
-// them, and the identifiers a text writes.
+// them, the identifiers a text writes, and the next identifier of a kind.
 //
 // Module: MOD-identifiers
 //
@@ -71,4 +71,48 @@ export function identifiersIn(path, text) {
     for (const { id, kind } of found) places.push({ id, kind, path, line: i + 1 });
   });
   return places;
+}
+
+// ---------------------------------------------------------------- the next identifier of a kind
+
+// The kinds nextIdentifier gives an identifier of (MOD-identifiers' Interfaces): the numbered ones, which count up, and the ones
+// named by a slug that a person or a participant chooses.
+const NUMBERED = ["UC", "ARC", "TST", "ITM"];
+const SLUGGED = ["SRC", "MOD", "RES"];
+
+// nextIdentifier(kind, everUsed, slug?) -> string — the identifier a new artifact of the kind gets. For a numbered kind: one more
+// than the highest number of that kind in `everUsed`, written with three digits at least; an entry of another kind, or one that
+// is no identifier by the scheme, has no number of this kind. For a slug kind: `<kind>-<slug>`. `everUsed` is read once, so any
+// Iterable<string> will do, and is never left out: it holds what the version history knows, the withdrawn identifiers among them,
+// which no file holds any longer.
+// Throws IdentifierTaken, naming the identifier, when a slug kind's identifier is in `everUsed`; TypeError for a kind outside the
+// seven, and for a slug kind without a slug or with a slug that breaks the scheme (the identifier it would make is not one of the
+// kind by kindOfIdentifier); and RangeError where the next number of ARC, TST or ITM would need a fourth digit, which the scheme
+// does not give those kinds — an identifier that kindOfIdentifier rejects is none to give.
+export function nextIdentifier(kind, everUsed, slug) {
+  if (NUMBERED.includes(kind)) {
+    let highest = 0;
+    for (const used of everUsed) {
+      if (kindOfIdentifier(used) === kind) highest = Math.max(highest, Number(used.slice(kind.length + 1)));
+    }
+    const next = `${kind}-${String(highest + 1).padStart(3, "0")}`;
+    if (kindOfIdentifier(next) !== kind) {
+      throw new RangeError(`nextIdentifier: no identifier is left after ${kind}-${String(highest).padStart(3, "0")}: ${kind} takes exactly three digits`);
+    }
+    return next;
+  }
+  if (!SLUGGED.includes(kind)) {
+    throw new TypeError(`nextIdentifier: ${JSON.stringify(kind) ?? String(kind)} is not a kind it gives an identifier of (${[...NUMBERED, ...SLUGGED].join(", ")})`);
+  }
+  if (slug === undefined || slug === null) throw new TypeError(`nextIdentifier: ${kind} is named by a slug, and none is given`);
+  const id = typeof slug === "string" ? `${kind}-${slug}` : null;
+  if (id === null || kindOfIdentifier(id) !== kind) {
+    throw new TypeError(`nextIdentifier: ${JSON.stringify(slug)} is no slug — lowercase letters and digits in words joined by single hyphens`);
+  }
+  for (const used of everUsed) {
+    if (used === id) {
+      throw Object.assign(new Error(`nextIdentifier: ${id} was used before, and a withdrawn identifier is never given again`), { name: "IdentifierTaken" });
+    }
+  }
+  return id;
 }
