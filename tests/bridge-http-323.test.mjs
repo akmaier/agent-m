@@ -4,14 +4,25 @@
 // Level: unit
 
 import assert from "node:assert/strict";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import { bridgeApi, serveBridge } from "../src/bridge-http/index.mjs";
 
 const ORIGIN = "https://akmaier.github.io";
 const ENDPOINT = { name: "local", kind: "openai-compatible", baseUrl: "http://127.0.0.1:11434", model: "small", key: "key-only-in-body" };
+const FAULTS = {
+  "TST-323001": ["src/bridge-http/protocol.mjs", 'path: "/v1/agents"', 'path: "/v1/agents-missing"'],
+  "TST-323002": ["src/bridge-http/server.mjs", "await handler({ params, query:", "await handler({ params: {}, query:"],
+  "TST-323003": ["src/bridge-http/server.mjs", "handlers.jobs?.[key]", "undefined"],
+  "TST-323004": ["src/bridge-http/server.mjs", "!== await currentToken(config.dataFolder)", "=== await currentToken(config.dataFolder)"],
+  "TST-323005": ["src/bridge-http/server.mjs", 'path === "/v1/jobs" || path === "/v1/ask"', "false"],
+  "TST-323006": ["src/bridge-http/server.mjs", "method: request.method, path, status", "method: request.method, path: request.url, status"],
+};
 
 async function running(t, { paused = () => false, jobs = {} } = {}) {
   const folder = await mkdtemp(join(tmpdir(), "agent-m-bridge-http-323-"));
@@ -84,6 +95,26 @@ test("TST-323006: selected route logs exclude ask bodies and job-log query value
   assert.match(text, /\"method\":\"GET\".*\"path\":\"\/v1\/jobs\/JOB-323\/log\".*\"status\":200.*\"duration\":\d+/);
   assert.equal(text.includes("body-secret-323"), false);
   assert.equal(text.includes("query-secret-323"), false);
+});
+
+after(() => {
+  if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_323_FAULT_CHILD) return;
+  const temporary = mkdtempSync(join(tmpdir(), "agent-m-323-fault-")), copied = join(temporary, "repo"), digest = (value) => createHash("sha256").update(value).digest("hex");
+  try {
+    cpSync(process.cwd(), copied, { recursive: true, filter: (path) => !path.includes("/.git") && !path.includes("/node_modules") });
+    for (const [id, [file, needle, replacement]] of Object.entries(FAULTS)) {
+      const source = join(copied, file), original = readFileSync(source);
+      assert.equal(original.toString().split(needle).length - 1, 1, `${id}: unique fault target`);
+      const invoke = () => spawnSync(process.execPath, ["--test", "--test-name-pattern", id, "tests/bridge-http-323.test.mjs"], { cwd: copied, encoding: "utf8", timeout: 15_000, env: { ...process.env, AGENT_M_323_FAULT_CHILD: "1" } });
+      const originalHash = digest(original), testHash = digest(readFileSync(join(copied, "tests/bridge-http-323.test.mjs"));
+      let failed, passed, faultHash, restoredHash; const faultStarted = new Date().toISOString();
+      try { writeFileSync(source, original.toString().replace(needle, replacement)); faultHash = digest(readFileSync(source)); failed = invoke(); }
+      finally { writeFileSync(source, original); restoredHash = digest(readFileSync(source)); }
+      passed = invoke();
+      console.log("TST323-counterproof " + JSON.stringify({ id, file, needle, replacement, testHash, originalHash, faultHash, restoredHash, faultStarted, argv: [process.execPath, "--test", "--test-name-pattern", id, "tests/bridge-http-323.test.mjs"], cwd: copied, failed: { status: failed.status, stdout: failed.stdout, stderr: failed.stderr }, passed: { status: passed.status, stdout: passed.stdout, stderr: passed.stderr } }));
+      assert.equal(failed.status, 1, id); assert.equal(restoredHash, originalHash, `${id}: exact restoration`); assert.equal(passed.status, 0, id);
+    }
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
 
 // TST-323003
