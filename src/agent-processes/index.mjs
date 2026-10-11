@@ -36,7 +36,7 @@ function rowOf(cells) {
 }
 const rows = register.rows.map(({ cells }) => rowOf(cells));
 
-function invoke(command, args, env = process.env) {
+function invoke(command, args, env = ownLoginEnvironment()) {
   return new Promise((resolve) => {
     let stdout = "", stderr = "";
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], env });
