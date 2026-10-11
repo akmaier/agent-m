@@ -1,6 +1,6 @@
 // The adapter for a local clone, through the `git` command: files read at a commit of the clone and committed in it, then pushed
 // to the clone's origin with the clone's own credentials — whatever access the clone was made with. Node only: index.mjs
-// loads this file only there.
+// uses it only there.
 //
 // Module: MOD-repository-hosts
 //
@@ -8,11 +8,11 @@
 // commitFiles(change) — beside the REST adapter that serves the host's other functions where a token is given. It touches
 // neither the clone's working tree nor its branches: a commit is made on the head the caller names, in a temporary index.
 
-import { execFile } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { HostError } from "./failures.mjs";
+
+// Node's own modules, taken when a command is run — which only Node does — and not imported, so that a browser which loads this
+// file with the rest of the module meets none of them.
+const builtin = (name) => globalThis.process.getBuiltinModule(`node:${name}`);
 
 const HEAD = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 // What git says when the origin does not hold what was asked for, as against when it could not be asked.
@@ -28,7 +28,7 @@ export function localAdapter(address, folder) {
   // command that fails -> { failed: its error } when `tolerate`, else Unreachable with what git says.
   function git(args, { env = {}, input = null, buffer = false, tolerate = false } = {}) {
     return new Promise((resolve, reject) => {
-      const child = execFile("git", args, { cwd: folder, encoding: buffer ? "buffer" : "utf8", maxBuffer: 1 << 28,
+      const child = builtin("child_process").execFile("git", args, { cwd: folder, encoding: buffer ? "buffer" : "utf8", maxBuffer: 1 << 28,
         env: { ...process.env, GIT_TERMINAL_PROMPT: "0", ...env } }, (error, stdout, stderr) => {
         if (!error) return resolve(stdout);
         const said = String(stderr ?? "").trim() || error.message;
@@ -82,9 +82,10 @@ export function localAdapter(address, folder) {
     // One commit of all the files on the head the caller names, made in a temporary index, then pushed to the branch of the
     // origin with no force: a push that does not fast-forward is refused, and the commit is Moved, with nothing pushed.
     async commitFiles({ branch, expectedHead, files, message }) {
-      const dir = await mkdtemp(join(tmpdir(), "agent-m-index-"));
+      const { mkdtemp, rm } = builtin("fs/promises");
+      const dir = await mkdtemp(builtin("path").join(builtin("os").tmpdir(), "agent-m-index-"));
       try {
-        const env = { GIT_INDEX_FILE: join(dir, "index") };
+        const env = { GIT_INDEX_FILE: builtin("path").join(dir, "index") };
         if (expectedHead) {
           if (!(await commitOf(expectedHead))) throw moved(branch, await originHead(branch));
           await git(["read-tree", expectedHead], { env });

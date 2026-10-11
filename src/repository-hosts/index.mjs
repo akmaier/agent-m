@@ -14,6 +14,7 @@ import { HostError } from "./failures.mjs";
 import { githubAdapter } from "./github.mjs";
 import { gitlabAdapter } from "./gitlab.mjs";
 import { webLinks } from "./web-links.mjs";
+import { localAdapter } from "./local-git.mjs";
 
 export { HostError };
 
@@ -114,14 +115,14 @@ function refuseSecrets(files, secrets) {
   }
 }
 
-// A clone is worked in by the git command, which only Node runs: the adapter is loaded when it is first used, and only there.
+// A clone is worked in by the git command, which only Node runs: connect refuses a clone elsewhere, and the adapter, which
+// touches Node's modules only when it runs a command, is never used there.
 const IN_NODE = typeof process !== "undefined" && Boolean(process.versions?.node);
 
-// The adapter of a host with a clone: the snapshot, the files and the commit through the clone, loaded when first used; every
+// The adapter of a host with a clone: the snapshot, the files and the commit through the clone; every
 // other function through the REST adapter where a token is given (`rest`), else NotSupported.
 function throughClone(repository, folder, rest) {
-  let local = null;
-  const clone = async () => (local ??= (await import("./local-git.mjs")).localAdapter(repository, folder));
+  const clone = localAdapter(repository, folder);
   const without = (what) => async () => {
     throw new HostError("NotSupported", { what }, `${what} needs the server's API, which a clone without a token does not reach; store a token first.`);
   };
@@ -132,9 +133,9 @@ function throughClone(repository, folder, rest) {
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
-    snapshot: async (ref) => (await clone()).snapshot(ref),
-    readFile: async (commit, path) => (await clone()).readFile(commit, path),
-    commitFiles: async (change) => (await clone()).commitFiles(change),
+    snapshot: (ref) => clone.snapshot(ref),
+    readFile: (commit, path) => clone.readFile(commit, path),
+    commitFiles: (change) => clone.commitFiles(change),
   };
 }
 
