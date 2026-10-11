@@ -74,8 +74,8 @@ function installMermaid(svg = SAFE_SVG, vertices = new Map()) {
   return calls;
 }
 
-// This stand-in follows Mermaid's public parser shape: each parse clears the shared database,
-// yields at the parser await, and returns a Diagram that still reads that database through
+// This stand-in follows Mermaid's public parser shape: each parse clears and populates the shared database,
+// then yields at the parser await and returns a Diagram that still reads that database through
 // getVertices(). It therefore lets two public renderArtifact calls expose the same ownership
 // boundary as the vendored flowchart parser without changing the established small DOM.
 function installSharedDbMermaid() {
@@ -87,10 +87,10 @@ function installSharedDbMermaid() {
       async getDiagramFromText(source) {
         calls.push({ kind: "getDiagramFromText", source });
         shared.vertices = new Map();
-        await Promise.resolve();
         shared.vertices.set(source.includes("asset@") ? "asset" : "plain", source.includes("asset@")
           ? { id: "asset", img: "https://outside.example/diagram.png" }
           : { id: "plain" });
+        await Promise.resolve();
         return { db: { getVertices: () => shared.vertices } };
       },
     },
