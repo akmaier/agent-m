@@ -504,6 +504,52 @@ class NoServer(unittest.TestCase):
         self.assertEqual(len(channel_findings(elsewhere)), 1)
         self.assertEqual(foreign_by_file(elsewhere), {"src/home/home.mjs": ["entra.microsoft.com", "myapps.microsoft.com"]})
 
+    def test_counter_proof_mail_routes_graph_requests_are_allowed_beside_the_lookup(self):
+        # MOD-mail-routes (docs/architecture/MOD-mail-routes.md, Mailbox: "Every operation crosses the network — to Microsoft Graph") and ITM-425
+        # (the Microsoft route "through Microsoft Graph, the token ... only in the authorisation header of those requests"): the module's requests
+        # to Microsoft Graph, the mail provider's API that NO SERVER permits, beside the one lookup at the sign-in service. A Graph request is a
+        # fetch whose address begins with the module's constant for Graph's version 1.0 address, declared once in the file; the module sends them
+        # through one request function, and the check allows two fetches in the folder: that one and the lookup.
+        path = "src/mail-routes/index.mjs"
+        lookup = ('const SIGN_IN_SERVICE = "https://login.microsoftonline.com";\n'
+                  'export async function routeFor(address) {\n'
+                  '  const status = (await fetch(`${SIGN_IN_SERVICE}/${encodeURIComponent(domain)}/v2.0/.well-known/openid-configuration`, '
+                  '{ credentials: "omit", cache: "no-store" })).status;\n}\n')
+        graph = ('const GRAPH = "https://graph.microsoft.com/v1.0";\n'
+                 'async function graphRequest(token, path) {\n'
+                 '  return fetch(`${GRAPH}${path}`, { headers: { Authorization: `Bearer ${token}` }, credentials: "omit", cache: "no-store" });\n}\n')
+        accepted = lookup + graph
+        # Known positives: the lookup alone is allowed as before; the same fetch in another module's folder is found; the Graph address is no
+        # foreign host.
+        self.assertEqual(channel_findings({path: lookup}), [])
+        self.assertEqual(len(channel_findings({"src/home/home.mjs": graph})), 1)
+        self.assertEqual(foreign_by_file({path: graph}), {})
+        self.assertEqual(channel_findings({path: accepted}), [])
+        self.assertEqual(channel_findings({path: graph}), [])
+        # Planted: a fetch whose address is not Graph's constant, one to another origin, a constant of another address, a lookalike host, an
+        # insecure address, a version that is not 1.0, a second request function, and the constant declared nowhere are found.
+        for planted, note in (
+            (accepted.replace("fetch(`${GRAPH}${path}`", "fetch(path"), "an address from a variable"),
+            (accepted.replace("fetch(`${GRAPH}${path}`", "fetch(`https://example.org${path}`"), "another origin"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"https://graph.example.org/v1.0"'), "a constant of another host"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"https://graph.microsoft.com.example.org/v1.0"'), "a lookalike host"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"http://graph.microsoft.com/v1.0"'), "an insecure address"),
+            (accepted.replace('"https://graph.microsoft.com/v1.0"', '"https://graph.microsoft.com/beta"'), "a version that is not 1.0"),
+            (accepted.replace("const GRAPH = ", "const OTHER = "), "the constant declared nowhere"),
+            (accepted + "async function again(path) { return fetch(`${GRAPH}${path}`); }\n", "a second request function"),
+            (accepted + "fetch(address);\n", "a fetch at a variable address"),
+            (graph + graph.replace("graphRequest", "second") + lookup, "the request function twice"),
+        ):
+            with self.subTest(note):
+                self.assertTrue(channel_findings({path: planted}), note)
+        # The constant is read by name from the file, not assumed: another name for it is allowed.
+        renamed = accepted.replace("GRAPH", "GRAPH_API")
+        self.assertEqual(channel_findings({path: renamed}), [])
+        # Only fetch is opened: the other channels stay findings in the folder, and a link to another Microsoft page does too.
+        for channel in ("new WebSocket(`wss://graph.microsoft.com`);\n", "navigator.sendBeacon(GRAPH);\n", "new XMLHttpRequest();\n"):
+            self.assertTrue(channel_findings({path: accepted + channel}), channel)
+        self.assertEqual(foreign_by_file({path: accepted + 'const page = "https://tracker.example/";\n'}), {path: ["tracker.example"]})
+
     def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
         accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
                     'function requestHeaders(bridge, contentType = false) {\n'
