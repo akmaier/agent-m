@@ -5,7 +5,7 @@ area: 4 architecture
 actors:
   - Author
   - Resource host
-  - Local bridge
+  - Bridge
 realises:
   - A PRODUCT DECLARES ITS RESOURCES
   - A RESOURCE IS USED, A PARTICIPANT DEVELOPS
@@ -59,7 +59,7 @@ product's list never inherits from the instance's, so the product still says on 
 built with and runs on.
 
 The same local LLM endpoint can be both: a resource the product queries at runtime, and — as a
-coding agent behind the bridge — a participant that works on the product. It is then two entries,
+coding agent behind a Bridge — a participant that works on the product. It is then two entries,
 each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
 
 | Kind | Example | Pinned by | Reached through |
@@ -67,8 +67,8 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
 | **repository** | `https://gitlab.rrze.fau.de/lme/speech-dlls` (private, binaries) | commit | the browser, with the token of its server |
 | **data** | a Hugging Face dataset, a folder on a group share | revision or SHA-256 of every file | the browser, or the job that downloads it |
 | **model** | a Hugging Face model, a checkpoint file | revision or SHA-256 of every file | the browser, or the job that downloads it |
-| **compute** | a SLURM cluster, a GPU workstation | — the software environment on it (container image digest, module versions) is pinned in the product's job files, not here | the local bridge, or a self-hosted runner by label |
-| **endpoint** | a local vLLM or Ollama server the product calls | identifier of the served model | the product itself at runtime; jobs through bridge or runner |
+| **compute** | a SLURM cluster, a GPU workstation | — the software environment on it (container image digest, module versions) is pinned in the product's job files, not here | a Bridge by its name, or a self-hosted runner by its label |
+| **endpoint** | a local vLLM or Ollama server the product calls | identifier of the served model | the product itself at runtime; jobs through a Bridge or a runner |
 | **agent** | an agent service the product delegates to at runtime | identifier of the served model or version | as endpoint |
 
 ## Actors
@@ -76,14 +76,15 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
 - **Author** — decides what the product is built with and runs on.
 - **Resource host** — the server that holds a resource: GitHub, a GitLab server, Hugging Face, an
   endpoint.
-- **Local bridge** — reaches compute and local endpoints the browser cannot reach (UC-011).
+- **Bridge** — a Bridge paired with this browser and kept under its name, on a computer that reaches compute and
+  endpoints the browser cannot reach (UC-011).
 
 ## Precondition
 
 - The product is managed by the instance (UC-001).
 - For a private resource, the author has access to it on its host.
-- For a compute resource or a local endpoint, the bridge runs on a machine that reaches it (UC-011),
-  or a self-hosted runner with a known label is registered for the product repository.
+- For a compute resource or a local endpoint, a Bridge runs on a computer that reaches it and is paired with this
+  browser (UC-011), or a self-hosted runner with a known label is registered for the product repository.
 
 ## Main flow
 
@@ -99,7 +100,8 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
    - **data / model on Hugging Face:** Agent M reads the current revision and the licence from the
      Hub and pins the revision — where the Hub answers the browser, which is not yet measured (3b).
    - **compute:** the author names it (*Alex, NHR@FAU*), picks what it is (*SLURM cluster*, *GPU
-     machine*) and the route: **local bridge** or **self-hosted runner** with its label (`gpu`).
+     machine*) and the route: a **Bridge**, chosen by its name among the Bridges this browser keeps (`gpu01`), or a
+     **self-hosted runner** with its label (`gpu`).
    - **endpoint / agent:** the author enters the base address (`http://gpu01:8000/v1`) and the route
      by which jobs reach it; the identifier of the served model is recorded at the check in step 7.
 4. The author confirms or enters the **licence** (for repository, data, model) and the
@@ -112,10 +114,10 @@ each complete on its own (`ONE SYSTEM IN TWO ROLES IS TWO ENTRIES`).
    stored in `localStorage` and sent only to that resource's server. The folded explanation repeats
    ch. 10's warning that a leaked key is like a published credit-card number.
 6. For compute, endpoint and agent, the author states where data given to it is processed. Agent M
-   presets *this machine* for a bridge on the author's machine and asks otherwise, with examples
+   presets *this machine* for this computer's Bridge and asks otherwise, with examples
    (*NHR@FAU, Erlangen*).
 7. The author presses **Check**. Agent M reaches the resource by its route: a read on the host for a
-   repository, data or model; through the bridge, with its bridge token, a harmless request — for a
+   repository, data or model; through the Bridge the route names, with its token, a harmless request — for a
    SLURM cluster the partition list, for an endpoint the list of served models — and shows what
    answered. For an endpoint or agent, the served identifier becomes its pin.
 8. The author presses **Save** — one click. Agent M commits the entry to `docs/resources.md` of the
@@ -130,7 +132,7 @@ sequenceDiagram
     actor A as Author
     participant D as Dashboard
     participant H as Resource host
-    participant B as Local bridge
+    participant B as Bridge
     participant P as Product repository
     A->>D: Resources, + Add resource, choose kind
     A->>D: address, route
@@ -138,7 +140,7 @@ sequenceDiagram
     H-->>D: pin, licence, maintenance history
     A->>D: licence, maintainer, secret name, processing place
     A->>D: Check
-    D->>B: harmless request with bridge token
+    D->>B: harmless request with that Bridge's token
     B-->>D: partitions or served models
     A->>D: Save
     D->>P: commit docs/resources.md (no secret, no restricted content)
@@ -174,7 +176,7 @@ sequenceDiagram
   register the licence as a source and UC-015 to link it (`A RESOURCE'S TERMS ENTER AS A SOURCE`).
 - **4c. The maintainer is a single person.** Agent M shows *bus factor 1* beside the entry, with the
   folded explanation of the PEAKS example from ch. 6 §5; the entry is saved as entered.
-- **7a. The bridge does not answer.** Agent M names the reason — not running, wrong address, token
+- **7a. The Bridge the route names does not answer.** Agent M names the reason — not running, wrong address, token
   missing — and saves nothing until the author decides to save unchecked.
 - **7b. The route is a self-hosted runner.** The browser cannot reach it; Agent M offers a check job
   on that runner label through the product's workflow and shows its result on the dashboard.

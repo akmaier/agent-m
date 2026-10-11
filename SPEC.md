@@ -152,6 +152,13 @@ Every requirement names at least one source linked to its product; a requirement
 be accepted.
 *Check:* `tests/test_requirement_has_source.py`
 
+**THE PERSON WHO PROMPTS IS A SOURCE** *(PO A. Maier)*
+A requirement that a participant drafts from a person's instruction names that person's registered source among its
+sources.
+*Check:* `tests/test_prompted_source.py` — drafts a change of a requirement by prompt with a fixture participant, for a
+person whose source the fixture product registers and links, and composes the sections the change would save. It checks
+that every drafted requirement names that person's source among its sources.
+
 **A SOURCE DECLARES ITS AUTHORITY** *(PO A. Maier)*
 A source declares whether it is `normative`, `advisory` or `informational`; the declaration is
 made at the source, not inferred from how often it is cited.
@@ -559,14 +566,18 @@ The bridge shows the token it is paired with in its own window, with a button th
 *Check:* no automatic check; at review.
 
 **THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT** *(PO A. Maier)*
-A bridge's own settings — its jump host, its port, its pairing token — are set in its window or read from
-a settings file exported by the dashboard.
-*Check:* `tests/test_bridge_settings.py`
+A bridge's own settings — its name, its jump host, its port, its pairing token, the working folder of each agent it
+offers — are set in its window or read from a settings file exported by the dashboard.
+*Check:* `tests/test_bridge_settings.py` — sets each of these settings in the bridge's window and imports a fixture
+settings export of the dashboard. It checks that every setting is kept as it was set, and that the part the export holds
+is taken from the file.
 
 **THE BRIDGE FINDS THE INSTALLED AGENTS** *(PO A. Maier)*
 The bridge lists each supported coding-agent CLI that is installed on its machine, with its version, and
-offers only those as participants.
-*Check:* `tests/test_bridge_agents.py` — with fixture executables on the path, exactly those are listed.
+offers as participants only those of them the person has chosen in its window.
+*Check:* `tests/test_bridge_agents.py` — puts fixture executables of supported agents on the path and chooses some of
+them in the bridge's settings. It checks that exactly the installed ones are listed, and that only the chosen ones are
+offered.
 
 **THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT** *(PO A. Maier)*
 For a supported agent that is not installed, the bridge shows the vendor's installation instructions for
@@ -1407,11 +1418,13 @@ A file that no module of the accepted architecture owns — code outside every m
 whose header names no module of the architecture — is changed by no implementation job. It is changed between jobs, by a
 pull request of its own that only makes old code call a module in place of its own code and its texts describe what the
 module does, removes what a module now provides together with the tests of what it removes, names in a test's header the module that now holds what the test
-tests, lets a check of the whole repository allow a module what the module's file states that it uses, or lets a test
-helper reach the modules' files.
-*Check:* `tests/test_implementation_job.py` — an implementation job's pull request that changes such a file is refused,
-and so is a pull request between jobs that changes one in any other way; counter-proof: a pull request between jobs that
-replaces code of such a file by a call into a module passes.
+tests, lets a check of the whole repository allow a module what the module's file states that it uses, lets a test
+helper reach the modules' files, or adds or changes a workflow file that only runs an entry that a module's file names.
+*Check:* `tests/test_implementation_job.py` — checks pull requests of a fixture product that change a file no module
+owns, from an implementation job and between jobs. It checks that the implementation job's pull request is refused, that
+a pull request between jobs is refused when it changes such a file in a way the rule does not name, and that one passes
+that replaces code of such a file by a call into a module, or that adds a workflow file that only runs an entry that a
+module's file names.
 
 **MODULE GAPS ARE REPORTED, NOT FORBIDDEN** *(PO A. Maier)*
 A module that realises no requirement, a requirement that no module realises, a module that no test
@@ -1641,26 +1654,37 @@ job's participant with the job's role assignment. It checks that every job goes 
 assignment.
 
 **A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING** *(PO A. Maier)*
-The input Agent M sends with a job that writes or changes requirements or use cases contains chapter 8 of the book *Vibe
+The input Agent M sends with a job that writes or changes requirements or use cases gives chapter 8 of the book *Vibe
 Coding* in full.
-*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
-the book's chapter files. It checks that a job on requirements or use cases receives chapter 8 complete.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition, for a job in the
+browser and for a job in a checkout of the instance, and compares it with the book's chapter files. It checks that a job
+on requirements or use cases receives chapter 8 complete, as its text or as its file in the checkout.
 
 **A TEST JOB RECEIVES THE CHAPTER ON TESTING** *(PO A. Maier)*
-The input Agent M sends with a job that writes or changes tests contains chapter 13 of the book *Vibe Coding* in full.
-*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
-the book's chapter files. It checks that a job on tests receives chapter 13 complete.
+The input Agent M sends with a job that writes or changes tests gives chapter 13 of the book *Vibe Coding* in full.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition, for a job in the
+browser and for a job in a checkout of the instance, and compares it with the book's chapter files. It checks that a job
+on tests receives chapter 13 complete, as its text or as its file in the checkout.
 
 **AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION** *(PO A. Maier)*
-The input Agent M sends with a job that writes, changes or reviews the architecture contains chapters 9, 10, 11 and 12
+The input Agent M sends with a job that writes, changes or reviews the architecture gives chapters 9, 10, 11 and 12
 of the book *Vibe Coding* in full.
-*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
-the book's chapter files. It checks that a job on the architecture receives chapters 9 to 12 complete.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition, for a job in the
+browser and for a job in a checkout of the instance, and compares it with the book's chapter files. It checks that a job
+on the architecture receives chapters 9 to 12 complete, as their texts or as their files in the checkout.
 
 **AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING** *(PO A. Maier)*
-The input Agent M sends with an implementation job contains chapters 9, 11, 12 and 13 of the book *Vibe Coding* in full.
-*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition and compares it with
-the book's chapter files. It checks that an implementation job receives chapters 9, 11, 12 and 13 complete.
+The input Agent M sends with an implementation job gives chapters 9, 11, 12 and 13 of the book *Vibe Coding* in full.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job from its job definition, for a job in the
+browser and for a job in a checkout of the instance, and compares it with the book's chapter files. It checks that an
+implementation job receives chapters 9, 11, 12 and 13 complete, as their texts or as their files in the checkout.
+
+**A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE** *(PO A. Maier)*
+The input of a job whose participant works in a checkout of the instance gives each chapter of the book *Vibe Coding* as
+the path of the chapter's file in that checkout, whose SHA-256 is the one the source register records.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job for a participant that works in a fixture
+checkout of the instance, and reads the files the input names there. It checks that each chapter is given by the path
+of its file and none by its text, and that a chapter file whose SHA-256 differs from the register's is refused by name.
 
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
@@ -1830,9 +1854,10 @@ and the participants are byte-identical, and the proposed changes are open for a
 
 **A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE** *(PO A. Maier)*
 The dashboard reaches a Microsoft 365 mailbox directly through Microsoft Graph, and any other mailbox —
-Gmail included — through the local bridge over IMAP and SMTP.
-*Check:* `tests/test_mail_routes.py` — a Microsoft 365 fixture is read with no bridge request;
-counter-proof: an IMAP fixture, a Gmail one included, is read only through the bridge.
+Gmail included — over IMAP and SMTP through the bridge its connection names.
+*Check:* `tests/test_mail_routes.py` — reads a Microsoft 365 fixture mailbox and IMAP fixture mailboxes, a Gmail one
+included, whose connections name different bridges, and records every request. It checks that the Microsoft 365 mailbox
+is read with no bridge request, and that each IMAP mailbox is read only through the bridge its connection names.
 
 **AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN** *(PO A. Maier)*
 A mailbox reached through its provider's web API is authorised by that provider's sign-in in the
@@ -1860,9 +1885,16 @@ mail in its name.
 acknowledged.
 
 **THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE** *(PO A. Maier)*
-The mailbox password leaves the browser only inside a request to the local bridge.
-*Check:* `tests/test_mail_password_route.py` — every outgoing request of a full mail run is recorded;
-the password appears only in requests to the bridge address.
+The mailbox password leaves the browser only inside a request to the bridge its connection names.
+*Check:* `tests/test_mail_password_route.py` — records every outgoing request of a full mail run while two bridges are
+stored. It checks that the password appears only in requests to the address of the bridge the connection names.
+
+**A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE** *(PO A. Maier)*
+Before a mailbox connection whose bridge is reached through the jump host is saved, the dashboard states that the jump
+host can read the mailbox password and the mails.
+*Check:* `tests/test_settings_disclosure.py` — saves fixture IMAP connections, one whose bridge is reached through the
+jump host and one whose bridge runs on this computer. It checks that the first is stored only after the notice is
+acknowledged, and that the second is stored with no such notice.
 
 **THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST** *(PO A. Maier)*
 The bridge keeps the mailbox password only in memory, for the duration of the request that carried
@@ -2166,10 +2198,10 @@ resource's server.
 credential; counter-proof: the request to the resource's own server carries it.
 
 **A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER** *(PO A. Maier)*
-A resource of kind `compute` names the route by which jobs reach it, which is either the local
-bridge (UC-011) or a self-hosted runner identified by its label.
-*Check:* `tests/test_resources.py` — a `compute` entry without a route, or with another route, is
-rejected; counter-proof: `bridge` and `runner:<label>` are accepted.
+A resource of kind `compute` names the route by which jobs reach it, which is either a bridge identified
+by its name (UC-011) or a self-hosted runner identified by its label.
+*Check:* `tests/test_resources.py` — validates fixture `compute` entries with the resource schema. It checks that a route
+`bridge <name>` or `runner:<label>` is accepted, and that an entry without a route, or with another route, is rejected.
 
 **A RESOURCE DECLARES WHERE IT PROCESSES DATA** *(PO A. Maier)*
 Each resource of kind `compute`, `endpoint` or `agent` states where the data given to it is

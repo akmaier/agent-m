@@ -39,24 +39,22 @@ schema that the writer `queue-entries` defines (ITM-338):
 - `openQueueOf` gives the person's newest queue of the day, by the author of the commit that created its index
   (ITM-309), that has no entry in the SPEC yet.
 - `proposeSection` writes one commit: the entry, its rationale — the change, the *Why*, the impact list (ITM-307), the
-  origin — and its index row, into that queue or a new one. A second edit of the same section in that queue replaces
-  its entry; a rename is proposed as the old name withdrawn and the new one added (ITM-302); the target is never
-  touched; when the section changed meanwhile, it refuses and returns the newer text; `alsoReplacing` names other open
-  entries that replace the same section; without a token on GitHub it writes nothing and returns `fallbackEditLinks`'
-  pages (ITM-335); on GitLab it fails with `TokenRequired`.
+  origin — and its index row, into that queue or a new one; `trailers` end the commit's message, a job's provenance
+  lines when a person saves a change by prompt, none for the person's own edit. A second edit of the same section in
+  that queue replaces its entry; a rename is proposed as the old name withdrawn and the new one added (ITM-302); the
+  target is never touched; when the section changed meanwhile, it refuses and returns the newer text; `alsoReplacing`
+  names other open entries that replace the same section; without a token on GitHub it writes nothing and returns
+  `fallbackEditLinks`' pages (ITM-335); on GitLab it fails with `TokenRequired`.
 
-The requirement editor (ITM-359) calls it. `requirementHistory` and editing an entry of another queue in place are not
-part of this item.
+The requirement editor (ITM-359) and the prompt route of requirements (ITM-398) call it. `requirementHistory` and saving
+an open entry in place (ITM-394) are not part of this item.
 
 ## Acceptance
 
-- Unit tests that name MOD-spec-changes state, before the code exists, on a fixture repository behind a Host of the
-  tests' own: the day's first edit opens a new queue in one commit; an edit of another section joins that queue; a
-  second edit of the same section replaces its entry; a queue with an entry in the SPEC is not the open one; a rename
-  proposed as withdrawn and added, with the impact list of the old name; a section changed meanwhile refused with the
-  newer text; an open entry of another queue on the same section named in `alsoReplacing`; without a token, pages
-  returned and nothing written; GitLab without a token failing with `TokenRequired`; `SPEC.md` byte-identical after
-  every case.
+- Unit tests that name MOD-spec-changes state, before the code exists, with a fixture host: the newest open queue of the
+  day found and a new one made without it; an entry with its rationale, impact list and index row in one commit; a
+  second edit of a section replacing its entry; a rename as withdrawal and addition; a changed section refused with its
+  text; trailers at the end of the message; GitHub's pages without a token; `TokenRequired` on GitLab.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.

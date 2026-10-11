@@ -20,10 +20,12 @@ builds_on:
   - ITM-303
   - ITM-307
   - ITM-302
+  - ITM-393
+  - ITM-390
 tests:
   - unit
 origin:
-  - UC-005 step 8, 5b, 6a, 7b
+  - UC-005 step 8, 5a, 5b, 6a, 7b
   - UC-019 6b
 ---
 # ITM-338 Classified candidates written as change queues
@@ -33,20 +35,21 @@ origin:
 ## Outcome
 
 The writer `queue-entries` of `specStrategies`, as MOD-spec-changes' file states it, with the rationale's schema
-`queue-rationale.schema.md`: classified candidates written as a new queue of the SPEC each belongs in — a candidate that
-constrains the development process to a queue of the instance's SPEC, its class decided with `classifyCandidates`
-(ITM-303) against that SPEC and its open queues, every other to one of the product's —, one commit per queue; one entry
-per section they touch, its current text from `sectionText` (ITM-302): a `new` added to its section, a `change` under
-its existing name, a `duplicate` as an added source, a `conflict` only as the person resolved it; each rationale with
-its origin, its impact list (ITM-307), the version, participant, model, date and rounds; the commit with the job's
-provenance lines; `SPEC.md` untouched.
+`queue-rationale.schema.md`: the candidates written by the result's classes as the person left them (ITM-387), as a new
+queue of the SPEC each belongs in — a candidate that constrains the development process to a queue of the instance's
+SPEC, its class decided with `classifyCandidates` (ITM-303) against that SPEC and its open queues, every other to one of
+the product's —, one commit per queue; one entry per section they touch, as `entrySections` composes it with the job's
+`source` (ITM-393); a candidate that points to a source the product does not link (`linkedVersion` gives none) not
+written, the outcome's notes naming it with that source as the hint to link it first (UC-005 5a; ITM-390); each
+rationale with its origin, its impact list (ITM-307), the version, participant, model, date and rounds; the commit with
+the job's provenance lines; nothing committed when every section already stands as written; `SPEC.md` untouched.
 
 ## Acceptance
 
-- Unit tests that name MOD-spec-changes state, before the code exists, with a fixture host: one candidate of each
-  class written as said; an undecided conflict not written and a resolved one written as decided; a process candidate
-  in the instance's queue; one entry per touched section with its rationale, impact list and provenance lines;
-  `SPEC.md` byte-identical.
+- Unit tests that name MOD-spec-changes state, before the code exists, with a fixture host: one candidate of each class
+  written as the classes say; an undecided conflict not written and a resolved one written as decided; a process
+  candidate in the instance's queue; a candidate of an unlinked source left out and noted; one entry per touched section
+  with its rationale, impact list and provenance lines; `SPEC.md` byte-identical.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.

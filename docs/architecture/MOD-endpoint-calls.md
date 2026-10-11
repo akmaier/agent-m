@@ -25,9 +25,10 @@ It belongs to Participants and jobs (ARC-046). It is the participant driver for 
 Anthropic, hosted or self-hosted — that a browser or Node calls directly: it sends a job's input as one request and
 returns the answer and the usage the endpoint reported; it sends the short test request of UC-003; and when a browser
 cannot call an endpoint, it names the reason and the routes that would work instead (`AN UNSUPPORTED ENDPOINT SAYS SO`).
-A model server on a person's computer is called through the Bridge only for UC-003's short test: MOD-bridge-jobs invokes
-`testEndpoint` in Node after the page explicitly chooses its `throughBridge` route. The endpoint driver remains a direct
-browser or Node caller; it neither selects nor reaches a Bridge. It runs in a browser and in Node, and keeps nothing.
+An endpoint the browser cannot call is called through the Bridge its configuration names, for UC-003's short test and
+for the requests of jobs: MOD-bridge-jobs runs `testEndpoint` and `endpointDriver` in Node on that Bridge. Wherever it
+runs, the driver calls the endpoint directly; it neither selects nor reaches a Bridge, which MOD-runtimes does. It runs
+in a browser and in Node, and keeps nothing.
 
 ## Parts
 
@@ -38,8 +39,8 @@ browser or Node caller; it neither selects nor reaches a Bridge. It runs in a br
 
 ## Data
 
-**An endpoint's configuration**, as a browser keeps it in its store and as CI gives it from the job's settings and
-secrets:
+**An endpoint's configuration**, as a browser keeps it in its store — where an endpoint the browser cannot call also
+names its Bridge (MOD-browser-store) — and as CI gives it from the job's settings and secrets:
 
 ```json
 { "name": "nhr-hub", "kind": "openai-compatible", "baseUrl": "https://example.org/v1", "model": "example-model",
@@ -47,9 +48,9 @@ secrets:
 ```
 
 The key is the endpoint's own, held in a browser's store or, in CI, read from the CI secret the participant names. A
-direct call sends it only to the endpoint's own address in the request's authorisation header. For UC-003's explicit
-local `throughBridge` test, the browser sends the endpoint configuration only in the paired Bridge request body; the Bridge
-then sends the key only to the local endpoint in that endpoint request's authorisation header. It never appears in an
+direct call sends it only to the endpoint's own address in the request's authorisation header. For an endpoint called
+through its Bridge — its test or a job's request —, the browser sends the configuration only in the body of the request
+to that Bridge; the Bridge then sends the key only to the endpoint, in that endpoint request's authorisation header. It never appears in an
 address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, `NO SECRET IN THE REPOSITORY`).
 
 ## Interfaces

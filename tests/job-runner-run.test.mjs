@@ -87,9 +87,15 @@ const contextOf = (kind, { gates = [] } = {}) => ({
   places: { sources: {}, mailbox: null }, gates, person: "alice", now: new Date("2026-10-11T08:00:00Z"),
   agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: "JOB-20261011-0800-abcd",
 });
+// These tests drive the loop with the findings they set. Their drafts are neither documents nor requirements as the artifact
+// model reads them, which the runner's own checks judge — document-schema (tests/job-runner-document-schema.test.mjs) and
+// requirement-form (tests/job-runner-requirement-form.test.mjs) —, so their kinds run without those.
+const OWN_CHECKS = ["document-schema", "requirement-form"];
+const withoutOwnChecks = (job) => ({ ...job,
+  kind: { ...job.kind, checks: job.kind.checks.filter((check) => !OWN_CHECKS.includes(check)) } });
 async function prepared(name, { reviewers = [], limit, gates } = {}) {
   const context = contextOf(await kindOf(name), { gates });
-  return { job: await prepareJob(name, context, { drafter: DRAFTER, reviewers, limit }), context };
+  return { job: withoutOwnChecks(await prepareJob(name, context, { drafter: DRAFTER, reviewers, limit })), context };
 }
 
 const USE_CASE = (text) => ({ files: [{ path: "docs/use-cases/UC-001-x.md", text, class: "new" }] });

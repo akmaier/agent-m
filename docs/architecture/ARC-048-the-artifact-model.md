@@ -113,10 +113,10 @@ classes of candidates, the trace graph, coverage gaps, impact lists and the modu
 | Module | Functions other subsystems use |
 |---|---|
 | MOD-text-tools | `Finding`, `DiffLine`, `parseFrontMatter`, `blobSha`, `sha256`, `lineDiff`, `finding`, `formatFinding` |
-| MOD-documents | `Schema`, `Document`, `loadSchema`, `readDocument`, `writeDocument`, `documentFindings`, `readRegister`, `appendSection`, `classifyCandidates`, `artifactSchemas` |
+| MOD-documents | `Schema`, `Document`, `loadSchema`, `readDocument`, `writeDocument`, `documentFindings`, `readRegister`, `appendSection`, `classifyCandidates`, `artifactSchemas`, `artifactSchemaOf` |
 | MOD-identifiers | `kindOfIdentifier`, `identifiersIn`, `nextIdentifier`, `instanceOfPagesAddress` |
 | MOD-spec-document | `Requirement`, `parseSpec`, `requirementFindings`, `sectionText`, `replaceSection`, `requirementNamesIn`, `renamedRequirements`, `specSkeleton` |
-| MOD-test-document | `TestDeclaration`, `testDeclarations`, `testFindings` |
+| MOD-test-document | `TestDeclaration`, `isTestFile`, `testDeclarations`, `testFindings` |
 | MOD-group-document | `parseGroupFile`, `groupFileText`, `applyMoves`, `hierarchy` |
 | MOD-trace-graph | `Graph`, `traceGraph`, `graphFindings`, `tracesTo`, `coverageGaps`, `requirementImpact`, `architectureImpact`, `moduleOrder`, `moduleRows`, `compareGraphs`, `selfSufficiencyFindings` |
 
@@ -143,8 +143,10 @@ flowchart BT
   M6[MOD-trace-graph]
   M1 --> M0
   M5 --> M0
+  M5 --> M2
   M2 --> M0
   M3 --> M0
+  M3 --> M2
   M4 --> M0
   M6 --> M1
   M6 --> M5

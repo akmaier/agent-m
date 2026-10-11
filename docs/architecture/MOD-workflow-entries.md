@@ -111,7 +111,10 @@ the file names, in a checkout of the repository the event concerns. In a product
 `.github/workflows/agent-m-jobs.yml` on GitHub, `.gitlab/agent-m-jobs.yml` on GitLab — runs `onRecordsChanged`,
 `onPullRequestClosed`, `onCheckCompleted`, `onSchedule` and `onDispatch`, and MOD-test-schedule's test configuration runs
 `onDoneCheck` in its Definition-of-Done job and `onTestsFinished` after each run's tests; on GitLab each file is included
-from the product's `.gitlab-ci.yml`. In the instance, its files under `.github/workflows/` run the instance's entries.
+from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its entries —
+`onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and on dispatch
+for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag — and does nothing but run it, so that a change between
+jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
 
 ## Interfaces
 
@@ -132,7 +135,8 @@ from the product's `.gitlab-ci.yml`. In the instance, its files under `.github/w
   job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`); and computes the next actions of every run
   the change concerns, from the product's facts read once, taking those of this route and queueing those of other routes
   by their start records (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). Two entries that compute the same action
-  are safe: only one taking lands.
+  are safe: only one taking lands. A job whose writer committed nothing, since its result equals the current files,
+  ends done, and its end record and the entry's summary say `no change` (UC-010 4a).
 - `onDoneCheck(env: CiEnvironment) -> Promise<EntryStatus>` — on a pull request of a product opened or updated, run only by
   the Definition-of-Done job of MOD-test-schedule's test configuration: the Definition-of-Done check from the pull
   request's facts and the product's declared conditions, its status and findings shown on the pull request (`A PULL
@@ -164,9 +168,11 @@ from the product's `.gitlab-ci.yml`. In the instance, its files under `.github/w
   nothing when a text is stale (`WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE`, `A STALE APPROVAL IS NOT
   APPLIED`); the status names what was applied and what was stale.
 - `onSourcesCommitted(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance: for each register entry of an EU
-  legal text that asks to be fetched, fetches the official text and commits it with its retrieval date, the repository's
-  version identifier and its SHA-256, completing the entry; a failed fetch is written into the entry as its error, and
-  nothing is guessed (`AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY`).
+  legal text that waits for its fetch, as MOD-source-register defines it, fetches the official text and commits it with
+  its retrieval date, the repository's version identifier and its SHA-256, completing the entry. A failed fetch writes
+  nothing and ends the entry `failed`, its summary naming the register entry and the failure, which the library shows
+  beside the entry with *Fetch again* (UC-004 7a); nothing is guessed (`AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL
+  REPOSITORY`).
 - `onReleaseTagged(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance, on a release tag: on each platform's
   runner, the Bridge's file of that platform, signed; then the files, checksums, signatures and update feed published as
   the release of the tag (`THE BRIDGE IS SIGNED BY ITS PUBLISHER`); nothing is published when a signature cannot be
@@ -196,7 +202,7 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   server's API with the same token. In a product's job workflow, also the instance at the commit a declaration names,
   through the checkout of the instance, which fetches it with its own credentials.
 - `MOD-documents.readDocument`, `readRegister`, `writeDocument` and `MOD-participant-list.participantSchema` — the
-  declaration, the participants; the error of a failed fetch in its register entry.
+  declaration, the participants, the register entries.
 - `MOD-text-tools.Finding` — the findings an entry reports.
 - `MOD-test-document.TestDeclaration`, `testDeclarations` — the declarations of the product's tests, to which a report's
   outcomes are matched.

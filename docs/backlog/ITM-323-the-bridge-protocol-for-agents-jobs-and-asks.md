@@ -25,18 +25,20 @@ origin:
 
 MOD-bridge-http's `bridgeApi` gains the routes of its table that the `jobs` handlers answer — `GET /v1/agents`, `POST
 /v1/jobs`, `GET /v1/jobs`, `GET /v1/jobs/{id}/log?from={line}`, `POST /v1/jobs/{id}/cancel`, `POST /v1/ask`, `GET
-/v1/ask/{ask}` — with their request and answer fields, and `serveBridge` hands each request, after the origin and token
-checks it makes today, to the `jobs` handler of its route with its path parameters, query and body. While `paused()`
-holds, only a request that starts work — a hand-over, an ask, a probe — answers `paused`; listing, following and
-cancelling jobs still answer, as the file states. The mail routes are not part of this item.
+/v1/ask/{ask}` — with their request and answer fields: `GET /v1/agents` answers the agents the Bridge offers and the
+supported agents missing on its computer; `POST /v1/ask` takes `{ agent, input }` or `{ endpoint, input }`, the endpoint
+in the endpoint configuration's format. `serveBridge` hands each request, after the origin and token checks it makes
+today, to the `jobs` handler of its route with its path parameters, query and body. While `paused()` holds, only a
+request that starts work — a hand-over, an ask, a probe — answers `paused`; listing, following and cancelling jobs still
+answer, as the file states. The mail routes are not part of this item.
 
 ## Acceptance
 
 - Unit tests that name MOD-bridge-http state, before the code exists, with fixture handlers: each route reaching its
-  handler with its parameters, query and body; a route without a handler `not-found`; a request without the token
-  `token-refused`, its handler never called; a handler's error answered with its code's status; while paused, a
-  hand-over, an ask and a probe answered `paused`, and a cancel and the list reaching their handlers; no body or query
-  value in the log.
+  handler with its parameters, query and body, an ask naming an agent and one naming an endpoint among them; a route
+  without a handler `not-found`; a request without the token `token-refused`, its handler never called; a handler's
+  error answered with its code's status; while paused, a hand-over, an ask and a probe answered `paused`, and a cancel
+  and the list reaching their handlers; no body or query value in the log.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.

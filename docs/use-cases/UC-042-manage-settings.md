@@ -5,7 +5,7 @@ area: setup
 actors:
   - Person
   - Repository servers
-  - Local bridge
+  - Bridge
 realises:
   - EVERY SETTING IS REACHED FROM ONE PAGE
   - A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
@@ -38,7 +38,7 @@ changes it, or removes it, without hunting through the use cases in which it was
 
 | Kept in | Settings | First set up in |
 |---|---|---|
-| **this browser** | the instance's GitHub token; a token per product — a fine-grained token on GitHub, a project access token on GitLab; model endpoints with their keys; bridge address and token; mailbox connection — route, app client ID and sign-in token, or servers and password — with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the jump host — hostname, SSH user, port range, HTTPS address and web-server login — and each remote session's name, port and bridge token; the paired Agent M Bridge (UC-044); list of products; notifications of what waits for acceptance — on or off, and what was notified | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038, UC-047 |
+| **this browser** | the instance's GitHub token; a token per product — a fine-grained token on GitHub, a project access token on GitLab; model endpoints with their keys and, for one the browser cannot call, the Bridge that reaches it; each Bridge paired with this browser — its name, its address or its port on the jump host, and its token (UC-044); mailbox connection — route, app client ID and sign-in token, or servers, password and its Bridge — with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the jump host — hostname, SSH user, port range, HTTPS address and web-server login; list of products; notifications of what waits for acceptance — on or off, and what was notified | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038, UC-044, UC-047 |
 | **the instance repository** | participants; source library; process models; the instance's resources | UC-017, UC-004, UC-031, UC-040 |
 | **each product's repository** | process model; role assignment, one per team in a model with sprints; Definition of Done; test schedule; linked sources; resources; **pseudonymisation**; **collaborators** who agreed to be named | UC-002, UC-048, UC-027, UC-015, UC-040, this use case |
 
@@ -49,7 +49,7 @@ on the instance or product, so they are changed by a commit.
 
 - **Person** — the single user of the instance.
 - **Repository servers** — GitHub and GitLab; they answer the tests of tokens and receive commits.
-- **Local bridge** — answers the tests of the bridge and the mailbox.
+- **Bridge** — each Bridge paired with this browser; answers its own test and the mailbox's.
 
 ## Precondition
 
@@ -66,7 +66,7 @@ on the instance or product, so they are changed by a commit.
 
    Secrets are shown in password fields, hidden, each with **Show** to reveal it in full.
 2. **This browser.** Each line has **Test**, **Change** and **Clear**:
-   - *Test* sends one harmless request — to the token's own server, the endpoint, the bridge — and
+   - *Test* sends one harmless request — to the token's own server, the endpoint, the Bridge — and
      shows the answer;
    - *Change* opens the same fields and the same notice as the use case that set it up, in place;
      storing a token asks for its expiry date, preset to the 90 days of the prefilled link;
@@ -101,14 +101,14 @@ sequenceDiagram
     participant D as Dashboard
     participant L as localStorage
     participant S as Repository servers
-    participant B as Local bridge
+    participant B as Bridge
     P->>D: Settings
     D->>L: read browser settings
     D->>S: read instance and product settings
     D-->>P: one line per setting, state, secrets hidden with Show
     P->>D: Test
     D->>S: harmless request with that token only
-    D->>B: harmless request with the bridge token
+    D->>B: harmless request with that Bridge's token
     D-->>P: works, expires on, or refused
     P->>D: Change or Clear (browser)
     D->>L: store or remove
@@ -125,8 +125,9 @@ sequenceDiagram
   permissions and repositories, and the paste field for the new value.
 - **1b. A server refused a token.** The line says which token, and **Renew** as in 1a; for a GitLab
   project token, the project's *Access tokens* page.
-- **2a. The person clears the bridge token.** Mail on the IMAP route, local agents and compute
-  resources stop working in this browser; the page says so before clearing. Pairing anew is UC-011, 1b.
+- **2a. The person clears a Bridge.** Before clearing, the page names what stops working in this browser: the
+  endpoints, the participants' agents, the mailbox and the resources that name that Bridge. Pairing it again is UC-044,
+  step 4.
 - **2b. The person clears the mailbox connection.** As UC-037, 8a; issues and their mail identifiers are
   not touched.
 - **4a. The person switches pseudonymisation back on.** Saved without a notice. Data already written

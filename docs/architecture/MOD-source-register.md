@@ -31,6 +31,7 @@ provides:
   - registrationCommits
   - versionCommits
   - linkedVersion
+  - personSource
   - readContent
   - affectedRequirements
   - sourceFindings
@@ -50,13 +51,14 @@ sources (`THE INSTANCE KEEPS THE SOURCE REGISTER`) — each source a typed recor
 overwritten —; where a version's content lies, in the instance only where its licence permits republishing
 (`RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE`); a product's links to the versions and parts that apply to it
 (`A PRODUCT LINKS THE SOURCES THAT APPLY`); a version's content read only with its hashes checked; the places a
-restricted source's content may go; EU legal texts recognised by their CELEX number or ELI and fetched from the EU's
-publication repository; the recipe that gives a job the excerpt of a linked version; and the recipes that give a job the
-chapters of the book *Vibe Coding* for its kind of work (`A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS
-ENGINEERING`, `A TEST JOB RECEIVES THE CHAPTER ON TESTING`, `AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING,
-ARCHITECTURE, DESIGN AND IMPLEMENTATION`, `AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN,
-IMPLEMENTATION AND TESTING`). It runs in a browser and in Node; fetching a legal text runs in Node, in the instance's
-workflow (ARC-039).
+restricted source's content may go; the source of a person, found by their account (`THE PERSON WHO PROMPTS IS A
+SOURCE`); EU legal texts recognised by their CELEX number or ELI and fetched from the EU's publication repository; the
+recipe that gives a job the excerpt of a linked version; and the recipes that give a job the chapters of the book *Vibe
+Coding* for its kind of work (`A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING`, `A TEST JOB
+RECEIVES THE CHAPTER ON TESTING`, `AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND
+IMPLEMENTATION`, `AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING`), in a
+checkout of the instance by their files there (`A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE`). It runs
+in a browser and in Node; fetching a legal text runs in Node, in the instance's workflow (ARC-039).
 
 ## Parts
 
@@ -80,7 +82,7 @@ workflow (ARC-039).
 | `authority` | `normative`, `advisory` or `informational`, as declared (`A SOURCE DECLARES ITS AUTHORITY`) | always |
 | `licence` | `may be republished`, `restricted`, or `unknown`, which counts as restricted, and the licence's name or terms (`A SOURCE DECLARES ITS LICENCE`) | always |
 | `designation` | a standard's full designation with edition and amendments, for example `IEC 62304:2006+AMD1:2015` (`A STANDARD IS REGISTERED BY ITS DESIGNATION`) | for a standard |
-| `identifier` | an EU legal text's CELEX number or ELI; a repository's address | for those two |
+| `identifier` | an EU legal text's CELEX number or ELI; a repository's address; a person's account on a repository server, `<server>/<account>`, by which a page finds the source of the person who gives it an instruction | for those three |
 | `content_repository` | the repository the person named for restricted content | for restricted content kept as files |
 | `places` | the processing places its content may be given to | for restricted content |
 
@@ -93,6 +95,14 @@ hashed is kept. Then, optionally, `## Parts`: the known parts a link may name, s
 **A version's content** lies in `docs/sources/SRC-<slug>/<version>/` — of the instance when the licence permits
 republishing, of the named repository otherwise; a file the person only hashed is not stored at all. A source of kind
 repository is its repository at the pinned commit.
+
+**An EU legal text that waits for its fetch** is an entry whose `identifier` `recogniseLegalText` recognises and whose
+`## Versions` has no row yet. Whether its last fetch failed, and why, is the state of the instance's run of
+`onSourcesCommitted` (MOD-workflow-entries) that concerned it, which the library shows beside the entry; it is never
+written into the entry (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`).
+
+**A part of a version**, which a job's parameter `part` names, is a set of the version's files by their names, such as
+the chapters of a book. A version of a single file has no smaller part.
 
 **A version's hash** is the SHA-256 of the lines `<SHA-256 of the file>  <file name>`, one per file, sorted by name — the
 value a product's link records.
@@ -141,6 +151,9 @@ names no source.
   link names, or `null` when it names no register entry, the product links none, or the entry records no version the link
   names. The version carries the hash the product's link records, since a hash is not computed synchronously; `readContent`
   checks each of its files against its own SHA-256 when the version is read.
+- `personSource(links: Document, register: Document[], account: string) -> string | null` — the identifier of the
+  register entry of kind `person` whose `identifier` is the account `<server>/<account>` and which the product links, or
+  `null`: the source of the person who gives an instruction (`THE PERSON WHO PROMPTS IS A SOURCE`).
 - `readContent(version: SourceVersion, open: (source: string) => Promise<Host>) -> Promise<{ name: string, bytes:
   Uint8Array }[]>` — reads every stored file of the version from `docs/sources/<source>/<version>/` of the repository that
   holds it, at its default branch, across the network through the host `open` gives for the version's source — its
@@ -164,27 +177,31 @@ names no source.
   `Unreachable { reason }`; nothing is guessed.
 - `permittedPlaces(entry: Document) -> string[] | "any"` — the places a source's content may be given to: any for content
   that may be republished, its declared places otherwise, none when it declares none.
-- `sourceStrategies` — `Partial<Strategies>` with the recipe `source-excerpt`: for the source and part a job's parameters
-  `source` and `part` name, reads the version the product links, through `readContent`, where its content lies, and
-  returns the version's whole text — its files' texts in their order, a blank line between them — as one part that names
-  the source, so that the runner gives it only to participants at the places the source permits (`RESTRICTED CONTENT GOES
-  ONLY WHERE ITS SOURCE PERMITS`); the part's name names the version and the part that applies, the job's or else the
-  link's. Nothing defines how a text is cut to a part, so none is cut. Throws as `readContent` throws, and `NotLinked
-  { source }` for a source the product does not link.
+- `sourceStrategies` — `Partial<Strategies>` with the recipe `source-excerpt`: for the source a job's parameter
+  `source` names, reads the version the product links, through `readContent`, where its content lies, and returns the
+  texts of the files its parameter `part` names — every file of the version when it names none —, in the version's
+  order, a blank line between them, as one part that names the source, so that the runner gives it only to participants
+  at the places the source permits (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`); the part's name names the
+  version, the files sent and the part the product's link names. A smaller part is fewer files, and a version of one file
+  has none (UC-005 2a). Throws as `readContent` throws, `NotLinked { source }` for a source the product does not link,
+  and `NotInVersion { files }` for a part that names a file the version does not hold.
   And the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`,
   `chapters-for-architecture` and `chapters-for-implementation`: each reads the instance's register entry
   `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through
   `readContent`, and returns one part per chapter of its row above, in the order of their numbers: the whole file,
   naming `SRC-vibe-coding` as its source and, in the part's name, the file, the version and the version's hash as its
-  pin. None of these parts may be left out:
-  a participant whose context cannot hold them is named as not fitting, and nothing is cut. Throws as `readContent`
-  throws, `NotRegistered { source }` when the instance has no entry `SRC-vibe-coding`, and `ChapterMissing { chapter,
-  version }` when the version holds no file for a chapter.
+  pin. For a job whose participant works in a checkout of the instance — the context's `instance.checkout` —, each part
+  holds instead the path of the chapter's file in that checkout and none of its text, once the file read there has the
+  SHA-256 the version records (`A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE`). None of these parts may
+  be left out: a participant whose context cannot hold them is named as not fitting, and nothing is cut. Throws as
+  `readContent` throws, `NotRegistered { source }` when the instance has no entry `SRC-vibe-coding`, and `ChapterMissing
+  { chapter, version }` when the version holds no file for a chapter.
 
 ## Files
 
-It reads `docs/sources/` of the instance, a product's `docs/sources.md`, a product's `SPEC.md`, and the content of source
-versions where they lie; it returns what to write, and the caller commits it. Its own schema files are data.
+It reads `docs/sources/` of the instance, a product's `docs/sources.md`, a product's `SPEC.md`, the content of source
+versions where they lie, and, for a job in a checkout of the instance, the book's chapter files in that checkout; it
+returns what to write, and the caller commits it. Its own schema files are data.
 
 ## Uses
 

@@ -73,14 +73,14 @@ built into MOD-job-runner.
 
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
-| `derive-requirements` | UC-005 | draft text | | `source-excerpt`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage, class |
+| `derive-requirements` | UC-005 | draft text | | `source-excerpt`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
 | `change-requirements` | UC-019, UC-012 | draft text | | `instruction`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
 | `change-use-case` | UC-019 | draft text | | `instruction`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `change-architecture` | UC-023 | draft text | `rests-on-accepted` | `instruction`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `review-architecture` | UC-022, UC-023 | draft text | | `whole-spec`, `accepted-use-cases`, `draft`, `chapters-for-architecture` | | | | `none` · `return-draft` | findings, each a warning |
-| `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves |
+| `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves, each a `GroupMove` of MOD-group-document |
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
 | `propose-items` | UC-032 | draft text | `rests-on-accepted` | `backlog-inputs` | `backlog-checks`, `candidate-classes` | | | `person` · `backlog-items` | items |
 | `close-sprint` | UC-041 | draft text, read the repository, write to the repository | | `sprint-facts` | `sprint-record-checks` | | | `none` · `sprint-record` | the review, the retrospective, the proposed changes |
@@ -100,8 +100,10 @@ built into MOD-job-runner.
 | `check-resource` | UC-040 | run code and tests | | `resource-check` | | | | `none` · `return-draft` | what answered |
 
 For a kind of `review: person`, the click that lets the result go on is the one its use case names: *Write proposals*
-(UC-005, UC-022), *Save* (UC-019, UC-023), *Save plan* (UC-045), *Add to backlog* (UC-032) — each through MOD-job-runner's
-`writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, and *Write tests*
+(UC-005, UC-022), *Save* (UC-023), *Save plan* (UC-045), *Add to backlog* (UC-032) — each through MOD-job-runner's
+`writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, *Save* of a change by
+prompt (UC-019), which saves the draft as UC-018 saves an edit, so that the kind's writer writes a change by prompt only
+where nobody attends (UC-019 6b), and *Write tests*
 (UC-026), which starts a job of `write-tests` whose parameters carry the cases as the person left them, for its recipe
 `draft`. Test generation is two kinds because the person decides on the cases between proposing and writing them. Inside
 a run nobody attends (UC-043): `propose-tests` ends with its cases in its job's record, and `write-tests` follows it
@@ -112,6 +114,10 @@ For `derive-requirements`, `change-requirements` and the architecture kinds, `pe
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the
 latter for tests that pass before any code exists (UC-024, UC-034); for `write-tests`, `before-merge`. `implement`,
 `refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`.
+
+A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it — the linked
+register entry that MOD-source-register's `personSource` names for their account —, so that every requirement it drafts
+names that person among its sources (`THE PERSON WHO PROMPTS IS A SOURCE`).
 
 A kind whose jobs write or change requirements or use cases, tests or the architecture, review the architecture, or
 implement, names among its recipes the one of MOD-source-register that gives the chapters of the book *Vibe Coding* for

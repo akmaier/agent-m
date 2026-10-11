@@ -57,7 +57,7 @@ agents run on their own, and a person watches the whole and can step in.
 - **Runtimes**: where jobs run, and where their state is read from:
   - the browser tab, for model-endpoint jobs;
   - GitHub Actions or GitLab CI, for CI agents and self-hosted runners;
-  - the local bridge, for CLI and sandboxed agents.
+  - each Bridge this browser keeps under its name, for CLI and sandboxed agents.
 
 ## Precondition
 

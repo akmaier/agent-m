@@ -6,6 +6,7 @@ realises:
 follows:
   - ARC-048
 uses:
+  - MOD-identifiers.kindOfIdentifier
   - MOD-text-tools.finding
   - MOD-text-tools.historyMarks
   - MOD-text-tools.Finding
@@ -53,7 +54,8 @@ It keeps nothing. It owns the form of the SPEC:
   more lines. Then `*Check:* ` followed by a test's
   path, several separated by ` · `, or the words `no automatic check; at review`, possibly with a sentence on what the
   check does and its counter-proof; it may continue over further lines. A requirement ends at an empty line, a heading or
-  the next head line.
+  the next head line. A head line of this form whose name is not in capitals is read as a requirement too, so that the
+  findings name it instead of passing over it.
 - What a requirement constrains is where it stands (`A REQUIREMENT NAMES WHAT IT CONSTRAINS`): a requirement of a
   product's SPEC constrains that product; a requirement of the instance's own SPEC — Agent M's — constrains the
   development process. No line of a SPEC states it again.
@@ -81,8 +83,10 @@ version history.
 - `requirementFindings(spec: Spec) -> Finding[]` — for each requirement: an error under `A REQUIREMENT HAS FOUR FIELDS`
   when its source, rule or check is missing; an error under `A REQUIREMENT NAMES ITS CHECK` when its check names neither
   a test nor review; a warning under `ONE STATEMENT PER REQUIREMENT` when its rule contains "and" or "additionally", which a person then
-  splits or keeps with a reason; an error under `THE NAME IS THE ID AND IT SURVIVES` for a name given twice; and an
-  error under `A DOCUMENT HOLDS NO HISTORY` for each mark of history. Each finding names the requirement and its line.
+  splits or keeps with a reason; an error under `THE NAME IS THE ID AND IT SURVIVES` for a name given twice; an error
+  under `EVERY ARTIFACT HAS AN IDENTIFIER` for a name that is not in capitals, which MOD-identifiers' scheme does not read
+  as a requirement's name; and an error under `A DOCUMENT HOLDS NO HISTORY` for each mark of history. Each finding names
+  the requirement and its line.
 - `sectionText(specText: string, heading: string) -> string | null` — the exact bytes of the section whose heading line is
   `heading`, or `null` when there is none. A caller compares or hashes these bytes; it must not normalise them.
 - `replaceSection(specText: string, heading: string, sectionText: string) -> string` — the SPEC with that section's bytes
@@ -104,5 +108,6 @@ repository; its callers give it the texts.
 
 ## Uses
 
+- `MOD-identifiers.kindOfIdentifier` — whether a requirement's name is one by the scheme.
 - `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — the findings it reports.
 - `MOD-text-tools.historyMarks` — the marks of history in a SPEC.

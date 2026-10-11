@@ -41,8 +41,9 @@ proposes that address when pairing. Every request carries the pairing token in t
 through the jump host also carries the web server's own login, which the web server checks first (`THE JUMP HOST FORWARDS
 TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); the Bridge does not read it. Bodies are JSON. Routes:
 
-**Endpoint-test configuration.** The `args` of `endpoint-test` is `{ name: string, kind: "openai-compatible" |
-"anthropic", baseUrl: string, model: string, key: string | null }`. Its `answer` is `{ works: true, model: string }` or
+**Endpoint configuration.** The `args` of `endpoint-test`, and the `endpoint` of an ask, is `{ name: string, kind:
+"openai-compatible" | "anthropic", baseUrl: string, model: string, key: string | null }`: a model endpoint the Bridge
+calls for the page. The `answer` of `endpoint-test` is `{ works: true, model: string }` or
 `{ works: false, diagnosis: { reason: "cross-origin refused" | "opt-in header missing" | "blocked by the browser" |
 "not reachable" | "key refused" | "model unknown" | "too long" | "rate limited" | "endpoint error", message: string,
 routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire format.
@@ -50,14 +51,14 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 | Method and path | Request | Answer | Handler |
 |---|---|---|---|
 | `GET /v1/pair` | — | `{ bridge: { name, version, platform }, origin }` | the server itself |
-| `GET /v1/agents` | — | `{ agents: [{ name, version, ready, loggedIn }], missing: [{ name }] }` | jobs |
+| `GET /v1/agents` | — | `{ agents: [{ name, version, ready, loggedIn }], missing: [{ name }] }` — the agents the Bridge offers, and the supported agents missing on its computer | jobs |
 | `POST /v1/jobs` | `{ product, record, commit }` — a job handed over: the product's address, the path of its start record and the commit that holds it | `{ accepted }` — the job's identifier | jobs |
 | `GET /v1/jobs` | — | `{ jobs: [{ id, product, kind, agent, state, started, usage }] }` | jobs |
 | `GET /v1/jobs/{id}/log?from={line}` | — | `{ lines, next, ended }` — the log from that line on | jobs |
 | `POST /v1/jobs/{id}/cancel` | — | `{ confirmed }` — `true` once the agent's process has ended | jobs |
-| `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent | `{ ask }` | jobs |
+| `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent the Bridge offers — or `{ endpoint, input }` — a request to a model endpoint, `endpoint` in the endpoint configuration's format | `{ ask }` | jobs |
 | `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, usage, error }` | jobs |
-| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` takes the endpoint-test configuration | `{ answer }`; for `endpoint-test`, the endpoint-test answer | jobs |
+| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` takes the endpoint configuration | `{ answer }`; for `endpoint-test`, the endpoint-test answer | jobs |
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |
 
@@ -92,8 +93,9 @@ server's or the agent's own message; `paused` (503).
   running jobs can be followed and cancelled. Its log keeps a request's method, route, status and duration — never a
   body, a query value or a header's value.
 - `pairAnew(dataFolder: string, token: string | null) -> Promise<string>` — a new pairing token, random or the one given
-  — such as the token of a remote session from the dashboard's settings export —, written to the token's file; from then
-  on the old token is refused, by a server already running too. Errors: `NotWritable` with the folder.
+  — such as the token of a Bridge reached through the jump host, from the dashboard's settings export —, written to the
+  token's file; from then on the old token is refused, by a server already running too. Errors: `NotWritable` with the
+  folder.
 
 ## Files
 

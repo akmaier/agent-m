@@ -6,6 +6,7 @@ realises:
 follows:
   - ARC-048
 uses:
+  - MOD-identifiers.kindOfIdentifier
   - MOD-text-tools.finding
   - MOD-text-tools.Finding
 provides:
@@ -88,4 +89,6 @@ It reads and writes no file; its callers give it the text of `docs/groups/<kind>
 
 ## Uses
 
+- `MOD-identifiers.kindOfIdentifier` — to tell a member, written by its identifier, from a group's title, and a group
+  titled by an identifier.
 - `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — the findings it reports.

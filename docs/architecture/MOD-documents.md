@@ -26,6 +26,7 @@ provides:
   - appendSection
   - classifyCandidates
   - artifactSchemas
+  - artifactSchemaOf
 ---
 # MOD-documents Documents, records and registers from their schemas
 
@@ -293,6 +294,9 @@ record, the appended sections in order. **A row** of a table: `{ line, cells }`,
   class (`THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED`).
 - `artifactSchemas() -> { useCase: Schema, decision: Schema, module: Schema, item: Schema }` — the four schemas this
   module owns, loaded.
+- `artifactSchemaOf(path: string) -> Schema | null` — the one of these four schemas whose path pattern the path matches,
+  with the placeholders as the schema language defines them and as `documentFindings` matches a path, or `null`: so that
+  a caller that holds only a path, such as a drafted file's, needs no copy of the patterns.
 
 ## Files
 

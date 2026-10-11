@@ -15,13 +15,15 @@ realises:
 ---
 # UC-003 Configure a model endpoint
 
-**Goal.** The author connects Agent M to a language model so that jobs can run in the browser.
+**Goal.** The author connects Agent M to a language model so that jobs can run in the browser — calling the model
+directly, or through the Bridge that reaches it.
 
 ## Actors
 
 - **Author** — owns the API key.
 - **Model endpoint** — an OpenAI-compatible or Anthropic endpoint, hosted or self-hosted.
-- **Local bridge** — reaches a model server on its own machine (UC-011, UC-044).
+- **Bridge** — an Agent M Bridge paired with this browser and kept under its name (UC-044); it calls a model server that
+  the browser cannot call (UC-011).
 
 ## Precondition
 
@@ -52,12 +54,16 @@ sequenceDiagram
 
 - **4a. The endpoint refuses calls from a browser.** Agent M names the reason (for example a
   missing cross-origin permission or opt-in header) and the runtimes that would work instead —
-  GitHub Actions (UC-010) or the local bridge (UC-011).
-- **2a. The endpoint is a model server on a computer of the author's** — Ollama, vLLM, LiteLLM. The author
-  names it as reached through the bridge on that machine: the bridge calls it there, so no cross-origin
-  setting of the server (such as `OLLAMA_ORIGINS`) is needed, and the browser only talks to the bridge —
-  directly, or in Safari over the jump host's HTTPS address (UC-044, 6a 5). Step 4's test request goes
-  through the bridge.
+  GitHub Actions (UC-010) or a Bridge (UC-011).
+- **2a. The browser cannot call the endpoint** — a model server on a computer of the author's or in their LAN, such as
+  Ollama, vLLM or LiteLLM, served over plain `http` or without a cross-origin permission. The author names the Bridge that
+  reaches it, chosen among the Bridges this browser keeps: this computer's Bridge for a server on this computer, and for
+  a server on another computer the Bridge on that computer, reached through an SSH forward or through the jump host
+  (UC-011, 1a and 1c). That Bridge calls the server there, so no cross-origin setting of the server (such as
+  `OLLAMA_ORIGINS`) is needed, and the browser only talks to the Bridge — directly, or in Safari over the jump host's
+  HTTPS address (UC-044, 6a 5). Step 4's test request goes through that Bridge, and so do the requests of the jobs that
+  use the endpoint. A server in the LAN that the browser can call — over HTTPS with a certificate the browser trusts,
+  allowing the instance's address — needs no Bridge.
 - **4b. The key is wrong.** Agent M shows the endpoint's error message; the key stays stored until
   the author changes or clears it.
 - **2b. The author clears the configuration.** Agent M removes the entries from `localStorage`,
@@ -65,5 +71,6 @@ sequenceDiagram
 
 ## Postcondition
 
-- The configuration exists only in this browser.
+- The configuration exists only in this browser; an endpoint the browser cannot call names the Bridge that reaches
+  it.
 - The key has not appeared in a URL, a cookie, or any repository.

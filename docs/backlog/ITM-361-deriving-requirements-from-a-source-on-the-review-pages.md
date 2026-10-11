@@ -22,10 +22,12 @@ builds_on:
   - ITM-344
   - ITM-346
   - ITM-329
+  - ITM-384
+  - ITM-387
 tests:
   - unit
 origin:
-  - UC-005 steps 1 to 8, 1a, 2a, 3a, 6a, 7a, 7b
+  - UC-005 steps 1 to 8, 1a, 2a, 3a, 5a, 6a, 7a, 7b
 ---
 # ITM-361 Deriving requirements from a source on the review pages
 
@@ -34,20 +36,20 @@ origin:
 ## Outcome
 
 MOD-review-pages' route `spec-entry/draft` in its part `jobs.mjs`, with the SPEC entry's descriptor, as its file states
-them: a linked source and its part; the participant and its routes (ITM-318); the run panel (ITM-344) with how many
-requirements are included; *Run* in this tab, attended (ITM-319); then the candidates grouped by class beside the
-requirement each refers to, the normative side named, classes changeable, conflicts decided, a flagged candidate split,
-the rounds and what the loop left; *Write proposals*, through `writeResult` and the writer `queue-entries` (ITM-338). A
-changed hash or a context too small is named, and nothing is sent. Its explanations are shown folded (ITM-346). The kind
-`derive-requirements` names the check `candidate-classes`, which the runner does not register; the tests register a
-fixture check of that name. Offering a smaller part of the source when the input does not fit, and recognising a
-candidate from a source the product does not link (UC-005 5a), are not part of this item.
+them: a linked source, its part, and, to send less, the files of its version to work on (UC-005 2a; ITM-384); the
+participant and its routes (ITM-318); the run panel (ITM-344) with how many requirements are included; *Run* in this
+tab, attended (ITM-319); then the candidates grouped by the result's classes (ITM-387) beside the requirement each
+refers to, the normative side named, classes changeable, conflicts decided, a flagged candidate split, the rounds and
+what the loop left, and a candidate whose source the product does not link listed apart as the hint to link it first
+(UC-005 5a); *Write proposals*, through `writeResult` and the writer `queue-entries` (ITM-338). A changed hash or a
+context too small is named, and nothing is sent. Its explanations are shown folded (ITM-346).
 
 ## Acceptance
 
 - Unit tests that name MOD-review-pages state, before the code exists, over a fixture host and a fixture participant:
-  each part named on the panel; the candidates by class; a class moved and a conflict decided reaching the writer; an
-  undecided conflict not written; a changed hash and a context too small sending nothing.
+  each part named on the panel; fewer files of the version chosen and sent; the candidates by class; a class moved and a
+  conflict decided reaching the writer; an undecided conflict not written; a candidate of an unlinked source listed
+  apart; a changed hash and a context too small sending nothing.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.

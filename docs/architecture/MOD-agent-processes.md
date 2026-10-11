@@ -79,7 +79,8 @@ The exact commands and options are data in this register, not code, so a changed
 ## Files
 
 It reads its own data files. The agent it starts reads and writes the working folder it is given — the checkout of a
-product's branch — and nothing else of Agent M's.
+product's branch, which on a Bridge lies in the agent's own working folder beside the Bridge's clone of the instance
+(MOD-bridge-jobs) — and nothing else of Agent M's.
 
 ## Uses
 

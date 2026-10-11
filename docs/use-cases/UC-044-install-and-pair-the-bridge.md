@@ -71,12 +71,16 @@ double-clicking it, and copying one token. Nobody types a command.
 3. **Agents.** The window lists the supported coding agents: for each installed one its version and *ready*;
    for each missing one **How to install**, which opens the vendor's instructions for this system, and
    **Check again**. A folded explanation says that the agent will use its own login on this computer, so no
-   key is needed and the person's subscription pays.
+   key is needed and the person's subscription pays. The person ticks the installed agents this Bridge is to offer, and
+   gives each ticked agent a **working folder**, in which the Bridge keeps that agent's clones of the instance and of
+   the products it serves. **Test access** checks, changing nothing, that this computer's own git login reaches the
+   instance and each served product, and names a repository it does not reach with the reason; the person sets that
+   login up once with the server's own tools, and no token is entered here.
 4. **Pairing.** The window shows the bridge's pairing token with **Copy**. The person pastes it on the
    dashboard's settings page, under the shared-origin notice, and presses **Pair** — one click. The dashboard
-   stores address and token (UC-042) and tests the bridge; the bridge's window shows *paired with
-   `<owner>.github.io`*.
-5. The bridge now appears as a place where participants run (UC-017): each ready agent can be added as a
+   stores the Bridge under the name it reports — by default its computer's name —, with its address and token
+   (UC-042), and tests it; the bridge's window shows *paired with `<owner>.github.io`*.
+5. The bridge now appears as a place where participants run (UC-017): each agent it offers can be added as a
    CLI agent in one click, with *this computer* as its processing place.
 
 ```mermaid
@@ -90,6 +94,7 @@ sequenceDiagram
     P->>B: double-click
     B->>C: which agents, which versions
     B-->>P: agents ready or how to install, pairing token
+    P->>B: agents to offer, working folders, Test access
     P->>D: paste token, Pair
     D->>B: test with the token (127.0.0.1)
     B-->>D: paired
@@ -106,6 +111,9 @@ sequenceDiagram
   import the dashboard's settings export (UC-042), which contains it.
 - **4b. The token may have leaked.** **Pair anew** in the bridge's window makes a new token; the old one is
   refused from then on; the person pastes the new one once.
+- **4d. A Bridge on another computer.** The person installs the Bridge there too (steps 1–3) and pairs it from this
+  browser through an SSH forward to that computer's loopback (UC-011, 1a) or through the jump host (6a). This browser
+  keeps it as one more Bridge under its name; the agents it offers are offered as participants of that Bridge.
 - **4c. The browser cannot reach the bridge on this computer** — Safari blocks a call from an HTTPS page to
   `http://127.0.0.1`; Chrome, Edge and Firefox allow it after one local-network prompt, which the dashboard
   explains before it appears. The dashboard names the reason and offers the route over HTTPS through the
@@ -113,7 +121,7 @@ sequenceDiagram
   dashboard reaches it at the jump host's HTTPS address.
 - **6a. This computer is behind NAT and is to be reached from elsewhere** (a lab machine, a GPU box).
   1. In the bridge's window the person enters the jump host — hostname, SSH user —, or imports the
-     dashboard's settings export that names it and this session's port.
+     dashboard's settings export that names it and this Bridge, with its name and its port on the jump host.
   2. On first use the bridge creates its own SSH key and shows the public key with **Copy** and the one
      sentence of what to do with it: add it to `~/.ssh/authorized_keys` of that user on the jump host, or
      hand it to whoever administers the jump host.
@@ -139,7 +147,7 @@ sequenceDiagram
 
 - The bridge runs as an app on this computer, paired with the person's dashboard; nothing was typed in a
   terminal.
-- Its installed agents are available as participants and use their own login; no key passed through
-  Agent M.
+- The agents it offers are available as participants, each working in its own folder with its own login; no key
+  passed through Agent M.
 - If configured, its tunnel to the jump host is open and ends on the jump host's loopback; its private SSH key
   never left this computer.

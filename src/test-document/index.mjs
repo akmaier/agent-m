@@ -1,5 +1,5 @@
 // MOD-test-document — the declaration of a test case (docs/architecture/MOD-test-document.md): its interface. Of it,
-// ITM-248 builds TestDeclaration and testDeclarations; testFindings is not part of it.
+// ITM-248 builds TestDeclaration and testDeclarations, and ITM-304 builds testFindings.
 //
 // Module: MOD-test-document
 //
@@ -27,3 +27,4 @@
  */
 
 export { testDeclarations } from "./declarations.mjs";
+export { testFindings } from "./checks.mjs";

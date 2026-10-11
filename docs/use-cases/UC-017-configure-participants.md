@@ -31,10 +31,10 @@ them to roles (UC-048).
 | Type | Example | Reached through | Typical capabilities |
 |---|---|---|---|
 | **Person** | a colleague's GitHub or GitLab account | the dashboard | all, and decisions |
-| **Model endpoint** | NHR hub, an OpenAI or Anthropic endpoint; a local model server such as Ollama | the browser (UC-003); a local model server through the bridge on its machine (UC-011) | draft text |
+| **Model endpoint** | NHR hub, an OpenAI or Anthropic endpoint; a local model server such as Ollama | the browser (UC-003) — directly, or through the Bridge its configuration names (UC-011) | draft text |
 | **CI agent** | an agent run inside a GitHub Actions or GitLab CI job — on GitHub's machines, or on a **self-hosted runner** on the person's own machine or VM | a workflow (UC-010) | read, write, run code and tests |
-| **CLI agent** | Claude Code or Codex on the author's machine | the local bridge (UC-011) | read, write, run code and tests, tools |
-| **Sandboxed agent** | a CLI agent inside a VM or container | the bridge through a tunnel (UC-011) | as CLI agent, isolated |
+| **CLI agent** | Claude Code or Codex on a computer of the author's | the Bridge on that computer (UC-011) | read, write, run code and tests, tools |
+| **Sandboxed agent** | a CLI agent inside a VM or container | the Bridge in it, through a tunnel (UC-011) | as CLI agent, isolated |
 
 ## Actors
 
@@ -61,14 +61,15 @@ them to roles (UC-048).
      a workflow use a CLI or sandboxed agent, the runner is installed **on that agent's machine**;
      the workflow's job then runs there and reaches the agent locally, with no inbound SSH and no key
      stored on GitHub — which also works for a machine behind NAT, because the runner only connects
-     out. The runner is registered to a **private** repository only: Agent M reads the repository's
-     visibility and refuses a public one, with the reason — on a public repository, a pull request from
-     any fork could run its own code on that machine;
-   - **CLI agent / sandboxed agent:** chosen from the agents the paired Agent M Bridge reports as installed
-     (UC-044) — or, without the app, the bridge address (for a sandbox, the tunnel's local address)
-     and which agent runs there; for a machine behind NAT, the remote session reached through the
-     jump host (UC-011, 1c) — and the **model** the agent is configured to use, for example
-     `claude-opus-5-5`.
+     out. A self-hosted runner serves **private** repositories only: when a product's job would run on it, Agent M
+     reads that product repository's visibility and refuses a public one, with the reason — on a public repository,
+     a pull request from any fork could run its own code on that machine. A folded explanation says so
+     here, since a participant may serve every product of the instance;
+   - **CLI agent / sandboxed agent:** the Bridge it runs on, chosen among the Bridges this browser keeps under their
+     names — on this computer, at a forwarded address, for a sandbox the tunnel's local address, or through the jump
+     host for a machine behind NAT (UC-011, 1a and 1c) —; the agent, chosen from those that Bridge offers (UC-044); and
+     the **model** the agent is configured to use, for example `claude-opus-5-5`. Several participants may name the
+     same Bridge and agent: each job starts its own process there (UC-011, 1d).
 
    Every participant that works with a language model names its model; Agent M compares these names when
    it picks three checkers that differ from the rewriting participant (UC-038, step 6). A person names none.
@@ -81,7 +82,7 @@ them to roles (UC-048).
 5. The author states where the participant processes data. Agent M presets it where it can tell
    (*this machine* for a CLI agent) and asks otherwise, with examples.
 6. For a CLI or sandboxed agent, the author presses **Test**; Agent M sends a harmless request through
-   the bridge and shows what answered.
+   the Bridge the participant names and shows what answered.
 7. The author presses **Save** — one click. Agent M commits the participant to
    `docs/participants.md` of the instance: name, type, model, context and price where it has them, capabilities,
    processing place — no key.
@@ -90,7 +91,7 @@ them to roles (UC-048).
 sequenceDiagram
     actor A as Author
     participant D as Dashboard
-    participant B as Local bridge
+    participant B as Bridge
     participant I as Instance repository
     A->>D: Add participant, choose type
     D-->>A: explanation, preset capabilities
@@ -106,7 +107,7 @@ sequenceDiagram
 
 - **3a. The endpoint is not configured yet.** The endpoint's fields of UC-003 — address, model, key —
   open in place, with UC-003's test request; the author does not leave this page.
-- **6a. The bridge does not answer.** Agent M names the reason — not running, wrong address, token
+- **6a. The Bridge does not answer.** Agent M names the reason — not running, wrong address, token
   missing — and saves nothing until the author decides to save untested.
 - **5a. A participant processes data outside places that some sources permit.** Agent M lists those
   sources; the participant can be saved, but will never be given their content.

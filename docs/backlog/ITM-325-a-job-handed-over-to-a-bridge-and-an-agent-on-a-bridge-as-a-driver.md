@@ -12,6 +12,7 @@ modules:
 builds_on:
   - ITM-324
   - ITM-318
+  - ITM-319
 tests:
   - unit
 origin:
@@ -24,18 +25,21 @@ origin:
 ## Outcome
 
 `queueJob`'s Bridge route, in MOD-runtimes' part `bridge.mjs`, as its file states it: the start record committed on the
-head that was read, as the person's commit, then, with a Bridge given, the job handed over with its record's path and
-that commit (ITM-324). A hand-over that fails after the commit is reported with its `BridgeError`, and the job stays
-queued for the Bridge to take when it next reads the repository. `bridgeAgentDriver`: a driver whose `send` asks the
-named agent on the Bridge through `askAgent`, for a job this tab runs with a CLI agent as drafter. The tab's route
-(ITM-319), a job of a run, resuming, live state, log, cancel and retry are not part of this item.
+head that was read, as the person's commit, then, with the Bridge the participant's route names, the job handed over
+with its record's path and that commit (ITM-324). A hand-over that fails after the commit is reported with its
+`BridgeError`, and the job stays queued for the Bridge to take when it next reads the repository. `bridgeDriver(bridge,
+target, participant)`: a driver whose `send` hands the input to the named agent on the Bridge, or to the endpoint the
+Bridge calls, through `ask`, and returns its answer and usage; `runOnTab` builds it for an agent on a Bridge and for an
+endpoint whose configuration names a Bridge, each Bridge by its name among `connections.bridges` (ITM-319). A job of a
+run, resuming, live state, log, cancel and retry are not part of this item.
 
 ## Acceptance
 
 - Unit tests that name MOD-runtimes state, before the code exists, with the host and the Bridge client replaced: the
-  start committed and handed over with its path and commit; a hand-over refused after the commit — blocked by the
-  browser, token refused, paused — reported by name, the start left committed; `bridgeAgentDriver` returning the
-  agent's text and usage, and failing with the Bridge client's error by name.
+  start committed and handed over to the named Bridge with its path and commit; a hand-over refused after the commit —
+  blocked by the browser, token refused, paused — reported by name, the start left committed; `bridgeDriver` returning
+  an agent's text and usage and an endpoint's answer, and failing with the Bridge client's error by name; `runOnTab`
+  choosing the Bridge by its name.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.

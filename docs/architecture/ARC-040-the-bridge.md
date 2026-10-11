@@ -80,17 +80,21 @@ the site's frame and renderer (ARC-038), so its look, explanations and texts are
 
 ### Responsibility within the system
 
-Offering the page and the Bridge client a token-guarded API on loopback; running the jobs of its computer's agents —
-those handed over by the page and those it takes itself from the repositories of runs it serves —; speaking IMAP and
-SMTP over TLS for one request at a time; opening and keeping its SSH tunnels with its own key; showing its pairing token,
-agents, tunnels and updates in its window; and being released as one signed file per platform.
+Offering the page and the Bridge client a token-guarded API on loopback; running the jobs of the agents it offers —
+those of its computer's agents the person chose in its window, each in its working folder; those handed over by the page
+and those it takes itself from the repositories of runs it serves —; calling a model endpoint for a job of the page;
+speaking IMAP and SMTP over TLS for one request at a time; opening and keeping its SSH tunnels with its own key; showing
+its pairing token, agents, tunnels and updates in its window; and being released as one signed file per platform. A
+person may run Bridges on several computers; each has its own name, which the page, its settings and the participants'
+routes share.
 
 ### The interface it offers
 
-The Bridge API, over HTTP, defined in MOD-bridge-http and described in its file: pairing test, jobs (hand over, list,
-log, cancel), mail (read folders read-only, find by identifier, read Drafts and Sent, store a draft, send with a
-single-use confirmation, test), probes (an agent's harmless request, an endpoint's served models, the short test of a
-local endpoint the page explicitly marked as through the Bridge, a cluster's partitions), tunnels (state). Every request
+The Bridge API, over HTTP, defined in MOD-bridge-http and described in its file: pairing test, the agents it offers, jobs
+(hand over, list, log, cancel), asks (a draft of an agent, or the answer of a model endpoint the Bridge calls), mail (read
+folders read-only, find by identifier, read Drafts and Sent, store a draft, send with a single-use confirmation, test),
+probes (an agent's harmless request, an endpoint's served models, the short test of an endpoint whose configuration names
+this Bridge, a cluster's partitions), tunnels (state). Every request
 carries the Bridge's token in its own header; a request through the jump host also carries the web server's login, which
 the web server checks first.
 
@@ -103,10 +107,10 @@ the web server checks first.
 | Module | Folder | Responsibility |
 |---|---|---|
 | MOD-bridge-http | `src/bridge-http/` | the API's protocol and the server: binding to `127.0.0.1`, `::1` or `localhost` only; the token on every request; the pairing token kept across restarts in a file outside every repository that only its user can read, renewed by *pair anew*; cross-origin answers for the instance's Pages origin only; routes dispatched to the handlers the app hands it; no request body ever logged |
-| MOD-bridge-jobs | `src/bridge-jobs/` | the Bridge as a route: jobs handed over by the page, and queued jobs of its agents that it takes itself from the product repositories through Access's local clone with the computer's own git login; running them with the job runner and the agent processes; their records; advancing the runs it serves from the run planner's next actions; starting an agent's sprint close when the sprint ends; the probes |
+| MOD-bridge-jobs | `src/bridge-jobs/` | the Bridge as a route: jobs handed over by the page, and queued jobs of the agents it offers that it takes itself from the product repositories through Access's local clone with the computer's own git login; running them with the job runner and the agent processes, each in its agent's working folder with the clones of the instance and the products; their records; advancing the runs it serves from the run planner's next actions; starting an agent's sprint close when the sprint ends; the asks of an agent or a model endpoint; the probes; the test of the computer's git login |
 | MOD-mail-protocols | `src/mail-protocols/` | IMAP and SMTP for the mail routes: a login only over implicit TLS or STARTTLS; folders opened read-only, no flag changed; finding a mail by the identifier of its `Message-ID`; Drafts and Sent by their markings; storing a draft; sending only with a valid single-use confirmation of the mail's hash, and a copy to Sent; the password held only for the request |
 | MOD-tunnels | `src/tunnels/` | the Bridge's own SSH key pair, made on first use, its private key readable only by its owner and never exported; the reverse tunnel bound to the jump host's loopback, or the forward on the person's computer, opened from the tunnel plan in the Bridge's settings, kept open and reopened after sleep or network changes; their state |
-| MOD-desktop-shell | `src/desktop-shell/` | the app: icon in the menu bar or tray, or its window open where there is no tray; the window, rendered with the site's frame and renderer — agents with versions, how to install a missing one and *Check again*, the pairing token with *Copy* and *Pair anew*, the jump host and the public key, tunnel state, importing the dashboard's settings export —; pause and quit; offering a newer release and installing it only after the click, only with a valid signature; composing the other modules |
+| MOD-desktop-shell | `src/desktop-shell/` | the app: icon in the menu bar or tray, or its window open where there is no tray; the window, rendered with the site's frame and renderer — agents with versions, how to install a missing one and *Check again*, the agents it offers with their working folders and *Test access*, the pairing token with *Copy* and *Pair anew*, the jump host and the public key, tunnel state, importing the dashboard's settings export —; pause and quit; offering a newer release and installing it only after the click, only with a valid signature; composing the other modules |
 | MOD-bridge-build | `src/bridge-build/` | the release build of the instance's release workflow: one file per platform — a disk image for macOS, an installer for Windows, an executable for Linux —, each signed, and notarised for macOS; the checksums; the update feed with signatures; no file published unsigned |
 
 ```mermaid

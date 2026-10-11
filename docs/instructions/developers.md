@@ -34,7 +34,7 @@ blob (`git show <blob sha>`) and say so in your report.
 - Write only the tests the item's Acceptance names.
 - Use another module only through its `index.mjs`, never through a private file of it (`DEVELOP AGAINST INTERFACES`).
 
-## No discussion during the sprint (`docs/process.md`, Sprint)
+## No discussion during the sprint
 - You ask nobody anything. A question to akmaier is allowed only when the SPEC and the use cases cannot be implemented as
   specified.
 - Where the item, the SPEC or a module file is unclear or wrong, build what the accepted text and the item allow, and note
@@ -42,7 +42,7 @@ blob (`git show <blob sha>`) and say so in your report.
   draft a change for it: gaps are discussed at the sprint's end. Stop and report only if the item cannot be built at all
   as specified, saying exactly what cannot be built and why.
 - A rejected pull request may be reworked once within the sprint, on exactly the condition the gate names, when the
-  Scrum Master gives it back to you (`docs/process.md`, Sprint); a second rejection is final within the sprint. So
+  Scrum Master gives it back to you; a second rejection is final within the sprint. So
   before you report, go through the item's Acceptance line by line and through the job rules below, and finish whatever
   does not hold yet.
 
@@ -55,9 +55,10 @@ blob (`git show <blob sha>`) and say so in your report.
 2. **Green.** Implement in the folders of your item's modules (`src/<slug>/`), as the module files describe, only the
    functions your item needs. Where code under `docs/assets/` does this today, take it as the model; the old file stays
    exactly as it is. Making the dashboard call the modules is a separate change between jobs. Push; CI must be green.
-3. **Only your scope changes:** your modules' folders and new test files that name your modules — no existing test, no
-   test helper, no file under `docs/` (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`). Every existing test stays
-   green unchanged, unless your item names an expected result it changes.
+3. **Only your scope changes:** your modules' folders and the test files that name your modules — new tests, and an
+   existing test that names your module only where how it prepares its fixture must change, never an expected result —;
+   no test helper, no file under `docs/` (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`). Every other existing test
+   stays green unchanged, unless your item names an expected result it changes.
 4. **Counter-proofs.** For every new test, plant a fault in the code it guards, run the test, see it fail, remove the
    fault; record each — test, fault, failing output in one line — in the pull request's description.
 5. **CI within two minutes** (`A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES`): unit tests that run in well under a second
