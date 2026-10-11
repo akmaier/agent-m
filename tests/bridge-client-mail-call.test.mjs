@@ -89,6 +89,7 @@ test("mailCall — each operation of the mail route posts to its own path, and n
   const before = calls.length;
   await assert.rejects(() => mailCall(bridgeAt(BRIDGE), "delete-everything", CONNECTION, {}), TypeError);
   await assert.rejects(() => mailCall(bridgeAt(BRIDGE), "../jobs", CONNECTION, {}), TypeError);
+  for (const near of ["testing", "send-all", "Read", ""]) await assert.rejects(() => mailCall(bridgeAt(BRIDGE), near, CONNECTION, {}), TypeError, near);
   assert.equal(calls.length, before);
 });
 
