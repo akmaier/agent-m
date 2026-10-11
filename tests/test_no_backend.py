@@ -57,6 +57,8 @@ PERMITTED_HOSTS = {
     "api.github.com", "raw.githubusercontent.com", "github.com",
     # The mail provider: Microsoft Graph and its sign-in (Microsoft 365).
     "graph.microsoft.com", "login.microsoftonline.com",
+    # Navigation only, never called: Microsoft's pages for registering the mail app and for withdrawing its access (MOD-mail-routes).
+    "entra.microsoft.com", "myapps.microsoft.com",
     # The local bridge, on this machine or at the near end of a tunnel's forward.
     "localhost", "127.0.0.1", "[::1]",
     # Navigation only, never called: the Pattern Recognition Lab and the book, linked from the main page's footer.
@@ -192,9 +194,17 @@ def _bridge_client_transport(text: str, at: int) -> bool:
             and "body: JSON.stringify({ args })" in text)
 
 
+def _mail_routes_lookup(text: str, at: int) -> bool:
+    """MOD-mail-routes asks Microsoft's sign-in service, and only it, whether a domain belongs to a Microsoft 365 organisation."""
+    return (text[at:].startswith('fetch(`${SIGN_IN_SERVICE}/${encodeURIComponent(domain)}/v2.0/.well-known/openid-configuration`, '
+                                 '{ credentials: "omit", cache: "no-store" })')
+            and 'const SIGN_IN_SERVICE = "https://login.microsoftonline.com";' in text)
+
+
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
 ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
 BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
+MAIL_ROUTES_LOOKUP = "the one tenant lookup at Microsoft's sign-in service"
 MERMAID_VENDOR_CHANNELS = {
     "Worker": (1, "elkjs builds a worker only from a workerUrl option, which the dashboard never sets", None),
     "loading element": (1, "KaTeX's \\includegraphics, rendered only when trusted; mermaid renders KaTeX untrusted", None),
@@ -211,6 +221,7 @@ PERMITTED_CHANNELS = {
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
     ("src/endpoint-calls/index.mjs", "fetch"): (1, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
     ("src/bridge-client/", "fetch"): (1, BRIDGE_CLIENT_TRANSPORT, _bridge_client_transport),
+    ("src/mail-routes/", "fetch"): (1, MAIL_ROUTES_LOOKUP, _mail_routes_lookup),
     # The modules whose files state that they read their own data files when they are loaded (their ## Files and ## Parts).
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
@@ -428,6 +439,22 @@ class NoServer(unittest.TestCase):
                                           "return fetch(url, init);\n  return fetch(url, init);\n}\nexport async function testEndpoint", 1)
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": duplicate_driver}),
                          [f"src/endpoint-calls/index.mjs: fetch found 3 times, permitted 1 ({ENDPOINT_TRANSPORT})"])
+
+    def test_counter_proof_only_the_mail_routes_lookup_is_allowed(self):
+        accepted = ('const SIGN_IN_SERVICE = "https://login.microsoftonline.com";\n'
+                    'export async function routeFor(address) {\n'
+                    '  const response = await fetch(`${SIGN_IN_SERVICE}/${encodeURIComponent(domain)}/v2.0/.well-known/openid-configuration`, '
+                    '{ credentials: "omit", cache: "no-store" });\n}\n')
+        path = "src/mail-routes/index.mjs"
+        self.assertEqual(channel_findings({path: accepted}), [])
+        other_origin = accepted.replace("https://login.microsoftonline.com", "https://login.example.org")
+        self.assertEqual(channel_findings({path: other_origin}), [f"{path}:3: fetch: not {MAIL_ROUTES_LOOKUP}"])
+        with_credentials = accepted.replace('credentials: "omit"', 'credentials: "include"')
+        self.assertEqual(channel_findings({path: with_credentials}), [f"{path}:3: fetch: not {MAIL_ROUTES_LOOKUP}"])
+        extra = accepted + 'fetch(address);\n'
+        self.assertEqual(channel_findings({path: extra}),
+                         [f"{path}:5: fetch: not {MAIL_ROUTES_LOOKUP}",
+                          f"src/mail-routes/: fetch found 2 times, permitted at most 1 ({MAIL_ROUTES_LOOKUP})"])
 
     def test_counter_proof_only_the_bridge_handle_transport_is_allowed(self):
         accepted = ('import { bridgeApi } from "../bridge-http/index.mjs";\n'
