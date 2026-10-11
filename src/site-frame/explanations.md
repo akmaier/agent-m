@@ -448,3 +448,54 @@ instance and the product, and the Bridge refuses the job and names the repositor
 Some browsers block the call to the Bridge's local address, `http://127.0.0.1`, as Safari does. The site then says why and points
 to the other route: the Bridge reached over HTTPS through the jump host. Use that route when your browser blocks the local
 address. The same route reaches a machine behind NAT.
+
+## source-kinds
+
+A source is where rules come from, and the library keeps four kinds of them. An *EU legal text* is a law or regulation of the
+European Union, for example the AI Act: you paste its EUR-Lex or ELI address and Agent M recognises the number in it. A
+*standard* is a norm published by a standards body, for example IEC 62304: you enter its full designation. *Documents* are
+files you have, PDF, Word or Markdown files or a zip file holding them, for example a customer's requirements specification.
+A *repository* is a repository on GitHub or GitLab, public or private, for example a project's guidelines kept in Git. Choose
+the kind that matches what you have; the rest of the form follows from it.
+
+## source-name
+
+The name is how the library and the products that link the source call it, for example *AI Act* or *IEC 62304*. Choose a name
+you would recognise in a list, since it is shown wherever the source is linked. If the source is already in the library, do not
+register it again: add a new version of the existing one.
+
+## source-authority
+
+Authority says how much the source binds. *Normative* means its rules must be followed, for example a law or a standard you must
+comply with. *Advisory* means they are recommended, for example a guideline. *Informational* means they are background that
+helps you understand, for example a handbook. A normative source does not win automatically when it contradicts something in a
+product: a person still decides, because the product may be out of that source's scope.
+
+## source-licence
+
+The licence says whether the source's content may be republished. *May be republished* is for texts such as EU law or openly
+licensed guides: their content is stored in the public instance beside the register entry. *Restricted* is for content such as a
+bought norm or internal documents: it is kept in a repository you name, never in the public instance. If you do not know the
+licence, the source is treated as restricted until someone records it.
+
+## standard-designation
+
+A standard is registered by its full designation, and that includes the edition and its amendments, for example
+`IEC 62304:2006+AMD1:2015`. You find it on the norm's cover page, next to the title: the number, the year of the edition after the
+colon, and any amendments added with a plus sign. The amendment matters because an amendment changes the text of the norm, so a
+requirement taken from the edition alone may differ from the one the amended norm states; the full designation says exactly
+which version was used. The licence of a standard is preset to restricted.
+
+## file-only-hashed
+
+If you only have a printed or local copy of a norm and do not want to upload it, select the file anyway. Your browser computes the
+file's SHA-256, a fingerprint of its exact content, without sending the file anywhere. Only the designation and that hash are
+recorded, with a note where your copy is kept, so the text itself is not stored. Anyone holding the same copy can compute the
+hash and check that it is the version that was used.
+
+## source-public
+
+Before you save, Agent M states what becomes public, because the instance is a public fork. The register entry always becomes
+public: the name, kind, authority, licence, versions, identifiers and hashes. The content becomes public only if its licence
+says it may be republished; restricted content goes to the repository you name, and it is public only as far as that repository
+is.
