@@ -1,16 +1,32 @@
 // queues.mjs — queues: every queue of a snapshot with its entries and each entry's state (MOD-spec-changes,
-// Interfaces). Of the module, this item (ITM-234) builds Queue and queues: entries in the state open, approved or in
-// SPEC, read from each queue's index.md and entscheidungen.md and from the approval records under docs/approvals/ —
-// matched to an entry by name alone, as MOD-approvals' statuses matches a reviewed file to its record: no record's
-// text is read. The states stale and waiting for its anchor are not part of this item: they need a SPEC section's
-// text, which this item does not read; an entry that would be either of them reads as open here (ITM-234, Outcome).
-// openQueueOf, proposeSection, entryView, acceptEntries, applyApproved, requirementHistory and specStrategies are not
-// built yet (index.mjs). Its own data files, the two schemas below, are read once, when the module is loaded: from
-// the disk in Node, from the module's own address in a browser — as MOD-approvals' index.mjs reads its own.
+// Interfaces). The module's Queue and queues are built here: an entry is open, approved, in SPEC, stale or waiting for its
+// anchor, derived and never written. ITM-234 built open, approved and in SPEC from each queue's index.md and
+// entscheidungen.md and the approval records under docs/approvals/, matched to an entry by name alone, as MOD-approvals'
+// statuses matches a reviewed file to its record. ITM-339 adds the two states that need the text of the target, and
+// createdBy:
+//
+//   - A decision row decides: an entry it names is in SPEC.
+//   - Otherwise a record that names the entry makes it stale when it names a proposal blob that is no longer the proposal's
+//     (its file name carries the first twelve digits of the blob it names) or a SPEC section that is no longer the section as
+//     the target holds it (its text names the section's blob, which is the git blob SHA of the section's exact bytes,
+//     MOD-spec-document's sectionText; a record that names no section names another); and approved when it names both.
+//   - An entry without a record waits for its anchor when the target does not hold the anchor and an earlier entry of the
+//     queue, one above it in the index with another anchor, holds it in its proposal; createdBy is that entry's number, and
+//     is set for every undecided entry whose anchor is missing and created.
+//   - What the snapshot cannot read gives no evidence: without the target's text, or a record's, the entry keeps the state
+//     ITM-234 derived. The target of an entry is the file its own row names (Datei).
+//
+// openQueueOf, proposeSection, saveEntry, entrySections, acceptEntries, applyApproved, requirementHistory and specStrategies
+// are not built yet (index.mjs); entryView, which reads an entry through this file, is accept.mjs's. Its own data files, the
+// two schemas below, are read once, when the module is loaded: from the disk in Node, from the module's own address in a
+// browser — as MOD-approvals' index.mjs reads its own.
 //
 // Module: MOD-spec-changes
 
-import { loadSchema, readRegister } from "../documents/index.mjs";
+import { loadSchema, readDocument, readRegister } from "../documents/index.mjs";
+import { approvalSchema } from "../approvals/index.mjs";
+import { sectionText } from "../spec-document/index.mjs";
+import { blobSha } from "../text-tools/index.mjs";
 
 const OWNER = "MOD-spec-changes";
 const INDEX_SCHEMA_FILE = new URL("./queue-index.schema.md", import.meta.url);
@@ -102,9 +118,8 @@ async function decisionsOf(snapshot, base) {
   return out;
 }
 
-// One entry of the index table (MOD-spec-changes, Interfaces: Queue). Its state is open, approved or in SPEC — this
-// item derives no other (ITM-234, Outcome): createdBy, which only the excluded "waiting for its anchor" needs, is
-// always null here.
+// One entry of the index table (MOD-spec-changes, Interfaces: Queue), as its files alone give it: open, approved or in SPEC
+// by the names of its records and its decision row, and createdBy null. What the target's text adds is withEvidence's.
 function entryOf(row, folder, base, files, snapshot, records, decisions) {
   const number = row.cells.Nr;
   const nn = String(number).padStart(2, "0");
@@ -133,6 +148,57 @@ function entryOf(row, folder, base, files, snapshot, records, decisions) {
   };
 }
 
+// A record's file name key for an entry, <queue folder>#<NN>, as specRecordsOf keys them.
+const recordKey = (folder, number) => `${folder}#${String(number).padStart(2, "0")}`;
+
+// Whether the record at `path` names a SPEC section other than `section`: the blob in its text's `section` line against the blob
+// of the section's exact bytes. A record the snapshot cannot read gives no evidence and names none; one it reads that names no
+// section does not name this one.
+async function namesOtherSection(snapshot, path, section) {
+  const recordText = await snapshot.read(path);
+  if (typeof recordText !== "string") return false;
+  const named = readDocument(approvalSchema, path, recordText).fields.section;
+  return named !== await blobSha(section);
+}
+
+// The number of the earlier entry whose proposal holds `entry`'s anchor as a section, or null. An earlier entry is one above it in
+// the index; an entry with the same anchor replaces the same section and creates nothing for it.
+async function creatorOf(snapshot, entry, earlier) {
+  for (const other of earlier) {
+    if (other.anchor === entry.anchor || !other.proposal.path) continue;
+    const proposal = await snapshot.read(other.proposal.path);
+    if (typeof proposal === "string" && sectionText(proposal, entry.anchor) !== null) return other.number;
+  }
+  return null;
+}
+
+// The queue with the states and createdBy that need the target's text (ITM-339), entry by entry in the index's order. The target of
+// an entry is the file its own Datei cell names; the queue's line "Zieldatei aller Einträge", which a queue written in another
+// repository gives as products/<name>/SPEC.md, stays Queue.target and finds no section. An entry a decision row names needs no text,
+// and one whose target the snapshot cannot read keeps the state its files give.
+async function withEvidence(snapshot, queue, folder, records) {
+  const entries = [];
+  for (const entry of queue.entries) {
+    const targetText = entry.state === "in SPEC" ? null : await snapshot.read(entry.file);
+    if (typeof targetText !== "string") {
+      entries.push(entry);
+      continue;
+    }
+    const section = sectionText(targetText, entry.anchor);
+    const createdBy = section === null ? await creatorOf(snapshot, entry, entries) : null;
+    const named = records.get(recordKey(folder, entry.number)) ?? [];
+    let { state } = entry;
+    if (named.length > 0) {
+      // A record that names the proposal's current blob is the entry's record (entryOf); one that names another leaves it none.
+      if (state !== "approved" || (section !== null && await namesOtherSection(snapshot, entry.record, section))) state = "stale";
+    } else if (createdBy !== null) {
+      state = "waiting for its anchor";
+    }
+    entries.push({ ...entry, state, createdBy });
+  }
+  return { ...queue, entries };
+}
+
 // One queue, with every entry of its index table and its state.
 async function oneQueue(snapshot, folder, records) {
   const base = `docs/spec-freigaben/${folder}`;
@@ -142,7 +208,8 @@ async function oneQueue(snapshot, folder, records) {
   const { document, rows } = readRegister(queueIndexSchema, indexPath, indexText ?? "");
   const decisions = await decisionsOf(snapshot, base);
   const entries = rows.map((row) => entryOf(row, folder, base, files, snapshot, records, decisions));
-  return { folder: base, title: titleOf(document.title), target: targetOf(document.sections[0]?.text), entries };
+  const queue = { folder: base, title: titleOf(document.title), target: targetOf(document.sections[0]?.text), entries };
+  return withEvidence(snapshot, queue, folder, records);
 }
 
 /**
@@ -155,7 +222,7 @@ async function oneQueue(snapshot, folder, records) {
 
 /**
  * queues(snapshot: Snapshot) -> Promise<Queue[]> — every queue of a snapshot with every entry and its state, newest
- * first (MOD-spec-changes, Interfaces). This item derives only open, approved and in SPEC (ITM-234, Outcome).
+ * first (MOD-spec-changes, Interfaces).
  * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
  * @returns {Promise<Queue[]>}
  */
@@ -165,4 +232,17 @@ export async function queues(snapshot) {
   const out = [];
   for (const folder of folders) out.push(await oneQueue(snapshot, folder, records));
   return out;
+}
+
+/**
+ * queueAt(snapshot, base) -> Promise<Queue | null> — the one queue whose folder is `base`, docs/spec-freigaben/<folder>, as
+ * queues gives it, or null where the snapshot holds no such queue. For entryView, which needs one queue and not all of them.
+ * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
+ * @param {string} base
+ * @returns {Promise<Queue | null>}
+ */
+export async function queueAt(snapshot, base) {
+  const folder = QUEUE_INDEX.exec(`${base}/index.md`)?.[1];
+  if (!folder || !snapshot.paths.includes(`${base}/index.md`)) return null;
+  return oneQueue(snapshot, folder, specRecordsOf(snapshot.paths));
 }
