@@ -1,7 +1,7 @@
 // The Backlog page in a real browser, at a phone's width and at a desktop's: no table, panel or chart reaches past the margins
-// of the page's heading and the page does not scroll sideways — a wide table scrolls in a box of its own —; the burn-down
-// chart's text is as large as the page's body text where the chart has its own width, and its line is drawn at least as wide
-// as its axes, in a colour that stands out from the chart's background.
+// of the page's heading and the page does not scroll sideways — a wide table, and the burn-down chart, scroll in a box of their
+// own —; the chart's text is as large as the page's body text at both widths, and its line is drawn at least as wide as its
+// axes, in a colour that stands out from the chart's background.
 // Run: node --test tests/dashboard-backlog-layout.test.mjs
 //
 // Module: MOD-dashboard-app
@@ -12,11 +12,12 @@
 //        team1 runs its sprint 01 with three items, two of them merged, team2 closed its sprint 01 — and items whose titles and
 //        modules are long.
 // Input: open #backlog, open Plan sprint for team2, and lay the page out 390 px and 1280 px wide.
-// Expected: at both widths the document is no wider than the window; each of the four tables stands in a box of its own that
-//           scrolls sideways, and that box, every panel and the chart lie within the left and right edges of the page's
-//           heading; the chart's line is at least as wide as each of its axes, and its colour has a contrast of at least 3:1
-//           against the chart's background (WCAG 2.2, success criterion 1.4.11, non-text contrast); 1280 px wide, every text
-//           of the chart is drawn as large as the page's body text.
+// Expected: at both widths the document is no wider than the window; each of the four tables, and the chart, stands in a box
+//           of its own that scrolls sideways, and those boxes and every panel lie within the left and right edges of the
+//           page's heading; every text of the chart is drawn as large as the page's body text, within a pixel, and 390 px
+//           wide the chart is wider than its box; the chart's line is at least as wide as each of its axes, and its colour
+//           has a contrast of at least 3:1 against the chart's background (WCAG 2.2, success criterion 1.4.11, non-text
+//           contrast).
 
 import assert from "node:assert/strict";
 import { createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -171,7 +172,7 @@ function measure() {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
   const contrast = (a, b) => { const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (light + 0.05) / (dark + 0.05); };
-  const svg = document.querySelector("[data-burn-down] svg");
+  const svg = document.querySelector("[data-burn-down] svg"), box = svg.parentElement;
   const scale = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
   const line = svg.querySelector(".line-plot-0 path"), background = getComputedStyle(svg.querySelector("rect")).fill;
   return {
@@ -184,7 +185,9 @@ function measure() {
         ...edges(table.parentElement) } })),
     panels: [...document.querySelectorAll("main > section")].map((section) => ({ name: section.className, ...edges(section) })),
     chart: {
-      ...edges(svg.closest(".mermaid")), scale, body: px(getComputedStyle(document.body).fontSize),
+      box: { overflowX: getComputedStyle(box).overflowX, holdsOnlyTheChart: box.children.length === 1, scrollWidth: box.scrollWidth,
+        clientWidth: box.clientWidth, ...edges(box) },
+      scale, body: px(getComputedStyle(document.body).fontSize),
       texts: [...svg.querySelectorAll("text")].map((text) => ({ text: text.textContent, size: px(getComputedStyle(text).fontSize) * scale })),
       line: { width: px(getComputedStyle(line).strokeWidth) * scale, colour: getComputedStyle(line).stroke },
       axes: [...svg.querySelectorAll(".axis-line path, .axisl-line path")].map((axis) => px(getComputedStyle(axis).strokeWidth) * scale),
@@ -248,17 +251,17 @@ test("#backlog in a browser — tables, panels and the chart keep the heading's 
         assert.ok(within(table.box), `${width}px: the box of ${table.part}'s table lies within the heading's margins; actual=${actual}`);
       }
       for (const panel of result.panels) assert.ok(within(panel), `${width}px: the panel ${panel.name} lies within the heading's margins; actual=${actual}`);
-      assert.ok(within(result.chart), `${width}px: the chart lies within the heading's margins; actual=${actual}`);
+      assert.ok(/^(auto|scroll)$/.test(result.chart.box.overflowX) && result.chart.box.holdsOnlyTheChart,
+        `${width}px: the chart stands in a box of its own that scrolls sideways; actual=${actual}`);
+      assert.ok(within(result.chart.box), `${width}px: the chart's box lies within the heading's margins; actual=${actual}`);
+      assert.ok(result.chart.texts.length > 0, `known positive: the chart has texts; actual=${actual}`);
+      for (const text of result.chart.texts) {
+        assert.ok(Math.abs(text.size - result.chart.body) <= 1, `${width}px: the chart's "${text.text}" is as large as the page's body text, within a pixel; actual=${actual}`);
+      }
+      if (width === 390) assert.ok(result.chart.box.scrollWidth > result.chart.box.clientWidth, `390px: the chart is wider than its box, which scrolls; actual=${actual}`);
       assert.ok(result.chart.axes.length >= 2, `known positive: the chart has its two axes; actual=${actual}`);
       for (const axis of result.chart.axes) assert.ok(result.chart.line.width >= axis, `${width}px: the chart's line is at least as wide as its axes; actual=${actual}`);
       assert.ok(result.chart.contrast >= 3, `${width}px: the chart's line stands out from its background at least 3:1; actual=${actual}`);
-      if (width === 1280) {
-        assert.equal(result.chart.scale, 1, `1280px: the chart has its own width; actual=${actual}`);
-        assert.ok(result.chart.texts.length > 0, `known positive: the chart has texts; actual=${actual}`);
-        for (const text of result.chart.texts) {
-          assert.ok(Math.abs(text.size - result.chart.body) <= 0.5, `1280px: the chart's "${text.text}" is as large as the page's body text; actual=${actual}`);
-        }
-      }
     }
   } finally { session.close(); }
 });
