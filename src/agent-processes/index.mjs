@@ -36,10 +36,10 @@ function rowOf(cells) {
 }
 const rows = register.rows.map(({ cells }) => rowOf(cells));
 
-function invoke(command, args) {
+function invoke(command, args, env = process.env) {
   return new Promise((resolve) => {
     let stdout = "", stderr = "";
-    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], env });
     child.stdout.on("data", (chunk) => { stdout += chunk; });
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     child.on("error", (error) => resolve({ ok: false, status: null, stdout, stderr, error }));
@@ -59,6 +59,14 @@ function loginMatches(login, result) {
 }
 const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, install: row.install });
 const taskArgs = (task, prompt) => task.args.map((arg) => arg === "{prompt}" ? prompt : arg);
+function ownLoginEnvironment() {
+  const credentials = new Set(rows.map((row) => row.keyVariable).filter((name) => name && name !== "—"));
+  const environment = {};
+  for (const name of Object.keys(process.env)) {
+    if (!credentials.has(name)) environment[name] = process.env[name];
+  }
+  return environment;
+}
 function valueAt(value, path) {
   return path.reduce((part, key) => part?.[key], value);
 }
@@ -86,7 +94,7 @@ export async function installedAgents() {
 export async function testAgent(agent) {
   const row = rows.find((candidate) => candidate.name === agent?.name);
   if (!row || !agent.installed) return { answered: false, reason: "agent is not installed" };
-  const result = await invoke(row.command, taskArgs(row.task, "Reply with one word: ok."));
+  const result = await invoke(row.command, taskArgs(row.task, "Reply with one word: ok."), ownLoginEnvironment());
   if (!result.ok) return { answered: false, reason: (result.stderr || result.error?.message || `exit ${result.status}`).trim() };
   let answer;
   try {
