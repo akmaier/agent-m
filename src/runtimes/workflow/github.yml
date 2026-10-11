@@ -1,0 +1,65 @@
+# Agent M's job workflow for this product, written by Agent M (docs/architecture/MOD-runtimes.md). It runs an entry of Agent M's
+# workflow entries for each event below, from a checkout of the instance at the commit named in each job. The secrets are named
+# here and never valued; they are set on the repository's secrets page.
+name: agent-m-jobs
+
+on:
+  push:
+    paths:
+      - "docs/jobs/**"
+      - "docs/gates/**"
+  pull_request:
+    types: [closed]
+  check_run:
+    types: [completed]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "The identifier of the job to start"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+# --- one job for each route of the product's CI agents: the lines below are written once for each ---
+  @@id@@:
+    name: Agent M jobs on @@route@@
+    runs-on: @@runs-on@@
+    env:
+      AGENT_M_RUNNER: @@runner@@
+      AGENT_M_PRODUCT_DIR: ${{ github.workspace }}/product
+      AGENT_M_TOKEN_NAME: "@@token@@"
+      AGENT_M_KEY_NAMES: "@@key-names@@"
+      AGENT_M_TOKEN: ${{ secrets.@@token@@ }}
+@@key-env@@    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.@@token@@ }}
+          path: product
+      - uses: actions/checkout@v4
+        with:
+          repository: @@repository@@
+          ref: @@commit@@
+          token: ${{ secrets.@@token@@ }}
+          path: instance
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onRecordsChanged
+      - if: github.event_name == 'pull_request'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onPullRequestClosed
+      - if: github.event_name == 'check_run'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onCheckCompleted
+      - if: github.event_name == 'schedule'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onSchedule
+      - if: github.event_name == 'workflow_dispatch'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onDispatch
