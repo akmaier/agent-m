@@ -216,6 +216,8 @@ async function describe(page, fields) {
   return form;
 }
 const SELECTED = [fileOf("a.md", "# A\n"), fileOf("b.md", "# B\n")];
+// The tick of "only hash it", as a person makes it: the field takes the tick, then reports the change.
+async function tickHashed(page) { const box = one(page, "library-file-only-hashed"); box.checked = true; await fire(box, "change"); }
 async function chooseFiles(page, files) { const input = one(page, "library-files"); input.files = files; await fire(input, "change"); }
 
 // guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-004 4, 5, 6
@@ -239,6 +241,7 @@ test("library — documents that may be republished are committed to the instanc
   assert.equal(saveOf(form).disabled, false);
   await click(saveOf(form));
   assert.equal(b.commits.length, 1, "one commit, one click");
+  assert.deepEqual([b.commits[0].branch, b.commits[0].expectedHead], ["main", "h".repeat(40)], "on the branch's head as it was read");
   assert.deepEqual(instanceFiles(b).map((file) => file.path).sort(), ["docs/sources/SRC-handbook.md", `docs/sources/SRC-handbook/${TODAY}/a.md`, `docs/sources/SRC-handbook/${TODAY}/b.md`]);
   assert.equal(new TextDecoder().decode(instanceFiles(b).find((file) => file.path.endsWith("/a.md")).bytes), "# A\n");
   const entry = entryOfCommit(b, "SRC-handbook");
@@ -292,16 +295,17 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
   await put(one(page, "library-standard-designation"), "ISO 26262:2018");
   await chooseFiles(page, [fileOf("iso-26262.pdf", "the publisher's bytes")]);
   assert.ok(folded(one(page, "library-route-standard")).some((node) => /SHA-256/.test(node.textContent)), "the hash-only choice is explained, folded");
-  await click(one(page, "library-file-only-hashed"));
+  await tickHashed(page);
   const form = await describe(page, { id: "SRC-iso-26262", title: "ISO 26262", authority: "normative" });
   assert.equal(inputOf(form, "licence").value, "restricted");
-  assert.match(one(page, "library-public").textContent, /nothing of it is stored|stored nowhere/i);
+  assert.match(one(page, "library-public").textContent, /nothing of iso-26262\.pdf is stored/i);
   await click(saveOf(form));
   assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-iso-26262.md"]);
   const written = instanceFiles(b)[0].text;
   assert.match(written, /not stored: iso-26262\.pdf/);
   assert.ok(written.includes(sha(bytesOf("the publisher's bytes"))));
   assert.equal(entryOfCommit(b, "SRC-iso-26262").fields.designation, "ISO 26262:2018");
+  assert.equal(entryOfCommit(b, "SRC-iso-26262").sections.find((section) => section.heading === "## Versions").rows[0].cells.Version, "`ISO 26262:2018`", "the designation is the version");
   assert.deepEqual(b.posts, []);
 });
 
@@ -367,11 +371,11 @@ test("library — a registered source's name leads to its entry, which shows eac
   assert.deepEqual(b.went.at(-1), ["library", { source: "SRC-iec-62304" }]);
   const stored = await b.page({ source: "SRC-eu-ai-act" });
   assert.match(one(stored, "library-entry").textContent, /EU AI Act/);
-  assert.match(one(stored, "library-entry").textContent, /act\.html.*\bstored\b/s);
+  assert.match(one(stored, "library-entry").textContent, /act\.html — stored/);
   assert.doesNotMatch(one(stored, "library-entry").textContent, /not stored/);
   const hashed = await b.page({ source: "SRC-iec-62304" });
   assert.match(one(hashed, "library-entry").textContent, /IEC 62304:2006\+AMD1:2015/);
-  assert.match(one(hashed, "library-entry").textContent, /iec-62304\.pdf.*not stored/s);
+  assert.match(one(hashed, "library-entry").textContent, /iec-62304\.pdf — not stored/);
   await click(one(hashed, "library-back"));
   assert.deepEqual(b.went.at(-1), ["library", {}]);
 });
@@ -423,8 +427,8 @@ test("library — what becomes public is stated before Save and follows the lice
   assert.doesNotMatch(statement(), /a\.md.*public.*instance/is);
   await put(one(page, "library-content-repository"), NAMED);
   assert.match(statement(), /alice\/restricted-content/);
-  await click(one(page, "library-file-only-hashed"));
-  assert.match(statement(), /nothing of (it|a\.md) is stored|stored nowhere/i);
+  await tickHashed(page);
+  assert.match(statement(), /nothing of a\.md is stored/i);
 });
 
 // guards: EVERY STEP EXPLAINS ITSELF; UC-004 3
@@ -437,10 +441,57 @@ test("library — each step's explanation is folded", async (t) => {
   await register(page, "standard");
   await chooseFiles(page, [fileOf("n.pdf", "x")]);
   const all = folded(page);
-  for (const [name, snippet] of [["the kinds", /EU legal text/], ["the name", /recognise in a list/], ["the authority", /Normative/], ["the licence", /treated as\s+restricted/], ["the designation", /cover page/],
-    ["a file only hashed", /SHA-256/], ["what becomes public", /becomes public/]]) {
+  for (const [name, snippet] of [["the kinds", /EU legal text/], ["the name", /recognise\s+in\s+a\s+list/], ["the authority", /Normative/], ["the licence", /treated as\s+restricted/], ["the designation", /cover page/],
+    ["a file only hashed", /SHA-256/], ["what becomes public", /becomes\s+public/]]) {
     const found = all.find((node) => snippet.test(node.textContent));
     assert.ok(found, `the explanation of ${name}`);
     assert.equal(found.hasAttribute("open"), false, `${name}: folded`);
   }
+});
+
+// guards: THE SOURCE MODEL IS GENERIC; THE SOURCE KIND IS ONE OF A CLOSED SET; A STANDARD IS REGISTERED BY ITS DESIGNATION; A LIVING SOURCE IS PINNED; UC-004 3, 4
+// given: the form filled in correctly for each route but for one thing: no file selected, an identifier that is no SRC- identifier, a kind outside the closed set, no designation for a
+//        standard, no EU legal text recognised, no repository pinned
+// input: the form
+// expect: Save disabled with the thing named beside the form, and enabled once it is put right
+test("library — the schema's checks and the route's missing part keep Save disabled, and each is put right", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  const disabled = () => saveOf(one(page, "library-form-box")).disabled;
+  const text = () => one(page, "library-form-box").textContent;
+  await register(page, "documents");
+  await describe(page, { id: "SRC-ok", title: "Ok", authority: "advisory", licence: "may be republished — CC BY 4.0" });
+  assert.equal(disabled(), true);
+  assert.match(text(), /no file is selected/);
+  await chooseFiles(page, SELECTED);
+  assert.equal(disabled(), false, "known positive: a file is selected");
+  await describe(page, { id: "bad id" });
+  assert.equal(disabled(), true);
+  assert.match(text(), /SRC-/);
+  await describe(page, { id: "SRC-ok" });
+  assert.equal(disabled(), false);
+  await describe(page, { kind: "nonsense" });
+  assert.equal(disabled(), true);
+  assert.match(text(), /organisation, person, standard, regulation, document, system, measurement/);
+  await describe(page, { kind: "document" });
+  assert.equal(disabled(), false);
+
+  await register(page, "standard");
+  await describe(page, { id: "SRC-norm", title: "A norm", authority: "normative" });
+  assert.equal(disabled(), true, "a standard without its designation");
+  assert.match(text(), /designation/);
+  await put(one(page, "library-standard-designation"), "IEC 61508:2010");
+  assert.equal(disabled(), false);
+
+  await register(page, "legal-text");
+  await describe(page, { id: "SRC-law", title: "A law", authority: "normative", licence: "may be republished — EU law" });
+  assert.equal(disabled(), true);
+  assert.match(text(), /no EU legal text is recognised/);
+  await put(one(page, "library-legal-address"), "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689");
+  assert.equal(disabled(), false);
+
+  await register(page, "repository");
+  await describe(page, { id: "SRC-repo", title: "A repository", authority: "advisory", licence: "may be republished — MIT" });
+  assert.equal(disabled(), true);
+  assert.match(text(), /not pinned/);
 });
