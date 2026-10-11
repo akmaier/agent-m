@@ -95,7 +95,7 @@ function driver(agent, workdir, keyVariable = null) {
 // guards: ONE DEFINITION, THREE DRIVERS; UC-010; UC-011
 // given: controlled Claude and OpenCode executables on PATH: Claude emits a text final answer without usage and OpenCode emits published raw JSON text and step-finish usage events.
 // input: a DriverInput whose prompt has already been assembled and whose workdir is the fixture folder.
-// expect: each send gives the agent the unchanged prompt in that workdir and streams output; Claude returns null for unreported usage and OpenCode maps its reported token counts and USD cost to Usage.
+// expect: each send gives the agent the unchanged prompt in that workdir and streams output; Claude returns null for unreported usage and OpenCode maps its reported token counts while leaving undocumented currencyless cost null.
 test("TST-321001: agent driver streams answers with reported or null usage", async () => {
   const folder = fixture();
   const record = join(folder, "record.json");
@@ -107,7 +107,7 @@ test("TST-321001: agent driver streams answers with reported or null usage", asy
     `);
     executable(folder, "opencode", `
       process.stdout.write(JSON.stringify({ type: "text", part: { text: "reported answer" } }) + "\\n");
-      process.stdout.write(JSON.stringify({ type: "step_finish", part: { tokens: { input: 13, output: 5 }, cost: 0.01 } }) + "\\n");
+      process.stdout.write(JSON.stringify({ type: "step_finish", part: { tokens: { input: 13, output: 5 } } }) + "\\n");
     `);
     const output = [];
     const result = await withPath(folder, () => driver(CLAUDE, folder).send(
@@ -123,7 +123,7 @@ test("TST-321001: agent driver streams answers with reported or null usage", asy
     assert.equal(output.join(""), "final answer\n");
     assert.deepEqual(await withPath(folder, () => driver(OPENCODE, folder).send({ ...INPUT, workdir: folder })), {
       text: "reported answer",
-      usage: { inputTokens: 13, outputTokens: 5, minutes: null, cost: 0.01 },
+      usage: { inputTokens: 13, outputTokens: 5, minutes: null, cost: null },
     });
   } finally {
     rmSync(folder, { recursive: true, force: true });
