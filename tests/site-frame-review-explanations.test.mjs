@@ -59,6 +59,8 @@ function assertClaims(topic, claims) {
 //         is this?</summary> and then the topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it, in
 //         which no asterisk or backtick of the Markdown source is left standing
 test("explain — each topic of reviewing, accepting and editing is a folded What is this? with its text", () => {
+  assert.match(renderArtifact("an *unclosed mark and `another").textContent, /[*`]/,
+    "known positive: the renderer leaves a mark that is not closed standing");
   for (const topic of TOPICS) {
     const text = topicText(topic);
     assert.ok(text?.trim(), `known positive: explanations.md holds the topic ${topic}`);
@@ -69,7 +71,6 @@ test("explain — each topic of reviewing, accepting and editing is a folded Wha
     const [summary, body, ...more] = folded.children;
     assert.deepEqual([summary.localName, summary.textContent, more.length], ["summary", "What is this?", 0], topic);
     assert.equal(body.innerHTML, renderArtifact(text).innerHTML, `${topic}: its body is its text, rendered`);
-    assert.match(text, /[*`]/, `known positive: ${topic} is written with Markdown emphasis or code`);
     assert.doesNotMatch(bodyText(topic), /[*`]/, `${topic}: it shows no stray Markdown`);
   }
 });
