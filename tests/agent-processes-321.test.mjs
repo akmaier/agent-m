@@ -63,8 +63,8 @@ const FAULTS = {
     "return process.env;",
   ],
   "TST-321003": [
-    "else process.kill(-child.pid, \"SIGTERM\");",
-    "else child.kill(\"SIGTERM\");",
+    "process.kill(-child.pid, \"SIGTERM\");",
+    "child.kill(\"SIGTERM\");",
   ],
   "TST-321004": [
     "throw failure(\"AgentNotLoggedIn\", \"the selected agent is not logged in\");",
