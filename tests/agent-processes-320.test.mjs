@@ -34,7 +34,7 @@ const FAULTS = {
   "TST-320002": ["const loggedIn = loginMatches(row.login, login);", "const loggedIn = true;"],
   "TST-320003": ["return { answered: true, version: agent.version };", "return { answered: false, reason: 'forced failure' };"],
   "TST-320004": ["if (!result.ok) return { answered: false, reason: (result.stderr || result.error?.message || `exit ${result.status}`).trim() };", "if (!result.ok) return { answered: true, version: agent.version };"],
-  "TST-320005": ["if (findings.length) throw new Error", "if (false) throw new Error"],
+  "TST-320005": ["if (findings.length || !register.rows.length) {", "if (false) {"],
 };
 
 // TST-320001

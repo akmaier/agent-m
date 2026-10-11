@@ -11,7 +11,11 @@ const REGISTER_FILE = new URL("./agents.md", import.meta.url);
 const schema = loadSchema(readFileSync(SCHEMA_FILE, "utf8"), OWNER);
 const register = readRegister(schema, "src/agent-processes/agents.md", readFileSync(REGISTER_FILE, "utf8"));
 const findings = documentFindings(schema, register.document).filter((finding) => finding.kind === "error");
-if (findings.length) throw new Error(`${OWNER}: agent register is invalid: ${findings.map((finding) => finding.what).join("; ")}`);
+if (findings.length || !register.rows.length) {
+  const reasons = findings.map((finding) => finding.what);
+  if (!register.rows.length) reasons.push("the supported-agent register has no readable rows");
+  throw new Error(`${OWNER}: agent register is invalid: ${reasons.join("; ")}`);
+}
 
 /** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null,
  *   install: Record<"macos" | "windows" | "linux", string> }} Agent */
