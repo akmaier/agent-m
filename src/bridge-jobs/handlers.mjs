@@ -1,5 +1,6 @@
 import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
 import { testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
+import { handOver } from "./watch.mjs";
 
 function validEndpointConfig(value) {
   return value && typeof value === "object" && typeof value.name === "string"
@@ -37,6 +38,12 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, agents = [] } = {
           name: agent.name, version: agent.version, ready: agent.loggedIn === true && Boolean(offered(agent.name).folder), loggedIn: agent.loggedIn })),
         missing: found.filter((agent) => !agent.installed).map((agent) => ({ name: agent.name })),
       };
+    },
+    "POST /v1/jobs": async ({ body }) => {
+      if (![body?.product, body?.record, body?.commit].every((value) => typeof value === "string" && value)) {
+        throw failure("invalid-request", "A job is handed over with its product, its record and its commit.");
+      }
+      return { accepted: await handOver({ product: body.product, record: body.record, commit: body.commit }) };
     },
     "POST /v1/probes/agent": async ({ body }) => {
       const wanted = offered(body?.args?.agent);

@@ -1,0 +1,244 @@
+// watch.mjs — reading the served products, taking jobs and running them (MOD-bridge-jobs, Parts: watch.mjs; Interfaces: startWatching,
+// stopWatching). Of it, ITM-327 builds taking and running the queued jobs of this Bridge's agents; resuming after a gate, advancing runs and an
+// agent's sprint close are other items'.
+//
+// Module: MOD-bridge-jobs
+//
+// Every job is run from its start record alone, prepared by the job runner on the job's working clone and driven by agentDriver without a key,
+// unattended: its kind's writer writes at once. The Bridge keeps no state of a job beyond its record; in memory it holds the jobs it runs.
+
+import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
+import { readRegister } from "../documents/index.mjs";
+import { kindOf } from "../job-catalogue/index.mjs";
+import { appendToRecord, jobCost, recordsNewestFirst, takeJob } from "../job-ledger/index.mjs";
+import { prepareJob, runJob } from "../job-runner/index.mjs";
+import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { checkoutAt, cloneOrFetch, defaultHead, foldersOf, hostOf, removeClone, workingClone } from "./workfolders.mjs";
+
+const PARTICIPANTS = "docs/participants.md";
+const QUIT = "the Bridge was quit";
+const failure = (code, message) => Object.assign(new Error(message), { code });
+
+// The Bridge and agent a participant's route names: `bridge <bridge> agent <agent>`, or null for any other route.
+function bridgeRoute(route) {
+  const named = /^bridge\s+(\S+)\s+agent\s+(\S+)/.exec(String(route ?? "").trim());
+  return named ? { bridge: named[1], agent: named[2] } : null;
+}
+
+// One record, read from a snapshot, as the ledger reads records.
+async function recordAt(snapshot, path) {
+  for await (const record of recordsNewestFirst({ paths: snapshot.paths.filter((each) => each === path), read: (each) => snapshot.read(each) })) return record;
+  return null;
+}
+
+// The usage of every exchange of a job, added up; null when no runtime reported any.
+function totalUsage(exchanges) {
+  const reported = exchanges.map(({ usage }) => usage).filter(Boolean);
+  if (!reported.length) return null;
+  const sum = (key) => (reported.some((usage) => typeof usage[key] === "number") ? reported.reduce((all, usage) => all + (usage[key] ?? 0), 0) : null);
+  return { inputTokens: sum("inputTokens"), outputTokens: sum("outputTokens"), minutes: sum("minutes"), cost: null };
+}
+
+// Why a job failed, in the failure's words: what the agent said last, or what kept the job from starting.
+const reasonOf = (error) => [error.message, error.lastOutput, ...(error.blocking ?? []).map((found) => found.what),
+  ...(error.notFitting ?? []).map(({ participant, size, context }) => `${participant.name}'s context (${context ?? "none declared"}) does not hold the ${size} tokens of the job`)].filter(Boolean).join(": ");
+
+// The watchers this program runs. A hand-over reaches every one of them.
+const watchers = new Set();
+
+function createWatcher(config) {
+  const { bridgeName, products, every, instance, onSkipped } = config;
+  const offered = config.agents.filter((agent) => agent.folder);
+  const running = new Map();
+  const busy = new Set();
+  let timer = null, stopped = false, chain = Promise.resolve();
+  const skip = (product, reason) => onSkipped?.({ product, reason });
+  const serially = (work) => (chain = chain.then(work, work));
+
+  // The participants of the instance as the commit a record names holds them, read through this agent's clone of the instance.
+  async function participantsAt(agent, commit, cache) {
+    if (!cache.has(commit)) {
+      cache.set(commit, (async () => {
+        const folder = await cloneOrFetch(instance, foldersOf(agent.folder).instance);
+        const host = await hostOf(instance, folder);
+        const text = await (await host.readSnapshot(commit)).read(PARTICIPANTS);
+        if (text === null) throw new Error(`the instance holds no ${PARTICIPANTS} at ${commit}`);
+        return participantsOf(readRegister(participantSchema(), PARTICIPANTS, text).document);
+      })());
+    }
+    return cache.get(commit);
+  }
+
+  // The queued records of a product the clone in `agent`'s folder holds, oldest first, with the participant each names and the agent it runs on.
+  async function queuedOf(agent, product, cache) {
+    const folder = await cloneOrFetch(product, foldersOf(agent.folder).product(product));
+    const host = await hostOf(product, folder);
+    const { commit } = await defaultHead(folder);
+    const snapshot = await host.readSnapshot(commit);
+    const queued = [];
+    for await (const record of recordsNewestFirst(snapshot)) if (!record.taken && !record.end) queued.unshift(record);
+    const found = [];
+    for (const record of queued) {
+      const participants = await participantsAt(agent, record.agentM.commit, cache);
+      const participant = participants.find((each) => each.name === record.participant);
+      const route = bridgeRoute(participant?.route);
+      if (route && route.bridge === bridgeName) found.push({ record, participant, agent: route.agent, host, commit });
+    }
+    return { found, folder, host, commit };
+  }
+
+  // One job: taken on the head that was read, run in the agent's working folder, its working clone removed, ended in its record.
+  async function run(agent, product, { record, participant, host, commit }, folder) {
+    const folders = foldersOf(agent.folder);
+    const controller = new AbortController();
+    const mine = { controller, done: null };
+    running.set(record.id, mine);
+    const working = folders.job(record.id);
+    let result = null, failed = null;
+    try {
+      const taken = await takeJob(host, record.path, bridgeName, commit);
+      if (!taken.taken) return;
+      try {
+        const installed = (await installedAgents()).find((each) => each.name === agent.name);
+        const head = await host.readSnapshot(taken.commit);
+        const instanceFolder = await checkoutAt(await cloneOrFetch(instance, folders.instance), record.agentM.commit);
+        const instanceHost = await hostOf(instance, instanceFolder);
+        const context = {
+          kind: await kindOf(record.kind), params: record.params,
+          product: { address: product, snapshot: head, host },
+          instance: { snapshot: await instanceHost.readSnapshot(record.agentM.commit), host: instanceHost, checkout: instanceFolder },
+          connect: async (address) => hostOf(address, await cloneOrFetch(address, foldersOf(agent.folder).product(address))),
+          participants: await participantsAt(agent, record.agentM.commit, new Map()), places: { sources: {}, mailbox: null }, gates: [],
+          person: record.startedBy, now: new Date(), agentM: record.agentM, jobId: record.id,
+        };
+        await workingClone(product, working);
+        const driver = agentDriver(installed, { workdir: working, keyVariable: null }, participant);
+        const prepared = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
+        result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal });
+      } catch (error) {
+        failed = error;
+      }
+      await removeClone(working);
+      await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
+    } finally {
+      running.delete(record.id);
+    }
+  }
+
+  // The end appended to the job's record on the head the product has now, read again where the branch moved.
+  async function ended(host, product, folder, record, participant, result, failed, quit) {
+    const cancelled = quit || failed?.name === "Cancelled";
+    const usage = result ? totalUsage(result.usage) : null;
+    const written = result?.written;
+    const part = { part: "end", at: new Date(), draft: written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage, participant), log: null };
+    if (failed || result?.stoppedBecause === "unusable") {
+      Object.assign(part, { state: cancelled ? "cancelled" : "failed", results: [],
+        reason: quit ? QUIT : cancelled ? "the job was cancelled" : failed ? reasonOf(failed) : "the answer could not be read" });
+    } else {
+      Object.assign(part, { state: "done", results: [...(written?.commits ?? []), ...(written?.files ?? []), ...(written?.pullRequest ? [written.pullRequest] : [])],
+        reason: null, stoppedBecause: result.stoppedBecause, forPerson: result.forPerson });
+    }
+    for (let attempt = 0; ; attempt += 1) {
+      await cloneOrFetch(product, folder);
+      const { branch, commit } = await defaultHead(folder);
+      const text = await (await host.readSnapshot(commit)).read(record.path);
+      try {
+        await host.commitFiles({ branch, expectedHead: commit, files: [{ path: record.path, text: appendToRecord(text, part) }], message: `end ${record.id} (${part.state})` });
+        return;
+      } catch (error) {
+        if (error?.name !== "Moved" || attempt >= 5) throw error;
+      }
+    }
+  }
+
+  async function visit(agent) {
+    const cache = new Map();
+    for (const product of products.map(({ address }) => address)) {
+      if (stopped || busy.has(agent.name)) return;
+      let queue;
+      try {
+        queue = await queuedOf(agent, product, cache);
+      } catch (error) {
+        skip(product, error.message);
+        continue;
+      }
+      const mine = queue.found.find((each) => each.agent === agent.name);
+      if (!mine) continue;
+      busy.add(agent.name);
+      const job = run(agent, product, { ...mine, host: queue.host, commit: queue.commit }, queue.folder)
+        .catch((error) => skip(product, `${mine.record.id}: ${error.message}`))
+        .finally(() => busy.delete(agent.name));
+      const entry = running.get(mine.record.id);
+      if (entry) entry.done = job;
+      jobs.add(job);
+      job.finally(() => jobs.delete(job));
+      return;
+    }
+  }
+  const jobs = new Set();
+
+  const tick = () => serially(async () => {
+    if (stopped) return;
+    for (const agent of offered) if (!busy.has(agent.name)) await visit(agent);
+  });
+
+  return {
+    config, tick,
+    start() { timer = setInterval(() => { tick(); }, every); timer.unref?.(); },
+    async stop(reason) {
+      stopped = true;
+      clearInterval(timer);
+      if (reason !== "quit") return;
+      for (const entry of running.values()) { entry.quit = true; entry.controller.abort(); }
+      await Promise.allSettled([...jobs]);
+    },
+    // A job the page handed over: which agent runs it, or the refusal.
+    async accept(product, path, commit) {
+      if (!products.some((each) => each.address === product)) return null;
+      const any = offered[0];
+      if (!any) throw failure("invalid-request", "No agent of this Bridge has a working folder set.");
+      const record = await serially(async () => {
+        const folder = await cloneOrFetch(product, foldersOf(any.folder).product(product));
+        const snapshot = await (await hostOf(product, folder)).readSnapshot(commit);
+        return recordAt(snapshot, path);
+      });
+      if (!record) throw failure("invalid-request", `${path} is not a job record at ${commit}.`);
+      const participant = (await participantsAt(any, record.agentM.commit, new Map())).find((each) => each.name === record.participant);
+      const route = bridgeRoute(participant?.route);
+      const agent = route && route.bridge === bridgeName ? config.agents.find((each) => each.name === route.agent) : null;
+      if (!agent || !agent.folder) throw failure("invalid-request", `This Bridge does not offer the agent of ${record.participant} with a working folder.`);
+      tick();
+      return record.id;
+    },
+  };
+}
+
+/**
+ * startWatching(config: { bridgeName: string, agents: { name: string, folder: string }[], products: { address: string }[], every: number,
+ * instance: string, onSkipped?: ({ product, reason }) => void }) -> void — reads every served product through a clone in each offered agent's
+ * working folder, with the computer's own git login, at the given interval and after every hand-over, and takes and runs the queued jobs whose
+ * participant's route names this Bridge and an agent it offers: a commit only on the head that was read, so that no other route takes them too.
+ * `instance` is the address of the instance repository, whose `docs/participants.md` names the participants; `onSkipped` is told of each product
+ * that could not be read, with the reason, which is read again at the next interval.
+ */
+export function startWatching(config) {
+  const watcher = createWatcher(config);
+  watchers.add(watcher);
+  watcher.start();
+}
+
+/** stopWatching(reason: "pause" | "quit") -> Promise<void> — takes nothing new; on quit every job still running ends as cancelled. */
+export async function stopWatching(reason) {
+  const stopping = [...watchers];
+  watchers.clear();
+  await Promise.all(stopping.map((watcher) => watcher.stop(reason)));
+}
+
+/** handOver({ product, record, commit }) -> Promise<string> — the id of the job a page handed over, run before the next interval; invalid-request for one no watcher offers. */
+export async function handOver({ product, record, commit }) {
+  for (const watcher of watchers) {
+    const id = await watcher.accept(product, record, commit);
+    if (id) return id;
+  }
+  throw failure("invalid-request", "This Bridge serves no such product, or is not watching.");
+}
