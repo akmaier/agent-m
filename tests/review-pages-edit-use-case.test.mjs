@@ -163,17 +163,26 @@ test("use-case/<id>/edit — an edit is saved in one commit, and the use case is
   for (const [id, path, before, status] of [["UC-041", P41, UC41, "open"], ["UC-042", P42, UC42, "changed since acceptance"]]) {
     const target = await edit(fake, id);
     assert.equal(areaOf(target).value, before, "the editor opens on the file's text");
+    // The person's text has no closing line break for UC-042; the file is saved with one.
     const edited = before.replace("once.", "once, and says when.").replace("desk.", "desk, for a week.");
-    type(target, edited);
+    type(target, id === "UC-042" ? edited.slice(0, -1) : edited);
     assert.equal(fake.writes().filter((write) => write.change.files[0].path === path).length, 0, "nothing is written before the click");
     const heads = fake.writes().length;
     click(saveOf(target));
     await until(() => fake.writes().length === heads + 1, "the commit");
     const [{ change }] = fake.writes().slice(-1);
-    assert.deepEqual(change.files, [{ path, text: edited }], `${id}: one file, the edited text`);
+    assert.deepEqual(change.files, [{ path, text: edited }], `${id}: one file, the edited text, with its closing line break`);
     await until(() => byClass(target, "p", "status").length === 1, "the status");
     assert.equal(byClass(target, "p", "status")[0].textContent, status, id);
     assert.equal(fake.files()[path], edited);
+    if (id === "UC-041") {
+      // The editor goes on: a second edit is saved on the blob the first one made.
+      const again = edited.replace("a week.", "a fortnight.");
+      type(target, again);
+      click(saveOf(target));
+      await until(() => fake.writes().length === heads + 2, "the second commit");
+      assert.equal(fake.files()[path], again, "the second save is made on the blob of the first");
+    }
   }
 });
 
@@ -182,13 +191,15 @@ test("use-case/<id>/edit — an edit is saved in one commit, and the use case is
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION
 // given: the editor of UC-041 with a token
 // input: the text changed so that its `title` is missing and a name under `realises` matches no requirement
-// expect: the rows of the editor mark the missing field and the unknown name AN UNKNOWN RULE; Save is still offered, not disabled
+// expect: the rows of the editor mark the missing field at once, and the unknown name AN UNKNOWN RULE a few turns later; Save is still
+//         offered, not disabled
 test("use-case/<id>/edit — marks are shown and Save is still offered", async () => {
   const target = await edit(fakeHost(), "UC-041");
   assert.equal(marksOf(target).includes("AN UNKNOWN RULE"), false, "known positive: the file as it stands has no such mark");
   type(target, useCase("UC-041", "Check out a book", "The member borrows a book at the desk.", [RULE, "AN UNKNOWN RULE"]).replace("title: Check out a book\n", ""));
+  assert.match(marksOf(target), /title/, "the missing field is marked at once");
   await until(() => marksOf(target).includes("AN UNKNOWN RULE"), "the mark of the unknown name");
-  assert.match(marksOf(target), /title/, "the missing field is marked");
+  assert.match(marksOf(target), /title/, "the missing field stays marked");
   assert.ok(saveOf(target), "Save is offered");
   assert.notEqual(saveOf(target).disabled, true, "Save is not disabled");
 });
@@ -197,8 +208,9 @@ test("use-case/<id>/edit — marks are shown and Save is still offered", async (
 
 // guards: AN EDITED FILE KEEPS ITS IDENTIFIER
 // given: the editor of UC-041 with a token
-// input: the text changed so that its `id` is UC-099; then changed back to UC-041
-// expect: with UC-099 Save is disabled and the page says why, naming UC-041; with UC-041 it is enabled again and the reason is gone; nothing written
+// input: the text changed so that its `id` is UC-099; a click on the disabled Save; then the text changed back to UC-041
+// expect: with UC-099 Save is disabled and the page says why, naming UC-041 and UC-099; the click writes nothing, the refusal says it is the
+//         identifier; with UC-041 it is enabled again and the reason is gone
 test("use-case/<id>/edit — a changed id disables Save and shows the reason", async () => {
   const fake = fakeHost();
   const target = await edit(fake, "UC-041");
@@ -206,6 +218,11 @@ test("use-case/<id>/edit — a changed id disables Save and shows the reason", a
   type(target, UC41.replace("id: UC-041", "id: UC-099"));
   await until(() => saveOf(target).disabled === true, "Save disabled");
   assert.match(byClass(target, "p", "id-changed")[0].textContent, /UC-041/);
+  assert.match(byClass(target, "p", "id-changed")[0].textContent, /UC-099/, "the reason names the identifier the text carries");
+  // Even a click that reaches the handler writes nothing: the save itself refuses a changed identifier.
+  click(saveOf(target));
+  await until(() => /identifier/.test(byClass(target, "p", "result")[0]?.textContent ?? ""), "the refusal");
+  assert.equal(fake.writes().length, 0, "nothing written for a changed identifier");
   type(target, UC41.replace("a book", "the book"));
   await until(() => saveOf(target).disabled !== true, "Save enabled again");
   assert.equal(byClass(target, "p", "id-changed")[0]?.textContent ?? "", "");
