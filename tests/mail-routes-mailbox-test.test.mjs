@@ -244,10 +244,13 @@ test("test — the silent token is taken at the tenant of the stored account, el
   await mailbox(GRAPH_CONNECTION, null).test();
   assert.equal(seen.configs[0].auth.authority, "https://login.microsoftonline.com/example.org");
   seen = signedIn();
+  await mailbox({ ...GRAPH_CONNECTION, address: "reports@other.example.net" }, null).test();
+  assert.equal(seen.configs[0].auth.authority, "https://login.microsoftonline.com/example.org", "the stored account comes before the address");
+  seen = signedIn();
   await mailbox({ ...GRAPH_CONNECTION, address: "reports@Uni.Example.DE", graph: { ...GRAPH_CONNECTION.graph, account: "reports" } }, null).test().catch(() => {});
   assert.equal(seen.configs[0].auth.authority, "https://login.microsoftonline.com/uni.example.de");
   seen = signedIn();
   await assert.rejects(mailbox({ ...GRAPH_CONNECTION, address: "", graph: { ...GRAPH_CONNECTION.graph, account: "reports" } }, null).test(),
-    (error) => error.name === "MailAddressNeeded" && /mail address/i.test(error.message));
+    (error) => error.name === "MailAddressNeeded" && /enter the mailbox's mail address/i.test(error.message));
   assert.equal(seen.configs.length, 0, "no client made");
 });

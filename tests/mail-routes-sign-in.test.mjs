@@ -186,7 +186,7 @@ test("signIn — without a domain no tenant is known: refused, asking for the ma
   assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
   for (const address of [null, "", "reports", "reports@"]) {
     const seen = standIn(signedIn);
-    await assert.rejects(signIn(CLIENT, address), (error) => error.name === "MailAddressNeeded" && /mail address/i.test(error.message), `${address}`);
+    await assert.rejects(signIn(CLIENT, address), (error) => error.name === "MailAddressNeeded" && /enter the mailbox's mail address/i.test(error.message), `${address}`);
     assert.equal(seen.configs.length, 0, "no client made");
     assert.equal(seen.logins.length, 0, "no window");
   }
