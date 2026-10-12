@@ -278,8 +278,6 @@ test("pullRequestFacts on GitLab — commits, files, approvals, head jobs and th
   const { result, requests: reads } = await serving(gitlab(), async () => [await facts.read("README.md", "base"), await facts.read("a.md", "base"), await facts.read("a.md", "head"), await facts.read("a.md", "head")]);
   assert.deepEqual(result, ["base readme\n", null, "head a\n", "head a\n"]);
   assert.deepEqual(reads.map((r) => r.query.get("ref")), [BASE, BASE, C2]);
-  const none = await serving(gitlab(), () => host.pullRequestFacts(7).then((f) => f.commits.map((c) => c.ci)));
-  assert.deepEqual(none.result, ["success", "failure"]);
   const bare = await serving(gitlab({ pipelinesOf: {} }), () => host.pullRequestFacts(7));
   assert.deepEqual(bare.result.commits.map((c) => c.ci), ["none", "none"]);
   assert.deepEqual(bare.result.checks, []);
@@ -293,7 +291,7 @@ test("pullRequestFacts on GitLab — a pipeline's status as a commit's ci", asyn
   const expected = { success: "success", failed: "failure", canceled: "failure", canceling: "failure", skipped: "none", created: "running", waiting_for_resource: "running", preparing: "running",
     waiting_for_callback: "running", pending: "running", running: "running", scheduled: "running", manual: "running" };
   for (const [status, ci] of Object.entries(expected)) {
-    const { result } = await serving(gitlab({ pipelinesOf: { [C1]: [{ id: 60, status }], [C2]: [{ id: 62, status }] } }).bind(null), () => connect(GITLAB, { token: GL_TOKEN }).pullRequestFacts(7));
+    const { result } = await serving(gitlab({ pipelinesOf: { [C1]: [{ id: 60, status }], [C2]: [{ id: 61, status }] } }), () => connect(GITLAB, { token: GL_TOKEN }).pullRequestFacts(7));
     assert.deepEqual(result.commits.map((c) => c.ci), [ci, ci], status);
   }
 });
@@ -379,4 +377,46 @@ test("pull requests without a token, through a clone, and with arguments that ar
     assert.ok(refused.result instanceof TypeError, String(number));
     assert.equal(refused.requests.length, 0);
   }
+});
+
+// ---------------------------------------------------------------- a commit's ci and the order of the commits
+
+// guards: STATUS IS DERIVED FROM THE RECORDS
+// given: a GitHub pull request whose first commit has only the checks named, nothing else, and its second commit none
+// input: pullRequestFacts(7), for each set of checks of the first commit
+// expect: failure for a timed out run alone, a cancelled run alone and a failed status alone; running for a run in progress beside a success; success for a success beside a skipped and a neutral
+//         run; none for no check at all
+test("pullRequestFacts on GitHub — a commit's ci from its checks alone", async () => {
+  const base = github();
+  const sets = [[[run("t", "completed", "timed_out")], [], "failure"], [[run("c", "completed", "cancelled")], [], "failure"], [[], [{ context: "legacy", state: "failure", target_url: "u" }], "failure"],
+    [[run("ok", "completed", "success"), run("busy", "in_progress")], [], "running"], [[run("ok", "completed", "success"), run("s", "completed", "skipped"), run("n", "completed", "neutral")], [], "success"],
+    [[], [], "none"]];
+  for (const [runs, statuses, ci] of sets) {
+    const answer = (r) => (r.path === `${GH}/commits/${C1}/check-runs` ? json(200, { total_count: runs.length, check_runs: runs }) : r.path === `${GH}/commits/${C1}/statuses` ? json(200, statuses) : base(r));
+    const { result } = await serving(answer, () => connect(GITHUB, { token: GH_TOKEN }).pullRequestFacts(7));
+    assert.equal(result.commits[0].ci, ci, JSON.stringify([runs.map((x) => x.conclusion ?? x.status), statuses.map((x) => x.state)]));
+  }
+});
+
+// guards: STATUS IS DERIVED FROM THE RECORDS
+// given: a GitHub pull request whose server lists the second commit first, and whose first commit has the later date (a rebased commit: its committer date is newer than its child's)
+// input: pullRequestFacts(7)
+// expect: the first commit first: the parents decide, not the dates
+test("pullRequestFacts — the parents decide the order of the commits before the dates do", async () => {
+  const base = github();
+  const answer = (r) => (r.path === `${GH}/pulls/7/commits` ? pages([ghCommit(C2, "second\n", [C1], "2026-10-10T08:00:00Z"), ghCommit(C1, "first\n", [BASE], "2026-10-10T09:00:00Z")])(r.query) : base(r));
+  const { result } = await serving(answer, () => connect(GITHUB, { token: GH_TOKEN }).pullRequestFacts(7));
+  assert.deepEqual(result.commits.map((c) => c.sha), [C1, C2]);
+});
+
+// guards: STATUS IS DERIVED FROM THE RECORDS
+// given: a GitLab merge request whose commits come newest first and name no parent_ids (the page's example omits them), with the dates of the commits
+// input: pullRequestFacts(7)
+// expect: the commits oldest first by their dates
+test("pullRequestFacts on GitLab — commits that name no parents are ordered by their dates, oldest first", async () => {
+  const base = gitlab();
+  const bare = (id, message, date) => ({ id, message, created_at: date, committed_date: date });
+  const answer = (r) => (r.path === `${GL}/merge_requests/7/commits` ? pages([bare(C2, "second\n", "2026-10-10T09:00:00Z"), bare(C1, "first\n", "2026-10-10T08:30:00Z")])(r.query) : base(r));
+  const { result } = await serving(answer, () => connect(GITLAB, { token: GL_TOKEN }).pullRequestFacts(7));
+  assert.deepEqual(result.commits.map((c) => c.sha), [C1, C2]);
 });
