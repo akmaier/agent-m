@@ -1,5 +1,5 @@
 import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
-import { testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
+import { endpointDriver, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 import { handOver } from "./watch.mjs";
 
 function validEndpointConfig(value) {
@@ -16,6 +16,18 @@ function failure(code, message) {
 
 // An ask's failure as the page reads it: the failure and, where the agent said anything, its last output.
 const reasonOf = (error) => (error?.lastOutput ? `${error.message}: ${error.lastOutput}` : error?.message ?? "The agent failed.");
+
+// An endpoint ask's failure as the page reads it: the endpoint's diagnosis — its reason and its own words — with the key, where the endpoint
+// quotes it, replaced.
+const endpointReason = (error, key) => {
+  const said = error?.diagnosis ? `${error.diagnosis.reason}: ${error.diagnosis.message}` : error?.message ?? "The endpoint failed.";
+  return key ? said.split(key).join("[key]") : said;
+};
+
+// A drafting request to a model endpoint, sent in Node with MOD-endpoint-calls' driver; the configuration lives in this call alone.
+function asked({ name, kind, baseUrl, model, key }, prompt) {
+  return endpointDriver({ name, kind, baseUrl, model, key }, { name }).send({ prompt, parts: [], output: null, findings: [], previous: null, workdir: null });
+}
 
 // A drafting request to an agent, in its working folder, through its driver: the answer and the usage, or the failure.
 async function drafted({ name, folder }, prompt) {
@@ -51,9 +63,17 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, agents = [] } = {
       return { answer: await testAgent((await installedAgents()).find((agent) => agent.name === wanted.name)) };
     },
     "POST /v1/ask": async ({ body }) => {
+      const entry = { state: "running", text: null, usage: null, error: null }, ask = globalThis.crypto.randomUUID();
+      if (body?.endpoint !== undefined) {
+        if (!validEndpointConfig(body.endpoint) || typeof body.input !== "string") throw failure("invalid-request", "An endpoint ask carries a valid endpoint configuration and an input that is text.");
+        const key = body.endpoint.key;
+        asks.set(ask, entry);
+        asked(body.endpoint, body.input).then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }),
+          (error) => Object.assign(entry, { state: "failed", error: endpointReason(error, key) }));
+        return { ask };
+      }
       const wanted = offered(body?.agent);
       if (!wanted?.folder || typeof body.input !== "string") throw failure("invalid-request", "This Bridge offers no such agent with a working folder, or the input is no text.");
-      const ask = globalThis.crypto.randomUUID(), entry = { state: "running", text: null, usage: null, error: null };
       asks.set(ask, entry);
       drafted(wanted, body.input).then(({ text, usage }) => Object.assign(entry, { state: "done", text, usage }),
         (error) => Object.assign(entry, { state: "failed", error: reasonOf(error) }));
