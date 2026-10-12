@@ -169,10 +169,10 @@ for (const [what, answer, name, check] of [
 // given: the stand-in; the page of the instance alice/agent-m
 // input: signIn(CLIENT, address) for reports@example.org, for Reports@Uni-Example.DE, and for an address without a domain ("reports")
 // expect: the authority the institution's own tenant: https://login.microsoftonline.com/example.org, .../uni-example.de (the domain in lower case),
-//         and for the address with no domain Microsoft's multi-tenant /common; always on the host login.microsoftonline.com, no query
+//         for a quoted local part holding an @ the domain after the last @, and for the address with no domain Microsoft's multi-tenant /common; always on the host login.microsoftonline.com, no query
 test("signIn — signs in at the tenant of the mail address's domain", async () => {
   assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
-  for (const [address, tenant] of [["reports@example.org", "example.org"], ["Reports@Uni-Example.DE", "uni-example.de"], ["reports", "common"]]) {
+  for (const [address, tenant] of [["reports@example.org", "example.org"], ["Reports@Uni-Example.DE", "uni-example.de"], ["\"a@b\"@example.org", "example.org"], ["reports", "common"]]) {
     const seen = standIn(signedIn);
     await signIn(CLIENT, address);
     assert.equal(seen.configs[0].auth.authority, `https://login.microsoftonline.com/${tenant}`, address);
