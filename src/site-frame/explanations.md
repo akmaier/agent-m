@@ -596,3 +596,58 @@ it. So a licence can restrict how your own product may be distributed. Agent M r
 own, from its `LICENSE` file, and marks a candidate whose licence is not known to be compatible; if the licence is missing,
 unknown or restrictive, the table says so in its row and you decide. Without a `LICENSE` file in the product, every candidate's
 licence is marked *not checked*, and the product's own licence decides which libraries it may reuse.
+
+## linked-version
+
+You choose one of the product's linked sources and, if you like, the part of it to work on. Agent M reads exactly the version that
+is linked to the product, never a newer one, and checks the file's hash: the SHA-256, a fingerprint of its exact content, against
+the one recorded when that version was registered. If the hash differs, the content changed since it was registered; nothing is
+sent, Agent M says so, and a new version of the source must be registered first.
+
+## existing-requirements
+
+Candidates are drafted against the requirements the product already has, not beside them. So Agent M collects every existing
+requirement of the product, those in its SPEC and those in its open change queues, and sends them with the excerpt of the source,
+chapter 8 of the book *Vibe Coding* and the requirement prompt. The participant has to hold all of it: if the excerpt, the
+requirements and the chapter do not fit into its context, nothing is sent, Agent M says how many requirements there are and how
+much fits, and you can choose a participant with a larger context or a smaller part of the source. No requirement is dropped
+silently.
+
+## derivation-run-panel
+
+The run panel appears before anything is sent. It names the destination, the participant that will receive the request and where it
+processes data, and says exactly what is sent: the excerpt of the source and the existing requirements, with the chapter of the
+book, and how many requirements are included. It also states the limit of correction rounds. *Run* is the one click that sends;
+if you do not press it, nothing is sent.
+
+## candidate-classes
+
+The participant returns candidates, and each has a class that says how it relates to the requirements the product already has.
+*New*: nothing existing covers it. *Change*: it alters a named existing requirement. *Duplicate*: it restates a named existing
+requirement. *Conflict*: it contradicts a named existing requirement. A candidate whose name or normalised rule equals an existing
+requirement's is classified as a duplicate by Agent M without a model, whatever the model said. The review panel groups the
+candidates by class, each beside the requirement it refers to, and you can move a candidate to another class, for example from
+*new* to *duplicate* of a requirement.
+
+## candidate-correction
+
+Before you see the candidates, Agent M checks them without a model and sends what it finds back to the participant, one line each,
+like messages from a compiler. A candidate that lacks one of the four fields of a requirement, its name, its source, its rule or
+its check, is an error and must be fixed; a rule that contains a conjunction is a warning: split it, or give a reason. The participant corrects them, up to the limit of rounds the
+run panel states. Conflicts are never sent back, because a person decides them. What is left after the last round is shown flagged,
+and the rounds are counted and shown with the candidates.
+
+## conflict-and-normative-source
+
+A conflict is a candidate that contradicts a named existing requirement. Agent M never settles one: it is not sent back to the
+participant, and you decide how each is resolved. When a conflict involves a normative source, the panel says which side is
+normative, but a normative source does not win automatically, because the product may be out of that source's scope. A conflict
+you have not decided stays in the panel and is not written.
+
+## write-proposals
+
+*Write proposals* is one click. Agent M writes a new queue under `docs/spec-freigaben/`, whose entries are open until someone
+accepts them: for a new candidate, an entry that adds the requirement to its section; for a change, an entry for the section that
+holds the requirement, changing it under its name, with the current text beside it and its impact list; for a duplicate, an entry
+that adds the new source to the existing requirement; for a conflict, an entry only as you resolved it. Every entry records the
+Agent M version, the participant, the model and the date. The SPEC itself is unchanged until you accept entries.
