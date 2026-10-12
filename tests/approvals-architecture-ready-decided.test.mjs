@@ -12,7 +12,8 @@
 // The product is a small repository this file holds, in memory, behind a snapshot of its own (paths, blob and read, as MOD-repository-hosts'
 // Snapshot gives them): a SPEC, one accepted use case, and two change queues. The first holds four entries: 01, named by no record and by a
 // decision row whose fourth cell is the short identifier of a commit; 02, named by a record of its current proposal and by no row; 03, named by
-// neither, though a row  that names no commit and a row of another verb that names one stand for it — neither decides; 04, named by a row of the queue that holds it and by no record. The second queue's entry 01 is named by nothing, though the first
+// neither, though a row `uebernommen` that names no commit and a row of another verb that names one stand for it — neither decides; 04,
+// named by a row of the queue that holds it and by no record. The second queue's entry 01 is named by nothing, though the first
 // queue's row for entry 1 stands: a row decides the entry of its own queue. The module file does not say how a row names a commit: this file
 // reads the row of a register without a header — `| <time> | <entry number> | uebernommen | <commit> |` — of the verb `uebernommen` (the only one the repository's rows use), whose fourth cell is the commit's
 // identifier, short or whole, and whose entry number is read without its leading zero; the snapshot holds no history, so that the commit
