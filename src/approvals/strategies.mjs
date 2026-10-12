@@ -1,7 +1,7 @@
 // strategies.mjs — the recipes and the precondition of approvalStrategies (MOD-approvals, Parts: strategies.mjs; Interfaces:
 // approvalStrategies). Of it, ITM-332 builds the recipes `use-cases` and `use-case-with-neighbours` and the precondition
 // `rests-on-accepted` for requirements and use cases. ITM-437 builds the recipe `accepted-use-cases` and the precondition
-// `architecture-ready`; the recipe `whole-architecture` and the architecture's part of `rests-on-accepted` are not built yet.
+// `architecture-ready`, ITM-465 its reading of a decision row; the recipe `whole-architecture` and the architecture's part of `rests-on-accepted` are not built yet.
 //
 // Module: MOD-approvals
 //
@@ -45,22 +45,29 @@ const requirementPart = ({ name, source, rule, check }) => ({ name, size: 0, sou
     .filter((line) => line !== null).join("\n") });
 
 // The SPEC changes that are open, by their proposals' paths, in the order the files stand: the entries of the change queues
-// (docs/spec-freigaben/<queue>/NN-<slug>.md, where the queue has its index.md) that no approval record names (MOD-spec-changes,
-// Data: "open — no approval record names its proposal"). A record is docs/approvals/spec-<queue folder>-<NN>-<blob12>.md: it names
-// the entry <NN> of that queue. An entry a record names is not open, whatever blob the record names — a record of an earlier text
-// of the proposal makes it stale, which is MOD-spec-changes' state of its own — and a decision row of the queue's
-// entscheidungen.md does not decide, and is not read.
+// (docs/spec-freigaben/<queue>/NN-<slug>.md, where the queue has its index.md) that neither an approval record nor a decision row
+// decides (MOD-spec-changes, Data: "open — no approval record names its proposal and no decision row names the commit that wrote it into
+// the SPEC"; STATUS IS DERIVED FROM THE RECORDS). A record is docs/approvals/spec-<queue folder>-<NN>-<blob12>.md: it names the entry <NN>
+// of that queue, whatever blob it names — a record of an earlier text of the proposal makes the entry stale, which is MOD-spec-changes'
+// state of its own, not open. A decision row is a line of the queue's own entscheidungen.md, a register without a header,
+// `| <time> | <entry> | uebernommen | <commit> |`: it decides the entry of its queue whose number is its second cell when its fourth cell
+// names a commit — a commit's identifier, short or whole — or an approval record (`approval:<file>`), as the dashboard writes it. The
+// snapshot holds no history, so that the commit is not looked up.
 const SPEC_RECORD = /^docs\/approvals\/spec-(.+)-(\d{2})-[0-9a-f]{12}\.md$/;
-function openSpecChanges(snapshot) {
+const DECISION_ROW = /^\|[^|]*\|\s*(\d+)\s*\|\s*uebernommen\s*\|\s*(?:[0-9a-f]{7,40}|approval:\S+)\s*\|\s*$/;
+async function openSpecChanges(snapshot) {
   const records = snapshot.paths.map((path) => SPEC_RECORD.exec(path)).filter(Boolean);
   const named = new Set(records.map((record) => `${record[1]}#${record[2]}`));
   const open = [];
   for (const index of snapshot.paths.filter((path) => /^docs\/spec-freigaben\/[^/]+\/index\.md$/.test(path))) {
-    const queue = index.slice(0, index.lastIndexOf("/"));
+    const queue = index.slice(0, index.lastIndexOf("/")), folder = queue.slice(queue.lastIndexOf("/") + 1);
+    const decided = new Set(((await snapshot.read(`${queue}/entscheidungen.md`)) ?? "").split(/\r?\n/)
+      .map((line) => DECISION_ROW.exec(line)).filter(Boolean).map((row) => row[1].padStart(2, "0")));
     for (const path of snapshot.paths) {
       const entry = path.startsWith(`${queue}/`) ? /^(\d{2,})-[^/]*\.md$/.exec(path.slice(queue.length + 1)) : null;
       if (!entry || path.endsWith(".begruendung.md")) continue;
-      if (!named.has(`${queue.slice(queue.lastIndexOf("/") + 1)}#${entry[1].padStart(2, "0")}`)) open.push(path);
+      const number = entry[1].padStart(2, "0");
+      if (!named.has(`${folder}#${number}`) && !decided.has(number)) open.push(path);
     }
   }
   return open;
@@ -87,8 +94,8 @@ const NOT_ACCEPTED = { open: "is open", changed: "has changed since it was accep
  *   AS A WHOLE when the product has an architecture decision or module file already, pointing to UC-023; an error under
  *   ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES naming each use case that is open or changed; a warning under THE
  *   FIRST ARCHITECTURE IS DESIGNED AS A WHOLE naming, by its proposal's path, each SPEC change that is open — an entry of a
- *   change queue that no approval record names (so one that only a decision row names is open, and one that a record of
- *   an earlier text of its proposal names is stale, not open); none when the product is ready;
+ *   change queue that neither an approval record nor a decision row naming the commit that wrote it into the SPEC decides (a
+ *   record of an earlier text of its proposal makes it stale, not open); none when the product is ready;
  * - precondition `rests-on-accepted`: one error finding, under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, that names every
  *   requirement of the parameter `requirements` that the SPEC does not hold and every use case of the parameter `useCases` that
  *   no record names the current text of, or that is no use case of the product; none when all are accepted, or when the job
@@ -119,7 +126,7 @@ export const approvalStrategies = {
       const { snapshot, address } = context.product;
       const reviewed = [...statuses(snapshot).values()];
       const notAccepted = reviewed.filter((each) => each.kind === "use-case" && each.status !== "accepted");
-      const changes = openSpecChanges(snapshot);
+      const changes = await openSpecChanges(snapshot);
       const found = (kind, rule, what, fix) => finding({ artifact: address, line: 1, kind, rule, what, fix });
       if (reviewed.some((each) => each.kind !== "use-case")) {
         return found("error", AS_A_WHOLE, "the product has an architecture already: a first architecture is not drafted beside it",
