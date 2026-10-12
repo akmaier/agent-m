@@ -12,6 +12,10 @@ repository, data and a model; `Maintainer` for those and for an agent; `Processi
 What the language cannot say is written in `rules.mjs`: the form of a compute route, the form of a secret, a maintainer who is a single
 person, and an entry that carries a participant's capabilities or role.
 
+A maintainer is a single person when the `Maintainer` column holds one account written `@<account>`, or one person written
+`person <name>`: `rules.mjs` then gives a warning. An organisation, `unknown`, and several accounts (`@alice, @bob`) are not a single
+person.
+
 ```json
 {
   "schema": "resources",
