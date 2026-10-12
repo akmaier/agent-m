@@ -51,7 +51,7 @@ const differs = (was, is) => was.source !== is.source || was.rule !== is.rule ||
 
 // The impact list of a proposal against the section that holds now (both texts, "" for none): every name withdrawn, added or
 // changed, with the identifiers of the artifacts that name it. The graph of the snapshot is built only when a name is touched.
-async function impactOf(snapshot, before, after) {
+export async function impactOf(snapshot, before, after) {
   const was = parseSpec(before).requirements, is = parseSpec(after).requirements;
   const { withdrawn, added } = renamedRequirements(before, after);
   const named = [
