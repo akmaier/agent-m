@@ -13,7 +13,8 @@ const explain = { list: "accepting", all: "accepting", one: "accepting", changed
 // `restsOn` marks a kind whose file names what it rests on (a decision its forces, a module what it realises): its page shows the
 // section of what is not accepted yet, and offers no Accept while there is any.
 export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-cases", title: "Use cases", plural: "use cases", noun: "use case",
-  heading, explain };
+  heading, explain: { ...explain, draft: { requirements: "requirements-to-cover", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop",
+    written: "drafted-use-cases", ci: "ci-agent-draft" } }, draft: "derive-use-cases" };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
   plural: "architecture decisions", noun: "architecture decision", heading, explain, restsOn: true, whole: ["architecture-decision", "module"] };
 export const MODULES = { kind: "module", route: "module", entry: "architecture", title: "Module files", plural: "module files",

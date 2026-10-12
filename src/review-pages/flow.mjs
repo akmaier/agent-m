@@ -14,12 +14,15 @@ import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { el, link, button, storedToken, problem, parseServer, TOKEN_STEP } from "./common.mjs";
+import { showDraft, jobNotes } from "./jobs.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
 
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 // The id of the page that shows every file not yet accepted: #<route>/id=all.
 const REVIEW_ALL = "all";
+// The id of the page that drafts files of a kind that has a job to draft them: #<route>/id=draft.
+const DRAFT = "draft";
 // The kind of job whose record holds the rounds of the architecture shown.
 const ARCHITECTURE_JOB = "derive-architecture";
 
@@ -105,7 +108,8 @@ export function reviewRoute(kind) {
       return;
     }
     const where = { host, token, snapshot, context, target };
-    if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
+    if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
+    else if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
     else if (params.id && service.view) await showEntry(where, params.id);
     else if (params.id) await showOne(where, params.id);
     else await showList(where);
@@ -153,6 +157,7 @@ export function reviewRoute(kind) {
     }
     target.append(el("h2", null, kind.title));
     if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "review-all", "Review all"));
+    if (kind.draft) target.append(link(`#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
     target.append(explain(kind.explain.list));
     if (bar) {
       bar.addEventListener("click", async () => {
@@ -308,6 +313,14 @@ export function reviewRoute(kind) {
       target.append(diff);
     }
     target.append(renderArtifact(shortBody(body)));
+    if (kind.draft && file.status !== "accepted") {
+      const notes = await jobNotes(snapshot, file.id);
+      if (notes.length) {
+        const list = el("ul");
+        for (const note of notes) list.append(el("li", null, note));
+        target.append(el("section", "job-notes", el("h3", null, "Notes of the job that wrote it"), list));
+      }
+    }
     if (file.status === "accepted") return;
     if (kind.restsOn) {
       const open = await acceptanceBlockers(file.path, snapshot);
