@@ -632,8 +632,8 @@ candidates by class, each beside the requirement it refers to, and you can move 
 ## candidate-correction
 
 Before you see the candidates, Agent M checks them without a model and sends what it finds back to the participant, one line each,
-like messages from a compiler. A candidate that lacks one of the four fields or its check is an error and must be fixed; a rule
-that contains a conjunction is a warning: split it, or give a reason. The participant corrects them, up to the limit of rounds the
+like messages from a compiler. A candidate that lacks one of the four fields of a requirement, its name, its source, its rule or
+its check, is an error and must be fixed; a rule that contains a conjunction is a warning: split it, or give a reason. The participant corrects them, up to the limit of rounds the
 run panel states. Conflicts are never sent back, because a person decides them. What is left after the last round is shown flagged,
 and the rounds are counted and shown with the candidates.
 
