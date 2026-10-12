@@ -1,6 +1,5 @@
 // tab.mjs — jobs running in this tab (docs/architecture/MOD-runtimes.md, Parts: "tab.mjs — jobs running in this tab"). Of it, ITM-319 builds queueOnTab,
-// the tab route of queueJob, and runOnTab. The Bridge's driver for an agent or an endpoint (bridgeDriver, ITM-325) is not built: a participant that needs it
-// is refused by name.
+// the tab route of queueJob, and runOnTab. The Bridge's drivers (bridgeDriver, ITM-325, bridge.mjs) are built for an agent on a Bridge and for an endpoint a Bridge calls.
 //
 // Module: MOD-runtimes
 //
@@ -12,6 +11,7 @@
 import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { appendToRecord, jobCost, startRecord } from "../job-ledger/index.mjs";
 import { runJob } from "../job-runner/index.mjs";
+import { bridgeDriver } from "./bridge.mjs";
 import { RuntimeError } from "./ci.mjs";
 
 /**
@@ -29,17 +29,20 @@ export async function queueOnTab(host, start, head) {
   return { path, commit };
 }
 
-// The driver of a participant: the endpoint its route names, from its configuration. An endpoint through a Bridge, and an agent, need MOD-runtimes' bridgeDriver.
+// The driver of a participant, from its route: an endpoint it names, from its configuration — `endpointDriver` where the endpoint is called from this tab, `bridgeDriver` with the endpoint
+// on the Bridge its `bridge` names —, or an agent on the Bridge its route names. Each Bridge is found by its name among `connections.bridges`.
 function driverOf(participant, connections) {
+  const bridgeOf = (name) => {
+    const bridge = connections.bridges?.[name];
+    if (!bridge) throw new RuntimeError("BridgeNotConnected", { bridge: name }, `the Bridge ${name} is not among the connected Bridges`);
+    return bridge;
+  };
+  const agent = /^bridge\s+(\S+)\s+agent\s+(\S+)/.exec(participant.route ?? "");
+  if (agent) return bridgeDriver(bridgeOf(agent[1]), { agent: agent[2] }, participant);
   const endpoint = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
-  if (endpoint === undefined) {
-    throw new RuntimeError("BridgeDriverMissing", { participant: participant.name }, `${participant.name} (${participant.route}) is reached through a Bridge, whose driver is not built yet`);
-  }
-  const entry = connections.endpoints[endpoint];
+  const entry = endpoint === undefined ? undefined : connections.endpoints[endpoint];
   if (!entry) throw new RuntimeError("EndpointNotConfigured", { endpoint }, `the endpoint ${endpoint} has no configuration`);
-  if (entry.bridge !== null) {
-    throw new RuntimeError("BridgeDriverMissing", { participant: participant.name, bridge: entry.bridge }, `the endpoint ${endpoint} is called through the Bridge ${entry.bridge}, whose driver is not built yet`);
-  }
+  if (entry.bridge !== null) return bridgeDriver(bridgeOf(entry.bridge), { endpoint: entry.config }, participant);
   return endpointDriver(entry.config, participant);
 }
 

@@ -5,8 +5,8 @@
 // and routesFor (routes.mjs): the routes a participant offers, with the reason of each that cannot be taken. ITM-322 builds
 // jobWorkflowFiles (ci.mjs) with the templates workflow/github.yml and workflow/gitlab.yml. bridgeAgentDriver,
 // resumeJob, liveState, jobLog, cancelJob, retryJob and routeStrategies are not part of
-// this item (UC-010, UC-011, UC-036) and are not built yet; neither is queueJob's Bridge route, nor a job of a run
-// (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs).
+// this item (UC-010, UC-011, UC-036) and are not built yet; nor is a job of a run
+// (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 //
 // Module: MOD-runtimes
 //
@@ -15,10 +15,12 @@
 
 import { queueOnCi } from "./ci.mjs";
 import { queueOnTab } from "./tab.mjs";
+import { queueOnBridge } from "./bridge.mjs";
 
 export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
 export { runOnTab } from "./tab.mjs";
+export { bridgeDriver } from "./bridge.mjs";
 
 export { RuntimeError } from "./ci.mjs";
 
@@ -45,5 +47,6 @@ export { RuntimeError } from "./ci.mjs";
 export async function queueJob(host, start, route, head, bridge) {
   if (route.kind === "ci") return queueOnCi(host, start, head);
   if (route.kind === "tab") return queueOnTab(host, start, head);
+  if (route.kind === "bridge") return queueOnBridge(host, start, head, bridge);
   throw new Error(`queueJob: the "${route.kind}" route is not built yet (UC-010, UC-011)`);
 }
