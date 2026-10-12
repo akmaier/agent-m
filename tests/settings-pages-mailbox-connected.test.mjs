@@ -255,7 +255,7 @@ test("Processing places changed later: the same list and the same notice, stored
   await tick(one(shown, "mailbox-line-place-notice-read"));
   await click(one(shown, "mailbox-places-save"));
   assert.deepEqual(readSetting(b.store, "mailbox"), { ...only, places: [{ place: "this machine", outsideEu: false }, { place: "Anthropic, a provider in the USA", outsideEu: true, notCompliantNoted: true }] });
-  assert.match(shown.textContent, /already handed to a participant is not recalled/i);
+  assert.match(one(shown, "mailbox-line-result").textContent, /already handed to a participant is not recalled/i);
   assert.match(one(shown, "mailbox-connected").textContent, /Anthropic.*outside the EU/);
   assert.equal(readSetting(b.store, "last-test:mailbox").outcome, "working");
   const again = await b.open();
