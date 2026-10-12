@@ -6,6 +6,7 @@ import { notificationState, switchOff, switchOn, testNotification } from "../not
 import { explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
+import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
@@ -165,8 +166,19 @@ async function participantsOnBridge(host, name) {
     .filter(({ route }) => route && route[1] === name).map((row) => `${row.name} (${row.route[2]})`);
 }
 
-// What clearing the Bridge `name` stops working in this browser, said before it is cleared (UC-042, 2a): the endpoints, the participants and the mailbox
-// that name it. Participants that cannot be read are said to be unread, never left out as if there were none.
+// The resources of the list docs/resources.md of a repository whose route is exactly `bridge <name>`, by their names (MOD-resource-list, Data: Route); a repository that holds no list has none.
+async function resourcesOnBridge(host, name) {
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  if (!snapshot.paths.includes("docs/resources.md")) return [];
+  const text = await snapshot.read("docs/resources.md");
+  if (text === null || text === undefined) return [];
+  return readRegister(resourceSchema(), "docs/resources.md", text).rows
+    .filter(({ cells }) => /^bridge (\S+)$/.exec(String(cells.Route ?? "").trim())?.[1] === name).map(({ cells }) => cells.Name);
+}
+
+// What clearing the Bridge `name` stops working in this browser, said before it is cleared (UC-042, 2a): the endpoints, the participants, the resources of the instance and of the chosen
+// product, and the mailbox that name it. Participants and resources that cannot be read are said to be unread, never left out as if there were none.
 async function clearingConsequence(context, name) {
   const endpoints = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
     .filter((setting) => readSetting(context.store, setting.key)?.bridge === name).map((setting) => endpointName(setting.key));
@@ -174,12 +186,21 @@ async function clearingConsequence(context, name) {
   if (context.instance?.host) {
     try { participants = await participantsOnBridge(context.instance.host, name); } catch (error) { unread = error?.message ?? String(error); }
   }
+  const lists = [];
+  for (const [label, host] of [["instance", context.instance?.host], ["product", context.product?.host]]) {
+    if (!host) continue;
+    try { lists.push({ label, names: await resourcesOnBridge(host, name), unread: null }); } catch (error) { lists.push({ label, names: [], unread: error?.message ?? String(error) }); }
+  }
   const mailbox = readSetting(context.store, "mailbox")?.imap?.bridge === name;
   const plural = (list, one, many) => (list.length === 1 ? one : many);
   const sentences = [
     ...(endpoints.length ? [`${plural(endpoints, "The endpoint", "The endpoints")} ${endpoints.join(", ")} ${plural(endpoints, "names", "name")} it.`] : []),
     ...(participants.length ? [`${plural(participants, "The participant", "The participants")} ${participants.join(", ")} ${plural(participants, "names", "name")} it.`] : []),
     ...(unread ? [`The participants could not be read (${unread}), so those that name it are not listed.`] : []),
+    ...lists.flatMap(({ label, names, unread: why }) => [
+      ...(names.length ? [`${plural(names, "The resource", "The resources")} ${names.join(", ")} of the ${label} ${plural(names, "names", "name")} it.`] : []),
+      ...(why ? [`The ${label}'s resources could not be read (${why}), so those that name it are not listed.`] : []),
+    ]),
     ...(mailbox ? ["The mailbox connection names it."] : []),
   ];
   return sentences.length ? `${sentences.join(" ")} ${unread && sentences.length === 1 ? "" : "They will have no Bridge to go through."}`.trim() : "Nothing in this browser names this Bridge.";
