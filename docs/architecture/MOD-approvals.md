@@ -140,8 +140,9 @@ never written.
     that is not accepted, and, where the parameters ask for it, every file of the architecture that is not accepted
     (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`, `ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES`);
   - precondition `architecture-ready` — an error finding when a use case is open or changed (naming each) or when the
-    product already has an architecture (pointing to UC-023); a warning finding naming every open SPEC change
-    (`THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE`).
+    product already has an architecture (pointing to UC-023); a warning finding naming every open SPEC change — an
+    entry that neither an approval record nor a decision row naming the commit that wrote it into the SPEC decides
+    (`THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE`, `STATUS IS DERIVED FROM THE RECORDS`).
 
 `Host` and `Snapshot` are MOD-repository-hosts'.
 

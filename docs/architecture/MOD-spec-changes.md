@@ -109,9 +109,10 @@ A row of `entscheidungen.md`, a register without a header row:
 | 2026-09-23 21:47 UTC | 1 | uebernommen | approval:spec-2026-09-23d_instanz-und-token-01-47a9e8a383b0.md |
 ```
 
-The state of an entry, derived and never written: `open` — no approval record names its proposal; `approved` — a record
-names the proposal's current blob and no decision row names the record yet (the instance's workflow has still to write
-it); `in SPEC` — a decision row `uebernommen` names its record; `stale` — a record or the reviewer's view names a proposal
+The state of an entry, derived and never written: `open` — no approval record names its proposal and no decision row
+names the commit that wrote it into the SPEC; `approved` — a record names the proposal's current blob and no decision row
+names the record yet (the instance's workflow has still to write it); `in SPEC` — a decision row `uebernommen` names its
+record, or names the commit that wrote it into the SPEC (`STATUS IS DERIVED FROM THE RECORDS`); `stale` — a record or the reviewer's view names a proposal
 or SPEC section whose blob is no longer current; `waiting for its anchor` — its anchor is not in the target, and an
 earlier entry of the queue creates it.
 

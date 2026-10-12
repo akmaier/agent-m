@@ -107,7 +107,9 @@ keeps them in its own cache in `localStorage`, whose keys Access lists among the
   answers the IMAP route with the reason, and the person may change it.
 - `signIn(clientId: string, address: string | null) -> Promise<{ account: string }>` — Microsoft's sign-in in Microsoft's
   own window, asking for exactly `Mail.ReadWrite`, `Mail.Send` and `offline_access` and nothing else (`THE MAIL SIGN-IN
-  ASKS ONLY FOR READING, DRAFTING AND SENDING`), through the authorisation-code flow with PKCE (ARC-053). Microsoft
+  ASKS ONLY FOR READING, DRAFTING AND SENDING`), through the authorisation-code flow with PKCE (ARC-053), at the
+  institution's own tenant, `https://login.microsoftonline.com/<domain of the mail address>`, where its administrators
+  registered Agent M. Microsoft
   returns its single-use authorisation code in the address of its own window when that window comes back to the
   instance's page; the code grants nothing without the PKCE verifier, which never leaves the page, and is exchanged once.
   No token is ever placed in an address or link (`A CREDENTIAL IS NEVER PLACED IN A URL`); a token goes only into the
