@@ -115,6 +115,21 @@ function refuseSecrets(files, secrets) {
   }
 }
 
+const PR_STATES = ["open", "merged", "closed", "all"];
+
+// The commits of a pull request oldest first: a commit comes after its parents that are among them, and among those ready, the earlier date, then the server's order, comes first.
+function oldestFirst(commits) {
+  const left = commits.map((c, at) => ({ ...c, at })), shas = new Set(commits.map((c) => c.sha)), done = new Set(), out = [];
+  while (left.length) {
+    const ready = left.filter((c) => c.parents.every((p) => !shas.has(p) || done.has(p)));
+    const next = (ready.length ? ready : left).reduce((a, b) => (String(b.date) < String(a.date) || (b.date === a.date && b.at > a.at) ? b : a));
+    left.splice(left.indexOf(next), 1);
+    done.add(next.sha);
+    out.push(next);
+  }
+  return out;
+}
+
 // A clone is worked in by the git command, which only Node runs: connect refuses a clone elsewhere, and the adapter, which
 // touches Node's modules only when it runs a command, is never used there.
 const IN_NODE = typeof process !== "undefined" && Boolean(process.versions?.node);
@@ -134,6 +149,8 @@ function throughClone(repository, folder, rest) {
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
+    listPullRequests: rest ? (...a) => rest.listPullRequests(...a) : without("the pull requests"),
+    pullRequestFacts: rest ? (...a) => rest.pullRequestFacts(...a) : without("the facts of a pull request"),
     snapshot: (ref) => clone.snapshot(ref),
     readFile: (commit, path) => clone.readFile(commit, path),
     commitFiles: (change) => clone.commitFiles(change),
@@ -266,6 +283,34 @@ export function connect(address, credentials = {}) {
         }
       }
       return adapter.startWorkflow(workflow, ref, inputs);
+    },
+
+    // listPullRequests(filter) -> PullRequest[] — the pull requests of GitHub or the merge requests of GitLab, every page, optionally only those of a state (open, merged, closed, all — the
+    // default) or of a source branch. Crosses the network; fails as readSnapshot — a failure is never an empty list. Through a clone, the server's answer where a token is given, else NotSupported.
+    async listPullRequests(filter = {}) {
+      const { state = "all", branch } = filter ?? {};
+      if (!PR_STATES.includes(state)) throw new TypeError(`a pull request's state is one of ${PR_STATES.join(", ")}: ${String(state)}`);
+      if (branch !== undefined && (typeof branch !== "string" || !branch.trim())) throw new TypeError("a branch is a name");
+      return adapter.listPullRequests({ state, branch });
+    },
+
+    // pullRequestFacts(number) -> PullRequestFacts — the pull request, its commits oldest first (by their parents, then their dates: neither server's page states an order) with the paths each changed
+    // and its ci, the files of the request, the reviews, the checks of the head commit, and read(path, side) for the text of a path at the request's "base" or "head" commit: by that commit, null
+    // where it does not hold the path, each text read once. Crosses the network; fails as readSnapshot, whole.
+    async pullRequestFacts(number) {
+      if (!Number.isSafeInteger(number) || number < 1) throw new TypeError(`a pull request is named by its number: ${String(number)}`);
+      const { pullRequest, baseCommit, headCommit, commits, files, reviews, checks, readFile } = await adapter.pullRequestFacts(number);
+      return Object.freeze({
+        pullRequest, files, reviews, checks, commits: oldestFirst(commits).map(({ sha, message, files: changed, ci }) => ({ sha, message, files: changed, ci })),
+        async read(path, side) {
+          if (side !== "base" && side !== "head") throw new TypeError(`a side is "base" or "head": ${String(side)}`);
+          const commit = side === "base" ? baseCommit : headCommit;
+          if (!commit) throw new HostError("NotFound", { what: `the ${side} commit of pull request #${number}` }, `The server names no ${side} commit for pull request #${number}.`);
+          const key = `${commit}:${path}`;
+          if (!texts.has(key)) texts.set(key, readFile(commit, path).catch((e) => { texts.delete(key); throw e; }));
+          return texts.get(key);
+        },
+      });
     },
 
     // openPullRequest(request) -> PullRequest — a pull request is the server's: through a clone NotSupported. Its adapter for GitHub
