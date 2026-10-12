@@ -1,6 +1,6 @@
 // MOD-resource-list — what a product and the instance are built with and run on (docs/architecture/MOD-resource-list.md): its interface. Of it, this file
 // has the type Resource, resourceSchema, the schema of the list docs/resources.md, resourceFindings (rules.mjs), what the schema cannot express, and readPin, checkPlan and
-// newerState (pins.mjs). The other functions of the module — paidServices, reachableBy and the recipe resource-check — are other items'.
+// newerState (pins.mjs), paidServices and reachableBy, and resourceStrategies, the recipe resource-check (strategies.mjs).
 //
 // Module: MOD-resource-list
 //
@@ -15,6 +15,7 @@ import { loadSchema } from "../documents/index.mjs";
 
 export { resourceFindings } from "./rules.mjs";
 export { checkPlan, newerState, readPin } from "./pins.mjs";
+export { resourceStrategies } from "./strategies.mjs";
 
 /**
  * One row of the list as MOD-documents reads it with this module's schema: its name; its kind, one of six; where it is; its pin, null for compute;
@@ -46,4 +47,32 @@ async function ownFile(url) {
  */
 export function resourceSchema() {
   return SCHEMA;
+}
+
+/**
+ * paidServices(resources) -> { name, kind: "endpoint" | "agent" | "data", address, paid: boolean }[] — every service the product calls: each endpoint and agent, and data with a
+ * Paid mark, in the list's order, each marked paid or free, for MOD-result-records' recipe test-selection, so that no commit-level test reaches a paid one (COMMIT TESTS CALL NO
+ * PAID SERVICE). An endpoint or agent whose Paid mark is missing — resourceFindings names that — is listed as paid: nothing not known to be free is called. Pure.
+ * @param {Resource[]} resources
+ * @returns {Array<{ name: string, kind: "endpoint" | "agent" | "data", address: string, paid: boolean }>}
+ */
+export function paidServices(resources) {
+  return resources.flatMap(({ name, kind, address, paid }) => {
+    if (kind === "endpoint" || kind === "agent") return [{ name, kind, address, paid: paid !== false }];
+    if (kind === "data" && typeof paid === "boolean") return [{ name, kind, address, paid }];
+    return [];
+  });
+}
+
+const BRIDGE_OR_RUNNER = /^(?:bridge \S+|runner:\S+)$/;
+
+/**
+ * reachableBy(resources) -> { resource: string, route: string }[] — for the resources a job needs, in the list's order, the route that reaches each: `bridge <name>` or
+ * `runner:<label>`, as its Route column names it, which the callers hand to MOD-runtimes' routesFor as the job's needs (A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE). A
+ * resource read on its host, or an endpoint or agent called at its own address, is reached by no Bridge or runner and is not listed. Pure.
+ * @param {Resource[]} resources
+ * @returns {Array<{ resource: string, route: string }>}
+ */
+export function reachableBy(resources) {
+  return resources.filter(({ route }) => BRIDGE_OR_RUNNER.test(String(route ?? ""))).map(({ name, route }) => ({ resource: name, route }));
 }

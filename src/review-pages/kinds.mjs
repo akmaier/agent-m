@@ -13,7 +13,8 @@ const explain = { list: "accepting", all: "accepting", one: "accepting", changed
 // `restsOn` marks a kind whose file names what it rests on (a decision its forces, a module what it realises): its page shows the
 // section of what is not accepted yet, and offers no Accept while there is any.
 export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-cases", title: "Use cases", plural: "use cases", noun: "use case",
-  heading, explain };
+  heading, explain: { ...explain, draft: { requirements: "requirements-to-cover", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop",
+    written: "drafted-use-cases", ci: "ci-agent-draft" } }, draft: "derive-use-cases" };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
   plural: "architecture decisions", noun: "architecture decision", heading, explain, restsOn: true, whole: ["architecture-decision", "module"] };
 export const MODULES = { kind: "module", route: "module", entry: "architecture", title: "Module files", plural: "module files",
@@ -23,3 +24,9 @@ export const MODULES = { kind: "module", route: "module", entry: "architecture",
 // the entries of docs/spec-freigaben/<queue>/, accepted through MOD-spec-changes.
 export const SPEC_ENTRIES = { kind: "spec-entry", route: "spec-entry", entry: "requirements", title: "SPEC changes", plural: "SPEC change entries", noun: "SPEC change entry",
   explain: { list: "change-queue", one: "spec-edit-waits-for-approval", fallback: "github-page-without-token" }, accept: "queue" };
+
+// The descriptors of editing a requirement (ITM-359): a requirement is a section of the SPEC, not a reviewed file; `edit` names the editing of its section, saved as an entry of
+// the person's open queue of the day. REQUIREMENT_NEW is the same with the four fields empty, in the section handed in.
+export const REQUIREMENT = { kind: "requirement", route: "requirement", entry: "requirements", title: "Requirement", plural: "requirements", noun: "requirement",
+  explain: { edit: "spec-edit-waits-for-approval" }, edit: "section", fresh: false };
+export const REQUIREMENT_NEW = { ...REQUIREMENT, route: "requirements", title: "New requirement", fresh: true };
