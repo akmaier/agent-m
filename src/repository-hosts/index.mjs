@@ -1,5 +1,5 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch and
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch, startWorkflow and
 // webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
@@ -133,6 +133,7 @@ function throughClone(repository, folder, rest) {
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
+    startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
     snapshot: (ref) => clone.snapshot(ref),
     readFile: (commit, path) => clone.readFile(commit, path),
     commitFiles: (change) => clone.commitFiles(change),
@@ -244,6 +245,27 @@ export function connect(address, credentials = {}) {
           "A branch is created only with a token that may write to the repository; store one first.");
       }
       return adapter.createBranch(name, from);
+    },
+
+    // startWorkflow(workflow, ref, inputs) -> CiRun | null — starts a workflow or a pipeline with its inputs, which hold no credential: an input that holds
+    // the token or a configured secret is SecretRefused before any request. The run where the server names it at once, else null, for listCiRuns. Crosses
+    // the network; fails with TokenRefused, PermissionMissing, RateLimited, Unreachable, and NotSupported without a token, before any request, and for
+    // a workflow that cannot be started.
+    async startWorkflow(workflow, ref, inputs) {
+      if (typeof workflow !== "string" || !workflow.trim()) throw new TypeError("startWorkflow names a workflow");
+      if (typeof ref !== "string" || !ref.trim()) throw new TypeError("startWorkflow names the ref to start it on");
+      if (!inputs || typeof inputs !== "object" || Array.isArray(inputs) || Object.values(inputs).some((v) => typeof v !== "string")) {
+        throw new TypeError("the inputs of a workflow are texts, by name");
+      }
+      if (!token) {
+        throw new HostError("NotSupported", { what: "starting a workflow without a token" }, "A workflow is started only with a token that may do so; store one first.");
+      }
+      for (const [key, value] of Object.entries(inputs)) {
+        if (refused.some((s) => value.includes(s))) {
+          throw new HostError("SecretRefused", { path: `inputs.${key}` }, `inputs.${key} holds a configured secret — nothing was started.`);
+        }
+      }
+      return adapter.startWorkflow(workflow, ref, inputs);
     },
 
     // openPullRequest(request) -> PullRequest — a pull request is the server's: through a clone NotSupported. Its adapter for GitHub

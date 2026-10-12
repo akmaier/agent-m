@@ -5,7 +5,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -209,6 +209,17 @@ export function githubAdapter(address, { token, tokenName }, links) {
           if (!/reference already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
           throw await tagExists(name);
         } } });
+    },
+
+    // Starts a workflow ("Create a workflow dispatch event": POST …/actions/workflows/{workflow}/dispatches, ref and inputs). The server
+    // answers 200 with the run it started — workflow_run_id, run_url, html_url —, or 204 with no body where it names none: null. The run's
+    // commit is not in that answer: it is "", for listCiRuns to fill. Every refusal is the host's own failure; the page documents no 422 for this call.
+    async startWorkflow(workflow, ref, inputs) {
+      const answer = await call("POST", `${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, { body: { ref, inputs } });
+      if (answer.status === 204) return null;
+      const run = await json(answer, API);
+      if (run?.workflow_run_id === undefined) return null;
+      return { id: String(run.workflow_run_id), workflow, commit: "", event: "workflow_dispatch", state: "queued", url: run.html_url, started: null, ended: null };
     },
 
     // Creates a branch at a commit ("Create a reference", ref: "refs/heads/<name>"). A branch that stands already — 422
