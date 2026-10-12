@@ -1,5 +1,5 @@
 // propose.mjs — the sections a draft of requirements changes and the writer of classified candidates (MOD-spec-changes, Parts: propose.mjs; Interfaces: entrySections, specStrategies).
-// Of it, ITM-393 builds entrySections and ITM-338 the writer queue-entries; proposeSection and openQueueOf are not built yet.
+// Of it, ITM-393 builds entrySections, ITM-338 the writer queue-entries, and ITM-341 openQueueOf and proposeSection.
 //
 // Module: MOD-spec-changes
 //
@@ -23,8 +23,11 @@
 import { classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
 import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
+import { fallbackEditLinks } from "../artifact-edits/fallback.mjs";
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
+import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
+import { impactOf } from "./accept.mjs";
 import { queueRationaleSchema, queues } from "./queues.mjs";
 
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
@@ -291,4 +294,97 @@ export async function queueEntries(result, context) {
     outcome.files.push(...planned.map((file) => file.path));
   }
   return outcome;
+}
+
+// ---------------------------------------------------------------- a person's edit of one section
+//
+// openQueueOf and proposeSection (ITM-341). Where the module file leaves a reading open, this file takes the one it names:
+//   - The day of a queue is the date its folder name starts with; the newest queue of a day is the one with the later letter, a folder without a letter being the first.
+//   - The person of a queue is the `author.account` of the oldest commit of its index.md's history that adds the file, else of the oldest commit of that history.
+//   - An entry is replaced when the person's open queue holds an entry, not in SPEC, for the same target file and anchor; `alsoReplacing` names such entries of the other queues.
+//   - A host with no token is one whose repositoryInfo says `canWrite: false`; the server is the snapshot's repository.server.
+
+const queueDay = (folder) => QUEUE_DAY.exec(`${folder}/`);
+const newestFirst = (a, b) => `${queueDay(b.folder)[1]}${queueDay(b.folder)[2] || "a"}`.localeCompare(`${queueDay(a.folder)[1]}${queueDay(a.folder)[2] || "a"}`);
+
+async function creatorOf(host, folder) {
+  const history = await host.readHistory(`${folder}/index.md`);
+  const created = history.filter((entry) => entry.changes?.some((change) => change.path === `${folder}/index.md` && change.change === "added"));
+  return (created.at(-1) ?? history.at(-1))?.author?.account ?? null;
+}
+
+async function openQueueIn(host, snapshot, person, date) {
+  const today = (await queues(snapshot)).filter((queue) => queueDay(queue.folder)?.[1] === date && queue.entries.every((entry) => entry.state !== "in SPEC")).sort(newestFirst);
+  for (const queue of today) if ((await creatorOf(host, queue.folder)) === person) return queue;
+  return null;
+}
+
+export async function openQueueOf(person, date, host) {
+  const { defaultBranch } = await host.repositoryInfo();
+  const queue = await openQueueIn(host, await host.readSnapshot(defaultBranch), person, date);
+  return queue?.folder ?? null;
+}
+
+// The rationale of an edit of one section: the change, the Why, the impact list and the origin, in the schema queue-rationale.
+function sectionRationale(change, impact) {
+  const named = impact.length ? impact.map((item) => item.name).join(", ") : "no requirement";
+  const what = impact.length ? impact.map((item) => `${item.change} ${item.name}`).join("; ") : "changes the text of the section";
+  const lines = impact.length
+    ? impact.map((item) => `- ${item.name}: ${item.change}; ${item.referencedBy.length ? `named by ${item.referencedBy.join(", ")}` : "nothing names it"}.`)
+    : ["- no requirement of the section changes."];
+  return [`# ${headingText(change.anchor)}: ${named}`, "", `**The change.** ${what[0].toUpperCase()}${what.slice(1)}; the rest of the section is as the person wrote it.`, "",
+    `**Why.** ${folded(change.why)}`, "", "**Impact list.**", ...lines, "", `**Origin.** ${folded(change.origin)}; saved by ${change.person}.`, ""].join("\n");
+}
+
+export async function proposeSection(host, change) {
+  const info = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(info.defaultBranch);
+  const targetText = await snapshot.read(change.target);
+  const before = typeof targetText === "string" ? sectionText(targetText, change.anchor) : null;
+  if ((before === null ? null : await blobSha(before)) !== change.openedBlob) return { refused: "changed meanwhile", current: before };
+  if (!info.canWrite && snapshot.repository.server === "gitlab") throw failure("TokenRequired", "a GitLab product is written with a token");
+
+  const date = new Date().toISOString().slice(0, 10);
+  const all = await queues(snapshot);
+  const mine = await openQueueIn(host, snapshot, change.person, date);
+  const sameSection = (entry) => entry.file === change.target && entry.anchor === change.anchor && entry.state !== "in SPEC";
+  const replaced = mine?.entries.find(sameSection) ?? null;
+  const alsoReplacing = all.flatMap((queue) => (queue.folder === mine?.folder ? [] : queue.entries.filter(sameSection).map((entry) => ({ queue: queue.folder, entry: entry.number }))));
+
+  const impact = await impactOf(snapshot, before ?? "", change.text);
+  const files = [];
+  let folder, number, day, proposalPath, rationalePath;
+  if (mine) {
+    folder = mine.folder;
+    number = replaced?.number ?? Math.max(0, ...mine.entries.map((entry) => entry.number)) + 1;
+    proposalPath = replaced?.proposal.path ?? `${folder}/${pad2(number)}-${entrySlug(change.anchor)}.md`;
+    rationalePath = replaced?.rationale || proposalPath.replace(/\.md$/, ".begruendung.md");
+    if (!replaced) {
+      const index = (await snapshot.read(`${folder}/index.md`)) ?? "";
+      files.push({ path: `${folder}/index.md`, text: `${index}${index === "" || index.endsWith("\n") ? "" : "\n"}| ${pad2(number)} | \`${change.target}\` | ${change.anchor} | ${change.until ?? "—"} | — |\n` });
+    }
+    day = queueDay(folder)[1] + queueDay(folder)[2];
+  } else {
+    ({ day, folder } = folderFor(snapshot.paths, date, `edits-of-${slugOf(change.person) || "a-person"}`));
+    number = 1;
+    proposalPath = `${folder}/01-${entrySlug(change.anchor)}.md`;
+    rationalePath = proposalPath.replace(/\.md$/, ".begruendung.md");
+    files.push({ path: `${folder}/index.md`, text: [`# SPEC approvals — queue ${day} · Edits of ${change.person}`, "",
+      `**Zieldatei aller Einträge:** \`${change.target}\``, "", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|",
+      `| 01 | \`${change.target}\` | ${change.anchor} | ${change.until ?? "—"} | — |`, ""].join("\n") },
+    { path: `${folder}/entscheidungen.md`, text: `# Decisions — queue ${day} Edits of ${change.person}\n\nAppend-only.\n` });
+  }
+  const rationale = sectionRationale(change, impact);
+  const findings = documentFindings(queueRationaleSchema, readDocument(queueRationaleSchema, rationalePath, rationale));
+  if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);
+  files.push({ path: proposalPath, text: change.text }, { path: rationalePath, text: rationale });
+
+  if (!info.canWrite) {
+    const held = new Set(snapshot.paths);
+    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: held.has(file.path) })), snapshot) };
+  }
+  const trailers = change.trailers?.length ? `\n\n${change.trailers.join("\n")}` : "";
+  const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
+    message: `Propose an edit of ${headingText(change.anchor)} as entry ${pad2(number)} of queue ${day}${trailers}` });
+  return { commit, queue: folder, entry: number, alsoReplacing };
 }

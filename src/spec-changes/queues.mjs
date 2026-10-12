@@ -57,9 +57,12 @@ const QUEUE_INDEX = /^docs\/spec-freigaben\/([^/]+)\/index\.md$/;
 // A spec approval record's file name, docs/approvals/spec-<queue folder>-<NN>-<blob12>.md (MOD-spec-changes, Files).
 const RECORD_FILE = /^spec-(.+)-(\d{2})-([0-9a-f]{12})\.md$/;
 
-// A decision row's fourth cell that names a record, approval:<file name> (MOD-spec-changes, Data). A row of the
-// retired form — a bare commit SHA — matches nothing here (queue-decisions.schema.md).
+// A decision row's fourth cell that names a record, approval:<file name> (MOD-spec-changes, Data).
 const APPROVAL_REF = /^approval:(.+)$/;
+
+// A decision row's fourth cell that names the commit that wrote its entry into the SPEC: a commit as git writes it, 7 to 40 hexadecimal digits in lower case — the form of the rows written
+// before approval records were (queue-decisions.schema.md), which STATUS IS DERIVED FROM THE RECORDS counts as decided. Only a row whose decision is `uebernommen` names one.
+const COMMIT_REF = /^[0-9a-f]{7,40}$/;
 
 // The line above the entry table that names every entry's target, in backticks (MOD-spec-changes, Data): what the
 // schema's language cannot say, read from the underTitle section's own text.
@@ -108,7 +111,7 @@ function specRecordsOf(paths) {
   return byKey;
 }
 
-// The decision row of entscheidungen.md for each entry number that names a record, keyed by the entry's number.
+// The decision row of entscheidungen.md for each entry number that names a record or the commit that wrote the entry into the SPEC, keyed by the entry's number.
 async function decisionsOf(snapshot, base) {
   const path = `${base}/entscheidungen.md`;
   const text = await snapshot.read(path);
@@ -116,8 +119,10 @@ async function decisionsOf(snapshot, base) {
   if (text === null) return out;
   const { rows } = readRegister(queueDecisionsSchema, path, text);
   for (const row of rows) {
-    const ref = APPROVAL_REF.exec(String(row.cells.Reference ?? ""));
-    if (ref) out.set(row.cells.Entry, `docs/approvals/${ref[1]}`);
+    const cell = String(row.cells.Reference ?? "").trim();
+    const ref = APPROVAL_REF.exec(cell);
+    if (ref) out.set(row.cells.Entry, { record: `docs/approvals/${ref[1]}`, commit: null });
+    else if (String(row.cells.Decision ?? "").trim() === "uebernommen" && COMMIT_REF.test(cell)) out.set(row.cells.Entry, { record: null, commit: cell });
   }
   return out;
 }
@@ -133,7 +138,8 @@ function entryOf(row, folder, base, files, snapshot, records, decisions) {
   const blob = proposalPath ? snapshot.blob(proposalPath) : null;
   const rationale = fileName ? `${base}/${fileName.replace(/\.md$/, ".begruendung.md")}` : "";
 
-  const decisionRecord = decisions.get(number) ?? null;
+  const decided = decisions.get(number) ?? null;
+  const decisionRecord = decided?.record ?? null;
   const candidates = records.get(`${folder}#${nn}`) ?? [];
   const approved = candidates.find((c) => typeof blob === "string" && blob.startsWith(c.blob12)) ?? null;
   const recordPath = approved ? approved.path : decisionRecord;
@@ -146,8 +152,8 @@ function entryOf(row, folder, base, files, snapshot, records, decisions) {
     proposal: { path: proposalPath, blob },
     rationale,
     record: recordPath,
-    decision: decisionRecord,
-    state: decisionRecord ? "in SPEC" : approved ? "approved" : "open",
+    decision: decided ? decisionRecord ?? decided.commit : null,
+    state: decided ? "in SPEC" : approved ? "approved" : "open",
     createdBy: null,
   };
 }
