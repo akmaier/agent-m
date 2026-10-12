@@ -14,7 +14,14 @@ import { instanceOfPagesAddress, pagesAddress } from "../identifiers/index.mjs";
 
 import { failure } from "./errors.mjs";
 
-const AUTHORITY = "https://login.microsoftonline.com/common";
+const SIGN_IN_SERVICE = "https://login.microsoftonline.com";
+// The tenant a sign-in goes to: the domain of the mail address, in lower case — the institution's own tenant, where its administrators registered
+// the app. Without an address, or with one that has no domain, the tenant is not known: Microsoft's multi-tenant "common" authority.
+function authorityOf(address) {
+  const at = typeof address === "string" ? address.lastIndexOf("@") : -1;
+  const domain = at < 0 ? "" : address.slice(at + 1).trim().toLowerCase();
+  return `${SIGN_IN_SERVICE}/${domain || "common"}`;
+}
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const SCOPES = Object.freeze(["Mail.ReadWrite", "Mail.Send", "offline_access"]);
 
@@ -51,11 +58,11 @@ function named(error) {
 }
 
 // The library's client for the app: the authority, the return address and the token cache in localStorage.
-async function application(clientId) {
+async function application(clientId, address = null) {
   const library = globalThis.msal;
   if (!library?.createStandardPublicClientApplication) throw new Error("Microsoft's sign-in library is not loaded.");
   return library.createStandardPublicClientApplication({
-    auth: { clientId, authority: AUTHORITY, redirectUri: returnAddress() },
+    auth: { clientId, authority: authorityOf(address), redirectUri: returnAddress() },
     cache: { cacheLocation: "localStorage" },
   });
 }
@@ -72,7 +79,7 @@ async function application(clientId) {
 export async function signIn(clientId, address) {
   if (typeof clientId !== "string" || !clientId.trim()) throw new TypeError("Enter the app's client identifier.");
   try {
-    const client = await application(clientId.trim());
+    const client = await application(clientId.trim(), address);
     const result = await client.loginPopup({ scopes: [...SCOPES], ...(address ? { loginHint: address } : {}) });
     return { account: result.account.username };
   } catch (error) {
