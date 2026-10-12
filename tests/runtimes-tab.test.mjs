@@ -3,7 +3,7 @@
 // "runs the prepared job in this tab with MOD-job-runner, attended unless its record names a run: builds the drafter's and the reviewers' drivers from
 // their routes — an endpoint's driver from its configuration, `endpointDriver` where its `bridge` is `null` ... —, appends a gate reached and the end to
 // the job's record through the host, and returns the result for the page to show. Fails as the drivers fail, by name." For UC-005 step 4, UC-007 step 3
-// and UC-019 step 6. `bridgeDriver`, the Bridge route, `routesFor`, `liveState` and the other functions are not part of it.
+// and UC-019 step 6. The Bridge route (tests/runtimes-bridge.test.mjs, ITM-325), `routesFor`, `liveState` and the other functions are not part of it.
 // Run: node --test tests/runtimes-tab.test.mjs
 //
 // Module: MOD-runtimes
@@ -268,14 +268,14 @@ test("runOnTab — a gate reached is appended to the record and the job has no e
 });
 
 // guards: A RUNTIME IS INTERCHANGEABLE; A REMOTE INTERFACE NAMES HOW IT FAILS
-// given: a drafter whose endpoint is configured with a Bridge to call it, and one with no configuration at all
+// given: a drafter whose endpoint is configured with a Bridge to call it that the connections do not hold, an agent's route to a Bridge they do not hold, and one with no configuration at all
 // input: runOnTab of each
-// expect: both refused before any request, by name — `BridgeDriverMissing` for the Bridge, which ITM-325 builds, and `EndpointNotConfigured` naming
+// expect: both refused before any request, by name — `BridgeNotConnected` for a Bridge among no `connections.bridges` (ITM-325 builds the Bridge's driver; tests/runtimes-bridge.test.mjs), and `EndpointNotConfigured` naming
 //         the endpoint — and the record ended failed
-test("runOnTab — an endpoint through a Bridge, and an endpoint without a configuration, are refused by name", async () => {
+test("runOnTab — a Bridge that is not connected, and an endpoint without a configuration, are refused by name", async () => {
   endpointAnswers();
   const attempts = [
-    [{ endpoints: { ep1: { config: ENDPOINT("ep1"), bridge: "lab-pc" } }, bridges: {} }, "BridgeDriverMissing"],
+    [{ endpoints: { ep1: { config: ENDPOINT("ep1"), bridge: "lab-pc" } }, bridges: {} }, "BridgeNotConnected"],
     [{ endpoints: {}, bridges: {} }, "EndpointNotConfigured"],
   ];
   const agent = { ...jobOf("none"), drafter: { ...DRAFTER, route: "bridge lab-pc agent claude" } };
@@ -286,7 +286,7 @@ test("runOnTab — an endpoint through a Bridge, and an endpoint without a confi
     assert.equal((await fake.record()).end.state, "failed");
   }
   const fake = await queued();
-  await assert.rejects(runtimes.runOnTab(agent, contextOf(), CONNECTIONS, hooksOf(fake)), (error) => error.name === "BridgeDriverMissing");
+  await assert.rejects(runtimes.runOnTab(agent, contextOf(), CONNECTIONS, hooksOf(fake)), (error) => error.name === "BridgeNotConnected" && error.bridge === "lab-pc");
   assert.deepEqual(requests, []);
 });
 
