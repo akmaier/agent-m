@@ -6,7 +6,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -14,6 +14,10 @@ const PAGE = 100, MAX_PAGES = 1000;
 // GitLab's role Maintainer: the access level that may push to a protected default branch (A GITLAB PRODUCT USES A PROJECT
 // ACCESS TOKEN); GitLab's default branch protection lets no Developer push.
 const MAINTAINER = 40;
+
+// A pipeline's status as the run's state ("Create a new pipeline" answers the pipeline: its status, among GitLab's others).
+const STATES = { created: "queued", waiting_for_resource: "queued", preparing: "queued", pending: "queued", scheduled: "queued", running: "running",
+  manual: "waiting", success: "success", failed: "failure", canceled: "cancelled", canceling: "cancelled", skipped: "skipped" };
 
 // An entry of the diff of a commit as the change the commit made to the file: added, deleted, renamed — with the path it came
 // from — or modified.
@@ -197,6 +201,14 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
           if (!/already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
           throw await tagExists(name);
         } } });
+    },
+
+    // Starts a pipeline ("Create a new pipeline": POST …/pipeline, ref and inputs in the JSON body). The answer is the pipeline, which is the run: its
+    // sha the commit, its source — "api" where the answer names none — the event, its status the state, its web_url the address.
+    async startWorkflow(workflow, ref, inputs) {
+      const p = await json(await call("POST", `${api}/pipeline`, { body: { ref, inputs } }), address.origin);
+      return { id: String(p.id), workflow, commit: p.sha, event: p.source ?? "api", state: STATES[p.status] ?? "queued", url: p.web_url,
+        started: p.started_at ?? null, ended: p.finished_at ?? null };
     },
 
     // Creates a branch at a commit ("Create repository branch"). A branch that stands already — 400 "Branch already exists" —
