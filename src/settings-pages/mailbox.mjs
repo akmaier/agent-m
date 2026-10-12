@@ -1,6 +1,6 @@
 // MOD-settings-pages' route `mailbox` (UC-037 steps 1 to 8): the address and the route routeFor preselects; for the IMAP route the servers, the password behind its notice
 // and the Bridge the connection goes through; for the Microsoft route the app registration's steps, the client identifier and Sign in with Microsoft; the folders, the
-// processing places, and Store and test. Disconnect and the places changed later are ITM-429's.
+// processing places, and Store and test; and the connected mailbox (mailboxLine, also on the Settings page): its route, folders and places, Test, Disconnect and the places changed later (ITM-429).
 //
 // Module: MOD-settings-pages
 //
@@ -14,9 +14,13 @@
 //     cache as it signs in): Store and test stores it — the address, the route, the folders, the places and the client identifier with the account, no password — and is refused
 //     while no account is signed in. A declined permission is named with what would not work without it; a refused registration says what to ask the administrators for and
 //     offers the IMAP route; an expired sign-in is shown at the use that finds it, with the sign-in offered again, the connection stored and shown as untested.
+//   - The connected mailbox is one block, mailboxLine, that this page shows above its form and the Settings page shows in the tab Endpoints & Agents: the same code in both.
+//     A connection with no record of a test (`last-test:mailbox`), as an import brings it, is shown as connected and untested. Disconnect asks once, with globalThis.confirm as
+//     the Settings page's other Clear controls do, and then clears the setting `mailbox` with the sign-in library's keys for it and the record of its test. Changed places are
+//     stored only after the notice of a place outside the EU not yet recorded for this connection has been read; the list is the participants' and the connection's own places.
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
-import { listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { mailbox, providerLinks, routeFor, signIn } from "../mail-routes/index.mjs";
 import { pagesAddress } from "../identifiers/index.mjs";
@@ -100,6 +104,113 @@ const failureText = (error, connection) => {
   return `✗ The mailbox could not be tested: ${error?.message ?? error}`;
 };
 
+const PLACE_NOTICE = "Processing personal data there does not comply with the EU's rules — the GDPR for transferring personal data, and the EU AI Act. You can still allow it; this connection will record that you did.";
+const placeEntry = (place) => (isOutsideEu(place) ? { place, outsideEu: true, notCompliantNoted: true } : { place, outsideEu: false });
+
+// The connected mailbox of this browser (UC-037 steps 8, 6a, 8a): its address, route, folders and allowed places with its state, Test, Disconnect and Processing places.
+// -> { node, refresh } — `refresh` shows the stored connection anew; with none stored the block holds an empty .mailbox-connected and nothing to press.
+export function mailboxLine(context) {
+  const store = context.store;
+  const node = el("section", "settings-mailbox panel");
+  const result = el("p", "mailbox-line-result"), disconnected = el("p", "mailbox-disconnected");
+  const text = el("p", "mailbox-connected");
+
+  const stateOf = () => {
+    const last = readSetting(store, "last-test:mailbox");
+    if (last?.outcome === "working") return { connected: true, words: `connected; last successful test ${String(last.at).slice(0, 10)}` };
+    return { connected: false, words: last?.outcome === "refused" ? "connected, untested: the last test was refused" : "connected, untested" };
+  };
+
+  async function test(stored) {
+    result.textContent = "Testing the mailbox…";
+    let outcome = "refused";
+    try {
+      let tested;
+      if (stored.route === "graph") tested = await mailbox(stored, null).test();
+      else {
+        const bridge = bridgesOf(store).find((each) => each.name === stored.imap.bridge);
+        if (!bridge?.settings) throw Object.assign(new Error(`${stored.imap.bridge} is not a Bridge this browser keeps, or is reached through a jump host that is not stored.`), { name: "BridgeUnavailable", reason: "no such Bridge" });
+        tested = await mailbox(stored, bridgeAt(bridge.settings)).test();
+      }
+      outcome = "working";
+      const counts = Object.entries(tested.counts ?? {}).map(([folder, count]) => `${folder}: ${count} mails`).join(" · ");
+      result.textContent = `✓ Tested. ${counts}${counts ? " · " : ""}${tested.drafts ? "Drafts found" : "Drafts not found"} · ${tested.sent ? "Sent found" : "Sent not found"} · ${tested.sending === "works" ? "sending works" : `sending does not work: ${tested.sending}`} · route ${tested.route} · ${tested.encryption}`;
+    } catch (error) {
+      result.textContent = stored.route === "graph" ? graphFailureText(error) : failureText(error, stored);
+    }
+    writeSetting(store, "last-test:mailbox", { at: new Date().toISOString(), outcome });
+    show();
+  }
+
+  async function disconnect(stored) {
+    if (typeof globalThis.confirm !== "function" || !globalThis.confirm(`Disconnect the mailbox ${stored.address}? Its ${stored.route === "graph" ? "sign-in token" : "password"} is removed from this browser. Issues and their mail identifiers are not touched.`)) return;
+    const graph = stored.route === "graph";
+    clearSetting(store, "mailbox");
+    clearSetting(store, "last-test:mailbox");
+    result.textContent = "";
+    disconnected.replaceChildren(`Disconnected. Nothing is stored of this connection in this browser: the ${graph ? "sign-in token" : "password"} is removed too. Issues and their mail identifiers are not touched.`);
+    if (graph) {
+      const link = el("a", "mailbox-withdrawal-link", "Microsoft's page where the app's access is withdrawn ↗");
+      link.setAttribute("href", providerLinks().accessWithdrawal);
+      link.setAttribute("target", "_blank"); link.setAttribute("rel", "noopener");
+      disconnected.append(" Withdraw the app's access there as well: ", link);
+    }
+    show();
+  }
+
+  async function changePlaces(stored, panel) {
+    const ticked = new Set(stored.places.map((each) => each.place));
+    const noted = new Set(stored.places.filter((each) => each.notCompliantNoted).map((each) => each.place));
+    let offered = [];
+    if (context.instance?.host) {
+      try { offered = await placesOf(context.instance.host); } catch (error) { panel.replaceChildren(el("p", null, `The participants could not be read (${error?.message ?? error}), so no processing place can be offered.`)); return; }
+    }
+    const places = [...offered, ...stored.places.map((each) => each.place).filter((place) => !offered.includes(place))];
+    const boxes = places.map((place) => {
+      const box = el("input", "mailbox-line-place");
+      box.type = "checkbox"; box.checked = ticked.has(place); box.setAttribute("data-place", place);
+      return box;
+    });
+    const notice = el("p", "notice mailbox-line-place-notice", PLACE_NOTICE), read = el("input", "mailbox-line-place-notice-read");
+    read.type = "checkbox";
+    const needsNotice = () => boxes.some((box) => box.checked && isOutsideEu(box.getAttribute("data-place")) && !noted.has(box.getAttribute("data-place")));
+    const sync = () => { notice.hidden = read.hidden = !needsNotice(); if (notice.hidden) read.checked = false; };
+    for (const box of boxes) box.addEventListener("change", sync);
+    sync();
+    const save = el("button", "mailbox-places-save btn primary", "Save places");
+    save.addEventListener("click", () => {
+      if (needsNotice() && !read.checked) { result.textContent = "A place outside the EU is ticked: read the notice and tick I have read this. Nothing was changed."; return; }
+      const now = readSetting(store, "mailbox");
+      if (!now) { result.textContent = "The mailbox is no longer connected. Nothing was changed."; return; }
+      const next = boxes.filter((box) => box.checked).map((box) => box.getAttribute("data-place"))
+        .map((place) => now.places?.find((each) => each.place === place) ?? placeEntry(place));
+      writeSetting(store, "mailbox", { ...now, places: next });
+      result.textContent = "Saved. A mail already handed to a participant is not recalled.";
+      show();
+    });
+    panel.replaceChildren(el("h4", null, "Processing places"), ...boxes.map((box) => el("p", null, el("label", null, box, " ", box.getAttribute("data-place")))),
+      notice, el("p", null, el("label", null, read, " I have read this")), el("p", null, save));
+  }
+
+  function show() {
+    const stored = readSetting(store, "mailbox");
+    if (!stored?.imap && !stored?.graph) { text.textContent = ""; node.replaceChildren(text, result, disconnected); return; }
+    const { connected, words } = stateOf();
+    const how = stored.graph ? "Microsoft 365 (web API)" : `IMAP through ${stored.imap.bridge}`;
+    const places = (stored.places ?? []).length ? stored.places.map((each) => (each.outsideEu ? `${each.place} (outside the EU)` : each.place)).join(", ") : "none: mails are only read, never handed to a participant";
+    text.textContent = `${connected ? "Connected: " : ""}${stored.address} · ${how} · folders ${stored.folders.join(", ")} · processing places ${places}${connected ? "" : " · untested"}`;
+    disconnected.replaceChildren();
+    const testButton = el("button", "mailbox-test btn", "Test"), disconnectButton = el("button", "mailbox-disconnect btn", "Disconnect");
+    const placesButton = el("button", "mailbox-places-change btn", "Processing places"), panel = el("div", "mailbox-places-panel");
+    testButton.addEventListener("click", () => test(stored));
+    disconnectButton.addEventListener("click", () => disconnect(stored));
+    placesButton.addEventListener("click", () => changePlaces(readSetting(store, "mailbox") ?? stored, panel));
+    node.replaceChildren(el("h3", null, "Mailbox"), text, el("p", "mailbox-state", words), el("p", null, testButton, " ", placesButton, " ", disconnectButton), panel, result, disconnected);
+  }
+  show();
+  return { node, refresh: show };
+}
+
 export const route = {
   name: "mailbox",
   entry: "settings",
@@ -121,14 +232,14 @@ export const route = {
     const folders = el("input", "mailbox-folders");
     const placesBox = el("div", "mailbox-places");
     const placesResult = el("p", "mailbox-places-result");
-    const placeNotice = el("p", "notice mailbox-place-notice", "Processing personal data there does not comply with the EU's rules — the GDPR for transferring personal data, and the EU AI Act. You can still allow it; this connection will record that you did.");
+    const placeNotice = el("p", "notice mailbox-place-notice", PLACE_NOTICE);
     const placeRead = el("input", "mailbox-place-notice-read");
     const storeTest = el("button", "mailbox-store-test btn primary", "Store and test");
     const result = el("p", "mailbox-result");
     const resultExplanation = el("div", "mailbox-result-explanation");
     const setup = el("button", "mailbox-bridge-setup btn", "Set up a Bridge");
     const parts = el("ul", "mailbox-parts");
-    const connected = el("p", "mailbox-connected");
+    const line = mailboxLine(context);
     const returnAddress = (() => { try { return pagesAddress(context.instance.repository); } catch { return ""; } })();
     const clientId = el("input", "mailbox-client-id");
     clientId.value = ""; clientId.autocomplete = "off"; clientId.spellcheck = false;
@@ -232,16 +343,7 @@ export const route = {
       }
     }
 
-    function showConnected() {
-      const stored = readSetting(store, "mailbox");
-      if (!stored?.imap && !stored?.graph) { connected.textContent = ""; return; }
-      const last = readSetting(store, "last-test:mailbox");
-      const state = last?.outcome === "working" ? "connected" : "untested";
-      const how = stored.graph ? "Microsoft 365 (web API)" : `IMAP through ${stored.imap.bridge}`;
-      connected.textContent = `${stored.address} · ${how} · folders ${stored.folders.join(", ")} · ${state}`;
-      if (state === "connected") connected.textContent = `Connected: ${connected.textContent}`;
-    }
-    showConnected();
+    const showConnected = line.refresh;
 
     // The tested mailbox's parts, shown (the same for both routes).
     function showTested(tested, where) {
@@ -266,7 +368,7 @@ export const route = {
       const connection = {
         address: mail, route: "graph",
         folders: folders.value.split(",").map((name) => name.trim()).filter(Boolean),
-        places: ticked.map((place) => (isOutsideEu(place) ? { place, outsideEu: true, notCompliantNoted: true } : { place, outsideEu: false })),
+        places: ticked.map(placeEntry),
         graph: { clientId: clientId.value.trim(), account: signedInAccount },
       };
       if (!connection.folders.length) connection.folders = ["INBOX"];
@@ -301,7 +403,7 @@ export const route = {
       const connection = {
         address: mail, route: "imap",
         folders: folders.value.split(",").map((name) => name.trim()).filter(Boolean),
-        places: ticked.map((place) => (isOutsideEu(place) ? { place, outsideEu: true, notCompliantNoted: true } : { place, outsideEu: false })),
+        places: ticked.map(placeEntry),
         imap: { bridge: bridge.name, jumpHostNoted: bridge.throughJumpHost, imap: server(imapHost, imapPort, imapSecurity), smtp: server(smtpHost, smtpPort, smtpSecurity),
           account: account.value.trim() || mail, password: password.value },
       };
@@ -341,7 +443,7 @@ export const route = {
       labelled("Folders to read, separated by commas", folders),
       el("h3", null, "Where the mail may be processed"),
       placesBox, placesResult, placeNotice, el("p", null, el("label", null, placeRead, " I have read this")), explain("mailbox-processing-places"),
-      el("p", null, storeTest), result, resultExplanation, setup, parts, connected,
+      el("p", null, storeTest), result, resultExplanation, setup, parts, line.node,
     );
     imapPart.append(
       el("h3", null, "Servers"),
