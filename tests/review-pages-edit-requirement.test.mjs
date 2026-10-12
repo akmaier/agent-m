@@ -73,7 +73,7 @@ function fakeHost(files = FILES, { repository = GITHUB, canWrite = true } = {}) 
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
   return {
-    files: () => Object.fromEntries(commits.get(head).tree),
+    files: () => Object.fromEntries(commits.get(head).tree), head: () => head,
     writes: () => calls.filter((call) => call.fn === "commitFiles").map((call) => call.change),
     land(changed) { head = commitOf(new Map([...commits.get(head).tree, ...Object.entries(changed)]), head); },
     host: {
@@ -187,7 +187,8 @@ test("requirement/<name> — Save writes the edited section as an entry and link
   assert.match(change.files.find((file) => file.path.endsWith(".begruendung.md")).text, /Because it is clearer\./);
   const entry = byClass(target, "p", "entry")[0];
   const hrefs = find(entry, (node) => node.localName === "a").map((node) => node.getAttribute("href"));
-  assert.ok(hrefs.some((href) => href.includes("/commit/")), "the commit");
+  assert.ok(hrefs.includes(`https://github.com/alice/thesis-tool/commit/${fake.head()}`), `the commit: ${hrefs}`);
+  assert.ok(change.files.find((file) => file.path.endsWith("/index.md")).text.includes(TOKEN.name), "the queue is the person's");
   assert.ok(hrefs.some((href) => /^#spec-entry\/id=spec-[^/]+-01$/.test(href)), `the entry: ${hrefs}`);
 });
 
@@ -214,12 +215,13 @@ test("requirement/<name> — a save without a Why is not sent", async () => {
 test("requirements/new — the four empty fields in the section handed in, saved as an entry", async () => {
   const fake = fakeHost();
   const target = await showEdit(fake, { section: HEADING });
-  assert.equal(areaOf(target).value, `${LENDING}\n****\n\n*Check:*\n`);
+  assert.equal(areaOf(target).value, `${LENDING}****\n\n*Check:*\n`);
   assert.ok(byClass(target, "ol", "marks")[0].textContent.length > 0, "marks on the empty fields");
   const block = text(`**${CARD}** *(Product Owner)*`, "Every member holds a card.", "*Check:* `tests/card.test.mjs`");
   const written = `${LENDING}\n${block}`.replace(CARD, "A MEMBER IS REGISTERED").replace("holds a card", "is registered");
   type(target, written);
   assert.match(byClass(target, "ul", "impact")[0].textContent, /A MEMBER IS REGISTERED — added/);
+  assert.equal(byClass(target, "p", "rename").length, 0, "an added requirement is no rename");
   withWhy(target, "A new rule.");
   click(saveOf(target));
   await until(() => byClass(target, "p", "entry").length === 1, "the entry");
@@ -261,13 +263,17 @@ test("requirement/<name> — another open proposal on the same section is named"
   const proposed = LENDING.replace("returned.", "returned in a week.");
   const fake = fakeHost({ ...FILES,
     [`${OTHER}/index.md`]: text("# SPEC approvals — queue 2026-03-01 · sample", "", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|",
-      `| 01 | \`SPEC.md\` | ${HEADING} | — | — |`),
-    [`${OTHER}/entscheidungen.md`]: text("# Decisions", "", "Append-only."),
+      `| 01 | \`SPEC.md\` | ${HEADING} | — | — |`, "| 02 | `SPEC.md` | ## 2. Reading | — | — |", `| 03 | \`SPEC.md\` | ${HEADING} | — | — |`),
+    [`${OTHER}/02-entry.md`]: READING.replace("a card.", "a card, always."), [`${OTHER}/03-entry.md`]: LENDING.replace("returned.", "returned soon."),
+    [`${OTHER}/entscheidungen.md`]: text("# Decisions", "", "| Date | Entry | Decision | Reference |", "|---|---|---|---|",
+      "| 2026-03-01 10:00 UTC | 3 | uebernommen | approval:spec-2026-03-01_sample-03-aaaaaaaaaaaa.md |"),
     [`${OTHER}/01-entry.md`]: proposed, [`${OTHER}/01-entry.begruendung.md`]: text("# A change", "", "**The change.** A sample.") });
   const target = await showEdit(fake, NAME(LOAN));
   const others = byClass(target, "ul", "others")[0];
   assert.match(others.textContent, /spec-2026-03-01_sample-01/);
   assert.equal(find(others, (node) => node.localName === "a")[0].getAttribute("href"), "#spec-entry/id=spec-2026-03-01_sample-01");
+  assert.doesNotMatch(others.textContent, /sample-02/, "another section is not the same");
+  assert.doesNotMatch(others.textContent, /sample-03/, "an entry in the SPEC is no proposal");
   type(target, LENDING.replace("returned.", "returned, or renewed."));
   withWhy(target);
   click(saveOf(target));
@@ -327,5 +333,17 @@ test("requirement/<name> — on GitLab without a token there is no Save", async 
   assert.equal(find(target, (node) => node.localName === "textarea").length, 0, "no editor");
   assert.equal(find(target, (node) => node.localName === "button" && node.textContent === "Save").length, 0, "no Save");
   assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true, "the token's step");
+  assert.equal(fake.writes().length, 0);
+});
+
+// guards: UC-018 (step 1)
+// given: the SPEC, which holds no requirement NO SUCH RULE
+// input: the page #requirement/name=NO SUCH RULE
+// expect: the page names the requirement as missing; no editor; nothing written
+test("requirement/<name> — a requirement the SPEC does not hold is said so", async () => {
+  const fake = fakeHost();
+  const target = await showEdit(fake, NAME("NO SUCH RULE"));
+  assert.match(target.textContent, /No requirement NO SUCH RULE/);
+  assert.equal(find(target, (node) => node.localName === "textarea").length, 0);
   assert.equal(fake.writes().length, 0);
 });
