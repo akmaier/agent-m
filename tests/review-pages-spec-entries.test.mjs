@@ -144,10 +144,12 @@ const byClass = (root, name, className) => find(root, (node) => node.localName =
 const click = (node) => node.dispatchEvent(new Event("click"));
 const tick = (box) => { box.checked = true; box.dispatchEvent(new Event("change")); };
 async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
+  const limit = Date.now() + 2000;
+  while (Date.now() < limit) {
     if (condition()) return;
     await new Promise((resolve) => setImmediate(resolve));
   }
+  if (condition()) return;
   assert.fail(`waited for ${what}`);
 }
 const rowOf = (target, item) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id") === idOf(item))[0];
