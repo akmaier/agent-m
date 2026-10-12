@@ -58,9 +58,9 @@ const failure = (error, message, status) => json({ error, message }, status);
 
 // The stand-in for the library's client, with the signed-in account and the token its cache holds.
 function signedIn({ granted = SCOPES } = {}) {
-  const seen = { silent: [] };
+  const seen = { silent: [], configs: [] };
   globalThis.msal = {
-    createStandardPublicClientApplication: async () => ({
+    createStandardPublicClientApplication: async (config) => seen.configs.push(structuredClone(config)) && ({
       getAllAccounts: () => [{ username: "reports@example.org", homeAccountId: "x.y" }],
       acquireTokenSilent: async (request) => { seen.silent.push(structuredClone(request)); return { accessToken: TOKEN, scopes: granted, account: { username: "reports@example.org" } }; },
     }),
@@ -229,4 +229,25 @@ test("mailbox — BridgeNeeded on the Bridge route without a Bridge", () => {
   assert.equal(requests.length, 0, "no request");
   assert.doesNotThrow(() => mailbox(BRIDGE_CONNECTION, BRIDGE));
   assert.doesNotThrow(() => mailbox(GRAPH_CONNECTION, null));
+});
+
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037
+// given: the stand-in; a connection whose account is reports@example.org; one whose account has no domain but whose address is reports@uni.example.de;
+//        one with neither
+// input: mailbox(connection, null).test() for each
+// expect: the library's client made at the tenant of the account's domain (https://login.microsoftonline.com/example.org), else of the address's
+//         (.../uni.example.de); with neither a MailAddressNeeded asking for the mail address, before any client is made; never /common
+test("test — the silent token is taken at the tenant of the stored account, else of the address", async () => {
+  assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
+  fakeGraph();
+  let seen = signedIn();
+  await mailbox(GRAPH_CONNECTION, null).test();
+  assert.equal(seen.configs[0].auth.authority, "https://login.microsoftonline.com/example.org");
+  seen = signedIn();
+  await mailbox({ ...GRAPH_CONNECTION, address: "reports@Uni.Example.DE", graph: { ...GRAPH_CONNECTION.graph, account: "reports" } }, null).test().catch(() => {});
+  assert.equal(seen.configs[0].auth.authority, "https://login.microsoftonline.com/uni.example.de");
+  seen = signedIn();
+  await assert.rejects(mailbox({ ...GRAPH_CONNECTION, address: "", graph: { ...GRAPH_CONNECTION.graph, account: "reports" } }, null).test(),
+    (error) => error.name === "MailAddressNeeded" && /mail address/i.test(error.message));
+  assert.equal(seen.configs.length, 0, "no client made");
 });
