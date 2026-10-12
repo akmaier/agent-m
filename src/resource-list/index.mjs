@@ -1,6 +1,6 @@
 // MOD-resource-list — what a product and the instance are built with and run on (docs/architecture/MOD-resource-list.md): its interface. Of it, this file
-// has the type Resource, resourceSchema, the schema of the list docs/resources.md, and resourceFindings (rules.mjs), what the schema cannot express. The other
-// functions of the module — readPin, checkPlan, newerState, paidServices, reachableBy and the recipe resource-check — are other items'.
+// has the type Resource, resourceSchema, the schema of the list docs/resources.md, resourceFindings (rules.mjs), what the schema cannot express, and readPin, checkPlan and
+// newerState (pins.mjs). The other functions of the module — paidServices, reachableBy and the recipe resource-check — are other items'.
 //
 // Module: MOD-resource-list
 //
@@ -14,6 +14,7 @@
 import { loadSchema } from "../documents/index.mjs";
 
 export { resourceFindings } from "./rules.mjs";
+export { checkPlan, newerState, readPin } from "./pins.mjs";
 
 /**
  * One row of the list as MOD-documents reads it with this module's schema: its name; its kind, one of six; where it is; its pin, null for compute;
