@@ -6,7 +6,7 @@
 // A REUSE DECISION RECORDS ITS DUE DILIGENCE; THE ROUNDS ARE COUNTED AND SHOWN. Nothing here reads or writes the repository: a section
 // is drawn from the text or the rounds it is given.
 
-import { renderArtifact } from "../markdown-render/index.mjs";
+import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -66,4 +66,28 @@ export function roundsSection(rounds, stopped = null) {
   }
   section.append(el("p", "left-count", `Left: ${left === 0 ? "none" : left === 1 ? "1 finding" : `${left} findings`}`));
   return section;
+}
+
+// A SPEC change entry's sections, drawn from its view as MOD-spec-changes gives it: the section that holds now, the proposal, their difference, the
+// rationale, the impact list, the other open proposals on the same section — [{ id, state }] — and the queue's order — [{ number, anchor, state }].
+export function entrySections(view, others, order, hrefOf) {
+  const impact = el("ul", "impact");
+  for (const each of view.impact) impact.append(el("li", null, `${each.name} — ${each.change}${each.referencedBy.length ? `, named by ${each.referencedBy.join(", ")}` : ""}`));
+  const otherList = el("ul", "others");
+  for (const other of others) {
+    const a = el("a", null, other.id);
+    a.setAttribute("href", hrefOf(other.id));
+    otherList.append(el("li", null, a, ` — ${other.state}`));
+  }
+  const orderList = el("ol", "order");
+  for (const each of order) orderList.append(el("li", null, `${String(each.number).padStart(2, "0")} — ${each.anchor} (${each.state})`));
+  return [
+    el("section", "current", el("h3", null, "Now in the SPEC"), view.current ? renderArtifact(view.current.text) : el("p", null, "There is no such section yet.")),
+    el("section", "proposal", el("h3", null, "The proposal"), renderArtifact(view.proposal.text)),
+    el("section", "difference", el("h3", null, "Difference"), showDifference(view.current?.text ?? "", view.proposal.text)),
+    el("section", "rationale", el("h3", null, "Why"), renderArtifact(view.rationale)),
+    el("section", "impact-list", el("h3", null, "Impact list"), impact),
+    el("section", "others-list", el("h3", null, "Other open proposals on this section"), otherList),
+    el("section", "queue-order", el("h3", null, "The queue's order"), orderList),
+  ];
 }
