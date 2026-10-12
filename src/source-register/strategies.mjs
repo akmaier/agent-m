@@ -63,6 +63,15 @@ async function excerpt(context, params, module) {
   const linked = linksText === null ? null
     : module.linkedVersion(readDocument(module.links, LINKS_PATH, linksText), register, source);
   if (!linked) throw failure("NotLinked", `the product links no version of ${source}`, { source });
+  // A smaller part is the files the job's `part` names — a list of file names, or one name —: fewer files of the version, in the version's order. A version of one
+  // file has none: naming its one file sends it whole. A file the version does not hold is refused, in any version, before any content is read.
+  const named = params.part === undefined || params.part === null ? [] : [].concat(params.part).map(String);
+  let selected = linked.version.files;
+  if (named.length > 0) {
+    const missing = [...new Set(named.filter((name) => !selected.some((file) => file.name === name && file.stored)))];
+    if (missing.length > 0) throw failure("NotInVersion", `the version ${linked.version.version} of ${linked.source.id} holds no ${missing.join(", ")}`, { files: missing });
+    if (selected.length > 1) selected = selected.filter((file) => named.includes(file.name));
+  }
   let holder;
   if (module.permittedPlaces(linked.source) === "any") holder = holderOf(context.instance.snapshot);
   else if (linked.source.fields.content_repository) holder = await context.connect(String(linked.source.fields.content_repository));
@@ -70,18 +79,22 @@ async function excerpt(context, params, module) {
     throw failure("ContentUnreadable", `the register entry ${linked.source.id} names no content repository`,
       { repository: null, reason: `the register entry ${linked.source.id} names no content repository` });
   }
-  const files = await readContent(linked.version, async () => holder);
-  const part = params.part ?? linked.part;
-  return [{ name: `${linked.source.id} ${linked.version.version}${part ? `, ${part}` : ""}`,
+  const files = await readContent({ ...linked.version, files: selected }, async () => holder);
+  const sent = selected.length < linked.version.files.length ? `, ${selected.map((file) => file.name).join(", ")}` : "";
+  return [{ name: `${linked.source.id} ${linked.version.version}${sent}${linked.part ? `, ${linked.part}` : ""}`,
     text: files.map((file) => decoder.decode(file.bytes)).join("\n\n"), size: 0, sources: [linked.source.id], required: true }];
 }
 
 /**
  * strategiesOf(module: { entry: Schema, links: Schema, linkedVersion, permittedPlaces }) -> Partial<Strategies> — the
  * recipes of MOD-source-register, with its schemas and the two functions of its interface they use:
- * - `source-excerpt`: for the source and part the job's parameters name, reads the version the product links, through
- *   readContent, and returns its text as one part that names the source. Throws as readContent throws, and NotLinked
- *   { source } for a source the product does not link;
+ * - `source-excerpt`: for the source the job's parameter `source` names, reads the version the product links, through
+ *   readContent, and returns the texts of the files its parameter `part` names — a list of file names, or one; every file of
+ *   the version when it names none, and the one file of a version of one file when it names that —, in the version's order, a blank line between them,
+ *   as one part that names the source. The part's name names the version, the files sent where they are fewer than the
+ *   version's, and the part the product's link names. A file outside the part is not read. Throws as readContent throws,
+ *   NotLinked { source } for a source the product does not link, and NotInVersion { files } for a part that names files
+ *   the version does not hold, before any content is read;
  * - the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`, `chapters-for-
  *   architecture` and `chapters-for-implementation`: each reads the instance's register entry SRC-vibe-coding, takes its
  *   newest version, reads that version's files through readContent, and returns one part per chapter of its row, in the
