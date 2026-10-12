@@ -137,19 +137,21 @@ test("explain — candidate-classes: the four classes of a candidate (UC-005 ste
   ]);
 });
 
-// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED;
+// guards: A REQUIREMENT HAS FOUR FIELDS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED;
 //   WHAT A PERSON DECIDES IS NOT SENT BACK; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; UC-005 (step 6.3)
 // given: the topic candidate-correction
 // input: explain("candidate-correction")
 // expect: text saying the checks need no model and the findings go back as one line each, like compiler messages; that a candidate without one
-//         of the four fields or without its check is an error, and a rule with a conjunction a warning to split or justify; that the participant
+//         of the four fields of a requirement — its name, its source, its rule or its check, as A REQUIREMENT HAS FOUR FIELDS gives them — is an error, and a rule with a conjunction a warning to split or justify; that the participant
 //         corrects up to the limit of rounds on the run panel; that conflicts are never sent back; and that what is left after the last round is
 //         shown flagged, with the rounds counted
 test("explain — candidate-correction: findings sent back, the rounds and what is left (UC-005 step 6.3)", () => {
+  assert.doesNotMatch(bodyText("candidate-correction"), /four fields or its check/, "the check is one of the four fields, not set apart from them");
   assertClaims("candidate-correction", [
     [/checks them without a model/, "the checks need no model"],
     [/one line each, like messages from a compiler/, "findings go back one line each, like compiler messages"],
-    [/lacks one of the four fields or its check is an error/, "a candidate lacking one of the four fields or its check is an error"],
+    [/lacks one of the four fields of a requirement, its name, its source, its rule or its check, is an error and must be fixed/,
+      "a candidate lacking one of the four fields of a requirement — its name, its source, its rule or its check — is an error"],
     [/rule that contains a conjunction is a warning: split it, or give a reason/, "a rule with a conjunction is a warning: split it or give a reason"],
     [/corrects them, up to the limit of rounds the run panel states/, "the participant corrects up to the limit of rounds the run panel states"],
     [/Conflicts are never sent back/, "conflicts are never sent back"],
