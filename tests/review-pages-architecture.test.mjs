@@ -166,11 +166,11 @@ const rowsOf = (target) => find(target, (node) => node.localName === "tr" && nod
 // guards: UC-022; A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS
 // given: the view the module offers
 // input: its routes
-// expect: the routes use-case, decision and module, the last two under the menu entry architecture, with the titles of their kinds
+// expect: the routes use-case, decision, module and spec-entry, the middle two under the menu entry architecture, with the titles of their kinds
 test("MOD-review-pages view — the routes decision and module join the use cases' route", () => {
   assert.ok(pages.view, `the view: ${pages.error?.message}`);
-  assert.deepEqual(pages.view.routes.map((route) => route.name), ["use-case", "decision", "module"]);
-  assert.deepEqual(pages.view.routes.slice(1).map((route) => [route.entry, route.title]), [["architecture", "Architecture decisions"], ["architecture", "Module files"]]);
+  assert.deepEqual(pages.view.routes.map((route) => route.name), ["use-case", "decision", "module", "spec-entry"]);
+  assert.deepEqual(pages.view.routes.slice(1, 3).map((route) => [route.entry, route.title]), [["architecture", "Architecture decisions"], ["architecture", "Module files"]]);
 });
 
 // ---------------------------------------------------------------- the lists

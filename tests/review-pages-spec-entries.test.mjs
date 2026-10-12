@@ -322,3 +322,111 @@ test("spec-entry/<id> — a product without a token: no Accept, and the token's 
   assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true, "the token's step");
   assert.equal(fake.writes().length, 0);
 });
+
+// ---------------------------------------------------------------- the person, the gaps of the first pass
+
+// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; ONE CLICK PER DECISION; UC-006 (step 5)
+// given: the instance with the entry 07 open, and a token whose name is "Agent M · thesis-tool"
+// input: a click on Accept
+// expect: the commit's message names that person
+test("spec-entry/<id> — Accept names the person of the token in the commit", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  const target = await show(fake, { id: idOf(E07) });
+  click(byClass(target, "button", "accept")[0]);
+  await until(() => fake.writes().length === 1, "the commit");
+  assert.ok(fake.writes()[0].change.message.includes(TOKEN.name), fake.writes()[0].change.message);
+});
+
+// guards: ONE CLICK PER DECISION; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006 (step 6)
+// given: the list with a token and no entry ticked
+// input: the page as drawn
+// expect: Accept ticked is there and cannot be clicked, saying (0); after a tick it can, saying (1); after the tick is taken back it cannot again
+test("spec-entry — Accept ticked cannot be clicked while nothing is ticked", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  const target = await show(fake);
+  const bar = byClass(target, "button", "accept-ticked")[0];
+  assert.equal(bar.disabled, true);
+  assert.match(bar.textContent, /\(0\)/);
+  const box = byClass(rowOf(target, E07), "input", "tick")[0];
+  tick(box);
+  assert.equal(bar.disabled, false);
+  assert.match(bar.textContent, /\(1\)/);
+  box.checked = false;
+  box.dispatchEvent(new Event("change"));
+  assert.equal(bar.disabled, true);
+});
+
+// guards: A STALE APPROVAL IS NOT APPLIED; UC-006 (step 4c)
+// given: the entry 07 with a record of its proposal that names another section than the one the SPEC holds now
+// input: the list and the page of entry 07
+// expect: the state stale, and Accept offered to decide anew
+test("spec-entry/<id> — a stale entry is shown stale and may be accepted anew", async () => {
+  const record = text("kind: spec", `queue: ${QUEUE}`, "entry: 07", `proposal: ${proposalPath(E07)}`, `blob: ${blobOf(E07.proposal)}`, "target: SPEC.md",
+    `anchor: ${E07.anchor}`, `section: ${blobOf("another section\n")}`);
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES, [recordPath(E07)]: record });
+  const list = await show(fake);
+  assert.equal(badgeOf(rowOf(list, E07)), "stale");
+  assert.equal(byClass(rowOf(list, E07), "input", "tick").length, 1, "a tick");
+  const target = await show(fake, { id: idOf(E07) });
+  assert.equal(badgeOf(target), "stale");
+  assert.equal(byClass(target, "button", "accept").length, 1, "Accept is offered");
+});
+
+// guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-006 (step 5)
+// given: a product's SPEC with its token; the product holds the queue and the links, the instance holds the register of sources
+// input: a click on Accept on the page of entry 07
+// expect: one commit on the product, its SPEC as proposed — the register is the instance's, not the product's
+test("spec-entry/<id> — a product's entry is accepted with the instance's register of sources", async () => {
+  const fake = fakeHost({ ...productFiles(), "docs/sources.md": LINKS });
+  const instance = fakeHost({ "README.md": "# Instance\n", "docs/sources/SRC-fixture-po.md": ENTRY_PO });
+  const target = await show(fake, { id: idOf(E07) }, { product: true, instanceFake: instance });
+  click(byClass(target, "button", "accept")[0]);
+  await until(() => fake.writes().length === 1, "the commit");
+  assert.equal(written(fake)["SPEC.md"], HEAD + READING + WRITING_NEW);
+  assert.equal(instance.writes().length, 0, "the instance is not written");
+});
+
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-006 (step 4d)
+// given: a product's SPEC and no token of its own
+// input: the list
+// expect: no tick and no Accept ticked; the token's step, #add-product, linked
+test("spec-entry — the product's list without a token: no tick, and the token's step linked", async () => {
+  const fake = fakeHost({ ...productFiles(), "docs/sources.md": LINKS });
+  const instance = fakeHost({ "README.md": "# Instance\n", "docs/sources/SRC-fixture-po.md": ENTRY_PO });
+  const target = await show(fake, {}, { token: false, product: true, instanceFake: instance });
+  assert.equal(byClass(target, "input", "tick").length, 0);
+  assert.equal(byClass(target, "button", "accept-ticked").length, 0);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
+});
+
+// guards: UC-006 (step 2)
+// given: the instance without an entry spec-2026-03-01_sample-99
+// input: the page of that id
+// expect: the page says there is no such entry and links the list; nothing written
+test("spec-entry/<id> — an id no queue holds: said so, with the list linked", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  const target = await show(fake, { id: "spec-2026-03-01_sample-99" });
+  assert.match(target.textContent, /spec-2026-03-01_sample-99/);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#spec-entry").length, 1);
+  assert.equal(fake.writes().length, 0);
+});
+
+// guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006 (step 3)
+// given: the entry 07 on the section "## 2. Writing"; an older queue whose entry 01 proposes the same section and is open, whose entry 02 proposes it
+//        and is decided, and whose entry 03 proposes another section and is open
+// input: the page of entry 07
+// expect: the other proposals name 01 of the older queue only
+test("spec-entry/<id> — the other open proposals on the same section", async () => {
+  const OLD = "docs/spec-freigaben/2026-02-01_older", oldDecision = "approval:spec-2026-02-01_older-02-aaaaaaaaaaaa.md";
+  const rows = [["01", "## 2. Writing"], ["02", "## 2. Writing"], ["03", "## 1. Reading"]];
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES,
+    [`${OLD}/index.md`]: text("# SPEC approvals — queue 2026-02-01 · older", "", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|",
+      ...rows.map(([nn, anchor]) => `| ${nn} | \`SPEC.md\` | ${anchor} | — | — |`)),
+    ...Object.fromEntries(rows.map(([nn, anchor]) => [`${OLD}/${nn}-older.md`, `${anchor}\n\nA different wording ${nn}.\n`])),
+    [`${OLD}/entscheidungen.md`]: text("# Decisions", "", "| Date | Entry | Decision | Reference |", "|---|---|---|---|", `| 2026-02-01 10:00 UTC | 2 | uebernommen | ${oldDecision} |`) });
+  const target = await show(fake, { id: idOf(E07) });
+  const others = byClass(target, "ul", "others")[0].textContent;
+  assert.match(others, /spec-2026-02-01_older-01/);
+  assert.doesNotMatch(others, /older-02/, "a decided entry is not offered");
+  assert.doesNotMatch(others, /older-03/, "another section is not the same");
+});
