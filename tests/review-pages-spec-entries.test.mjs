@@ -430,3 +430,35 @@ test("spec-entry/<id> — the other open proposals on the same section", async (
   assert.doesNotMatch(others, /older-02/, "a decided entry is not offered");
   assert.doesNotMatch(others, /older-03/, "another section is not the same");
 });
+
+// ---------------------------------------------------------------- through the one review flow
+
+// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR (MOD-review-pages, Responsibility: "written once as a template
+//         method"; "a kind takes part through its descriptor"); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// given: the instance's entry 07, no token — the page of any other kind, an accepted-by-record use case's, offers the record with a Copy button for its path and for its text
+// input: the page of entry 07
+// expect: the flow's fallback block: the explanation, the link, the path with a Copy button and the record with a Copy button
+test("spec-entry/<id> — the flow's fallback block: the record's path and text each with a Copy button", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  const target = await show(fake, { id: idOf(E07) }, { token: false });
+  const block = byClass(target, "div", "github-fallback")[0];
+  assert.ok(block, "the fallback block");
+  assert.equal(byClass(block, "button", "copy").length, 2, "a Copy button for the path and one for the text");
+  assert.equal(byClass(block, "code", "record-path")[0].textContent, recordPath(E07));
+});
+
+// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// given: the instance with the entry 07 open and a token whose host refuses the write for lack of permission (PermissionMissing)
+// input: a click on Accept
+// expect: as the flow does for every kind: the refusal shown in the result, Accept enabled again, and GitHub's page with the record offered; nothing written
+test("spec-entry/<id> — the flow's answer to a write the token may not make: the refusal and GitHub's page", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  fake.host.commitFiles = async () => { throw failure("PermissionMissing", "the token may not write to main"); };
+  const target = await show(fake, { id: idOf(E07) });
+  const accept = byClass(target, "button", "accept")[0];
+  click(accept);
+  await until(() => byClass(target, "p", "result").length === 1, "the refusal");
+  assert.match(byClass(target, "p", "result")[0].textContent, /may not write/);
+  assert.equal(accept.disabled, false, "Accept can be clicked again");
+  assert.equal(byClass(target, "a", "github-page").length, 1, "GitHub's page is offered");
+});
