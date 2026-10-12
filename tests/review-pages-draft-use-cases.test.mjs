@@ -34,6 +34,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { approvalSchema } from "../src/approvals/index.mjs";
+import { writeDocument } from "../src/documents/index.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
@@ -80,7 +82,11 @@ function fakeProduct(files = FILES) {
     writes: () => calls.filter((call) => call.fn === "commitFiles").map((call) => call.change),
     host: {
       async repositoryInfo() { return { defaultBranch: "trunk", visibility: "public", canWrite: true, archived: false, description: "" }; },
-      async readSnapshot(ref) { if (ref !== "trunk") throw failure("NotFound", `${ref} was not found`); return snapshotAt(head, "trunk"); },
+      async readSnapshot(ref) {
+        if (ref === "trunk") return snapshotAt(head, "trunk");
+        if (commits.has(ref)) return snapshotAt(ref, ref);
+        throw failure("NotFound", `${ref} was not found`);
+      },
       async readHistory() { return []; },
       async commitFiles(change) {
         calls.push({ fn: "commitFiles", change: structuredClone(change) });
@@ -121,13 +127,17 @@ function endpointAnswers(...drafts) {
   };
 }
 test.afterEach(() => { globalThis.fetch = realFetch; });
-const drafted = (realises, path = UC_PATH("UC-900", "shelve-a-book")) => ({ files: [{ path, class: "new", text: useCase("UC-900", "Shelve a book", "The member shelves a book.", realises) }] });
+// A drafted new use case in the five parts a use case holds.
+const body = (realises) => useCase("UC-900", "Shelve a book", "The member shelves a book.", realises) + text("", "## Actors", "", "- **Member**", "", "## Precondition", "",
+  "- The book is in the library.", "", "## Main flow", "", "1. The member puts the book on its shelf.", "", "## Alternative flows", "", "- **1a. The shelf is full.** The member asks for another shelf.",
+  "", "## Postcondition", "", "- The book stands on a shelf.");
+const drafted = (realises, path = UC_PATH("UC-900", "shelve-a-book")) => ({ files: [{ path, class: "new", text: body(realises) }] });
 
 // ---------------------------------------------------------------- the page
 
 async function show(fake, params = { id: "draft" }, { register = registerOf(ENDPOINT_ROW, CI_ROW, READER_ROW), token = true } = {}) {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
-  const store = openStore("alice/agent-m");
+  const store = openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
   writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
   const target = document.createElement("div");
@@ -243,6 +253,8 @@ test("use-case/draft — Run is offered only from the run panel, which states wh
   assert.match(panel.textContent, new RegExp(OTHER));
   assert.match(panel.textContent, /UC-001/);
   assert.match(panel.textContent, /Correction rounds: at most 5/);
+  const sent = byClass(panel, "li", "part").map((item) => item.textContent.split(" — ")[0]);
+  assert.ok(sent.includes(OTHER) && !sent.includes(RULE), `the requirement chosen is sent, and no other: ${sent.join("; ")}`);
   assert.equal(runButtons(target).length, 1, "one Run");
   assert.equal(runButtons(panel).length, 1, "and it is the panel's");
   assert.equal(fake.writes().length, 0, "nothing written");
@@ -290,24 +302,40 @@ test("use-case/draft — the rounds are shown, and nothing is left when the loop
   assert.equal(byClass(target, "li", "left").length, 0, "nothing left");
 });
 
-// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-007 (steps 5, 4a)
-// given: an endpoint that always realises a name the SPEC does not hold
-// input: Run on the panel; then the page of the use case written
-// expect: the page shows the rounds and, among what the loop left, the finding about that name; the use case is written with the name removed, and beside it on its own
-//         page the note of the job's end record — the use case, the name, removed —; the page of UC-001 shows no such notes
-test("use-case/draft — what the loop left is shown, and the note of the job stands beside the use case it concerns", async () => {
-  endpointAnswers(drafted([UNKNOWN]));
+// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-007 (step 5)
+// given: an endpoint that always answers a use case without its section Postcondition
+// input: Run on the panel
+// expect: the page shows the rounds and, among what the loop left, the finding that names the missing section
+test("use-case/draft — what the loop left is shown beside the rounds", async () => {
+  const flawed = drafted([OTHER]);
+  flawed.files[0].text = flawed.files[0].text.replace(/\n## Postcondition[^]*$/, "");
+  endpointAnswers(flawed);
   const fake = fakeProduct();
   const target = await show(fake);
   await panelFor(target, "drafter-a");
   click(runButtons(target)[0]);
   await until(() => byClass(target, "ul", "written").length === 1, "the result");
   assert.ok(byClass(target, "li", "left").length >= 1, "a finding is left");
-  assert.match(byClass(target, "ul", "left")[0].textContent, new RegExp(UNKNOWN));
+  assert.match(byClass(target, "ul", "left")[0].textContent, /## Postcondition/);
+  assert.match(byClass(target, "p", "rounds")[0].textContent, /^Correction rounds: [2-9]/);
+});
+
+// guards: UC-007 (step 4b)
+// given: an endpoint that always answers a use case that realises no requirement
+// input: Run on the panel; then the page of the use case written
+// expect: the use case is written, and beside it on its own page the note of the job's end
+//         record — the use case realises no requirement (UC-007 4b) —; the page of UC-001 shows no such notes
+test("use-case/draft — the note of the job stands beside the use case it concerns", async () => {
+  endpointAnswers(drafted([]));
+  const fake = fakeProduct();
+  const target = await show(fake);
+  await panelFor(target, "drafter-a");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "ul", "written").length === 1, "the result");
   const one = await show(fake, { id: "UC-003" });
   const notes = byClass(one, "section", "job-notes");
   assert.equal(notes.length, 1);
-  assert.match(notes[0].textContent, new RegExp(`UC-003 realised "${UNKNOWN}", which matches no requirement; removed`));
+  assert.match(notes[0].textContent, /UC-003 realises no requirement/);
   const other = await show(fake, { id: "UC-001" });
   assert.equal(byClass(other, "section", "job-notes").length, 0);
 });
@@ -330,5 +358,41 @@ test("use-case/draft — a job on the CI route is queued there and not run in th
   assert.equal(fake.writes().length, 1, "one commit");
   assert.deepEqual(fake.writes()[0].files.map((file) => file.path.replace(/JOB-[^.]+/, "JOB")), ["docs/jobs/JOB.md"]);
   assert.match(byClass(target, "p", "queued")[0].textContent, /JOB-\d{8}-\d{4}-[0-9a-f]{4}/);
+  const record = fake.writes()[0].files[0].text;
+  assert.match(record, /^route: ci hosted$/m, "the record names the route");
+  assert.ok(!record.includes("## Taken"), "and is not taken by the tab");
   assert.ok(!Object.keys(fake.files()).some((path) => path.startsWith("docs/use-cases/UC-003")), "no use case written");
+});
+
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-007 (step 6)
+// given: a use case a job wrote, with a note of that job, which a person has since accepted by a record naming its text
+// input: the page of that use case
+// expect: no notes of the job: they stand beside an open use case only
+test("use-case/<id> — the notes of the job are not shown beside a use case that is accepted", async () => {
+  endpointAnswers(drafted([]));
+  const fake = fakeProduct();
+  const target = await show(fake);
+  await panelFor(target, "drafter-a");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "ul", "written").length === 1, "the result");
+  const path = UC_PATH("UC-003", "shelve-a-book");
+  assert.equal(byClass(await show(fake, { id: "UC-003" }), "section", "job-notes").length, 1, "known positive: shown while open");
+  await fake.host.commitFiles({ branch: "trunk", expectedHead: (await fake.host.readSnapshot("trunk")).commit,
+    files: [{ path: "docs/approvals/UC-003-" + blobOf(fake.files()[path]).slice(0, 12) + ".md", text: writeDocument(approvalSchema, { fields: { kind: "use-case", file: path, blob: blobOf(fake.files()[path]) } }) }], message: "accept" });
+  const accepted = await show(fake, { id: "UC-003" });
+  assert.equal(byClass(accepted, "span", "badge")[0].textContent, "accepted");
+  assert.equal(byClass(accepted, "section", "job-notes").length, 0);
+});
+
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; THE PAGE STATES WHAT IT SENDS WHERE
+// given: the drafting page without a token
+// input: the page
+// expect: the requirements and the participants are shown; no way to the run panel; the token's step linked; nothing written
+test("use-case/draft — without a token the run panel is not offered, and the token's step is linked", async () => {
+  const fake = fakeProduct();
+  const target = await show(fake, { id: "draft" }, { token: false });
+  assert.equal(byClass(target, "input", "requirement").length, 2, "known positive: the page is drawn");
+  assert.equal(byClass(target, "button", "prepare").length, 0);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
+  assert.equal(fake.writes().length, 0);
 });
