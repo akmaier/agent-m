@@ -213,15 +213,9 @@ export function githubAdapter(address, { token, tokenName }, links) {
 
     // Starts a workflow ("Create a workflow dispatch event": POST …/actions/workflows/{workflow}/dispatches, ref and inputs). The server
     // answers 200 with the run it started — workflow_run_id, run_url, html_url —, or 204 with no body where it names none: null. The run's
-    // commit is not in that answer: it is "", for listCiRuns to fill. A workflow without a workflow_dispatch trigger is refused with 422 and
-    // that trigger in the message: NotSupported; any other 422 stays the failure it is.
+    // commit is not in that answer: it is "", for listCiRuns to fill. Every refusal is the host's own failure; the page documents no 422 for this call.
     async startWorkflow(workflow, ref, inputs) {
-      const answer = await call("POST", `${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, { body: { ref, inputs },
-        on: { 422: async (a) => {
-          const said = await a.clone().json().then((j) => String(j.message ?? ""), () => "");
-          if (!/workflow_dispatch/i.test(said)) throw await refusal(a, { ...context, write: true });
-          throw new HostError("NotSupported", { what: `starting ${workflow}` }, `${workflow} cannot be started by a person: it has no workflow_dispatch trigger.`);
-        } } });
+      const answer = await call("POST", `${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, { body: { ref, inputs } });
       if (answer.status === 204) return null;
       const run = await json(answer, API);
       if (run?.workflow_run_id === undefined) return null;
