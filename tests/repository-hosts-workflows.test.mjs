@@ -19,7 +19,7 @@
 //     cancelled; skipped), its web_url the address, `started_at` and `finished_at` the times.
 //   - GitLab's inputs are sent as `inputs` of the pipeline's JSON body.
 //   - An input that holds the token or a configured secret is refused with SecretRefused { path: "inputs.<key>" } before any request, as a file is by commitFiles.
-//   - GitHub's 422 "Workflow does not have 'workflow_dispatch' trigger" is NotSupported; any other 422 is the host's own failure.
+//   - Every 422 is the host's own failure (Unreachable, with the status): GitHub's page documents no 422 for this call, so no message of one is matched.
 // Each test states its input and its expected result before it runs (given / input / expect); where a test asserts a refusal, the same call is first shown to succeed. The
 // counter-proofs are recorded in the pull request.
 
@@ -141,14 +141,13 @@ test("startWorkflow names how it fails, on each server", async () => {
 });
 
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
-// given: a GitHub workflow without a workflow_dispatch trigger (422 "Workflow does not have 'workflow_dispatch' trigger"); another 422; a host with no token; a host through a clone without a token
+// given: a GitHub 422 whose message names the workflow_dispatch trigger; another 422; a host with no token; a host through a clone without a token
 // input: startWorkflow("agent-m-jobs.yml", "main", {})
-// expect: NotSupported for the first, naming the trigger; the host's own Unreachable for the other 422; NotSupported without a token and through a clone without a token, each with no request
-test("startWorkflow is NotSupported for a workflow that cannot be started, and without a token", async () => {
+// expect: the host's own Unreachable for each 422, whatever the message says (no source gives a 422 of this call, so none is read as "cannot be started"); NotSupported without a token and through a clone without a token, each with no request
+test("startWorkflow is NotSupported without a token, and a 422 is the host's own failure", async () => {
   const trigger = await failure(serving(() => json(422, { message: "Workflow does not have 'workflow_dispatch' trigger" }),
     () => connect(GITHUB, { token: GH_TOKEN }).startWorkflow("agent-m-jobs.yml", "main", {})));
-  assert.equal(trigger.name, "NotSupported");
-  assert.match(trigger.message, /workflow_dispatch/);
+  assert.equal(trigger.name, "Unreachable", "a 422 is the host's own failure, whatever its message says");
   const other = await failure(serving(() => json(422, { message: "Unexpected inputs provided: [\"x\"]" }),
     () => connect(GITHUB, { token: GH_TOKEN }).startWorkflow("agent-m-jobs.yml", "main", { x: "1" })));
   assert.equal(other.name, "Unreachable");
