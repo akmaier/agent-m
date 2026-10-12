@@ -13,7 +13,7 @@
 // The module file gives the parameter's meaning, not its form. These tests take `part` as the file names, a list of texts or one text for one file, as the page that offers
 // the files would pass them in a job's parameters; the product's link has its own `Part`, free text, which names no file and selects none (the existing cases).
 // A part names fewer files than the version holds; the files sent are named in the part's name only for such a smaller part — the name of the whole version names its
-// version and the link's part, as before. A version of one file is sent whole whatever `part` says. NotInVersion names every file of the part the version does not hold,
+// version and the link's part, as before. A version of one file is sent whole when `part` names it or nothing, and refuses a name it lacks like any version. NotInVersion names every file of the part the version does not hold,
 // in the order the part gives them, and is thrown before any content is read. A file the part does not name is not read, so that a changed file outside the part
 // is not a HashMismatch of this part and restricted content outside it is not fetched. The fixtures are an instance with a register entry of three files and one of a single file,
 // both republishable, and a restricted one of three files in a content repository; the product links all three. Each test states its input and its expected result
@@ -114,16 +114,21 @@ test("source-excerpt — a part that names a file the version does not hold is r
     (error) => error.name === "NotInVersion" && JSON.stringify(error.files) === JSON.stringify(["09_ninth.md"]), "a file is named once");
 });
 
-// guards: UC-005 2a
+// guards: UC-005 2a; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: a version of one file
 // input: source-excerpt with no part; with a part naming its file; with a part naming a file it does not hold
-// expect: the file, whole, each time — a version of one file has no smaller part, so its part is not asked
-test("source-excerpt — a version of one file is sent whole", async () => {
-  for (const part of [undefined, ["only.md"], ["other.md"]]) {
+// expect: the file, whole, for the first two — a version of one file has no smaller part, and naming its one file sends it whole —; for the third NotInVersion naming
+//         the file it lacks, as for any version, and nothing read
+test("source-excerpt — a version of one file is sent whole, and a part naming a file it lacks is refused", async () => {
+  for (const part of [undefined, ["only.md"]]) {
     const [sent] = await excerpt(contextOf(), { source: "SRC-note", ...(part ? { part } : {}) });
     assert.equal(sent.text, ONE[0][1], JSON.stringify(part));
     assert.ok(!sent.name.includes("only.md"), "a whole version names no file");
   }
+  const context = contextOf();
+  await assert.rejects(excerpt(context, { source: "SRC-note", part: ["other.md"] }),
+    (error) => error.name === "NotInVersion" && JSON.stringify(error.files) === JSON.stringify(["other.md"]));
+  assert.deepEqual(contentReads(context), [], "no content read");
 });
 
 // guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
