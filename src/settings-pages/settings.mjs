@@ -13,6 +13,7 @@ import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
+import { mailboxLine } from "./mailbox.mjs";
 
 // The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");
@@ -867,6 +868,7 @@ export const route = {
       configurationControls(inPlace), form,
       ...(bridge ? [bridge] : []), ...namedBridges, ...(jumpHost ? [jumpHost] : []),
       ...remoteSessions,
+      ...(readSetting(context.store, "mailbox") ? [mailboxLine(inPlace).node] : []),
       endpoints);
     const usability = el("section", "settings-tab-panel",
       el("h3", null, "Usability · this browser"), notificationsControls(context));
