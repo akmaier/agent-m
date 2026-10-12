@@ -25,7 +25,7 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    from; MOD-endpoint-calls' configured endpoint short test and direct job-driver transports; and the own data files — schemas, models, practices —
    of the modules whose files state that they read them when
    they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process
-   MOD-site-frame (its explanations.md), and MOD-personal-data,
+   MOD-site-frame (its explanations.md), MOD-personal-data, and MOD-resource-list,
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
    file builds resolved from a path beginning with `./` against the module's own address. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
@@ -275,6 +275,7 @@ PERMITTED_CHANNELS = {
     ("src/product-process/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/personal-data/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/resource-list/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/", "loading element"): (3, FRAME_ASSET_LOADING, _site_frame_asset),  # link, source and img
     ("src/markdown-render/mermaid.mjs", "loading element"): (1, MERMAID_LIBRARY_LOADING, _mermaid_library_script),
     # MOD-mail-routes' sign-in library: Microsoft's sign-in service is the mail provider's, which NO SERVER permits; its requests are
@@ -623,6 +624,20 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings({"src/text-tools/index.mjs": own}), ["src/text-tools/index.mjs:3: fetch: fetch(url);"])
         # A listed module whose code reads no data file of its own yet: the entry allows the read and requires none.
         self.assertEqual(channel_findings({"src/participant-list/index.mjs": "export const x = 1;\n"}), [])
+
+    def test_counter_proof_a_resource_lists_own_schema_file(self):
+        # MOD-resource-list's file says "It reads its own schema file": the form of the other modules that read theirs, at most once in its folder.
+        own = ('const SCHEMA = new URL("./resource.schema.md", import.meta.url);\n'
+               "async function ownFile(url) {\n  const answer = await fetch(url);\n  return answer.text();\n}\n")
+        self.assertEqual(channel_findings({"src/resource-list/index.mjs": own}), [])
+        # Elsewhere the same text is found, and so is a second fetch in the folder, and an address that is not the module's own.
+        self.assertEqual(channel_findings({"src/text-tools/index.mjs": own}), ["src/text-tools/index.mjs:3: fetch: fetch(url);"])
+        twice = {"src/resource-list/index.mjs": own, "src/resource-list/read.mjs": "export const read = (url) => fetch(url);\n"}
+        self.assertEqual(channel_findings(twice),
+                         [f"src/resource-list/read.mjs:1: fetch: not {OWN_DATA_FILES}",
+                          f"src/resource-list/: fetch found 2 times, permitted at most 1 ({OWN_DATA_FILES})"])
+        elsewhere = own + "const OTHER = new URL(name, location.href);\n"
+        self.assertEqual(channel_findings({"src/resource-list/index.mjs": elsewhere}), [f"src/resource-list/index.mjs:3: fetch: not {OWN_DATA_FILES}"])
 
     def test_counter_proof_only_the_site_frames_own_static_header_assets_load(self):
         path = "src/site-frame/index.mjs"
