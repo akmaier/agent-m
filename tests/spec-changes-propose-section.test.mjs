@@ -262,7 +262,7 @@ test("proposeSection — without a token on GitHub it writes nothing and returns
   assert.deepEqual(result.fallback.map((page) => page.path).sort(), [`${folder}/01-reading.begruendung.md`, `${folder}/01-reading.md`, `${folder}/entscheidungen.md`, `${folder}/index.md`]);
   for (const page of result.fallback) {
     assert.match(page.url, /^https:\/\/github\.com\/alice\/product\/new\//);
-    assert.ok(page.url.includes(encodeURIComponent(page.path).replaceAll("%2F", "/")) || page.url.includes(page.path), "the path is in the address");
+    assert.ok(page.url.includes(encodeURIComponent(page.path)) || page.url.includes(page.path), "the path is in the address");
     assert.ok(!page.url.includes("reads a file whole"), "the text is not");
     assert.equal(page.differs, false);
   }
@@ -279,4 +279,18 @@ test("proposeSection — without a token on GitLab it fails with TokenRequired",
   const f = repository({ server: "gitlab", canWrite: false });
   await assert.rejects(proposeSection(f.host, CHANGE), (error) => error.name === "TokenRequired");
   assert.deepEqual(f.commits, []);
+});
+
+// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
+// given: three open queues of alice on the day: one with no letter, one with the letter b, one with the letter c, and an edit of a section none of them holds
+// input: openQueueOf; proposeSection
+// expect: the newest is the one with the latest letter — c; the edit is added to it as entry 2
+test("openQueueOf — the newest of several open queues of the day is the one with the latest letter", async () => {
+  const names = [`${TODAY}_first`, `${TODAY}b_second`, `${TODAY}c_third`];
+  const files = Object.assign({}, ...names.map((name) => queueFiles(name, TODAY, ["## 2. Writing"])));
+  const history = Object.assign({}, ...names.map((name) => historyOf(name, "alice")));
+  const f = repository({ files, history });
+  assert.equal(await openQueueOf("alice", TODAY, f.host), `docs/spec-freigaben/${names[2]}`);
+  const result = await proposeSection(f.host, CHANGE);
+  assert.deepEqual([result.queue, result.entry], [`docs/spec-freigaben/${names[2]}`, 2]);
 });
