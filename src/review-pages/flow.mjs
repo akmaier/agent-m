@@ -7,9 +7,11 @@
 // TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN. Nothing is written while a page is drawn.
 
 import { statuses, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema } from "../approvals/index.mjs";
-import { writeDocument, readDocument, artifactSchemas } from "../documents/index.mjs";
+import { writeDocument, readDocument, artifactSchemas, documentFindings } from "../documents/index.mjs";
+import { saveFile, fallbackEditLinks } from "../artifact-edits/index.mjs";
+import { traceGraph, graphFindings } from "../trace-graph/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
+import { renderArtifact, showDifference, openEditor } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -19,6 +21,8 @@ const LABEL = { open: "open", accepted: "accepted", changed: "changed since acce
 const TOKEN_STEP = "#add-product";
 // The id of the page that shows every file not yet accepted: #<route>/id=all.
 const REVIEW_ALL = "all";
+// The rule of MOD-trace-graph's finding for a name under `realises` that matches no requirement.
+const REALISES = "A USE CASE REALISES NAMED REQUIREMENTS";
 // The kind of job whose record holds the rounds of the architecture shown.
 const ARCHITECTURE_JOB = "derive-architecture";
 
@@ -127,6 +131,7 @@ export function reviewRoute(kind) {
     }
     const where = { host, token, snapshot, context, target };
     if (params.id === REVIEW_ALL) await showAll(where);
+    else if (params.id && params.edit !== undefined) await showEdit(where, params.id);
     else if (params.id) await showOne(where, params.id);
     else await showList(where);
   }
@@ -277,6 +282,7 @@ export function reviewRoute(kind) {
       }
       target.append(diff);
     }
+    if (kind.edit) target.append(link(`#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit", "Edit"));
     target.append(renderArtifact(shortBody(body)));
     if (file.status === "accepted") return;
     if (kind.restsOn) {
@@ -322,7 +328,94 @@ export function reviewRoute(kind) {
     } else offerGitHub();
   }
 
+  // The editor of one file (UC-018): MOD-markdown-render's editor, with the schema's marks and the graph's, Save through saveFile on the blob it was
+  // opened on, a changed identifier refusing Save with its reason, and, without a token, GitHub's editor with the text on the clipboard.
+  async function showEdit(where, id) {
+    const { target, snapshot, token, host, context } = where;
+    const file = files(snapshot).find((candidate) => candidate.id === id);
+    if (!kind.edit || !file) {
+      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      return;
+    }
+    const path = file.path, opened = await snapshot.read(path), schema = artifactSchemas()[kind.schema];
+    let openedBlob = snapshot.blob(path);
+    const gitlab = parseServer(context) === "gitlab";
+    const address = context.product.address;
+    const idIn = (body) => { const value = readDocument(schema, path, body).fields[schema.identifier.field]; return typeof value === "string" && value ? value : null; };
+    const ownMarks = (body) => documentFindings(schema, readDocument(schema, path, body));
+    // The graph's marks of the edited text: the names under realises that no requirement has, among the findings across the artifacts.
+    const graphMarks = async (body) => graphFindings(await traceGraph({ paths: snapshot.paths, read: async (each) => (each === path ? body : snapshot.read(each)) }))
+      .filter((found) => found.artifact === id && found.rule === REALISES);
+
+    target.append(el("h2", null, `Edit ${kind.heading(opened)}`), explain(kind.explain.edit));
+    if (!token && gitlab) target.append(el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+    const area = el("div", "edit-area"), reason = el("p", "id-changed"), status = el("p", "status"), warning = el("p", "warn");
+    target.append(area, reason, status, warning);
+
+    let editor = null, saveButton = null, round = 0;
+    const marks = (body) => {
+      const now = idIn(body), changed = now !== id;
+      if (saveButton) saveButton.disabled = changed;
+      reason.textContent = changed ? `The identifier is ${now ?? "missing"}, not ${id}: a file keeps its identifier, so Save stays disabled until it is ${id} again.` : "";
+      const mine = (round += 1);
+      graphMarks(body).then((found) => { if (mine === round && editor) editor.setMarks([...ownMarks(body), ...found]); }, () => {});
+      return ownMarks(body);
+    };
+    const finished = (body) => (body.endsWith("\n") ? body : `${body}\n`);
+    const statusOf = async (commit) => {
+      const fresh = await host.readSnapshot(commit);
+      status.textContent = LABEL[statuses(fresh).get(path)?.status] ?? "";
+    };
+    const save = async (edited) => {
+      const body = finished(edited);
+      try {
+        const out = await saveFile(host, { path, text: body, openedBlob, openedId: id });
+        if (out.refused === "changed meanwhile") {
+          return out.current === null ? { kind: "failed", reason: `${path} was deleted after you opened the editor; your edit stays in the editor` }
+            : { kind: "refused", newer: out.current };
+        }
+        if (out.refused === "identifier changed") return { kind: "failed", reason: `the identifier is ${out.nowId ?? "missing"}, not ${out.openedId}` };
+        openedBlob = out.blob;
+        await statusOf(out.commit);
+        return { kind: "saved", link: `${address}${gitlab ? "/-" : ""}/commit/${out.commit}` };
+      } catch (failure) {
+        if (failure.name === "PermissionMissing") offerGitHub();
+        return { kind: "failed", reason: failure.message };
+      }
+    };
+    // GitHub's editor of the file: the link carries the path only; the edited text goes to the clipboard when it is followed. A file that is no
+    // longer as the edit started — gone from the default branch — is warned about.
+    function offerGitHub() {
+      const [page] = fallbackEditLinks([{ path, text: opened, existing: true }], snapshot);
+      const a = link(page.url, "github-page", "Copy the text and open GitHub's editor");
+      a.setAttribute("target", "_blank");
+      a.addEventListener("click", async () => {
+        await globalThis.navigator?.clipboard?.writeText?.(finished(editor.text()));
+        const [now] = fallbackEditLinks([{ path, text: opened, existing: true }], await host.readSnapshot("HEAD").catch(() => snapshot));
+        warning.textContent = now.differs ? `${path} is no longer on the default branch as you opened it: check GitHub's page before you paste.` : "";
+      });
+      target.append(el("p", "github-fallback", explain(kind.explain.fallback), a, " Paste in GitHub's editor, select all first, then commit."));
+    }
+
+    editor = openEditor(area, opened, { marks, save });
+    saveButton = find(area, "button", "Save");
+    if (!token && saveButton) saveButton.parentNode.removeChild(saveButton);
+    if (!token && !gitlab) offerGitHub();
+    if (token) marks(opened);
+    const leave = button("btn leave", "Close the editor");
+    leave.addEventListener("click", () => { editor.close(); context.go(kind.route, { id }); });
+    target.append(el("p", null, leave, " ", link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, "Back to the use case"), " ",
+      link(`#arrange/${kind.plural.replace(" ", "-")}`, "arrange", "Arrange the groups")));
+  }
+
   return { name: kind.route, entry: kind.entry, title: kind.title, render };
+}
+
+// The first element below `root` with that tag name and text.
+function find(root, name, text) {
+  const hit = [];
+  (function walk(node) { for (const kid of node.childNodes) { if (kid.nodeType === 1) { if (kid.localName === name && kid.textContent === text) hit.push(kid); walk(kid); } } })(root);
+  return hit[0] ?? null;
 }
 
 const parseServer = (context) => { try { return parseAddress(context.product.address).server; } catch { return null; } };
