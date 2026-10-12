@@ -14,7 +14,7 @@
 //   - A resource names a Bridge when its route is exactly `bridge <name>` (MOD-resource-list, Data: Route); it is named by its name. The question says which list holds it: the
 //     instance's or the product's.
 //   - A list that cannot be read — its host fails, with the host's own words — is said with that reason, and the question is still asked: it never claims that no resource names the
-//     Bridge. A list the repository does not hold is a list with no resource. A page with no product, or no instance host, says nothing of that list.
+//     Bridge. A list the repository does not hold — its snapshot's paths lack docs/resources.md — is a list with no resource, and is not read. A page with no product, or no instance host, says nothing of that list.
 //   - The question is asked before anything is cleared; Clear changes nothing but the Bridge's entry and its test record, and writes nothing to either list.
 // The counter-proofs are in the pull request.
 
@@ -60,18 +60,21 @@ What this is built with and runs on.
 
 | Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |
 |---|---|---|---|---|---|---|---|---|---|
-${rows.map(([name, route]) => `| ${name} | compute | ${name}.example.test | — | — | — | ${route} | this machine | — | — |`).join("\n")}
+${rows.map(([name, route], at) => `| ${name} | compute | machine-${at}.example.test | — | — | — | ${route} | this machine | — | — |`).join("\n")}
 `;
 const INSTANCE_LIST = LIST([["inst-lab", "bridge lab-pc"], ["inst-laptop", "bridge laptop"], ["inst-near", "bridge lab-pc2"], ["inst-runner", "runner:lab-pc"], ["lab-pc-named", "bridge elsewhere"]]);
 const PRODUCT_LIST = LIST([["prod-lab", "bridge lab-pc"], ["prod-laptop", "bridge laptop"], ["prod-near", "bridge lab-pc2"]]);
 
-// A host whose default branch is trunk and whose docs/resources.md is `list` (null: the repository holds none); `failure`: its snapshot cannot be read.
+// A host whose default branch is trunk and whose docs/resources.md is `list` (null: the repository holds none); `failure`: the server refuses to serve that file (the page itself is built).
 function listHost(list, events, label, failure) {
   return {
     repositoryInfo: async () => ({ defaultBranch: "trunk", canWrite: true }),
     readSnapshot: async () => {
-      if (failure) throw Object.assign(new Error(failure), { name: "RateLimited" });
-      return { paths: ["docs/resources.md"], blob: () => "b".repeat(40), read: async (path) => { events.reads.push(`${label}:${path}`); return path === "docs/resources.md" ? list : null; } };
+      return { paths: list === null && !failure ? [] : ["docs/resources.md"], blob: () => "b".repeat(40), read: async (path) => {
+        events.reads.push(`${label}:${path}`);
+        if (failure && path === "docs/resources.md") throw Object.assign(new Error(failure), { name: "RateLimited" });
+        return path === "docs/resources.md" ? list : null;
+      } };
     },
     commitFiles: async (...args) => { events.commits.push([label, ...args]); return { commit: "c".repeat(40) }; },
   };
@@ -119,7 +122,6 @@ test("Settings — Clear of a Bridge names the resources of the instance and of 
   assert.equal(readSetting(f.store, "bridge:lab-pc"), null);
   assert.equal(readSetting(f.store, "last-test:bridge:lab-pc"), null);
   assert.deepEqual(f.events.commits, [], "nothing is written to either list");
-  assert.ok(f.events.reads.every((read) => /^(instance|product):docs\/resources\.md$/.test(read)));
   assert.ok(f.events.reads.some((read) => read.startsWith("instance:")) && f.events.reads.some((read) => read.startsWith("product:")), "both lists were read");
 
   f.answers.next = false;
@@ -141,6 +143,7 @@ test("Settings — Clear says nothing of a list that is missing, absent or not t
   const m = (await askedAbout(missing, "lab-pc")).message;
   assert.match(m, /Nothing in this browser names this Bridge/);
   assert.doesNotMatch(m, /could not be read/);
+  assert.deepEqual(missing.events.reads.filter((read) => read.endsWith("resources.md")), [], "a list the snapshot does not hold is not read");
   const bare = fixture(t, { withProduct: false });
   const b = (await askedAbout(bare, "lab-pc")).message;
   assert.match(b, /inst-lab/);
@@ -150,7 +153,7 @@ test("Settings — Clear says nothing of a list that is missing, absent or not t
   const h = (await askedAbout(noHost, "lab-pc")).message;
   assert.match(h, /prod-lab/);
   assert.doesNotMatch(h, /inst-|instance/i);
-  assert.ok(noHost.events.reads.every((read) => read.startsWith("product:")));
+  assert.ok(noHost.events.reads.every((read) => read.startsWith("product:")), "no request for the instance without a host");
 });
 
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
