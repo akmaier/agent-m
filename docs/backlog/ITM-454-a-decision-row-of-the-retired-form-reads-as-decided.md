@@ -34,8 +34,8 @@ accepted before approval records were written, whose rows name that commit; toda
 `acceptEntries` would write nine of them over today's sections (#377). Records and decision rows are never rewritten.
 ITM-357, the review page of SPEC entries, builds on this item.
 
-The item waits for akmaier's acceptance of MOD-spec-changes' text drafted in afab8296, which states the derived state
-this way; until that text is accepted, it does not start.
+MOD-spec-changes' text states the derived state this way since akmaier accepted it in 50591c1e; the item waits on no
+text.
 
 ## Acceptance
 

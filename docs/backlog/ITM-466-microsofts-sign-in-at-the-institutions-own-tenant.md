@@ -28,8 +28,9 @@ sign-in service, which `NO SERVER` permits and the check's form for MOD-mail-rou
 needed. `signIn`'s signature admits `address: null`, and the drafted text does not say which tenant a sign-in without an
 address uses; that is an open point of the text under review, to be settled before the item starts.
 
-The item waits for akmaier's acceptance of MOD-mail-routes' text drafted in afab8296; until that text is accepted, it
-does not start.
+MOD-mail-routes' text states the tenant since akmaier accepted it in 50591c1e; the item waits on no text. The open
+point above stays: the accepted text does not say which tenant a sign-in without an address uses, so the item takes
+the reading at its start and names it.
 
 ## Acceptance
 

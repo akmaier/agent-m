@@ -28,8 +28,7 @@ entry that neither an approval record nor a decision row naming the commit that 
 SPEC says since 8a5b8dd6. Today (ITM-437) it derives `open` from the approval records alone, and so names the 16 entries
 of 2026-09-23 as open, whose decision rows name their SPEC commits.
 
-The item waits for akmaier's acceptance of MOD-approvals' text drafted in afab8296; until that text is accepted, it does
-not start.
+MOD-approvals' text states this since akmaier accepted it in 50591c1e; the item waits on no text.
 
 ## Acceptance
 
