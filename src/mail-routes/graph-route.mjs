@@ -13,17 +13,22 @@ import "./vendor/msal-browser.min.js";
 import { instanceOfPagesAddress, pagesAddress } from "../identifiers/index.mjs";
 
 import { failure } from "./errors.mjs";
+import { SIGN_IN_SERVICE } from "./index.mjs";
 
-const SIGN_IN_SERVICE = "https://login.microsoftonline.com";
-// The tenant a sign-in goes to: the domain of the mail address, in lower case — the institution's own tenant, where its administrators registered
-// the app. Without an address, or with one that has no domain, the tenant is not known: Microsoft's multi-tenant "common" authority.
-function authorityOf(address) {
-  const at = typeof address === "string" ? address.lastIndexOf("@") : -1;
-  const domain = at < 0 ? "" : address.slice(at + 1).trim().toLowerCase();
-  return `${SIGN_IN_SERVICE}/${domain || "common"}`;
-}
 const GRAPH = "https://graph.microsoft.com/v1.0";
 const SCOPES = Object.freeze(["Mail.ReadWrite", "Mail.Send", "offline_access"]);
+
+// The tenant a sign-in goes to: the domain of the first of the mail addresses given that has one — the part after the last @, in lower case —,
+// the institution's own tenant, where its administrators registered the app. Where none has a domain no tenant is known, and the person is
+// asked for the mail address: there is no tenant to fall back to.
+function authorityOf(...addresses) {
+  for (const address of addresses) {
+    const at = typeof address === "string" ? address.lastIndexOf("@") : -1;
+    const domain = at < 0 ? "" : address.slice(at + 1).trim().toLowerCase();
+    if (domain) return `${SIGN_IN_SERVICE}/${domain}`;
+  }
+  throw failure("MailAddressNeeded", {}, "Microsoft's sign-in goes to the institution's own tenant, named by the domain of the mail address: enter the mailbox's mail address (name@institution.org) and try again.");
+}
 
 // The return address Microsoft's window comes back to: the Pages address of the instance whose page this is, as registered with the app
 // (UC-037 step 2); on any other page, that page's own address without its query and fragment.
@@ -58,11 +63,11 @@ function named(error) {
 }
 
 // The library's client for the app: the authority, the return address and the token cache in localStorage.
-async function application(clientId, address = null) {
+async function application(clientId, ...addresses) {
   const library = globalThis.msal;
   if (!library?.createStandardPublicClientApplication) throw new Error("Microsoft's sign-in library is not loaded.");
   return library.createStandardPublicClientApplication({
-    auth: { clientId, authority: authorityOf(address), redirectUri: returnAddress() },
+    auth: { clientId, authority: authorityOf(...addresses), redirectUri: returnAddress() },
     cache: { cacheLocation: "localStorage" },
   });
 }
@@ -94,9 +99,9 @@ const EXPIRED = ["interaction_required", "login_required", "no_account_error", "
 
 // The token the library's cache holds for the account, for exactly the three scopes, taken silently: no window opens, nothing is asked
 // of the person. A sign-in that has run out — Microsoft's refresh tokens for a page expire after a day — is SignInExpired.
-async function cachedToken({ clientId, account }) {
+async function cachedToken({ clientId, account }, address) {
   const expired = () => failure("SignInExpired", {}, "The sign-in has expired: sign in with Microsoft again.");
-  const client = await application(clientId);
+  const client = await application(clientId, account, address);
   const known = client.getAllAccounts().find((each) => String(each.username).toLowerCase() === String(account).toLowerCase());
   if (!known) throw expired();
   try {
@@ -140,7 +145,7 @@ export function graphMailbox(connection) {
     // The mails in each named folder, whether Drafts and Sent are there, and whether sending works — the token holds Mail.Send; nothing
     // is sent to find out. Every request reads; nothing in the mailbox changes (READING THE MAILBOX CHANGES NOTHING IN IT).
     async test() {
-      const { accessToken, scopes } = await cachedToken(connection.graph);
+      const { accessToken, scopes } = await cachedToken(connection.graph, connection.address);
       const counts = {};
       for (const name of connection.folders) {
         const path = name.toUpperCase() === "INBOX" ? "/me/mailFolders/inbox?$select=totalItemCount"
