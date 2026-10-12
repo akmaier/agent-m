@@ -396,3 +396,24 @@ test("use-case/draft — without a token the run panel is not offered, and the t
   assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
   assert.equal(fake.writes().length, 0);
 });
+
+// guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-007 (step 1)
+// given: the page, whose selection the person changes: A LOAN HAS A DUE DATE ticked, A BOOK IS SHELVED unticked
+// input: the run panel; then Run
+// expect: the panel's parts name the requirement ticked and not the one unticked; the job's record names the selection as the requirements it works on
+test("use-case/draft — the selection the person made is what the panel shows and the job works on", async () => {
+  endpointAnswers(drafted([RULE]));
+  const fake = fakeProduct();
+  const target = await show(fake);
+  for (const box of byClass(target, "input", "requirement")) {
+    box.checked = box.value === RULE;
+    box.dispatchEvent(new Event("change"));
+  }
+  await panelFor(target, "drafter-a");
+  const sent = byClass(byClass(target, "section", "run-panel")[0], "li", "part").map((item) => item.textContent.split(" — ")[0]);
+  assert.ok(sent.includes(RULE) && !sent.includes(OTHER), sent.join("; "));
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "ul", "written").length === 1, "the result");
+  const record = fake.writes().find((change) => change.files.some((file) => file.path.startsWith("docs/jobs/"))).files[0].text;
+  assert.match(record, new RegExp(`^works_on:\\n  - ${RULE}\\n`, "m"));
+});
