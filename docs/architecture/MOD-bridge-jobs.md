@@ -64,6 +64,8 @@ process.
 - `watch.mjs` — reading the served products, taking and resuming jobs, advancing runs, sprint ends.
 - `workfolders.mjs` — a working clone per job.
 - `probes.mjs` — the harmless requests of the probes.
+- `access.mjs` — whether this computer's own git login reaches the repositories: one fetch of each into an empty
+  repository in a temporary folder (`testAccess`).
 
 ## Data
 

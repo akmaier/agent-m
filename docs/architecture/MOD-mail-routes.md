@@ -40,6 +40,8 @@ as the exact mail a person was shown. It runs in the browser.
 - `index.mjs` — the interface: `routeFor`, `signIn`, `mailbox`, `providerLinks`.
 - `graph-route.mjs` — the Microsoft Graph route.
 - `bridge-route.mjs` — the IMAP and SMTP route through the Bridge.
+- `errors.mjs` — the module's failures, each an error with the name and fields this file gives it, shared by both
+  routes.
 - `providers.json` — the servers of known providers, Gmail's among them, preset on the IMAP route.
 - `vendor/msal-browser.min.js` and its licence — Microsoft's sign-in library (ARC-053).
 - `vendor/postal-mime/` and its licence — the mail parser's ECMAScript modules, for mails Microsoft Graph returns in their

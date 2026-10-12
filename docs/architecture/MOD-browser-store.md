@@ -46,6 +46,8 @@ browser; reading an export runs in Node as well, so that the Bridge can take ove
   sets it up.
 - `store.mjs` — reading, writing and clearing in `localStorage`.
 - `export.mjs` — the export file, plain or locked, and its import.
+- `sign-in.mjs` — the keys Microsoft's sign-in library writes for one mailbox connection (`mailbox-sign-in`), found,
+  cleared and carried in an export under the library's own names.
 
 ## Data
 
