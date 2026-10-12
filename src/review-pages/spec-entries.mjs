@@ -17,7 +17,9 @@ import { el } from "./common.mjs";
 
 const pad2 = (number) => String(number).padStart(2, "0");
 const shortOf = (folder) => folder.slice(folder.lastIndexOf("/") + 1);
-const idOf = (queue, number) => `spec-${shortOf(queue.folder)}-${pad2(number)}`;
+// The identifier of an entry by the folder of its queue and its number, the form of its approval record.
+export const entryId = (folder, number) => `spec-${shortOf(folder)}-${pad2(number)}`;
+const idOf = (queue, number) => entryId(queue.folder, number);
 // An entry a person may accept: one that no record or decision decides.
 const acceptable = (item) => item.state === "open" || item.state === "stale";
 // An entry a person may tick: also one that waits for its anchor, which goes with the entry that creates it.
