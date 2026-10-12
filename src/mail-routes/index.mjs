@@ -25,7 +25,7 @@ export { signIn } from "./graph-route.mjs";
  * @typedef {{ host: string, port: number, security: "tls" | "starttls" | "none" }} Server
  */
 
-const SIGN_IN_SERVICE = "https://login.microsoftonline.com";
+export const SIGN_IN_SERVICE = "https://login.microsoftonline.com";
 
 /**
  * routeFor(address: string) -> Promise<{ route: "graph" | "imap", servers: { imap: Server, smtp: Server } | null, reason: string }> — the
