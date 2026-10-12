@@ -18,3 +18,8 @@ export const DECISIONS = { kind: "architecture-decision", route: "decision", ent
   plural: "architecture decisions", noun: "architecture decision", heading, explain, restsOn: true, whole: ["architecture-decision", "module"] };
 export const MODULES = { kind: "module", route: "module", entry: "architecture", title: "Module files", plural: "module files",
   noun: "module file", heading, explain, restsOn: true };
+
+// The descriptor of the SPEC change entries (ITM-357): a file of a change queue, not a reviewed file with a record of its own kind; its files are
+// the entries of docs/spec-freigaben/<queue>/, accepted through MOD-spec-changes.
+export const SPEC_ENTRIES = { kind: "spec-entry", route: "spec-entry", entry: "requirements", title: "SPEC changes", plural: "SPEC change entries", noun: "SPEC change entry",
+  explain: { list: "change-queue", one: "spec-edit-waits-for-approval", fallback: "github-page-without-token" }, accept: "queue" };

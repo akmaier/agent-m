@@ -13,49 +13,14 @@ import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { el, link, button, storedToken, problem, parseServer, TOKEN_STEP } from "./common.mjs";
 import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
 
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
-const TOKEN_STEP = "#add-product";
 // The id of the page that shows every file not yet accepted: #<route>/id=all.
 const REVIEW_ALL = "all";
 // The kind of job whose record holds the rounds of the architecture shown.
 const ARCHITECTURE_JOB = "derive-architecture";
-
-function el(name, className, ...children) {
-  const node = document.createElement(name);
-  if (className) node.className = className;
-  node.append(...children);
-  return node;
-}
-const link = (href, className, text) => {
-  const a = el("a", className, text);
-  a.setAttribute("href", href);
-  return a;
-};
-const button = (className, text) => {
-  const b = el("button", className, text);
-  b.type = "button";
-  return b;
-};
-
-// The token this browser stores for the page's product — its own, never the instance's (A GITHUB PRODUCT USES A TOKEN OF ITS OWN) —,
-// or, on the page that shows the instance itself, the instance's.
-function storedToken(context) {
-  const keys = [];
-  try {
-    if (context.product) {
-      const address = parseAddress(context.product.address);
-      if (address.server === "gitlab") keys.push(`gitlab-token:${new URL(address.origin).host}/${address.path}`);
-      else keys.push(`github-token:${address.path}`);
-    } else keys.push("github-token");
-    for (const key of keys) {
-      const token = readSetting(context.store, key);
-      if (token) return { name: token.name ?? "a reviewer" };
-    }
-  } catch { /* a store that cannot be read holds no token */ }
-  return null;
-}
 
 const recordOf = (id, kind, path, blob) => ({ path: `docs/approvals/${id}-${blob.slice(0, 12)}.md`,
   text: writeDocument(approvalSchema, { fields: { kind, file: path, blob } }) });
@@ -71,16 +36,6 @@ function acceptedMessage(result, idOf) {
 }
 // What a refused acceptance of several files says: the failure, and each file it left out with its reason.
 const refusedText = (failure, idOf) => [failure.message, ...(failure.leftOut ?? []).map((out) => `${idOf(out.path)}: ${reasonOf(out)}`)].join(" ");
-
-// What a read that fails says: a private repository without a token that reaches it is named, and nothing is shown.
-function problem(failure, token) {
-  const text = failure.name === "NotFound" && !token
-    ? "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload."
-    : failure.message;
-  const paragraph = el("p", "problem", text);
-  if (!token) paragraph.append(" ", link(TOKEN_STEP, "token-step", "Store a token"));
-  return paragraph;
-}
 
 // The files of the whole architecture in the order of its review page: the decision that states the system — the one that refines no
 // other —, the subsystems' decisions — those that refine it and design modules —, the module files, the further decisions — those
@@ -325,4 +280,3 @@ export function reviewRoute(kind) {
   return { name: kind.route, entry: kind.entry, title: kind.title, render };
 }
 
-const parseServer = (context) => { try { return parseAddress(context.product.address).server; } catch { return null; } };
