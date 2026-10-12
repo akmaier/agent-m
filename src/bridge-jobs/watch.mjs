@@ -13,7 +13,7 @@ import { kindOf } from "../job-catalogue/index.mjs";
 import { appendToRecord, jobCost, recordsNewestFirst, takeJob } from "../job-ledger/index.mjs";
 import { prepareJob, runJob } from "../job-runner/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { checkoutAt, cloneOrFetch, defaultHead, foldersOf, hostOf, removeClone, workingClone } from "./workfolders.mjs";
+import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, removeClone, workingClone } from "./workfolders.mjs";
 
 const PARTICIPANTS = "docs/participants.md";
 const QUIT = "the Bridge was quit";
@@ -96,7 +96,12 @@ function createWatcher(config) {
     const working = folders.job(record.id);
     let result = null, failed = null;
     try {
-      const taken = await takeJob(host, record.path, bridgeName, commit);
+      // Taking is one at a time in this program, on the head read just before: two watchers of one name that took on the same head in the same
+      // minute would write the same commit, which a push accepts twice, and both would run the job.
+      const taken = await exclusively(`take ${product}`, async () => {
+        await cloneOrFetch(product, folder);
+        return takeJob(host, record.path, bridgeName, (await defaultHead(folder)).commit);
+      });
       if (!taken.taken) return;
       try {
         const installed = (await installedAgents()).find((each) => each.name === agent.name);
@@ -163,7 +168,7 @@ function createWatcher(config) {
         continue;
       }
       const mine = queue.found.find((each) => each.agent === agent.name);
-      if (!mine) continue;
+      if (!mine || stopped) continue;
       busy.add(agent.name);
       const job = run(agent, product, { ...mine, host: queue.host, commit: queue.commit }, queue.folder)
         .catch((error) => skip(product, `${mine.record.id}: ${error.message}`))
@@ -188,9 +193,9 @@ function createWatcher(config) {
     async stop(reason) {
       stopped = true;
       clearInterval(timer);
-      if (reason !== "quit") return;
-      for (const entry of running.values()) { entry.quit = true; entry.controller.abort(); }
-      await Promise.allSettled([...jobs]);
+      if (reason === "quit") for (const entry of running.values()) { entry.quit = true; entry.controller.abort(); }
+      await chain;
+      if (reason === "quit") await Promise.allSettled([...jobs]);
     },
     // A job the page handed over: which agent runs it, or the refusal.
     async accept(product, path, commit) {

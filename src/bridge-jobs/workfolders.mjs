@@ -33,9 +33,9 @@ export const slugOf = (address) => address.replace(/^[a-z]+:\/\//i, "").replace(
 export const foldersOf = (folder) => ({ instance: join(folder, "instance"), product: (address) => join(folder, "products", slugOf(address)),
   job: (id) => join(folder, "jobs", id) });
 
-// Fetches in one clone run one after another; the clone's refs are one writer's at a time.
+// Work on one key — a clone, a product's taking — runs one after another: a clone's refs are one writer's at a time.
 const queues = new Map();
-function exclusively(folder, work) {
+export function exclusively(folder, work) {
   const run = (queues.get(folder) ?? Promise.resolve()).then(work, work);
   queues.set(folder, run.catch(() => {}));
   return run;
@@ -63,11 +63,14 @@ export async function defaultHead(folder) {
   return { branch, commit: await git(folder, ["rev-parse", "--verify", `refs/remotes/origin/${branch}^{commit}`]) };
 }
 
-/** MOD-repository-hosts' host for `address` through the clone in `folder`, its repositoryInfo answering the default branch the origin names. */
+/**
+ * MOD-repository-hosts' host for `address` through the clone in `folder`, its repositoryInfo answering the default branch the origin names, and its
+ * commits one at a time with the clone's fetches: a push updates the clone's remote-tracking ref, which a fetch at the same moment would also lock.
+ */
 export async function hostOf(address, folder) {
   const host = connect(parseAddress(address), { clone: folder });
   const { branch } = await defaultHead(folder);
-  return Object.freeze({ ...host, repositoryInfo: async () => ({ defaultBranch: branch, visibility: null, canWrite: null, archived: false, description: null }) });
+  return Object.freeze({ ...host, commitFiles: (change) => exclusively(folder, () => host.commitFiles(change)), repositoryInfo: async () => ({ defaultBranch: branch, visibility: null, canWrite: null, archived: false, description: null }) });
 }
 
 /** The clone at one commit, detached, its files as that commit holds them. */
