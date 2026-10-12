@@ -75,5 +75,5 @@ async function resourceCheck(context, params) {
   return [{ name: resource.name, text, sources: [], required: true, artifacts: [] }];
 }
 
-/** @type {Partial<import("../job-runner/index.mjs").Strategies>} */
+// resourceStrategies: MOD-job-runner's Partial<Strategies> with the one recipe.
 export const resourceStrategies = { recipes: { "resource-check": resourceCheck } };
