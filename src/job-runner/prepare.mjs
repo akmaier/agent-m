@@ -16,7 +16,7 @@ import { eligible } from "../participant-list/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { needs } from "./builtins.mjs";
-import { strategyOf } from "./registry.mjs";
+import { failure, strategyOf } from "./registry.mjs";
 
 const REGISTER = "docs/participants.md";
 const estimate = (text) => Math.ceil(text.length / 3);
@@ -85,10 +85,16 @@ function blockingOf(destination, kind, parts, context, notLike, kindName) {
  * each destination with MOD-participant-list's eligible: the capabilities the kind needs, the places every part's sources
  * and the mailbox allow, the context against the size, and for a reviewing participant that it differs from the drafter
  * and from each other, and asks each check the kind names what it needs of the context. Nothing is cut: what does not fit
- * is named in notFitting. The limit is fixed here: the caller's, else the kind's. Throws UnknownKind and InvalidKind as
- * kindOf does, UnknownStrategy { strategy } for a strategy no module registered, and whatever a recipe throws by name.
+ * is named in notFitting. The limit is fixed here: the caller's, else the kind's. Throws CheckoutAtOtherCommit { checkout, expected, found } for a checkout of the instance at another commit than the one
+ * `context.agentM.commit` names, before anything runs; UnknownKind and InvalidKind as kindOf does, UnknownStrategy { strategy } for a strategy no module registered, and whatever a recipe throws by name.
  */
 export async function prepareJob(name, context, choice) {
+  // A checkout of the instance holds the commit the job's record names, which its snapshot — read from it — is at.
+  const { checkout, snapshot } = context.instance;
+  if (typeof checkout === "string" && snapshot?.commit !== context.agentM.commit) {
+    throw failure("CheckoutAtOtherCommit", `the checkout ${checkout} is at ${snapshot?.commit ?? "no commit"}, not at ${context.agentM.commit}, which the job's record names`,
+      { checkout, expected: context.agentM.commit, found: snapshot?.commit ?? null });
+  }
   const kind = await kindOf(name);
   const reviewing = kind.reviewer === null ? null : await kindOf(kind.reviewer);
   for (const definition of [kind, reviewing]) {

@@ -18,7 +18,7 @@ import { artifactSchemaOf, readDocument } from "../documents/index.mjs";
 
 // The identifier a text declares, read by the schema of its kind: the `id` of its front matter, null where it has none — and
 // for a path of no schema, whose identifier this module cannot read.
-function declaredId(path, text) {
+export function declaredId(path, text) {
   const schema = artifactSchemaOf(path);
   const id = schema ? readDocument(schema, path, text).fields[schema.identifier.field] : undefined;
   return typeof id === "string" && id ? id : null;
