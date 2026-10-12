@@ -35,6 +35,7 @@ const { view } = await import("../src/settings-pages/index.mjs");
 const { openStore, readSetting, writeSetting } = await import("../src/browser-store/index.mjs");
 const { readDocument } = await import("../src/documents/index.mjs");
 const { sourceSchemas } = await import("../src/source-register/index.mjs");
+const { schemaForm } = await import("../src/site-frame/index.mjs");
 
 const route = () => view.routes.find((candidate) => candidate.name === "library");
 const INSTANCE = "alice/agent-m";
@@ -67,7 +68,7 @@ const bytesOf = (text) => new TextEncoder().encode(text);
 const fieldOf = (form, key) => descendants(form, (node) => node.getAttribute?.("data-key") === key)[0];
 const inputOf = (form, key) => descendants(fieldOf(form, key), (node) => node.localName === "input")[0];
 const typeInto = (form, key, value) => put(inputOf(form, key), value, "input");
-const saveOf = (form) => descendants(form, (node) => node.localName === "button" && node.textContent === "Save")[0];
+const saveOf = (form) => descendants(form, (node) => node.localName === "button" && node.textContent === "Save").at(-1);
 const fileOf = (name, text) => ({ name, size: bytesOf(text).length, arrayBuffer: async () => bytesOf(text).buffer.slice(0) });
 
 const entryText = (fields, rows = "") => ["---", ...Object.entries(fields).map(([key, value]) => `${key}: ${value}`), "---", `# ${fields.id} ${fields.title}`, "", "## Versions", "",
@@ -467,7 +468,7 @@ test("library — the schema's checks and the route's missing part keep Save dis
   assert.equal(disabled(), false, "known positive: a file is selected");
   await describe(page, { id: "bad id" });
   assert.equal(disabled(), true);
-  assert.match(text(), /SRC-/);
+  assert.match(text(), /the key id does not fit/);
   await describe(page, { id: "SRC-ok" });
   assert.equal(disabled(), false);
   await describe(page, { kind: "nonsense" });
@@ -494,4 +495,28 @@ test("library — the schema's checks and the route's missing part keep Save dis
   await describe(page, { id: "SRC-repo", title: "A repository", authority: "advisory", licence: "may be republished — MIT" });
   assert.equal(disabled(), true);
   assert.match(text(), /not pinned/);
+});
+
+// guards: THE SOURCE MODEL IS GENERIC; EVERY STEP EXPLAINS ITSELF; UC-004 3
+// given: the entry's schema, which names its rule (ITM-458), and MOD-site-frame's schemaForm built over it by the test itself
+// input: the page's form for each route
+// expect: the page's form has the fields schemaForm builds for that schema — one for each key of the front matter, `places` among them, and one editor for each section the schema names —,
+//         in the same order; its findings are documentFindings' (the schema's rule shown with them); it has no Save of the page's own, schemaForm's alone; and the page's form is not
+//         a form the page builds inside library.mjs: the same text of fields as the test's own schemaForm
+test("library — the form is MOD-site-frame's schemaForm over the entry's schema", async (t) => {
+  const { entry } = sourceSchemas();
+  const own = schemaForm(entry, null, { onSave: async () => {} });
+  const keysOf = (form) => descendants(form, (node) => node.getAttribute?.("data-key") !== null && node.getAttribute?.("data-key") !== undefined).map((node) => node.getAttribute("data-key"));
+  const sectionsOf = (form) => descendants(form, (node) => node.getAttribute?.("data-section") !== null && node.getAttribute?.("data-section") !== undefined).map((node) => node.getAttribute("data-section"));
+  assert.deepEqual(keysOf(own), Object.keys(entry.frontMatter), "known positive: schemaForm builds one field for each key");
+  assert.deepEqual(sectionsOf(own), entry.sections.map((section) => section.heading).filter(Boolean));
+  const b = browser(t);
+  const page = await b.page();
+  for (const name of ["legal-text", "standard", "documents", "repository"]) {
+    const box = await register(page, name);
+    assert.deepEqual(keysOf(box), keysOf(own), `${name}: the fields of the schema`);
+    assert.deepEqual(sectionsOf(box), sectionsOf(own), `${name}: the sections of the schema`);
+    assert.equal(byClass(page, "library-save").length, 0, `${name}: no Save of the page's own`);
+    assert.ok(box.textContent.includes("[THE INSTANCE KEEPS THE SOURCE REGISTER]"), `${name}: the findings are those of the schema, with its rule`);
+  }
 });
