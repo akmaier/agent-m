@@ -84,11 +84,12 @@ const schemaText = readFileSync(new URL("../src/spec-changes/queue-rationale.sch
 const { saveEntry } = specChanges;
 
 // A queue of alice's made by proposeSection from the first edit of Reading, and a host over a repository that holds it. `decisions` is appended to its entscheidungen.md.
-async function withQueue({ canWrite = true, server = "github", decisions = "" } = {}) {
+async function withQueue({ canWrite = true, server = "github", decisions = "", provenance = "" } = {}) {
   const first = repository();
   const made = await proposeSection(first.host, CHANGE);
   const files = written(first.commits[0]);
   if (decisions) { const path = Object.keys(files).find((p) => p.endsWith("entscheidungen.md")); files[path] += decisions; }
+  if (provenance) { const path = Object.keys(files).find((p) => p.endsWith(".begruendung.md")); files[path] = `${files[path]}\n${provenance}\n`; }
   const second = repository({ files, canWrite, server });
   return { ...second, queue: made.queue, files };
 }
@@ -185,4 +186,20 @@ test("saveEntry — without a token on GitLab it fails with TokenRequired", asyn
   const f = await withQueue({ server: "gitlab", canWrite: false });
   await assert.rejects(saveEntry(f.host, EDIT(f.queue)), (error) => error.name === "TokenRequired");
   assert.deepEqual(f.commits, []);
+});
+
+// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006 3a
+// given: an entry that a job drafted, whose rationale carries a Provenance paragraph beside its Origin
+// input: saveEntry with a new text and a new Why
+// expect: the rationale made anew — the new Why — keeps the Origin and the Provenance paragraph as they were, and is still in the schema queue-rationale
+test("saveEntry — the origin and the provenance of a drafted entry are kept", async () => {
+  const PROVENANCE = "**Provenance.** Agent M unreleased, commit cccccccccccccccccccccccccccccccccccccccc; participant a-claude; 2026-10-12; correction rounds: 1.";
+  const f = await withQueue({ provenance: PROVENANCE });
+  await saveEntry(f.host, EDIT(f.queue));
+  const rationale = written(f.commits[0])[`${f.queue}/01-reading.begruendung.md`];
+  assert.ok(rationale.includes(PROVENANCE), "the provenance is kept");
+  assert.match(rationale, /\*\*Origin\.\*\*[^\n]*an issue of a reader/);
+  assert.ok(rationale.includes("The name should say what is read."));
+  const schema = loadSchema(schemaText, "MOD-spec-changes");
+  assert.deepEqual(documentFindings(schema, readDocument(schema, `${f.queue}/01-reading.begruendung.md`, rationale)), []);
 });
