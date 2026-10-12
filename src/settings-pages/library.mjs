@@ -12,16 +12,15 @@
 //   - An EU legal text is registered as its entry alone, with no version row: the later download (UC-004 7) records the version, and registrationCommits needs a first row.
 //   - The content goes to its repository before the entry goes to the instance, so that an entry never names content that was not stored.
 //   - A source is already in the library when its identifier, its title or, for a standard, its designation equals an entry's (as a requirement's source item names one).
-//   - The form is built here from the entry's schema — one field per key, a key with a closed set of values offering them — and not with MOD-site-frame's schemaForm:
-//     the entry's schema names no `rule`, and MOD-documents' documentFindings throws for any finding of a schema that names none, which every new entry has. The key `places`,
-//     a list this page does not set, is left out. The checks are the schema's: a required key, a closed set, the identifier's form, a key required for a standard.
+//   - The form is MOD-site-frame's schemaForm over the entry's schema (the schema names its rule since ITM-458): the page's own checks (an unlinked or restricted source, a missing file or
+//     pin, a source already in the library) are its extraChecks; the checks of the schema are documentFindings'.
 //   - A choice outside the form (the route's own part, the files, the named repository) builds the form again, keeping what the person typed in it.
 //   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`).
 
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { linkedVersion, recogniseLegalText, registrationCommits, sourceSchemas } from "../source-register/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding, sha256 } from "../text-tools/index.mjs";
 import { credentialsFor } from "./products.mjs";
 
@@ -260,63 +259,9 @@ export const route = {
       }
     }
 
-    // The schema's own checks of the fields as the form holds them, each with the requirement it serves.
-    const RULES = { kind: "THE SOURCE KIND IS ONE OF A CLOSED SET", authority: "A SOURCE DECLARES ITS AUTHORITY", licence: "A SOURCE DECLARES ITS LICENCE",
-      designation: "A STANDARD IS REGISTERED BY ITS DESIGNATION" };
-    function schemaChecks(fields) {
-      const found = [];
-      const add = (key, what, fix) => found.push(finding({ artifact: fields.id ?? "library", line: 1, kind: "error", rule: RULES[key] ?? "THE SOURCE MODEL IS GENERIC", what, fix }));
-      for (const [key, spec] of Object.entries(ENTRY.frontMatter)) {
-        const value = fields[key];
-        const required = spec.required === true || (spec.requiredWhen && spec.requiredWhen.in?.includes(fields[spec.requiredWhen.field]));
-        if (value === undefined || value === "") { if (required) add(key, `the key ${key} is missing`, `give ${key} a value`); continue; }
-        if (spec.type === "enum" && !spec.values.includes(value)) add(key, `the key ${key} is ${value}, which is not one of ${spec.values.join(", ")}`, `choose one of ${spec.values.join(", ")}`);
-        if (spec.type === "identifier" && !new RegExp(`^(?:${spec.of.join("|")})-[a-z0-9]+(?:-[a-z0-9]+)*$`).test(value)) add(key, `the key ${key} is ${value}, which is not an identifier of the form ${spec.of[0]}-<name>`, `write it as ${spec.of[0]}-<lower-case name>`);
-        if (spec.type === "url" && !/^https:\/\/[^\s/?#]+/.test(value)) add(key, `the key ${key} is not an https address`, `write the repository's address, https://…`);
-      }
-      return found;
-    }
-
     function buildForm(fresh = false) {
       if (fresh) { remembered = {}; already = null; alreadyBox.replaceChildren(); }
-      const start = draft(remembered).fields;
-      const values = { ...start };
-      const form = el("div", "schema-form");
-      const findings = el("ul", "findings");
-      const saveButton = el("button", "library-save btn primary", "Save");
-      const show = () => {
-        const clean = Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== ""));
-        const found = [...schemaChecks(clean), ...checks({ fields: clean })];
-        findings.replaceChildren(...found.map((each) => el("li", each.kind, `${each.kind}: ${each.what} — ${each.fix} [${each.rule}]`)));
-        saveButton.disabled = found.some((each) => each.kind === "error");
-      };
-      for (const key of Object.keys(ENTRY.frontMatter).filter((name) => name !== "places")) {
-        const input = el("input");
-        input.value = String(values[key] ?? "");
-        const spec = ENTRY.frontMatter[key];
-        if (spec.type === "enum") {
-          const options = el("datalist", null, ...spec.values.map((value) => { const option = el("option"); option.value = value; return option; }));
-          options.setAttribute("id", `library-values-${key}`);
-          input.setAttribute("list", `library-values-${key}`);
-          input.addEventListener("input", () => { values[key] = input.value.trim() || undefined; show(); });
-          const field = el("div", "field", el("label", null, key, input), options);
-          field.setAttribute("data-key", key);
-          form.append(field);
-        } else {
-          input.addEventListener("input", () => { values[key] = input.value.trim() || undefined; show(); });
-          const field = el("div", "field", el("label", null, key, input));
-          field.setAttribute("data-key", key);
-          form.append(field);
-        }
-      }
-      saveButton.setAttribute("type", "button");
-      saveButton.addEventListener("click", async () => {
-        saveButton.disabled = true;
-        try { await save(draft(Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined && value !== "")))); } finally { show(); }
-      });
-      form.append(findings, el("p", null, saveButton));
-      formBox.replaceChildren(form);
-      show();
+      formBox.replaceChildren(schemaForm(ENTRY, draft(remembered), { onSave: save, extraChecks: checks }));
     }
 
     const openPanel = () => { panel.hidden = false; showRoute(); buildForm(true); };
