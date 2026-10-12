@@ -5,7 +5,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), listPullRequests(filter), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -21,6 +21,28 @@ const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
 const CHANGES = { added: "added", copied: "added", removed: "deleted", renamed: "renamed", modified: "modified", changed: "modified" };
 const changeOf = (f) => (CHANGES[f.status]
   ? [{ path: f.filename, change: CHANGES[f.status], ...(f.status === "renamed" ? { from: f.previous_filename } : {}) }] : []);
+
+// A review's state as the verdict (GraphQL's enum PullRequestReviewState, docs.github.com/en/graphql/reference/pulls; the REST page of the reviews names no values). PENDING, "a review
+// that has not yet been submitted", is no review.
+const VERDICTS = { APPROVED: "approved", CHANGES_REQUESTED: "changes requested", COMMENTED: "commented", DISMISSED: "dismissed" };
+
+// A check run's state ("List check runs for a Git reference": status queued, in_progress, completed, waiting, requested, pending; conclusion success, failure, neutral, cancelled,
+// skipped, timed_out, action_required or null — a conclusion that wants an action has not passed, so it is a failure) and a commit status's ("List commit statuses for a reference":
+// pending, success, error, failure).
+const CONCLUSIONS = { success: "success", failure: "failure", neutral: "neutral", cancelled: "cancelled", skipped: "skipped", timed_out: "timed out", action_required: "failure" };
+const runState = (r) => (r.status === "completed" ? CONCLUSIONS[r.conclusion] ?? "neutral" : r.status === "in_progress" ? "running" : "queued");
+const STATUS_STATES = { pending: "running", success: "success", error: "failure", failure: "failure" };
+
+// A commit's ci from its checks: failure when any failed, was cancelled or timed out; else running when any is queued or running; else success when it has any; else none.
+function ciOf(checks) {
+  if (checks.some((c) => ["failure", "cancelled", "timed out"].includes(c.state))) return "failure";
+  if (checks.some((c) => ["queued", "running"].includes(c.state))) return "running";
+  return checks.length ? "success" : "none";
+}
+
+// A pull request of "List pull requests" / "Get a pull request" as the PullRequest: a closed one with a merged_at is merged.
+const pullOf = (p) => ({ number: p.number, title: p.title, branch: p.head.ref, base: p.base.ref, head: p.head.sha, state: p.state === "open" ? "open" : p.merged_at ? "merged" : "closed",
+  draft: p.draft === true, url: p.html_url, opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null });
 
 // The bytes of a file as base64, in pieces small enough for String.fromCharCode.
 function base64(bytes) {
@@ -84,6 +106,37 @@ export function githubAdapter(address, { token, tokenName }, links) {
       "re-tagged (A VERSION IS NOT REWRITTEN).");
   };
 
+  // The files a commit changed ("Get a commit": up to 100 to a page, read page by page for a commit that changed more).
+  const commitChanges = async (sha) => {
+    const changes = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const { files } = await read(`${repo}/commits/${sha}?per_page=${PAGE}&page=${page}`, { what: `${address.web} at ${sha}` });
+      changes.push(...files.flatMap(changeOf));
+      if (files.length < PAGE) break;
+    }
+    return changes;
+  };
+  // Every item of a list the server pages (at most 100 to a page), read page by page; `items` picks the list out of an answer.
+  const everyPage = async (url, options = {}, items = (answer) => answer) => {
+    const out = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const got = items(await read(`${url}${url.includes("?") ? "&" : "?"}per_page=${PAGE}&page=${page}`, options));
+      out.push(...got);
+      if (got.length < PAGE) break;
+    }
+    return out;
+  };
+  // The checks of a commit: its check runs, then the latest commit status of each context ("List commit statuses for a reference" lists the latest first).
+  const checksOf = async (sha) => {
+    const options = { what: `${address.web} at ${sha}` };
+    const runs = await everyPage(`${repo}/commits/${sha}/check-runs`, options, (answer) => answer.check_runs);
+    const statuses = await everyPage(`${repo}/commits/${sha}/statuses`, options);
+    const latest = new Map();
+    for (const status of statuses) if (!latest.has(status.context)) latest.set(status.context, status);
+    return [...runs.map((r) => ({ name: r.name, state: runState(r), url: r.html_url })),
+      ...[...latest.values()].map((c) => ({ name: c.context, state: STATUS_STATES[c.state] ?? "neutral", url: c.target_url ?? "" }))];
+  };
+
   return {
     async repositoryInfo() {
       const r = await read(repo, { permission: "Metadata" });
@@ -144,12 +197,7 @@ export function githubAdapter(address, { token, tokenName }, links) {
       }
       const entries = [];
       for (const c of limit === undefined ? listed : listed.slice(0, limit)) {
-        const changes = [];
-        for (let page = 1; page <= MAX_PAGES; page++) {
-          const { files } = await read(`${repo}/commits/${c.sha}?per_page=${PAGE}&page=${page}`, { what: `${address.web} at ${c.sha}` });
-          changes.push(...files.flatMap(changeOf));
-          if (files.length < PAGE) break;
-        }
+        const changes = await commitChanges(c.sha);
         entries.push({ commit: c.sha, parents: c.parents.map((p) => p.sha), author: { account: c.author?.login ?? null, name: c.commit.author.name },
           date: c.commit.committer.date, message: c.commit.message, changes });
       }
@@ -209,6 +257,44 @@ export function githubAdapter(address, { token, tokenName }, links) {
           if (!/reference already exists/i.test(said)) throw await refusal(a, { ...context, write: true });
           throw await tagExists(name);
         } } });
+    },
+
+    // Starts a workflow ("Create a workflow dispatch event": POST …/actions/workflows/{workflow}/dispatches, ref and inputs). The server
+    // answers 200 with the run it started — workflow_run_id, run_url, html_url —, or 204 with no body where it names none: null. The run's
+    // commit is not in that answer: it is "", for listCiRuns to fill. Every refusal is the host's own failure; the page documents no 422 for this call.
+    async startWorkflow(workflow, ref, inputs) {
+      const answer = await call("POST", `${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, { body: { ref, inputs } });
+      if (answer.status === 204) return null;
+      const run = await json(answer, API);
+      if (run?.workflow_run_id === undefined) return null;
+      return { id: String(run.workflow_run_id), workflow, commit: "", event: "workflow_dispatch", state: "queued", url: run.html_url, started: null, ended: null };
+    },
+
+    // The pull requests ("List pull requests": state open, closed or all — a merged one is a closed one with a merged_at —, head `<owner>:<branch>`, 100 to a page, read page by page).
+    async listPullRequests({ state = "all", branch } = {}) {
+      const ask = state === "open" ? "open" : state === "all" ? "all" : "closed";
+      const head = branch ? `&head=${encodeURIComponent(`${address.path.split("/")[0]}:${branch}`)}` : "";
+      const listed = await everyPage(`${repo}/pulls?state=${ask}${head}`);
+      return listed.map(pullOf).filter((p) => state === "all" || state === "open" || p.state === state);
+    },
+
+    // What a Definition-of-Done check sees of one pull request ("Get a pull request", "List commits on a pull request", "List pull requests files", "List reviews for a pull request",
+    // and a commit's files and checks): the commits as the server lists them, with their parents and dates for index.mjs to order, and readFile for the two commits.
+    async pullRequestFacts(number) {
+      const what = `pull request #${number} of ${address.web}`;
+      const pull = await read(`${repo}/pulls/${number}`, { what });
+      const listed = await everyPage(`${repo}/pulls/${number}/commits`, { what });
+      const commits = [];
+      for (const c of listed) {
+        const checks = await checksOf(c.sha);
+        commits.push({ sha: c.sha, message: c.commit.message, files: (await commitChanges(c.sha)).map((change) => change.path), ci: ciOf(checks),
+          parents: c.parents.map((x) => x.sha), date: c.commit.committer?.date ?? "" });
+      }
+      const files = (await everyPage(`${repo}/pulls/${number}/files`, { what })).flatMap((f) => changeOf(f).map(({ path, change }) => ({ path, change })));
+      const reviews = (await everyPage(`${repo}/pulls/${number}/reviews`, { what })).filter((r) => VERDICTS[r.state])
+        .map((r) => ({ reviewer: r.user?.login ?? "", verdict: VERDICTS[r.state], commit: r.commit_id, date: r.submitted_at }));
+      return { pullRequest: pullOf(pull), baseCommit: pull.base.sha, headCommit: pull.head.sha, commits, files, reviews, checks: await checksOf(pull.head.sha),
+        readFile: (commit, path) => this.readFile(commit, path) };
     },
 
     // Creates a branch at a commit ("Create a reference", ref: "refs/heads/<name>"). A branch that stands already — 422

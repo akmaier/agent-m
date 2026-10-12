@@ -20,7 +20,7 @@
 // PermissionDeclined naming the scope Microsoft's message names, else the three together in one text; the AADSTS codes of an unknown
 // application (700016), a return address that is not registered (50011) and the codes invalid_client and unauthorized_client as
 // RegistrationRefused whose `message` is Microsoft's own; network_error, get_request_failed and post_request_failed as Unreachable
-// with `reason`. The authority is the work-and-school-and-personal one, `https://login.microsoftonline.com/common`; the return address
+// with `reason`. The authority is the institution's own tenant, `https://login.microsoftonline.com/<domain of the mail address>` (the accepted text), the domain being the part after the last @, in lower case; no `/common` is ever used. Where the texts name nothing for a sign-in without an address, the reading taken is a refusal that names how to fix it: MailAddressNeeded, asking for the mailbox's mail address, before any client is made. The return address
 // is the Pages address of the instance whose page this is. Nothing reaches the network. Each test states its input and its expected
 // result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
@@ -80,22 +80,21 @@ test("signIn — asks for exactly Mail.ReadWrite, Mail.Send and offline_access, 
 
 // guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER
 // given: the stand-in, on the page of the instance alice/agent-m
-// input: signIn(CLIENT, null) — no address known
-// expect: the client created once with the client identifier, Microsoft's own authority, the instance's Pages address as the return
-//         address and the cache in localStorage; the window used is the popup — no redirect —; no login hint
+// input: signIn(CLIENT, "reports@example.org")
+// expect: the client created once with the client identifier, the institution's tenant as authority, the instance's Pages address as the return
+//         address and the cache in localStorage; the window used is the popup — no redirect
 test("signIn — Microsoft's own window and the token cache in localStorage are configured", async () => {
   assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
   const seen = standIn(signedIn);
-  await signIn(CLIENT, null);
+  await signIn(CLIENT, "reports@example.org");
   assert.equal(seen.configs.length, 1);
   const { auth, cache } = seen.configs[0];
   assert.equal(auth.clientId, CLIENT);
-  assert.equal(auth.authority, "https://login.microsoftonline.com/common");
+  assert.equal(auth.authority, "https://login.microsoftonline.com/example.org");
   assert.equal(auth.redirectUri, "https://alice.github.io/agent-m/");
   assert.equal(cache.cacheLocation, "localStorage");
   assert.equal(seen.logins.length, 1, "the popup is the window");
   assert.equal(seen.redirects, 0, "no redirect of the page");
-  assert.equal("loginHint" in seen.logins[0], false, "no hint without an address");
 });
 
 // guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER
@@ -164,3 +163,31 @@ for (const [what, answer, name, check] of [
     });
   });
 }
+
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; UC-037 (step 3)
+// given: the stand-in; the page of the instance alice/agent-m
+// input: signIn(CLIENT, address) for reports@example.org, for Reports@Uni-Example.DE, 
+// expect: the authority the institution's own tenant: https://login.microsoftonline.com/example.org, .../uni-example.de (the domain in lower case),
+//         for a quoted local part holding an @ the domain after the last @, and for the address with no domain Microsoft's multi-tenant /common; always on the host login.microsoftonline.com, no query
+test("signIn — signs in at the tenant of the mail address's domain", async () => {
+  assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
+  for (const [address, tenant] of [["reports@example.org", "example.org"], ["Reports@Uni-Example.DE", "uni-example.de"], ["\"a@b\"@example.org", "example.org"]]) {
+    const seen = standIn(signedIn);
+    await signIn(CLIENT, address);
+    assert.equal(seen.configs[0].auth.authority, `https://login.microsoftonline.com/${tenant}`, address);
+  }
+});
+
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037 (step 3)
+// given: the stand-in; no address (null), an empty one, one without a domain ("reports"), one ending in @
+// input: signIn(CLIENT, address) for each
+// expect: each refused with MailAddressNeeded whose message asks for the mail address; no client created, no window opened, nothing common
+test("signIn — without a domain no tenant is known: refused, asking for the mail address", async () => {
+  assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
+  for (const address of [null, "", "reports", "reports@"]) {
+    const seen = standIn(signedIn);
+    await assert.rejects(signIn(CLIENT, address), (error) => error.name === "MailAddressNeeded" && /enter the mailbox's mail address/i.test(error.message), `${address}`);
+    assert.equal(seen.configs.length, 0, "no client made");
+    assert.equal(seen.logins.length, 0, "no window");
+  }
+});

@@ -11,6 +11,7 @@
 // MOD-job-runner's types.
 
 import { readDocument } from "../documents/index.mjs";
+import { sha256 } from "../text-tools/index.mjs";
 import { failure, newestVersion, readContent } from "./content.mjs";
 
 const LINKS_PATH = "docs/sources.md";
@@ -19,6 +20,9 @@ const ENTRY_FILE = /^docs\/sources\/SRC-[^/]+\.md$/;
 const BOOK = "SRC-vibe-coding";
 const ENTRY_PATH = `docs/sources/${BOOK}.md`;
 const decoder = new TextDecoder();
+// The platform's file reader and path joiner, in Node: a checkout of the instance is a folder on a computer's disk, which a job in a browser never has.
+const fs = globalThis.process?.getBuiltinModule?.("node:fs");
+const nodePath = globalThis.process?.getBuiltinModule?.("node:path");
 
 // The chapters a job receives for its kind of work, given once (Data: The book's chapters for a kind of work).
 const CHAPTERS = {
@@ -31,23 +35,49 @@ const CHAPTERS = {
 // The instance's snapshot as the host that holds the book's content.
 const holderOf = (snapshot) => ({ repositoryInfo: async () => ({ defaultBranch: snapshot.ref }), readSnapshot: async () => snapshot });
 
-// The parts of the chapters `numbers`, read from the newest version of the instance's entry SRC-vibe-coding.
+// The path of a chapter's file in the checkout of the instance, once the file read there has the SHA-256 the version records: HashMismatch { file, expected, actual }
+// for other bytes, ContentUnreadable { repository, reason } for a file the checkout does not hold (as readContent names them).
+function checkedPath(checkout, version, file) {
+  const path = nodePath.join(checkout, "docs", "sources", version.source, version.version, file.name);
+  return (async () => {
+    let bytes;
+    try {
+      bytes = fs.readFileSync(path);
+    } catch {
+      throw failure("ContentUnreadable", `the checkout ${checkout} does not hold ${path}`, { repository: checkout, reason: `the checkout does not hold ${path}` });
+    }
+    const actual = await sha256(bytes);
+    if (actual !== file.sha256) {
+      throw failure("HashMismatch", `${path} has the SHA-256 ${actual}, not the ${file.sha256} its version records`, { file: file.name, expected: file.sha256, actual });
+    }
+    return path;
+  })();
+}
+
+// The parts of the chapters `numbers`, read from the newest version of the instance's entry SRC-vibe-coding: each the chapter's whole text, or — for a job in a
+// checkout of the instance — the path of its file there and none of its text.
 async function chapters(numbers, context, entrySchema) {
   const snapshot = context.instance.snapshot;
   const text = await snapshot.read(ENTRY_PATH);
   if (text === null) throw failure("NotRegistered", `the instance has no register entry ${BOOK}`, { source: BOOK });
   const version = await newestVersion(readDocument(entrySchema, ENTRY_PATH, text));
   if (version === null) throw failure("NotRegistered", `the register entry ${BOOK} records no version`, { source: BOOK });
-  const files = await readContent(version, async () => holderOf(snapshot));
-  return numbers.map((chapter) => {
+  const checkout = context.instance.checkout;
+  const inCheckout = typeof checkout === "string";
+  if (inCheckout && !(fs && nodePath)) {
+    throw failure("ContentUnreadable", `a checkout of the instance can be read in Node only`, { repository: checkout, reason: "a checkout of the instance can be read in Node only" });
+  }
+  const files = inCheckout ? version.files.filter((file) => file.stored) : await readContent(version, async () => holderOf(snapshot));
+  const pinned = (file) => `${file.name} — ${BOOK} ${version.version}, version hash ${version.hash}`;
+  const parts = [];
+  for (const chapter of numbers) {
     const file = files.find((each) => each.name.startsWith(`${String(chapter).padStart(2, "0")}_`));
     if (!file) {
-      throw failure("ChapterMissing", `the version ${version.version} of ${BOOK} holds no file for chapter ${chapter}`,
-        { chapter, version: version.version });
+      throw failure("ChapterMissing", `the version ${version.version} of ${BOOK} holds no file for chapter ${chapter}`, { chapter, version: version.version });
     }
-    return { name: `${file.name} — ${BOOK} ${version.version}, version hash ${version.hash}`, text: decoder.decode(file.bytes),
-      size: 0, sources: [BOOK], required: true };
-  });
+    parts.push({ name: pinned(file), text: inCheckout ? await checkedPath(checkout, version, file) : decoder.decode(file.bytes), size: 0, sources: [BOOK], required: true });
+  }
+  return parts;
 }
 
 // The text of the version the product links of `params.source`, as one part naming the source, and in its name the version
@@ -63,6 +93,15 @@ async function excerpt(context, params, module) {
   const linked = linksText === null ? null
     : module.linkedVersion(readDocument(module.links, LINKS_PATH, linksText), register, source);
   if (!linked) throw failure("NotLinked", `the product links no version of ${source}`, { source });
+  // A smaller part is the files the job's `part` names — a list of file names, or one name —: fewer files of the version, in the version's order. A version of one
+  // file has none: naming its one file sends it whole. A file the version does not hold is refused, in any version, before any content is read.
+  const named = params.part === undefined || params.part === null ? [] : [].concat(params.part).map(String);
+  let selected = linked.version.files;
+  if (named.length > 0) {
+    const missing = [...new Set(named.filter((name) => !selected.some((file) => file.name === name && file.stored)))];
+    if (missing.length > 0) throw failure("NotInVersion", `the version ${linked.version.version} of ${linked.source.id} holds no ${missing.join(", ")}`, { files: missing });
+    if (selected.length > 1) selected = selected.filter((file) => named.includes(file.name));
+  }
   let holder;
   if (module.permittedPlaces(linked.source) === "any") holder = holderOf(context.instance.snapshot);
   else if (linked.source.fields.content_repository) holder = await context.connect(String(linked.source.fields.content_repository));
@@ -70,23 +109,29 @@ async function excerpt(context, params, module) {
     throw failure("ContentUnreadable", `the register entry ${linked.source.id} names no content repository`,
       { repository: null, reason: `the register entry ${linked.source.id} names no content repository` });
   }
-  const files = await readContent(linked.version, async () => holder);
-  const part = params.part ?? linked.part;
-  return [{ name: `${linked.source.id} ${linked.version.version}${part ? `, ${part}` : ""}`,
+  const files = await readContent({ ...linked.version, files: selected }, async () => holder);
+  const sent = selected.length < linked.version.files.length ? `, ${selected.map((file) => file.name).join(", ")}` : "";
+  return [{ name: `${linked.source.id} ${linked.version.version}${sent}${linked.part ? `, ${linked.part}` : ""}`,
     text: files.map((file) => decoder.decode(file.bytes)).join("\n\n"), size: 0, sources: [linked.source.id], required: true }];
 }
 
 /**
  * strategiesOf(module: { entry: Schema, links: Schema, linkedVersion, permittedPlaces }) -> Partial<Strategies> — the
  * recipes of MOD-source-register, with its schemas and the two functions of its interface they use:
- * - `source-excerpt`: for the source and part the job's parameters name, reads the version the product links, through
- *   readContent, and returns its text as one part that names the source. Throws as readContent throws, and NotLinked
- *   { source } for a source the product does not link;
+ * - `source-excerpt`: for the source the job's parameter `source` names, reads the version the product links, through
+ *   readContent, and returns the texts of the files its parameter `part` names — a list of file names, or one; every file of
+ *   the version when it names none, and the one file of a version of one file when it names that —, in the version's order, a blank line between them,
+ *   as one part that names the source. The part's name names the version, the files sent where they are fewer than the
+ *   version's, and the part the product's link names. A file outside the part is not read. Throws as readContent throws,
+ *   NotLinked { source } for a source the product does not link, and NotInVersion { files } for a part that names files
+ *   the version does not hold, before any content is read;
  * - the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`, `chapters-for-
  *   architecture` and `chapters-for-implementation`: each reads the instance's register entry SRC-vibe-coding, takes its
  *   newest version, reads that version's files through readContent, and returns one part per chapter of its row, in the
  *   order of their numbers: the whole file, naming SRC-vibe-coding as its source and, in its name, the file, the version
- *   and the version's hash as its pin. Throws as readContent throws, NotRegistered { source } when the instance has no
+ *   and the version's hash as its pin; for a job whose context names `instance.checkout`, the path of the file in that
+ *   checkout instead, and none of its text, once the file read there has the SHA-256 the version records (HashMismatch
+ *   { file, expected, actual } if not, ContentUnreadable if the checkout lacks it). Throws as readContent throws, NotRegistered { source } when the instance has no
  *   entry SRC-vibe-coding, and ChapterMissing { chapter, version } when the version holds no file for a chapter.
  */
 export const strategiesOf = (module) => ({
