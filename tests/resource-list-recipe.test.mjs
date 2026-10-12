@@ -13,12 +13,11 @@
 // request names it:
 //   - The job names its resource by `params.resource`, the entry's Name; it is looked for in the product's `docs/resources.md`, and, where the product's list has none, in the
 //     instance's own list.
-//   - The recipe serves every resource whose check plan is a check job on a runner — compute, and an endpoint or agent reached by a runner's label. A resource checked another way
-//     (read on its host, or probed through a Bridge) is refused with NotRunnerCheck { resource, how }; a name no list holds with ResourceNotFound { resource }; a job that names none
-//     with ResourceNotNamed.
-//   - The harmless request, by kind: a compute resource's partitions, with the scheduler's own read-only command (for SLURM `sinfo`: "View information about Slurm nodes and
-//     partitions", slurm.schedmd.com/sinfo.html); an endpoint's served models, `GET <address>/models` (OpenAI's "List models", `get /models`,
-//     developers.openai.com/api/reference/resources/models/methods/list); an agent's answer to the one-word question `Reply with one word: ok.`, the question MOD-agent-processes' testAgent asks.
+//   - The recipe serves compute reached by a runner's label, and nothing else: the file gives a runner's check job to compute alone, and checks an endpoint or agent by a harmless probe
+//     through the Bridge its route names. Every other resource — read on its host, probed through a Bridge, or an endpoint or agent that names a runner — is refused with
+//     NotRunnerCheck { resource, kind }; a name no list holds with ResourceNotFound { resource }; a job that names none with ResourceNotNamed.
+//   - The harmless request is a compute resource's partitions, with the scheduler's own read-only command (for SLURM `sinfo`: "View information about Slurm nodes and
+//     partitions", slurm.schedmd.com/sinfo.html).
 //   - The part names the secret and never holds its value: `ci:<NAME>` is named, a key kept in a browser is said not to reach the runner, and anything else in the Secret column is not repeated.
 // Each test states its input and its expected result before it runs (given / input / expect); where a test expects something to be refused, the same call is first shown to succeed. The
 // counter-proofs are recorded in the pull request.
@@ -39,7 +38,9 @@ const ROWS = {
   "llm-bridge": "| llm-bridge | endpoint | http://ws:8000/v1 | example-model | — | — | bridge workstation | the group's server | no | — |",
   coder: "| coder | agent | https://agent.example.org | example-model | — | Acme | runner:cpu | Acme | yes | browser |",
   tools: "| tools | repository | https://github.com/acme/tools | 0123456789abcdef0123456789abcdef01234567 | MIT | Acme | read on its host | — | — | — |",
-  leaky: "| leaky | endpoint | http://h:8000/v1 | example-model | — | — | runner:cpu | h | no | sk-live-abc123def456 |",
+  "cluster-key": "| cluster-key | compute | key.example.org | — | — | — | runner:gpu | the lab | — | ci:CLUSTER_KEY |",
+  "cluster-browser": "| cluster-browser | compute | browser.example.org | — | — | — | runner:gpu | the lab | — | browser |",
+  leaky: "| leaky | compute | leaky.example.org | — | — | — | runner:gpu | the lab | — | sk-live-abc123def456 |",
 };
 const snapshotOf = (text) => ({ read: async (path) => (path === "docs/resources.md" ? text : null), paths: ["docs/resources.md"] });
 const contextOf = (resource, { product = Object.values(ROWS), instance = [] } = {}) => ({ kind: null, params: resource === undefined ? {} : { resource },
@@ -68,19 +69,18 @@ test("resource-check gives, as one part, a compute resource and the harmless req
   assert.match(text, /exactly one request/);
 });
 
-// guards: UC-040 (7, 7c)
-// given: an endpoint on the runner cpu with its address ending in a slash; an agent on the runner cpu
+// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (7)
+// given: an endpoint and an agent whose route names the runner cpu; compute on the runner gpu first
 // input: the recipe for each
-// expect: the endpoint's request is GET http://gpu01:8000/v1/models, the list of served models, and the model identifier is to be reported; the agent's is the one-word question
-//         `Reply with one word: ok.`, and the model identifier it serves
-test("resource-check asks an endpoint for its served models and an agent one short question", async () => {
-  const endpoint = await textOf(contextOf("llm"));
-  assert.match(endpoint, /GET http:\/\/gpu01:8000\/v1\/models/);
-  assert.match(endpoint, /served models/);
-  assert.match(endpoint, /identifier of the model/);
-  const agent = await textOf(contextOf("coder"));
-  assert.match(agent, /Reply with one word: ok\./);
-  assert.match(agent, /identifier of the model/);
+// expect: compute on its runner is given; the endpoint and the agent are refused with NotRunnerCheck naming the resource and its kind — they are checked by a harmless probe through the
+//         Bridge their route names, not by a runner's check job — and no part is given
+test("resource-check refuses an endpoint or an agent that names a runner, by name", async () => {
+  assert.equal((await recipe(contextOf("cluster"))).length, 1, "known positive");
+  for (const [name, kind] of [["llm", "endpoint"], ["coder", "agent"]]) {
+    const error = await failureOf(recipe(contextOf(name)));
+    assert.equal(error?.name, "NotRunnerCheck", name);
+    assert.deepEqual([error.resource, error.kind], [name, kind], name);
+  }
 });
 
 // guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER
@@ -104,16 +104,16 @@ test("resource-check refuses a resource that is not checked on a runner, by name
 });
 
 // guards: A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY
-// given: an endpoint whose Secret is ci:LOCAL_LLM_KEY; an agent whose key is kept in a browser; an endpoint whose Secret column holds a value, sk-live-abc123def456; a resource with none
+// given: compute on a runner whose Secret is ci:CLUSTER_KEY; one whose key is kept in a browser; one whose Secret column holds a value, sk-live-abc123def456; one with none
 // input: the recipe for each
-// expect: the first names the secret LOCAL_LLM_KEY and says the key is read from the runner's environment and sent only to this resource's address; the second says the key does not reach
+// expect: the first names the secret CLUSTER_KEY and says the key is read from the runner's environment and sent only to this resource's address; the second says the key does not reach
 //         the runner; the third's part holds nothing of the value; the last says no credential is declared
 test("resource-check names a secret and holds no secret's value", async () => {
-  const named = await textOf(contextOf("llm"));
-  assert.match(named, /CI secret `LOCAL_LLM_KEY`/);
+  const named = await textOf(contextOf("cluster-key"));
+  assert.match(named, /CI secret `CLUSTER_KEY`/);
   assert.match(named, /runner's environment/);
   assert.match(named, /only to this resource's address/);
-  assert.match(await textOf(contextOf("coder")), /kept in a browser and does not reach the runner/);
+  assert.match(await textOf(contextOf("cluster-browser")), /kept in a browser and does not reach the runner/);
   const leaky = await textOf(contextOf("leaky"));
   assert.equal(leaky.includes("sk-live-abc123def456"), false);
   assert.equal(leaky.includes("abc123"), false);
