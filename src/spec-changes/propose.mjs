@@ -1,5 +1,5 @@
 // propose.mjs — the sections a draft of requirements changes and the writer of classified candidates (MOD-spec-changes, Parts: propose.mjs; Interfaces: entrySections, specStrategies).
-// Of it, ITM-393 builds entrySections, ITM-338 the writer queue-entries, and ITM-341 openQueueOf and proposeSection.
+// Of it, ITM-393 builds entrySections, ITM-338 the writer queue-entries, ITM-341 openQueueOf and proposeSection, and ITM-394 saveEntry.
 //
 // Module: MOD-spec-changes
 //
@@ -326,14 +326,14 @@ export async function openQueueOf(person, date, host) {
 }
 
 // The rationale of an edit of one section: the change, the Why, the impact list and the origin, in the schema queue-rationale.
-function sectionRationale(change, impact) {
+function sectionRationale(change, impact, origin = `${folded(change.origin)}; saved by ${change.person}.`) {
   const named = impact.length ? impact.map((item) => item.name).join(", ") : "no requirement";
   const what = impact.length ? impact.map((item) => `${item.change} ${item.name}`).join("; ") : "changes the text of the section";
   const lines = impact.length
     ? impact.map((item) => `- ${item.name}: ${item.change}; ${item.referencedBy.length ? `named by ${item.referencedBy.join(", ")}` : "nothing names it"}.`)
     : ["- no requirement of the section changes."];
   return [`# ${headingText(change.anchor)}: ${named}`, "", `**The change.** ${what[0].toUpperCase()}${what.slice(1)}; the rest of the section is as the person wrote it.`, "",
-    `**Why.** ${folded(change.why)}`, "", "**Impact list.**", ...lines, "", `**Origin.** ${folded(change.origin)}; saved by ${change.person}.`, ""].join("\n");
+    `**Why.** ${folded(change.why)}`, "", "**Impact list.**", ...lines, "", `**Origin.** ${origin}`, ""].join("\n");
 }
 
 export async function proposeSection(host, change) {
@@ -387,4 +387,39 @@ export async function proposeSection(host, change) {
   const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
     message: `Propose an edit of ${headingText(change.anchor)} as entry ${pad2(number)} of queue ${day}${trailers}` });
   return { commit, queue: folder, entry: number, alsoReplacing };
+}
+
+// saveEntry (ITM-394): an open entry saved in its own queue. Where the module file leaves a reading open, this file takes the one it names:
+//   - The entry's state is read before its text: an entry that is not open is refused naming its state, whatever its proposal's blob; one the queue does not hold is a RangeError.
+//   - The rationale is made anew from the edit — title, change and impact list from the new text against the section that holds now, the Why from `why` —; its Origin, and its Provenance
+//     where a job drafted the entry, are kept as they stood. The index is not written.
+export async function saveEntry(host, edit) {
+  const info = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(info.defaultBranch);
+  const queue = (await queues(snapshot)).find((each) => each.folder === edit.queue);
+  const entry = queue?.entries.find((each) => each.number === edit.entry);
+  if (!entry) throw new RangeError(`saveEntry: the snapshot holds no entry ${edit.entry} of the queue ${edit.queue}`);
+  if (entry.state !== "open") return { refused: "not open", state: entry.state };
+  const held = (await snapshot.read(entry.proposal.path)) ?? "";
+  if (entry.proposal.blob !== edit.openedBlob) return { refused: "changed meanwhile", current: held };
+  if (!info.canWrite && snapshot.repository.server === "gitlab") throw failure("TokenRequired", "a GitLab product is written with a token");
+
+  const targetText = await snapshot.read(entry.file);
+  const before = typeof targetText === "string" ? sectionText(targetText, entry.anchor) : null;
+  const old = (await snapshot.read(entry.rationale)) ?? "";
+  const origin = /\*\*Origin\.\*\* ([^\n]*)/.exec(old)?.[1] ?? `an edit of the entry; saved by ${edit.person}.`;
+  const provenance = /\n\*\*Provenance\.\*\*[^\n]*\n/.exec(old)?.[0] ?? "";
+  const impact = await impactOf(snapshot, before ?? "", edit.text);
+  const rationale = `${sectionRationale({ anchor: entry.anchor, why: edit.why }, impact, origin)}${provenance}`;
+  const findings = documentFindings(queueRationaleSchema, readDocument(queueRationaleSchema, entry.rationale, rationale));
+  if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);
+  const files = [{ path: entry.proposal.path, text: edit.text }, { path: entry.rationale, text: rationale }];
+
+  if (!info.canWrite) {
+    const present = new Set(snapshot.paths);
+    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: present.has(file.path) })), snapshot) };
+  }
+  const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
+    message: `Save the edit of entry ${pad2(entry.number)} of the queue ${edit.queue.split("/").pop()}` });
+  return { commit };
 }
