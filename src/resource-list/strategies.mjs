@@ -30,17 +30,9 @@ async function found(snapshot, name) {
   return row ? resourceOf(row) : null;
 }
 
-// The harmless request for a kind: the one request a declared resource answers (UC-040 step 7).
-function requestOf(resource) {
-  if (resource.kind === "compute") {
-    return "List the partitions the cluster offers, with the scheduler's own read-only command (for SLURM `sinfo`, which views information about nodes and partitions). "
-      + "Report each partition's name and state.";
-  }
-  if (resource.kind === "endpoint") {
-    return `Send GET ${resource.address.replace(/\/+$/, "")}/models, which lists the served models. Report the status, the first lines of the answer and the identifier of the model it serves.`;
-  }
-  return "Ask it the one-word question `Reply with one word: ok.` and report its answer, the status and the identifier of the model it serves.";
-}
+// The harmless request a compute resource answers (UC-040 step 7): its partitions, with the scheduler's own read-only command.
+const REQUEST = "List the partitions the cluster offers, with the scheduler's own read-only command (for SLURM `sinfo`, which views information about nodes and partitions). "
+  + "Report each partition's name and state.";
 
 // What is said of the resource's credential: its name, never its value.
 function credentialOf(secret) {
@@ -54,8 +46,8 @@ function credentialOf(secret) {
 
 /**
  * The recipe resource-check(context, params) -> Part[] — one part: the resource the job names (`params.resource`, the Name of an entry of the product's list, else of the instance's),
- * and the harmless request to make on the runner its check plan names. Throws ResourceNotNamed for a job that names none, ResourceNotFound { resource } for a name no list holds, and
- * NotRunnerCheck { resource, how } for a resource that is not checked by a check job on a runner.
+ * and the harmless request to make on the runner its check plan names: compute reached by a runner, and no other resource. Throws ResourceNotNamed for a job that names none, ResourceNotFound { resource } for a name no list holds, and
+ * NotRunnerCheck { resource, kind, how } for a resource that is not compute checked by a check job on a runner.
  */
 async function resourceCheck(context, params) {
   const name = params?.resource;
@@ -63,13 +55,14 @@ async function resourceCheck(context, params) {
   const resource = (await found(context.product.snapshot, name)) ?? (await found(context.instance.snapshot, name));
   if (!resource) throw failure("ResourceNotFound", `no list of resources holds ${name}`, { resource: name });
   const plan = checkPlan(resource);
-  if (plan.how !== "check job on a runner") {
-    throw failure("NotRunnerCheck", `${name} is checked by ${plan.how}, not by a check job on a runner`, { resource: name, how: plan.how });
+  // A runner's check job is compute's alone; an endpoint or agent is checked by a probe through the Bridge its route names, whatever its plan says here.
+  if (resource.kind !== "compute" || plan.how !== "check job on a runner") {
+    throw failure("NotRunnerCheck", `${name}, a ${resource.kind}, is not compute checked by a check job on a runner`, { resource: name, kind: resource.kind, how: plan.how });
   }
   const text = [
     `Resource: ${resource.name}, a ${resource.kind} at ${resource.address}${resource.pin ? `, pinned to ${resource.pin}` : ""}.`,
     `You work on the runner \`${plan.label}\`${resource.place ? `; the data given to the resource is processed at ${resource.place}` : ""}.`,
-    `Request: ${requestOf(resource)} Make exactly one request, and nothing else.`,
+    `Request: ${REQUEST} Make exactly one request, and nothing else.`,
     credentialOf(resource.secret),
   ].join("\n\n");
   return [{ name: resource.name, text, sources: [], required: true, artifacts: [] }];
