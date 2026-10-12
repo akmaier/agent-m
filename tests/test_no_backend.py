@@ -626,23 +626,16 @@ class NoServer(unittest.TestCase):
 
     def test_counter_proof_a_resource_lists_own_schema_file(self):
         # MOD-resource-list's file says "It reads its own schema file": the form of the other modules that read theirs, at most once in its folder.
-        own = ('const SCHEMA = new URL("./resource.schema.md", import.meta.url);
-'
-               "async function ownFile(url) {
-  const answer = await fetch(url);
-  return answer.text();
-}
-")
+        own = ('const SCHEMA = new URL("./resource.schema.md", import.meta.url);\n'
+               "async function ownFile(url) {\n  const answer = await fetch(url);\n  return answer.text();\n}\n")
         self.assertEqual(channel_findings({"src/resource-list/index.mjs": own}), [])
         # Elsewhere the same text is found, and so is a second fetch in the folder, and an address that is not the module's own.
         self.assertEqual(channel_findings({"src/text-tools/index.mjs": own}), ["src/text-tools/index.mjs:3: fetch: fetch(url);"])
-        twice = {"src/resource-list/index.mjs": own, "src/resource-list/read.mjs": "export const read = (url) => fetch(url);
-"}
+        twice = {"src/resource-list/index.mjs": own, "src/resource-list/read.mjs": "export const read = (url) => fetch(url);\n"}
         self.assertEqual(channel_findings(twice),
                          [f"src/resource-list/read.mjs:1: fetch: not {OWN_DATA_FILES}",
                           f"src/resource-list/: fetch found 2 times, permitted at most 1 ({OWN_DATA_FILES})"])
-        elsewhere = own + "const OTHER = new URL(name, location.href);
-"
+        elsewhere = own + "const OTHER = new URL(name, location.href);\n"
         self.assertEqual(channel_findings({"src/resource-list/index.mjs": elsewhere}), [f"src/resource-list/index.mjs:3: fetch: not {OWN_DATA_FILES}"])
 
     def test_counter_proof_only_the_site_frames_own_static_header_assets_load(self):
