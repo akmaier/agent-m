@@ -20,7 +20,7 @@
 // PermissionDeclined naming the scope Microsoft's message names, else the three together in one text; the AADSTS codes of an unknown
 // application (700016), a return address that is not registered (50011) and the codes invalid_client and unauthorized_client as
 // RegistrationRefused whose `message` is Microsoft's own; network_error, get_request_failed and post_request_failed as Unreachable
-// with `reason`. The authority is the work-and-school-and-personal one, `https://login.microsoftonline.com/common`; the return address
+// with `reason`. The authority is the institution's own tenant, `https://login.microsoftonline.com/<domain of the mail address>` (the accepted text); for a sign-in without an address, where the texts name no tenant, the reading taken is the multi-tenant `https://login.microsoftonline.com/common`, the one Microsoft offers when the tenant is not known; the domain is the part after the last @, in lower case; an address without one is read as no address. The return address
 // is the Pages address of the instance whose page this is. Nothing reaches the network. Each test states its input and its expected
 // result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
@@ -164,3 +164,17 @@ for (const [what, answer, name, check] of [
     });
   });
 }
+
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; UC-037 (step 3)
+// given: the stand-in; the page of the instance alice/agent-m
+// input: signIn(CLIENT, address) for reports@example.org, for Reports@Uni-Example.DE, and for an address without a domain ("reports")
+// expect: the authority the institution's own tenant: https://login.microsoftonline.com/example.org, .../uni-example.de (the domain in lower case),
+//         and for the address with no domain Microsoft's multi-tenant /common; always on the host login.microsoftonline.com, no query
+test("signIn — signs in at the tenant of the mail address's domain", async () => {
+  assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
+  for (const [address, tenant] of [["reports@example.org", "example.org"], ["Reports@Uni-Example.DE", "uni-example.de"], ["reports", "common"]]) {
+    const seen = standIn(signedIn);
+    await signIn(CLIENT, address);
+    assert.equal(seen.configs[0].auth.authority, `https://login.microsoftonline.com/${tenant}`, address);
+  }
+});
