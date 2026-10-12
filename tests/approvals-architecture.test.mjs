@@ -13,12 +13,12 @@
 // The product is a small repository this file holds, in memory, behind a snapshot of its own (paths, blob and read, as MOD-repository-
 // hosts' Snapshot gives them): a SPEC; use cases of three statuses, UC-001 and UC-003 accepted, UC-002 open and UC-004 changed; and,
 // where a test needs them, an architecture decision and a change queue of three entries: the first accepted by an approval record that
-// names its proposal, the second named only by a decision row, the third by a record that names an earlier text of its proposal (MOD-spec-changes calls such an entry stale, not open). A strategy is called as the job runner calls it: a recipe with the job's context and its parameters, a
+// names its proposal, the second named only by a decision row that names its SPEC commit, the third by a record that names an earlier text of its proposal (MOD-spec-changes calls such an entry stale, not open). A strategy is called as the job runner calls it: a recipe with the job's context and its parameters, a
 // precondition with the context. The module file words neither the findings nor the name of an open SPEC change, and a precondition
 // returns one finding: this file asks of each finding its kind, its rule, that it is one line and what it names, and reads the
 // precondition as returning, of the three, the first that holds — the architecture that exists, the use cases not accepted, the open
 // SPEC changes —, since UC-022 1c opens UC-023 instead, and 1a blocks before 1b only warns. An open SPEC change is named by its
-// proposal's path, and is open when no approval record names it (MOD-spec-changes, Data: "open — no approval record names its proposal"), whatever a decision row says; a record of an earlier text of the proposal makes it stale, not open.
+// proposal's path, and is open when neither an approval record nor a decision row naming the commit that wrote it into the SPEC decides it (MOD-spec-changes, Data: "open — no approval record names its proposal and no decision row names the commit that wrote it into the SPEC"); a record of an earlier text of the proposal makes it stale, not open.
 // A name the module does not provide yet is undefined here, so that each test fails by itself. Each test states its
 // input and its expected result before it runs (given / input / expect). Nothing reaches the network. The counter-proofs are recorded
 // in the pull request.
@@ -49,7 +49,7 @@ const MOD_PATH = "docs/architecture/MOD-sample.md";
 const MODULE = text("---", "id: MOD-sample", "title: Sample", "folder: src/sample/", "---", "# MOD-sample Sample");
 const ARC = text("---", "id: ARC-001", "title: The system", "forced_by:", "  - UC-001", "---", "# ARC-001 The system");
 
-// A queue of three entries. 01 is accepted: an approval record names its proposal. 02 has a decision row and no record: it is open.
+// A queue of three entries. 01 is accepted: an approval record names its proposal. 02 has a decision row naming its SPEC commit and no record: it is decided.
 // 03 has a record that names an earlier text of its proposal: it is stale, which is not open. A record is docs/approvals/spec-<queue>-<NN>-<first twelve digits of the blob>.md.
 const QUEUE = "docs/spec-freigaben/2026-10-01_fixture";
 const ENTRY1 = `${QUEUE}/01-an-accepted-rule.md`, ENTRY2 = `${QUEUE}/02-a-rule-with-a-row.md`, ENTRY3 = `${QUEUE}/03-a-changed-rule.md`;
@@ -149,12 +149,12 @@ test("architecture-ready — a product that has an architecture already is point
 
 // guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
 // given: a product whose use cases are all accepted, no architecture, a change queue whose entry 01 a record of its proposal names,
-//        whose entry 02 only a decision row names, and whose entry 03 a record of an earlier text of its proposal names — stale, not
-//        open —; and a second queue with an entry and no decisions file yet
+//        whose entry 02 only a decision row names, the commit that wrote it into the SPEC — decided —, and whose entry 03 a record of an
+//        earlier text of its proposal names — stale, not open —; and a second queue with an entry and no decisions file yet
 // input: the precondition architecture-ready
-// expect: one finding, a warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that names the proposals of
-//         entry 02 and of the second queue's, neither entry 01's nor entry 03's, and nothing else of the queues
-test("architecture-ready — a warning names each SPEC change whose proposal no approval record names", async () => {
+// expect: one finding, a warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that names the proposal of the
+//         second queue's entry and no other — not entry 01's, entry 02's or entry 03's — and nothing else of the queues
+test("architecture-ready — a warning names each SPEC change that neither an approval record nor a decision row decides", async () => {
   const files = { ...READY, ...QUEUE_FILES, ...QUEUE_RECORDS, ...FRESH_FILES };
   for (const path of Object.keys(files)) if (/spec-2026-10-01_fixture-0[23]-/.test(path) && !(path in QUEUE_RECORDS)) delete files[path];
 
@@ -162,9 +162,9 @@ test("architecture-ready — a warning names each SPEC change whose proposal no 
 
   assert.equal(found.kind, "warning");
   assert.equal(found.rule, WHOLE);
-  for (const open of [ENTRY2, FRESH_ENTRY]) assert.ok(words(found).includes(open), `${open} is named in: ${words(found)}`);
-  for (const closed of [ENTRY1, ENTRY3]) assert.ok(!words(found).includes(closed), `${closed} is not named in: ${words(found)}`);
-  assert.equal(words(found).match(/docs\/spec-freigaben\//g).length, 2, `only the two proposals are named, no rationale or file of a queue: ${words(found)}`);
+  assert.ok(words(found).includes(FRESH_ENTRY), `${FRESH_ENTRY} is named in: ${words(found)}`);
+  for (const closed of [ENTRY1, ENTRY2, ENTRY3]) assert.ok(!words(found).includes(closed), `${closed} is not named in: ${words(found)}`);
+  assert.equal(words(found).match(/docs\/spec-freigaben\//g).length, 1, `only the one proposal is named, no rationale or file of a queue: ${words(found)}`);
   for (const own of [found.what, found.fix]) assert.match(own, /^[^\n]+$/);
 });
 

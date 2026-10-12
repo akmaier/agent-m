@@ -94,10 +94,12 @@ const partsFor = (kind, parts) => parts.filter((part) => kind.recipes.some((reci
 
 /**
  * runJob(prepared: Prepared, drivers: { drafter: Driver | null, reviewers: Driver[] }, options: { attended: boolean,
- * context: JobContext, from?: unknown, onRound?: (round: Round) => void, onOutput?: (chunk: string) => void, onGate?:
+ * context: JobContext, from?: unknown, refine?: unknown, onRound?: (round: Round) => void, onOutput?: (chunk: string) => void, onGate?:
  * (gate: string) => Promise<void>, signal?: AbortSignal }) -> Promise<JobResult> — refuses to start while prepared's
  * blocking or notFitting is not empty (NotStartable). It runs the correction loop — or, with `from`, begins with that
- * draft, and without a drafter only returns the findings on it —, then the kind's steps; each check is handed the job's
+ * draft, and without a drafter only returns the findings on it; with `refine`, the drafter's first exchange carries that draft as
+ * `previous`, with no finding, beside the parts, among which is the person's follow-up instruction, and the loop then runs on what the
+ * drafter returns —, then the kind's steps; each check is handed the job's
  * parts, and the result's classes are those of the kind's candidate-classes in the last round, null for a kind without it;
  * at a gate point of the kind whose gate in context.gates is not passed, it calls onGate and stops with that gate. A kind
  * whose result a person reviews, when a person attends, ends with its draft and writes nothing; any other calls the kind's
@@ -105,7 +107,7 @@ const partsFor = (kind, parts) => parts.filter((part) => kind.recipes.some((reci
  * more is written.
  */
 export async function runJob(prepared, drivers, options) {
-  const { attended, context, from, onRound, onOutput, onGate, signal } = options;
+  const { attended, context, from, refine, onRound, onOutput, onGate, signal } = options;
   if (prepared.blocking.length || prepared.notFitting.length) {
     throw failure("NotStartable", "the job has findings that keep it from starting, or a participant it does not fit",
       { blocking: prepared.blocking, notFitting: prepared.notFitting });
@@ -128,7 +130,8 @@ export async function runJob(prepared, drivers, options) {
     let changed = number === 1;
     const fresh = !(number === 1 && from !== undefined) && !recheck;
     if (fresh) {
-      const previous = number === 1 ? null : (readable ? draftText(draft) : lastText);
+      // The first exchange of a refinement carries the draft to change, with no finding.
+      const previous = number === 1 ? (refine === undefined ? null : draftText(refine)) : (readable ? draftText(draft) : lastText);
       const sent = await drivers.drafter.send({ prompt: promptOf(kind, drafterParts), parts: drafterParts, output: envelope,
         findings: number === 1 ? [] : open, previous, workdir: null }, { onOutput, signal });
       usage.push({ participant: drivers.drafter.participant.name, usage: sent.usage });
