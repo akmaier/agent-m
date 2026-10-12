@@ -7,10 +7,14 @@
 // It belongs to the Site (ARC-038) and runs in a browser. It reads statuses only from MOD-approvals, and writes only when a
 // person clicks Accept or Accept ticked. Every other file of this folder is private to the module.
 
+import { approvalStrategies } from "../approvals/index.mjs";
+import { editStrategies } from "../artifact-edits/index.mjs";
+import { sourceStrategies } from "../source-register/index.mjs";
+import { specStrategies } from "../spec-changes/index.mjs";
 import { reviewRoute } from "./flow.mjs";
 import { DECISIONS, MODULES, SPEC_ENTRIES, USE_CASES } from "./kinds.mjs";
 
 // view — what the frame loads: one route for the use cases, `use-case` (the list) and `use-case/id=<id>` (one use case).
 // `use-case/id=all` is Review all. ITM-440 adds the routes `decision` and `module` in the same form: the files with their status, one
 // file with the section of what it rests on that is not accepted, and accepting it.
-export const view = { routes: [reviewRoute(USE_CASES), reviewRoute(DECISIONS), reviewRoute(MODULES), reviewRoute(SPEC_ENTRIES)], strategies: [] };
+export const view = { routes: [reviewRoute(USE_CASES), reviewRoute(DECISIONS), reviewRoute(MODULES), reviewRoute(SPEC_ENTRIES)], strategies: [approvalStrategies, specStrategies, editStrategies, sourceStrategies] };
