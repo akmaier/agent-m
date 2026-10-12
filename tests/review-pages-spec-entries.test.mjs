@@ -462,3 +462,17 @@ test("spec-entry/<id> — the flow's answer to a write the token may not make: t
   assert.equal(accept.disabled, false, "Accept can be clicked again");
   assert.equal(byClass(target, "a", "github-page").length, 1, "GitHub's page is offered");
 });
+
+// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006 (step 6)
+// given: the list with a token whose name is "Agent M · thesis-tool", entry 07 ticked
+// input: a click on Accept ticked
+// expect: the commit's message names that person; and the list offers no Review all, a queue having no page of the kind
+test("spec-entry — Accept ticked names the person; the list has no Review all", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  const target = await show(fake);
+  assert.equal(byClass(target, "a", "review-all").length, 0);
+  tick(byClass(rowOf(target, E07), "input", "tick")[0]);
+  click(byClass(target, "button", "accept-ticked")[0]);
+  await until(() => fake.writes().length === 1, "the commit");
+  assert.ok(fake.writes()[0].change.message.includes(TOKEN.name), fake.writes()[0].change.message);
+});

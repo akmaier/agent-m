@@ -14,6 +14,7 @@ import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { el, link, button, storedToken, problem, parseServer, TOKEN_STEP } from "./common.mjs";
+import { queueService } from "./spec-entries.mjs";
 import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
 
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
@@ -34,6 +35,8 @@ function acceptedMessage(result, idOf) {
   for (const out of result.leftOut) message.append(el("br"), `${idOf(out.path)} was left out: ${reasonOf(out)}.`);
   return message;
 }
+// What a decision came to: a refusal as the service gives it, else the commit and each file left out.
+const settled = (result, idOf) => (result.refusal ? el("p", "result problem", result.refusal) : acceptedMessage(result, idOf));
 // What a refused acceptance of several files says: the failure, and each file it left out with its reason.
 const refusedText = (failure, idOf) => [failure.message, ...(failure.leftOut ?? []).map((out) => `${idOf(out.path)}: ${reasonOf(out)}`)].join(" ");
 
@@ -63,7 +66,28 @@ async function draftingRounds(where) {
   } catch { return null; }
 }
 
+// The service a descriptor names for its decisions (`accept`): the approvals of reviewed files, or the entries of a change queue through
+// MOD-spec-changes. Each gives the flow the groups of files to list, whether a kind has a Review all, whether a product without a token
+// is sent to the token's step, and accepts what was shown, once: a result { commit, leftOut } or { refusal } — a failure is thrown.
+const approvalsService = {
+  tokenRequired: (context) => parseServer(context) === "gitlab",
+  tokenNote: "A GitLab product is written with the project's own token. ",
+  reviewAll: true,
+  async groups({ snapshot, token }, kind) {
+    const entries = [];
+    for (const file of [...statuses(snapshot)].filter(([, each]) => each.kind === kind.kind).map(([path, each]) => ({ path, ...each })).sort((a, b) => a.id.localeCompare(b.id))) {
+      const body = (await snapshot.read(file.path)) ?? "";
+      entries.push({ id: file.id, name: file.id, title: kind.heading(body).replace(/^\S+\s*/, ""), status: file.status, label: LABEL[file.status],
+        tick: file.status === "accepted" ? null : { path: file.path, blob: snapshot.blob(file.path) } });
+    }
+    return [{ key: kind.kind, title: null, entries }];
+  },
+  accept: (where, shown, person) => acceptShown(where.host, shown, person),
+};
+const SERVICES = { approvals: approvalsService, queue: queueService };
+
 export function reviewRoute(kind) {
+  const service = SERVICES[kind.accept ?? "approvals"];
   const files = (snapshot) => [...statuses(snapshot)].filter(([, file]) => file.kind === kind.kind)
     .map(([path, file]) => ({ path, ...file })).sort((a, b) => a.id.localeCompare(b.id));
   const idOf = (path, snapshot) => statuses(snapshot).get(path)?.id ?? path;
@@ -81,7 +105,8 @@ export function reviewRoute(kind) {
       return;
     }
     const where = { host, token, snapshot, context, target };
-    if (params.id === REVIEW_ALL) await showAll(where);
+    if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
+    else if (params.id && service.view) await showEntry(where, params.id);
     else if (params.id) await showOne(where, params.id);
     else await showList(where);
   }
@@ -93,47 +118,57 @@ export function reviewRoute(kind) {
   };
 
   async function showList(where) {
-    const { target, snapshot, token, context } = where;
-    const rows = el("tbody");
+    const { target, token, context } = where;
+    const groups = await service.groups(where, kind);
     const ticks = new Map();
     const bar = token ? button("btn accept-ticked", "Accept ticked (0)") : null;
     if (bar) bar.disabled = true;
-    for (const file of files(snapshot)) {
-      const body = (await snapshot.read(file.path)) ?? "";
-      const first = el("td");
-      if (token && file.status !== "accepted") {
-        const box = el("input", "tick");
-        box.type = "checkbox";
-        box.addEventListener("change", () => {
-          if (box.checked) ticks.set(file.path, snapshot.blob(file.path)); else ticks.delete(file.path);
-          bar.disabled = ticks.size === 0;
-          bar.textContent = `Accept ticked (${ticks.size})`;
-        });
-        first.append(box);
+    const tables = [];
+    for (const group of groups) {
+      const rows = el("tbody");
+      for (const file of group.entries) {
+        const first = el("td");
+        if (token && file.tick) {
+          const box = el("input", "tick");
+          box.type = "checkbox";
+          box.addEventListener("change", () => {
+            if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
+            bar.disabled = ticks.size === 0;
+            bar.textContent = `Accept ticked (${ticks.size})`;
+          });
+          first.append(box);
+        }
+        const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
+          el("td", null, file.title), el("td", null, el("span", `badge ${file.status}`, file.label)));
+        row.setAttribute("data-id", file.id);
+        rows.append(row);
       }
-      const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.id)),
-        el("td", null, kind.heading(body).replace(/^\S+\s*/, "")), el("td", null, el("span", `badge ${file.status}`, LABEL[file.status])));
-      row.setAttribute("data-id", file.id);
-      rows.append(row);
+      const table = el("table", "list", el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status"))), rows);
+      if (group.title === null) tables.push(table);
+      else {
+        const section = el("section", "queue", el("h3", null, group.title), table);
+        section.setAttribute("data-folder", group.key);
+        tables.push(section);
+      }
     }
-    const heading = el("h2", null, kind.title);
-    target.append(heading, link(`#${kind.route}/id=${REVIEW_ALL}`, "review-all", "Review all"), explain(kind.explain.list));
+    target.append(el("h2", null, kind.title));
+    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "review-all", "Review all"));
+    target.append(explain(kind.explain.list));
     if (bar) {
       bar.addEventListener("click", async () => {
         bar.disabled = true;
-        const shown = [...ticks].map(([path, blob]) => ({ path, blob }));
         try {
-          const result = await acceptShown(where.host, shown, token.name);
-          await redraw(where, {}, acceptedMessage(result, (path) => idOf(path, snapshot)));
+          const result = await service.accept(where, [...ticks.values()], token.name);
+          await redraw(where, {}, settled(result, (path) => idOf(path, where.snapshot)));
         } catch (failure) {
           bar.disabled = ticks.size === 0;
-          target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));
+          target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, where.snapshot))));
         }
       });
-    } else if (context.product && parseServer(context) === "gitlab") {
-      target.append(el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+    } else if (context.product && service.tokenRequired(context)) {
+      target.append(el("p", "problem", service.tokenNote, link(TOKEN_STEP, "token-step", "Store the token")));
     }
-    target.append(el("table", "list", el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status"))), rows));
+    target.append(...tables);
     if (bar) target.append(bar);
   }
 
@@ -211,6 +246,46 @@ export function reviewRoute(kind) {
     }
   }
 
+  // Without a token: the record alone on GitHub's page for the instance's own SPEC; a GitLab product, or a record there is none of, is sent to the token's step.
+  function offerRecord(target, record, snapshot) {
+    const offered = record ? fallbackAcceptLink(record, snapshot) : { refused: true };
+    if (offered.refused) {
+      target.append(el("p", "problem", service.tokenNote, link(TOKEN_STEP, "token-step", "Store the token")));
+      return;
+    }
+    const copy = (text) => { const b = button("btn copy", "Copy"); b.addEventListener("click", () => globalThis.navigator?.clipboard?.writeText?.(text)); return b; };
+    target.append(el("div", "github-fallback", explain(kind.explain.fallback),
+      link(offered.url, "github-page", "Open GitHub's page to commit the record"),
+      el("p", null, "Path ", el("code", "record-path", offered.path), " ", copy(offered.path)),
+      el("pre", "record", offered.text), copy(offered.text)));
+  }
+
+  // One entry of a change queue: its sections as the service draws them, what holds it back or what a click accepts, and without a token the record.
+  async function showEntry(where, id) {
+    const { target, token, snapshot } = where;
+    const entry = await service.view(where, id, (other) => `#${kind.route}/id=${encodeURIComponent(other)}`);
+    if (!entry) {
+      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      return;
+    }
+    target.append(el("h2", null, entry.title), el("span", `badge ${entry.status}`, entry.label), explain(kind.explain.one), ...entry.nodes);
+    if (entry.hold) { target.append(entry.hold); return; }
+    if (!entry.shown) return;
+    if (!token) { offerRecord(target, entry.record, snapshot); return; }
+    const accept = button("btn accept", "Accept");
+    accept.addEventListener("click", async () => {
+      accept.disabled = true;
+      try {
+        await redraw(where, { id }, settled(await service.accept(where, entry.shown, token.name), (path) => idOf(path, snapshot)));
+      } catch (failure) {
+        accept.disabled = false;
+        target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));
+        if (failure.name === "PermissionMissing") offerRecord(target, entry.record, snapshot);
+      }
+    });
+    target.append(accept);
+  }
+
   async function showOne(where, id) {
     const { target, snapshot, token, host } = where;
     const file = files(snapshot).find((candidate) => candidate.id === id);
@@ -247,18 +322,7 @@ export function reviewRoute(kind) {
     }
     const record = recordOf(file.id, kind.kind, file.path, blob);
     const result = el("p", "result");
-    const offerGitHub = () => {
-      const offered = fallbackAcceptLink(record, snapshot);
-      if (offered.refused) {
-        target.append(el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
-        return;
-      }
-      const copy = (text) => { const b = button("btn copy", "Copy"); b.addEventListener("click", () => globalThis.navigator?.clipboard?.writeText?.(text)); return b; };
-      target.append(el("div", "github-fallback", explain(kind.explain.fallback),
-        link(offered.url, "github-page", "Open GitHub's page to commit the record"),
-        el("p", null, "Path ", el("code", "record-path", offered.path), " ", copy(offered.path)),
-        el("pre", "record", offered.text), copy(offered.text)));
-    };
+    const offerGitHub = () => offerRecord(target, record, snapshot);
     if (token) {
       const accept = button("btn accept", "Accept");
       accept.addEventListener("click", async () => {
