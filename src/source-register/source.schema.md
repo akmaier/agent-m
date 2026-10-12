@@ -25,6 +25,7 @@ What the language cannot say is written where it applies:
 {
   "schema": "source",
   "shape": "document",
+  "rule": "THE INSTANCE KEEPS THE SOURCE REGISTER",
   "path": "docs/sources/SRC-{slug}.md",
   "identifier": { "field": "id", "kind": "SRC" },
   "frontMatter": {
