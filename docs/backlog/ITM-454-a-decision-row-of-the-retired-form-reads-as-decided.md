@@ -1,10 +1,11 @@
 ---
 id: ITM-454
-title: A decision row of the retired form reads as decided
+title: An entry whose decision row names its SPEC commit reads as decided
 level: module
 realises:
   - UC-006
-  - A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN
+  - A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
+  - STATUS IS DERIVED FROM THE RECORDS
   - THE GATE IS RECORDED
 modules:
   - MOD-spec-changes
@@ -14,32 +15,34 @@ tests:
   - unit
 origin:
   - ITM-340, #377
-  - MOD-spec-changes, Data: the state of an entry
+  - SPEC queue 2026-10-12_decision-rows-before-approval-records, accepted in 8a5b8dd6
+  - MOD-spec-changes, Data: the state of an entry, as drafted in afab8296
 ---
-# ITM-454 A decision row of the retired form reads as decided
+# ITM-454 An entry whose decision row names its SPEC commit reads as decided
 
 **REGISTER**
 
 ## Outcome
 
-MOD-spec-changes' `queues` reads an entry as `in SPEC` when its queue's `entscheidungen.md` holds a row `uebernommen`
-for it in the retired form — its time without `UTC`, its reference a bare commit SHA in place of `approval:<record>` —,
-so that no page offers *Accept* for it (UC-006 steps 1 and 7). Today (ITM-234, ITM-339) such an entry reads `open`: the
-16 entries of the queues `2026-09-23_agent-m-v1`, `2026-09-23b_quellen-und-bruecke` and
-`2026-09-23c_review-auf-github` were accepted on 2026-09-23, before approval records were written, and their rows name
-the commit that wrote their section. `acceptEntries` would now write nine of them over today's sections (#377).
-Records and decision rows are never rewritten, so the reading is the code's.
+MOD-spec-changes' `queues` and `entryView` read an entry as `in SPEC` when its queue's `entscheidungen.md` holds a row
+`uebernommen` that names the commit that wrote it into the SPEC, as well as when the row names its approval record; an
+entry is `open` only while neither an approval record nor such a row decides it. The SPEC says so since 8a5b8dd6
+(`A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN`, `STATUS IS DERIVED FROM THE RECORDS`): a SPEC change entry
+"also counts as decided when its queue's decision row names the commit that wrote it into the SPEC". It concerns the 16
+entries of the queues `2026-09-23_agent-m-v1`, `2026-09-23b_quellen-und-bruecke` and `2026-09-23c_review-auf-github`,
+accepted before approval records were written, whose rows name that commit; today they read `open`, and
+`acceptEntries` would write nine of them over today's sections (#377). Records and decision rows are never rewritten.
+ITM-357, the review page of SPEC entries, builds on this item.
 
-The accepted texts give no way to build it: MOD-spec-changes' file derives `in SPEC` from "a decision row `uebernommen`
-names its record" and `open` from "no approval record names its proposal", and these entries have no record. The item
-needs a change of MOD-spec-changes' file that reads an entry with a decision row of the retired form as `in SPEC`, for
-akmaier's acceptance; until then it cannot start. ITM-357, the review page of SPEC entries, builds on it.
+The item waits for akmaier's acceptance of MOD-spec-changes' text drafted in afab8296, which states the derived state
+this way; until that text is accepted, it does not start.
 
 ## Acceptance
 
-- Unit tests that name MOD-spec-changes state, before the code exists, on a fixture queue: an entry with a decision row
-  of the retired form and no record reads `in SPEC`, in `queues` and in `entryView`; an entry whose row names its
-  record reads `in SPEC` as before; an entry without a row reads as before.
+- Unit tests that name MOD-spec-changes state, before the code exists, on a fixture queue: an entry whose decision row
+  names the commit that wrote it into the SPEC, with no approval record, reads `in SPEC` in `queues` and in `entryView`;
+  an entry whose row names its record reads `in SPEC` as before; an entry without a row and without a record reads
+  `open`.
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.
