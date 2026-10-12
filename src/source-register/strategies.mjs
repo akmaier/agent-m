@@ -64,13 +64,13 @@ async function excerpt(context, params, module) {
     : module.linkedVersion(readDocument(module.links, LINKS_PATH, linksText), register, source);
   if (!linked) throw failure("NotLinked", `the product links no version of ${source}`, { source });
   // A smaller part is the files the job's `part` names — a list of file names, or one name —: fewer files of the version, in the version's order. A version of one
-  // file has none. A file the version does not hold is refused before any content is read.
+  // file has none: naming its one file sends it whole. A file the version does not hold is refused, in any version, before any content is read.
   const named = params.part === undefined || params.part === null ? [] : [].concat(params.part).map(String);
   let selected = linked.version.files;
-  if (named.length > 0 && selected.length > 1) {
+  if (named.length > 0) {
     const missing = [...new Set(named.filter((name) => !selected.some((file) => file.name === name && file.stored)))];
     if (missing.length > 0) throw failure("NotInVersion", `the version ${linked.version.version} of ${linked.source.id} holds no ${missing.join(", ")}`, { files: missing });
-    selected = selected.filter((file) => named.includes(file.name));
+    if (selected.length > 1) selected = selected.filter((file) => named.includes(file.name));
   }
   let holder;
   if (module.permittedPlaces(linked.source) === "any") holder = holderOf(context.instance.snapshot);
@@ -90,7 +90,7 @@ async function excerpt(context, params, module) {
  * recipes of MOD-source-register, with its schemas and the two functions of its interface they use:
  * - `source-excerpt`: for the source the job's parameter `source` names, reads the version the product links, through
  *   readContent, and returns the texts of the files its parameter `part` names — a list of file names, or one; every file of
- *   the version when it names none, or when the version holds one file —, in the version's order, a blank line between them,
+ *   the version when it names none, and the one file of a version of one file when it names that —, in the version's order, a blank line between them,
  *   as one part that names the source. The part's name names the version, the files sent where they are fewer than the
  *   version's, and the part the product's link names. A file outside the part is not read. Throws as readContent throws,
  *   NotLinked { source } for a source the product does not link, and NotInVersion { files } for a part that names files
