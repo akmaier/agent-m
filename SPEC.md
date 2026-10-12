@@ -801,7 +801,8 @@ counter-proof: a use case without approval is.
 
 **A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN** *(PO A. Maier)*
 A use case, an architecture decision or a SPEC change proposal may be written directly to the default branch,
-where it counts as open until an approval record names its text.
+where it counts as open until an approval record names its text, or, for a SPEC change entry, until its queue's
+decision row names the commit that wrote it into the SPEC.
 *Check:* `tests/review-core.test.mjs`
 
 **CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI** *(PO A. Maier)*
@@ -951,7 +952,8 @@ An approval record names the file it approves and the git blob SHA of the text t
 *Check:* `tests/test_approval_records.py`
 
 **STATUS IS DERIVED FROM THE RECORDS** *(PO A. Maier)*
-A reviewed file counts as accepted exactly when an approval record names its current blob SHA.
+A reviewed file counts as accepted exactly when an approval record names its current blob SHA; a SPEC change entry
+also counts as decided when its queue's decision row names the commit that wrote it into the SPEC.
 *Check:* `tests/review-core.test.mjs`
 
 **THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK** *(PO A. Maier)*
