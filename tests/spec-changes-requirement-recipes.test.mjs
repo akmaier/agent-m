@@ -366,18 +366,18 @@ test("spec-with-queues — each requirement is carried as an artifact keyed by i
 
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-005
 // given: the part of the product above with its two queues; three candidates: one that restates the rule of A SECOND QUEUE RULE, which
-//        stands in an open entry only, under another name; one that restates the rule of A DECIDED RULE, which the SPEC holds, under
-//        another name; and one that no requirement states
+//        stands in an open entry only, under another name; one that restates A DECIDED RULE, which the SPEC holds, with the rule
+//        the SPEC states for it; and one that no requirement states
 // input: MOD-documents' classifyCandidates of the candidates against the part's artifacts
 // expect: the first a duplicate of A SECOND QUEUE RULE and the second a duplicate of A DECIDED RULE, each decided by rule; the third new,
 //         left to the participant
-test("spec-with-queues — a draft is classified against its artifacts: a restated rule and a taken name are duplicates", async () => {
+test("spec-with-queues — a draft is classified against its artifacts: a restated rule and a restated requirement of the SPEC are duplicates", async () => {
   const [part] = await run("spec-with-queues", WITH_QUEUES);
   const candidate = (ref, name, rule) => ({ ref, keys: [name, rule], from: [`passage of ${ref}`], proposed: { class: "new", of: null } });
 
   const classes = classifyCandidates([
     candidate("restated", "A RESTATED QUEUE RULE", ruleOf(WRITING_SECOND, "A SECOND QUEUE RULE")),
-    candidate("taken", "A RESTATED DECIDED RULE", ruleOf(DECIDING, "A DECIDED RULE")),
+    candidate("taken", "A DECIDED RULE", ruleOf(DECIDING, "A DECIDED RULE")),
     candidate("fresh", "A FRESH RULE", "Nothing in the product says this."),
   ], part.artifacts);
 
