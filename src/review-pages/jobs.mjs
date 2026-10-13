@@ -17,7 +17,7 @@ import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, runJob, writeResult } from "../job-runner/index.mjs";
 import { approvalStrategies, statuses } from "../approvals/index.mjs";
 import { differs, eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { permittedPlaces } from "../source-register/index.mjs";
+import { linkedVersion, permittedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
@@ -89,6 +89,7 @@ export function participantList(drafters, product, needs, role = "participant") 
  */
 export async function showDraft(where, kind) {
   if (kind.whole) return showArchitectureDraft(where, kind);
+  if (kind.draft === "derive-requirements") return showRequirementsDraft(where, kind);
   const { target, snapshot, token, host, context } = where;
   target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, null, `All ${kind.plural}`));
   let graph, loaded;
@@ -158,7 +159,9 @@ export async function panelOf(run) {
     return;
   }
   const offer = routesFor(chosen, run.product, run.needs)[0];
-  stage.append(explain(kind.explain.draft.panel), runPanel(prepared, { onRun: () => start({ ...run, prepared, jobContext, id, now, agentM, offer }) }));
+  const panel = runPanel(prepared, { onRun: () => start({ ...run, prepared, jobContext, id, now, agentM, offer }) });
+  run.decoratePanel?.(panel, prepared);
+  stage.append(explain(kind.explain.draft.panel), panel);
 }
 
 async function start(run) {
@@ -200,6 +203,205 @@ async function presentDraft(outcome, result, run) {
 export async function jobNotes(snapshot, id) {
   const rows = await listJobs([{ address: snapshot.repository?.web ?? "", snapshot }], new Map());
   return rows.flatMap((row) => row.record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
+}
+
+// ---------------------------------------------------------------- deriving requirements from a linked source (UC-005)
+
+const cleanCell = (value) => String(value ?? "").trim().replace(/^`|`$/g, "");
+const sourceRowsOf = (links) => links.sections.flatMap((section) => section.rows ?? []);
+const sourceTitle = (entry) => String(entry.fields?.title ?? entry.title ?? entry.id);
+function sourceExplain(topic) {
+  const found = explain(topic);
+  if (found.childNodes.length) return found;
+  return el("details", "explain", el("summary", null, "What is this?"),
+    el("p", null, "Choose the linked source version and the files of that version that the participant should receive."));
+}
+
+async function requirementSourceChoices(where) {
+  const { links, register } = await sourcesOf(where);
+  return sourceRowsOf(links).map((row) => {
+    const id = cleanCell(row.cells.Source);
+    const linked = linkedVersion(links, register, id);
+    if (!linked) return null;
+    return { id, title: sourceTitle(linked.source), part: cleanCell(row.cells.Part), version: linked.version, source: linked.source };
+  }).filter(Boolean);
+}
+
+function sourceChoiceList(choices) {
+  const list = el("ul", "sources");
+  for (const [at, choice] of choices.entries()) {
+    const radio = el("input", "source");
+    radio.type = "radio";
+    radio.name = "source";
+    radio.value = choice.id;
+    radio.checked = at === 0;
+    const files = el("ul", "source-files");
+    for (const file of choice.version.files.filter((each) => each.stored)) {
+      const box = el("input", "source-file");
+      box.type = "checkbox";
+      box.value = file.name;
+      box.checked = true;
+      files.append(el("li", null, el("label", null, box, ` ${file.name}`)));
+    }
+    const item = el("li", "source", el("label", null, radio, ` ${choice.id} - ${choice.title}`),
+      choice.part ? el("span", "part", ` part: ${choice.part}`) : "", files);
+    item.setAttribute("data-source", choice.id);
+    list.append(item);
+  }
+  return list;
+}
+
+function chosenSource(choices, list) {
+  const id = inputsOf(list, "source").find((box) => box.checked)?.value ?? choices[0]?.id;
+  const choice = choices.find((each) => each.id === id) ?? choices[0];
+  const item = [...list.childNodes].find((node) => node.nodeType === 1 && node.getAttribute("data-source") === choice.id);
+  const selected = inputsOf(item, "source-file").filter((box) => box.checked).map((box) => box.value);
+  return { choice, selected, stored: choice.version.files.filter((file) => file.stored).map((file) => file.name) };
+}
+
+async function showRequirementsDraft(where, kind) {
+  const { target, token } = where;
+  target.append(el("h2", null, "Derive requirements"), sourceExplain(kind.explain.draft.source), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  let loaded, choices;
+  try {
+    loaded = await loadStage(where, kind.draft);
+    choices = await requirementSourceChoices(where);
+  } catch (failure) {
+    target.append(problem(failure, token));
+    return;
+  }
+  const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
+  if (choices.length === 0) {
+    target.append(el("p", "problem", "The product links no source whose version can be read."));
+    return;
+  }
+  const sources = sourceChoiceList(choices);
+  target.append(el("section", "source-selection", el("h3", null, "Linked source"), sources));
+
+  const offered = participantList(drafters, product, needs);
+  target.append(el("section", "drafters", el("h3", null, "Drafting participant"), explain(kind.explain.draft.participant), offered));
+
+  const stage = el("section", "stage");
+  if (!token) {
+    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", link(TOKEN_STEP, "token-step", "Store the token")), stage);
+    return;
+  }
+  const prepare = button("btn prepare", "Show the run panel");
+  prepare.addEventListener("click", async () => {
+    stage.replaceChildren();
+    const chosen = drafters.find((participant) => byClassChecked(offered, participant.name));
+    if (!chosen) { stage.append(el("p", "problem", "Choose the participant that drafts.")); return; }
+    const picked = chosenSource(choices, sources);
+    if (!picked.selected.length) { stage.append(el("p", "problem", "Choose at least one file of the source version.")); return; }
+    const part = picked.selected.length < picked.stored.length ? picked.selected : undefined;
+    const params = { source: picked.choice.id, ...(part ? { part } : {}) };
+    const worksOn = [picked.choice.id];
+    const decoratePanel = (panel, prepared) => {
+      const count = prepared.parts.find((part_) => part_.recipe === "spec-with-queues")?.artifacts?.length ?? 0;
+      panel.append(el("p", "requirements-included", `${count} existing requirements included.`));
+    };
+    await panelOf({ ...where, definition, kind, jobKind: kind.draft, params, worksOn, present: presentRequirements, chosen, participants,
+      instanceSnapshot, product, needs, stage, decoratePanel });
+  });
+  target.append(prepare, stage);
+}
+
+function classOptions(value) {
+  const select = el("select", "class");
+  for (const name of ["new", "change", "duplicate", "conflict"]) {
+    const option = el("option", null, name);
+    option.value = name;
+    if (name === value) option.selected = true;
+    select.append(option);
+  }
+  select.value = value;
+  return select;
+}
+
+async function linkedSourceInfo(where) {
+  const { links, register } = await sourcesOf(where);
+  const byName = (name) => linkedVersion(links, register, name);
+  return { byName };
+}
+
+function candidateClass(candidate, classes) {
+  const found = classes?.find((each) => each.refs?.includes(candidate.name));
+  return found ?? { refs: [candidate.name], from: [candidate.passage].filter(Boolean), class: candidate.class, of: candidate.of ?? null };
+}
+
+function candidateItem(candidate, decided, linked) {
+  const item = el("li", "candidate");
+  item.setAttribute("data-name", candidate.name);
+  item.append(el("span", "candidate-name", candidate.name), " ", classOptions(decided.class), " of ");
+  const of = el("input", "of");
+  of.value = decided.of ?? "";
+  item.append(of, el("p", "candidate-rule", candidate.rule));
+  if (decided.of) item.append(el("p", "refers-to", `Beside ${decided.of}.`));
+  if (decided.class === "conflict" && linked?.source?.fields?.authority) {
+    item.append(el("p", "normative", `${linked.source.id} is ${linked.source.fields.authority}.`));
+  }
+  return item;
+}
+
+function classesFrom(panel, classes) {
+  return elementsOf(panel, "li", "candidate").map((item) => {
+    const name = item.getAttribute("data-name");
+    const was = classes.find((each) => each.refs?.includes(name)) ?? { refs: [name], from: [], class: "new", of: null };
+    const select = elementsOf(item, "select", "class")[0];
+    const of = elementsOf(item, "input", "of")[0];
+    return { refs: [name], from: was.from ?? [], class: select.value || was.class, of: of.value.trim() || null };
+  });
+}
+
+async function presentRequirements(outcome, result, run) {
+  const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
+  const classes = candidates.map((candidate) => candidateClass(candidate, outcome.classes));
+  const linked = await linkedSourceInfo(run);
+  const panel = el("section", "requirements-result", el("h3", null, "Requirement candidates"),
+    el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(run.kind.explain.draft.loop));
+  const left = el("ul", "left");
+  for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} - ${finding.fix}`));
+  panel.append(left);
+
+  const groups = new Map();
+  for (const candidate of candidates) {
+    const decided = candidateClass(candidate, classes);
+    if (!groups.has(decided.class)) groups.set(decided.class, []);
+    groups.get(decided.class).push({ candidate, decided });
+  }
+  for (const [name, entries] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
+    const list = el("ul", "candidates");
+    for (const { candidate, decided } of entries) list.append(candidateItem(candidate, decided, linked.byName(candidate.source ?? run.params?.source)));
+    const section = el("section", "candidate-group", el("h4", null, name), list);
+    section.setAttribute("data-class", name);
+    panel.append(section);
+  }
+
+  const unlinked = candidates.filter((candidate) => candidate.source && !linked.byName(candidate.source));
+  if (unlinked.length) {
+    panel.append(el("section", "unlinked-candidates", el("h4", null, "Link first"),
+      el("ul", null, ...unlinked.map((candidate) => el("li", null, `${candidate.name}: ${candidate.source} is not linked; link the source first.`)))));
+  }
+
+  const status = el("div", "draft-actions");
+  const write = button("btn write-proposals", "Write proposals");
+  write.addEventListener("click", async () => {
+    write.disabled = true;
+    status.replaceChildren();
+    try {
+      const info = await run.host.repositoryInfo();
+      const snapshot = await run.host.readSnapshot(info.defaultBranch);
+      const context = { ...run.jobContext, product: { ...run.jobContext.product, snapshot } };
+      const written = await writeResult(run.prepared, outcome.draft, { result: { ...outcome, classes: classesFrom(panel, classes) }, context });
+      status.append(el("p", "written", written.files?.length ? `Written: ${written.files.join(", ")}` : "Nothing changed."));
+      if (written.notes?.length) status.append(el("ul", "notes", ...written.notes.map((note) => el("li", "note", note))));
+    } catch (failure) {
+      write.disabled = false;
+      status.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
+    }
+  });
+  panel.append(el("div", "actions", write), status);
+  result.append(panel);
 }
 
 // ---------------------------------------------------------------- the architecture's derivation, up to Run (UC-022 steps 1 to 4)

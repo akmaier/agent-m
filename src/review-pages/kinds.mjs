@@ -24,7 +24,9 @@ export const MODULES = { kind: "module", route: "module", entry: "architecture",
 // The descriptor of the SPEC change entries (ITM-357): a file of a change queue, not a reviewed file with a record of its own kind; its files are
 // the entries of docs/spec-freigaben/<queue>/, accepted through MOD-spec-changes.
 export const SPEC_ENTRIES = { kind: "spec-entry", route: "spec-entry", entry: "requirements", title: "SPEC changes", plural: "SPEC change entries", noun: "SPEC change entry",
-  explain: { list: "change-queue", one: "spec-edit-waits-for-approval", fallback: "github-page-without-token", edit: "spec-edit-waits-for-approval" }, accept: "queue",
+  explain: { list: "change-queue", one: "spec-edit-waits-for-approval", fallback: "github-page-without-token", edit: "spec-edit-waits-for-approval",
+    draft: { source: "source-selection", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop", ci: "ci-agent-draft" } },
+  accept: "queue", draft: "derive-requirements",
   save: "entry" };
 
 // The descriptors of editing a requirement (ITM-359): a requirement is a section of the SPEC, not a reviewed file; `edit` names the editing of its section, saved as an entry of

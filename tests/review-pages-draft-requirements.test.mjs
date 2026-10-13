@@ -270,8 +270,8 @@ test("spec-entry/draft - candidates are reviewed, classes changed, conflicts dec
   const proposals = fake.writes().filter((change) => change.files.some((file) => file.path.includes("docs/spec-freigaben/")));
   assert.equal(proposals.length, 1);
   const written = proposals[0].files.map((file) => file.text).join("\n---\n");
-  assert.match(written, /A MEMBER CAN RENEW ONCE/);
-  assert.match(written, /THE DUE DATE MAY BE HIDDEN/);
+  assert.match(written, /a member can renew once rule/);
+  assert.match(written, /the due date may be hidden rule/);
   assert.doesNotMatch(written, /AN EXTERNAL RULE IS NAMED/);
 });
 
