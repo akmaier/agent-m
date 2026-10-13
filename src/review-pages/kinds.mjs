@@ -14,7 +14,7 @@ const explain = { list: "accepting", all: "accepting", one: "accepting", changed
 // section of what is not accepted yet, and offers no Accept while there is any.
 export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-cases", title: "Use cases", plural: "use cases", noun: "use case",
   heading, explain: { ...explain, draft: { requirements: "requirements-to-cover", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop",
-    written: "drafted-use-cases", ci: "ci-agent-draft" } }, draft: "derive-use-cases" };
+    written: "drafted-use-cases", ci: "ci-agent-draft" }, instruction: "change-instruction" }, draft: "derive-use-cases", prompt: "change-use-case" };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
   plural: "architecture decisions", noun: "architecture decision", heading, explain, restsOn: true, whole: ["architecture-decision", "module"] };
 export const MODULES = { kind: "module", route: "module", entry: "architecture", title: "Module files", plural: "module files",

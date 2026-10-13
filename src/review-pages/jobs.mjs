@@ -44,39 +44,23 @@ async function defaultSnapshot(host) {
 }
 
 /**
- * showDraft(where, kind) — the drafting page of a kind: its selection, its participants, the run panel and the result of a run. `where` is the flow's: the
- * host and snapshot of the product (or of the instance itself), the token, the context and the target.
+ * loadStage(where, jobKind) -> { definition, participants, instanceSnapshot, product, needs, drafters } — what a page that starts a job of `jobKind` shows before it: the kind, the
+ * participants of the instance's register that can do what the kind needs, and what the product allows of a route.
  */
-export async function showDraft(where, kind) {
-  const { target, snapshot, token, host, context } = where;
-  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, null, `All ${kind.plural}`));
-  let definition, graph, participants, instanceSnapshot, info;
-  try {
-    definition = await kindOf(kind.draft);
-    graph = await traceGraph(snapshot);
-    instanceSnapshot = context.product ? await defaultSnapshot(context.instance.host) : snapshot;
-    const register = await instanceSnapshot.read(REGISTER);
-    participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
-    info = await host.repositoryInfo();
-  } catch (failure) {
-    target.append(problem(failure, token));
-    return;
-  }
-  const names = [...graph.nodes.values()].filter((node) => node.kind === "requirement").map((node) => node.id).sort();
-  const uncovered = new Set(coverageGaps(graph).requirementsWithoutUseCase);
-  const list = el("ul", "requirements");
-  for (const name of names) {
-    const box = el("input", "requirement");
-    box.type = "checkbox";
-    box.value = name;
-    box.checked = uncovered.has(name);
-    list.append(el("li", null, el("label", null, box, ` ${name}`)));
-  }
-  target.append(el("section", "to-cover", el("h3", null, "Requirements to cover"), list));
-
+export async function loadStage(where, jobKind) {
+  const { snapshot, host, context } = where;
+  const definition = await kindOf(jobKind);
+  const instanceSnapshot = context.product ? await defaultSnapshot(context.instance.host) : snapshot;
+  const register = await instanceSnapshot.read(REGISTER);
+  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  const info = await host.repositoryInfo();
   const product = { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) };
   const needs = definition.resources === "none" ? [] : [];
-  const drafters = eligible(participants, { capabilities: definition.needs }).eligible;
+  return { definition, participants, instanceSnapshot, product, needs, drafters: eligible(participants, { capabilities: definition.needs }).eligible };
+}
+
+/** participantList(drafters, product, needs) -> Element — each participant that can draft with where it processes data and its routes, a radio to choose it. */
+export function participantList(drafters, product, needs) {
   const offered = el("ul", "participants");
   for (const participant of drafters) {
     const box = el("input", "participant");
@@ -91,6 +75,38 @@ export async function showDraft(where, kind) {
     item.setAttribute("data-name", participant.name);
     offered.append(item);
   }
+  return offered;
+}
+
+/**
+ * showDraft(where, kind) — the drafting page of a kind: its selection, its participants, the run panel and the result of a run. `where` is the flow's: the
+ * host and snapshot of the product (or of the instance itself), the token, the context and the target.
+ */
+export async function showDraft(where, kind) {
+  const { target, snapshot, token, host, context } = where;
+  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  let graph, loaded;
+  try {
+    graph = await traceGraph(snapshot);
+    loaded = await loadStage(where, kind.draft);
+  } catch (failure) {
+    target.append(problem(failure, token));
+    return;
+  }
+  const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
+  const names = [...graph.nodes.values()].filter((node) => node.kind === "requirement").map((node) => node.id).sort();
+  const uncovered = new Set(coverageGaps(graph).requirementsWithoutUseCase);
+  const list = el("ul", "requirements");
+  for (const name of names) {
+    const box = el("input", "requirement");
+    box.type = "checkbox";
+    box.value = name;
+    box.checked = uncovered.has(name);
+    list.append(el("li", null, el("label", null, box, ` ${name}`)));
+  }
+  target.append(el("section", "to-cover", el("h3", null, "Requirements to cover"), list));
+
+  const offered = participantList(drafters, product, needs);
   target.append(el("section", "drafters", el("h3", null, "Drafting participant"), explain(kind.explain.draft.participant), offered));
 
   const stage = el("section", "stage");
@@ -104,7 +120,8 @@ export async function showDraft(where, kind) {
     const chosen = drafters.find((participant) => byClassChecked(offered, participant.name));
     if (!chosen) { stage.append(el("p", "problem", "Choose the participant that drafts.")); return; }
     const selected = inputsOf(list, "requirement").filter((box) => box.checked).map((box) => box.value);
-    await panelOf({ ...where, definition, kind, chosen, selected, participants, instanceSnapshot, product, needs, stage });
+    await panelOf({ ...where, definition, kind, jobKind: kind.draft, params: { requirements: selected }, worksOn: selected, present: presentDraft, chosen, participants,
+      instanceSnapshot, product, needs, stage });
   });
   target.append(prepare, stage);
 }
@@ -114,21 +131,21 @@ const inputsOf = (root, className) => {
   const walk = (node) => [...node.childNodes].flatMap((kid) => (kid.nodeType === 1 ? [kid, ...walk(kid)] : []));
   return walk(root).filter((node) => node.localName === "input" && node.className.split(" ").includes(className));
 };
-const byClassChecked = (list, name) => inputsOf(list, "participant").some((box) => box.value === name && box.checked);
+export const byClassChecked = (list, name) => inputsOf(list, "participant").some((box) => box.value === name && box.checked);
 
 // The run panel for the chosen participant and selection; Run starts the job.
-async function panelOf(run) {
-  const { stage, context, token, host, snapshot, definition, kind, chosen, selected, participants, instanceSnapshot } = run;
+export async function panelOf(run) {
+  const { stage, context, token, host, snapshot, definition, kind, chosen, params, participants, instanceSnapshot } = run;
   const now = new Date();
   const taken = new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));
   const id = newJobId(now, taken);
   const agentM = { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" };
-  const jobContext = { kind: definition, params: { requirements: selected }, product: { address: snapshot.repository?.web ?? "", snapshot, host },
+  const jobContext = { kind: definition, params, product: { address: snapshot.repository?.web ?? "", snapshot, host },
     instance: { snapshot: instanceSnapshot, host: context.product ? context.instance.host : host, checkout: null }, connect: async () => host, participants,
     places: { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
   let prepared;
   try {
-    prepared = await prepareJob(kind.draft, jobContext, { drafter: chosen, reviewers: [] });
+    prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: [] });
   } catch (failure) {
     stage.append(problem(failure, token));
     return;
@@ -138,29 +155,35 @@ async function panelOf(run) {
 }
 
 async function start(run) {
-  const { stage, host, token, snapshot, prepared, jobContext, id, now, agentM, offer, chosen, selected, kind, participants } = run;
+  const { stage, host, token, snapshot, prepared, id, now, agentM, offer, chosen, kind, params, worksOn } = run;
   const result = el("section", "job");
   stage.append(result);
   try {
     if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
-    const start_ = { id, kind: kind.draft, worksOn: selected, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
+    const start_ = { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
       startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
-      destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: { requirements: selected } };
+      destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
     const { path } = await queueJob(host, start_, offer.route, snapshot.commit);
     if (offer.route.kind !== "tab") {
       result.append(el("p", "queued", `Job ${id} is queued on the route ${recordRoute(offer.route)}; it is not run in this tab.`), explain(kind.explain.draft.ci));
       return;
     }
-    const outcome = await runOnTab(prepared, jobContext, connectionsOf(run.participants, run.context.store), { host, record: { ...start_, path } });
-    result.append(el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(kind.explain.draft.loop));
-    const left = el("ul", "left");
-    for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} — ${finding.fix}`));
-    const written = el("ul", "written");
-    for (const file of outcome.written?.files ?? []) written.append(el("li", null, file));
-    result.append(left, written, explain(kind.explain.draft.written), link(`#${kind.route}`, null, `All ${kind.plural}`));
+    const outcome = await runOnTab(prepared, run.jobContext, connectionsOf(run.participants, run.context.store), { host, record: { ...start_, path } });
+    await run.present(outcome, result, { ...run, record: start_ });
   } catch (failure) {
     result.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
   }
+}
+
+// What a run of the drafting job came to: the rounds, what the loop left, the files written.
+async function presentDraft(outcome, result, run) {
+  const { kind } = run;
+  result.append(el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(kind.explain.draft.loop));
+  const left = el("ul", "left");
+  for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} — ${finding.fix}`));
+  const written = el("ul", "written");
+  for (const file of outcome.written?.files ?? []) written.append(el("li", null, file));
+  result.append(left, written, explain(kind.explain.draft.written), link(`#${kind.route}`, null, `All ${kind.plural}`));
 }
 
 /**
