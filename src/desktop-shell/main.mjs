@@ -97,8 +97,8 @@ export async function start(electron, supplied = {}) {
   });
   electron.ipcMain.handle("pair-anew", async () => { bridge.token = await bridge.pairAnew(); return bridge.token; });
   electron.ipcMain.handle("copy", (_event, text) => electron.clipboard.writeText(String(text)));
-  electron.ipcMain.handle("pause", () => { paused = true; saveSettings(config.dataFolder, { ...bridge.settings, paused }); return paused; });
-  electron.ipcMain.handle("resume", () => { paused = false; saveSettings(config.dataFolder, { ...bridge.settings, paused }); return paused; });
+  electron.ipcMain.handle("pause", async () => { paused = true; await bridge.pauseWatching?.(); saveSettings(config.dataFolder, { ...bridge.settings, paused }); return paused; });
+  electron.ipcMain.handle("resume", async () => { paused = false; saveSettings(config.dataFolder, { ...bridge.settings, paused }); bridge.resumeWatching?.(); return paused; });
   electron.ipcMain.handle("retry-port", async (_event, port) => {
     config.port = Number(port);
     saveSettings(config.dataFolder, { ...loadSettings(config.dataFolder, { port: config.port }), port: config.port, paused });
