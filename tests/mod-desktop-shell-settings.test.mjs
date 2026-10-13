@@ -147,6 +147,87 @@ test("TST-291005: MOD-desktop-shell keeps ephemeral compose port separate from p
   } finally { rmSync(dataFolder, { recursive: true, force: true }); }
 });
 
+// TST-291007 · level: component · module: MOD-desktop-shell
+// guards: UC-044; THE BRIDGE OPENS ITS TUNNELS ITSELF; THE BRIDGE CREATES ITS OWN SSH KEY
+// given: persisted desktop settings with one canonical reverse tunnel plan, a pinned ssh2@1.17.0 loopback jump host, and the production compose entry
+// input: compose starts the Bridge, opens the stored tunnel, and the authenticated tunnel-state route is fetched through the forwarded reverse listener
+// expect: the forwarded route reports the actual open tunnel state, then compose.close clears runtime tunnel state and closes the server lifecycle
+// Planted fault: omitting openTunnels from compose.mjs leaves the tunnel state empty and the forwarded route unreachable.
+test("TST-291007: MOD-desktop-shell compose opens persisted tunnel plans through the real runtime", () => {
+  const dataFolder = folder();
+  const settingsSource = new URL("../src/desktop-shell/settings.mjs", import.meta.url).href;
+  const composeSource = new URL("../src/desktop-shell/compose.mjs", import.meta.url).href;
+  const bridgeHttpSource = new URL("../src/bridge-http/index.mjs", import.meta.url).href;
+  const script = `
+    import { createRequire } from "node:module";
+    import net from "node:net";
+    const require = createRequire(import.meta.url);
+    const { Server, utils } = require("ssh2");
+    const { saveSettings } = await import(${JSON.stringify(settingsSource)});
+    const { compose } = await import(${JSON.stringify(composeSource)});
+    const { bridgeApi } = await import(${JSON.stringify(bridgeHttpSource)});
+    const listen = (server) => new Promise((resolve, reject) => server.listen(0, "127.0.0.1", (error) => error ? reject(error) : resolve(server.address().port)));
+    const close = (server) => server ? new Promise((resolve) => server.close(resolve)) : Promise.resolve();
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const reserveBridge = net.createServer();
+    const bridgePort = await listen(reserveBridge);
+    await close(reserveBridge);
+    const reserveRemote = net.createServer();
+    const remotePort = await listen(reserveRemote);
+    await close(reserveRemote);
+    let remote;
+    const ssh = new Server({ hostKeys: [utils.generateKeyPairSync("rsa", { bits: 2048 }).private] }, (client) => {
+      client.on("error", () => {});
+      client.on("authentication", (context) => context.accept());
+      client.on("request", async (accept, reject, name, info) => {
+        if (name !== "tcpip-forward") return reject();
+        remote = net.createServer((socket) => client.forwardOut(info.bindAddr, info.bindPort, socket.remoteAddress, socket.remotePort, (error, stream) => {
+          if (error) return socket.destroy(error);
+          socket.pipe(stream).pipe(socket);
+        }));
+        await new Promise((resolve, rejectListen) => remote.listen(info.bindPort, info.bindAddr, (error) => error ? rejectListen(error) : resolve()));
+        accept();
+      });
+    });
+    const sshPort = await listen(ssh);
+    saveSettings(process.argv[1], {
+      name: "desktop-bridge",
+      port: bridgePort,
+      agents: [],
+      products: [],
+      every: 300,
+      paused: false,
+      jumpHost: { hostname: "127.0.0.1", user: "fixture", sshPort },
+      tunnels: [{ direction: "reverse", jumpHost: "127.0.0.1", user: "fixture", sshPort, remotePort, bind: "127.0.0.1", bridgePort }],
+    });
+    const bridge = await compose({ instance: "example/agent-m", origin: "https://owner.github.io", dataFolder: process.argv[1] });
+    try {
+      for (let attempt = 0; attempt < 80 && (await bridge.tunnels())[0]?.state !== "open"; attempt += 1) await wait(10);
+      const openState = (await bridge.tunnels())[0];
+      const response = await fetch("http://127.0.0.1:" + remotePort + "/v1/tunnels", { headers: { Origin: "https://owner.github.io", [bridgeApi.tokenHeader]: bridge.token } });
+      const body = await response.json();
+      await bridge.close();
+      const closedState = await bridge.tunnels();
+      await close(remote);
+      await close(ssh);
+      if (openState?.state !== "open" || response.status !== 200 ||
+        JSON.stringify(body) !== JSON.stringify({ tunnels: [{ name: "reverse:127.0.0.1:" + remotePort, kind: "reverse", state: "open", reason: null }] }) ||
+        closedState.length !== 0) throw Error(JSON.stringify({ openState, status: response.status, body, closedState }));
+      console.log("desktop-compose-reverse-positive");
+    } catch (error) {
+      try { await bridge.close(); } catch {}
+      try { await close(remote); } catch {}
+      try { await close(ssh); } catch {}
+      throw error;
+    }
+  `;
+  try {
+    const result = spawnSync(process.execPath, ["--input-type=module", "-e", script, dataFolder], { encoding: "utf8", timeout: 40_000, env: { ...process.env, NODE_PATH: sshRuntime() } });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /desktop-compose-reverse-positive/);
+  } finally { rmSync(dataFolder, { recursive: true, force: true }); }
+});
+
 class MapStorage {
   #entries;
   constructor(values) { this.#entries = Object.entries(values).map(([key, value]) => [`agent-m:example/agent-m:${key}`, JSON.stringify(value)]); }
