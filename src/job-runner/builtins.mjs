@@ -17,6 +17,18 @@ const part = (name, text) => ({ name, text, size: 0, sources: [], required: true
 // A candidate written as the SPEC writes a requirement — its name and the job's source on the head line, then its rule, then
 // its check — for MOD-spec-document to read as it reads one. White space is folded into single blanks: a candidate is one
 // block of lines, whatever its rule and its check hold.
+// Whether a file holds a test case, by its language's form of one at the start of a line (a comment, or a name that only ends in `test`, is none): JavaScript and TypeScript — `test(`, `it(`,
+// `describe(` and their `.only` / `.skip` / `.todo` forms; Python — `def test…(`; Go — `func Test…(`; Rust — `#[test]`; Java and Kotlin — `@Test`. A Markdown file holds a test case where it has a
+// `### TST-` heading, which is its declaration, so it never lacks one; a file of another language, or of data, holds none. A fixture or a helper added under `tests/` has nothing to declare.
+const TEST_CASE_FORMS = [
+  [/\.(?:[cm]?[jt]sx?)$/, /^[ \t]*(?:test|it|describe)(?:\.(?:only|skip|todo))?\(/m],
+  [/\.py$/, /^[ \t]*(?:async[ \t]+)?def[ \t]+test\w*\(/m],
+  [/\.go$/, /^func[ \t]+Test\w*\(/m],
+  [/\.rs$/, /^[ \t]*#\[test\]/m],
+  [/\.(?:java|kt)$/, /^[ \t]*@Test\b/m],
+];
+const holdsTestCase = (path, text) => TEST_CASE_FORMS.some(([name, form]) => name.test(path) && form.test(text));
+
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
 const written = ({ name, rule, check }, source) =>
   [`**${folded(name)}** *(${source})*`, folded(rule), `*Check:* ${folded(check)}`].filter(Boolean).join("\n");
@@ -112,7 +124,7 @@ export const builtins = {
         .join("\n\n")));
     },
     // MOD-test-document's testFindings on every declaration in the files that the branch the coding participant reports adds
-    // or changes, and an error for a file the branch adds that isTestFile calls a test file and that declares none. The branch
+    // or changes, and an error for a file the branch adds that isTestFile calls a test file, that holds a test case — told by its language's form of one — and that declares none: an added test, not a file. The branch
     // is read through the product's host with readSnapshot; a file counts as changed when its blob differs from its blob in
     // the product's own snapshot, where a file the branch adds has none. A branch the host does not hold is a finding sent
     // back, since the participant reported a branch it has not pushed; any other failure of the host is thrown.
@@ -130,11 +142,12 @@ export const builtins = {
       for (const path of branch.paths) {
         const before = snapshot.blob(path);
         if (branch.blob(path) === before) continue;
-        const declarations = testDeclarations(path, await branch.read(path));
+        const text = await branch.read(path);
+        const declarations = testDeclarations(path, text);
         for (const declaration of declarations) found.push(...testFindings(declaration));
-        if (before === null && declarations.length === 0 && isTestFile(path)) {
+        if (before === null && declarations.length === 0 && isTestFile(path) && holdsTestCase(path, text)) {
           found.push(finding({ artifact: path, line: 1, kind: "error", rule: EXPECTED_RESULT,
-            what: "the test file declares no test",
+            what: "the test file holds a test case and declares no test",
             fix: "declare each test case in comment lines directly before it: its TST-<nnn> identifier, then level:, module:, "
               + "guards:, given:, input: and expect:" }));
         }
