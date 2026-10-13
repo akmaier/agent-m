@@ -1,10 +1,11 @@
 // MOD-reuse-facts - the due-diligence facts of a reuse candidate, read from package registries and source repositories
-// (docs/architecture/MOD-reuse-facts.md). ITM-435 builds registryFacts and licenceVerdict; hubFacts and the due-diligence
-// strategy come with later backlog items.
+// (docs/architecture/MOD-reuse-facts.md). registryFacts and licenceVerdict read package facts and licence compatibility;
+// reuseStrategies adds those facts to drafted architecture decisions. hubFacts comes with a later backlog item.
 //
 // Module: MOD-reuse-facts
 
 import { parseAddress, connect as connectRepositoryHost } from "../repository-hosts/index.mjs";
+import { finding } from "../text-tools/index.mjs";
 
 const OWNER = "MOD-reuse-facts";
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -331,4 +332,235 @@ export async function hubFacts() {
   throw error;
 }
 
-export const reuseStrategies = Object.freeze({});
+// ---------------------------------------------------------------- due-diligence step
+
+const ARC_PATH = /^docs\/architecture\/ARC-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const DECISION_SECTIONS = Object.freeze([
+  ["## Decision", "chosen"],
+  ["## Alternatives", "alternative"],
+]);
+
+function sectionLines(text, heading) {
+  const lines = String(text).split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === heading);
+  if (start < 0) return [];
+  let end = lines.length;
+  for (let at = start + 1; at < lines.length; at += 1) {
+    if (/^##\s+/.test(lines[at])) {
+      end = at;
+      break;
+    }
+  }
+  return lines.slice(start + 1, end).map((line, at) => ({ text: line, line: start + at + 2 }));
+}
+
+function valueOf(row, name) {
+  const found = Object.entries(row).find(([key]) => key.toLowerCase() === name.toLowerCase());
+  return found ? found[1] : "";
+}
+
+function plainCell(value) {
+  return String(value ?? "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .trim();
+}
+
+function normalEcosystem(value) {
+  const text = plainCell(value).toLowerCase();
+  return REGISTRIES.has(text) ? text : null;
+}
+
+function candidateFrom(row, fallbackRole, line) {
+  const rawName = plainCell(valueOf(row, "Candidate") || valueOf(row, "Name"));
+  const namedEcosystem = /\((npm|pypi|crates|maven)\)/i.exec(rawName)?.[1] ?? "";
+  const ecosystem = normalEcosystem(valueOf(row, "Ecosystem") || namedEcosystem);
+  const name = rawName
+    .replace(/\s+-\s+(chosen|alternative)$/i, "")
+    .replace(/\s+\((npm|pypi|crates|maven)\)$/i, "")
+    .trim();
+  if (!name || !ecosystem) return null;
+  const repository = plainCell(valueOf(row, "Repository") || valueOf(row, "Source repository")) || null;
+  return { candidate: { name, ecosystem, repository }, line,
+    role: plainCell(valueOf(row, "Role")).toLowerCase() || fallbackRole };
+}
+
+function candidateRowsIn(lines, fallbackRole) {
+  const rows = [];
+  let header = null;
+  for (const line of lines) {
+    const cells = cellsOf(line.text);
+    if (!cells) {
+      header = null;
+      continue;
+    }
+    if (cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
+    if (!header) {
+      header = cells;
+      continue;
+    }
+    if (!header.some((cell) => cell.toLowerCase() === "candidate")) continue;
+    const row = Object.fromEntries(header.map((column, at) => [column, cells[at] ?? ""]));
+    const candidate = candidateFrom(row, fallbackRole, line.line);
+    if (candidate) rows.push(candidate);
+  }
+  return rows;
+}
+
+function reuseCandidates(text) {
+  return DECISION_SECTIONS.flatMap(([heading, role]) => candidateRowsIn(sectionLines(text, heading), role));
+}
+
+function licenceFromLicenseFile(text) {
+  const body = String(text ?? "").trim();
+  if (!body) return null;
+  const first = body.split(/\r?\n/).find((line) => line.trim())?.trim() ?? "";
+  const spdx = /^SPDX-License-Identifier:\s*(.+)$/i.exec(first)?.[1]?.trim();
+  if (spdx) return spdx;
+  if (/MIT License/i.test(body) || /^MIT$/i.test(first)) return "MIT";
+  if (/Apache License/i.test(body) && /Version 2\.0/i.test(body)) return "Apache-2.0";
+  if (/GNU GENERAL PUBLIC LICENSE/i.test(body) && /Version 3/i.test(body)) return "GPL-3.0";
+  if (/BSD 3-Clause/i.test(body) || /Redistribution and use in source and binary forms/i.test(body)) return "BSD-3-Clause";
+  if (/ISC License/i.test(body) || /^ISC$/i.test(first)) return "ISC";
+  return first.length <= 80 ? first : null;
+}
+
+async function productLicence(context) {
+  const text = await context?.product?.snapshot?.read?.("LICENSE");
+  return licenceFromLicenseFile(text);
+}
+
+function factValue(due, what) {
+  return due.facts.find((each) => each.what === what)?.value ?? "-";
+}
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function candidateLabel(meta) {
+  return `${meta.candidate.name} (${meta.candidate.ecosystem})${meta.role === "chosen" ? " - chosen" : ""}`;
+}
+
+function tableCell(value) {
+  return String(value ?? "-").replaceAll("|", "\\|");
+}
+
+function dueDiligenceRow({ meta, due }) {
+  const exists = due.facts.find((each) => each.what === "exists");
+  const licence = factValue(due, "licence") === "-" && exists?.value !== "yes" ? exists.value : factValue(due, "licence");
+  const open = factValue(due, "open issues");
+  const closed = factValue(due, "closed issues");
+  const issueCounts = open === "-" || closed === "-" ? "-" : `${open} / ${closed}`;
+  const addresses = unique(due.facts.map((each) => each.address)).join(", ") || "-";
+  const dates = unique(due.facts.map((each) => each.read)).join(", ") || "-";
+  const verdict = due.licence === "compatible" ? "yes" : due.licence;
+  return `| ${[
+    candidateLabel(meta),
+    licence,
+    verdict,
+    factValue(due, "first release"),
+    factValue(due, "latest release"),
+    factValue(due, "releases"),
+    issueCounts,
+    factValue(due, "adoption"),
+    addresses,
+    dates,
+  ].map(tableCell).join(" | ")} |`;
+}
+
+function dueDiligenceSection(results, licence) {
+  const intro = licence
+    ? `Product licence: ${licence}.`
+    : "No product LICENSE was found; the product's licence decides what it may reuse.";
+  return [
+    "## Due diligence",
+    "",
+    intro,
+    "",
+    "| Candidate | Licence | Compatible with the product's licence | First release | Latest release | Releases | Open / closed issues | Adoption | Read from | Read on |",
+    "|---|---|---|---|---|---|---|---|---|---|",
+    ...results.map(dueDiligenceRow),
+  ].join("\n");
+}
+
+function withoutDueDiligenceSection(text) {
+  const lines = String(text).split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === "## Due diligence");
+  if (start < 0) return String(text);
+  let end = lines.length;
+  for (let at = start + 1; at < lines.length; at += 1) {
+    if (/^##\s+/.test(lines[at])) {
+      end = at;
+      break;
+    }
+  }
+  return [...lines.slice(0, start), ...lines.slice(end)].join("\n").replace(/\n*$/, "\n");
+}
+
+function withDueDiligenceSection(text, section) {
+  const without = withoutDueDiligenceSection(text).replace(/\n*$/, "");
+  const lines = without.split(/\r?\n/);
+  const consequences = lines.findIndex((line) => line.trim() === "## Consequences");
+  if (consequences < 0) return `${without}\n\n${section}\n`;
+  const before = lines.slice(0, consequences).join("\n").replace(/\n*$/, "");
+  const after = lines.slice(consequences).join("\n").replace(/^\n*/, "");
+  return `${before}\n\n${section}\n\n${after}\n`;
+}
+
+function notFoundFinding(path, meta, due) {
+  const exists = due.facts.find((each) => each.what === "exists");
+  return finding({ artifact: path, line: meta.line, kind: "warning",
+    rule: "DUE DILIGENCE IS FETCHED, NOT RECALLED",
+    what: `${meta.candidate.name} was not found at ${exists?.address ?? packageAddress(meta.candidate)}`,
+    fix: "check the candidate's name or choose another candidate" });
+}
+
+function blockedFinding(path, meta, due) {
+  const match = /^([^ ]+) at (.*): (.*)$/.exec(due.blocked ?? "");
+  const registry = match?.[1] ?? meta.candidate.ecosystem;
+  const address = match?.[2] ?? packageAddress(meta.candidate);
+  const reason = match?.[3] ?? due.blocked ?? "unknown";
+  return finding({ artifact: path, line: meta.line, kind: "error",
+    rule: "A REUSE DECISION RECORDS ITS DUE DILIGENCE",
+    what: `the registry ${registry} could not be read at ${address}: ${reason}`,
+    fix: "fetch the facts through a participant that can reach the web" });
+}
+
+async function dueDiligence(draft, context) {
+  if (!draft || !Array.isArray(draft.files)) return { draft, findings: [] };
+  const licence = await productLicence(context);
+  const findings = [];
+  const options = { fetch: context?.fetch, connect: context?.connect, now: context?.now };
+  const files = [];
+
+  for (const file of draft.files) {
+    if (!ARC_PATH.test(file?.path ?? "") || typeof file?.text !== "string") {
+      files.push(file);
+      continue;
+    }
+    const candidates = reuseCandidates(file.text);
+    if (!candidates.length) {
+      files.push(file);
+      continue;
+    }
+
+    const results = [];
+    for (const meta of candidates) {
+      const due = await registryFacts(meta.candidate, licence, options);
+      results.push({ meta, due });
+      if (due.blocked) findings.push(blockedFinding(file.path, meta, due));
+      else if (!due.found) findings.push(notFoundFinding(file.path, meta, due));
+    }
+
+    if (results.some(({ due }) => due.blocked)) {
+      files.push(file);
+    } else {
+      files.push({ ...file, text: withDueDiligenceSection(file.text, dueDiligenceSection(results, licence)) });
+    }
+  }
+
+  return { draft: { ...draft, files }, findings };
+}
+
+export const reuseStrategies = { recipes: {}, checks: {}, preconditions: {}, steps: { "due-diligence": dueDiligence }, writers: {} };
