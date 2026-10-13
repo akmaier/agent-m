@@ -375,9 +375,6 @@ test("TST-409108: doneCheck checks the conditions the declaration adds", async (
   const oneBob = example({ reviews: [review("bob"), review("bob")], checks: met.checks });
   assert.equal((await check(oneBob, { workflow, gates })).length, 1, "two reviews by one reviewer are one");
 });
-  assert.deepEqual(rules(found), ["A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS"]);
-  assert.match(found[0].what, /deploy: friday/);
-});
 
 // TST-409109 · level: unit · module: MOD-product-process
 // guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
