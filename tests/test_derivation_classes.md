@@ -216,3 +216,125 @@ runner receives a draft that already names the existing artifacts for its change
   }
 }
 ```
+
+## architecture files are classed by their format keys
+
+The precondition is that the architecture already shows one decision by its title and one module by its identifier. The
+draft contains decision and module files that are new, changed, duplicates, conflicts and two new module files with the
+same identifier.
+
+### Case
+
+```json
+{
+  "input": {
+    "kind": "architecture-classes",
+    "existing": [
+      { "id": "ARC-001", "keys": ["Static client"] },
+      { "id": "MOD-reader", "keys": ["MOD-reader"] }
+    ],
+    "files": [
+      {
+        "path": "docs/architecture/ARC-010-new-shape.md",
+        "text": "---\nid: ARC-010\ntitle: New shape\nforced_by:\n  - UC-001\n---\n# ARC-010 New shape\n\n## Context\n\nx\n\n## Decision\n\nx\n\n## Alternatives\n\nx\n\n## Consequences\n\nx\n",
+        "class": "new"
+      },
+      {
+        "path": "docs/architecture/ARC-011-static-client-copy.md",
+        "text": "---\nid: ARC-011\ntitle: Static client\nforced_by:\n  - UC-001\n---\n# ARC-011 Static client\n\n## Context\n\nx\n\n## Decision\n\nx\n\n## Alternatives\n\nx\n\n## Consequences\n\nx\n",
+        "class": "duplicate",
+        "of": "ARC-001"
+      },
+      {
+        "path": "docs/architecture/ARC-012-static-client-cache.md",
+        "text": "---\nid: ARC-012\ntitle: Static client with cache\nforced_by:\n  - UC-001\n---\n# ARC-012 Static client with cache\n\n## Context\n\nx\n\n## Decision\n\nx\n\n## Alternatives\n\nx\n\n## Consequences\n\nx\n",
+        "class": "change",
+        "of": "ARC-001"
+      },
+      {
+        "path": "docs/architecture/ARC-013-no-static-client.md",
+        "text": "---\nid: ARC-013\ntitle: No static client\nforced_by:\n  - UC-001\n---\n# ARC-013 No static client\n\n## Context\n\nx\n\n## Decision\n\nx\n\n## Alternatives\n\nx\n\n## Consequences\n\nx\n",
+        "class": "conflict",
+        "of": "ARC-001"
+      },
+      {
+        "path": "docs/architecture/MOD-reader-copy.md",
+        "text": "---\nid: MOD-reader\ntitle: Reader copy\nfolder: src/reader-copy/\nrealises:\n  - UC-001\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - readFile\n---\n# MOD-reader Reader copy\n\n## Responsibility\n\nx\n\n## Parts\n\nx\n\n## Data\n\nx\n\n## Interfaces\n\nx\n\n## Files\n\nx\n\n## Uses\n\nx\n",
+        "class": "duplicate",
+        "of": "MOD-reader"
+      },
+      {
+        "path": "docs/architecture/MOD-writer.md",
+        "text": "---\nid: MOD-writer\ntitle: Writer\nfolder: src/writer/\nrealises:\n  - UC-001\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - writeFile\n---\n# MOD-writer Writer\n\n## Responsibility\n\nx\n\n## Parts\n\nx\n\n## Data\n\nx\n\n## Interfaces\n\nx\n\n## Files\n\nx\n\n## Uses\n\nx\n",
+        "class": "change",
+        "of": "MOD-reader"
+      },
+      {
+        "path": "docs/architecture/MOD-cache-a.md",
+        "text": "---\nid: MOD-cache\ntitle: Cache A\nfolder: src/cache-a/\nrealises:\n  - UC-001\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - cache\n---\n# MOD-cache Cache A\n\n## Responsibility\n\nx\n\n## Parts\n\nx\n\n## Data\n\nx\n\n## Interfaces\n\nx\n\n## Files\n\nx\n\n## Uses\n\nx\n",
+        "class": "new"
+      },
+      {
+        "path": "docs/architecture/MOD-cache-b.md",
+        "text": "---\nid: MOD-cache\ntitle: Cache B\nfolder: src/cache-b/\nrealises:\n  - UC-001\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - cache\n---\n# MOD-cache Cache B\n\n## Responsibility\n\nx\n\n## Parts\n\nx\n\n## Data\n\nx\n\n## Interfaces\n\nx\n\n## Files\n\nx\n\n## Uses\n\nx\n",
+        "class": "new"
+      }
+    ]
+  },
+  "expected": {
+    "stoppedBecause": "passed",
+    "remaining": [],
+    "classes": [
+      {
+        "refs": ["docs/architecture/ARC-010-new-shape.md"],
+        "from": ["docs/architecture/ARC-010-new-shape.md"],
+        "class": "new",
+        "of": null,
+        "decidedBy": "participant"
+      },
+      {
+        "refs": ["docs/architecture/ARC-011-static-client-copy.md"],
+        "from": ["docs/architecture/ARC-011-static-client-copy.md"],
+        "class": "duplicate",
+        "of": "ARC-001",
+        "decidedBy": "rule"
+      },
+      {
+        "refs": ["docs/architecture/ARC-012-static-client-cache.md"],
+        "from": ["docs/architecture/ARC-012-static-client-cache.md"],
+        "class": "change",
+        "of": "ARC-001",
+        "decidedBy": "participant"
+      },
+      {
+        "refs": ["docs/architecture/ARC-013-no-static-client.md"],
+        "from": ["docs/architecture/ARC-013-no-static-client.md"],
+        "class": "conflict",
+        "of": "ARC-001",
+        "decidedBy": "participant"
+      },
+      {
+        "refs": ["docs/architecture/MOD-reader-copy.md"],
+        "from": ["docs/architecture/MOD-reader-copy.md"],
+        "class": "duplicate",
+        "of": "MOD-reader",
+        "decidedBy": "rule"
+      },
+      {
+        "refs": ["docs/architecture/MOD-writer.md"],
+        "from": ["docs/architecture/MOD-writer.md"],
+        "class": "change",
+        "of": "MOD-reader",
+        "decidedBy": "participant"
+      },
+      {
+        "refs": ["docs/architecture/MOD-cache-a.md", "docs/architecture/MOD-cache-b.md"],
+        "from": ["docs/architecture/MOD-cache-a.md", "docs/architecture/MOD-cache-b.md"],
+        "class": "new",
+        "of": null,
+        "decidedBy": "participant"
+      }
+    ]
+  }
+}
+```

@@ -1,5 +1,5 @@
 # Module: system
-# Guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; A CONFLICT IS DECIDED BY A PERSON; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
+# Guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; A CONFLICT IS DECIDED BY A PERSON; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES; THE DERIVATION RULES HOLD FOR ARCHITECTURE
 # Level: release
 """SPEC section 8 - the check named tests/test_derivation_classes.py.
 
@@ -23,6 +23,10 @@ const CANDIDATES = { type: "object", required: ["candidates"], properties: { can
   type: "object", required: ["name", "rule", "check", "constrains", "passage", "class"], properties: {
     name: { type: "string" }, rule: { type: "string" }, check: { type: "string" },
     constrains: { type: "string", enum: ["product", "process"] }, passage: { type: "string" },
+    class: { type: "string", enum: ["new", "change", "duplicate", "conflict"] }, of: { type: "string" } } } } } };
+const FILES = { type: "object", required: ["files"], properties: { files: { type: "array", items: {
+  type: "object", required: ["path", "text", "class"], properties: {
+    path: { type: "string" }, text: { type: "string" },
     class: { type: "string", enum: ["new", "change", "duplicate", "conflict"] }, of: { type: "string" } } } } } };
 const DRAFTER = { name: "fixture-drafter", type: "CLI agent", model: "fixture-model", context: 200000,
   capabilities: ["draft text"], place: "this machine", route: "fixture" };
@@ -86,6 +90,11 @@ const kindNaming = (checks) => ({ name: "derive-requirements", serves: [], parti
   personDecides: [], reviewer: null, reviewers: 0, steps: [], gatePoints: [], review: "person", writer: "return-draft",
   limit: 5, purpose: "Derives requirements, for a test.", prompt: "Derive the requirements.\\n\\n{{existing-requirements}}",
   answer: CANDIDATES });
+const architectureKind = (checks) => ({ name: "derive-architecture", serves: [], participant: "one", needs: ["draft text"],
+  resources: "none", preconditions: [], recipes: [{ name: "whole-architecture", optional: false }], checks,
+  personDecides: [], reviewer: null, reviewers: 0, steps: [], gatePoints: [], review: "person", writer: "return-draft",
+  limit: 5, purpose: "Derives architecture, for a test.", prompt: "Derive architecture.\\n\\n{{whole-architecture}}",
+  answer: FILES });
 
 const filesOf = (commit) => Object.fromEntries(commit.files.map((file) => [file.path, file.text ?? ""]));
 const folderOf = (commit) => [...new Set(commit.files.map((file) => file.path.split("/").slice(0, 3).join("/")))].at(0);
@@ -120,9 +129,25 @@ async function jobRunnerAndQueueCase(input) {
   };
 }
 
+async function architectureClassesCase(input) {
+  const kind = architectureKind(["candidate-classes"]);
+  const context = { kind, params: {}, product: { address: "https://github.com/alice/product", snapshot: null, host: null },
+    instance: { snapshot: null, host: null, checkout: null }, connect: async () => null, participants: [],
+    places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date("2026-10-13T11:00:00Z"),
+    agentM: { version: "unreleased", commit: "d".repeat(40) }, jobId: "JOB-20261013-1100-itm447" };
+  const parts = [{ name: "existing architecture", size: 0, sources: [], required: true,
+    recipe: "whole-architecture", artifacts: input.existing, text: "" }];
+  const job = { kind, params: {}, drafter: DRAFTER, reviewers: [], parts, destinations: [], fits: true,
+    notFitting: [], leftOut: [], blocking: [], limit: 5 };
+  const result = await jobRunner.runJob(job, { drafter: null, reviewers: [] },
+    { attended: true, context, from: { files: input.files } });
+  return { stoppedBecause: result.stoppedBecause, remaining: result.remaining, classes: result.classes };
+}
+
 async function derivationClassesResult(input) {
   if (input.kind === "classifier") return classificationCase(input);
   if (input.kind === "job-runner-and-queue") return await jobRunnerAndQueueCase(input);
+  if (input.kind === "architecture-classes") return await architectureClassesCase(input);
   throw new Error(`unknown derivation class case ${input.kind}`);
 }
 """
@@ -161,7 +186,7 @@ class TestDerivationClasses(unittest.TestCase):
     # expect: the executable product behaviour equals the expected class and queue-entry result stated in the data file
     def test_derivation_class_cases_match_their_expected_results(self):
         loaded = cases()
-        self.assertEqual([item["case"]["input"]["kind"] for item in loaded], ["classifier", "job-runner-and-queue"])
+        self.assertEqual([item["case"]["input"]["kind"] for item in loaded], ["classifier", "job-runner-and-queue", "architecture-classes"])
         for item in loaded:
             with self.subTest(case=item["name"]):
                 self.assertEqual(result(item["case"]), item["case"]["expected"])
@@ -184,6 +209,12 @@ class TestDerivationClasses(unittest.TestCase):
         self.assertIn("**A WRITE RULE** *(Product Owner; SRC-fixture-book, ch. 9)*", written)
         self.assertNotIn("**RESTATES THE WRITE RULE**", written)
         self.assertFalse(loaded["job-runner-and-queue"]["expected"]["writer"]["conflictWritten"])
+
+        architecture = loaded["architecture-classes"]["expected"]["classes"]
+        self.assertLessEqual({"new", "change", "duplicate", "conflict"}, {item["class"] for item in architecture})
+        self.assertTrue(any(item["of"] == "ARC-001" and item["decidedBy"] == "rule" for item in architecture))
+        self.assertTrue(any(item["of"] == "MOD-reader" and item["decidedBy"] == "rule" for item in architecture))
+        self.assertTrue(any(len(item["refs"]) == 2 and item["class"] == "new" for item in architecture))
 
 
 if __name__ == "__main__":

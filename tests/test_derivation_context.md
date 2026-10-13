@@ -138,3 +138,251 @@ prepared destination.
   }
 }
 ```
+
+## architecture derivation receives the whole project and draft
+
+The precondition is a first architecture derivation: the fixture product has two requirements, two use cases, approval
+records for both use cases and no selection parameters. The fixture drafter returns a complete first draft; the fixture
+reviewer returns no findings.
+
+### Case
+
+```json
+{
+  "input": {
+    "name": "whole-project",
+    "case": "architecture-prepare",
+    "kind": "derive-architecture",
+    "reviewers": true,
+    "params": {},
+    "productSpec": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+    "useCases": [
+      { "id": "UC-001", "title": "Read a file", "path": "docs/use-cases/UC-001-read-a-file.md" },
+      { "id": "UC-002", "title": "Write a file", "path": "docs/use-cases/UC-002-write-a-file.md" }
+    ],
+    "accepted": ["UC-001", "UC-002"],
+    "draftFiles": [
+      {
+        "path": "docs/architecture/ARC-001-whole-file-flow.md",
+        "text": "---\nid: ARC-001\ntitle: Whole file flow\nforced_by:\n  - A SAMPLE RULE\n  - A SECOND RULE\n  - UC-001\n  - UC-002\ndesigns:\n  - MOD-reader\n  - MOD-writer\n---\n# ARC-001 Whole file flow\n\n## Context\n\nFiles are read and written through two modules.\n\n## Decision\n\nUse reader and writer modules under one root decision.\n\n## Alternatives\n\nKeep one module.\n\n## Consequences\n\nThe file flow remains explicit.\n",
+        "class": "new"
+      },
+      {
+        "path": "docs/architecture/MOD-reader.md",
+        "text": "---\nid: MOD-reader\ntitle: Reader\nfolder: src/reader/\nrealises:\n  - A SAMPLE RULE\n  - UC-001\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - readFile\n---\n# MOD-reader Reader\n\n## Responsibility\n\nRead files.\n\n## Parts\n\nOne reader service.\n\n## Data\n\nPath and content.\n\n## Interfaces\n\nreadFile(path) returns text.\n\n## Files\n\nsrc/reader/index.mjs\n\n## Uses\n\nNone.\n",
+        "class": "new"
+      },
+      {
+        "path": "docs/architecture/MOD-writer.md",
+        "text": "---\nid: MOD-writer\ntitle: Writer\nfolder: src/writer/\nrealises:\n  - A SECOND RULE\n  - UC-002\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - writeFile\n---\n# MOD-writer Writer\n\n## Responsibility\n\nWrite files.\n\n## Parts\n\nOne writer service.\n\n## Data\n\nPath and content.\n\n## Interfaces\n\nwriteFile(path, text) stores text.\n\n## Files\n\nsrc/writer/index.mjs\n\n## Uses\n\nNone.\n",
+        "class": "new"
+      }
+    ]
+  },
+  "expected": {
+    "fits": true,
+    "blocking": [],
+    "leftOut": [],
+    "params": {},
+    "partOrder": [
+      { "recipe": "whole-spec", "name": "SPEC.md" },
+      { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-001-read-a-file.md \u2014 accepted" },
+      { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-002-write-a-file.md \u2014 accepted" },
+      { "recipe": "chapters-for-architecture", "name": "chapters 9 to 12 fixture" }
+    ],
+    "wholeSpecText": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+    "acceptedUseCases": [
+      "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+      "docs/use-cases/UC-002-write-a-file.md \u2014 accepted"
+    ],
+    "destinations": [
+      {
+        "role": "drafter",
+        "participant": "drafter-a",
+        "parts": [
+          "SPEC.md",
+          "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+          "docs/use-cases/UC-002-write-a-file.md \u2014 accepted",
+          "chapters 9 to 12 fixture"
+        ]
+      },
+      {
+        "role": "reviewer",
+        "participant": "reviewer-b",
+        "parts": [
+          "SPEC.md",
+          "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+          "docs/use-cases/UC-002-write-a-file.md \u2014 accepted",
+          "chapters 9 to 12 fixture"
+        ]
+      }
+    ],
+    "notFitting": [],
+    "runError": null,
+    "stoppedBecause": "passed",
+    "remaining": [],
+    "sent": { "drafter": 1, "reviewer": 1 },
+    "drafterInput": {
+      "partOrder": [
+        { "recipe": "whole-spec", "name": "SPEC.md" },
+        { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-001-read-a-file.md \u2014 accepted" },
+        { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-002-write-a-file.md \u2014 accepted" },
+        { "recipe": "chapters-for-architecture", "name": "chapters 9 to 12 fixture" }
+      ],
+      "wholeSpecText": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+      "acceptedUseCases": [
+        "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+        "docs/use-cases/UC-002-write-a-file.md \u2014 accepted"
+      ],
+      "draftFiles": []
+    },
+    "reviewerInput": {
+      "partOrder": [
+        { "recipe": "whole-spec", "name": "SPEC.md" },
+        { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-001-read-a-file.md \u2014 accepted" },
+        { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-002-write-a-file.md \u2014 accepted" },
+        { "recipe": "chapters-for-architecture", "name": "chapters 9 to 12 fixture" },
+        { "recipe": "draft", "name": "draft" }
+      ],
+      "wholeSpecText": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+      "acceptedUseCases": [
+        "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+        "docs/use-cases/UC-002-write-a-file.md \u2014 accepted"
+      ],
+      "draftFiles": [
+        "docs/architecture/ARC-001-whole-file-flow.md",
+        "docs/architecture/MOD-reader.md",
+        "docs/architecture/MOD-writer.md"
+      ]
+    }
+  }
+}
+```
+
+## architecture derivation of an open part is refused
+
+The precondition is the same product, but only `UC-001` has an approval record. The attempted run proves a derivation
+of only the accepted part is refused before any prompt is sent.
+
+### Case
+
+```json
+{
+  "input": {
+    "name": "open-use-case-refused",
+    "case": "architecture-prepare",
+    "kind": "derive-architecture",
+    "reviewers": true,
+    "attemptRun": true,
+    "params": {},
+    "productSpec": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+    "useCases": [
+      { "id": "UC-001", "title": "Read a file", "path": "docs/use-cases/UC-001-read-a-file.md" },
+      { "id": "UC-002", "title": "Write a file", "path": "docs/use-cases/UC-002-write-a-file.md" }
+    ],
+    "accepted": ["UC-001"]
+  },
+  "expected": {
+    "fits": true,
+    "blocking": [
+      ["error", "ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES"]
+    ],
+    "leftOut": [],
+    "params": {},
+    "partOrder": [
+      { "recipe": "whole-spec", "name": "SPEC.md" },
+      { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-001-read-a-file.md \u2014 accepted" },
+      { "recipe": "chapters-for-architecture", "name": "chapters 9 to 12 fixture" }
+    ],
+    "wholeSpecText": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+    "acceptedUseCases": ["docs/use-cases/UC-001-read-a-file.md \u2014 accepted"],
+    "destinations": [
+      {
+        "role": "drafter",
+        "participant": "drafter-a",
+        "parts": [
+          "SPEC.md",
+          "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+          "chapters 9 to 12 fixture"
+        ]
+      },
+      {
+        "role": "reviewer",
+        "participant": "reviewer-b",
+        "parts": [
+          "SPEC.md",
+          "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+          "chapters 9 to 12 fixture"
+        ]
+      }
+    ],
+    "notFitting": [],
+    "runError": "NotStartable",
+    "stoppedBecause": null,
+    "remaining": null,
+    "sent": { "drafter": 0, "reviewer": 0 },
+    "drafterInput": null,
+    "reviewerInput": null
+  }
+}
+```
+
+## small participant is not sent a too-large architecture context
+
+The precondition is the first architecture derivation with both use cases accepted, but the chosen drafter has a context
+window smaller than the prepared destination.
+
+### Case
+
+```json
+{
+  "input": {
+    "case": "small-context",
+    "kind": "derive-architecture",
+    "params": {},
+    "productSpec": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+    "useCases": [
+      { "id": "UC-001", "title": "Read a file", "path": "docs/use-cases/UC-001-read-a-file.md" },
+      { "id": "UC-002", "title": "Write a file", "path": "docs/use-cases/UC-002-write-a-file.md" }
+    ],
+    "accepted": ["UC-001", "UC-002"]
+  },
+  "expected": {
+    "small": {
+      "fits": false,
+      "blocking": [],
+      "leftOut": [],
+      "params": {},
+      "partOrder": [
+        { "recipe": "whole-spec", "name": "SPEC.md" },
+        { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-001-read-a-file.md \u2014 accepted" },
+        { "recipe": "accepted-use-cases", "name": "docs/use-cases/UC-002-write-a-file.md \u2014 accepted" },
+        { "recipe": "chapters-for-architecture", "name": "chapters 9 to 12 fixture" }
+      ],
+      "wholeSpecText": "# Fixture product - Specification\n\n## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner)*\nA reader reads a file whole.\n*Check:* `tests/sample.test.mjs`\n\n**A SECOND RULE** *(Product Owner)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n",
+      "acceptedUseCases": [
+        "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+        "docs/use-cases/UC-002-write-a-file.md \u2014 accepted"
+      ],
+      "destinations": [
+        {
+          "role": "drafter",
+          "participant": "small-d",
+          "parts": [
+            "SPEC.md",
+            "docs/use-cases/UC-001-read-a-file.md \u2014 accepted",
+            "docs/use-cases/UC-002-write-a-file.md \u2014 accepted",
+            "chapters 9 to 12 fixture"
+          ]
+        }
+      ],
+      "notFitting": [
+        { "participant": "small-d", "context": 10, "sizeGreaterThanContext": true }
+      ],
+      "runError": "NotStartable",
+      "sent": 0
+    },
+    "sameContextParts": true
+  }
+}
+```
