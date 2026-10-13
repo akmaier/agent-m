@@ -1,5 +1,6 @@
 // The public trace Route for the current SPEC slice. It does not choose versions, derive traces, read queues or write:
-// the caller hands it the pinned ref of the dashboard it is embedded in.
+// the caller hands it the pinned ref of the dashboard it is embedded in. On the default branch it leads to the review pages' editing:
+// Edit beside each requirement and + Requirement in each section.
 //
 // Module: MOD-trace-pages
 
@@ -28,10 +29,19 @@ function requirementDetail(requirement) {
   return detail;
 }
 
-function requirementRows(requirement) {
+// An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded.
+function reviewLink(className, text, route, key, value) {
+  const anchor = el("a", `${className} btn small`, text);
+  anchor.setAttribute("href", `#${route}/${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  return anchor;
+}
+
+function requirementRows(requirement, editable) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
-  const row = el("tr", null, el("td", null, button));
+  const cell = el("td", null, button);
+  if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", "name", requirement.name));
+  const row = el("tr", null, cell);
   const opened = el("tr", "requirement-opened");
   button.addEventListener("click", () => {
     if (opened.textContent) {
@@ -45,21 +55,21 @@ function requirementRows(requirement) {
   return [row, opened];
 }
 
-function requirementsTable(requirements) {
+function requirementsTable(requirements, editable) {
   const body = el("tbody");
-  for (const requirement of requirements) body.append(...requirementRows(requirement));
+  for (const requirement of requirements) body.append(...requirementRows(requirement, editable));
   return el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"))), body);
 }
 
-function overview(spec) {
+function overview(spec, editable) {
   const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
   const sectioned = new Set(spec.sections.flatMap((section) => section.requirements));
   const outside = [...spec.requirements.values()].filter((requirement) => !sectioned.has(requirement.name));
 
-  if (outside.length) page.append(requirementsTable(outside));
+  if (outside.length) page.append(requirementsTable(outside, editable));
   for (const section of spec.sections) {
     const requirements = section.requirements.map((name) => spec.requirements.get(name)).filter(Boolean);
-    const table = requirementsTable(requirements);
+    const table = requirementsTable(requirements, editable);
     table.setAttribute("hidden", "hidden");
     const toggle = el("button", "spec-section-toggle btn", sectionTitle(section.heading));
     toggle.type = "button";
@@ -71,10 +81,20 @@ function overview(spec) {
       toggle.setAttribute("aria-expanded", String(collapsed));
     });
     const group = el("section", "spec-section", el("h3", null, toggle), table);
+    if (editable) group.insertBefore(reviewLink("requirement-new", "+ Requirement", "requirements", "section", section.heading), table);
     page.append(group);
   }
   if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
   return page;
+}
+
+// Whether the ref on view is the repository's default branch, which the Host names: editing is offered there only (UC-018). A Host that cannot say is read as no.
+async function onDefaultBranch(host, ref) {
+  try {
+    return (await host.repositoryInfo?.())?.defaultBranch === ref;
+  } catch {
+    return false;
+  }
 }
 
 export const route = {
@@ -91,6 +111,6 @@ export const route = {
     }
     const snapshot = await context.product.host.readSnapshot(params.ref);
     const text = await snapshot.read(SPEC_PATH);
-    target.append(overview(parseSpec(text ?? "")));
+    target.append(overview(parseSpec(text ?? ""), await onDefaultBranch(context.product.host, params.ref)));
   },
 };

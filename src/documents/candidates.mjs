@@ -1,13 +1,13 @@
 // The classes of candidates — MOD-documents' classifyCandidates (docs/architecture/MOD-documents.md, Interfaces: Candidate,
-// Classified and classifyCandidates): the candidates of one run merged where they share a key, and each class decided by rule
-// where the key is an existing artifact's.
+// Classified and classifyCandidates): the candidates of one run merged where they state the same rule, and each class decided by rule
+// where the rule is an existing artifact's.
 //
 // Module: MOD-documents
 //
 // The rules are those of A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT, CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
 // and EXACT DUPLICATES ARE FOUND WITHOUT A MODEL, and they are the same for every kind of artifact: only the key differs, and
-// the caller gives it, as the list of values `keys` — for a requirement its name and its rule, for an architecture decision its
-// title. Nothing here reads a schema, a document or a file.
+// the caller gives it, as the list of values `keys` — for a requirement its name and its rule — the rule decides —, for an
+// architecture decision its title. Nothing here reads a schema, a document or a file.
 
 // A value of a key as it is compared: in lower case, every run of white space one blank and none at either end, every quotation
 // mark one mark and every dash one dash.
@@ -17,16 +17,18 @@ const normalised = (value) => String(value ?? "").toLowerCase()
   .replace(/\s+/g, " ")
   .trim();
 
-// Whether two keys, their values normalised, are one key: they have a value in common at the same place. A requirement's key is
-// its name and its rule, so a name that equals, or a rule that equals, is the same requirement (EXACT DUPLICATES ARE FOUND
-// WITHOUT A MODEL). A blank value names nothing, and is no value in common.
-const same = (a, b) => a.some((value, i) => value !== "" && value === b[i]);
+// Whether two keys, their values normalised, are one key: the value that decides is the same. A requirement's key is its name and
+// its rule, and its rule decides — the last value of its key —: a name alone joins nothing, so a candidate under an existing
+// name with another rule is no duplicate and keeps its class, a change (A CHANGE IS PROPOSED UNDER THE EXISTING NAME), and a
+// rule that equals another, under whatever name, is the same requirement (EXACT DUPLICATES ARE FOUND WITHOUT A MODEL). A key of
+// one field — a title, an identifier — is decided by that field. A blank value names nothing.
+const same = (a, b) => a.at(-1) !== "" && a.at(-1) === b.at(-1);
 
 /**
  * classifyCandidates(candidates, existing) -> Classified[] — the classes of one run's candidates against the existing artifacts
- * of their kind. First the candidates that share a normalised key are merged into one, which names every passage they came
- * from; the sharing is followed from one candidate to the next. Then a merged candidate that shares a normalised key with an
- * existing artifact is a duplicate of it — of the first such artifact in `existing` —, decided by rule, whatever its
+ * of their kind. First the candidates whose keys have the same normalised deciding value — a requirement's rule, a one-field key's field — are merged
+ * into one, which names every passage they came from; the sharing is followed from one candidate to the next. Then a merged candidate
+ * that shares that value with an existing artifact is a duplicate of it — of the first such artifact in `existing` —, decided by rule, whatever its
  * participant proposed. Every other candidate keeps the class and the artifact its participant proposed, those of the first of
  * them for candidates merged into one. The classes stand in the order of their first candidates.
  * @param {Array<{ ref: string, keys: string[], from: string[], proposed: { class: string, of: string | null } }>} candidates

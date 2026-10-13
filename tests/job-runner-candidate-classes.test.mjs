@@ -119,8 +119,8 @@ const NAMED = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT";
 // given: a kind that names candidate-classes alone, for a job whose one part shows two existing requirements, EXPORT IS A PDF
 //        ("An export is a PDF file.") and PRINT IS DOUBLE-SIDED ("A print is double-sided."); a drafter that drafts three
 //        candidates — EXPORT AS CSV, which neither states, classed new; EXPORT AS PDF, with the rule of EXPORT IS A PDF,
-//        classed new; and "Print is double-sided", the name of PRINT IS DOUBLE-SIDED in other letters and another rule,
-//        classed a duplicate that names nothing — and, told of the findings, drafts the same three again
+//        classed new; and "Print is double-sided", the name of PRINT IS DOUBLE-SIDED in other letters and its rule,
+//        "A print is double-sided.", classed a duplicate that names nothing — and, told of the findings, drafts the same three again
 // input: runJob of it, a person attending
 // expect: the drafter asked twice, the second time with two findings, both errors under EXACT DUPLICATES ARE FOUND WITHOUT A
 //         MODEL, each in one line: one names EXPORT AS PDF and the existing EXPORT IS A PDF, the other "Print is double-sided"
@@ -128,7 +128,7 @@ const NAMED = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT";
 //         hold those findings; the second draft changes nothing, so the loop stops unchanged with them remaining
 test("candidate-classes — an exact duplicate not classed a duplicate of the existing requirement goes back, naming it", async () => {
   const draft = { candidates: [CSV, AS_PDF,
-    candidate("Print is double-sided", "Printing uses both sides of the paper.", "Prints use both sides.", "duplicate")] };
+    candidate("Print is double-sided", "A print is double-sided.", "Prints use both sides.", "duplicate")] };
   const drafter = driver([{ draft }, { draft }]);
 
   const result = await run(["candidate-classes"], { drafter });
