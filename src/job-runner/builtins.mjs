@@ -40,26 +40,53 @@ const CLASS_NAMES_ARTIFACT = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CON
 // The kind of node, in MOD-trace-graph's graph, that the group file of each kind arranges.
 const ARRANGED = { requirements: "requirement", "use-cases": "UC", architecture: "ARC", modules: "MOD", tests: "TST" };
 
-// The classes of a draft's candidates against the artifacts the job's parts carry, and the findings on the classes its drafter
-// gave. A candidate is a requirement, as a draft of `{ candidates }` holds it — the module file gives the key values of a
-// requirement only: its reference in the draft its name, its key its name and its rule, the passage it came from its
-// passage. A candidate that the rule finds a duplicate of an existing artifact while its drafter classed it otherwise than
-// as a duplicate of that artifact is an error naming it; so is a change, a duplicate or a conflict that names no artifact a
-// part carries. A draft whose parts carry no artifact has nothing to classify.
+// What the drafts of this check hold: each drafted thing with its reference, the values of its key, the passages it came from and the class its drafter gave, and the kind of artifact it is
+// compared with. A requirement of a draft `{ candidates }` is keyed by its name and its rule, and is compared with every artifact a part carries; a document of a draft `{ files }` — read
+// with the schema `artifactSchemaOf` names for its path and `readDocument` — by the values of that schema's `key` fields, and an item of a draft `{ items }` by its title, each compared with the
+// artifacts of its own kind, by the prefix of their identifier. A file no schema with a key names — a test — has no key and is not classified.
+function draftedOf(draft) {
+  const drafted = [];
+  for (const { name, rule, passage, class: proposed, of } of Array.isArray(draft?.candidates) ? draft.candidates : []) {
+    drafted.push({ ref: name, shown: folded(name), keys: [name, rule], from: [passage].filter(Boolean), proposed, of: of ?? null, kind: null, states: "the name or the rule" });
+  }
+  for (const { path, text, class: proposed, of } of Array.isArray(draft?.files) ? draft.files : []) {
+    const schema = typeof path === "string" ? artifactSchemaOf(path) : null;
+    if (!schema?.key?.length) continue;
+    const document = readDocument(schema, path, String(text ?? ""));
+    const keys = schema.key.map((field) => String(document.fields?.[field] ?? ""));
+    if (keys.every((value) => folded(value) === "")) continue;
+    drafted.push({ ref: path, shown: path, keys, from: [path], proposed, of: of ?? null, kind: schema.identifier.kind, states: `the ${schema.key.join(" and ")}` });
+  }
+  for (const { title, class: proposed, of } of Array.isArray(draft?.items) ? draft.items : []) {
+    if (folded(title) === "") continue;
+    drafted.push({ ref: title, shown: folded(title), keys: [title], from: [], proposed, of: of ?? null, kind: "ITM", states: "the title" });
+  }
+  return drafted;
+}
+
+// The classes of a draft against the artifacts the job's parts carry, and the findings on the classes its drafter gave. A candidate that the rule finds a duplicate of an existing artifact while
+// its drafter classed it otherwise than as a duplicate of that artifact is an error naming it; so is a change, a duplicate or a conflict that names no artifact a part carries. A draft whose
+// parts carry no artifact has nothing to classify.
 function classification(draft, parts) {
   const existing = parts.flatMap((part) => part.artifacts ?? []);
-  const drafted = Array.isArray(draft?.candidates) ? draft.candidates : [];
+  const drafted = draftedOf(draft);
   if (existing.length === 0 || drafted.length === 0) return { classes: [], findings: [] };
-  const classes = classifyCandidates(drafted.map(({ name, rule, passage, class: proposed, of }) => ({ ref: name,
-    keys: [name, rule], from: [passage].filter(Boolean), proposed: { class: proposed, of: of ?? null } })), existing);
+  const classes = [], decisions = new Map();
+  for (const kind of [...new Set(drafted.map((each) => each.kind))]) {
+    const group = drafted.filter((each) => each.kind === kind);
+    const known = kind === null ? existing : existing.filter((artifact) => String(artifact.id).startsWith(`${kind}-`));
+    const decided = classifyCandidates(group.map(({ ref, keys, from, proposed, of }) => ({ ref, keys, from, proposed: { class: proposed, of } })), known);
+    classes.push(...decided);
+    for (const each of group) decisions.set(each, decided.find((one) => one.refs.includes(each.ref)));
+  }
   const carried = new Set(existing.map((artifact) => artifact.id));
-  const findings = drafted.flatMap(({ name, class: proposed, of }) => {
-    const shown = folded(name);
+  const findings = drafted.flatMap((each) => {
+    const { shown, proposed, of } = each;
     const classed = `${proposed}${of ? ` of "${folded(of)}"` : ""}`;
-    const decided = classes.find((each) => each.refs.includes(name));
+    const decided = decisions.get(each);
     if (decided.decidedBy === "rule" && !(proposed === "duplicate" && of === decided.of)) {
       return [finding({ artifact: shown, line: 1, kind: "error", rule: EXACT_DUPLICATE,
-        what: `"${shown}" states the name or the rule of the existing "${decided.of}" and is classed ${classed}`,
+        what: `"${shown}" states ${each.states} of the existing "${decided.of}" and is classed ${classed}`,
         fix: `class it as duplicate of ${decided.of}` })];
     }
     if (["change", "duplicate", "conflict"].includes(proposed) && !carried.has(of)) {
