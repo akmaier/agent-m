@@ -9,9 +9,9 @@
 // Guards: UC-005; UC-019; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
 // Level: unit
 //
-// A requirement's key is its name and its rule — `keys: [name, rule]` —, as the module file says, and "a candidate whose name or
-// normalised rule text equals an existing requirement's" is a duplicate (EXACT DUPLICATES ARE FOUND WITHOUT A MODEL); the key of
-// another kind of artifact is the caller's to give, an architecture decision's being its title here. Each test states its input
+// A requirement's key is its name and its rule — `keys: [name, rule]` —, as the module file says, and its rule decides (ITM-450): a
+// candidate whose normalised rule equals an existing requirement's is a duplicate (EXACT DUPLICATES ARE FOUND WITHOUT A MODEL), and a name
+// alone joins nothing; the key of another kind of artifact is the caller's to give, an architecture decision's being its title here. Each test states its input
 // and its expected result before it runs (given / input / expect). Nothing is read from a file or from the network.
 
 import test from "node:test";
@@ -25,13 +25,13 @@ const classified = (refs, from, cls, of, decidedBy) => ({ refs, from, class: cls
 // guards: CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
 // given: three candidates of one run and no existing artifact: c1 and c2 state one requirement — one name, one rule — from two
 //        passages, "SRC-law, Art. 4" and "SRC-law, Art. 9"; c3 states another from "SRC-law, Art. 6"; each proposed new. Then
-//        three candidates c4, c6, c5 of one run, in that order, that share a key one after the other: c4 and c5 state one name,
-//        c5 and c6 one rule, c4 and c6 nothing
+//        three candidates c4, c6, c5 of one run, in that order: c4 and c5 have one name and two rules, c5 and c6 have one rule and
+//        two names, c4 and c6 nothing in common
 // input: classifyCandidates([c1, c2, c3], []); classifyCandidates([c4, c6, c5], [])
 // expect: two classes, in the order of the candidates: the first names c1 and c2 and both passages, new, of null, decided by the
-//         participant; the second names c3 alone, with its passage. For the three that share one after the other, one class
-//         naming all three and their passages
-test("classifyCandidates — two candidates of one key are merged into one, naming both passages", () => {
+//         participant; the second names c3 alone, with its passage. For the other three, two classes: c4 alone, and c6 and c5
+//         together with both their passages, since they state one rule — the name c4 and c5 share joins nothing
+test("classifyCandidates — two candidates of one rule are merged into one, naming both passages; a name alone joins nothing", () => {
   const draft = [
     candidate("c1", ["EXPORT AS PDF", "The export is a PDF."], ["SRC-law, Art. 4"]),
     candidate("c2", ["EXPORT AS PDF", "The export is a PDF."], ["SRC-law, Art. 9"]),
@@ -48,7 +48,8 @@ test("classifyCandidates — two candidates of one key are merged into one, nami
     candidate("c5", ["SAVE ON EXIT", "Work is stored when the user leaves."], ["SRC-law, Art. 2"]),
   ];
   assert.deepEqual(classifyCandidates(chain, []), [
-    classified(["c4", "c6", "c5"], ["SRC-law, Art. 1", "SRC-law, Art. 3", "SRC-law, Art. 2"], "new", null, "participant"),
+    classified(["c4"], ["SRC-law, Art. 1"], "new", null, "participant"),
+    classified(["c6", "c5"], ["SRC-law, Art. 3", "SRC-law, Art. 2"], "new", null, "participant"),
   ]);
 });
 
@@ -60,9 +61,10 @@ test("classifyCandidates — two candidates of one key are merged into one, nami
 //        title in other letters is proposed new
 // input: classifyCandidates([c1, c2, c3, c4], the three requirements); classifyCandidates of the decision's candidate
 // expect: three classes, each a duplicate decided by rule, whatever the participant proposed: of EXPORT AS PDF for c1 and c4
-//         together, naming both passages — merged before they are compared with the existing —, of PRINT TWICE for c2 — its name
-//         equals —, and of SAVE ON EXIT for c3 — its rule equals —; for the decision, a duplicate of ARC-012 by rule
-test("classifyCandidates — a candidate whose key equals an existing artifact's is a duplicate of it by rule, whatever its participant proposed", () => {
+//         together, naming both passages — merged before they are compared with the existing —; c2, which takes the name of PRINT TWICE
+//         with another rule, no duplicate: it keeps the change of PRINT TWICE its participant proposed, decided by the participant; and
+//         a duplicate of SAVE ON EXIT for c3 — its rule equals, under another name —; for the decision, a duplicate of ARC-012 by rule
+test("classifyCandidates — a candidate whose rule equals an existing artifact's is a duplicate of it by rule, whatever its participant proposed", () => {
   const existing = [
     { id: "EXPORT AS PDF", keys: ["EXPORT AS PDF", "The export is a PDF."] },
     { id: "PRINT TWICE", keys: ["PRINT TWICE", "Printing is repeated."] },
@@ -77,7 +79,7 @@ test("classifyCandidates — a candidate whose key equals an existing artifact's
   ];
   assert.deepEqual(classifyCandidates(draft, existing), [
     classified(["c1", "c4"], ["SRC-law, Art. 4", "SRC-law, Art. 9"], "duplicate", "EXPORT AS PDF", "rule"),
-    classified(["c2"], ["SRC-law, Art. 6"], "duplicate", "PRINT TWICE", "rule"),
+    classified(["c2"], ["SRC-law, Art. 6"], "change", "PRINT TWICE", "participant"),
     classified(["c3"], ["SRC-law, Art. 8"], "duplicate", "SAVE ON EXIT", "rule"),
   ]);
 
