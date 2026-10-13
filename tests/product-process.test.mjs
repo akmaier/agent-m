@@ -52,6 +52,7 @@ import { declarationFindings, declarationSchema, roleAssignmentSchema, workflowO
 const MODULE = new URL("../src/product-process/index.mjs", import.meta.url);
 const SCHEMA_FILE = new URL("../src/product-process/declaration.schema.md", import.meta.url);
 const ASSIGNMENT_SCHEMA_FILE = new URL("../src/product-process/role-assignment.schema.md", import.meta.url);
+const GATE_SCHEMA_FILE = new URL("../src/product-process/gate-record.schema.md", import.meta.url);
 const AGENT_M_DECLARATION = new URL("../docs/process.md", import.meta.url);
 const DECLARATION_PATH = "docs/process.md";
 
@@ -283,7 +284,7 @@ const brief = (found) => found.map((f) => [f.line, f.kind, f.rule]);
 
 // ---------------------------------------------------------------- declarationSchema: where the schemas are read from
 //
-// The module reads its own declaration.schema.md and role-assignment.schema.md once each, in that order, when it is
+// The module reads its own declaration.schema.md, role-assignment.schema.md and gate-record.schema.md once each, in that order, when it is
 // loaded: from the disk where the platform offers
 // `process.getBuiltinModule("node:fs")`, as Node does, and from its own address with `fetch` where it does not, as in a
 // browser. Each case sets these two for one load of the module, loads it anew from its own address with a query of its own,
@@ -320,8 +321,8 @@ const realDisk = (reads) => ({
 //        without a disk, whose fetch answers each of the module's own addresses with the text of the real file there;
 //        (c) as in a browser whose fetch answers 404 Not Found
 // input: (a), (b): declarationSchema and roleAssignmentSchema, and the fixture product's declaration read with the first
-// expect: (a) two reads, of src/product-process/declaration.schema.md and then of role-assignment.schema.md, from the
-//         disk; (b) two reads, of the same addresses with fetch; each gives schemas deep-equal to those of the module as
+// expect: (a) three reads, of src/product-process/declaration.schema.md, then of role-assignment.schema.md and of gate-record.schema.md, from the
+//         disk; (b) three reads, of the same addresses with fetch; each gives schemas deep-equal to those of the module as
 //         this file loaded it, the first of which reads the declaration's model, team-scrum. (c) one read, of the
 //         declaration's schema; the module does not load — a schema that cannot be read stops its module (MOD-documents,
 //         loadSchema) — and the error names declaration.schema.md and 404
@@ -331,7 +332,7 @@ test("declarationSchema — the module's schemas are read from its own declarati
     fetch: async (url) => new Response(readFileSync(new URL(url), "utf8"), { status: 200 }) });
   for (const [where, loaded, read] of [["disk", onDisk, "disk"], ["address", atAddress, "fetch"]]) {
     assert.equal(loaded.error, null, `${where}: the module loads: ${loaded.error?.message}`);
-    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`, `${read} ${ASSIGNMENT_SCHEMA_FILE.href}`], where);
+    assert.deepEqual(loaded.reads, [`${read} ${SCHEMA_FILE.href}`, `${read} ${ASSIGNMENT_SCHEMA_FILE.href}`, `${read} ${GATE_SCHEMA_FILE.href}`], where);
     assert.deepEqual(loaded.module.declarationSchema, declarationSchema, where);
     assert.deepEqual(loaded.module.roleAssignmentSchema, roleAssignmentSchema, where);
     assert.equal(readDocument(loaded.module.declarationSchema, DECLARATION_PATH, DECLARATION).fields.model, "team-scrum", where);

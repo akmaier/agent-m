@@ -175,10 +175,10 @@ const BLOB_A = "a".repeat(40), BLOB_B = "b".repeat(40), BLOB_C = "c".repeat(40);
 const INCREMENT = "docs/increment.md", RECORD_OF_SPRINT = "docs/sprint.md";
 
 // A record's text and the document gateSchema reads it as. `at` makes the date, the path and so the order of the records.
-function record({ gate = DEV, job = "", decider = "alice", role = "Product Owner", decision = "passed", on = [`${INCREMENT}@${BLOB_A}`], at = "10:00", reason = null } = {}) {
+function record({ gate = DEV, job = "", decider = "alice", role = "Product Owner", decision = "passed", on = [`${INCREMENT}@${BLOB_A}`], at = "10:00", date = `2026-10-12 ${at} UTC`, reason = null } = {}) {
   const slug = gate.toLowerCase().replace(/[^a-z]+/g, "-");
   const path = `docs/gates/20261012-${at.replace(":", "")}-${slug}-${decider.replace(/\W/g, "").slice(0, 4).padEnd(4, "0")}.md`;
-  const text = ["---", `gate: ${gate}`, `job: ${job}`, `decider: ${decider}`, `role: ${role}`, `decision: ${decision}`, "on:", ...on.map((entry) => `  - ${entry}`), `date: 2026-10-12 ${at} UTC`, "---",
+  const text = ["---", `gate: ${gate}`, `job: ${job}`, `decider: ${decider}`, `role: ${role}`, `decision: ${decision}`, "on:", ...on.map((entry) => `  - ${entry}`), `date: ${date}`, "---",
     `# ${gate}: the fixture`, "", "**REGISTER**", "", ...(reason ? ["## Reason", "", reason, ""] : [])].join("\n");
   return readDocument(gateSchema, path, text);
 }
@@ -344,4 +344,26 @@ test("TST-292109: gateStates reaches a gate only through the gates before it, an
   assert.equal(of(await states([record({ decision: "rejected", reason: "No." })]), RETRO).state, "not reached");
   assert.deepEqual(await states([pass]), await states([pass]));
   assert.equal(of(await states([]), RETRO).state, "not reached", "no state is kept between calls");
+});
+
+// TST-292110 · level: unit · module: MOD-product-process
+// guards: A GATE NAMES WHO DECIDES IT
+// given: the known pass of the Product Owner; then a record of the same gate that names the role Product Owner but whose decider is a check
+// input: gateStates over each alone
+// expect: the pass is `passed`; the record whose decider is a check leaves a gate decided by a role `pending`: a check is not a holder of the role
+test("TST-292110: gateStates does not take a pass from a check for a gate decided by a role", async () => {
+  assert.equal(of(await states([record()]), DEV).state, "passed", "known positive");
+  assert.equal(of(await states([record({ decider: "check: node", role: "Product Owner" })]), DEV).state, "pending");
+});
+
+// TST-292111 · level: unit · module: MOD-product-process
+// guards: STATUS IS DERIVED FROM THE RECORDS
+// given: two records of the gate whose paths are in one order and whose `date` fields in the other: a rejection filed under the later path and the earlier date, a pass under the earlier path and the later date
+// input: gateStates, the records listed in either order
+// expect: the record with the later `date` decides — `passed` — whatever the order of the paths or of the list
+test("TST-292111: gateStates orders the records by their date, not by their file names", async () => {
+  const rejected = record({ decision: "rejected", at: "12:00", date: "2026-10-12 09:00 UTC", reason: "Early." });
+  const passed = record({ at: "10:00", date: "2026-10-12 11:00 UTC" });
+  assert.ok(rejected.path > passed.path, "the rejection's path is the later one");
+  for (const listed of [[rejected, passed], [passed, rejected]]) assert.deepEqual(of(await states(listed), DEV), { gate: DEV, state: "passed", record: passed.path, needs: null, difference: null });
 });
