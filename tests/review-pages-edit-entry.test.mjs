@@ -286,3 +286,46 @@ test("spec-entry/<id>/edit — on GitLab without a token there is no Save", asyn
   assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
   assert.equal(fake.writes().length, 0);
 });
+
+// TST-397010 · level: unit · module: MOD-review-pages
+// guards: UC-018; A REQUIREMENT HAS FOUR FIELDS
+// given: the editor on the open entry
+// input: the check of EXPORT IS A PDF taken out of the text
+// expect: the mark of the missing check stands beside the text, and Save is still there (the marks block nothing)
+test("spec-entry/<id>/edit — the marks of the requirements stand beside the text without blocking", async () => {
+  const fake = fakeHost();
+  const target = await showEdit(fake, EDIT);
+  assert.ok(!/A REQUIREMENT HAS FOUR FIELDS/.test(byClass(target, "ol", "marks")[0].textContent), "known positive: no mark on the proposal as it stands");
+  type(target, PROPOSAL.replace("*Check:* `tests/export.test.mjs`\n", ""));
+  assert.match(byClass(target, "ol", "marks")[0].textContent, /A REQUIREMENT HAS FOUR FIELDS/);
+  assert.ok(saveOf(target));
+});
+
+// TST-397011 · level: unit · module: MOD-review-pages
+// guards: UC-018; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: an open entry whose rationale names no origin, the editor with an edit and a Why
+// input: a click on Save
+// expect: the rationale written names the person of the token as the one who saved it
+test("spec-entry/<id>/edit — the person of the token is named in the rationale", async () => {
+  const files = { ...FILES, [`${QUEUE}/01-lending.begruendung.md`]: FILES[`${QUEUE}/01-lending.begruendung.md`].replace(/\n\*\*Origin\.\*\*[^\n]*\n$/, "\n") };
+  const fake = fakeHost(files);
+  const target = await showEdit(fake, EDIT);
+  type(target, PROPOSAL.replace("a PDF file.", "a PDF file, always."));
+  withWhy(target);
+  click(saveOf(target));
+  await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
+  assert.match(fake.writes()[0].files.find((file) => file.path.endsWith(".begruendung.md")).text, /saved by Agent M · thesis-tool/);
+});
+
+// TST-397012 · level: unit · module: MOD-review-pages
+// guards: UC-006
+// given: the queue 2026-03-01_sample, which holds no entry 07
+// input: the edit page of spec-2026-03-01_sample-07
+// expect: the page says there is no such entry and links the list; no editor; nothing written
+test("spec-entry/<id>/edit — an entry no queue holds is said so", async () => {
+  const fake = fakeHost();
+  const target = await showEdit(fake, { id: "spec-2026-03-01_sample-07", edit: "1" });
+  assert.match(target.textContent, /spec-2026-03-01_sample-07/);
+  assert.equal(find(target, (node) => node.localName === "textarea").length, 0);
+  assert.equal(fake.writes().length, 0);
+});
