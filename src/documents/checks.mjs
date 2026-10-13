@@ -10,16 +10,17 @@
 //
 // documentFindings finds what ITM-227 builds: front matter keys missing, unknown, out of order, required or forbidden by a
 // condition; values not of their type or of the variant that holds, or empty where nonEmpty; the rows of a table, cell by
-// cell, in the same way; required sections missing, sections out of order, and sections the schema forbids. The path, the
-// identifier against the path, the title, describedIn, diagrams and images, the marks of history, the fields of a section, a
-// record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with
+// cell, in the same way; required sections missing, sections out of order, sections the schema forbids, and a document path
+// that matches none of the schema's path patterns. The identifier against the path, the title, describedIn, diagrams and
+// images, the marks of history, the fields of a section, a record of `key: value` lines and appended sections are not
+// checked yet. Each finding is an error, made with
 // MOD-text-tools' finding, and names the rule of the part of the schema closest to it (Data, The requirement a finding
 // names). A key or a section that is missing stands on no line: its finding names line 1, as the dashboard's checks of
 // today do (docs/assets/artifacts/use-cases.mjs). The section under the title (ITM-226) is the first section of a document
 // with a title, and is missing from a document without one.
 
 import { finding } from "../text-tools/index.mjs";
-import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, holds, pathRule, sectionOf } from "./schema-language.mjs";
+import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, holds, matchesPath, pathRule, sectionOf } from "./schema-language.mjs";
 
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -207,6 +208,11 @@ export function documentFindings(schema, document) {
     rule: [...rules, pathRule(compiled, document.path) ?? schema.rule].find(Boolean), what, fix }));
   const fields = document.fields;
   const frontLookup = (name) => (name === PATH ? document.path : textOf(fields[name]));
+
+  if (compiled.patterns.length && !matchesPath(compiled, document.path)) {
+    add(1, [], `the path ${document.path} does not match a path of the format ${schema.schema}`,
+      `move the document to a path the format ${schema.schema} names`);
+  }
 
   if (schema.shape === "document") {
     const specs = schema.frontMatter ?? {};
