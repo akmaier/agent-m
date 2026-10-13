@@ -249,6 +249,7 @@ test("use-case/<id>/prompt — the run panel states what is sent where, and a co
   assert.match(panel.textContent, /this machine/);
   const parts = byClass(panel, "li", "part").map((item) => item.textContent);
   assert.ok(parts.some((part) => part.startsWith("instruction")), parts.join("; "));
+  assert.ok(parts.findIndex((part) => part.includes(UC7_PATH)) < parts.findIndex((part) => part.includes(UC8_PATH)), "the use case to change first, the others after it");
   assert.ok(parts.some((part) => part.includes(UC7_PATH)) && parts.some((part) => part.includes(UC8_PATH)), "UC-007 and every other use case");
   assert.equal(runButtons(target).length, 1);
   const small = await show(fake, PAGE(), { register: registerOf(ENDPOINT_ROW, TINY_ROW) });
@@ -298,7 +299,7 @@ test("use-case/<id>/prompt — several files are shown each on its own, with its
 // given: an endpoint that always answers UC-007 under the identifier UC-043
 // input: Run
 // expect: the loop leaves the finding "id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]", shown with the rounds; the editor opens with the identifier
-//         restored to UC-007, every other byte as drafted
+//         set back to UC-007 (keptIdentifier sets the front matter's id only), every other byte as drafted
 test("use-case/<id>/prompt — a changed identifier the loop left is restored before the editor opens, and the findings left are shown with the rounds", async () => {
   const wrong = draft7();
   wrong.text = wrong.text.replace("id: UC-007", "id: UC-043").replace("# UC-007", "# UC-043");
@@ -310,7 +311,7 @@ test("use-case/<id>/prompt — a changed identifier the loop left is restored be
   assert.match(byClass(target, "p", "rounds")[0].textContent, /^Correction rounds: [2-9]/);
   const shown = areaIn(draftBoxes(target)[0]).value;
   assert.match(shown, /^id: UC-007$/m);
-  assert.equal(shown.replace("id: UC-007", "id: UC-043"), wrong.text.replace("# UC-043", "# UC-007"), "every other byte as drafted");
+  assert.equal(shown, wrong.text.replace("id: UC-043", "id: UC-007"), "only the id of the front matter set back, every other byte as drafted");
 });
 
 // guards: UC-019 (6c); A GENERATED ARTIFACT IS A PROPOSAL
@@ -423,5 +424,24 @@ test("use-case/<id>/prompt — a job of a CI agent is queued there, with the ins
   const record = fake.writes()[0].files[0].text;
   assert.match(record, /^kind: change-use-case$/m);
   assert.ok(record.includes(ERROR_HANDLING), "the instruction in the parameters");
-  assert.ok(record.includes("UC-007"), "and the use case");
+  assert.match(record, /^works_on:\n  - UC-007\n/m, "the use case it works on");
+  assert.match(record, /"useCase": "UC-007"/, "and the use case it changes");
+});
+
+// guards: UC-019 (steps 2, 5a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the prompt page with a participant chosen and no instruction written
+// input: a click on Show the run panel
+// expect: the page asks for the instruction; no run panel, nothing sent, nothing written
+test("use-case/<id>/prompt — no run panel without an instruction", async () => {
+  endpointAnswers(draftOf(draft7()));
+  const fake = fakeProduct();
+  const target = await show(fake, PAGE());
+  const box = byClass(target, "input", "participant")[0];
+  box.checked = true;
+  box.dispatchEvent(new Event("change"));
+  click(byClass(target, "button", "prepare")[0]);
+  await until(() => /Write what should change/.test(byClass(target, "section", "stage")[0].textContent), "the question");
+  assert.equal(byClass(target, "section", "run-panel").length, 0);
+  assert.equal(requests.length, 0);
+  assert.equal(fake.writes().length, 0);
 });
