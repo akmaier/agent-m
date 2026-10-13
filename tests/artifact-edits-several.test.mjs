@@ -92,12 +92,11 @@ const EDITS = [
 // The provenance lines of a job (MOD-job-runner), as git trailers.
 const TRAILERS = ["Agent-M-Job: JOB-20261011-1030-a1b2", "Agent-M-Kind: use-cases-change", "Agent-M-Participant: drafter-1"];
 
-// given: a product on GitHub whose default branch `trunk` holds a README and the use cases UC-041 and UC-042, which one
-//        instruction by prompt changed, both opened at their blobs with their identifiers; the person saves the drafts
+// TST-472044 · level: unit · module: MOD-artifact-edits
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// given: a product on GitHub whose default branch `trunk` holds a README and the use cases UC-041 and UC-042, which one instruction by prompt changed, both opened at their blobs with their identifiers; the person saves the drafts
 // input: saveFile(host, [the edit of UC-041, the edit of UC-042])
-// expect: one commit on `trunk`, on the head that was read, holding the two files with the drafted texts and nothing else, its
-//         message not empty and naming no one, and the result { commit: the commit commitFiles returned, blob: [the blob of
-//         UC-041's text, the blob of UC-042's text] } in the order of the edits
+// expect: one commit on `trunk`, on the head that was read, holding the two files with the drafted texts and nothing else, its message not empty and naming no one, and the result { commit: the commit commitFiles returned, blob: [the blob of UC-041's text, the blob of UC-042's text] } in the order of the edits
 test("saveFile — two files saved in one commit, each blob returned in the order of the edits", async () => {
   const fake = fakeHost(BRANCH);
   const read = fake.head();
@@ -114,11 +113,11 @@ test("saveFile — two files saved in one commit, each blob returned in the orde
   assert.deepEqual(result, { commit: fake.head(), blob: [blobSha(DRAFT_FIRST), blobSha(DRAFT_SECOND)] });
 });
 
-// given: the same two edits, and another writer's commit that changed (1) the second file, (2) the first file, after they were
-//        opened
+// TST-472045 · level: unit · module: MOD-artifact-edits
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// given: the same two edits, and another writer's commit that changed (1) the second file, (2) the first file, after they were opened
 // input: saveFile(host, [the edit of UC-041, the edit of UC-042])
-// expect: { refused: "changed meanwhile", current: the other writer's text, currentBlob: its blob } for the file that changed —
-//         in (1) the second, in (2) the first —, and nothing written: not the file that did not change either
+// expect: { refused: "changed meanwhile", current: the other writer's text, currentBlob: its blob } for the file that changed — in (1) the second, in (2) the first —, and nothing written: not the file that did not change either
 test("saveFile — one file of two changed meanwhile refuses both, and nothing is written", async () => {
   for (const [label, path] of [["the second file changed", SECOND], ["the first file changed", FIRST]]) {
     const fake = fakeHost(BRANCH);
@@ -132,11 +131,11 @@ test("saveFile — one file of two changed meanwhile refuses both, and nothing i
   }
 });
 
-// given: the two edits, of which both are refused: (1) the first file changed meanwhile and the second declares another
-//        identifier; (2) the first declares another identifier and the second changed meanwhile
+// TST-472046 · level: unit · module: MOD-artifact-edits
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// given: the two edits, of which both are refused: (1) the first file changed meanwhile and the second declares another identifier; (2) the first declares another identifier and the second changed meanwhile
 // input: saveFile(host, [the edit of UC-041, the edit of UC-042])
-// expect: the refusal of the first of the two in the order of the edits — (1) "changed meanwhile" with the other writer's text,
-//         (2) "identifier changed" — and nothing written
+// expect: the refusal of the first of the two in the order of the edits — (1) "changed meanwhile" with the other writer's text, (2) "identifier changed" — and nothing written
 test("saveFile — of two refusals the first in the order of the edits is returned", async () => {
   const other = useCase("UC-041", "Changed by another", "Someone else reworded this.");
   const fake = fakeHost(BRANCH);
@@ -151,6 +150,8 @@ test("saveFile — of two refusals the first in the order of the edits is return
   assert.deepEqual([...fake.writes, ...second.writes], [], "nothing written");
 });
 
+// TST-472047 · level: unit · module: MOD-artifact-edits
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: the two edits, the second of which declares another identifier than the one UC-042 was opened with
 // input: saveFile(host, [the edit of UC-041, the edit of UC-042 under UC-043])
 // expect: { refused: "identifier changed", openedId: "UC-042", nowId: "UC-043" }, and nothing written: not UC-041 either
@@ -161,13 +162,11 @@ test("saveFile — one file of two under another identifier refuses both, and no
   assert.deepEqual(fake.writes, [], "nothing written");
 });
 
-// given: the two edits of the first test, the first carrying the first two of the job's provenance lines as trailers, the second the
-//        last two — and, as the person's own edit,
-//        a single edit with none
+// TST-472048 · level: unit · module: MOD-artifact-edits
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// given: the two edits of the first test, the first carrying the first two of the job's provenance lines as trailers, the second the last two — and, as the person's own edit, a single edit with none
 // input: saveFile(host, edits) with the trailers; saveFile(host, one edit) without
-// expect: the message of the commit names both files and ends with the three lines, after a blank line, each once though the middle one
-//         is carried by both edits, and
-//         the files hold none of them; the person's own edit has a message without any trailer
+// expect: the message of the commit names both files and ends with the three lines, after a blank line, each once though the middle one is carried by both edits, and the files hold none of them; the person's own edit has a message without any trailer
 test("saveFile — the trailers end the commit's message and stand in no file", async () => {
   const fake = fakeHost(BRANCH);
   await saveFile(fake.host, [{ ...EDITS[0], trailers: TRAILERS.slice(0, 2) }, { ...EDITS[1], trailers: TRAILERS.slice(1) }]);
@@ -182,10 +181,11 @@ test("saveFile — the trailers end the commit's message and stand in no file", 
   assert.ok(!own.writes[0].message.includes("Agent-M-"), "the person's own edit carries no trailer");
 });
 
+// TST-472049 · level: unit · module: MOD-artifact-edits
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: a single edit, as the callers of today give it
 // input: saveFile(host, { path, text, openedBlob, openedId })
-// expect: as before: one commit holding the file alone, the message "edit UC-041-check-out-a-book.md (Agent M dashboard)", and
-//         the result { commit, blob: the blob of the text } with one blob, not a list
+// expect: as before: one commit holding the file alone, the message "edit UC-041-check-out-a-book.md (Agent M dashboard)", and the result { commit, blob: the blob of the text } with one blob, not a list
 test("saveFile — a single edit is saved as before", async () => {
   const fake = fakeHost(BRANCH);
   const result = await saveFile(fake.host, EDITS[0]);
@@ -194,12 +194,11 @@ test("saveFile — a single edit is saved as before", async () => {
   assert.deepEqual(result, { commit: fake.head(), blob: blobSha(DRAFT_FIRST) });
 });
 
-// given: a drafted use case opened as UC-041 whose loop left `id: UC-099` in the front matter; its body holds a line
-//        `id: UC-099` of its own, trailing spaces, and a text with Windows line ends; and, as the known positive, a text whose id
-//        is the one it was opened with
+// TST-472050 · level: unit · module: MOD-artifact-edits
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// given: a drafted use case opened as UC-041 whose loop left `id: UC-099` in the front matter; its body holds a line `id: UC-099` of its own, trailing spaces, and a text with Windows line ends; and, as the known positive, a text whose id is the one it was opened with
 // input: keptIdentifier(text, "UC-041")
-// expect: the text with the front matter's id line `id: UC-041` and every other byte as it was — the body's line included; the
-//         text whose id is UC-041 comes back as it is
+// expect: the text with the front matter's id line `id: UC-041` and every other byte as it was — the body's line included; the text whose id is UC-041 comes back as it is
 test("keptIdentifier — a changed id is set back to the one the file was opened with, every other byte unchanged", () => {
   const { keptIdentifier } = edits;
   const drafted = (id, eol = "\n") => ["---", `id: ${id}`, "title: Check out a book  ", "---", "# UC-099 Check out a book", "",

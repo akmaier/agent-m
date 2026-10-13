@@ -65,11 +65,12 @@ async function dashboardFor(t, bridge, endpointOrigin) {
   return { server, page, main };
 }
 
-// TST-266001
-// Precondition: a dashboard browser has a paired real composed Bridge and a controlled own-model server.
-// Input: Settings -> Configure, enter a local OpenAI-compatible model, select Bridge, and Save and test.
-// Expected: the canonical browser record is saved before one Bridge probe; compose's real HTTP server dispatches through
-// jobHandlers to the controlled model, which receives the short request exactly once; all credentials stay out of URLs and repository writes.
+// TST-266001 · level: system · module: MOD-settings-pages
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
+// given: a dashboard browser has a paired real composed Bridge and a controlled own-model server.
+// input: Settings -> Configure, enter a local OpenAI-compatible model, select Bridge, and Save and test.
+// expect: the canonical browser record is saved before one Bridge probe; compose's real HTTP server dispatches through jobHandlers to the controlled model, which receives the short request exactly once; all credentials stay out of URLs and repository writes.
+// Module (as the file header stated it): MOD-settings-pages -> MOD-browser-store -> MOD-bridge-client -> MOD-bridge-http -> MOD-bridge-jobs -> MOD-desktop-shell
 // Planted fault: replacing `jobHandlers()` with `{}` in src/desktop-shell/compose.mjs makes the visible working assertion fail
 // with "Bridge could not test"; restoring source blob 04986a73ed6e23112d0db46668874d39e858eb2f restores this positive.
 test("TST-266001: public Settings sends a local model test through the real composed Bridge", async (t) => {

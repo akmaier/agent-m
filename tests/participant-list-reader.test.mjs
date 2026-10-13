@@ -76,17 +76,11 @@ const DEVELOPER = { name: "developer-a", type: "CLI agent", model: "example-mode
 
 // ---------------------------------------------------------------- participantsOf
 
-// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; A
-//         PARTICIPANT DECLARES WHERE IT PROCESSES DATA; UC-002
+// TST-472421 · level: unit · module: MOD-participant-list
+// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; UC-002
 // given: this instance's register docs/participants.md as it stands
 // input: participantsOf(the document that readRegister(participantSchema(), "docs/participants.md", its text) gives)
-// expect: one participant per row of its table, in its order — their names those of the rows readRegister gives —; among
-//         them:
-//         - akmaier, a person without a model and a place: name "akmaier", type "person", model null, context null, price
-//           null, capabilities all six, place null, route the text of its row's Route;
-//         - developer-opus-d, a CLI agent with its model and its place: name "developer-opus-d", type "CLI agent", model
-//           "claude-opus-5-5", context null, price null, capabilities all six, place "Anthropic, a provider in the USA" —
-//           one place, its comma kept —, route the text of its row's Route
+// expect: one participant per row of its table, in its order — their names those of the rows readRegister gives —; among them: - akmaier, a person without a model and a place: name "akmaier", type "person", model null, context null, price null, capabilities all six, place null, route the text of its row's Route; - developer-opus-d, a CLI agent with its model and its place: name "developer-opus-d", type "CLI agent", model "claude-opus-5-5", context null, price null, capabilities all six, place "Anthropic, a provider in the USA" — one place, its comma kept —, route the text of its row's Route
 test("participantsOf — this instance's register read into participants: a person without a model and a place, a CLI agent with its model and its place", () => {
   const { document, rows } = readRegister(participantSchema(), REGISTER_PATH, readFileSync(INSTANCE_REGISTER, "utf8"));
   const participants = participantsOf(document);
@@ -101,28 +95,22 @@ test("participantsOf — this instance's register read into participants: a pers
     route: routeOf("developer-opus-d") }, "developer-opus-d");
 });
 
+// TST-472422 · level: unit · module: MOD-participant-list
 // guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; NO COST IS GUESSED
-// given: the fixture register, whose row summariser, a model endpoint, declares the context 32000 and the price
-//        `0.5 / 1.5 EUR per million tokens`
-// input: participantsOf(the document that readRegister(participantSchema(), "docs/participants.md", the fixture) gives); of
-//        it, the participant summariser
-// expect: name "summariser", type "model endpoint", model "small-model", context 32000 — a number —, price { input 0.5,
-//         output 1.5, currency "EUR" } — two numbers and a currency —, capabilities ["draft text"], place
-//         "NHR@FAU, Erlangen", route "endpoint nhr"
+// given: the fixture register, whose row summariser, a model endpoint, declares the context 32000 and the price `0.5 / 1.5 EUR per million tokens`
+// input: participantsOf(the document that readRegister(participantSchema(), "docs/participants.md", the fixture) gives); of it, the participant summariser
+// expect: name "summariser", type "model endpoint", model "small-model", context 32000 — a number —, price { input 0.5, output 1.5, currency "EUR" } — two numbers and a currency —, capabilities ["draft text"], place "NHR@FAU, Erlangen", route "endpoint nhr"
 test("participantsOf — a row with a context and a price read into numbers and a currency", () => {
   assert.deepEqual(participantsIn(FIXTURE).find((participant) => participant.name === "summariser"), SUMMARISER);
 });
 
 // ---------------------------------------------------------------- eligible, given the participants read
 
+// TST-472423 · level: unit · module: MOD-participant-list
 // guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; A PARTICIPANT DECLARES ITS CAPABILITIES; UC-002
-// given: the role Developers of Scrum, which needs `write to the repository` and `run code and tests` (UC-002, step 4); the
-//        participants of the fixture register, read with participantsOf — alice, a person, and developer-a, a CLI agent at
-//        this machine, each with all six capabilities; summariser, a model endpoint that can only draft text
+// given: the role Developers of Scrum, which needs `write to the repository` and `run code and tests` (UC-002, step 4); the participants of the fixture register, read with participantsOf — alice, a person, and developer-a, a CLI agent at this machine, each with all six capabilities; summariser, a model endpoint that can only draft text
 // input: eligible(those participants, { capabilities: ["write to the repository", "run code and tests"] })
-// expect: offered alice and developer-a, in the register's order, each as participantsOf reads it — with where it processes
-//         data: alice none, as a person, developer-a "this machine" —; left out summariser, lacking both capabilities, each
-//         named: every participant in exactly one of the two lists
+// expect: offered alice and developer-a, in the register's order, each as participantsOf reads it — with where it processes data: alice none, as a person, developer-a "this machine" —; left out summariser, lacking both capabilities, each named: every participant in exactly one of the two lists
 test("eligible — given the participants read from a register, offers for a role exactly those with every capability it needs", () => {
   assert.deepEqual(eligible(participantsIn(FIXTURE), { capabilities: ["write to the repository", "run code and tests"] }), {
     eligible: [ALICE, DEVELOPER],

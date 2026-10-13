@@ -1,10 +1,3 @@
-// TST-289101
-// level: component
-// module: MOD-test-pages
-// guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; THE MENU FOLLOWS THE PROCESS
-// given: a selected product, distinct from the dashboard instance, with a completed recorded release candidate and result.
-// input: the person opens #release, observes its position in the public process menu, then checks that pending report again.
-// expect: the public dashboard links Release between Tests and Maintenance, then reopens the candidate and its guarded result without an opening or refresh write.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -66,6 +59,13 @@ async function assertSelectedProductFixture(server, { pending }) {
   } finally { globalThis.fetch = priorFetch; }
 }
 
+// TST-289101
+// level: component
+// module: MOD-test-pages
+// guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; THE MENU FOLLOWS THE PROCESS
+// given: a selected product, distinct from the dashboard instance, with a completed recorded release candidate and result.
+// input: the person opens #release, observes its position in the public process menu, then checks that pending report again.
+// expect: the public dashboard links Release between Tests and Maintenance, then reopens the candidate and its guarded result without an opening or refresh write.
 test("TST-289101: public #release reopens the selected product's pending report without writes", async () => {
   const server = await selectedProductServer({ pending: true });
   await assertSelectedProductFixture(server, { pending: true });

@@ -54,6 +54,7 @@ const pipeline = (status, more = {}) => ({ id: 61, iid: 21, sha: SHA, ref: "main
 
 // ---------------------------------------------------------------- GitHub
 
+// TST-472566 · level: unit · module: MOD-repository-hosts
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-004 (7a)
 // given: a GitHub repository and the person's token; the server answers 200 with the run it started
 // input: startWorkflow("agent-m-jobs.yml", "main", { job: "JOB-1", note: "again" })
@@ -69,6 +70,7 @@ test("startWorkflow on GitHub — one dispatch with the ref and the inputs, and 
     url: "https://github.com/carol/sprint-tool/actions/runs/4711", started: null, ended: null });
 });
 
+// TST-472567 · level: unit · module: MOD-repository-hosts
 // guards: UC-004 (7a)
 // given: a GitHub server that starts the workflow and names no run — 204, no body
 // input: startWorkflow("agent-m-jobs.yml", "main", {})
@@ -82,6 +84,7 @@ test("startWorkflow on GitHub — a server that names no run gives null", async 
 
 // ---------------------------------------------------------------- GitLab
 
+// TST-472568 · level: unit · module: MOD-repository-hosts
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-004 (7a)
 // given: a GitLab project and its access token; the server creates the pipeline
 // input: startWorkflow("agent-m-jobs.yml", "main", { job: "JOB-1" })
@@ -96,11 +99,11 @@ test("startWorkflow on GitLab — one pipeline with the ref and the inputs, retu
     url: "https://gitlab.example.org/space/sprint-tool/-/pipelines/61", started: null, ended: null });
 });
 
+// TST-472569 · level: unit · module: MOD-repository-hosts
 // guards: UC-004 (7a)
 // given: GitLab pipelines in each status, one with times
 // input: startWorkflow on each
-// expect: queued for created, waiting_for_resource, preparing, pending, scheduled; running; waiting for manual; success; failure for failed; cancelled for canceled and canceling; skipped; and the
-//         times as the server gave them; a pipeline without a source has the event "api"
+// expect: queued for created, waiting_for_resource, preparing, pending, scheduled; running; waiting for manual; success; failure for failed; cancelled for canceled and canceling; skipped; and the times as the server gave them; a pipeline without a source has the event "api"
 test("startWorkflow on GitLab — the pipeline's status is the run's state, and its times are the run's", async () => {
   const states = { created: "queued", waiting_for_resource: "queued", preparing: "queued", pending: "queued", scheduled: "queued", running: "running", manual: "waiting",
     success: "success", failed: "failure", canceled: "cancelled", canceling: "cancelled", skipped: "skipped" };
@@ -117,11 +120,11 @@ test("startWorkflow on GitLab — the pipeline's status is the run's state, and 
 
 // ---------------------------------------------------------------- failures
 
+// TST-472570 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a host of each server whose server answers 200/201 first, then 401, 403, 404, 429 with a used-up limit, 500, and a network that fails
 // input: startWorkflow("agent-m-jobs.yml", "main", {})
-// expect: the run for the first; TokenRefused for 401; PermissionMissing for 403 and for 404 (a write the token may not make); RateLimited for the used-up limit; Unreachable for 500 and for
-//         the network failure; never success
+// expect: the run for the first; TokenRefused for 401; PermissionMissing for 403 and for 404 (a write the token may not make); RateLimited for the used-up limit; Unreachable for 500 and for the network failure; never success
 test("startWorkflow names how it fails, on each server", async () => {
   const servers = [
     { host: () => connect(GITHUB, { token: GH_TOKEN }), ok: () => json(200, { workflow_run_id: 1, run_url: "https://api.github.com/x", html_url: "https://github.com/x" }),
@@ -140,6 +143,7 @@ test("startWorkflow names how it fails, on each server", async () => {
   }
 });
 
+// TST-472571 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a GitHub 422 whose message names the workflow_dispatch trigger; another 422; a host with no token; a host through a clone without a token
 // input: startWorkflow("agent-m-jobs.yml", "main", {})
@@ -160,6 +164,7 @@ test("startWorkflow is NotSupported without a token, and a 422 is the host's own
 
 // ---------------------------------------------------------------- credentials in the inputs
 
+// TST-472572 · level: unit · module: MOD-repository-hosts
 // guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a host of each server, with the person's token and a configured secret; inputs that hold the token, a configured secret, and neither
 // input: startWorkflow with each
@@ -180,6 +185,7 @@ test("startWorkflow refuses an input that holds a credential before any request"
   }
 });
 
+// TST-472573 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a host with a token; arguments that are no workflow, no ref, and inputs that are not texts
 // input: startWorkflow with each

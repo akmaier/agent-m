@@ -103,19 +103,44 @@ class JobReading(unittest.TestCase):
                     expected = hashlib.sha256(self.chapters[chapter].read_bytes()).hexdigest()
                     self.assertEqual(received.get(chapter), expected, f"{kind} receives chapter {chapter} complete")
 
+    # TST-475010 · level: component · module: MOD-job-runner
+    # guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+    # given: every kind of the job catalogue prepared with prepareJob, with SRC-vibe-coding's newest version
+    # input: count the kinds built and the chapter files of the book
+    # expect: more than 20 kinds are built and chapters 8 to 13 exist in the book
     def test_known_positive_every_kind_is_built_and_the_book_has_its_chapters(self):
         self.assertGreater(len(self.parts), 20)
         self.assertTrue({8, 9, 10, 11, 12, 13} <= set(self.chapters))
 
+    # TST-475011 · level: component · module: MOD-job-runner
+    # guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+    # given: jobs of derive-requirements, change-requirements, derive-use-cases and change-use-case, prepared with prepareJob
+    # input: SHA-256 of each received chapter part against the chapter file
+    # expect: each kind receives chapter 8 complete
     def test_a_job_on_requirements_or_use_cases_receives_chapter_8_complete(self):
         self.check("requirements or use cases")
 
+    # TST-475012 · level: component · module: MOD-job-runner
+    # guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+    # given: jobs of propose-tests, write-tests and fix-bug, prepared with prepareJob
+    # input: SHA-256 of each received chapter part against the chapter file
+    # expect: each kind receives chapter 13 complete
     def test_a_job_on_tests_receives_chapter_13_complete(self):
         self.check("tests")
 
+    # TST-475013 · level: component · module: MOD-job-runner
+    # guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+    # given: jobs of derive-architecture, change-architecture and review-architecture, prepared with prepareJob
+    # input: SHA-256 of each received chapter part against the chapter file
+    # expect: each kind receives chapters 9, 10, 11 and 12 complete
     def test_a_job_on_the_architecture_receives_chapters_9_to_12_complete(self):
         self.check("the architecture")
 
+    # TST-475014 · level: component · module: MOD-job-runner
+    # guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+    # given: a job of the implement kind, prepared with prepareJob
+    # input: SHA-256 of each received chapter part against the chapter file
+    # expect: the job receives chapters 9, 11, 12 and 13 complete
     def test_an_implementation_job_receives_chapters_9_11_12_and_13_complete(self):
         self.check("implementation")
 

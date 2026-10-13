@@ -179,14 +179,11 @@ const DECISIONS = [
 
 // ---------------------------------------------------------------- a section under the title
 
+// TST-472186 · level: unit · module: MOD-documents
 // guards: UC-002; A DATA FORMAT IS DEFINED ONCE
-// given: LINKS — a product's links file: its title on line 1, a sentence and the links table under it, then a section the
-//        schema does not name, ## Why these sources (line 10); and the same file whose title names another product
+// given: LINKS — a product's links file: its title on line 1, a sentence and the links table under it, then a section the schema does not name, ## Why these sources (line 10); and the same file whose title names another product
 // input: readRegister(the links schema, "docs/sources.md", text), then writeDocument(the links schema, the document read)
-// expect: LINKS_DOCUMENT — the title; first the section under the title: its heading the title line as written, its line 1,
-//         its text every line after the title line up to ## Why these sources, its rows the links of lines 7 and 8; then
-//         ## Why these sources, line 10 —; the register's rows LINK_ROWS; written back, LINKS byte for byte. The other file:
-//         its own title line the heading of the same section, on line 1, the same rows, written back byte for byte
+// expect: LINKS_DOCUMENT — the title; first the section under the title: its heading the title line as written, its line 1, its text every line after the title line up to ## Why these sources, its rows the links of lines 7 and 8; then ## Why these sources, line 10 —; the register's rows LINK_ROWS; written back, LINKS byte for byte. The other file: its own title line the heading of the same section, on line 1, the same rows, written back byte for byte
 test("a section under the title — read with the title line as its heading, and written back byte for byte", () => {
   const links = load(LINKS_SCHEMA, "MOD-source-register");
   const { document, rows } = readRegister(links, "docs/sources.md", LINKS);
@@ -203,13 +200,11 @@ test("a section under the title — read with the title line as its heading, and
   assert.equal(writeDocument(links, read.document), robot);
 });
 
+// TST-472187 · level: unit · module: MOD-documents
 // guards: A DATA FORMAT IS DEFINED ONCE
-// given: known positive first — LINKS_SCHEMA, whose first section is the one under the title, loads; then LINKS_SCHEMA with a
-//        second section under the title after its first, and LINKS_SCHEMA with ## Why these sources named before its section
-//        under the title
+// given: known positive first — LINKS_SCHEMA, whose first section is the one under the title, loads; then LINKS_SCHEMA with a second section under the title after its first, and LINKS_SCHEMA with ## Why these sources named before its section under the title
 // input: loadSchema(the schema file, "MOD-source-register")
-// expect: each throws a SchemaError whose `key` is sections[1].underTitle and whose `owner` is MOD-source-register, its
-//         message naming both
+// expect: each throws a SchemaError whose `key` is sections[1].underTitle and whose `owner` is MOD-source-register, its message naming both
 test("loadSchema — a second section under the title, or one that is not the first, is refused with SchemaError", () => {
   assert.doesNotThrow(() => load(LINKS_SCHEMA, "MOD-source-register"), "known positive");
   const breaks = [
@@ -227,14 +222,11 @@ test("loadSchema — a second section under the title, or one that is not the fi
   }
 });
 
+// TST-472188 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — LINKS has no finding; then LINKS without its title line and the blank line after it, so that
-//        its first heading is ## Why these sources: a document without a title, which has no section under the title
-// input: documentFindings(the links schema, readDocument(the links schema, "docs/sources.md", text)), each finding in its
-//        text form
-// expect: none for LINKS; for the other, one error on line 1, naming the schema's rule, since the section names none:
-//         `docs/sources.md:1: error: the section under the title is required, and missing [A PRODUCT LINKS THE SOURCES THAT
-//         APPLY] — add the document's title, and the section under it.`
+// given: known positive first — LINKS has no finding; then LINKS without its title line and the blank line after it, so that its first heading is ## Why these sources: a document without a title, which has no section under the title
+// input: documentFindings(the links schema, readDocument(the links schema, "docs/sources.md", text)), each finding in its text form
+// expect: none for LINKS; for the other, one error on line 1, naming the schema's rule, since the section names none: `docs/sources.md:1: error: the section under the title is required, and missing [A PRODUCT LINKS THE SOURCES THAT APPLY] — add the document's title, and the section under it.`
 test("documentFindings — a required section under the title that is missing is named", () => {
   const links = load(LINKS_SCHEMA, "MOD-source-register");
   const findings = (text) => documentFindings(links, readDocument(links, "docs/sources.md", text)).map(formatFinding);
@@ -247,12 +239,11 @@ test("documentFindings — a required section under the title that is missing is
 
 // ---------------------------------------------------------------- a section's table
 
+// TST-472189 · level: unit · module: MOD-documents
 // guards: UC-002; A DATA FORMAT IS DEFINED ONCE
-// given: INDEX — a queue's index.md: under its title, the table of its impact analysis (line 7), whose header names other
-//        columns, and then the entry table (line 13), whose header names the schema's columns in their order
+// given: INDEX — a queue's index.md: under its title, the table of its impact analysis (line 7), whose header names other columns, and then the entry table (line 13), whose header names the schema's columns in their order
 // input: readRegister(the index schema, INDEX_PATH, INDEX)
-// expect: the rows of the entry table, lines 15 and 16, read into its columns — a value left out as — absent —; no row of
-//         the impact analysis
+// expect: the rows of the entry table, lines 15 and 16, read into its columns — a value left out as — absent —; no row of the impact analysis
 test("a section's table is the first in it whose header row names exactly its columns, in their order", () => {
   const { rows } = readRegister(load(INDEX_SCHEMA, "MOD-spec-changes"), INDEX_PATH, INDEX);
   assert.deepEqual(rows, [
@@ -262,12 +253,11 @@ test("a section's table is the first in it whose header row names exactly its co
   ]);
 });
 
+// TST-472190 · level: unit · module: MOD-documents
 // guards: UC-002; A DATA FORMAT IS DEFINED ONCE
-// given: DECISIONS — a queue's entscheidungen.md: under its title a sentence, then a table without a header row whose first
-//        line (line 4) is a decision
+// given: DECISIONS — a queue's entscheidungen.md: under its title a sentence, then a table without a header row whose first line (line 4) is a decision
 // input: readRegister(the decisions schema, DECISIONS_PATH, DECISIONS)
-// expect: the section's first table: two rows, lines 4 and 5, their cells read by position into the columns When, Entry,
-//         Decision, Record — Entry a number —, the Record of the second left out
+// expect: the section's first table: two rows, lines 4 and 5, their cells read by position into the columns When, Entry, Decision, Record — Entry a number —, the Record of the second left out
 test("a table without a header row is the section's first table, its first line a row", () => {
   const { rows } = readRegister(load(DECISIONS_SCHEMA, "MOD-spec-changes"), DECISIONS_PATH, DECISIONS);
   assert.deepEqual(rows, [

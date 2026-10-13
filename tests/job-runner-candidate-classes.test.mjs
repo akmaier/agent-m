@@ -115,17 +115,11 @@ const NAMED = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT";
 
 // ---------------------------------------------------------------- the check
 
+// TST-472305 · level: unit · module: MOD-job-runner
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-005
-// given: a kind that names candidate-classes alone, for a job whose one part shows two existing requirements, EXPORT IS A PDF
-//        ("An export is a PDF file.") and PRINT IS DOUBLE-SIDED ("A print is double-sided."); a drafter that drafts three
-//        candidates — EXPORT AS CSV, which neither states, classed new; EXPORT AS PDF, with the rule of EXPORT IS A PDF,
-//        classed new; and "Print is double-sided", the name of PRINT IS DOUBLE-SIDED in other letters and its rule,
-//        "A print is double-sided.", classed a duplicate that names nothing — and, told of the findings, drafts the same three again
+// given: a kind that names candidate-classes alone, for a job whose one part shows two existing requirements, EXPORT IS A PDF ("An export is a PDF file.") and PRINT IS DOUBLE-SIDED ("A print is double-sided."); a drafter that drafts three candidates — EXPORT AS CSV, which neither states, classed new; EXPORT AS PDF, with the rule of EXPORT IS A PDF, classed new; and "Print is double-sided", the name of PRINT IS DOUBLE-SIDED in other letters and its rule, "A print is double-sided.", classed a duplicate that names nothing — and, told of the findings, drafts the same three again
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with two findings, both errors under EXACT DUPLICATES ARE FOUND WITHOUT A
-//         MODEL, each in one line: one names EXPORT AS PDF and the existing EXPORT IS A PDF, the other "Print is double-sided"
-//         and the existing PRINT IS DOUBLE-SIDED — each its own, not the other's —, and none names EXPORT AS CSV; both rounds
-//         hold those findings; the second draft changes nothing, so the loop stops unchanged with them remaining
+// expect: the drafter asked twice, the second time with two findings, both errors under EXACT DUPLICATES ARE FOUND WITHOUT A MODEL, each in one line: one names EXPORT AS PDF and the existing EXPORT IS A PDF, the other "Print is double-sided" and the existing PRINT IS DOUBLE-SIDED — each its own, not the other's —, and none names EXPORT AS CSV; both rounds hold those findings; the second draft changes nothing, so the loop stops unchanged with them remaining
 test("candidate-classes — an exact duplicate not classed a duplicate of the existing requirement goes back, naming it", async () => {
   const draft = { candidates: [CSV, AS_PDF,
     candidate("Print is double-sided", "A print is double-sided.", "Prints use both sides.", "duplicate")] };
@@ -147,16 +141,11 @@ test("candidate-classes — an exact duplicate not classed a duplicate of the ex
   drafter.inputs[1].findings.forEach(sayItInOneLine);
 });
 
+// TST-472306 · level: unit · module: MOD-job-runner
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-019
-// given: the same job; a drafter that drafts five candidates — EXPORT AS CSV, classed new; EXPORT AS XML, a change of EXPORT
-//        IS AN XML FILE, which no part shows; EXPORT IS SIGNED, a duplicate that names nothing; PRINT IN COLOUR, a conflict with
-//        PRINT IS BLACK, which no part shows; and PRINT TWO COPIES, a change of PRINT IS DOUBLE-SIDED, which a part shows —
-//        and, told of the findings, drafts the same five again
+// given: the same job; a drafter that drafts five candidates — EXPORT AS CSV, classed new; EXPORT AS XML, a change of EXPORT IS AN XML FILE, which no part shows; EXPORT IS SIGNED, a duplicate that names nothing; PRINT IN COLOUR, a conflict with PRINT IS BLACK, which no part shows; and PRINT TWO COPIES, a change of PRINT IS DOUBLE-SIDED, which a part shows — and, told of the findings, drafts the same five again
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with three findings, each an error under A CANDIDATE IS NEW, A CHANGE, A
-//         DUPLICATE OR A CONFLICT, in one line, one naming EXPORT AS XML, one EXPORT IS SIGNED and one PRINT IN COLOUR — and
-//         none naming EXPORT AS CSV or PRINT TWO COPIES, the change of a requirement a part shows —; the loop stops unchanged
-//         with those three remaining
+// expect: the drafter asked twice, the second time with three findings, each an error under A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT, in one line, one naming EXPORT AS XML, one EXPORT IS SIGNED and one PRINT IN COLOUR — and none naming EXPORT AS CSV or PRINT TWO COPIES, the change of a requirement a part shows —; the loop stops unchanged with those three remaining
 test("candidate-classes — a change, a duplicate or a conflict naming no artifact a part carries goes back to the drafter", async () => {
   const draft = { candidates: [CSV,
     candidate("EXPORT AS XML", AS_XML.rule, AS_XML.passage, "change", "EXPORT IS AN XML FILE"),
@@ -177,13 +166,11 @@ test("candidate-classes — a change, a duplicate or a conflict naming no artifa
   drafter.inputs[1].findings.forEach(sayItInOneLine);
 });
 
+// TST-472307 · level: unit · module: MOD-job-runner
 // guards: CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES; UC-005
-// given: the same job; a drafter that drafts three candidates classed new — SAVE ON EXIT from "SRC-law, Art. 1", EXPORT AS
-//        CSV, and STORE WORK WHEN LEAVING from "SRC-law, Art. 3", which states the rule of SAVE ON EXIT under another name
+// given: the same job; a drafter that drafts three candidates classed new — SAVE ON EXIT from "SRC-law, Art. 1", EXPORT AS CSV, and STORE WORK WHEN LEAVING from "SRC-law, Art. 3", which states the rule of SAVE ON EXIT under another name
 // input: runJob of it, a person attending
-// expect: nothing found, so the drafter asked once and the loop stopped because passed; two classes in the order of their
-//         first candidates: the first merges SAVE ON EXIT and STORE WORK WHEN LEAVING, naming both and both passages, new, of
-//         nothing, decided by the participant; the second is EXPORT AS CSV alone, with its passage
+// expect: nothing found, so the drafter asked once and the loop stopped because passed; two classes in the order of their first candidates: the first merges SAVE ON EXIT and STORE WORK WHEN LEAVING, naming both and both passages, new, of nothing, decided by the participant; the second is EXPORT AS CSV alone, with its passage
 test("candidate-classes — two candidates that state one rule are merged into one class naming both", async () => {
   const save = candidate("SAVE ON EXIT", "Unsaved work is saved on exit.", "SRC-law, Art. 1");
   const store = candidate("STORE WORK WHEN LEAVING", "Unsaved work is saved on exit.", "SRC-law, Art. 3");
@@ -200,16 +187,11 @@ test("candidate-classes — two candidates that state one rule are merged into o
   ]);
 });
 
+// TST-472308 · level: unit · module: MOD-job-runner
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; UC-005; UC-019
-// given: the same job; a drafter that first drafts EXPORT AS CSV, EXPORT AS PDF classed new — an exact duplicate —, EXPORT AS
-//        XML, a change of EXPORT IS AN XML FILE, which no part shows, and PRINT TWO COPIES, a change of PRINT IS DOUBLE-SIDED,
-//        which a part shows, and then, told of the findings, the same with EXPORT AS PDF classed a duplicate of EXPORT IS A PDF
-//        and EXPORT AS XML classed new, answering each finding fixed
+// given: the same job; a drafter that first drafts EXPORT AS CSV, EXPORT AS PDF classed new — an exact duplicate —, EXPORT AS XML, a change of EXPORT IS AN XML FILE, which no part shows, and PRINT TWO COPIES, a change of PRINT IS DOUBLE-SIDED, which a part shows, and then, told of the findings, the same with EXPORT AS PDF classed a duplicate of EXPORT IS A PDF and EXPORT AS XML classed new, answering each finding fixed
 // input: runJob of it, a person attending
-// expect: the drafter asked twice; two findings in the first round, one under each rule, each answered fixed, and none in
-//         the second; stopped because passed with nothing remaining and the corrected draft the result's; the result's
-//         classes those of the second round: EXPORT AS CSV new, EXPORT AS PDF a duplicate of EXPORT IS A PDF decided by rule,
-//         EXPORT AS XML new, PRINT TWO COPIES a change of PRINT IS DOUBLE-SIDED, as its drafter classed it
+// expect: the drafter asked twice; two findings in the first round, one under each rule, each answered fixed, and none in the second; stopped because passed with nothing remaining and the corrected draft the result's; the result's classes those of the second round: EXPORT AS CSV new, EXPORT AS PDF a duplicate of EXPORT IS A PDF decided by rule, EXPORT AS XML new, PRINT TWO COPIES a change of PRINT IS DOUBLE-SIDED, as its drafter classed it
 test("candidate-classes — a draft fixed as the findings say passes, and its classes are those of the last round", async () => {
   const first = { candidates: [CSV, AS_PDF,
     candidate("EXPORT AS XML", AS_XML.rule, AS_XML.passage, "change", "EXPORT IS AN XML FILE"), TWO_COPIES] };
@@ -232,13 +214,11 @@ test("candidate-classes — a draft fixed as the findings say passes, and its cl
   ]);
 });
 
+// TST-472309 · level: unit · module: MOD-job-runner
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-// given: the same part, and a draft whose EXPORT AS PDF is an exact duplicate classed new; a kind that names no check, and —
-//        the known positive — the same kind naming candidate-classes; and the same kind with a job whose parts carry no artifact
+// given: the same part, and a draft whose EXPORT AS PDF is an exact duplicate classed new; a kind that names no check, and — the known positive — the same kind naming candidate-classes; and the same kind with a job whose parts carry no artifact
 // input: runJob of each, the draft given as `from` and no drafter: the draft is checked once
-// expect: the kind without the check: no finding, the loop stopped because passed, and the result's classes null — not an
-//         empty list; the kind with it: the finding of the exact duplicate, and the result's classes a list; the job whose parts
-//         carry no artifact: nothing to classify, so no finding and no class — an empty list, not null
+// expect: the kind without the check: no finding, the loop stopped because passed, and the result's classes null — not an empty list; the kind with it: the finding of the exact duplicate, and the result's classes a list; the job whose parts carry no artifact: nothing to classify, so no finding and no class — an empty list, not null
 test("candidate-classes — a kind without the check has no classes, a kind with it has a list", async () => {
   const draft = { candidates: [CSV, AS_PDF] };
 

@@ -80,15 +80,11 @@ function sayItInOneLine(found) {
 
 // ---------------------------------------------------------------- the correction loop
 
+// TST-472350 · level: unit · module: MOD-job-runner
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A REQUIREMENT HAS FOUR FIELDS
-// given: a kind that names requirement-form and no other check, its result reviewed by a person, for a job whose source is
-//        SRC-fixture; a drafter that first drafts two candidates — EXPORT IS A PDF whole and EXPORT AS CSV with an empty
-//        check —, then the same two with the check of EXPORT AS CSV given, answering each finding as fixed; known positive:
-//        the whole candidate, written and read the same way, is found in neither round
+// given: a kind that names requirement-form and no other check, its result reviewed by a person, for a job whose source is SRC-fixture; a drafter that first drafts two candidates — EXPORT IS A PDF whole and EXPORT AS CSV with an empty check —, then the same two with the check of EXPORT AS CSV given, answering each finding as fixed; known positive: the whole candidate, written and read the same way, is found in neither round
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with the one finding and the first draft; the finding an error naming
-//         EXPORT AS CSV under A REQUIREMENT HAS FOUR FIELDS, in one line; two rounds, the first with that finding answered
-//         fixed, the second with none; stopped because passed; the corrected draft the result's draft, nothing remaining
+// expect: the drafter asked twice, the second time with the one finding and the first draft; the finding an error naming EXPORT AS CSV under A REQUIREMENT HAS FOUR FIELDS, in one line; two rounds, the first with that finding answered fixed, the second with none; stopped because passed; the corrected draft the result's draft, nothing remaining
 test("requirement-form — a candidate without a check goes back to the drafter as an error, and the corrected draft ends the loop", async () => {
   const first = { candidates: [PDF, { ...CSV, check: "" }] };
   const corrected = { candidates: [PDF, CSV] };
@@ -106,14 +102,11 @@ test("requirement-form — a candidate without a check goes back to the drafter 
   result.rounds[0].findings.forEach(sayItInOneLine);
 });
 
+// TST-472351 · level: unit · module: MOD-job-runner
 // guards: ONE STATEMENT PER REQUIREMENT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
-// given: the same kind and job; a drafter that drafts one candidate, EXPORT BOTH, whose rule contains "and", otherwise whole,
-//        and then the same draft again, answering the finding with a one-line justification
+// given: the same kind and job; a drafter that drafts one candidate, EXPORT BOTH, whose rule contains "and", otherwise whole, and then the same draft again, answering the finding with a one-line justification
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with the one finding; the finding a warning naming EXPORT BOTH under ONE
-//         STATEMENT PER REQUIREMENT, in one line; the first round answered justified with the drafter's reason; the check
-//         finds the same warning again in the second round; stopped because passed with nothing remaining — a warning
-//         answered with a justification ends the loop; the draft the result's draft, unchanged
+// expect: the drafter asked twice, the second time with the one finding; the finding a warning naming EXPORT BOTH under ONE STATEMENT PER REQUIREMENT, in one line; the first round answered justified with the drafter's reason; the check finds the same warning again in the second round; stopped because passed with nothing remaining — a warning answered with a justification ends the loop; the draft the result's draft, unchanged
 test("requirement-form — a rule with \"and\" goes back as a warning, and a one-line justification ends the loop", async () => {
   const both = { candidates: [{ ...PDF, name: "EXPORT BOTH", rule: "An export is a PDF file and a CSV file." }] };
   const reason = "the two clauses name one condition";

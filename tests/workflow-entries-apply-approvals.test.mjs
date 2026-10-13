@@ -130,14 +130,11 @@ const run = (f, extra) => { assert.ok(runEntry, `runEntry: ${entries.error?.mess
 
 // ---------------------------------------------------------------- the entry
 
+// TST-473194 · level: unit · module: MOD-workflow-entries
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; THE APPROVED TEXT IS TAKEN VERBATIM; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL
-// given: an instance whose queue holds entry 07, a replacement of section 2, whose approval record a person committed in GitHub's web
-//        interface; no decision row names it
+// given: an instance whose queue holds entry 07, a replacement of section 2, whose approval record a person committed in GitHub's web interface; no decision row names it
 // input: onApprovalsCommitted with the workflow's token and the clock at 2026-03-01 10:00 UTC
-// expect: outcome `done`; one commit on the origin's main, on the head the entry read, that changes the SPEC and the queue's decisions
-//         and nothing else; the SPEC byte for byte the old SPEC with section 2 replaced by the proposal; the decisions the old file
-//         with the row `| 2026-03-01 10:00 UTC | 7 | uebernommen | approval:<the record> |` appended; the record untouched; the
-//         summary and the commit's message name the record applied
+// expect: outcome `done`; one commit on the origin's main, on the head the entry read, that changes the SPEC and the queue's decisions and nothing else; the SPEC byte for byte the old SPEC with section 2 replaced by the proposal; the decisions the old file with the row `| 2026-03-01 10:00 UTC | 7 | uebernommen | approval:<the record> |` appended; the record untouched; the summary and the commit's message name the record applied
 test("onApprovalsCommitted — an approval committed without the dashboard is applied in one commit, byte for byte", async () => {
   await withInstance(instanceFiles({ extra: { [RECORD_PATH]: record(WRITING) } }), async (f) => {
     const status = await run(f);
@@ -155,11 +152,11 @@ test("onApprovalsCommitted — an approval committed without the dashboard is ap
   });
 });
 
+// TST-473195 · level: unit · module: MOD-workflow-entries
 // guards: A STALE APPROVAL IS NOT APPLIED
 // given: the same approval, but the SPEC's section 2 was edited after the person saw it: the record names the section as it was
 // input: onApprovalsCommitted with the token
-// expect: nothing written — the origin's main and the clone's head as they were, the clone's working tree clean —; outcome `failed`;
-//         the summary names the record and that it was refused; one finding on the record, of the rule A STALE APPROVAL IS NOT APPLIED
+// expect: nothing written — the origin's main and the clone's head as they were, the clone's working tree clean —; outcome `failed`; the summary names the record and that it was refused; one finding on the record, of the rule A STALE APPROVAL IS NOT APPLIED
 test("onApprovalsCommitted — a stale approval writes nothing and is named in the status", async () => {
   await withInstance(instanceFiles({ spec: HEAD + READING + WRITING_EDITED, extra: { [RECORD_PATH]: record(WRITING) } }), async (f) => {
     const status = await run(f);
@@ -175,6 +172,7 @@ test("onApprovalsCommitted — a stale approval writes nothing and is named in t
   });
 });
 
+// TST-473196 · level: unit · module: MOD-workflow-entries
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
 // given: an instance with an approval that a decision row names already — the dashboard applied it —, and an instance with no approval
 // input: onApprovalsCommitted with the token, for each
@@ -190,12 +188,11 @@ test("onApprovalsCommitted — nothing to apply gives nothing to do", async () =
   }
 });
 
+// TST-473197 · level: unit · module: MOD-workflow-entries
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the approval of the first test, and an environment without the workflow's token — and, as the known positive, the same with it
-// input: onApprovalsCommitted without GITHUB_TOKEN, and the command line `node src/workflow-entries/main.mjs onApprovalsCommitted` in
-//        that environment; then the first again with the token
-// expect: outcome `not run`, the summary naming GITHUB_TOKEN, before anything is written — the origin and the clone as they were; the
-//         command line prints the summary and ends with exit code 1; with the token the entry applies the approval
+// input: onApprovalsCommitted without GITHUB_TOKEN, and the command line `node src/workflow-entries/main.mjs onApprovalsCommitted` in that environment; then the first again with the token
+// expect: outcome `not run`, the summary naming GITHUB_TOKEN, before anything is written — the origin and the clone as they were; the command line prints the summary and ends with exit code 1; with the token the entry applies the approval
 test("onApprovalsCommitted — a missing token gives not run, naming it, before anything is written", async () => {
   await withInstance(instanceFiles({ extra: { [RECORD_PATH]: record(WRITING) } }), async (f) => {
     const without = { GITHUB_TOKEN: undefined };

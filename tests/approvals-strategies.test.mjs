@@ -78,13 +78,11 @@ const ACCEPTED_FIRST = "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED";
 
 // ---------------------------------------------------------------- the recipes
 
+// TST-472022 · level: unit · module: MOD-approvals
 // guards: UC-007
-// given: the product above, whose files hold three use cases — UC-001 accepted, UC-002 open, UC-003 changed — and a module
-//        file, which is no use case
+// given: the product above, whose files hold three use cases — UC-001 accepted, UC-002 open, UC-003 changed — and a module file, which is no use case
 // input: the recipe use-cases, with the job's context and no parameter
-// expect: three parts, one per use case file and none for the module file or the SPEC, in the order the files stand: each
-//         part's name holds its file's path and its status, its text is the whole file, and it carries one artifact — the
-//         use case's identifier and the key of the use-case format, its title
+// expect: three parts, one per use case file and none for the module file or the SPEC, in the order the files stand: each part's name holds its file's path and its status, its text is the whole file, and it carries one artifact — the use case's identifier and the key of the use-case format, its title
 test("use-cases — one part per use case of the product, with its status, carrying the use case as an artifact keyed by its title", async () => {
   const parts = await approvalStrategies.recipes["use-cases"](contextOf(), {});
 
@@ -99,16 +97,11 @@ test("use-cases — one part per use case of the product, with its status, carry
   });
 });
 
+// TST-472023 · level: unit · module: MOD-approvals
 // guards: A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; UC-019
-// given: the same product; the use case UC-001 named by the parameter useCase, which realises A SAMPLE RULE and ANOTHER SAMPLE
-//        RULE — and not AN UNREALISED RULE —, and then UC-002, which realises ANOTHER SAMPLE RULE alone; and a parameter that
-//        names UC-099, which is no use case of the product
+// given: the same product; the use case UC-001 named by the parameter useCase, which realises A SAMPLE RULE and ANOTHER SAMPLE RULE — and not AN UNREALISED RULE —, and then UC-002, which realises ANOTHER SAMPLE RULE alone; and a parameter that names UC-099, which is no use case of the product
 // input: the recipe use-case-with-neighbours, with each of the three
-// expect: for UC-001: first the use case's own part — its file's path, its status and its whole text —, then one part for each
-//         requirement it realises, in the order it names them, each named by the requirement and holding its rule and its
-//         check as the SPEC states them, and then one part for each of the other two use cases, in the order the files stand,
-//         none left out and UC-001 not twice; for UC-002: its own part, ANOTHER SAMPLE RULE, then UC-001 and UC-003; for
-//         UC-099: the failure UseCaseNotFound, naming it
+// expect: for UC-001: first the use case's own part — its file's path, its status and its whole text —, then one part for each requirement it realises, in the order it names them, each named by the requirement and holding its rule and its check as the SPEC states them, and then one part for each of the other two use cases, in the order the files stand, none left out and UC-001 not twice; for UC-002: its own part, ANOTHER SAMPLE RULE, then UC-001 and UC-003; for UC-099: the failure UseCaseNotFound, naming it
 test("use-case-with-neighbours — the use case, the requirements it realises with their texts from the SPEC, and every other use case", async () => {
   const recipe = approvalStrategies.recipes["use-case-with-neighbours"];
 
@@ -133,13 +126,11 @@ test("use-case-with-neighbours — the use case, the requirements it realises wi
 
 // ---------------------------------------------------------------- the precondition
 
+// TST-472024 · level: unit · module: MOD-approvals
 // guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-007
-// given: the product above; a selection that names the requirements A SAMPLE RULE, which the SPEC holds, and A PROPOSED RULE,
-//        which it does not — it stands in an open queue at best —, and the use cases UC-001, which is accepted, UC-002, which
-//        is open, UC-003, which is changed, and UC-099, which is no use case of the product
+// given: the product above; a selection that names the requirements A SAMPLE RULE, which the SPEC holds, and A PROPOSED RULE, which it does not — it stands in an open queue at best —, and the use cases UC-001, which is accepted, UC-002, which is open, UC-003, which is changed, and UC-099, which is no use case of the product
 // input: the precondition rests-on-accepted, with the job's context
-// expect: one finding, an error under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED in one line, that names A PROPOSED RULE,
-//         UC-002, UC-003 and UC-099 — and neither A SAMPLE RULE nor UC-001, which are accepted
+// expect: one finding, an error under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED in one line, that names A PROPOSED RULE, UC-002, UC-003 and UC-099 — and neither A SAMPLE RULE nor UC-001, which are accepted
 test("rests-on-accepted — a requirement the SPEC lacks and a use case that is open, changed or none are named by one error", async () => {
   const selection = { requirements: ["A SAMPLE RULE", "A PROPOSED RULE"], useCases: ["UC-001", "UC-002", "UC-003", "UC-099"] };
 
@@ -156,10 +147,9 @@ test("rests-on-accepted — a requirement the SPEC lacks and a use case that is 
   for (const own of [found.what, found.fix]) assert.match(own, /^[^\n]+$/);
 });
 
+// TST-472025 · level: unit · module: MOD-approvals
 // guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-007
-// given: the product above; the open selection of the test before, as the known positive; then a selection of accepted
-//        artifacts only — the requirements A SAMPLE RULE and ANOTHER SAMPLE RULE and the use case UC-001 —; then a job that
-//        names no selection at all
+// given: the product above; the open selection of the test before, as the known positive; then a selection of accepted artifacts only — the requirements A SAMPLE RULE and ANOTHER SAMPLE RULE and the use case UC-001 —; then a job that names no selection at all
 // input: the precondition rests-on-accepted, with the job's context for each
 // expect: the open selection gives a finding; the accepted selection gives none (null); so does the job without a selection
 test("rests-on-accepted — a selection of accepted requirements and use cases passes, and so does a job without a selection", async () => {

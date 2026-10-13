@@ -17,14 +17,13 @@ const listen = (server) => new Promise((resolve, reject) => { server.once("error
 const close = (server) => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 const request = (bridge, token, args, origin = ORIGIN) => fetch(`${bridge.address}/v1/probes/endpoint-test`, { method: "POST", headers: { Origin: origin, "content-type": "application/json", [bridgeApi.tokenHeader]: token }, body: JSON.stringify({ args }) });
 
-// TST-268901
-// Precondition: production compose.mjs and the real public loopback server start with an empty private folder; a
-// controlled own-model endpoint accepts one OpenAI-compatible short request.
-// Input: send an unpaired probe, a cross-origin probe, then one paired configured-origin endpoint-test probe.
-// Expected: both boundary refusals arrive before dispatch; the paired request reaches jobHandlers and the endpoint once,
-// unwraps its answer, and its key/base URL are absent from private retained data and bridge logs.
 // Planted fault: temporarily replacing `jobHandlers()` with `{}` in src/desktop-shell/compose.mjs makes the paired
 // 200/one-arrival guard fail with 404; byte-exact restoration makes this positive pass.
+// TST-268901 · level: release · module: MOD-desktop-shell
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; NO SECRET IN THE REPOSITORY
+// given: production compose.mjs and the real public loopback server start with an empty private folder; a controlled own-model endpoint accepts one OpenAI-compatible short request
+// input: send an unpaired probe, a cross-origin probe, then one paired configured-origin endpoint-test probe
+// expect: both boundary refusals arrive before dispatch; the paired request reaches jobHandlers and the endpoint once, unwraps its answer, and its key/base URL are absent from private retained data and bridge logs
 test("TST-268901: real public compose pairs before dispatch and unwraps one controlled endpoint answer", async (t) => {
   const folder = await mkdtemp(join(tmpdir(), "agent-m-release-268-"));
   const received = [], lines = [], previousInfo = console.info;

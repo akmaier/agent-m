@@ -99,11 +99,11 @@ function fixture(t, { instance = INSTANCE_LIST, product = PRODUCT_LIST, instance
 const NAMES = ["inst-lab", "inst-laptop", "inst-near", "inst-runner", "lab-pc-named", "prod-lab", "prod-laptop", "prod-near"];
 const askedAbout = async (f, name) => { await click(byClass(lineOf(await f.page(), name), "settings-bridge-named-clear")[0]); return f.events.questions.at(-1); };
 
+// TST-472743 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: an instance and a product that each list a resource on lab-pc and one on laptop, beside resources on lab-pc2, on a runner, and one whose name says lab-pc
 // input: Clear on the line of lab-pc, answered no, then yes; Clear on the line of laptop
-// expect: the question, asked before anything is cleared, names inst-lab and prod-lab, each with its list, and none of the other resources; a no clears nothing; a yes clears the Bridge and its
-//         test record and leaves both lists as they were, with no commit; the question for laptop names inst-laptop and prod-laptop and no lab-pc resource
+// expect: the question, asked before anything is cleared, names inst-lab and prod-lab, each with its list, and none of the other resources; a no clears nothing; a yes clears the Bridge and its test record and leaves both lists as they were, with no commit; the question for laptop names inst-laptop and prod-laptop and no lab-pc resource
 test("Settings — Clear of a Bridge names the resources of the instance and of the product that name it, and changes neither list", async (t) => {
   const f = fixture(t);
   const { message, stored } = await askedAbout(f, "lab-pc");
@@ -131,11 +131,11 @@ test("Settings — Clear of a Bridge names the resources of the instance and of 
   for (const other of NAMES.filter((n) => n !== "inst-laptop" && n !== "prod-laptop")) assert.ok(!laptop.includes(other), `${other} is not named for laptop`);
 });
 
+// TST-472744 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: a Bridge no resource names; a repository that holds no list; a page with no product; a page whose instance has no host
 // input: Clear
-// expect: the question for the unnamed Bridge says that nothing names it; a missing list is a list with no resource and no unread notice; with no product the product is not mentioned; with
-//         no instance host the instance's list is not mentioned and no request is made for it
+// expect: the question for the unnamed Bridge says that nothing names it; a missing list is a list with no resource and no unread notice; with no product the product is not mentioned; with no instance host the instance's list is not mentioned and no request is made for it
 test("Settings — Clear says nothing of a list that is missing, absent or not there", async (t) => {
   const none = fixture(t, { instance: LIST([["inst-laptop", "bridge laptop"]]), product: LIST([["prod-laptop", "bridge laptop"]]) });
   assert.match((await askedAbout(none, "lab-pc")).message, /Nothing in this browser names this Bridge/);
@@ -156,11 +156,11 @@ test("Settings — Clear says nothing of a list that is missing, absent or not t
   assert.ok(noHost.events.reads.every((read) => read.startsWith("product:")), "no request for the instance without a host");
 });
 
+// TST-472745 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: first both lists readable; then the instance's host failing with "rate limited", and then the product's with "unreachable"
 // input: Clear on the line of lab-pc
-// expect: the readable lists name their resources (known positive); with a list unreadable the question is still asked and says that list could not be read, with the reason, so that its resources
-//         are not listed — never that nothing names the Bridge; the other list is still named; a no clears nothing
+// expect: the readable lists name their resources (known positive); with a list unreadable the question is still asked and says that list could not be read, with the reason, so that its resources are not listed — never that nothing names the Bridge; the other list is still named; a no clears nothing
 test("Settings — a list that cannot be read is said with its reason, and the question is still asked", async (t) => {
   assert.match((await askedAbout(fixture(t), "lab-pc")).message, /inst-lab.*prod-lab|prod-lab.*inst-lab/s);
   const instance = fixture(t, { instanceFails: "rate limited" });

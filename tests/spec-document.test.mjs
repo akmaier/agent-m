@@ -48,6 +48,8 @@ const A_REQUIREMENT = "**ONE STATEMENT PER REQUIREMENT** *(Product Owner)*\n" +
   "The rule of a requirement is a single statement; a rule containing \"and\" or \"additionally\" is two requirements.\n" +
   "*Check:* `tests/test_single_statement.py`\n";
 
+// TST-473075 · level: unit · module: MOD-spec-document
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
 // given: a product named by the path of its repository, on GitHub or on a GitLab server
 // input: specSkeleton(path)
 // expect: the first line is `# <path> — Specification`
@@ -57,16 +59,19 @@ test("specSkeleton — the title names the product: `# <product> — Specificati
   }
 });
 
+// TST-473076 · level: unit · module: MOD-spec-document
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
 // given: the skeleton of alice/thesis-tool
 // input: the text between its title and its first section
-// expect: a preamble that says what a requirement is in this form — it names a requirement's name, its source, its rule and
-//         the line `*Check:*` that names its check
+// expect: a preamble that says what a requirement is in this form — it names a requirement's name, its source, its rule and the line `*Check:*` that names its check
 test("specSkeleton — a preamble says what a requirement is in this form: its name, source, rule and *Check:*", () => {
   const { preamble } = cut(specSkeleton(GITHUB));
   assert.notEqual(preamble.trim(), "", "there is a preamble between the title and the first section");
   for (const part of [/\bname\b/i, /\bsource\b/i, /\brule\b/i, /\*Check:\*/]) assert.match(preamble, part);
 });
 
+// TST-473077 · level: unit · module: MOD-spec-document
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
 // given: the skeleton of alice/thesis-tool
 // input: its sections, by their headings of level two
 // expect: exactly one section, the first, and under its heading nothing but empty lines
@@ -81,10 +86,11 @@ test("specSkeleton — an empty first section, and no other section", () => {
   assert.notDeepEqual(filled[0].body.filter((l) => l.trim()), []);
 });
 
+// TST-473078 · level: unit · module: MOD-spec-document
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
 // given: the skeleton of alice/thesis-tool
 // input: every line of it
-// expect: no line begins a requirement (`**NAME** *(source)*`) and none states a check (`*Check:* …`) — it reads as a SPEC
-//         without a requirement
+// expect: no line begins a requirement (`**NAME** *(source)*`) and none states a check (`*Check:* …`) — it reads as a SPEC without a requirement
 test("specSkeleton — reads as a SPEC without a requirement", () => {
   // Known positive: the reading finds the head line and the check of a requirement in this form.
   assert.equal(requirementLines(A_REQUIREMENT).length, 2);
@@ -92,10 +98,11 @@ test("specSkeleton — reads as a SPEC without a requirement", () => {
   assert.deepEqual(requirementLines(specSkeleton(GITHUB)), []);
 });
 
+// TST-473079 · level: unit · module: MOD-spec-document
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
 // given: two products, alice/thesis-tool and fau-ai-taskforce/tools/thesis-tool
 // input: specSkeleton of each, with the product's path replaced by one placeholder
-// expect: the two skeletons differ, and are the same text once the product is taken out — only the product is put in —,
-//         and neither holds a placeholder `<…>` left unfilled
+// expect: the two skeletons differ, and are the same text once the product is taken out — only the product is put in —, and neither holds a placeholder `<…>` left unfilled
 test("specSkeleton — only the product is put in; the rest is the same for every product", () => {
   const a = specSkeleton(GITHUB), b = specSkeleton(GITLAB);
   assert.notEqual(a, b);

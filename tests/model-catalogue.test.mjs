@@ -226,17 +226,11 @@ function findingsOf(text, path = FIXTURE_PATH) {
 
 // ---------------------------------------------------------------- catalogue
 
+// TST-472404 · level: unit · module: MOD-model-catalogue
 // guards: UC-002; AGENT M CARRIES THE BOOK'S CATALOGUE; A PRACTICE IS NOT A MODEL
-// given: the snapshot of an instance that holds no model of its own: its files are the shipped catalogue's, under
-//        src/model-catalogue/, each with a blob of its own
+// given: the snapshot of an instance that holds no model of its own: its files are the shipped catalogue's, under src/model-catalogue/, each with a blob of its own
 // input: await catalogue(snapshot)
-// expect: models — in this order — waterfall, v-model and reuse-oriented, each of kind planned (the plan-driven group),
-//         then scrum and kanban, each of kind pulled (the agile group); each with its path src/model-catalogue/models/
-//         <name>.md and as its version the blob the snapshot names for that path. practices — devops and scaling-layers,
-//         which fit scrum and kanban; prototyping and incremental-delivery, which fit all five models —, each with its path
-//         src/model-catalogue/practices/<name>.md. findings: for the path of each model, none. And the folders models/
-//         and practices/ hold exactly the files of these models and practices: no file is shipped that the catalogue
-//         leaves out.
+// expect: models — in this order — waterfall, v-model and reuse-oriented, each of kind planned (the plan-driven group), then scrum and kanban, each of kind pulled (the agile group); each with its path src/model-catalogue/models/ <name>.md and as its version the blob the snapshot names for that path. practices — devops and scaling-layers, which fit scrum and kanban; prototyping and incremental-delivery, which fit all five models —, each with its path src/model-catalogue/practices/<name>.md. findings: for the path of each model, none. And the folders models/ and practices/ hold exactly the files of these models and practices: no file is shipped that the catalogue leaves out.
 test("catalogue — the shipped catalogue holds exactly the book's five models in their two groups, and its four practices", async () => {
   const snapshot = snapshotOf(shippedFiles());
   const got = await catalogue(snapshot);
@@ -255,16 +249,11 @@ test("catalogue — the shipped catalogue holds exactly the book's five models i
   assert.deepEqual(readdirSync(new URL("practices/", FOLDER_URL)).sort(), PRACTICES.map((name) => `${name}.md`).sort());
 });
 
+// TST-472405 · level: unit · module: MOD-model-catalogue
 // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
-// given: the snapshot of the test above, which also holds FIXTURE at docs/process-models/fixture-pulled.md — an instance's
-//        own model — and once more with FIXTURE's role Checker left without capabilities (line 49)
+// given: the snapshot of the test above, which also holds FIXTURE at docs/process-models/fixture-pulled.md — an instance's own model — and once more with FIXTURE's role Checker left without capabilities (line 49)
 // input: await catalogue(snapshot) of each
-// expect: (a) the five shipped models, then FIXTURE as the Model FIXTURE_MODEL — its name, kind, the model it was adapted
-//         from and its measure; about null, since it has no ## About; its phases, transitions, verification pairs,
-//         gates — each gate with the phases it stands between, `check: release-tests` as the decider of the second —,
-//         roles with their capabilities; its flow control with the limit 3, no time box and sprints; as its version the
-//         blob the snapshot names for its path, and its path —, with no finding. (b) FIXTURE still listed, with its one
-//         finding: an error on line 49 naming A ROLE NAMES THE CAPABILITIES IT NEEDS
+// expect: (a) the five shipped models, then FIXTURE as the Model FIXTURE_MODEL — its name, kind, the model it was adapted from and its measure; about null, since it has no ## About; its phases, transitions, verification pairs, gates — each gate with the phases it stands between, `check: release-tests` as the decider of the second —, roles with their capabilities; its flow control with the limit 3, no time box and sprints; as its version the blob the snapshot names for its path, and its path —, with no finding. (b) FIXTURE still listed, with its one finding: an error on line 49 naming A ROLE NAMES THE CAPABILITIES IT NEEDS
 test("catalogue — an instance's own model is read as a Model, listed after the shipped ones, with its findings", async () => {
   const got = await catalogue(snapshotOf({ ...shippedFiles(), [FIXTURE_PATH]: FIXTURE }));
   assert.deepEqual(got.models.map((m) => m.name), [...MODELS, "fixture-pulled"]);
@@ -279,13 +268,11 @@ test("catalogue — an instance's own model is read as a Model, listed after the
 
 // ---------------------------------------------------------------- modelFindings: the shipped catalogue
 
+// TST-472406 · level: unit · module: MOD-model-catalogue
 // guards: AGENT M CARRIES THE BOOK'S CATALOGUE; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A PRACTICE IS NOT A MODEL
-// given: each file of src/model-catalogue/models/, read with modelSchema.model; each file of src/model-catalogue/
-//        practices/, read with modelSchema.practice — each through MOD-documents' readDocument, at its path in the instance
+// given: each file of src/model-catalogue/models/, read with modelSchema.model; each file of src/model-catalogue/ practices/, read with modelSchema.practice — each through MOD-documents' readDocument, at its path in the instance
 // input: modelFindings(model); documentFindings(modelSchema.practice, practice)
-// expect: known positive first — the shipped scrum model with its line `kind: pulled` removed has an error naming
-//         A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; then no finding for any shipped model, and none for any
-//         shipped practice; and each file names the chapter of the book it follows — 6, 7 or 14
+// expect: known positive first — the shipped scrum model with its line `kind: pulled` removed has an error naming A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; then no finding for any shipped model, and none for any shipped practice; and each file names the chapter of the book it follows — 6, 7 or 14
 test("modelFindings — every shipped model passes without an error, and every shipped practice fits its schema", () => {
   const scrum = fileText(modelPath("scrum"));
   assert.ok(scrum.includes("\nkind: pulled\n"), "the shipped scrum model declares pulled work");
@@ -306,6 +293,7 @@ test("modelFindings — every shipped model passes without an error, and every s
 
 // ---------------------------------------------------------------- modelFindings: one definition per rule
 
+// TST-472407 · level: unit · module: MOD-model-catalogue
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A GATE NAMES WHO DECIDES IT
 // given: FIXTURE as it stands — every part complete; one gate decided by a role, one by a CI check
 // input: modelFindings of FIXTURE read with modelSchema.model
@@ -314,25 +302,30 @@ test("modelFindings — a complete definition, with a gate decided by a role and
   assert.deepEqual(findingsOf(FIXTURE), []);
 });
 
+// TST-476001 · level: unit · module: MOD-model-catalogue
 // guards: THE MODEL DETERMINES THE PHASES AND THE GATES; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE with its transition `| Checking | Building | back |` (line 26) going to Hotfix, which is no phase
+// input: modelFindings of the changed text read with modelSchema.model
 // expect: one error, on line 26, naming THE MODEL DETERMINES THE PHASES AND THE GATES
 test("modelFindings — a transition naming a phase that is not defined is an error", () => {
   const text = replaced(26, "| Checking | Building | back |", "| Checking | Hotfix | back |");
   assert.deepEqual(findingsOf(text), [[26, "error", PHASES_AND_GATES]]);
 });
 
+// TST-476002 · level: unit · module: MOD-model-catalogue
 // guards: THE MODEL DETERMINES THE PHASES AND THE GATES; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE with one more phase, `| Refinement | Owner | ITM |`, inserted after line 18 — as line 19 —, to which no
-//        transition leads
+// given: FIXTURE with one more phase, `| Refinement | Owner | ITM |`, inserted after line 18 — as line 19 —, to which no transition leads
+// input: modelFindings of the changed text
 // expect: one error, on line 19, naming THE MODEL DETERMINES THE PHASES AND THE GATES
 test("modelFindings — a phase that no transition reaches from the first phase is an error", () => {
   const text = inserted(18, "| Closing | Owner | sprint record |", "| Refinement | Owner | ITM |");
   assert.deepEqual(findingsOf(text), [[19, "error", PHASES_AND_GATES]]);
 });
 
+// TST-476003 · level: unit · module: MOD-model-catalogue
 // guards: THE MODEL DETERMINES THE PHASES AND THE GATES; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE with its verification pair (line 34) checked by Acceptance, which is no phase
+// input: modelFindings of the changed text
 // expect: one error, on line 34, naming THE MODEL DETERMINES THE PHASES AND THE GATES
 test("modelFindings — a verification pair naming a missing phase is an error", () => {
   const text = replaced(34, "| Building | Checking |", "| Building | Acceptance |");
@@ -341,25 +334,30 @@ test("modelFindings — a verification pair naming a missing phase is an error",
 
 const GATE = "| Building → Checking | the item's pull request, with its MOD and TST | CI is green on it | Owner |";
 
+// TST-476004 · level: unit · module: MOD-model-catalogue
 // guards: A GATE NAMES WHAT IT CHECKS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE with the artifacts of its first gate (line 40) left out
+// input: modelFindings of the changed text
 // expect: one error, on line 40, naming A GATE NAMES WHAT IT CHECKS
 test("modelFindings — a gate without artifacts is an error", () => {
   const text = replaced(40, GATE, "| Building → Checking | — | CI is green on it | Owner |");
   assert.deepEqual(findingsOf(text), [[40, "error", WHAT_IT_CHECKS]]);
 });
 
+// TST-476005 · level: unit · module: MOD-model-catalogue
 // guards: A GATE NAMES WHAT IT CHECKS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE with the condition of its first gate (line 40) left out
+// input: modelFindings of the changed text
 // expect: one error, on line 40, naming A GATE NAMES WHAT IT CHECKS
 test("modelFindings — a gate without a condition is an error", () => {
   const text = replaced(40, GATE, "| Building → Checking | the item's pull request, with its MOD and TST | — | Owner |");
   assert.deepEqual(findingsOf(text), [[40, "error", WHAT_IT_CHECKS]]);
 });
 
+// TST-476006 · level: unit · module: MOD-model-catalogue
 // guards: A GATE NAMES WHO DECIDES IT; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE with the decider of its first gate (line 40) left out; and once more with it `Release manager`, which is
-//        neither a role of the model nor a check `check: <CI check name>`
+// given: FIXTURE with the decider of its first gate (line 40) left out; and once more with it `Release manager`, which is neither a role of the model nor a check `check: <CI check name>`
+// input: modelFindings of each changed text
 // expect: for each, one error, on line 40, naming A GATE NAMES WHO DECIDES IT
 test("modelFindings — a gate without a decider is an error: none named, or one that is no role of the model and no check", () => {
   const without = replaced(40, GATE, "| Building → Checking | the item's pull request, with its MOD and TST | CI is green on it | — |");
@@ -368,17 +366,20 @@ test("modelFindings — a gate without a decider is an error: none named, or one
   assert.deepEqual(findingsOf(unknown), [[40, "error", WHO_DECIDES]]);
 });
 
+// TST-476007 · level: unit · module: MOD-model-catalogue
 // guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE with the capabilities of its role Checker (line 49) left out
+// input: modelFindings of the changed text
 // expect: one error, on line 49, naming A ROLE NAMES THE CAPABILITIES IT NEEDS
 test("modelFindings — a role without capabilities is an error", () => {
   const text = replaced(49, "| Checker | either | several | read the repository, run code and tests |", "| Checker | either | several | — |");
   assert.deepEqual(findingsOf(text), [[49, "error", CAPABILITIES]]);
 });
 
+// TST-476008 · level: unit · module: MOD-model-catalogue
 // guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE with the role of its phase Checking (line 17) left out; and once more with it Inspector, which the model's
-//        roles do not define
+// given: FIXTURE with the role of its phase Checking (line 17) left out; and once more with it Inspector, which the model's roles do not define
+// input: modelFindings of each changed text
 // expect: for each, one error, on line 17, naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
 test("modelFindings — a phase without a role is an error: none named, or one the model does not define", () => {
   const without = replaced(17, "| Checking | Checker | TST |", "| Checking | — | TST |");
@@ -387,8 +388,10 @@ test("modelFindings — a phase without a role is an error: none named, or one t
   assert.deepEqual(findingsOf(undefinedRole), [[17, "error", PEOPLE_AND_AGENTS]]);
 });
 
+// TST-476009 · level: unit · module: MOD-model-catalogue
 // guards: A ROLE NAMES HOW MANY FILL IT; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE with the How many of its role Checker (line 49) left out; and once more with it "many"
+// input: modelFindings of each changed text
 // expect: for each, one error, on line 49, naming A ROLE NAMES HOW MANY FILL IT
 test("modelFindings — a role that does not say whether one participant fills it or several may is an error", () => {
   const row = "| Checker | either | several | read the repository, run code and tests |";
@@ -398,11 +401,11 @@ test("modelFindings — a role that does not say whether one participant fills i
   assert.deepEqual(findingsOf(other), [[49, "error", HOW_MANY]]);
 });
 
+// TST-476010 · level: unit · module: MOD-model-catalogue
 // guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE with its phase Checking (line 17) done by Checker and Owner; once more by Checker and Inspector, which the
-//        model's roles do not define
-// expect: the first without a finding, and read by catalogue with both roles in the order they stand; the second with one
-//         error, on line 17, naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
+// given: FIXTURE with its phase Checking (line 17) done by Checker and Owner; once more by Checker and Inspector, which the model's roles do not define
+// input: modelFindings of each changed text; catalogue of a snapshot holding the first one
+// expect: the first without a finding, and read by catalogue with both roles in the order they stand; the second with one error, on line 17, naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
 test("modelFindings and catalogue — a phase names one role or several, each a role of the model", async () => {
   const both = replaced(17, "| Checking | Checker | TST |", "| Checking | Checker, Owner | TST |");
   assert.deepEqual(findingsOf(both), []);
@@ -412,20 +415,21 @@ test("modelFindings and catalogue — a phase names one role or several, each a 
   assert.deepEqual(findingsOf(unknown), [[17, "error", PEOPLE_AND_AGENTS]]);
 });
 
+// TST-476011 · level: unit · module: MOD-model-catalogue
 // guards: A GATE NAMES WHAT IT CHECKS; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE with its first gate (line 40), between Building and Checking, also checking UC, which neither Building nor
-//        Planning, the phase before it, produces
+// given: FIXTURE with its first gate (line 40), between Building and Checking, also checking UC, which neither Building nor Planning, the phase before it, produces
+// input: modelFindings of the changed text
 // expect: one error, on line 40, naming A GATE NAMES WHAT IT CHECKS
 test("modelFindings — a gate that checks a kind of artifact no earlier phase produces is an error", () => {
   const text = replaced(40, GATE, GATE.replace("with its MOD and TST", "with its MOD, TST and UC"));
   assert.deepEqual(findingsOf(text), [[40, "error", WHAT_IT_CHECKS]]);
 });
 
+// TST-476012 · level: unit · module: MOD-model-catalogue
 // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A GATE NAMES WHAT IT CHECKS
-// given: FIXTURE with Building's Produces (line 16) "MOD (code of the item's modules), TST" — a kind of artifact
-//        followed by an explanation in parentheses, beside a bare one
-// expect: no finding — the first gate (line 40), which checks MOD and TST produced up to Building, still finds both —,
-//         and catalogue reads Building's produces as ["MOD", "TST"], its phases otherwise FIXTURE_MODEL's
+// given: FIXTURE with Building's Produces (line 16) "MOD (code of the item's modules), TST" — a kind of artifact followed by an explanation in parentheses, beside a bare one
+// input: modelFindings of the changed text; catalogue of a snapshot holding it
+// expect: no finding — the first gate (line 40), which checks MOD and TST produced up to Building, still finds both —, and catalogue reads Building's produces as ["MOD", "TST"], its phases otherwise FIXTURE_MODEL's
 test("modelFindings and catalogue — a kind in Produces may be followed by an explanation in parentheses: the kind is what stands before it, and a gate that checks it finds it produced", async () => {
   const text = replaced(16, "| Building | Builders | MOD, TST |", "| Building | Builders | MOD (code of the item's modules), TST |");
   assert.deepEqual(findingsOf(text), []);
@@ -433,20 +437,21 @@ test("modelFindings and catalogue — a kind in Produces may be followed by an e
   assert.deepEqual(got.models.at(-1).phases, FIXTURE_MODEL.phases);
 });
 
+// TST-476013 · level: unit · module: MOD-model-catalogue
 // guards: THE MODEL DETERMINES THE PHASES AND THE GATES; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE with Planning's Produces (line 15) "Backlog (the sprint's selection of backlog items)" — a word before
-//        the parenthesis that is no kind of artifact
+// given: FIXTURE with Planning's Produces (line 15) "Backlog (the sprint's selection of backlog items)" — a word before the parenthesis that is no kind of artifact
+// input: modelFindings of the changed text
 // expect: one error, on line 15, naming THE MODEL DETERMINES THE PHASES AND THE GATES
 test("modelFindings — a word before the parenthesis that is no kind of artifact is still a finding", () => {
   const text = replaced(15, "| Planning | Owner | ITM |", "| Planning | Owner | Backlog (the sprint's selection of backlog items) |");
   assert.deepEqual(findingsOf(text), [[15, "error", PHASES_AND_GATES]]);
 });
 
+// TST-476014 · level: unit · module: MOD-model-catalogue
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE, whose work is pulled, with its WIP limit (line 55) left out, so that it names neither a time box nor a
-//        work-in-progress limit; and once more with a time box of 2 weeks (line 56) beside its limit of 3
-// expect: for each, one error, on the heading of ## Flow control (line 51), naming
-//         A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
+// given: FIXTURE, whose work is pulled, with its WIP limit (line 55) left out, so that it names neither a time box nor a work-in-progress limit; and once more with a time box of 2 weeks (line 56) beside its limit of 3
+// input: modelFindings of each changed text
+// expect: for each, one error, on the heading of ## Flow control (line 51), naming A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 test("modelFindings — pulled work with neither a time box nor a work-in-progress limit, or with both, is an error", () => {
   const neither = replaced(55, "| WIP limit | 3 |", "| WIP limit | — |");
   assert.deepEqual(findingsOf(neither), [[51, "error", VALIDATED]]);
@@ -454,11 +459,11 @@ test("modelFindings — pulled work with neither a time box nor a work-in-progre
   assert.deepEqual(findingsOf(both), [[51, "error", VALIDATED]]);
 });
 
+// TST-476015 · level: unit · module: MOD-model-catalogue
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
-// given: FIXTURE, whose work is pulled with a WIP limit of 3 (line 55) unchanged, with its Time box (line 56) stated as
-//        none instead of — (left out)
-// expect: no finding — a Time box of none is no time box, the same as — —, and catalogue reads flow.timeBox null, as for
-//         FIXTURE_MODEL.flow
+// given: FIXTURE, whose work is pulled with a WIP limit of 3 (line 55) unchanged, with its Time box (line 56) stated as none instead of — (left out)
+// input: modelFindings of the changed text; catalogue of a snapshot holding it
+// expect: no finding — a Time box of none is no time box, the same as — —, and catalogue reads flow.timeBox null, as for FIXTURE_MODEL.flow
 test("modelFindings and catalogue — a Time box of none is no time box: pulled work with a WIP limit and a Time box of none has no finding of both", async () => {
   const text = replaced(56, "| Time box | — |", "| Time box | none |");
   assert.deepEqual(findingsOf(text), []);
@@ -466,18 +471,21 @@ test("modelFindings and catalogue — a Time box of none is no time box: pulled 
   assert.deepEqual(got.models.at(-1).flow, FIXTURE_MODEL.flow);
 });
 
+// TST-476016 · level: unit · module: MOD-model-catalogue
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE, whose work is pulled, with the measure `plan entries per phase` (line 5), the measure of planned work
+// input: modelFindings of the changed text
 // expect: one error, on line 5, naming PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
 test("modelFindings — a measure that does not fit the kind of work is an error", () => {
   const text = replaced(5, "measure: items per state over time", "measure: plan entries per phase");
   assert.deepEqual(findingsOf(text), [[5, "error", MEASURE]]);
 });
 
+// TST-476017 · level: unit · module: MOD-model-catalogue
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: FIXTURE with its line `kind: pulled` (line 3) removed: the model declares neither planned nor pulled work
-// expect: one error, on line 1 — a key that is missing stands on no line —, naming
-//         A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
+// input: modelFindings of the changed text
+// expect: one error, on line 1 — a key that is missing stands on no line —, naming A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 test("modelFindings — no declaration of planned or pulled work is an error", () => {
   const text = removed(3, "kind: pulled");
   assert.deepEqual(findingsOf(text), [[1, "error", VALIDATED]]);
@@ -485,11 +493,11 @@ test("modelFindings — no declaration of planned or pulled work is an error", (
 
 // ---------------------------------------------------------------- modelFindings: this repository's own model
 
+// TST-476018 · level: unit · module: MOD-model-catalogue
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; UC-002
-// given: this repository's own docs/process-models/scrum-wip.md, as it stands on origin/main — a kind in Produces
-//        followed by an explanation in parentheses on five rows, and a Time box of none beside a WIP limit of 4
-// expect: no error finding: the explanation is dropped before a kind is checked and before a gate's check of what is
-//         produced, and the stated Time box of none is no time box
+// given: this repository's own docs/process-models/scrum-wip.md, as it stands on origin/main — a kind in Produces followed by an explanation in parentheses on five rows, and a Time box of none beside a WIP limit of 4
+// input: modelFindings of the file's text, read with its path
+// expect: no error finding: the explanation is dropped before a kind is checked and before a gate's check of what is produced, and the stated Time box of none is no time box
 test("modelFindings — this repository's own docs/process-models/scrum-wip.md, as it stands, has no error finding", () => {
   const path = "docs/process-models/scrum-wip.md";
   assert.deepEqual(findingsOf(fileText(path), path), []);
@@ -500,11 +508,11 @@ test("modelFindings — this repository's own docs/process-models/scrum-wip.md, 
 // A name as a whole word, ignoring case, with its hyphens also written as blanks: `v-model`, `V model`.
 const wordOf = (name) => new RegExp(`(?<![A-Za-z0-9])${name.replace(/-/g, "[- ]")}(?![A-Za-z0-9])`, "i");
 
+// TST-472408 · level: unit · module: MOD-model-catalogue
 // guards: THE CATALOGUE IS DATA
 // given: the name of each shipped model and practice; the text of every code file (*.mjs) of src/model-catalogue/
 // input: each name searched as a whole word, ignoring case, with its hyphens also as blanks
-// expect: known positive first — each name is found in the shipped file that defines it, and in a copy of index.mjs's text
-//         with the name planted in a comment; then no name in any code file of the module
+// expect: known positive first — each name is found in the shipped file that defines it, and in a copy of index.mjs's text with the name planted in a comment; then no name in any code file of the module
 test("THE CATALOGUE IS DATA — no name of a shipped model or practice stands in the module's code", () => {
   const code = readdirSync(FOLDER_URL, { recursive: true }).filter((file) => String(file).endsWith(".mjs")).map(String);
   assert.ok(code.includes("index.mjs"), "the module's code is there to be searched");
@@ -539,16 +547,11 @@ async function load({ disk, fetch }) {
   }
 }
 
+// TST-472409 · level: unit · module: MOD-model-catalogue
 // guards: THE CATALOGUE IS DATA; AGENT M CARRIES THE BOOK'S CATALOGUE
-// given: the module loaded anew twice — as in Node, from a disk, and as in a browser, without a disk, whose fetch answers
-//        the module's own addresses —, each serving the module's real files except two: its list of shipped files,
-//        src/model-catalogue/shipped.md, names one more model file, `models/fixture-pulled.md`, and that file is FIXTURE
+// given: the module loaded anew twice — as in Node, from a disk, and as in a browser, without a disk, whose fetch answers the module's own addresses —, each serving the module's real files except two: its list of shipped files, src/model-catalogue/shipped.md, names one more model file, `models/fixture-pulled.md`, and that file is FIXTURE
 // input: await catalogue(snapshot) of each load, the snapshot holding the shipped catalogue's files
-// expect: for each load, its reads — from the disk in Node, with fetch in a browser — are exactly the module's two schemas,
-//         its list of shipped files and each file the list names, every one at its own address in src/model-catalogue/,
-//         each once; and the catalogue holds the five shipped models and then fixture-pulled, read from
-//         src/model-catalogue/models/fixture-pulled.md, with no finding: a model is added by its file and its line in the
-//         list, and the code that finds it is the same
+// expect: for each load, its reads — from the disk in Node, with fetch in a browser — are exactly the module's two schemas, its list of shipped files and each file the list names, every one at its own address in src/model-catalogue/, each once; and the catalogue holds the five shipped models and then fixture-pulled, read from src/model-catalogue/models/fixture-pulled.md, with no finding: a model is added by its file and its line in the list, and the code that finds it is the same
 test("THE CATALOGUE IS DATA — the shipped models and practices are found in the module's list of its files, read from the disk in Node and from its own address in a browser", async () => {
   const at = (file) => new URL(file, FOLDER_URL);
   const list = at("shipped.md");

@@ -28,9 +28,9 @@ const existing = [{ id: EXPORT, keys: [EXPORT, EXPORT_RULE] }, { id: TITLE, keys
 const candidate = (ref, keys, from, proposed = { class: "new", of: null }) => ({ ref, keys, from, proposed });
 const classified = (refs, from, cls, of, decidedBy) => ({ refs, from, class: cls, of, decidedBy });
 
+// TST-472180 · level: unit · module: MOD-documents
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-// given: the requirements EXPORT IS A PDF and A REPORT HAS A TITLE; a candidate under the name A REPORT HAS A TITLE with the rule "Every report shows its title on the first page."
-//        proposed a change of it
+// given: the requirements EXPORT IS A PDF and A REPORT HAS A TITLE; a candidate under the name A REPORT HAS A TITLE with the rule "Every report shows its title on the first page." proposed a change of it
 // input: classifyCandidates of it
 // expect: one class, a change of A REPORT HAS A TITLE, decided by the participant — it is no duplicate by rule, its name alone joins nothing
 test("classifyCandidates — a candidate under an existing name with another rule keeps its class, a change, and is no duplicate", () => {
@@ -39,9 +39,9 @@ test("classifyCandidates — a candidate under an existing name with another rul
   assert.equal(classifyCandidates(draft, existing)[0].class === "duplicate", false);
 });
 
+// TST-472181 · level: unit · module: MOD-documents
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-019 (step 5)
-// given: the same requirements; a candidate under the new name EXPORT AS A PDF with the rule of EXPORT IS A PDF, proposed new; another under the name of A REPORT HAS A TITLE
-//        with its rule in other letters, white space and quotation marks, proposed a conflict
+// given: the same requirements; a candidate under the new name EXPORT AS A PDF with the rule of EXPORT IS A PDF, proposed new; another under the name of A REPORT HAS A TITLE with its rule in other letters, white space and quotation marks, proposed a conflict
 // input: classifyCandidates of both
 // expect: a duplicate of EXPORT IS A PDF by rule for the first, a duplicate of A REPORT HAS A TITLE by rule for the second, whatever each participant proposed
 test("classifyCandidates — a candidate whose normalised rule equals an existing requirement's is a duplicate of it, under another name too", () => {
@@ -55,6 +55,7 @@ test("classifyCandidates — a candidate whose normalised rule equals an existin
   ]);
 });
 
+// TST-472182 · level: unit · module: MOD-documents
 // guards: CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
 // given: no existing requirement; two candidates of one name with different rules; and two candidates that state one rule under two names, from two passages
 // input: classifyCandidates of each pair
@@ -75,12 +76,11 @@ test("classifyCandidates — two candidates of one name with different rules sta
   assert.deepEqual(classifyCandidates(ruled, []), [classified(["c3", "c4"], ["SRC-alice, p. 3", "SRC-alice, p. 4"], "new", null, "participant")]);
 });
 
+// TST-472183 · level: unit · module: MOD-documents
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
-// given: keys of one field — a title: the existing use case "Export a report as a PDF"; two candidates of it in other letters and one with another title; a
-//        module identifier MOD-documents as the existing key and a candidate with the same identifier
+// given: keys of one field — a title: the existing use case "Export a report as a PDF"; two candidates of it in other letters and one with another title; a module identifier MOD-documents as the existing key and a candidate with the same identifier
 // input: classifyCandidates of each
-// expect: a key of one field is decided by that field: the two candidates in other letters are merged and are a duplicate of the existing use case by rule; the other title is its own
-//         class, new; the module identifier is a duplicate of the existing one
+// expect: a key of one field is decided by that field: the two candidates in other letters are merged and are a duplicate of the existing use case by rule; the other title is its own class, new; the module identifier is a duplicate of the existing one
 test("classifyCandidates — a key of one field is decided by that field, as before", () => {
   const cases = [{ id: "UC-007", keys: ["Export a report as a PDF"] }];
   const draft = [
@@ -96,6 +96,7 @@ test("classifyCandidates — a key of one field is decided by that field, as bef
     [classified(["m1"], ["ARC-012"], "duplicate", "MOD-documents", "rule")]);
 });
 
+// TST-472184 · level: unit · module: MOD-documents
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // given: an existing requirement and candidates whose rule is blank: two with different names, and one with the existing requirement's name
 // input: classifyCandidates of them
@@ -113,6 +114,7 @@ test("classifyCandidates — a blank rule names nothing and joins nothing", () =
   ]);
 });
 
+// TST-472185 · level: unit · module: MOD-documents
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // given: two existing requirements that state one rule — EXPORT IS A PDF and, in an open entry, EXPORT AS A PDF — and a candidate that states it
 // input: classifyCandidates of it

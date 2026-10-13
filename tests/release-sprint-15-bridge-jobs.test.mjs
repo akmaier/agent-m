@@ -33,6 +33,8 @@ function probe(bridge, token, args) {
 }
 
 // CASE ITM-262-RELEASE-01
+// TST-472517 · level: release · module: MOD-bridge-jobs
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the public jobHandlers default, a real paired loopback Bridge, and a constructed provider response through global fetch
 // input: an unpaired request, then paired success and provider-refusal endpoint-test requests through Node HTTP
 // expect: the public protocol refuses before dispatch; its default handler maps typed args into one provider call and preserves success and diagnosis results

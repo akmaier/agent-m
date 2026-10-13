@@ -31,14 +31,29 @@ def read(path: Path) -> dict:
 
 
 class ModelRoles(unittest.TestCase):
+    # TST-475015 · level: unit · module: MOD-model-catalogue
+    # guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A ROLE NAMES THE CAPABILITIES IT NEEDS; A ROLE NAMES HOW MANY FILL IT
+    # given: the shipped models under src/model-catalogue/models/ and the instance's under docs/process-models/
+    # input: count the model files found
+    # expect: at least 6 model files are found
     def test_known_positive_the_shipped_and_instance_models_are_found(self):
         self.assertGreaterEqual(len(MODELS), 6)
 
+    # TST-475016 · level: unit · module: MOD-model-catalogue
+    # guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A ROLE NAMES THE CAPABILITIES IT NEEDS; A ROLE NAMES HOW MANY FILL IT
+    # given: each shipped and instance model read with the module's schema
+    # input: modelFindings of each model, error findings only
+    # expect: no error finding for any model
     def test_every_shipped_and_instance_model_passes_the_model_schema(self):
         for path in MODELS:
             with self.subTest(path.relative_to(ROOT).as_posix()):
                 self.assertEqual(read(path)["errors"], [])
 
+    # TST-475017 · level: unit · module: MOD-model-catalogue
+    # guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A ROLE NAMES THE CAPABILITIES IT NEEDS; A ROLE NAMES HOW MANY FILL IT
+    # given: each shipped and instance model with its ## Roles table
+    # input: the How many cell of every role
+    # expect: every model names roles and each role's How many is 'one' or 'several'
     def test_each_role_states_how_many_participants_fill_it(self):
         for path in MODELS:
             roles = read(path)["howMany"]

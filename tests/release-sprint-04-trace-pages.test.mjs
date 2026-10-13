@@ -273,10 +273,11 @@ const writesOf = (server) => server.requests.filter((r) => /^write\b|^(other|han
 // ------------------------------------------------------------------------------------------------ UC-025 step 5
 
 // UC-025 step 5 · A MODULE BELONGS TO ONE SUBSYSTEM · ONE MODULE, ONE FILE · DIAGRAMS ARE MERMAID IN MARKDOWN.
-// Input: Agent M's own architecture. Precondition: each module file follows one subsystem's decision.
-// Expected: the page hands Mermaid one diagram, a flowchart read statement by statement; it has one box for each module file and
-// none for anything else; each box stands in the box of its module's subsystem — the decision ARC-037 lists among those the
-// module follows — and in no other subsystem's box; no subsystem has two boxes.
+// TST-477013 · level: release · module: MOD-trace-pages
+// guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; ONE MODULE, ONE FILE; DIAGRAMS ARE MERMAID IN MARKDOWN
+// given: each module file follows one subsystem's decision
+// input: Agent M's own architecture
+// expect: the page hands Mermaid one diagram, a flowchart read statement by statement; it has one box for each module file and none for anything else; each box stands in the box of its module's subsystem — the decision ARC-037 lists among those the module follows — and in no other subsystem's box; no subsystem has two boxes
 test("ITM-203 · UC-025 step 5 — every module of Agent M is one box, inside the box of its subsystem and of no other", async (t) => {
   const subsystems = subsystemsOf(OWN), modules = modulesOf(OWN);
   const expected = Object.fromEntries(modules.map((m) => [m.id, [[subsystemOf(m, subsystems)]]]));
@@ -294,10 +295,11 @@ test("ITM-203 · UC-025 step 5 — every module of Agent M is one box, inside th
 });
 
 // UC-025 step 5 · THE TRACEABILITY MATRIX IS DERIVED.
-// Input: Agent M's own architecture. Precondition: some module uses another through more than one interface — the files name
-// more used interfaces than pairs of a module and a module it uses.
-// Expected: exactly one arrow from each module to each module its file says it uses, pointing at the module used, and no other
-// arrow — as many arrows as such pairs, however many interfaces each use names.
+// TST-477014 · level: release · module: MOD-trace-pages
+// guards: UC-025; THE TRACEABILITY MATRIX IS DERIVED
+// given: some module uses another through more than one interface — the files name more used interfaces than pairs of a module and a module it uses
+// input: Agent M's own architecture
+// expect: exactly one arrow from each module to each module its file says it uses, pointing at the module used, and no other arrow — as many arrows as such pairs, however many interfaces each use names
 test("ITM-203 · UC-025 step 5 — one arrow from each module to each module it uses, however many of its interfaces it uses", async (t) => {
   const modules = modulesOf(OWN), expected = arrowsOf(modules);
   const interfaces = modules.reduce((n, m) => n + m.interfaces, 0);
@@ -310,11 +312,11 @@ test("ITM-203 · UC-025 step 5 — one arrow from each module to each module it 
 });
 
 // UC-025 step 5 · ONE MODULE, ONE FILE · THE TRACEABILITY MATRIX IS DERIVED.
-// Input: Agent M's own architecture without docs/architecture/MOD-documents.md — the module that most modules use. Precondition:
-// several modules use MOD-documents, each through one interface or more.
-// Expected: MOD-documents, used but without a file, is one box, marked missing, and the arrow of each module that uses it ends
-// there; no other box is marked missing; every arrow is that of a use the served files state; nothing is written. Counter-case:
-// with its file, no box of Agent M's architecture is marked missing.
+// TST-477015 · level: release · module: MOD-trace-pages
+// guards: UC-025; ONE MODULE, ONE FILE; THE TRACEABILITY MATRIX IS DERIVED
+// given: several modules use MOD-documents, each through one interface or more
+// input: Agent M's own architecture without docs/architecture/MOD-documents.md — the module that most modules use
+// expect: MOD-documents, used but without a file, is one box, marked missing, and the arrow of each module that uses it ends there; no other box is marked missing; every arrow is that of a use the served files state; nothing is written. Counter-case: with its file, no box of Agent M's architecture is marked missing
 test("ITM-203 · UC-025 step 5 — a used module that has no file is one box marked missing, where the arrows of its users end", async (t) => {
   const TAKEN = "docs/architecture/MOD-documents.md";
   const without = Object.fromEntries(Object.entries(OWN).filter(([p]) => p !== TAKEN));
@@ -342,12 +344,11 @@ test("ITM-203 · UC-025 step 5 — a used module that has no file is one box mar
 // ------------------------------------------------------------------------------------------------ Mermaid's limit
 
 // UC-025 step 5 · DIAGRAMS ARE MERMAID IN MARKDOWN.
-// Input: Agent M's own architecture. Precondition: the page's Mermaid (docs/assets/vendor/mermaid.min.js, 12.0.0) draws
-// "Maximum text size in diagram exceeded" in place of a diagram whose text is longer than its maxTextSize, 50,000 characters
-// unless the page initialises it with another; what it measures is the text the page hands it, trimmed, with a <br> written as
-// <br/>, less any front matter, directive and comment — at most the length measured here.
-// Expected: the page hands Mermaid the whole diagram — a box for each of Agent M's modules — in a text no longer than the limit
-// in force, so that Mermaid draws it and not the message.
+// TST-477016 · level: release · module: MOD-trace-pages
+// guards: UC-025; DIAGRAMS ARE MERMAID IN MARKDOWN
+// given: the page's Mermaid (docs/assets/vendor/mermaid.min.js, 12.0.0) draws "Maximum text size in diagram exceeded" in place of a diagram whose text is longer than its maxTextSize, 50,000 characters unless the page initialises it with another; what it measures is the text the page hands it, trimmed, with a <br> written as <br/>, less any front matter, directive and comment — at most the length measured here
+// input: Agent M's own architecture
+// expect: the page hands Mermaid the whole diagram — a box for each of Agent M's modules — in a text no longer than the limit in force, so that Mermaid draws it and not the message
 test("ITM-203 · the page draws Agent M's component diagram without Mermaid's \"Maximum text size in diagram exceeded\"", async (t) => {
   const bundle = readFileSync(new URL("../docs/assets/vendor/mermaid.min.js", import.meta.url), "utf8");
   const limit = Number(/\bmaxTextSize:([0-9.e]+)[,}]/.exec(bundle)?.[1]);
@@ -367,9 +368,11 @@ test("ITM-203 · the page draws Agent M's component diagram without Mermaid's \"
 // ------------------------------------------------------------------------------------------------ the explanation
 
 // UC-025 step 5, as the page explains it.
-// Input: Agent M's own architecture. Expected: under the diagram, in its panel, an explanation that can be expanded says what
-// the diagram draws — one box per module, inside the box of its subsystem; one arrow from a module to each module it uses; a used
-// module that has no file drawn as a box marked missing.
+// TST-477017 · level: release · module: MOD-trace-pages
+// guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; ONE MODULE, ONE FILE; DIAGRAMS ARE MERMAID IN MARKDOWN; THE TRACEABILITY MATRIX IS DERIVED
+// given: the architecture page of Agent M's own architecture
+// input: Agent M's own architecture
+// expect: under the diagram, in its panel, an explanation that can be expanded says what the diagram draws — one box per module, inside the box of its subsystem; one arrow from a module to each module it uses; a used module that has no file drawn as a box marked missing
 test("ITM-203 · the explanation under the component diagram says what the diagram draws", async () => {
   const { page } = await architecturePage(OWN);
   const main = page.main();

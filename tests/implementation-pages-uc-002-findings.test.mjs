@@ -449,12 +449,11 @@ function connectedTarget() {
 
 // ---------------------------------------------------------------- F1: the table opens unfolded the first time, folded later
 
-// guards: UC-002 (step 1: the page opens with the table of the process model and the rules to be met, unfolded after
-//         the first reading, folded at every later one; ITM-223-F1)
+// TST-472260 · level: unit · module: MOD-implementation-pages
+// guards: UC-002 (step 1: the page opens with the table of the process model and the rules to be met, unfolded after the first reading, folded at every later one; ITM-223-F1)
 // given: a product without a declaration; this is this test file's first render of the route
 // input: route.render, twice, over two fresh targets of the same page
-// expect: the "What is this?" holding that table is open on the first render, and folded (no open attribute) on the
-//         second — a plain module-level flag, in memory only, never written to any store
+// expect: the "What is this?" holding that table is open on the first render, and folded (no open attribute) on the second — a plain module-level flag, in memory only, never written to any store
 test("process route — the process-model-vs-rules table opens unfolded the first time this module renders, folded at every later opening (F1)", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({}, sha1("f1-product-head"));
@@ -477,10 +476,9 @@ test("process route — the process-model-vs-rules table opens unfolded the firs
 
 // ---------------------------------------------------------------- F2: transitions and verification pairs
 
-// guards: THE MODEL DETERMINES THE PHASES AND THE GATES; UC-002 (step 5: the workflow shows the model's transitions
-//         and its verification pairs, beside its phases and gates; ITM-223-F2)
-// given: fixture-sprint-model declared, whose transitions include a "back" one and whose verification pairs name
-//        Build checked by Review
+// TST-472261 · level: unit · module: MOD-implementation-pages
+// guards: THE MODEL DETERMINES THE PHASES AND THE GATES; UC-002 (step 5: the workflow shows the model's transitions and its verification pairs, beside its phases and gates; ITM-223-F2)
+// given: fixture-sprint-model declared, whose transitions include a "back" one and whose verification pairs name Build checked by Review
 // input: route.render(target, context)
 // expect: the phases panel names every transition, From, To and its kind, and the verification pair Build/Review
 test("process route — the phases panel shows the model's transitions and its verification pairs (F2)", async () => {
@@ -508,13 +506,11 @@ test("process route — the phases panel shows the model's transitions and its v
 
 // ---------------------------------------------------------------- F3: beside a branch, the gate at its end
 
-// guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; UC-002 (step 5: beside a branch, the model's gate at its
-//         end — for a phase, the gate that leaves it; for the sprint, the gate back to the model's first phase;
-//         ITM-223-F3)
+// TST-472262 · level: unit · module: MOD-implementation-pages
+// guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; UC-002 (step 5: beside a branch, the model's gate at its end — for a phase, the gate that leaves it; for the sprint, the gate back to the model's first phase; ITM-223-F3)
 // given: fixture-sprint-model declared, Build given a branch of its own and the sprint given one too (two branch rows)
 // input: route.render(target, context)
-// expect: Build's branch line also shows Build's own gate, Build → Review; the sprint's branch line shows the gate
-//         back to the model's first phase, Review → Design
+// expect: Build's branch line also shows Build's own gate, Build → Review; the sprint's branch line shows the gate back to the model's first phase, Review → Design
 test("process route — beside a branch, the model's own gate at its end is shown (F3)", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText({
@@ -539,10 +535,9 @@ test("process route — beside a branch, the model's own gate at its end is show
 
 // ---------------------------------------------------------------- F4: a practice's own "what it adds"
 
-// guards: A PRACTICE IS NOT A MODEL; UC-002 (step 6: each practice is shown with what it adds, beside the models it
-//         fits; ITM-223-F4)
-// given: the shipped practice devops (fits: scrum, kanban, from MOD-model-catalogue's own copy), whose file in the
-//        instance's snapshot holds a fixture "## Adds"
+// TST-472263 · level: unit · module: MOD-implementation-pages
+// guards: A PRACTICE IS NOT A MODEL; UC-002 (step 6: each practice is shown with what it adds, beside the models it fits; ITM-223-F4)
+// given: the shipped practice devops (fits: scrum, kanban, from MOD-model-catalogue's own copy), whose file in the instance's snapshot holds a fixture "## Adds"
 // input: route.render(target, context), fixture-sprint-model declared
 // expect: the practices panel names devops beside the models it fits, and the fixture text of its "## Adds"
 test("process route — each practice is shown with what it adds, beside the models it fits (F4)", async () => {
@@ -561,13 +556,11 @@ test("process route — each practice is shown with what it adds, beside the mod
   target.remove();
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE
-//         MODEL; MOD-implementation-pages
-// given: the same instance snapshot holds the selected devops practice with explicit model-table additions and a product
-//        declaration selecting it; a second declaration names no practice
+// TST-472264 · level: unit · module: MOD-implementation-pages
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE MODEL; MOD-implementation-pages
+// given: the same instance snapshot holds the selected devops practice with explicit model-table additions and a product declaration selecting it; a second declaration names no practice
 // input: route.render for each controlled snapshot
-// expect: only the selected declaration's workflow shows the practice phase, its produced artifact kind, role and marked gate;
-//         the model's own gates remain and the unselected declaration shows none of the practice additions
+// expect: only the selected declaration's workflow shows the practice phase, its produced artifact kind, role and marked gate; the model's own gates remain and the unselected declaration shows none of the practice additions
 test("process route — selected tabled practice additions enter the workflow and disappear when the selection changes", async () => {
   const practiceAdds = `### Phases
 
@@ -611,10 +604,9 @@ test("process route — selected tabled practice additions enter the workflow an
 
 // ---------------------------------------------------------------- F5: a process requirement's gate, the phases it stands between
 
-// guards: A PROCESS REQUIREMENT ADDS TO THE MODEL; UC-002 (step 7, 7b: for a gate a process requirement adds, the two
-//         phases it stands between; ITM-223-F5)
-// given: fixture-sprint-model declared, its declaration adding a gate for A FIXTURE REQUIREMENT between Design and
-//        Build — a pair the model's own gates do not use, so it is unambiguous
+// TST-472265 · level: unit · module: MOD-implementation-pages
+// guards: A PROCESS REQUIREMENT ADDS TO THE MODEL; UC-002 (step 7, 7b: for a gate a process requirement adds, the two phases it stands between; ITM-223-F5)
+// given: fixture-sprint-model declared, its declaration adding a gate for A FIXTURE REQUIREMENT between Design and Build — a pair the model's own gates do not use, so it is unambiguous
 // input: route.render(target, context)
 // expect: the process-requirements panel names the requirement and both phases, Design and Build
 test("process route — a gate a process requirement adds is shown with the two phases it stands between (F5)", async () => {

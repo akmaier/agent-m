@@ -158,14 +158,12 @@ const unrecorded = (fake) => Object.keys(fake.files()).filter((path) => path.sta
 
 // ---------------------------------------------------------------- derive-use-cases (UC-007)
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476056 · level: component · module: MOD-approvals
 // guards: UC-007 1–6; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
-// given: the product of UC-007's example — the requirement EXPORT IS A PDF realised by UC-007 and UC-003, the requirement A REPORT HAS A TITLE realised by none, the version history once held
-//        UC-009 —; a drafter that first drafts a use case realising A REPORT HAS A TITLE and the unknown name EXPORT AS PDF, then the same without that name
+// given: the product of UC-007's example — the requirement EXPORT IS A PDF realised by UC-007 and UC-003, the requirement A REPORT HAS A TITLE realised by none, the version history once held UC-009 —; a drafter that first drafts a use case realising A REPORT HAS A TITLE and the unknown name EXPORT AS PDF, then the same without that name
 // input: prepareJob of derive-use-cases for the requirement A REPORT HAS A TITLE; runJob unattended
-// expect: the parts: the chosen requirement as the SPEC states it, both existing use cases each with its status and as an artifact, chapter 8 of the book; the first draft gets the finding
-//         that EXPORT AS PDF matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS], sent back with the draft; two rounds, the second clean, stopped because passed; one commit on
-//         trunk holding the use case as an open file under UC-010 (one more than UC-009, which the history held), naming A REPORT HAS A TITLE only, no approval record added, the SPEC byte-identical, the
-//         message ending with the provenance lines (two rounds)
+// expect: the parts: the chosen requirement as the SPEC states it, both existing use cases each with its status and as an artifact, chapter 8 of the book; the first draft gets the finding that EXPORT AS PDF matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS], sent back with the draft; two rounds, the second clean, stopped because passed; one commit on trunk holding the use case as an open file under UC-010 (one more than UC-009, which the history held), naming A REPORT HAS A TITLE only, no approval record added, the SPEC byte-identical, the message ending with the provenance lines (two rounds)
 test("derive-use-cases — the parts of its recipes, a finding sent back and fixed, one commit of an open file with the provenance lines", async () => {
   const fake = product(PRODUCT, { history: ["docs/use-cases/UC-009-old.md"] });
   const { job, context } = await prepare("derive-use-cases", fake, { requirements: [TITLE] });
@@ -211,13 +209,12 @@ test("derive-use-cases — the parts of its recipes, a finding sent back and fix
   assert.deepEqual(result.written.files, [path]);
 });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476057 · level: component · module: MOD-approvals
 // guards: UC-007 4a, 4b, 6a; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
-// given: the same product; a drafter that, with a limit of one round, drafts a new use case realising A REPORT HAS A TITLE and EXPORT AS PDF, and a use case of the goal UC-007 already covers
-//        — classed a change of UC-007 and drafted as its whole new text — and one that realises nothing
+// given: the same product; a drafter that, with a limit of one round, drafts a new use case realising A REPORT HAS A TITLE and EXPORT AS PDF, and a use case of the goal UC-007 already covers — classed a change of UC-007 and drafted as its whole new text — and one that realises nothing
 // input: runJob unattended with the limit 1
-// expect: stopped because of the limit with the finding left; one commit: the new use case under UC-008 without the name EXPORT AS PDF, the change in UC-007's own file under its own identifier — no
-//         UC-011 —, the use case that realises nothing written too; the outcome's notes name the removed name and the use case that realises nothing; the approval record of UC-007 now names an
-//         earlier text, so UC-007 counts as changed
+// expect: stopped because of the limit with the finding left; one commit: the new use case under UC-008 without the name EXPORT AS PDF, the change in UC-007's own file under its own identifier — no UC-011 —, the use case that realises nothing written too; the outcome's notes name the removed name and the use case that realises nothing; the approval record of UC-007 now names an earlier text, so UC-007 counts as changed
 test("derive-use-cases — a name left unknown after the last round is removed, a goal already covered becomes a change of its file", async () => {
   const fake = product(PRODUCT);
   const { job, context } = await prepare("derive-use-cases", fake, { requirements: [TITLE] }, 1);
@@ -244,11 +241,12 @@ test("derive-use-cases — a name left unknown after the last round is removed, 
   assert.equal(status.get("docs/use-cases/UC-008-title-a-report.md").status, "open");
 });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476058 · level: component · module: MOD-approvals
 // guards: UC-007 3, 5; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
 // given: the same product, whose UC-003 is open (no record names its text) and UC-007 accepted
 // input: prepareJob of derive-use-cases for the requirement A REPORT HAS A TITLE with the use cases UC-007 and UC-003 as what the job rests on; then for a requirement the SPEC does not hold
-// expect: with UC-007 alone it starts (known positive); with UC-003 blocking holds one error under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED naming UC-003; for AN UNWRITTEN RULE the job does
-//         not start: preparing rejects with RequirementNotFound naming it
+// expect: with UC-007 alone it starts (known positive); with UC-003 blocking holds one error under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED naming UC-003; for AN UNWRITTEN RULE the job does not start: preparing rejects with RequirementNotFound naming it
 test("derive-use-cases — a job does not start on use cases that are not accepted or on a requirement the SPEC does not hold", async () => {
   const fake = product(PRODUCT);
   assert.deepEqual((await prepare("derive-use-cases", fake, { requirements: [TITLE], useCases: ["UC-007"] })).job.blocking, [], "known positive");
@@ -266,12 +264,12 @@ const INSTRUCTION = "add error handling to UC-007";
 const WITH_ERRORS = useCase({ id: "UC-007", title: "Export a report", realises: [EXPORT], goal: "The author takes the report away as a PDF file.",
   alternative: "- **1a. The report is empty.** Nothing is written.\n- **2a. The file cannot be written.** The dashboard says why and keeps the report." });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476059 · level: component · module: MOD-artifact-edits
 // guards: UC-019 4, 5, 7, 8, 9; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN EDITED FILE KEEPS ITS IDENTIFIER; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // given: UC-007 accepted on its text; the instruction "add error handling to UC-007"; a drafter that first returns the use case with the identifier UC-043, then with UC-007 and the alternative flow
 // input: prepareJob of change-use-case for UC-007; runJob attended; then writeResult with the draft as the person left it
-// expect: parts: the instruction, UC-007 and the requirement it realises with its text from the SPEC, then every other use case, chapter 8; the first draft gets the finding that the identifier changed
-//         from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] with the fix keep UC-007, sent back; the loop passes in two rounds and, attended, writes nothing; the click writes one commit
-//         holding UC-007's file with the drafted text, an open (changed) file whose last accepted text is still the accepted one; the message ends with the provenance lines with the instruction
+// expect: parts: the instruction, UC-007 and the requirement it realises with its text from the SPEC, then every other use case, chapter 8; the first draft gets the finding that the identifier changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] with the fix keep UC-007, sent back; the loop passes in two rounds and, attended, writes nothing; the click writes one commit holding UC-007's file with the drafted text, an open (changed) file whose last accepted text is still the accepted one; the message ends with the provenance lines with the instruction
 test("change-use-case — a changed identifier is sent back, nothing is written until the click, then one open file with the provenance lines", async () => {
   const fake = product(PRODUCT);
   const { job, context } = await prepare("change-use-case", fake, { useCase: "UC-007", instruction: INSTRUCTION });
@@ -309,6 +307,8 @@ test("change-use-case — a changed identifier is sent back, nothing is written 
   assert.deepEqual(await approvals.lastAcceptedText("UC-007", fake.host), { text: UC7, blob: gitBlob(UC7), path: UC7_PATH });
 });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476060 · level: component · module: MOD-artifact-edits
 // guards: UC-019 7a, 9; AN EDITED FILE KEEPS ITS IDENTIFIER; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: the same job with a limit of one round and a drafter that keeps the identifier UC-043
 // input: runJob attended; the identifier restored with keptIdentifier before the editor opens; writeResult
@@ -329,6 +329,8 @@ test("change-use-case — a changed identifier the loop left is restored by kept
   assert.deepEqual(fake.writes[0].files, [{ path: UC7_PATH, text: WITH_ERRORS }]);
 });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476061 · level: component · module: MOD-artifact-edits
 // guards: UC-019 6b; A CI AGENT'S DRAFT ENTERS AS OPEN; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // given: the same job, run as a CI agent's — not attended — with a drafter that answers the right draft at once
 // input: runJob
@@ -358,15 +360,12 @@ const QUEUED = { ...PRODUCT,
 const candidate = (fields) => ({ name: EXPORT, rule: EXPORT_RULE, check: "`tests/export.test.mjs`", constrains: "product", passage: "§3 of the instruction", class: "new", of: null,
   source: "SRC-alice", ...fields });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476062 · level: component · module: MOD-spec-changes
 // guards: UC-019 4, 6, 7, 8, 9; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A SPEC EDIT IS SAVED AS A PROPOSAL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
-// given: the product with its SPEC and an open queue holding a proposal EXPORT IS A PDF/A; the instruction; the author's own source SRC-alice, which the product links; a drafter that first returns the
-//        requirement EXPORT IS A PDF restated word for word and classed new, then that class corrected to a duplicate of EXPORT IS A PDF
+// given: the product with its SPEC and an open queue holding a proposal EXPORT IS A PDF/A; the instruction; the author's own source SRC-alice, which the product links; a drafter that first returns the requirement EXPORT IS A PDF restated word for word and classed new, then that class corrected to a duplicate of EXPORT IS A PDF
 // input: prepareJob of change-requirements for EXPORT IS A PDF and A REPORT HAS A TITLE; runJob attended; then writeResult
-// expect: parts: the instruction, each named requirement with its whole section byte for byte, the SPEC with its open queue as one part carrying all three requirements as artifacts — the queue's
-//         with the state open —, chapter 8; the first round's finding that EXPORT IS A PDF restates the existing requirement but is classed new [EXACT DUPLICATES ARE FOUND WITHOUT A MODEL] with the
-//         fix class it as duplicate of EXPORT IS A PDF, sent back with the draft; passed in two rounds, the class a duplicate of EXPORT IS A PDF; nothing written until the click; the click writes one commit
-//         holding a new queue under docs/spec-freigaben/ — index, decisions, an entry for the section and its rationale — and no other file: SPEC.md byte-identical, the entry's section the SPEC's own with
-//         the source SRC-alice added to EXPORT IS A PDF and no new requirement; the message ending with the provenance lines with the instruction
+// expect: parts: the instruction, each named requirement with its whole section byte for byte, the SPEC with its open queue as one part carrying all three requirements as artifacts — the queue's with the state open —, chapter 8; the first round's finding that EXPORT IS A PDF restates the existing requirement but is classed new [EXACT DUPLICATES ARE FOUND WITHOUT A MODEL] with the fix class it as duplicate of EXPORT IS A PDF, sent back with the draft; passed in two rounds, the class a duplicate of EXPORT IS A PDF; nothing written until the click; the click writes one commit holding a new queue under docs/spec-freigaben/ — index, decisions, an entry for the section and its rationale — and no other file: SPEC.md byte-identical, the entry's section the SPEC's own with the source SRC-alice added to EXPORT IS A PDF and no new requirement; the message ending with the provenance lines with the instruction
 test("change-requirements — a restated requirement classed new is sent back, the duplicate adds a source in a queue entry, SPEC.md stays", async () => {
   const fake = product(QUEUED);
   const { job, context } = await prepare("change-requirements", fake, { requirements: [EXPORT, TITLE], source: "SRC-alice", instruction: REQUIREMENTS_INSTRUCTION });
@@ -405,11 +404,12 @@ test("change-requirements — a restated requirement classed new is sent back, t
   assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 2, REQUIREMENTS_INSTRUCTION));
 });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476063 · level: component · module: MOD-spec-changes
 // guards: UC-019 6, 7, 9; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A SPEC EDIT IS SAVED AS A PROPOSAL
 // given: the same job; a drafter that returns, at once, A REPORT HAS A TITLE with a new rule under its existing name, classed a change of A REPORT HAS A TITLE (the prompt asks for a change to "keep that name")
 // input: runJob attended; writeResult
-// expect: the loop passes in one round — a change keeps the name of the requirement it changes, so the name alone is no finding —; the click writes a queue entry whose section holds the new rule under the
-//         existing name; SPEC.md byte-identical
+// expect: the loop passes in one round — a change keeps the name of the requirement it changes, so the name alone is no finding —; the click writes a queue entry whose section holds the new rule under the existing name; SPEC.md byte-identical
 test("change-requirements — a change under the existing name passes the loop and is written as a queue entry", { todo: "FINDING ITM-369-1 — classifyCandidates (src/documents/candidates.mjs) takes a name that equals an existing requirement's as an exact duplicate, whatever class was proposed: candidate-classes (src/job-runner/builtins.mjs) sends every change back with 'class it as duplicate of <its own name>', and the writer composes a duplicate (a source added) not the new rule, so no change under the existing name can pass the loop or be written; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL (name or rule) and A CHANGE IS PROPOSED UNDER THE EXISTING NAME cannot both hold" }, async () => {
   const fake = product(QUEUED);
   const { job, context } = await prepare("change-requirements", fake, { requirements: [TITLE], source: "SRC-alice", instruction: REQUIREMENTS_INSTRUCTION });
@@ -426,9 +426,10 @@ test("change-requirements — a change under the existing name passes the loop a
   assert.equal(fake.files()["SPEC.md"], SPEC);
 });
 
+// Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
+// TST-476064 · level: component · module: MOD-spec-changes
 // guards: UC-019 6b, 4b; A CI AGENT'S DRAFT ENTERS AS OPEN; A SPEC EDIT IS SAVED AS A PROPOSAL; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
-// given: the same job run as a CI agent's — not attended — with a drafter that answers at once the duplicate of EXPORT IS A PDF with the author's source, and a new requirement that points to a source the
-//        product does not link
+// given: the same job run as a CI agent's — not attended — with a drafter that answers at once the duplicate of EXPORT IS A PDF with the author's source, and a new requirement that points to a source the product does not link
 // input: runJob
 // expect: the writer commits at once a new queue and nothing else, SPEC.md byte-identical; the new requirement that points to SRC-unlinked is not written and the outcome's notes name it with that source
 test("change-requirements — a CI agent's draft enters as a queue, and a candidate from a source the product does not link is not written", async () => {

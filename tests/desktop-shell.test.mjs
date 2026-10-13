@@ -205,6 +205,11 @@ async function quit(app) {
 }
 async function clean(app) { try { await quit(app); } finally { if (app.child.exitCode === null) app.child.kill(); } }
 
+// TST-477005 · level: component · module: MOD-desktop-shell
+// guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+// given: the actual Electron entry launched with its forked pairing page, a pairing token written to its private folder, and the release origin
+// input: read the page, request /v1/pair with the token from the right and a foreign origin, copy the address and the token to the native clipboard, and press Pair anew then confirm
+// expect: the page is agent-m://release-owner.github.io/release-frame/desktop-shell/window.html without Node access; the right origin gets 200 and the other 403; the native clipboard receives the address and the token; after Pair anew the old token gets 401 and the rotated token 200
 test("TST-276001: the actual Electron entry renders its forked pairing page and rotates its token", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   try {
@@ -232,6 +237,11 @@ test("TST-276001: the actual Electron entry renders its forked pairing page and 
   finally { await clean(app); }
 });
 
+// TST-477006 · level: component · module: MOD-desktop-shell
+// guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+// given: the actual Electron entry launched with its pairing token written
+// input: press Pause, send a work request to the Bridge, press Resume, send it again, then press Quit
+// expect: while paused the work request is refused with 503; after Resume the real server refuses the unlisted kind with 404; after Quit the Bridge no longer answers
 test("TST-276002: pause refuses new work, resume restores the real server refusal, and Quit stops it", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   let didQuit = false;
@@ -251,6 +261,11 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
   } finally { if (!didQuit) await clean(app); }
 });
 
+// TST-477007 · level: component · module: MOD-desktop-shell
+// guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+// given: the Bridge's default port is occupied by another server
+// input: launch the Electron entry on that port, then type a free replacement port and press Use this port
+// expect: the page shows Agent M Bridge could not start with port 4712 offered; the replacement port starts the same real composition and answers /v1/pair with 200 for the written token
 test("TST-276003: an occupied port is visible and its replacement starts the same real composition", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const occupied = createServer(), port = await unusedPort();
   await new Promise((resolve, reject) => { occupied.once("error", reject); occupied.listen(port, "127.0.0.1", resolve); });
@@ -267,6 +282,11 @@ test("TST-276003: an occupied port is visible and its replacement starts the sam
   } finally { await new Promise((resolve) => occupied.close(resolve)); if (app) await clean(app); }
 });
 
+// TST-477008 · level: component · module: MOD-desktop-shell
+// guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+// given: an existing private folder that is not writable (mode 0500)
+// input: launch the Electron entry with that folder
+// expect: the page shows that Agent M Bridge could not start and names NotWritable; no pairing-token file exists in the folder
 test("TST-276004: an unwritable private folder is shown without starting a server", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const folder = mkdtempSync(join(tmpdir(), "agent-m-276-readonly-"));
   chmodSync(folder, 0o500);
@@ -278,6 +298,11 @@ test("TST-276004: an unwritable private folder is shown without starting a serve
   } finally { chmodSync(folder, 0o700); await clean(app); }
 });
 
+// TST-477009 · level: component · module: MOD-desktop-shell
+// guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+// given: the production default data folder (no folder given) for an instance owned by a fresh owner
+// input: launch the Electron entry with its default folder
+// expect: the instance folder has mode 0700 and its pairing-token file has mode 0600
 test("TST-276006: the production default stores the instance token privately", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const owner = `agentm276${Date.now()}`, instance = `${owner}/bridge`;
   const appData = process.platform === "darwin" ? join(process.env.HOME, "Library", "Application Support") : join(process.env.XDG_CONFIG_HOME ?? join(process.env.HOME, ".config"));
@@ -290,6 +315,11 @@ test("TST-276006: the production default stores the instance token privately", {
   } finally { await clean(app); rmSync(folder, { recursive: true, force: true }); }
 });
 
+// TST-477010 · level: component · module: MOD-desktop-shell
+// guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+// given: the actual Electron entry launched with its window visible
+// input: close the window natively, then start a second source instance twice, minimizing the window between the starts
+// expect: the first window is hidden (macOS) or stays visible (Linux) with the Bridge still answering /v1/pair with 200; each second start exits and restores the first window visible and not minimized
 test("TST-276005: native close behavior and a second source start restore the first window", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   const second = [];

@@ -38,6 +38,7 @@ const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(b
 const failure = (error, message, status) => json({ error, message }, status);
 const rejection = (name, fields = {}) => (error) => error?.name === name && Object.entries(fields).every(([key, value]) => JSON.stringify(error[key]) === JSON.stringify(value));
 
+// TST-472069 · level: unit · module: MOD-bridge-client
 // guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-037
 // given: a Bridge on the loopback that answers the operation test with an object of its own
 // input: mailCall(bridge, "test", connection, args)
@@ -54,11 +55,11 @@ test("mailCall — test posts { connection, args } to its path and returns the B
   assert.equal(calls[0].init.headers["Content-Type"], "application/json");
 });
 
+// TST-472070 · level: unit · module: MOD-bridge-client
 // guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; A CREDENTIAL IS NEVER PLACED IN A URL; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge on the loopback, and one at the jump host's HTTPS address with the web server's login
 // input: mailCall for each
-// expect: the token in the protocol header; the password only in the body — not in the address, not in any header, not in the web login; at the jump host the
-//         address is the Bridge's path and the Authorization header is the web login, the token still its own header
+// expect: the token in the protocol header; the password only in the body — not in the address, not in any header, not in the web login; at the jump host the address is the Bridge's path and the Authorization header is the web login, the token still its own header
 test("mailCall — the token travels in its header, the password in the body only, and a jump-host Bridge adds the web login", async (t) => {
   const calls = withFetch(t, () => json({ ok: true }));
   await mailCall(bridgeAt(BRIDGE), "read", CONNECTION, { folder: "INBOX" });
@@ -77,6 +78,7 @@ test("mailCall — the token travels in its header, the password in the body onl
   }
 });
 
+// TST-472071 · level: unit · module: MOD-bridge-client
 // guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
 // given: the ten operations of the Bridge's mail route, the last two with the single-use confirmation in their arguments
 // input: mailCall for each; and for an operation the route does not have
@@ -93,11 +95,11 @@ test("mailCall — each operation of the mail route posts to its own path, and n
   assert.equal(calls.length, before);
 });
 
+// TST-472072 · level: unit · module: MOD-bridge-client
 // guards: UC-037; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge that answers each error code of its mail route with the status bridgeApi gives it, and its own message
 // input: mailCall for each
-// expect: BridgeFailed { error } with the Bridge's message for confirmation-refused, no-encryption — the message naming the mail server —, login-refused,
-//         upstream-failed and paused; a code no route knows is upstream-failed
+// expect: BridgeFailed { error } with the Bridge's message for confirmation-refused, no-encryption — the message naming the mail server —, login-refused, upstream-failed and paused; a code no route knows is upstream-failed
 test("mailCall — each error of the Bridge is answered as its BridgeError, no-encryption with the server it names", async (t) => {
   const answers = [
     ["confirmation-refused", "The confirmation was used already.", 409],
@@ -115,12 +117,11 @@ test("mailCall — each error of the Bridge is answered as its BridgeError, no-e
   }
 });
 
+// TST-472073 · level: unit · module: MOD-bridge-client
 // guards: THE LOCAL BRIDGE REQUIRES A TOKEN; A CREDENTIAL IS NEVER PLACED IN A URL
-// given: a Bridge with no token stored, one that refuses its token, one at the jump host whose web server refuses the login, one that gives no answer on the
-//        loopback and one at the jump host, and one that times out
+// given: a Bridge with no token stored, one that refuses its token, one at the jump host whose web server refuses the login, one that gives no answer on the loopback and one at the jump host, and one that times out
 // input: mailCall for each
-// expect: TokenMissing with no request; TokenRefused; JumpHostLoginRefused; NoAnswer whose likely causes begin with "blocked by the browser" on the loopback and
-//         end with "certificate not trusted" at the jump host; Timeout
+// expect: TokenMissing with no request; TokenRefused; JumpHostLoginRefused; NoAnswer whose likely causes begin with "blocked by the browser" on the loopback and end with "certificate not trusted" at the jump host; Timeout
 test("mailCall — a missing or refused token, a refused web login, no answer and a timeout are named", async (t) => {
   let mode = "ok";
   const calls = withFetch(t, () => {

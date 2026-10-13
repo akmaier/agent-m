@@ -73,12 +73,11 @@ async function rejection(promise) {
 
 // ---------------------------------------------------------------- the ask
 
+// TST-472084 · level: unit · module: MOD-bridge-jobs
 // guards: A RUNTIME IS INTERCHANGEABLE; UC-003 (2a); UC-011
 // given: a model server (openai-compatible) that holds its answer until released, then answers "Drafted." with 5 prompt and 3 completion tokens
 // input: POST /v1/ask with { endpoint, input }; GET /v1/ask/{ask} before the server answers and after it
-// expect: the post answers { ask } alone; the first read { state: "running", text: null, usage: null, error: null }; then { state: "done", text: "Drafted.", usage:
-//         { inputTokens: 5, outputTokens: 3, minutes: null, cost: null }, error: null }; the server was asked once, at /v1/chat/completions, with the input as the user
-//         message and the model of the configuration
+// expect: the post answers { ask } alone; the first read { state: "running", text: null, usage: null, error: null }; then { state: "done", text: "Drafted.", usage: { inputTokens: 5, outputTokens: 3, minutes: null, cost: null }, error: null }; the server was asked once, at /v1/chat/completions, with the input as the user message and the model of the configuration
 test("an endpoint ask is running, then done with the endpoint's text and usage", async () => {
   const hold = gate();
   const model = await server(ok("Drafted.", { prompt_tokens: 5, completion_tokens: 3 }), { hold });
@@ -99,11 +98,11 @@ test("an endpoint ask is running, then done with the endpoint's text and usage",
   } finally { await model.close(); }
 });
 
+// TST-472085 · level: unit · module: MOD-bridge-jobs
 // guards: A RUNTIME IS INTERCHANGEABLE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a model server of the Anthropic kind, answering a text part and 7 input and 2 output tokens, and an openai-compatible one; each endpoint with a key
 // input: POST /v1/ask to each; GET until done
-// expect: each ask done with its server's text and usage; each server received the key in its own header — x-api-key, Authorization: Bearer — and in no
-//         url
+// expect: each ask done with its server's text and usage; each server received the key in its own header — x-api-key, Authorization: Bearer — and in no url
 test("an endpoint ask sends the key in the provider's header and in no url", async () => {
   const anthropic = await server(() => ({ status: 200, body: { content: [{ type: "text", text: "From Anthropic." }], usage: { input_tokens: 7, output_tokens: 2 } } }));
   const compatible = await server(ok("From a compatible server.", { prompt_tokens: 1, completion_tokens: 1 }));
@@ -120,12 +119,11 @@ test("an endpoint ask sends the key in the provider's header and in no url", asy
   } finally { await anthropic.close(); await compatible.close(); }
 });
 
+// TST-472086 · level: unit · module: MOD-bridge-jobs
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-003
-// given: a model server that refuses the key with 401 and a message that quotes the key; one that cannot be reached (its port closed); one that answers with a
-//        rate limit
+// given: a model server that refuses the key with 401 and a message that quotes the key; one that cannot be reached (its port closed); one that answers with a rate limit
 // input: POST /v1/ask to each; GET until it ends
-// expect: refused: state failed, text and usage null, an error that names "key refused" and the endpoint's words with the key replaced by [key]; unreachable:
-//         failed naming "not reachable"; rate-limited: failed naming "rate limited"
+// expect: refused: state failed, text and usage null, an error that names "key refused" and the endpoint's words with the key replaced by [key]; unreachable: failed naming "not reachable"; rate-limited: failed naming "rate limited"
 test("a refused key, an unreachable server and a rate limit are failed asks with the endpoint's own words", async () => {
   const refusing = await server(() => ({ status: 401, body: { error: { message: `Incorrect API key provided: ${KEY}.` } } }));
   const limited = await server(() => ({ status: 429, body: { error: { message: "Too many requests today." } } }));
@@ -153,12 +151,11 @@ test("a refused key, an unreachable server and a rate limit are failed asks with
   } finally { await refusing.close(); await limited.close(); }
 });
 
+// TST-472087 · level: unit · module: MOD-bridge-jobs
 // guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; UC-003 (2a)
-// given: a model server that answers one ask and refuses another with a message quoting the key; the file functions that write or create files, stdout and
-//        stderr, and the three agent commands watched (a PATH of canaries that log a call); an empty folder of the test
+// given: a model server that answers one ask and refuses another with a message quoting the key; the file functions that write or create files, stdout and stderr, and the three agent commands watched (a PATH of canaries that log a call); an empty folder of the test
 // input: POST /v1/ask for each, and GET until both have ended
-// expect: both ended as they should; no file function was called by the handler; nothing written to stdout or stderr holds the key; no agent command or
-//         other process was started; no answer of any read holds the key; the test's folder holds nothing
+// expect: both ended as they should; no file function was called by the handler; nothing written to stdout or stderr holds the key; no agent command or other process was started; no answer of any read holds the key; the test's folder holds nothing
 test("the key and the configuration of an endpoint ask are kept in no file, log line or command", async (t) => {
   const model = await server((request) => (request.body.messages[0].content === "refuse" ? { status: 401, body: { error: { message: `bad key ${KEY}` } } }
     : { status: 200, body: { choices: [{ message: { content: "Drafted." } }], usage: null } }));
@@ -202,6 +199,7 @@ test("the key and the configuration of an endpoint ask are kept in no file, log 
   } finally { process.env.PATH = prior; await model.close(); rmSync(folder, { recursive: true, force: true }); }
 });
 
+// TST-472088 · level: unit · module: MOD-bridge-jobs
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a model server and a handler; one valid endpoint ask
 // input: POST /v1/ask with the valid endpoint; then with an endpoint whose key is a number, whose kind is unknown, an input that is an object, and no input

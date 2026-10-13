@@ -72,13 +72,12 @@ function fill(main, endpoint = ENDPOINT) {
   type(main.querySelector(".endpoint-key"), endpoint.key);
 }
 
-// TST-292005
-// Module: MOD-settings-pages → MOD-browser-store
-// Level: release
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
-// Precondition: two actual dashboard instances reuse one same-origin browser localStorage object.
-// Input: each instance saves its own endpoint through Settings → Configure, then its active public named route reloads.
-// Expected: both active public routes retain only their own instance record, and no cookie is set.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store
+// TST-292005 · level: release · module: MOD-settings-pages
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
+// given: two actual dashboard instances reuse one same-origin browser localStorage object.
+// input: each instance saves its own endpoint through Settings → Configure, then its active public named route reloads.
+// expect: both active public routes retain only their own instance record, and no cookie is set.
 // Planted fault: fixing prefixOf to agent-m:akmaier/agent-m: makes akmaier/other load the first instance record.
 test("TST-292005: a direct configuration is browser-local localStorage state, never a cookie", async () => {
   const handler = async (url) => url.href === `${ENDPOINT.url}/chat/completions`
@@ -105,13 +104,12 @@ test("TST-292005: a direct configuration is browser-local localStorage state, ne
   assert.equal(richDocument().byId("main").querySelector(".endpoint-model").value, ENDPOINT.model, "the active first-instance route reloads only its own namespace, never akmaier/other");
 });
 
-// TST-292006
-// Module: MOD-settings-pages → MOD-endpoint-calls
-// Level: release
-// Guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
-// Precondition: an author has supplied an optional key on the public endpoint form.
-// Input: Save and test reaches the controlled endpoint.
-// Expected: the key is confined to Authorization; no repository write or request URL contains it.
+// Module (as the case stated it): MOD-settings-pages → MOD-endpoint-calls
+// TST-292006 · level: release · module: MOD-settings-pages
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
+// given: an author has supplied an optional key on the public endpoint form.
+// input: Save and test reaches the controlled endpoint.
+// expect: the key is confined to Authorization; no repository write or request URL contains it.
 // Planted fault: moving the key into endpointUrl in src/endpoint-calls/index.mjs makes the URL assertion fail.
 test("TST-292006: an endpoint credential stays out of URLs and repository writes", async () => {
   let observed = null;
@@ -128,13 +126,12 @@ test("TST-292006: an endpoint credential stays out of URLs and repository writes
   assert.equal(server.requests.some((request) => request.includes(ENDPOINT.key)), false, "the harness request ledger contains no secret");
 });
 
-// TST-292007
-// Module: MOD-settings-pages → MOD-endpoint-calls
-// Level: release
-// Guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
-// Precondition: the configured endpoint is blocked by the browser before a response is available.
-// Input: the author presses Save and test.
-// Expected: the observable diagnosis names the browser block and CI and Bridge as routes that work.
+// Module (as the case stated it): MOD-settings-pages → MOD-endpoint-calls
+// TST-292007 · level: release · module: MOD-settings-pages
+// guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: the configured endpoint is blocked by the browser before a response is available.
+// input: the author presses Save and test.
+// expect: the observable diagnosis names the browser block and CI and Bridge as routes that work.
 // Planted fault: deleting resultText's alternatives from src/settings-pages/endpoints.mjs makes the Bridge assertion fail.
 test("TST-292007: browser blocking remains actionable at the release route", async () => {
   const { server, main } = await openEndpointDashboard({ handlers: [async (url) => {
@@ -149,13 +146,12 @@ test("TST-292007: browser blocking remains actionable at the release route", asy
   assert.match(shown, /Bridge/);
 });
 
-// TST-292008
-// Module: MOD-settings-pages → MOD-browser-store
-// Level: release
-// Guards: UC-003 alternative 2b; A CLEAR IS A REAL CLEAR
-// Precondition: a real endpoint record exists in the dashboard browser's localStorage.
-// Input: the author reloads the named route and presses Clear.
-// Expected: localStorage no longer has the record after a further route reload.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store
+// TST-292008 · level: release · module: MOD-settings-pages
+// guards: UC-003 alternative 2b; A CLEAR IS A REAL CLEAR
+// given: a real endpoint record exists in the dashboard browser's localStorage.
+// input: the author reloads the named route and presses Clear.
+// expect: localStorage no longer has the record after a further route reload.
 // Planted fault: removing clearSetting in src/settings-pages/endpoints.mjs leaves the post-reload record assertion failing.
 test("TST-292008: Clear removes the persistent endpoint record", async () => {
   const entries = { [`${prefix}endpoint:${ENDPOINT.name}`]: JSON.stringify({ url: ENDPOINT.url, kind: ENDPOINT.kind, model: ENDPOINT.model, key: ENDPOINT.key, throughBridge: false }) };
@@ -167,13 +163,12 @@ test("TST-292008: Clear removes the persistent endpoint record", async () => {
   assert.equal(main.querySelector(".endpoint-url").value, "", "reload cannot restore a cleared endpoint");
 });
 
-// TST-292009
-// Module: MOD-settings-pages → MOD-browser-store
-// Level: release
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
-// Precondition: the public endpoint form has an optional key and destination disclosure.
-// Input: the author reads the route, reveals the key, then stores a through-Bridge endpoint.
-// Expected: disclosure precedes the control, Show changes only the password control, and Bridge setup is required with zero direct requests.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store
+// TST-292009 · level: release · module: MOD-settings-pages
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: the public endpoint form has an optional key and destination disclosure.
+// input: the author reads the route, reveals the key, then stores a through-Bridge endpoint.
+// expect: disclosure precedes the control, Show changes only the password control, and Bridge setup is required with zero direct requests.
 // Planted fault: removing the throughBridge return in src/settings-pages/endpoints.mjs makes the zero-request assertion fail.
 test("TST-292009: disclosure and key controls precede a retained Bridge configuration without a direct call", async () => {
   let direct = 0;
@@ -198,13 +193,12 @@ test("TST-292009: disclosure and key controls precede a retained Bridge configur
   assert.deepEqual(JSON.parse(setting(BRIDGED.name)), { url: BRIDGED.url, kind: BRIDGED.kind, model: BRIDGED.model, key: BRIDGED.key, throughBridge: true }, "the retained browser-store record preserves the Bridge route");
 });
 
-// TST-292010
-// Module: MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
-// Level: release
-// Guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
-// Precondition: the author has an endpoint that permits an absent optional key.
-// Input: the author saves and tests it through the mounted dashboard form.
-// Expected: the one successful direct request has no Authorization header and the stored record has no key field.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
+// TST-292010 · level: release · module: MOD-settings-pages
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: the author has an endpoint that permits an absent optional key.
+// input: the author saves and tests it through the mounted dashboard form.
+// expect: the one successful direct request has no Authorization header and the stored record has no key field.
 // Planted fault: making settingFrom always write key in src/settings-pages/endpoints.mjs makes the stored-record assertion fail.
 test("TST-292010: an endpoint without an optional key succeeds without sending one", async () => {
   let request = null;

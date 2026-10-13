@@ -110,6 +110,7 @@ const diskWith = (ending, changed) => (reads) => ({
 
 // ---------------------------------------------------------------- kindNames
 
+// TST-472282 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE CATALOGUE IS DATA
 // given: the catalogue as shipped; the module file's table of kinds; the folders under src/job-catalogue/kinds/
 // input: kindNames()
@@ -126,16 +127,11 @@ test("kindNames — every kind of the module file's table, in its order, each wi
 
 // ---------------------------------------------------------------- kindOf: the shipped definitions
 
+// TST-472283 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE CATALOGUE IS DATA; THE CORRECTION LOOP HAS A FIXED LIMIT
 // given: each kind of the catalogue; the row of the module file's table with its name
 // input: kindOf(name)
-// expect: a definition read without an error, whose name is its folder's; the use cases it serves, what its participant
-//         needs — and `participant: none` exactly where the table names nothing —, its preconditions, recipes — none of
-//         them one that may be left out —, checks, reviewer kind and number of reviewers, steps, review and writer as the
-//         row gives them; `resources: product` and the
-//         gate points before-merge and question exactly for the kinds the module file names, before-merge alone for
-//         write-tests; A CONFLICT IS DECIDED BY A PERSON exactly for the requirement and architecture kinds; the limit 5;
-//         a purpose in a paragraph
+// expect: a definition read without an error, whose name is its folder's; the use cases it serves, what its participant needs — and `participant: none` exactly where the table names nothing —, its preconditions, recipes — none of them one that may be left out —, checks, reviewer kind and number of reviewers, steps, review and writer as the row gives them; `resources: product` and the gate points before-merge and question exactly for the kinds the module file names, before-merge alone for write-tests; A CONFLICT IS DECIDED BY A PERSON exactly for the requirement and architecture kinds; the limit 5; a purpose in a paragraph
 test("kindOf — every shipped definition is read without an error and says what the module file's table says", async () => {
   for (const row of TABLE) {
     const kind = await kindOf(row.name);
@@ -154,12 +150,11 @@ test("kindOf — every shipped definition is read without an error and says what
   }
 });
 
+// TST-472284 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: each kind of the catalogue
 // input: kindOf(name)
-// expect: a kind with a participant has a prompt with a named place `{{recipe}}` for exactly each of its recipes, and a
-//         schema of its draft written with type, properties, required, items and enum only, describing an object; a kind
-//         without a participant has neither a prompt nor a schema of a draft
+// expect: a kind with a participant has a prompt with a named place `{{recipe}}` for exactly each of its recipes, and a schema of its draft written with type, properties, required, items and enum only, describing an object; a kind without a participant has neither a prompt nor a schema of a draft
 test("kindOf — each prompt has a named place for exactly its kind's recipes, and each draft's schema uses the five keywords", async () => {
   for (const name of await kindNames()) {
     const kind = await kindOf(name);
@@ -174,11 +169,11 @@ test("kindOf — each prompt has a named place for exactly its kind's recipes, a
   }
 });
 
+// TST-472285 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: each kind of the catalogue that names a reviewer
 // input: kindOf of it and of its reviewer
-// expect: the reviewer is a kind of the catalogue with a participant, and the number of reviewers is at least one; a kind
-//         that names no reviewer has none
+// expect: the reviewer is a kind of the catalogue with a participant, and the number of reviewers is at least one; a kind that names no reviewer has none
 test("kindOf — a reviewer is a kind of the catalogue, with at least one reviewing participant", async () => {
   const names = await kindNames();
   let reviewed = 0;
@@ -193,6 +188,7 @@ test("kindOf — a reviewer is a kind of the catalogue, with at least one review
   assert.ok(reviewed >= 2, "known positive: the catalogue has reviewed kinds");
 });
 
+// TST-472286 · level: component · module: MOD-job-catalogue
 // guards: THE CATALOGUE IS DATA
 // given: the catalogue as shipped
 // input: kindOf("derive-architecture") twice
@@ -201,6 +197,7 @@ test("kindOf — a kind is read once per program and kept", async () => {
   assert.equal(await kindOf("derive-architecture"), await kindOf("derive-architecture"));
 });
 
+// TST-472287 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: known positive first — kindOf of the shipped kind derive-requirements; then a name the index does not hold
 // input: kindOf("no-such-kind")
@@ -211,13 +208,11 @@ test("kindOf — a name the index does not hold is refused as UnknownKind, namin
     && error.message.includes("no-such-kind"));
 });
 
+// TST-472288 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS
-// given: the module loaded anew three times with a disk that gives the real files — (a) unchanged, the known positive;
-//        (b) derive-requirements' definition without its line `writer: queue-entries`; (c) its definition naming itself
-//        `derive-something`
+// given: the module loaded anew three times with a disk that gives the real files — (a) unchanged, the known positive; (b) derive-requirements' definition without its line `writer: queue-entries`; (c) its definition naming itself `derive-something`
 // input: kindOf("derive-requirements") of each load
-// expect: (a) read; (b), (c) refused with InvalidKind naming the kind, carrying error findings on its definition's path
-//         under ONE DEFINITION, THREE DRIVERS — for (b) one naming the key writer, for (c) one naming both names
+// expect: (a) read; (b), (c) refused with InvalidKind naming the kind, carrying error findings on its definition's path under ONE DEFINITION, THREE DRIVERS — for (b) one naming the key writer, for (c) one naming both names
 test("kindOf — a definition at odds with the definition schema, or not named as its folder, is refused as InvalidKind with its findings", async () => {
   const path = "kinds/derive-requirements/kind.md";
   const real = readFileSync(new URL(path, new URL("../src/job-catalogue/", import.meta.url)), "utf8");
@@ -242,9 +237,9 @@ test("kindOf — a definition at odds with the definition schema, or not named a
   }
 });
 
+// TST-472289 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS
-// given: the module loaded anew with a disk that gives derive-requirements' definition with its recipe source-excerpt
-//        written `source-excerpt?` — a part that may be left out with its reason, as the module file's Data says
+// given: the module loaded anew with a disk that gives derive-requirements' definition with its recipe source-excerpt written `source-excerpt?` — a part that may be left out with its reason, as the module file's Data says
 // input: kindOf("derive-requirements")
 // expect: its recipes read as source-excerpt that may be left out, then the others as they stand
 test("kindOf — a recipe whose name ends with ? is read as one whose part may be left out", async () => {
@@ -256,11 +251,11 @@ test("kindOf — a recipe whose name ends with ? is read as one whose part may b
     { name: "spec-with-queues", optional: false }, { name: "chapters-for-requirements", optional: false }]);
 });
 
+// TST-472290 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: the module loaded anew as in a browser — no disk, and a fetch that serves the module's own files
 // input: kindNames(), and kindOf("propose-items")
-// expect: the same names as in Node, and the definition read; every read a fetch of an address under the module's own
-//         folder, the index and the kind's three files among them
+// expect: the same names as in Node, and the definition read; every read a fetch of an address under the module's own folder, the index and the kind's three files among them
 test("kindNames and kindOf — in a browser, the catalogue reads its own files from its own address", async () => {
   const serve = async (url) => ({ ok: true, status: 200, text: async () => readFileSync(new URL(url), "utf8") });
   const { module, reads } = await load({ disk: undefined, fetch: serve });

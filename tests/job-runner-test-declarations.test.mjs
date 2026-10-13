@@ -135,18 +135,11 @@ function sayItInOneLine(found) {
 
 // ---------------------------------------------------------------- the correction loop
 
-// guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; EVERY TEST HAS ONE LEVEL; A DRAFT THAT FAILS A CHECK GOES BACK TO
-//         ITS PARTICIPANT
-// given: a product whose default branch holds tests/export.test.mjs with the complete declaration TST-003; a participant
-//        that reports the branch tests/export-formats, on which tests/csv.test.mjs is added with TST-002 declaring no expected
-//        result and tests/export.test.mjs is changed by TST-004, which declares no level — and, told of both, pushes both
-//        declarations complete and reports again
+// TST-472369 · level: unit · module: MOD-job-runner
+// guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; EVERY TEST HAS ONE LEVEL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+// given: a product whose default branch holds tests/export.test.mjs with the complete declaration TST-003; a participant that reports the branch tests/export-formats, on which tests/csv.test.mjs is added with TST-002 declaring no expected result and tests/export.test.mjs is changed by TST-004, which declares no level — and, told of both, pushes both declarations complete and reports again
 // input: runJob of it, a person attending
-// expect: the host asked for the reported branch and for no other; the participant asked twice, the second time with two
-//         findings and the first report: TST-002 on line 1, an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS,
-//         and TST-004 on line 8, an error under EVERY TEST HAS ONE LEVEL — TST-003, complete and in a changed file, is not
-//         found —, each in one line; two rounds, the first with both answered fixed, the second with none; stopped because
-//         passed; the second report the result's draft, nothing remaining
+// expect: the host asked for the reported branch and for no other; the participant asked twice, the second time with two findings and the first report: TST-002 on line 1, an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS, and TST-004 on line 8, an error under EVERY TEST HAS ONE LEVEL — TST-003, complete and in a changed file, is not found —, each in one line; two rounds, the first with both answered fixed, the second with none; stopped because passed; the second report the result's draft, nothing remaining
 test("test-declarations — a test added or changed without what it must declare goes back to the participant, and the corrected branch ends the loop", async () => {
   const host = hostOf({ [BRANCH]: { "tests/csv.test.mjs": CSV_WITHOUT_EXPECT,
     "tests/export.test.mjs": EXPORT_WITHOUT_LEVEL } });
@@ -170,16 +163,11 @@ test("test-declarations — a test added or changed without what it must declare
   result.rounds[0].findings.forEach(sayItInOneLine);
 });
 
+// TST-472370 · level: unit · module: MOD-job-runner
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
-// given: a product whose default branch holds tests/legacy.test.mjs with TST-001, which declares no input and no expected
-//        result, and tests/export.test.mjs with TST-003; known positive first — a branch that changes tests/legacy.test.mjs
-//        and adds tests/csv.test.mjs with the complete TST-002, the limit of rounds 1; then a branch that leaves
-//        tests/legacy.test.mjs as it is and adds the same tests/csv.test.mjs
+// given: a product whose default branch holds tests/legacy.test.mjs with TST-001, which declares no input and no expected result, and tests/export.test.mjs with TST-003; known positive first — a branch that changes tests/legacy.test.mjs and adds tests/csv.test.mjs with the complete TST-002, the limit of rounds 1; then a branch that leaves tests/legacy.test.mjs as it is and adds the same tests/csv.test.mjs
 // input: runJob of each, a person attending
-// expect: the first: TST-001 found twice, on line 1 — an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS for
-//         its input and one for its expected result —, nothing found for TST-002, the findings remaining at the limit; the
-//         second: the participant asked once, nothing found — the declaration in the unchanged file is not checked, and the
-//         complete one passes —, stopped because passed, nothing remaining; the host asked for the reported branch only
+// expect: the first: TST-001 found twice, on line 1 — an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS for its input and one for its expected result —, nothing found for TST-002, the findings remaining at the limit; the second: the participant asked once, nothing found — the declaration in the unchanged file is not checked, and the complete one passes —, stopped because passed, nothing remaining; the host asked for the reported branch only
 test("test-declarations — a declaration in an unchanged file is not checked, and a complete one passes", async () => {
   const main = { "tests/export.test.mjs": EXPORT, "tests/legacy.test.mjs": LEGACY };
   const touched = hostOf({ [BRANCH]: { ...main, "tests/csv.test.mjs": CSV_COMPLETE, "tests/legacy.test.mjs": `${LEGACY}\n` } });

@@ -62,16 +62,12 @@ async function saveAndTest(page, endpoint) {
   return form.querySelector(".endpoint-result").textContent;
 }
 
-// TST-290132
-// Module: MOD-settings-pages → MOD-browser-store
-// Level: system
-// Guards: UC-042 step 2; UC-003; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
-// Precondition: Settings is open in a browser that keeps no endpoint; the endpoint answers its test request.
-// Input: the author opens Endpoints & Agents, presses Configure a model endpoint, fills the endpoint campus and presses
-//        Save and test; then presses Clear in the same form.
-// Expected: right after Save and test, the tab lists the endpoint campus beside the form, which still shows that the model
-//           is working, and Endpoints & Agents stays the selected tab; right after the form's Clear, the tab lists no
-//           endpoint, and Endpoints & Agents is still selected.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store
+// TST-290132 · level: system · module: MOD-settings-pages
+// guards: UC-042 step 2; UC-003; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: Settings is open in a browser that keeps no endpoint; the endpoint answers its test request.
+// input: the author opens Endpoints & Agents, presses Configure a model endpoint, fills the endpoint campus and presses Save and test; then presses Clear in the same form.
+// expect: right after Save and test, the tab lists the endpoint campus beside the form, which still shows that the model is working, and Endpoints & Agents stays the selected tab; right after the form's Clear, the tab lists no endpoint, and Endpoints & Agents is still selected.
 // Planted fault: removing the call of context.endpointsChanged after the save in src/settings-pages/endpoints.mjs leaves the
 //                list empty, and the first assertion on the listed lines fails.
 test("TST-290132: the endpoint just stored or cleared in place is listed or gone at once, in the selected tab", async () => {
@@ -92,15 +88,11 @@ test("TST-290132: the endpoint just stored or cleared in place is listed or gone
   assert.deepEqual(selectedTab(page), ["Endpoints & Agents"]);
 });
 
-// TST-290133
-// Module: MOD-settings-pages
-// Level: system
-// Guards: UC-042 steps 1 and 2; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
-// Precondition: this browser keeps the endpoints campus and lab; Settings is open.
-// Input: the author selects Endpoints & Agents and presses Clear on the line of lab, which renders the page again; then
-//        leaves Settings and opens it anew.
-// Expected: after the Clear, Endpoints & Agents is still the selected tab and lists campus alone; Settings opened anew shows
-//           its first tab, General.
+// TST-290133 · level: system · module: MOD-settings-pages
+// guards: UC-042 steps 1 and 2; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: this browser keeps the endpoints campus and lab; Settings is open.
+// input: the author selects Endpoints & Agents and presses Clear on the line of lab, which renders the page again; then leaves Settings and opens it anew.
+// expect: after the Clear, Endpoints & Agents is still the selected tab and lists campus alone; Settings opened anew shows its first tab, General.
 // Planted fault: selecting the first tab on every render in tabbedSettings (src/settings-pages/settings.mjs) makes the
 //                assertion that Endpoints & Agents is still selected fail.
 test("TST-290133: the page keeps the chosen tab across its own renders and opens anew on its first tab", async () => {
@@ -117,16 +109,12 @@ test("TST-290133: the page keeps the chosen tab across its own renders and opens
   assert.deepEqual(selectedTab(page), ["General"], "Settings opened anew shows its first tab");
 });
 
-// TST-290134
-// Module: MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
-// Level: system
-// Guards: UC-042 step 1; UC-003 steps 4 and 5, alternative 4b; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
-// Precondition: Settings is open in a browser that keeps no endpoint.
-// Input: the author stores and tests the endpoint campus through the form, which answers; then stores it again with a key
-//        the endpoint refuses.
-// Expected: after the first test, the browser keeps campus's last test as working, with its date, and campus's line says
-//           "Works. Last successful test: <that date>."; after the second, the last test is refused and the line says
-//           "Refused.".
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
+// TST-290134 · level: system · module: MOD-settings-pages
+// guards: UC-042 step 1; UC-003 steps 4 and 5, alternative 4b; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: Settings is open in a browser that keeps no endpoint.
+// input: the author stores and tests the endpoint campus through the form, which answers; then stores it again with a key the endpoint refuses.
+// expect: after the first test, the browser keeps campus's last test as working, with its date, and campus's line says "Works. Last successful test: <that date>."; after the second, the last test is refused and the line says "Refused.".
 // Planted fault: removing the recordTest call after testEndpoint in src/settings-pages/endpoints.mjs leaves no last test
 //                stored, and the assertion on the stored last test fails.
 test("TST-290134: the form's test is recorded as the endpoint's last test and shown on its line", async () => {
@@ -148,15 +136,12 @@ test("TST-290134: the form's test is recorded as the endpoint's last test and sh
   assert.equal(lineOf(page, "campus").querySelector(".settings-endpoint-status").textContent, "Refused.");
 });
 
-// TST-290135
-// Module: MOD-settings-pages → MOD-browser-store
-// Level: system
-// Guards: UC-042 step 2; UC-003; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
-// Precondition: Settings is open in a browser that keeps no endpoint; both endpoints answer their test requests.
-// Input: the author stores and tests the endpoint campus through the form, then presses Configure a model endpoint again and
-//        stores and tests the endpoint lab.
-// Expected: the browser keeps both endpoints, each under its own name, and the tab lists both, each line with Test, Change
-//           and Clear.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store
+// TST-290135 · level: system · module: MOD-settings-pages
+// guards: UC-042 step 2; UC-003; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
+// given: Settings is open in a browser that keeps no endpoint; both endpoints answer their test requests.
+// input: the author stores and tests the endpoint campus through the form, then presses Configure a model endpoint again and stores and tests the endpoint lab.
+// expect: the browser keeps both endpoints, each under its own name, and the tab lists both, each line with Test, Change and Clear.
 // Planted fault: making endpointKey ignore the name (src/settings-pages/endpoints.mjs) stores lab over campus, and the
 //                assertion that both are kept fails.
 test("TST-290135: a second endpoint with another name is kept beside the first, and both are listed", async () => {

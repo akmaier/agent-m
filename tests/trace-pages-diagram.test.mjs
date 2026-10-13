@@ -66,6 +66,11 @@ const PRODUCT = [
   mod("MOD-notes", "Keeps a reviewer's notes", [], ["MOD-reader.readFile", "MOD-store.load", "MOD-store.save"]),
 ];
 
+// TST-478023 · level: unit · module: MOD-trace-pages
+// guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: a product of five modules, one of which (MOD-store) has no file and one of which has a title that tries to end its label, open a tag or start a directive
+// input: componentDiagram of the product, and of the product with that title
+// expect: one box per module showing identifier and title, MOD-store once, marked missing, nothing but boxes, subsystem boxes, arrows and the mark; the evil title stays the text of its one box
 test("UC-025 step 5 — one box per module, showing its identifier and title, whatever its title holds", () => {
   const d = drawn(componentDiagram(PRODUCT));
   assert.match(d.first, /^flowchart\b/, "a Mermaid flowchart");
@@ -85,6 +90,11 @@ test("UC-025 step 5 — one box per module, showing its identifier and title, wh
   assert.deepEqual(e.other, []);
 });
 
+// TST-478024 · level: unit · module: MOD-trace-pages
+// guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: the same product, whose modules follow ARC-001, ARC-002 and ARC-003 or none
+// input: componentDiagram of the product
+// expect: one box per subsystem holding its modules, the subsystem being the first decision a module follows; a module that follows no decision, and the missing one, stand outside
 test("UC-025 step 5, A MODULE BELONGS TO ONE SUBSYSTEM — one box per subsystem holding its modules; the subsystem is the first decision a module follows", () => {
   const d = drawn(componentDiagram(PRODUCT));
   assert.deepEqual(d.subsystems, {
@@ -94,6 +104,11 @@ test("UC-025 step 5, A MODULE BELONGS TO ONE SUBSYSTEM — one box per subsystem
   assert.deepEqual(d.outside, ["MOD-notes", "MOD-store"], "a module that follows no decision, and the missing one, stand outside");
 });
 
+// TST-478025 · level: unit · module: MOD-trace-pages
+// guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: the same product, in which eight interfaces are used across five pairs of a module and a module it uses
+// input: componentDiagram of the product
+// expect: five arrows, from the user to the module it uses, without a label, however many of its interfaces it uses
 test("UC-025 step 5 — one arrow per pair of a module and a module it uses, however many of its interfaces it uses", () => {
   const d = drawn(componentDiagram(PRODUCT));
   assert.deepEqual(d.arrows, [
@@ -106,6 +121,11 @@ test("UC-025 step 5 — one arrow per pair of a module and a module it uses, how
   assert.deepEqual(d.other, []);
 });
 
+// TST-478026 · level: unit · module: MOD-trace-pages
+// guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: the same product, in which MOD-store has no file and is used by two modules through two interfaces
+// input: componentDiagram of the product, then of the product with a file for MOD-store
+// expect: MOD-store is drawn as one box marked missing, with a dashed mark and its two arrows; with its file it is a module like the others, in its subsystem, with its title, not marked, and the arrows are the same
 test("UC-025 5a, MODULE GAPS ARE REPORTED, NOT FORBIDDEN — a used module that has no file is drawn as one box marked missing", () => {
   const d = drawn(componentDiagram(PRODUCT));
   assert.deepEqual(d.missing, ["MOD-store"], "one box, though two modules use it through two interfaces");
@@ -135,6 +155,11 @@ function large(interfaces) {
   });
 }
 
+// TST-478027 · level: unit · module: MOD-trace-pages
+// guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: 52 modules in 11 subsystems with 400 uses, each use naming one or three interfaces
+// input: componentDiagram of both inputs
+// expect: both texts stay below 50,000 characters, are equal, and draw 52 boxes, 11 subsystems and 400 arrows with nothing else
 test("UC-025 step 5 — the text for 52 modules with 400 uses stays below Mermaid's limit of 50,000 characters, however many interfaces each use names", () => {
   const one = large(1), three = large(3);
   // The input is what the case says.

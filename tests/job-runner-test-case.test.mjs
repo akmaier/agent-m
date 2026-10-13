@@ -43,9 +43,9 @@ async function reported(added) {
 const RULE = "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS";
 const DECLARATION = (id) => `// ${id} · level: unit · module: MOD-export\n// guards: EXPORT IS A PDF\n// given: a report\n// input: the report exported\n// expect: a PDF file\n`;
 
+// TST-472363 · level: unit · module: MOD-job-runner
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026
-// given: a branch that adds, under tests/, a JSON fixture, a helper module that exports a value, a Python helper with a function that is no test, a Markdown note, a file named as tests are
-//        named that holds only helpers, a source file outside tests/ that calls a function named `test`, and — as the known positive — an undeclared test file
+// given: a branch that adds, under tests/, a JSON fixture, a helper module that exports a value, a Python helper with a function that is no test, a Markdown note, a file named as tests are named that holds only helpers, a source file outside tests/ that calls a function named `test`, and — as the known positive — an undeclared test file
 // input: runJob with the test-declarations check
 // expect: one finding, for the undeclared test file; none for the fixture, the helpers, the note, the source file (no test file) or the file named as a test that holds no test case
 test("test-declarations — a fixture or a helper the branch adds under tests/ is not reported, an undeclared test is", async () => {
@@ -61,6 +61,7 @@ test("test-declarations — a fixture or a helper the branch adds under tests/ i
   assert.deepEqual(found, [["tests/loose.test.mjs", RULE]]);
 });
 
+// TST-472364 · level: unit · module: MOD-job-runner
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 // given: a branch that adds a test file with a test case and its whole declaration, a Python one and a Markdown manual test; known positive first — the same JavaScript file without its declaration
 // input: runJob with the check
@@ -75,10 +76,9 @@ test("test-declarations — an added test case with its declaration passes", asy
   assert.deepEqual(found, []);
 });
 
+// TST-472365 · level: unit · module: MOD-job-runner
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
-// given: a branch that adds, each undeclared, a test file in each language's form of a test case: JavaScript `test(`, `it(`, `describe.skip(`, indented in a block; TypeScript; Python `def test_…` and
-//        `async def test_…`; Go `func Test…(`; Rust `#[test]`; Java `@Test` — and, for each of those languages, a helper file of the same kind with no test case in it, with `test(` only in a comment
-//        or in a longer name
+// given: a branch that adds, each undeclared, a test file in each language's form of a test case: JavaScript `test(`, `it(`, `describe.skip(`, indented in a block; TypeScript; Python `def test_…` and `async def test_…`; Go `func Test…(`; Rust `#[test]`; Java `@Test` — and, for each of those languages, a helper file of the same kind with no test case in it, with `test(` only in a comment or in a longer name
 // input: runJob with the check
 // expect: every file with a test case reported, in path order; no helper reported
 test("test-declarations — a test case is told by its language's form of one", async () => {
@@ -95,6 +95,7 @@ test("test-declarations — a test case is told by its language's form of one", 
   assert.deepEqual(await reported(helpers), []);
 });
 
+// TST-472366 · level: unit · module: MOD-job-runner
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 // given: a Markdown file under tests/ with a heading that is no test's, and one with a `### TST-` heading
 // input: runJob with the check

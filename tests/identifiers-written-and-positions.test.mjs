@@ -17,15 +17,11 @@ import { identifiersIn, positionalReferences, pagesAddress } from "../src/identi
 
 const RULE = "A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION";
 
+// TST-472254 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: a Markdown text of 13 lines that writes the nine kinds of the scheme — a requirement in each of the three forms the
-//        module file names (a list item of the front matter, line 4; the bold head of a requirement, line 8; backticks,
-//        line 13) and a UC, ARC, MOD, SRC, TST, ITM, RES and JOB identifier in the front matter, a heading and running text;
-//        UC-022 stands twice, and two identifiers share lines 9, 10 and 11
+// given: a Markdown text of 13 lines that writes the nine kinds of the scheme — a requirement in each of the three forms the module file names (a list item of the front matter, line 4; the bold head of a requirement, line 8; backticks, line 13) and a UC, ARC, MOD, SRC, TST, ITM, RES and JOB identifier in the front matter, a heading and running text; UC-022 stands twice, and two identifiers share lines 9, 10 and 11
 // input: identifiersIn("docs/example.md", the text)
-// expect: one place { id, kind, path: "docs/example.md", line } for every occurrence, in the order of the text, each with the
-//         line it stands on: UC-022 on 2 and 6, the three requirement names on 4, 8 and 13, ARC-048 and MOD-identifiers on
-//         9, SRC-eu-ai-act and TST-014 on 10, ITM-202 and RES-alex-cluster on 11, the JOB on 12
+// expect: one place { id, kind, path: "docs/example.md", line } for every occurrence, in the order of the text, each with the line it stands on: UC-022 on 2 and 6, the three requirement names on 4, 8 and 13, ARC-048 and MOD-identifiers on 9, SRC-eu-ai-act and TST-014 on 10, ITM-202 and RES-alex-cluster on 11, the JOB on 12
 test("identifiersIn — every kind of the scheme is found with its line", () => {
   const path = "docs/example.md";
   const text = [
@@ -60,13 +56,11 @@ test("identifiersIn — every kind of the scheme is found with its line", () => 
   ]);
 });
 
+// TST-472255 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: a text of 4 lines — the bold word `**REGISTER**` that stands under the title of a document and heads no requirement,
-//        a requirement's name and a capitalised word, NOTE, written in plain prose, and — known positive — the same
-//        requirement name between backticks on line 4
+// given: a text of 4 lines — the bold word `**REGISTER**` that stands under the title of a document and heads no requirement, a requirement's name and a capitalised word, NOTE, written in plain prose, and — known positive — the same requirement name between backticks on line 4
 // input: identifiersIn("docs/prose.md", the text)
-// expect: a single place, the name between the backticks on line 4: neither the name written in prose, nor NOTE, nor
-//         REGISTER is taken for a requirement
+// expect: a single place, the name between the backticks on line 4: neither the name written in prose, nor NOTE, nor REGISTER is taken for a requirement
 test("identifiersIn — a name written in prose is not taken for a requirement", () => {
   const path = "docs/prose.md";
   const text = [
@@ -80,14 +74,11 @@ test("identifiersIn — a name written in prose is not taken for a requirement",
   ]);
 });
 
+// TST-472256 · level: unit · module: MOD-identifiers
 // guards: A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION
-// given: a text of 6 lines, line 1 its title and each of lines 2 to 6 one sentence that points at a part of an artifact of the
-//        product by its position: a step number (line 2, "UC-007 step 5"), a section sign (3, "§3"), a section number in
-//        words (4, "section 4"), a line number (5, "line 12") and a file and its line (6, "SPEC.md:7")
+// given: a text of 6 lines, line 1 its title and each of lines 2 to 6 one sentence that points at a part of an artifact of the product by its position: a step number (line 2, "UC-007 step 5"), a section sign (3, "§3"), a section number in words (4, "section 4"), a line number (5, "line 12") and a file and its line (6, "SPEC.md:7")
 // input: positionalReferences("docs/backlog/ITM-901-a-note.md", the text)
-// expect: five findings, in the order of the text, one for each of lines 2 to 6, each { artifact: the path, line: that line,
-//         kind: "warning", rule: "A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION" } whose `what` names the reference as it
-//         is written there and whose `fix` is a correction
+// expect: five findings, in the order of the text, one for each of lines 2 to 6, each { artifact: the path, line: that line, kind: "warning", rule: "A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION" } whose `what` names the reference as it is written there and whose `fix` is a correction
 test("positionalReferences — a step, a section and a line number are each reported, with the line", () => {
   const path = "docs/backlog/ITM-901-a-note.md";
   const cases = [
@@ -111,13 +102,11 @@ test("positionalReferences — a step, a section and a line number are each repo
   });
 });
 
+// TST-472257 · level: unit · module: MOD-identifiers
 // guards: A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION
-// given: a text of 3 lines — line 2 names the book's chapters and sections ("ch. 12 §6", "ch. 10 §3") and, in the same
-//        line, the product's own "SPEC §3" (known positive); line 3 names "Chapter 9 §6", "chapter 7, section 5" and
-//        "chapters 9, 11, 12 and 13" of the book
+// given: a text of 3 lines — line 2 names the book's chapters and sections ("ch. 12 §6", "ch. 10 §3") and, in the same line, the product's own "SPEC §3" (known positive); line 3 names "Chapter 9 §6", "chapter 7, section 5" and "chapters 9, 11, 12 and 13" of the book
 // input: positionalReferences("docs/note.md", the text)
-// expect: a single finding, on line 2, for "§3" of the SPEC: no chapter or section of the book is reported, and the book's
-//         chapter in front of a section does not excuse the SPEC's section later in its line
+// expect: a single finding, on line 2, for "§3" of the SPEC: no chapter or section of the book is reported, and the book's chapter in front of a section does not excuse the SPEC's section later in its line
 test("positionalReferences — a book's chapter and its sections are not reported", () => {
   const path = "docs/note.md";
   const text = [
@@ -132,6 +121,7 @@ test("positionalReferences — a book's chapter and its sections are not reporte
   assert.ok(found[0].what.includes("§3"), `what names the SPEC's §3, not ${JSON.stringify(found[0].what)}`);
 });
 
+// TST-472258 · level: unit · module: MOD-identifiers
 // guards: AN INSTANCE IS A FORK OF AGENT M
 // given: the instances akmaier/agent-m and alice/research-agent, each written owner/name
 // input: pagesAddress of each
@@ -141,10 +131,9 @@ test("pagesAddress — the dashboard's GitHub Pages address of the instance owne
   assert.equal(pagesAddress("alice/research-agent"), "https://alice.github.io/research-agent/");
 });
 
+// TST-472259 · level: unit · module: MOD-identifiers
 // guards: AN INSTANCE IS A FORK OF AGENT M
-// given: a known positive, akmaier/agent-m; then eight strings that are not owner/name — the empty string, "agent-m" (no
-//        slash), "akmaier/" (no name), "/agent-m" (no owner), "akmaier/agent-m/extra" (three parts), "akmaier agent-m" (a
-//        space for the slash), "akmaier/agent m" (a space in the name) and the repository's web address
+// given: a known positive, akmaier/agent-m; then eight strings that are not owner/name — the empty string, "agent-m" (no slash), "akmaier/" (no name), "/agent-m" (no owner), "akmaier/agent-m/extra" (three parts), "akmaier agent-m" (a space for the slash), "akmaier/agent m" (a space in the name) and the repository's web address
 // input: pagesAddress of each
 // expect: the known positive gives its address; each of the eight throws a TypeError
 test("pagesAddress — a string that is not owner/name is refused with a TypeError", () => {

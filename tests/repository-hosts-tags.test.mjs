@@ -168,6 +168,11 @@ const AAAA = "a".repeat(40), BBBB = "b".repeat(40), CCCC = "c".repeat(40);
 // Expected: listTags() reads every tag of the repository with the commit it points to; listTags("v*") reads only those whose
 // name matches the pattern, * standing for any run of characters. Counter-proof: a repository with no tags answers none, not
 // an error.
+// TST-476080 · level: unit · module: MOD-repository-hosts
+// guards: UC-013
+// given: fake GitHub and GitLab servers holding the tags v1.0.0, v1.1.0 and snapshot-2026-10, each on a commit; also repositories without tags
+// input: listTags() and listTags("v*") on each; listTags() on the empty ones
+// expect: listTags() gives every tag with its commit, listTags("v*") only v1.0.0 and v1.1.0; a repository with no tags gives an empty list, not an error
 test("MOD-repository-hosts listTags — the tags of a repository with their commits, and only those matching a pattern (GitHub, GitLab)", async () => {
   const tags = { "v1.0.0": AAAA, "v1.1.0": BBBB, "snapshot-2026-10": CCCC };
 
@@ -205,6 +210,11 @@ test("MOD-repository-hosts listTags — the tags of a repository with their comm
 // 2 on the second page of 55, and "v2026.150.0" itself stands only on the second page.
 // Counter-proof (this item's second rejection, docs/gates/20261007-1615-development-release-testing-8078.md): a listTags
 // that reads only the first page gives 100 tags, not 155, misses "v2026.150.0", and its pattern match misses it too.
+// TST-476081 · level: unit · module: MOD-repository-hosts
+// guards: UC-013; A RELEASE IS TAGGED AND LOGGED
+// given: fake GitHub and GitLab servers holding 155 tags, "v2026.<n>.0" for n from 1 to 155 except every 31st, which is "snapshot-<n>", answered at most 100 a page with the next page named
+// input: listTags() and listTags("v2026.*.0") on each
+// expect: every one of the 155 tags is given, including v2026.150.0 which stands only on the second page, and a second page is requested; the pattern is matched against all tags, giving the 150 matching ones
 test("MOD-repository-hosts listTags — every tag across more than one page, the pattern matched against all of them (GitHub, GitLab)", async () => {
   const names = [];
   for (let n = 1; n <= 155; n++) names.push(n % 31 === 0 ? `snapshot-${n}` : `v2026.${n}.0`);
@@ -241,6 +251,11 @@ test("MOD-repository-hosts listTags — every tag across more than one page, the
 // Expected: createTag(name, commit) sets the named tag on the named commit — GitHub's "Create a reference" with
 // ref: "refs/tags/<name>", GitLab's "Create a new tag" with tag_name and ref — and resolves to undefined (Promise<void>); the
 // tag then reads back at that commit.
+// TST-476082 · level: unit · module: MOD-repository-hosts
+// guards: UC-013; A RELEASE IS TAGGED AND LOGGED
+// given: fake GitHub and GitLab servers each holding the tag v1.0.0
+// input: createTag("v1.1.0", commit) on each
+// expect: it resolves to undefined; the server now holds the tag on the named commit; GitHub got a reference refs/tags/v1.1.0 on that commit, GitLab a tag v1.1.0 with that ref
 test("MOD-repository-hosts createTag — a tag set on the commit named (GitHub, GitLab)", async () => {
   const gh = fakeGitHub({ tags: { "v1.0.0": AAAA } });
   await using(gh.fetch, async () => {
@@ -268,6 +283,11 @@ test("MOD-repository-hosts createTag — a tag set on the commit named (GitHub, 
 // "Reference already exists" (never only 409, which this item's first gate at
 // docs/gates/20261007-1404-development-release-testing-a0e7.md found read as Unreachable instead); a GitLab server answers
 // 400 "Tag <name> already exists". Counter-proof: the commit named in the failed call is never written to the tag.
+// TST-476083 · level: unit · module: MOD-repository-hosts
+// guards: A VERSION IS NOT REWRITTEN; UC-013
+// given: fake GitHub (answering 422 Reference already exists) and GitLab (answering 400 Tag already exists) each holding the tag v1.0.0 on a commit
+// input: createTag("v1.0.0", another commit) on each
+// expect: it fails with a HostError TagExists naming the commit the tag already stands on, and the tag is not moved to the commit just named
 test("MOD-repository-hosts createTag — an existing tag is refused with TagExists naming its commit, and not moved (GitHub's 422, GitLab's 400)", async () => {
   const gh = fakeGitHub({ tags: { "v1.0.0": AAAA } });
   const e1 = await using(gh.fetch, () => failure(connect(GITHUB, { token: GH_TOKEN }).createTag("v1.0.0", BBBB)));
@@ -292,6 +312,11 @@ test("MOD-repository-hosts createTag — an existing tag is refused with TagExis
 // PermissionMissing (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN) — on both GitHub and a GitLab server. Every
 // request either function sends carries only the token of the server it was issued for (A TOKEN GOES ONLY TO THE SERVER THAT
 // ISSUED IT), never the other, and never in the address.
+// TST-476084 · level: unit · module: MOD-repository-hosts
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+// given: fake GitHub and GitLab servers answering 401, 403 (without rate-limit headers) and a used-up limit (GitHub 403 with X-RateLimit-Remaining 0, GitLab 429); a server holding a tag
+// input: listTags and createTag on each failing server; listTags on a working one of each kind
+// expect: 401 is TokenRefused naming the token and its renewal page; 403 is PermissionMissing; a used-up limit is RateLimited naming the account's limit with the reset time, never TokenRefused or PermissionMissing; every request carries only the token of its own server and no address carries a token
 test("MOD-repository-hosts listTags, createTag — a refused token, a missing permission and a used-up rate limit are the module's named failures", async () => {
   const RESET = 1790000000;
 

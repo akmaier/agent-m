@@ -103,12 +103,11 @@ function installSharedDbMermaid() {
   return calls;
 }
 
-// TST-342001
+// TST-342001 · level: unit · module: MOD-markdown-render
 // guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW; NO SERVER
 // given: a public Markdown renderer with a Mermaid source block and prose beside it
-// input: renderMermaid("flowchart LR\\n  Plan --> Build")
-// expect: a promise for one sanitised strict-rendered diagram element; a parser failure instead has its message beside the
-//         unchanged Mermaid source, so surrounding prose remains renderable
+// input: renderMermaid("flowchart LR\\n Plan --> Build")
+// expect: a promise for one sanitised strict-rendered diagram element; a parser failure instead has its message beside the unchanged Mermaid source, so surrounding prose remains renderable
 test("TST-342001 renderMermaid draws strict SVG and leaves no hostile diagram markup", async () => withSvg(async () => {
   const calls = installMermaid();
   const drawn = await renderMermaid("flowchart LR\n  Plan --> Build");
@@ -134,7 +133,7 @@ test("TST-342001 renderMermaid draws strict SVG and leaves no hostile diagram ma
   }
 }));
 
-// TST-342006
+// TST-342006 · level: unit · module: MOD-markdown-render
 // guards: DIAGRAMS ARE MERMAID IN MARKDOWN; NO SERVER
 // given: a Mermaid flowchart whose public parsed vertex metadata has a normal node and a distinct image-bearing node
 // input: renderMermaid(source) through the local library's getDiagramFromText()/getVertices() boundary
@@ -164,7 +163,7 @@ test("TST-342006 Mermaid image metadata is refused before the drawing boundary",
   assert.match(refused.textContent, /outside\.example/);
 }));
 
-// TST-342007
+// TST-342007 · level: unit · module: MOD-markdown-render
 // guards: DIAGRAMS ARE MERMAID IN MARKDOWN; NO SERVER
 // given: the public renderer with a Mermaid parser whose Diagram objects read the vendor-style shared flowchart database
 // input: renderArtifact() for a lone image, a lone plain diagram, then image-first and plain-second Mermaid fences
@@ -196,12 +195,11 @@ test("TST-342007 overlapping Mermaid fences keep image metadata outside the draw
   assert.match(overlapping.textContent, /outside\.example/);
 }));
 
-// TST-342002
+// TST-342002 · level: unit · module: MOD-markdown-render
 // guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW
 // given: an artifact with two Mermaid blocks, prose before, between and after them, and front matter
 // input: renderArtifact(text) and renderArtifact(text, { frontMatter: "hidden" })
-// expect: every Mermaid block is sent to the diagram renderer; default output includes front-matter keys and values as a
-//         table, while hidden output omits that table and retains all prose and diagram sources/results
+// expect: every Mermaid block is sent to the diagram renderer; default output includes front-matter keys and values as a table, while hidden output omits that table and retains all prose and diagram sources/results
 test("TST-342002 renderArtifact renders every Mermaid block and makes front matter table-or-hidden", async () => withSvg(async () => {
   installMermaid();
   const text = [
@@ -221,7 +219,7 @@ test("TST-342002 renderArtifact renders every Mermaid block and makes front matt
   assert.equal((hidden.innerHTML.match(/<svg\b/gi) ?? []).length, 2, "hiding front matter changes no diagram");
 }));
 
-// TST-342003
+// TST-342003 · level: unit · module: MOD-markdown-render
 // guards: NO SERVER; DIAGRAMS ARE MERMAID IN MARKDOWN
 // given: source "this is not Mermaid\\n<script>alert(1)</script>", which the library-boundary parser rejects
 // input: renderMermaid(source)
@@ -236,12 +234,11 @@ test("TST-342003 a Mermaid parse failure shows its message beside the escaped so
   assert.doesNotMatch(shown.innerHTML, /<script\b/i, "the source is escaped rather than inserted as HTML");
 }));
 
-// TST-342005
+// TST-342005 · level: unit · module: MOD-markdown-render
 // guards: DIAGRAMS ARE MERMAID IN MARKDOWN; NO SERVER
 // given: an artifact with Markdown prose and no Mermaid fence
 // input: renderArtifact(text)
-// expect: a diagram first acquires the local vendor script and records a draw; after that detector is cleared, prose renders
-//         without another acquisition, initialisation or draw
+// expect: a diagram first acquires the local vendor script and records a draw; after that detector is cleared, prose renders without another acquisition, initialisation or draw
 test("TST-342005 an artifact without a diagram loads no diagram library", async () => withSvg(async () => {
   const priorMermaid = Object.getOwnPropertyDescriptor(globalThis, "mermaid");
   delete globalThis.mermaid;
@@ -277,12 +274,11 @@ test("TST-342005 an artifact without a diagram loads no diagram library", async 
   }
 }));
 
-// TST-342004
+// TST-342004 · level: unit · module: MOD-markdown-render
 // guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: before "one\\ntwo\\nthree\\nfour\\n" and after "one\\nTWO\\nthree\\nfour\\n", with context 1
 // input: showDifference(before, after, { context: 1 })
-// expect: an Element whose changed rows are marked removed and added and whose unchanged rows contain one line around the
-//         change; unchanged lines outside that context are omitted
+// expect: an Element whose changed rows are marked removed and added and whose unchanged rows contain one line around the change; unchanged lines outside that context are omitted
 test("TST-342004 showDifference marks a changed line and retains its requested context", () => {
   const shown = showDifference("one\ntwo\nthree\nfour\n", "one\nTWO\nthree\nfour\n", { context: 1 });
   assert.equal(shown.className, "diff");

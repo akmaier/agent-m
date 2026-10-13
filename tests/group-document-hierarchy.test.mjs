@@ -37,13 +37,11 @@ const outline = (node) => ({
 });
 const group = (title, groups, members) => ({ title, groups, members });
 
+// TST-472227 · level: unit · module: MOD-group-document
 // guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-021
-// given: the example group file with UC-006 listed a second time, under Derivation, on line 11 — its first place is on line 6 —,
-//        and the four use cases as the items
+// given: the example group file with UC-006 listed a second time, under Derivation, on line 11 — its first place is on line 6 —, and the four use cases as the items
 // input: hierarchy of the tree parseGroupFile reads from it
-// expect: one finding: an error at line 11 of docs/groups/use-cases.md under AN ITEM HAS ONE PLACE IN ITS HIERARCHY, saying
-//         UC-006 is listed a second time and where it first stands, and what to do; the tree shows both places; nothing is unknown
-//         or ungrouped. The example itself reports nothing.
+// expect: one finding: an error at line 11 of docs/groups/use-cases.md under AN ITEM HAS ONE PLACE IN ITS HIERARCHY, saying UC-006 is listed a second time and where it first stands, and what to do; the tree shows both places; nothing is unknown or ungrouped. The example itself reports nothing.
 test("hierarchy — a member named twice is an error under AN ITEM HAS ONE PLACE IN ITS HIERARCHY, and both places stay", () => {
   const clean = hierarchy(parseGroupFile(PATH, EXAMPLE), ITEMS);
   assert.deepEqual([clean.findings, clean.unknown, clean.ungrouped], [[], [], []], "known positive: the example reports nothing");
@@ -61,12 +59,11 @@ test("hierarchy — a member named twice is an error under AN ITEM HAS ONE PLACE
   assert.deepEqual([result.unknown, result.ungrouped], [[], []]);
 });
 
+// TST-472228 · level: unit · module: MOD-group-document
 // guards: A GROUP CARRIES NO IDENTIFIER; UC-021
-// given: the example group file with the group Derivation titled UC-004 instead — a use case's identifier — on line 8, and the
-//        four use cases as the items
+// given: the example group file with the group Derivation titled UC-004 instead — a use case's identifier — on line 8, and the four use cases as the items
 // input: hierarchy of the tree parseGroupFile reads from it
-// expect: one finding: an error at line 8 of docs/groups/use-cases.md under A GROUP CARRIES NO IDENTIFIER, saying the group's
-//         title is an identifier, and what to do; the group stays in the tree with its members. The example itself reports nothing.
+// expect: one finding: an error at line 8 of docs/groups/use-cases.md under A GROUP CARRIES NO IDENTIFIER, saying the group's title is an identifier, and what to do; the group stays in the tree with its members. The example itself reports nothing.
 test("hierarchy — a group titled by an identifier is an error under A GROUP CARRIES NO IDENTIFIER", () => {
   const clean = hierarchy(parseGroupFile(PATH, EXAMPLE), ITEMS);
   assert.deepEqual(clean.findings, [], "known positive: the example reports nothing");
@@ -84,12 +81,11 @@ test("hierarchy — a group titled by an identifier is an error under A GROUP CA
   });
 });
 
+// TST-472229 · level: unit · module: MOD-group-document
 // guards: AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL; UC-021
-// given: the example group file, with UC-005, UC-006, UC-007 and UC-009 as the items — so UC-008, which Review lists, matches no
-//        item, and UC-009, which no group lists, is named by none
+// given: the example group file, with UC-005, UC-006, UC-007 and UC-009 as the items — so UC-008, which Review lists, matches no item, and UC-009, which no group lists, is named by none
 // input: hierarchy of the tree parseGroupFile reads from the example
-// expect: UC-008 listed as unknown, and not dropped: Review still holds it; no finding, since an unknown member may be left; UC-009
-//         listed as ungrouped and shown at the top level of the tree
+// expect: UC-008 listed as unknown, and not dropped: Review still holds it; no finding, since an unknown member may be left; UC-009 listed as ungrouped and shown at the top level of the tree
 test("hierarchy — a member that matches no item is listed as unknown, not dropped, and an item no group names is shown at the top level", () => {
   const result = hierarchy(parseGroupFile(PATH, EXAMPLE), ["UC-005", "UC-006", "UC-007", "UC-009"]);
   assert.deepEqual(result.unknown, ["UC-008"]);

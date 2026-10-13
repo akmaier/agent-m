@@ -57,7 +57,9 @@ async function request(server, path, token = server.token) {
   });
 }
 
-// TST-323901
+// Module (as the case stated it): MOD-bridge-http · MOD-bridge-client
+// TST-323901 · level: release · module: MOD-bridge-http
+// guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS; A DATA FORMAT IS DEFINED ONCE
 // given: the exported paired Bridge server and a constructed agents handler with both offered and missing agents
 // input: an unpaired GET /v1/agents followed by the paired public request
 // expect: the token refusal reaches no handler; the paired request reaches the declared agents handler and preserves its answer
@@ -84,7 +86,9 @@ test("TST-323901: exported Bridge dispatches offered and missing agents only aft
   assert.equal(calls, 1);
 });
 
-// TST-324901
+// Module (as the case stated it): MOD-bridge-http · MOD-bridge-client
+// TST-324901 · level: release · module: MOD-bridge-client
+// guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS; A DATA FORMAT IS DEFINED ONCE
 // given: a public Bridge client and constructed pair then agents answers
 // input: testBridge(bridge)
 // expect: it resolves the public GET pair datum before GET agents, authenticates both calls, and combines their answers
@@ -108,7 +112,9 @@ test("TST-324901: public testBridge consumes the pair datum then the agents datu
   ], "failure node: the public client consumes the protocol's pair and agents declarations in order");
 });
 
-// TST-324902
+// Module (as the case stated it): MOD-bridge-http · MOD-bridge-client
+// TST-324902 · level: release · module: MOD-bridge-client
+// guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS; A DATA FORMAT IS DEFINED ONCE
 // given: a public Bridge client, one committed job identity, and constructed accepted, completed, and failed ask answers
 // input: handOver(job), then agent asks that complete and fail
 // expect: hand-over sends the exact committed identity; completed asks preserve text/usage and a failed ask is named AskFailed
@@ -140,7 +146,9 @@ test("TST-324902: public handOver and ask preserve committed identity and named 
   ]);
 });
 
-// TST-324903
+// Module (as the case stated it): MOD-bridge-http · MOD-bridge-client
+// TST-324903 · level: release · module: MOD-bridge-client
+// guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS; A DATA FORMAT IS DEFINED ONCE
 // given: a public Bridge client with a pairing token, then one without a token
 // input: probe agent with a constructed successful answer, then probe agent without its token
 // expect: the agent probe sends its declared body and unwraps its answer; missing token is TokenMissing before fetch

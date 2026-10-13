@@ -492,11 +492,11 @@ function doneConditions(target) {
 
 // ---------------------------------------------------------------- 5. Process models and practices
 
-// Guards: THE PROCESS MODEL IS DECLARED PER PRODUCT
+// TST-472486 · level: release · module: MOD-implementation-pages
+// guards: THE PROCESS MODEL IS DECLARED PER PRODUCT
 // given: a product without a declaration
 // input: routes.process(app); then the author chooses Kanban, completes the declaration and presses Save
-// expect: no model is assumed — the model field is empty and Save is not offered —; then the product's own repository
-//         holds a declaration of exactly one model, Kanban, and the instance's repository none
+// expect: no model is assumed — the model field is empty and Save is not offered —; then the product's own repository holds a declaration of exactly one model, Kanban, and the instance's repository none
 test("THE PROCESS MODEL IS DECLARED PER PRODUCT: no model is assumed; the product's own repository declares exactly one", async (t) => {
   const page = await openPage(t);
   const { target } = page;
@@ -516,7 +516,8 @@ test("THE PROCESS MODEL IS DECLARED PER PRODUCT: no model is assumed; the produc
   assert.equal(page.instance.files["docs/process.md"], undefined, "the instance's repository holds none");
 });
 
-// Guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
+// TST-472487 · level: release · module: MOD-implementation-pages
+// guards: A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
 // given: the instance's own lab-flow, whose roles are Steward (a person), Builders (either) and Prober (an agent)
 // input: the author chooses lab-flow
 // expect: each role is shown with whether a person, an agent or either may fill it
@@ -531,11 +532,11 @@ test("A PROCESS MODEL ORGANISES PEOPLE AND AGENTS: each role is shown with wheth
   assert.doesNotMatch(roleText(target, "Prober"), /\bperson\b|either/);
 });
 
-// Guards: AGENT M CARRIES THE BOOK'S CATALOGUE
+// TST-472488 · level: release · module: MOD-implementation-pages
+// guards: AGENT M CARRIES THE BOOK'S CATALOGUE
 // given: a product without a declaration; the shipped catalogue
 // input: routes.process(app); the author chooses Scrum
-// expect: the book's five models are offered — waterfall, V-model, reuse-oriented, Scrum, Kanban —, and, apart from them,
-//         its practices: DevOps, prototyping, incremental delivery, the scaling layers of disciplined agile delivery
+// expect: the book's five models are offered — waterfall, V-model, reuse-oriented, Scrum, Kanban —, and, apart from them, its practices: DevOps, prototyping, incremental delivery, the scaling layers of disciplined agile delivery
 test("AGENT M CARRIES THE BOOK'S CATALOGUE: the five models, and apart from them the four practices", async (t) => {
   const { target } = await openPage(t);
   assert.deepEqual(modelsOffered(target).sort(), [...SHIPPED].sort());
@@ -548,11 +549,11 @@ test("AGENT M CARRIES THE BOOK'S CATALOGUE: the five models, and apart from them
   }
 });
 
-// Guards: THE CATALOGUE IS DATA
+// TST-472489 · level: release · module: MOD-implementation-pages
+// guards: THE CATALOGUE IS DATA
 // given: an instance that adds its own process as a data file, docs/process-models/lab-flow.md — no code changed
 // input: routes.process(app); the author chooses lab-flow
-// expect: lab-flow is offered with what its ## About holds, and the workflow shown is its data file's: its phases, its
-//         roles and its gates
+// expect: lab-flow is offered with what its ## About holds, and the workflow shown is its data file's: its phases, its roles and its gates
 test("THE CATALOGUE IS DATA: a process model added as a data file is offered and used, no code changed", async (t) => {
   const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW } });
   assert.ok(modelsOffered(target).includes("lab-flow"), "lab-flow is offered");
@@ -566,9 +567,9 @@ test("THE CATALOGUE IS DATA: a process model added as a data file is offered and
   for (const { Condition } of rowsOf(LAB_FLOW, "## Gates")) assert.ok(shown.some((entry) => entry.includes(Condition)), `its gate "${Condition}"`);
 });
 
-// Guards: THE MODEL DETERMINES THE PHASES AND THE GATES
-// given: a product declaring lab-flow — four phases; its gates between Outline and Assemble and between Probe and
-//        Handover —, its roles named, and no participant
+// TST-472490 · level: release · module: MOD-implementation-pages
+// guards: THE MODEL DETERMINES THE PHASES AND THE GATES
+// given: a product declaring lab-flow — four phases; its gates between Outline and Assemble and between Probe and Handover —, its roles named, and no participant
 // input: routes.process(app)
 // expect: the workflow shown is lab-flow's: its four phases, and each of its gates where it sits
 test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the model's phases, and its gates where they sit", async (t) => {
@@ -585,9 +586,9 @@ test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the mode
   }
 });
 
-// Guards: THE MODEL DETERMINES THE PHASES AND THE GATES
-// given: a product declaring lab-flow — its transitions Outline → Assemble → Probe → Handover and back from Probe to
-//        Assemble; its first and its last phase paired for verification, Outline checked by Handover
+// TST-472491 · level: release · module: MOD-implementation-pages
+// guards: THE MODEL DETERMINES THE PHASES AND THE GATES
+// given: a product declaring lab-flow — its transitions Outline → Assemble → Probe → Handover and back from Probe to Assemble; its first and its last phase paired for verification, Outline checked by Handover
 // input: routes.process(app)
 // expect: the workflow shows the transitions between the phases and which phases pair for verification
 test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the model's transitions and its verification pairs", async (t) => {
@@ -603,9 +604,9 @@ test("THE MODEL DETERMINES THE PHASES AND THE GATES: the workflow shows the mode
   }
 });
 
-// Guards: A GATE NAMES WHAT IT CHECKS
-// given: a product declaring lab-flow, whose gates check ARC — "the architecture is accepted" — and TST — "every test is
-//        green"
+// TST-472492 · level: release · module: MOD-implementation-pages
+// guards: A GATE NAMES WHAT IT CHECKS
+// given: a product declaring lab-flow, whose gates check ARC — "the architecture is accepted" — and TST — "every test is green"
 // input: routes.process(app)
 // expect: each gate is shown with the artifacts that must exist and the condition that must hold
 test("A GATE NAMES WHAT IT CHECKS: each gate is shown with its artifacts and its condition", async (t) => {
@@ -619,11 +620,11 @@ test("A GATE NAMES WHAT IT CHECKS: each gate is shown with its artifacts and its
   }
 });
 
-// Guards: A PRACTICE IS NOT A MODEL
+// TST-472493 · level: release · module: MOD-implementation-pages
+// guards: A PRACTICE IS NOT A MODEL
 // given: a product without a declaration; the shipped practices
 // input: the author chooses Scrum, adds the practice devops, completes the declaration and presses Save
-// expect: no practice is offered to choose as the model; the saved declaration names Scrum as its model and devops among
-//         its practices
+// expect: no practice is offered to choose as the model; the saved declaration names Scrum as its model and devops among its practices
 test("A PRACTICE IS NOT A MODEL: no practice is offered instead of a model; one added keeps the model", async (t) => {
   const page = await openPage(t);
   const { target } = page;
@@ -641,12 +642,11 @@ test("A PRACTICE IS NOT A MODEL: no practice is offered instead of a model; one 
   assert.match(text, /^- devops$/m);
 });
 
-// Guards: A PROCESS REQUIREMENT ADDS TO THE MODEL
-// given: a product declaring Kanban, its process requirement REQUIREMENT adding a gate between Review and Done that checks
-//        the verification record of the item
+// TST-472494 · level: release · module: MOD-implementation-pages
+// guards: A PROCESS REQUIREMENT ADDS TO THE MODEL
+// given: a product declaring Kanban, its process requirement REQUIREMENT adding a gate between Review and Done that checks the verification record of the item
 // input: routes.process(app)
-// expect: the workflow holds Kanban's own phases and its own gate, as kanban.md states them, and in addition the
-//         requirement's gate with its artifact; the model is still Kanban
+// expect: the workflow holds Kanban's own phases and its own gate, as kanban.md states them, and in addition the requirement's gate with its artifact; the model is still Kanban
 test("A PROCESS REQUIREMENT ADDS TO THE MODEL: the requirement's gate is added, the model's own phases and gate stay", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": kanbanDeclaration({
     added: [[REQUIREMENT, "Review → Done", "the verification record of the item", "the verification is documented", "Reviewer"]] }) } });
@@ -662,12 +662,11 @@ test("A PROCESS REQUIREMENT ADDS TO THE MODEL: the requirement's gate is added, 
 
 // ---------------------------------------------------------------- 7. the person's own input; 16. usability
 
-// Guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// TST-472495 · level: release · module: MOD-implementation-pages
+// guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: a product declaring Scrum, its default branch main; the author's own token
-// input: the author adds the condition "review: 1 by participants other than the implementer" to the Definition of Done
-//        and presses Save
-// expect: the declaration is committed straight onto the product's default branch, main — no other branch is made, no
-//         pull request opened —, each request that writes carrying the author's own token
+// input: the author adds the condition "review: 1 by participants other than the implementer" to the Definition of Done and presses Save
+// expect: the declaration is committed straight onto the product's default branch, main — no other branch is made, no pull request opened —, each request that writes carrying the author's own token
 test("A PERSON'S OWN INPUT IS COMMITTED DIRECTLY: Save commits onto the product's default branch, under the author's own token", async (t) => {
   const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   await typeSection(page.target, "## Definition of Done", "\nreview: 1 by participants other than the implementer\n");
@@ -681,7 +680,8 @@ test("A PERSON'S OWN INPUT IS COMMITTED DIRECTLY: Save commits onto the product'
   assert.ok(page.sent.every((request) => String(request.authorization).includes(TOKEN)), "every write carries the author's own token");
 });
 
-// Guards: ONE CLICK PER DECISION
+// TST-472496 · level: release · module: MOD-implementation-pages
+// guards: ONE CLICK PER DECISION
 // given: a product declaring Scrum; the author's edit complete — a condition added to the Definition of Done
 // input: one click on Save
 // expect: before the click nothing is written; the one click commits the declaration, and nothing more is asked
@@ -695,11 +695,11 @@ test("ONE CLICK PER DECISION: one click on Save, once the declaration is complet
   assert.match(page.product.writes[0].files["docs/process.md"], /^review: 1 by participants other than the implementer$/m);
 });
 
-// Guards: EVERY STEP EXPLAINS ITSELF
+// TST-472497 · level: release · module: MOD-implementation-pages
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: a product without a declaration
 // input: the author chooses Scrum
-// expect: each step that asks something of the author — the model, the roles' holders, a branch, the practices, the
-//         Definition of Done — carries an explanation that can be expanded
+// expect: each step that asks something of the author — the model, the roles' holders, a branch, the practices, the Definition of Done — carries an explanation that can be expanded
 test("EVERY STEP EXPLAINS ITSELF: each step that asks something carries an explanation that can be expanded", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
@@ -713,12 +713,11 @@ test("EVERY STEP EXPLAINS ITSELF: each step that asks something carries an expla
 
 // ---------------------------------------------------------------- 5. participants and roles
 
-// Guards: A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: Scrum's Developers, needing to read and to write the repository and to run code and tests; endpoint-x, a model
-//        endpoint, can neither write to the repository nor run code and tests
+// TST-472498 · level: release · module: MOD-implementation-pages
+// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS
+// given: Scrum's Developers, needing to read and to write the repository and to run code and tests; endpoint-x, a model endpoint, can neither write to the repository nor run code and tests
 // input: routes.process(app) of a product declaring Scrum
-// expect: the page shows what the Developers need; endpoint-x is not offered to them. Assigning it all the same is the
-//         role assignment's, and refused there (tests/product-process-eligibility.test.mjs)
+// expect: the page shows what the Developers need; endpoint-x is not offered to them. Assigning it all the same is the role assignment's, and refused there (tests/product-process-eligibility.test.mjs)
 test("A ROLE NAMES THE CAPABILITIES IT NEEDS: the page shows what a role needs, and only a participant with all of them is offered", async (t) => {
   const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   const { target } = page;
@@ -731,12 +730,11 @@ test("A ROLE NAMES THE CAPABILITIES IT NEEDS: the page shows what a role needs, 
 
 // ---------------------------------------------------------------- 13. Definition of Done and branches
 
-// Guards: A PRODUCT DECLARES ITS DEFINITION OF DONE
+// TST-472499 · level: release · module: MOD-implementation-pages
+// guards: A PRODUCT DECLARES ITS DEFINITION OF DONE
 // given: a product declaring Scrum with no condition added to the job rules
-// input: the author adds the condition "review: 1 by participants other than the implementer" and presses Save; the page
-//        is opened again
-// expect: the condition is in the product's own docs/process.md, under ## Definition of Done; opened again, the page shows
-//         it in the Definition of Done
+// input: the author adds the condition "review: 1 by participants other than the implementer" and presses Save; the page is opened again
+// expect: the condition is in the product's own docs/process.md, under ## Definition of Done; opened again, the page shows it in the Definition of Done
 test("A PRODUCT DECLARES ITS DEFINITION OF DONE: a condition the author adds is declared in the product's own repository", async (t) => {
   const page = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   await typeSection(page.target, "## Definition of Done", "\nreview: 1 by participants other than the implementer\n");
@@ -748,13 +746,11 @@ test("A PRODUCT DECLARES ITS DEFINITION OF DONE: a condition the author adds is 
   assert.ok(doneConditions(again.target).some((condition) => condition.includes("review: 1 by participants other than the implementer")), "shown in the Definition of Done");
 });
 
-// Guards: THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
+// TST-472500 · level: release · module: MOD-implementation-pages
+// guards: THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
 // given: a product without a declaration, so without a Definition of Done of its own
 // input: the author chooses Kanban
-// expect: the Definition of Done shown is the job rules: CI green; the job's first commit held only failing tests — for a
-//         refactoring job, CI green on every commit and no expected result changed —; only the job's modules changed;
-//         every new test names the requirement it guards and the module it exercises; every gate before the merge
-//         recorded
+// expect: the Definition of Done shown is the job rules: CI green; the job's first commit held only failing tests — for a refactoring job, CI green on every commit and no expected result changed —; only the job's modules changed; every new test names the requirement it guards and the module it exercises; every gate before the merge recorded
 test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, the Definition of Done shown is the job rules", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "kanban");
@@ -763,13 +759,11 @@ test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, th
   for (const [rule, parts] of Object.entries(JOB_RULES)) assert.ok(conditions.some((c) => parts.every((part) => part.test(c))), `the job rule: ${rule}`);
 });
 
-// Guards: THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
+// TST-472501 · level: release · module: MOD-implementation-pages
+// guards: THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
 // given: a product without a declaration
 // input: the author chooses Kanban
-// expect: every condition the Definition of Done shows is one of the five job rules: CI green; the job's first commit held
-//         only failing tests — for a refactoring job, CI green on every commit and no expected result changed —; only the
-//         job's modules changed; every new test names the requirement it guards and the module it exercises; every gate
-//         before the merge recorded
+// expect: every condition the Definition of Done shows is one of the five job rules: CI green; the job's first commit held only failing tests — for a refactoring job, CI green on every commit and no expected result changed —; only the job's modules changed; every new test names the requirement it guards and the module it exercises; every gate before the merge recorded
 test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, no condition beyond the job rules", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "kanban");
@@ -781,7 +775,8 @@ test("THE DEFAULT DEFINITION OF DONE IS THE JOB RULES: without a declaration, no
   }
 });
 
-// Guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
+// TST-472502 · level: release · module: MOD-implementation-pages
+// guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
 // given: a product declaring Scrum with no branch
 // input: the author gives the sprint the branch sprint/<nn> and presses Save; the page is opened again
 // expect: the declaration gives the sprint its branch; opened again, the page shows the branch for the sprint
@@ -796,11 +791,11 @@ test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: the sprint is given a 
   assert.ok(shownEntries(again.target).some((entry) => entry.includes("Sprint") && entry.includes("sprint/<nn>")), "shown for the sprint");
 });
 
-// Guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
+// TST-472503 · level: release · module: MOD-implementation-pages
+// guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
 // given: a product declaring Scrum, its sprint given the branch sprint/<nn>
 // input: routes.process(app)
-// expect: merging the sprint's branch into the default branch is shown as the gate at the sprint's end, decided by the
-//         role Scrum names for it, the Product Owner, after the review of the increment
+// expect: merging the sprint's branch into the default branch is shown as the gate at the sprint's end, decided by the role Scrum names for it, the Product Owner, after the review of the increment
 test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: merging the branch into the default branch is the gate at its end, decided by the Product Owner after the review", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ branches: [["Sprint", "sprint/<nn>"]] }) } });
 
@@ -811,11 +806,11 @@ test("A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN: merging the branch int
   "the gate at the sprint's end: its branch merged into the default branch, decided by the Product Owner after the review");
 });
 
-// Guards: WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
+// TST-472504 · level: release · module: MOD-implementation-pages
+// guards: WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
 // given: a product declaring Scrum with no branch for any phase or sprint
 // input: routes.process(app)
-// expect: no branch is shown for the sprint, and the page says that the work of every job is merged into the default
-//         branch; known positive: once the sprint is given a branch, the page shows it
+// expect: no branch is shown for the sprint, and the page says that the work of every job is merged into the default branch; known positive: once the sprint is given a branch, the page shows it
 test("WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET: without a branch, the page says the work merges into the default branch", async (t) => {
   const branched = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ branches: [["Sprint", "sprint/<nn>"]] }) } });
   assert.ok(shownEntries(branched.target).some((entry) => entry.includes("sprint/<nn>")), "known positive: a branch set is shown");
@@ -825,9 +820,9 @@ test("WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET: without a bran
   assert.match(textOf(target), /the work of every job is merged into the default branch/);
 });
 
-// Guards: A GATE NAMES WHO DECIDES IT
-// given: a product declaring lab-flow, whose gate Outline → Assemble is decided by the role Steward, held by a person, and
-//        whose gate Probe → Handover by the CI check lab-tests
+// TST-472505 · level: release · module: MOD-implementation-pages
+// guards: A GATE NAMES WHO DECIDES IT
+// given: a product declaring lab-flow, whose gate Outline → Assemble is decided by the role Steward, held by a person, and whose gate Probe → Handover by the CI check lab-tests
 // input: routes.process(app)
 // expect: each gate is shown with its decider: the role Steward; the check lab-tests, whose result decides
 test("A GATE NAMES WHO DECIDES IT: each gate is shown with its decider, a role or an automated check", async (t) => {

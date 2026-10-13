@@ -432,11 +432,11 @@ const looksExplained = (e) => (e.localName === "details" && e.className === "exp
 
 // ==================================================================================================================
 
+// TST-472730 · level: unit · module: MOD-settings-pages
 // guards: UC-001 (step 2, the placeholder before an address is valid)
 // given: a fresh page, no address typed
 // input: render, then type an address that is not a repository's address ("not a url")
-// expect: Steps A, B and C are shown, none calling explain() with a known topic; Step C names the address's own
-//         parse error and stays disabled
+// expect: Steps A, B and C are shown, none calling explain() with a known topic; Step C names the address's own parse error and stays disabled
 test("add-product — before a valid address, a placeholder with no known explanation, Step C disabled", async () => {
   const context = contextOf(freshStore());
   const target = await renderPage(context);
@@ -448,16 +448,11 @@ test("add-product — before a valid address, a placeholder with no known explan
   assert.equal(byTag(c, "button")[0].disabled, true);
 });
 
-// guards: UC-001 main flow (steps 1-5), THE REPOSITORY CHOICE IS SPELLED OUT, A PRODUCT'S TOKEN IS NAMED AFTER THE
-// PRODUCT, THE PAGE STATES WHAT IT SENDS WHERE, EVERY STEP EXPLAINS ITSELF, ONE CLICK PER DECISION, NO PRODUCT IS
-// NAMED IN THE INSTANCE REPOSITORY, THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
+// TST-478029 · level: unit · module: MOD-settings-pages
+// guards: UC-001 main flow (steps 1-5), THE REPOSITORY CHOICE IS SPELLED OUT, A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT, THE PAGE STATES WHAT IT SENDS WHERE, EVERY STEP EXPLAINS ITSELF, ONE CLICK PER DECISION, NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY, THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
 // given: a fresh store, a GitHub address with nothing stored for it
-// input: type the address; Step A's prefilled link and repository-choice steps; store a token, which runs the
-//        check — a private, writable repository — without another click; Step C, one click
-// expect: the token page is prefilled with the product's own name/description/owner/days; the three choice steps
-//         name the repository; the key and the commit are each stated to go to GitHub alone; Step B shows the check's
-//         result without a second click, and Step A flips to "done"; Add product writes the missing layout in one
-//         commit and remembers the address, with no further, unscripted request
+// input: type the address; Step A's prefilled link and repository-choice steps; store a token, which runs the check — a private, writable repository — without another click; Step C, one click
+// expect: the token page is prefilled with the product's own name/description/owner/days; the three choice steps name the repository; the key and the commit are each stated to go to GitHub alone; Step B shows the check's result without a second click, and Step A flips to "done"; Add product writes the missing layout in one commit and remembers the address, with no further, unscripted request
 test("add-product — main flow: Step A prefilled and spelled out, Store and check flips Step A done, Add product writes and remembers", async () => {
   const store = freshStore();
   seedToken(store, "github-token", { value: "github_pat_INSTANCE" });
@@ -541,11 +536,11 @@ test("add-product — main flow: Step A prefilled and spelled out, Store and che
       "agent-m:fixture/instance:products"]));
 });
 
+// TST-472731 · level: unit · module: MOD-settings-pages
 // guards: UC-001 2a (Check), counter to 4a
 // given: a fresh store, a GitHub address that does not exist (or is private to a key that cannot see it)
 // input: Check
-// expect: the repository is named as not found, with a link to GitHub's page for a new repository; Step A is not
-//         shown done
+// expect: the repository is named as not found, with a link to GitHub's page for a new repository; Step A is not shown done
 test("add-product — 2a: Check on a 404 names the repository and links a new one; Step A stays not done", async () => {
   const context = contextOf(freshStore());
   const target = await renderAddress(context, GH_WEB);
@@ -557,6 +552,7 @@ test("add-product — 2a: Check on a 404 names the repository and links a new on
   assert.ok(!stepTitled(target, "Step A · A key for the product — done"));
 });
 
+// TST-472732 · level: unit · module: MOD-settings-pages
 // guards: UC-001 2a (Add product)
 // given: a product's own token already stored, a repository that does not exist (or is private to it)
 // input: Add product
@@ -573,14 +569,11 @@ test("add-product — 2a: Add product on a 404 names the repository, links a new
   assert.equal(readSetting(store, "products"), null);
 });
 
-// guards: UC-001 3a (own key already reaches it, the instance's while the product has none), 4a, the gate of pull
-// request #150 — a stored instance token alone is never Step A done, and never survives a later failed check
+// TST-478030 · level: unit · module: MOD-settings-pages
+// guards: UC-001 3a (own key already reaches it, the instance's while the product has none), 4a, the gate of pull request #150 — a stored instance token alone is never Step A done, and never survives a later failed check
 // given: only the instance's GitHub token stored, no product-specific key
-// input: Step B's Check (3a) proves a private, writable repository — without pasting a new key; Check again, now
-//        refused (token revoked)
-// expect: before any check, Step A shows its instructions (not done) although the instance's token is already
-//         stored, and Step C is already enabled from that same stored key; after the first check, Step A is done;
-//         after the second, Step A is not done again — a "done" never survives a later failed check
+// input: Step B's Check (3a) proves a private, writable repository — without pasting a new key; Check again, now refused (token revoked)
+// expect: before any check, Step A shows its instructions (not done) although the instance's token is already stored, and Step C is already enabled from that same stored key; after the first check, Step A is done; after the second, Step A is not done again — a "done" never survives a later failed check
 test("add-product — 3a/4a: a stored instance token alone never marks Step A done; a later failed check un-marks it", async () => {
   const store = freshStore();
   seedToken(store, "github-token", { value: "github_pat_INSTANCE" });
@@ -602,8 +595,8 @@ test("add-product — 3a/4a: a stored instance token alone never marks Step A do
   assert.ok(stepTitled(target, "Step A · A key for the product"), "Step A shows its instructions again");
 });
 
-// guards: UC-001 step 4 (a public repository's read proves nothing; write access is confirmed only by the first
-// write), 3a (a private repository only)
+// TST-478031 · level: unit · module: MOD-settings-pages
+// guards: UC-001 step 4 (a public repository's read proves nothing; write access is confirmed only by the first write), 3a (a private repository only)
 // given: a product's own token stored, a public repository
 // input: Check
 // expect: the check succeeds, but Step A is never shown done for a public repository
@@ -619,12 +612,11 @@ test("add-product — step 4: a public repository's successful check never marks
   assert.ok(!stepTitled(target, "Step A · A key for the product — done"));
 });
 
-// guards: UC-001 5a (a write refused after a successful read), the gate of pull request #150 — "so a failed check
-// or a refused write leaves no way to store a key"
+// TST-478032 · level: unit · module: MOD-settings-pages
+// guards: UC-001 5a (a write refused after a successful read), the gate of pull request #150 — "so a failed check or a refused write leaves no way to store a key"
 // given: a product's own token stored and already proved by Check (Step A done); the write itself is then refused
 // input: Add product
-// expect: nothing is written to the product list; the refusal is named and keeps Step A's "done" from surviving —
-//         Step A is repainted with its instructions, so the author can store a key that actually reaches it
+// expect: nothing is written to the product list; the refusal is named and keeps Step A's "done" from surviving — Step A is repainted with its instructions, so the author can store a key that actually reaches it
 test("add-product — 5a: a write refused after a successful check un-marks Step A done; nothing is written", async () => {
   const store = freshStore();
   seedToken(store, "github-token:alice/thesis-tool", { value: "github_pat_X" });
@@ -645,11 +637,11 @@ test("add-product — 5a: a write refused after a successful check un-marks Step
   assert.ok(stepTitled(target, "Step A · A key for the product"));
 });
 
+// TST-472733 · level: unit · module: MOD-settings-pages
 // guards: UC-001 5b (the product already has the complete layout)
 // given: a product's own token stored, a repository that already holds every part of the layout
 // input: Add product
-// expect: nothing is committed, and no request beyond the three reads is made; the address is still added to this
-//         browser's product list
+// expect: nothing is committed, and no request beyond the three reads is made; the address is still added to this browser's product list
 test("add-product — 5b: a complete layout is left uncommitted, the address is still remembered", async () => {
   const store = freshStore();
   seedToken(store, "github-token:alice/thesis-tool", { value: "github_pat_X" });
@@ -661,10 +653,8 @@ test("add-product — 5b: a complete layout is left uncommitted, the address is 
   assert.deepEqual(readSetting(store, "products"), [GH_WEB]);
 });
 
-// TST-276
+// TST-276 · level: unit · module: MOD-settings-pages
 // guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// Module: MOD-settings-pages
-// Level: unit
 // given: a GitHub product's own stored key and a completed writable private-repository check
 // input: a synthetic (isTrusted false) click on the public Step C Add product control
 // expect: neither the repository layout commit boundary nor rememberProduct runs: no request is made and products stays empty
@@ -687,10 +677,8 @@ test("TST-276 add-product — a synthetic GitHub Step C click writes and remembe
   assert.equal(readSetting(store, "products"), null, "rememberProduct was not reached");
 });
 
-// TST-277
+// TST-277 · level: unit · module: MOD-settings-pages
 // guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// Module: MOD-settings-pages
-// Level: unit
 // given: a GitLab product's own stored key and a completed writable project check
 // input: a synthetic (isTrusted false) click on the public Step C Add product control
 // expect: neither the repository layout commit boundary nor rememberProduct runs: no request is made and products stays empty
@@ -713,10 +701,8 @@ test("TST-277 add-product — a synthetic GitLab Step C click writes and remembe
   assert.equal(readSetting(store, "products"), null, "rememberProduct was not reached");
 });
 
-// TST-278
+// TST-278 · level: unit · module: MOD-settings-pages
 // guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// Module: MOD-settings-pages
-// Level: unit
 // given: a GitLab product's own stored key and a completed writable project check
 // input: a trusted person click on the public Step C Add product control
 // expect: the missing review layout is committed once and the exact GitLab product address is remembered
@@ -738,12 +724,11 @@ test("TST-278 add-product — a trusted GitLab Step C click commits and remember
   assert.deepEqual(readSetting(store, "products"), [GL_WEB]);
 });
 
+// TST-472734 · level: unit · module: MOD-settings-pages
 // guards: UC-001 3c (A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN), 3d, EVERY STEP EXPLAINS ITSELF
 // given: a fresh store, a GitLab project's address
 // input: type the address; store the project's token, which runs the check
-// expect: Step A only opens the project's Access tokens page and spells out role Maintainer/scope api, with the 3d
-//         fallback folded beneath it, and is never shown done; Step B is "Give the key to Agent M", sends the key
-//         only to that project's own API, and shows the check's result; Step C is enabled once the token is stored
+// expect: Step A only opens the project's Access tokens page and spells out role Maintainer/scope api, with the 3d fallback folded beneath it, and is never shown done; Step B is "Give the key to Agent M", sends the key only to that project's own API, and shows the check's result; Step C is enabled once the token is stored
 test("add-product — 3c/3d: GitLab's Step A is instructions only, Step B stores and checks the project's own token", async () => {
   const store = freshStore();
   const context = contextOf(store);
@@ -795,16 +780,11 @@ test("add-product — 3c/3d: GitLab's Step A is instructions only, Step B stores
   assert.equal(byTag(c, "button")[0].disabled, false, "Step C is enabled once the GitLab project's token is stored");
 });
 
-// TST-288
+// TST-288 · level: unit · module: MOD-settings-pages
 // guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
-// Module: MOD-settings-pages
-// Level: unit
-// given: a fresh add-product route for a GitLab project whose author reports that its Access tokens page offers no
-//        project access tokens
+// given: a fresh add-product route for a GitLab project whose author reports that its Access tokens page offers no project access tokens
 // input: the author expands and selects the public "server offers no project access tokens" cause
-// expect: the selected cause is named, its expandable explanation states that a personal api token reaches every
-//         project the author can reach on that server before leaving the decision to them, and selection makes neither
-//         a server request nor a browser-store write
+// expect: the selected cause is named, its expandable explanation states that a personal api token reaches every project the author can reach on that server before leaving the decision to them, and selection makes neither a server request nor a browser-store write
 test("TST-288 add-product — GitLab's no-project-token cause is selected locally with personal-token breadth before the decision", async () => {
   const store = freshStore();
   const target = await renderAddress(contextOf(store), GL_WEB);
@@ -825,14 +805,11 @@ test("TST-288 add-product — GitLab's no-project-token cause is selected locall
   assert.equal(readSetting(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`), null);
 });
 
-// TST-289
+// TST-289 · level: unit · module: MOD-settings-pages
 // guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
-// Module: MOD-settings-pages
-// Level: unit
 // given: a fresh add-product route for a GitLab project whose author reports that they are not Maintainer
 // input: the author expands and selects the public "I am not Maintainer" cause
-// expect: the selected cause is named separately, its expandable explanation states the breadth of a personal api
-//         token before leaving the decision to the author, and the normal project-token route remains available
+// expect: the selected cause is named separately, its expandable explanation states the breadth of a personal api token before leaving the decision to the author, and the normal project-token route remains available
 test("TST-289 add-product — GitLab's not-Maintainer cause is selected separately without replacing the project-token route", async () => {
   const store = freshStore();
   const target = await renderAddress(contextOf(store), GL_WEB);
@@ -851,11 +828,11 @@ test("TST-289 add-product — GitLab's not-Maintainer cause is selected separate
   assert.equal(readSetting(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`), null, "selection stores no credential");
 });
 
+// TST-472735 · level: unit · module: MOD-settings-pages
 // guards: UC-001 3a applied to a GitLab project — "its own" key already stored offers Check directly
 // given: a project's own token already stored in this browser
 // input: render
-// expect: Step B shows that a token is stored, with its own Check button, beside the paste form, which is still
-//         there for a new one
+// expect: Step B shows that a token is stored, with its own Check button, beside the paste form, which is still there for a new one
 test("add-product — GitLab: a project's own token already stored offers Check beside pasting a new one", async () => {
   const store = freshStore();
   seedToken(store, `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`, { value: "glpat-OLD0123456789", expires: "2027-03-01" });
@@ -869,8 +846,10 @@ test("add-product — GitLab: a project's own token already stored offers Check 
   assert.match(lastResultOf(b), /is reachable/);
 });
 
+// TST-478033 · level: unit · module: MOD-settings-pages
 // guards: EVERY STEP EXPLAINS ITSELF (ITM-255) — the field above the steps
 // given: a fresh page
+// input: render the add-product page of a fresh store and read the explanation nearest the address field
 // expect: the repository-address field's own explanation is explain("repository")
 test("add-product — the address field's folded explanation is the 'repository' topic", async () => {
   const context = contextOf(freshStore());

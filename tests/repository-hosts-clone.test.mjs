@@ -71,10 +71,11 @@ async function withFixture(run) {
   try { return await run(f); } finally { rmSync(f.root, { recursive: true, force: true }); }
 }
 
+// TST-472530 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a clone of an origin whose `main` holds README.md and docs/a.md at one commit; a tag v1 on it
 // input: connect(address, { clone }).readSnapshot("main"), and the same at the tag and at the commit's identifier
-// expect: a snapshot of that commit, its ref as asked, its repository the address, its paths README.md and docs/a.md, the blob
-//         SHA of each as git gives it, the text of docs/a.md "Text of a.\n", and null for a path the commit does not hold
+// expect: a snapshot of that commit, its ref as asked, its repository the address, its paths README.md and docs/a.md, the blob SHA of each as git gives it, the text of docs/a.md "Text of a.\n", and null for a path the commit does not hold
 test("MOD-repository-hosts clone — a snapshot at a branch, a tag and a commit, with its paths and a file's text", async () => {
   await withFixture(async ({ seed, clone, first }) => {
     git(seed, "tag", "v1");
@@ -92,11 +93,11 @@ test("MOD-repository-hosts clone — a snapshot at a branch, a tag and a commit,
   });
 });
 
-// given: a commit another writer pushed to a branch of the origin after the clone was made, so that the clone does not hold it;
-//        and an identifier no commit of the origin has
+// TST-472531 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: a commit another writer pushed to a branch of the origin after the clone was made, so that the clone does not hold it; and an identifier no commit of the origin has
 // input: readSnapshot(the commit's identifier); readSnapshot(the other identifier)
-// expect: the first a snapshot of that commit with its new file read, fetched from the origin with the clone's own access; the
-//         second HostError NotFound — the origin lacks it too
+// expect: the first a snapshot of that commit with its new file read, fetched from the origin with the clone's own access; the second HostError NotFound — the origin lacks it too
 test("MOD-repository-hosts clone — a commit the clone lacks is fetched from the origin, and one the origin lacks is NotFound", async () => {
   await withFixture(async ({ seed, clone }) => {
     const later = land(seed, "topic", { "docs/b.md": "Text of b.\n" }, "on a branch");
@@ -111,10 +112,11 @@ test("MOD-repository-hosts clone — a commit the clone lacks is fetched from th
   });
 });
 
+// TST-472532 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: the clone, whose snapshot of `main` was read; a change of two files — one new, one changed — at that commit
 // input: commitFiles({ branch: "main", expectedHead: that commit, files, message })
-// expect: one commit on the origin's `main`, whose parent is the commit it was made on, holding the two files with their texts
-//         and the old ones as they were, its message as given; the result { commit: that commit, url: GitHub's page of the commit }
+// expect: one commit on the origin's `main`, whose parent is the commit it was made on, holding the two files with their texts and the old ones as they were, its message as given; the result { commit: that commit, url: GitHub's page of the commit }
 test("MOD-repository-hosts clone — two files committed and pushed in one commit while the origin's branch stands at the expected head", async () => {
   await withFixture(async ({ origin, clone, first }) => {
     const host = connect(ADDRESS, { clone });
@@ -134,10 +136,11 @@ test("MOD-repository-hosts clone — two files committed and pushed in one commi
   });
 });
 
+// TST-472533 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: the snapshot of `main` read, then another writer's commit pushed to `main` of the origin
 // input: commitFiles({ branch: "main", expectedHead: the commit that was read, files, message })
-// expect: HostError Moved naming the head the origin's branch stands at now; the origin's `main` still at the other writer's
-//         commit, the new commit on no branch of the origin: nothing pushed
+// expect: HostError Moved naming the head the origin's branch stands at now; the origin's `main` still at the other writer's commit, the new commit on no branch of the origin: nothing pushed
 test("MOD-repository-hosts clone — Moved, with nothing pushed, after another commit landed first", async () => {
   await withFixture(async ({ origin, seed, clone }) => {
     const host = connect(ADDRESS, { clone });
@@ -156,6 +159,8 @@ test("MOD-repository-hosts clone — Moved, with nothing pushed, after another c
   });
 });
 
+// TST-472534 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a host connected with the clone and a configured secret; a change whose second file holds that secret
 // input: commitFiles(the change)
 // expect: HostError SecretRefused naming the second file by its path and not the secret; nothing pushed
@@ -172,6 +177,8 @@ test("MOD-repository-hosts clone — a file holding a configured secret is refus
   });
 });
 
+// TST-472535 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a host connected with the clone and no token
 // input: openPullRequest(…), and, as the other functions that need the server's API, repositoryInfo() and listTags()
 // expect: HostError NotSupported from each: the clone has no pull requests, and the REST adapter is used only where a token is given
@@ -190,6 +197,8 @@ test("MOD-repository-hosts clone — a pull request through the clone, and the o
   });
 });
 
+// TST-472536 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a clone whose origin cannot be reached any more — its folder is gone — and an identifier the clone lacks
 // input: readSnapshot(that identifier)
 // expect: HostError Unreachable giving git's reason, not NotFound: the origin could not be asked, which is not that it lacks the commit
@@ -203,10 +212,11 @@ test("MOD-repository-hosts clone — an origin that cannot be reached is Unreach
   });
 });
 
+// TST-472537 · level: unit · module: MOD-repository-hosts
+// guards: UC-006; UC-010; UC-011; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; NO SECRET IN THE REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: the clone, and a change that deletes docs/a.md and writes docs/blob.bin as bytes (0, 255, 1, 128), for a product on GitLab
 // input: commitFiles({ branch: "main", expectedHead, files, message })
-// expect: the origin's `main` without docs/a.md, with docs/blob.bin holding exactly those four bytes; the result's url GitLab's
-//         page of the commit, the server's address followed by /-/commit/ and the commit
+// expect: the origin's `main` without docs/a.md, with docs/blob.bin holding exactly those four bytes; the result's url GitLab's page of the commit, the server's address followed by /-/commit/ and the commit
 test("MOD-repository-hosts clone — a file deleted and a file written as bytes, for a GitLab product", async () => {
   await withFixture(async ({ origin, clone, first }) => {
     const gitlab = parseAddress("https://gitlab.example.org/space/release-tool");

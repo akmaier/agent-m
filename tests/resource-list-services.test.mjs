@@ -40,11 +40,11 @@ const LIST = Object.freeze([
   entry("worker", "agent", { route: "runner:cpu", paid: false }),
 ]);
 
+// TST-472595 · level: unit · module: MOD-resource-list
 // guards: COMMIT TESTS CALL NO PAID SERVICE; UC-040 (step 9); UC-026
 // given: a list of a repository, three endpoints, agents, data with a Paid mark of yes and of no, data without a mark, a model and two compute resources
 // input: paidServices of the list
-// expect: exactly the endpoints, the agents and the data with a mark, in the list's order, each as { name, kind, address, paid } — local-llm free, search-api paid, open-api free, coder paid,
-//         hosted-llm paid, worker free —; the repository, the model, the compute and the unmarked data are not listed; the list is as it was
+// expect: exactly the endpoints, the agents and the data with a mark, in the list's order, each as { name, kind, address, paid } — local-llm free, search-api paid, open-api free, coder paid, hosted-llm paid, worker free —; the repository, the model, the compute and the unmarked data are not listed; the list is as it was
 test("paidServices lists every endpoint, agent and marked data with its mark, and nothing else", () => {
   assert.deepEqual(paidServices(LIST), [
     { name: "local-llm", kind: "endpoint", address: "address-of-local-llm", paid: false },
@@ -58,6 +58,7 @@ test("paidServices lists every endpoint, agent and marked data with its mark, an
   assert.equal(LIST.length, 11);
 });
 
+// TST-472596 · level: unit · module: MOD-resource-list
 // guards: COMMIT TESTS CALL NO PAID SERVICE
 // given: an endpoint and an agent whose Paid mark is missing, and one with a mark of no
 // input: paidServices of each
@@ -67,11 +68,11 @@ test("paidServices lists a service without a Paid mark as paid", () => {
   assert.deepEqual(paidServices([entry("unmarked", "endpoint"), entry("also-unmarked", "agent")]).map((s) => [s.name, s.paid]), [["unmarked", true], ["also-unmarked", true]]);
 });
 
+// TST-472597 · level: unit · module: MOD-resource-list
 // guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (step 9)
 // given: the list
 // input: reachableBy of the list
-// expect: in the list's order, the endpoint, compute and agent on a Bridge or a runner with their routes — local-llm bridge workstation, cluster runner:gpu, coder bridge lab-pc, gpu-box
-//         bridge lab-pc, worker runner:cpu —; the repository, the data, the model and the endpoint called at its own address are not listed
+// expect: in the list's order, the endpoint, compute and agent on a Bridge or a runner with their routes — local-llm bridge workstation, cluster runner:gpu, coder bridge lab-pc, gpu-box bridge lab-pc, worker runner:cpu —; the repository, the data, the model and the endpoint called at its own address are not listed
 test("reachableBy gives a resource on a Bridge or a runner its route, and a resource read on its host none", () => {
   assert.deepEqual(reachableBy(LIST), [
     { resource: "local-llm", route: "bridge workstation" },
@@ -83,11 +84,11 @@ test("reachableBy gives a resource on a Bridge or a runner its route, and a reso
   assert.deepEqual(reachableBy([]), []);
 });
 
+// TST-472598 · level: unit · module: MOD-resource-list
 // guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-040 (step 9)
 // given: a compute resource on the Bridge lab-pc and one on the runner gpu, as reachableBy gives them; a participant on lab-pc and one on the runner gpu
 // input: routesFor of each participant with the routes as its needs
-// expect: the participant on lab-pc is offered for the Bridge need and refused, naming the resource and its route, for the runner need; the participant on the runner the other way
-//         round — the routes are in the form routesFor reads
+// expect: the participant on lab-pc is offered for the Bridge need and refused, naming the resource and its route, for the runner need; the participant on the runner the other way round — the routes are in the form routesFor reads
 test("the routes reachableBy gives are the form routesFor reads", () => {
   const product = { visibility: "private", jobWorkflow: true };
   const needs = reachableBy([entry("gpu-box", "compute", { route: "bridge lab-pc" }), entry("cluster", "compute", { route: "runner:gpu" })]);

@@ -68,12 +68,11 @@ function installCookieJar() {
   return jar;
 }
 
+// TST-472127 · level: unit · module: MOD-browser-store
 // guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; A GITHUB PRODUCT USES A TOKEN OF ITS OWN
-// given: a working localStorage, no cookie yet, and this item's six catalogue keys with a value shaped as the module's
-//        file states for each
+// given: a working localStorage, no cookie yet, and this item's six catalogue keys with a value shaped as the module's file states for each
 // input: for each key — readSetting before anything is stored, then writeSetting(store, key, value), then readSetting
-// expect: each key starts unset; after writeSetting, localStorage itself holds the value as JSON under
-//         "agent-m:<instance>:<key>"; readSetting gives the value back unchanged; no cookie was ever written
+// expect: each key starts unset; after writeSetting, localStorage itself holds the value as JSON under "agent-m:<instance>:<key>"; readSetting gives the value back unchanged; no cookie was ever written
 test("writeSetting/readSetting keep this item's catalogue keys in localStorage, under the instance's prefix, and set no cookie", () => {
   install(memoryStorage());
   const cookies = installCookieJar();
@@ -88,6 +87,7 @@ test("writeSetting/readSetting keep this item's catalogue keys in localStorage, 
   assert.equal(cookies.value, "", "nothing was ever written to a cookie");
 });
 
+// TST-472128 · level: unit · module: MOD-browser-store
 // guards: UC-001; A CLEAR IS A REAL CLEAR
 // given: a working localStorage with each of this item's catalogue keys set
 // input: clearSetting(store, key), for each key
@@ -104,6 +104,7 @@ test("clearSetting removes each catalogue key from localStorage itself, not only
   }
 });
 
+// TST-472129 · level: unit · module: MOD-browser-store
 // guards: UC-001
 // given: a working localStorage and a key outside this item's catalogue
 // input: writeSetting(store, "not-a-setting", "x")
@@ -116,6 +117,7 @@ test("writeSetting refuses a key outside the catalogue with UnknownSetting", () 
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}not-a-setting`), null, "nothing was written");
 });
 
+// TST-472130 · level: unit · module: MOD-browser-store
 // guards: UC-001
 // given: a localStorage that exists but refuses every write, as a browser's private window has historically done
 // input: openStore(instance)
@@ -125,9 +127,9 @@ test("openStore throws StorageUnavailable where localStorage refuses to store an
   assert.throws(() => openStore(INSTANCE), (e) => e instanceof StoreError && e.name === "StorageUnavailable");
 });
 
+// TST-472131 · level: unit · module: MOD-browser-store
 // guards: UC-001
-// given: a store opened over a working localStorage, which then starts refusing every write — a quota used up, or the
-//        browser taking storage away, after the store was opened
+// given: a store opened over a working localStorage, which then starts refusing every write — a quota used up, or the browser taking storage away, after the store was opened
 // input: writeSetting(store, "products", [...])
 // expect: throws StoreError named StorageUnavailable
 test("writeSetting throws StorageUnavailable where localStorage refuses the write after the store was opened", () => {

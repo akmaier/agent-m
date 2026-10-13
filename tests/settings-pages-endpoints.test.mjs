@@ -65,9 +65,7 @@ function settingsRoute() {
   return route;
 }
 
-// TST-265001
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265001 · level: unit · module: MOD-settings-pages
 // guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
 // given: an empty browser store and a constructed successful endpoint answer
 // input: the author fills the public endpoints Route and presses Test
@@ -91,9 +89,7 @@ test("TST-265001: direct endpoint saves before its one short test", async () => 
   } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265002
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265002 · level: unit · module: MOD-settings-pages
 // guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a constructed browser refusal that names cross-origin blocking and CI/Bridge routes
 // input: the author presses Test on the public endpoints Route
@@ -104,9 +100,7 @@ test("TST-265002: browser refusal is shown with CI and Bridge alternatives", asy
   try { const target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /Blocked by CORS policy/); assert.match(target.textContent, /CI/); assert.match(target.textContent, /Bridge/); } finally { globalThis.fetch = oldFetch; globalThis.window = oldWindow; }
 });
 
-// TST-265003
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265003 · level: unit · module: MOD-settings-pages
 // guards: UC-003 alternative 4b; CONFIGURATION LIVES IN THE BROWSER
 // given: a key that a constructed provider response refuses
 // input: save and test, then reload the public endpoints Route
@@ -117,9 +111,7 @@ test("TST-265003: a refused key remains stored and reloads", async () => {
   try { let target = await render(store); type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); type(byClass(target, "endpoint-key")[0], ENDPOINT.key); await click(byClass(target, "endpoint-test")[0]); assert.match(target.textContent, /Invalid API key/); assert.equal(readSetting(store, "endpoint:campus").key, ENDPOINT.key); target = await render(store, { name: "campus" }); assert.equal(byClass(target, "endpoint-key")[0].value, ENDPOINT.key); } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265004
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265004 · level: unit · module: MOD-settings-pages
 // guards: UC-003 alternative 2b; A CLEAR IS A REAL CLEAR
 // given: endpoint:<name> is stored in localStorage and the endpoint form is rendered
 // input: the author presses Clear in the public endpoints Route
@@ -129,9 +121,7 @@ test("TST-265004: Clear removes the stored endpoint and empties the form", async
   await click(byClass(target, "endpoint-clear")[0]); assert.equal(readSetting(store, "endpoint:campus"), null); assert.equal(byClass(target, "endpoint-url")[0].value, "");
 });
 
-// TST-265005
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265005 · level: unit · module: MOD-settings-pages
 // guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a stored throughBridge endpoint for a local model server
 // input: the author opens the public endpoints Route and presses Test
@@ -141,9 +131,7 @@ test("TST-265005: a Bridge endpoint is retained and never called directly", asyn
   try { const target = await render(store, { name: "local" }); await click(byClass(target, "endpoint-test")[0]); assert.equal(calls.length, 0); assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED); assert.match(target.textContent, /Bridge.*setup|setup.*Bridge/i); } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265006
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265006 · level: unit · module: MOD-settings-pages
 // guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: an endpoint form with an absent optional key
 // input: the author saves and tests it through the public endpoints Route
@@ -153,9 +141,7 @@ test("TST-265006: an absent key maps to null at the direct-call boundary", async
   try { const target = await render(store); type(byClass(target, "endpoint-name")[0], "public"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url); type(byClass(target, "endpoint-model")[0], ENDPOINT.model); await click(byClass(target, "endpoint-test")[0]); assert.equal(Object.hasOwn(readSetting(store, "endpoint:public"), "key"), false); assert.equal(calls[0].init.headers.Authorization, undefined); } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265007
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265007 · level: unit · module: MOD-settings-pages
 // guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; THE PAGE STATES WHAT IT SENDS WHERE
 // given: an endpoint key in the real password control
 // input: the public endpoints Route renders before the author saves
@@ -186,9 +172,7 @@ test("TST-265007: disclosure precedes a hidden endpoint key without repository o
   } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265008
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265008 · level: unit · module: MOD-settings-pages
 // guards: THE SHARED PAGES ORIGIN IS DISCLOSED; EVERY STEP EXPLAINS ITSELF
 // given: the public endpoints Route for an instance whose Pages owner is fixture
 // input: the author opens the Route before entering or storing a key
@@ -205,9 +189,7 @@ test("TST-265008: endpoint storage is preceded by its Pages-origin notice and fo
   assert.ok(details.every((folded) => byTag(folded, "summary").some((summary) => summary.textContent === "What is this?")));
 });
 
-// TST-265009
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265009 · level: unit · module: MOD-settings-pages
 // guards: A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: an endpoint whose browser-store record contains a key
 // input: the author reloads the public endpoints Route and presses Show
@@ -224,9 +206,7 @@ test("TST-265009: a stored endpoint key stays hidden until Show", async () => {
   assert.equal(key.value, ENDPOINT.key);
 });
 
-// TST-265010
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265010 · level: unit · module: MOD-settings-pages
 // guards: EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: an instance browser store with a canonical endpoint:campus record and a second instance with another endpoint
 // input: the person opens the public settings Route and presses Show for campus
@@ -246,9 +226,7 @@ test("TST-265010: Settings lists its stored endpoint with a hidden key and Show"
   assert.equal(key.type, "text");
 });
 
-// TST-265011
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265011 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a stored direct endpoint and a constructed successful endpoint answer
 // input: the person presses Test, then Change on the public settings Route
@@ -271,9 +249,7 @@ test("TST-265011: Settings tests a stored direct endpoint and changes its named 
   } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265012
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265012 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CLEAR IS A REAL CLEAR
 // given: two endpoints stored for one instance
 // input: the person presses Clear beside campus on the public settings Route
@@ -292,9 +268,7 @@ test("TST-265012: Settings Clear removes only the selected endpoint entry", asyn
   assert.match(target.textContent, /Endpoint: local/);
 });
 
-// TST-265013
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265013 · level: unit · module: MOD-settings-pages
 // guards: EVERY STEP EXPLAINS ITSELF
 // given: a browser store with one canonical endpoint setting
 // input: the person opens the public Settings Route
@@ -313,9 +287,7 @@ test("TST-265013: Settings explains its browser section and each stored endpoint
   assert.ok(folded.every((detail) => byTag(detail, "summary").some((summary) => summary.textContent === "What is this?")));
 });
 
-// TST-265014
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265014 · level: unit · module: MOD-settings-pages
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a stored direct endpoint in the public Settings Route
 // input: the person reads its line before pressing Test
@@ -334,9 +306,7 @@ test("TST-265014: Settings discloses an endpoint Test destination before its con
   assert.ok(ordered.indexOf(disclosure) >= 0 && ordered.indexOf(disclosure) < ordered.indexOf(action), "the disclosure precedes Test");
 });
 
-// TST-265015
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265015 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CLEAR IS A REAL CLEAR
 // given: a stored direct endpoint and another endpoint with independent test metadata
 // input: the person tests campus successfully, reloads Settings, then clears campus
@@ -365,9 +335,7 @@ test("TST-265015: Settings persists a successful endpoint test and clears its me
   } finally { globalThis.fetch = oldFetch; }
 });
 
-// TST-265016
-// Module: MOD-settings-pages
-// Level: unit
+// TST-265016 · level: unit · module: MOD-settings-pages
 // guards: EVERY SETTING IS REACHED FROM ONE PAGE
 // given: one endpoint that has never been tested and one whose test was refused
 // input: the person opens the public Settings Route

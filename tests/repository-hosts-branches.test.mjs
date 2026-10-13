@@ -43,11 +43,11 @@ async function serving(answer, run) {
 }
 const failure = (p) => Promise.resolve(p).then(() => null, (e) => e);
 
+// TST-472519 · level: unit · module: MOD-repository-hosts
 // guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a GitHub repository and the person's token; the server creates the reference
 // input: createBranch("sprint/team1/01", HEAD)
-// expect: one request — POST to the repository's git/refs, with refs/heads/sprint/team1/01 and HEAD, the token as a Bearer
-//         header —, and nothing returned
+// expect: one request — POST to the repository's git/refs, with refs/heads/sprint/team1/01 and HEAD, the token as a Bearer header —, and nothing returned
 test("createBranch on GitHub — one request creates refs/heads/<name> at the commit, with the token", async () => {
   const host = connect(GITHUB, { token: GH_TOKEN });
   const { result, requests } = await serving(() => json(201, { ref: "refs/heads/sprint/team1/01", object: { sha: HEAD } }),
@@ -58,11 +58,11 @@ test("createBranch on GitHub — one request creates refs/heads/<name> at the co
   assert.equal(requests[0].headers.authorization, `Bearer ${GH_TOKEN}`);
 });
 
+// TST-472520 · level: unit · module: MOD-repository-hosts
 // guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a GitLab project and its access token; the server creates the branch
 // input: createBranch("sprint/team1/01", HEAD)
-// expect: one request — POST to the project's repository/branches, with the branch and HEAD as its ref, the token in
-//         PRIVATE-TOKEN —, and nothing returned
+// expect: one request — POST to the project's repository/branches, with the branch and HEAD as its ref, the token in PRIVATE-TOKEN —, and nothing returned
 test("createBranch on GitLab — one request creates the branch at the commit, with the project's token", async () => {
   const host = connect(GITLAB, { token: GL_TOKEN });
   const { result, requests } = await serving(() => json(201, { name: "sprint/team1/01", commit: { id: HEAD } }),
@@ -73,6 +73,7 @@ test("createBranch on GitLab — one request creates the branch at the commit, w
   assert.equal(requests[0].headers["private-token"], GL_TOKEN);
 });
 
+// TST-472521 · level: unit · module: MOD-repository-hosts
 // guards: A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
 // given: the branch stands already — GitHub answers 422 "Reference already exists", GitLab 400 "Branch already exists"
 // input: createBranch("sprint/team1/01", HEAD) on each
@@ -88,11 +89,11 @@ test("createBranch — a branch that stands already is left where it stands", as
   assert.equal(gl.requests.length, 1);
 });
 
+// TST-472522 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a host connected without a token; and hosts whose server answers 401, 403, and 422 for another reason
 // input: createBranch("sprint/team1/01", HEAD)
-// expect: NotSupported without a token, with no request made; TokenRefused for 401; PermissionMissing for 403; for any other
-//         refusal the host's own failure — never success
+// expect: NotSupported without a token, with no request made; TokenRefused for 401; PermissionMissing for 403; for any other refusal the host's own failure — never success
 test("createBranch — without a token it is not supported; a refused token or a missing permission is named", async () => {
   const none = await serving(() => json(500, {}), () => failure(connect(GITHUB, {}).createBranch("sprint/team1/01", HEAD)));
   assert.equal(none.result?.name, "NotSupported");
@@ -110,6 +111,7 @@ test("createBranch — without a token it is not supported; a refused token or a
   assert.ok(invalid.result instanceof Error && invalid.result.name !== "NotSupported", String(invalid.result));
 });
 
+// TST-472523 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a connected host
 // input: createBranch with an empty name, and with a commit that is no commit

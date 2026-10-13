@@ -339,6 +339,11 @@ function parseAddressOrNull(url) { try { return parseAddress(url); } catch { ret
 // { server: "github", origin: "https://github.com", path: "alice/thesis-tool", web: "https://github.com/alice/thesis-tool" },
 // and no request is made. Counter-proof: a bare owner/name, plain http, an owner without a repository, a path that climbs, a
 // user name and token in the address, an empty text and a script address are each refused with a TypeError.
+// TST-476065 · level: unit · module: MOD-repository-hosts
+// guards: A PRODUCT IS NAMED BY ITS ADDRESS
+// given: fake fetch recording every request; the address of a GitHub repository in the forms a browser shows it (plain, trailing slash, .git, tree and blob pages, query, fragment, spaces around), and the bad forms (bare owner/name, plain http, owner only, climbing path, user name and token in the address, empty text, script address)
+// input: parseAddress of each address
+// expect: each good form is read as { server: github, origin: https://github.com, path: alice/thesis-tool, web }; each bad form is refused with a TypeError; no request is made
 test("A PRODUCT IS NAMED BY ITS ADDRESS — a GitHub repository's address, as the browser shows it", async () => {
   const sent = [];
   await using(async (u) => { sent.push(String(u)); return json(200, {}); }, async () => {
@@ -360,6 +365,11 @@ test("A PRODUCT IS NAMED BY ITS ADDRESS — a GitHub repository's address, as th
 // with spaces around it — is read as { server: "gitlab", origin: the server, path: the groups and the project, web: the project's
 // address }; a server with a port keeps it. Counter-proof: a group without a project, a path that climbs, a path that starts
 // behind "/-/", a user name and token in the address, plain http and an encoded slash in a name are each refused with a TypeError.
+// TST-476066 · level: unit · module: MOD-repository-hosts
+// guards: A PRODUCT IS NAMED BY ITS ADDRESS; GITLAB PRODUCTS ARE SUPPORTED
+// given: the address of a project on a GitLab server in nested groups, in the forms a browser shows it (trailing slash, .git, pages behind /-/, spaces, a port), and the bad forms (group without project, climbing path, path starting behind /-/, user name and token, plain http, encoded slash)
+// input: parseAddress of each address
+// expect: each good form is read as { server: gitlab, origin, path: groups and project, web }, a port kept; each bad form is refused with a TypeError
 test("A PRODUCT IS NAMED BY ITS ADDRESS · GITLAB PRODUCTS ARE SUPPORTED — a GitLab project's address, in nested groups", () => {
   const web = "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool";
   const expected = { server: "gitlab", origin: "https://gitlab.rrze.fau.de", path: "fau-ai-taskforce/tools/thesis-tool", web };
@@ -394,6 +404,11 @@ async function addProductCalls(host) {
 // GitHub repository read without a token is read with no authorisation at all. Counter-proof: a token of the other server's
 // kind — a GitHub token for the GitLab project, a GitLab token for the GitHub repository — is refused by connect with a
 // TypeError, and nothing is sent.
+// TST-476067 · level: unit · module: MOD-repository-hosts
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: a fake GitHub with a GitHub token and a fake GitLab server with a project token; a token of the other server's kind
+// input: connect, then UC-001's calls (repositoryInfo, readSnapshot, a file read, commitFiles, webLinks) on each; connect with the other server's kind of token
+// expect: connect sends nothing; every GitHub request goes to GitHub's API with the token as Authorization; every GitLab request goes to the project's API with the token as PRIVATE-TOKEN; no request carries the other server's token and no address a token; a public GitHub repository read without a token has no authorisation; a token of the other kind is refused by connect with a TypeError and nothing is sent
 test("A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — the GitHub token only to GitHub's API, the project token only to its project's API", async () => {
   const gh = fakeGitHub();
   await using(gh.fetch, async () => {
@@ -455,6 +470,11 @@ const githubLimit = (status, limit, remaining = 0) => () => json(status, { messa
 // Counter-proofs: a 403 without those headers, or with a limit not used up, is PermissionMissing; GitLab's 403 is
 // PermissionMissing; a 401 is TokenRefused — naming the token by the name it was stored under, with the page where it is
 // renewed — even when the answer carries a used-up limit's headers (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED).
+// TST-476068 · level: unit · module: MOD-repository-hosts
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+// given: a fake GitHub answering 403 or 429 with X-RateLimit-Remaining 0 and Limit 5000 (60 without a token), and a fake GitLab answering 429 with and without RateLimit-Reset; counter-cases: a 403 without those headers or with a limit not used up, GitLab's 403, a 401 even with a used-up limit's headers
+// input: repositoryInfo, readSnapshot and commitFiles on each
+// expect: RateLimited { limit: account or network } with the reset time the server sent, never TokenRefused or PermissionMissing, and the write writes nothing; the counter-cases are PermissionMissing, and a 401 is TokenRefused naming the stored token and the page where it is renewed
 test("A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN — GitHub's 403 with a used-up limit is that limit, never the token", async () => {
   const named = "Agent M · alice/agent-m";
   const calls = (host) => [() => host.repositoryInfo(), () => host.readSnapshot("main"),
@@ -512,6 +532,11 @@ const LAYOUT = [{ path: "docs/use-cases/README.md", text: "# Use cases\n" }, { p
 // that names the repository; the branch stays where it was, and no reference is moved. GitHub answers such a write with 403, or
 // with 404 where it hides the repository, and both are named so. Counter-proof: once the token reaches the repository, the same
 // commit is written.
+// TST-476069 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 5a; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: a public GitHub repository that the token does not reach yet, whose write is answered 403 or 404; once with a token that reaches it
+// input: repositoryInfo, readSnapshot and commitFiles of the layout
+// expect: the read succeeds; commitFiles fails with PermissionMissing naming the permission Contents, the page of the person's tokens and the repository; the branch stays where it was and no reference is moved; once the token reaches the repository the same commit is written
 test("UC-001 5a — a write that a public repository refuses because the token does not reach it is named so, and nothing is written", async () => {
   for (const answer of [null, (r) => (r.method === "POST" ? json(404, { message: "Not Found" }) : null)]) {
     const gh = fakeGitHub({ visibility: "public", reaches: false, answer });
@@ -563,6 +588,11 @@ const sameFiles = (a, b) => Object.keys(a).length === Object.keys(b).length && O
 // the change does not name is kept. Counter-proofs: when the branch moved after the snapshot was read, commitFiles fails with
 // Moved, naming the head the branch stands at, and sends no write at all; when it moves while the commit is made, GitHub
 // refuses to move the branch, commitFiles fails with Moved naming the newer head, and the branch keeps that head.
+// TST-476070 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 5; ADDING A PRODUCT CREATES ITS LAYOUT
+// given: a fake GitHub holding the repository; a change of a new file, a changed one, a removed one and one given as bytes; a snapshot read at the branch head; once the branch moved after the snapshot, once it moves while the commit is made
+// input: commitFiles of the change on the head that was read
+// expect: one commit whose parent is the snapshot's commit, with the message as given; the branch stands at it; commitFiles returns it with its GitHub address; every file the change does not name is kept; when the head moved, Moved naming the newer head, with no write sent in the first case and the branch keeping the newer head in the second
 test("UC-001 5 — all files of a change in one commit on the head that was read, and Moved when the head moved meanwhile (GitHub)", async () => {
   const gh = fakeGitHub();
   const host = connect(GITHUB, { token: GH_TOKEN });
@@ -599,6 +629,11 @@ test("UC-001 5 — all files of a change in one commit on the head that was read
 // read, commitFiles fails with Moved, naming the newer head, and sends no write; when a commit that changes a file of the change
 // lands while the commit is made, GitLab refuses the commit, commitFiles fails with Moved naming the newer head, and the branch
 // keeps that head — what makes GitLab refuse it is the last commit of each changed file as it stood at the head that was read.
+// TST-476071 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 5; GITLAB PRODUCTS ARE SUPPORTED
+// given: a fake GitLab server holding the project; the same change of four files; a snapshot read at the branch head; once the branch moved after the snapshot, once a commit changing a file of the change lands while the commit is made
+// input: commitFiles of the change on the head that was read
+// expect: one commit whose parent is the snapshot's commit, with the message as given; the branch stands at it; commitFiles returns it with its address on the server; every file the change does not name is kept; when the head moved, Moved naming the newer head and no write sent, the branch keeping that head
 test("UC-001 5 — all files of a change in one commit on the head that was read, and Moved when the head moved meanwhile (GitLab)", async () => {
   const gl = fakeGitLab();
   const host = connect(GITLAB, { token: GL_TOKEN });
@@ -634,6 +669,11 @@ test("UC-001 5 — all files of a change in one commit on the head that was read
 // while commitFiles reads those files — after it checked the head, before it writes —, commitFiles fails with Moved, naming the
 // newer head; no write is sent, and the branch keeps that head. GitLab itself would write the change on top of that commit, for
 // none of the change's files changed: only reading the head again just before the write finds it.
+// TST-476072 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 5; GITLAB PRODUCTS ARE SUPPORTED
+// given: a fake GitLab server; a commit touching none of the change's files lands on the branch after commitFiles checked the head and before it writes
+// input: commitFiles of the change, the snapshot read before
+// expect: commitFiles fails with Moved naming the newer head; no write is sent and the branch keeps that head
 test("UC-001 5 — GitLab: a commit that lands while the change's files are read, touching none of them, is Moved, and nothing is written", async () => {
   let armed = false, checked = false, late = null;
   const gl = fakeGitLab({ before: (q, s) => {
@@ -664,6 +704,11 @@ test("UC-001 5 — GitLab: a commit that lands while the change's files are read
 // repositories are named beside the link, not in it; `projectTokens` is null; `newRepository` is https://github.com/new. On a
 // GitLab server, `projectTokens`, `tokens` and newToken(…) are the project's Access tokens page, where the project access token
 // is created and renewed, and `newRepository` is the server's page for a new project. No page carries a token.
+// TST-476073 · level: unit · module: MOD-repository-hosts
+// guards: THE TOKEN LINK IS PREFILLED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE REPOSITORY CHOICE IS SPELLED OUT; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001 2a; UC-001 3; UC-001 3b; UC-001 3c
+// given: a fetch that records every request; a host connected to the GitHub repository and one to the GitLab project
+// input: webLinks of each, newToken(name, description, days) of each
+// expect: GitHub: tokens is the list of fine-grained tokens, newToken is the prefilled new-token page (name, description, expiry, the repository's owner, permissions Contents, Issues, Pull requests, Actions and Workflows write and Metadata read, no repository), projectTokens is null, newRepository is https://github.com/new; GitLab: projectTokens, tokens and newToken are the project's Access tokens page and newRepository the server's new-project page; no page carries a token; no request is made
 test("UC-001 — the token pages: GitHub's prefilled token page and the list of tokens, a GitLab project's Access tokens page", async () => {
   const sent = [];
   await using(async (u) => { sent.push(String(u)); return json(200, {}); }, () => {
@@ -696,6 +741,11 @@ test("UC-001 — the token pages: GitHub's prefilled token page and the list of 
 // the contents API on the branch, with the message — the repository's first commit —, and the other files in one commit on it,
 // and returns that second commit. Counter-proofs: a 409 with another message (a repository GitHub is still creating) is a
 // failure, Unreachable; expectedHead null on a repository that has a commit is Moved, and nothing is written.
+// TST-476074 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 5
+// given: a fake GitHub repository without a commit, whose Git database answers 409 Git Repository is empty.; counter-cases: a 409 with another message, and a repository that has a commit
+// input: readSnapshot; commitFiles with expectedHead null
+// expect: the snapshot is read without a commit and without a path; the first file is written through the contents API on the branch with the message and the other files in one commit on it, which is returned; another 409 fails as Unreachable; expectedHead null on a repository that has a commit is Moved and nothing is written
 test("UC-001 5 — an empty repository: no commit and no path; its first commit through the contents API, the others in one commit on it", async () => {
   const gh = fakeGitHub({ empty: true });
   await using(gh.fetch, async () => {
@@ -734,6 +784,11 @@ test("UC-001 5 — an empty repository: no commit and no path; its first commit 
 
 // Expected: a GitLab project is not given a first commit — commitFiles with expectedHead null is refused NotFound with the advice
 // to push a first commit to it, and no request is made (MOD-repository-hosts as drafted in 617d061).
+// TST-476075 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 5
+// given: a fake GitLab project without a commit
+// input: commitFiles with expectedHead null
+// expect: commitFiles is refused with NotFound advising to push a first commit to the project, and no request is made
 test("UC-001 5 — on a GitLab server, a first commit is refused with the advice to push one, and nothing is requested", async () => {
   const gl = fakeGitLab();
   await using(gl.fetch, async () => {
@@ -750,6 +805,11 @@ test("UC-001 5 — on a GitLab server, a first commit is refused with the advice
 // has none. On GitHub a token that reaches a private repository may write; a public one read without a token may not. On a GitLab
 // server a project token with role Maintainer may write; one with role Developer may not, for a protected default branch takes a
 // Maintainer; a project read without a token may not; an internal project is reported as internal.
+// TST-476076 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 4; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+// given: fake GitHub and GitLab servers: a private and a public repository, GitLab projects with a token of role Maintainer and of role Developer, an internal project, a project read without a token
+// input: repositoryInfo of each
+// expect: in one request each: the default branch, the visibility the server reports, whether the stored token may write, whether it is archived and the description (empty where none); a token reaching a private GitHub repository may write, a public one read without a token may not; Maintainer may write, Developer may not, without a token may not; an internal project is reported as internal
 test("UC-001 4 — repositoryInfo: default branch, visibility, whether the token may write, in one request", async () => {
   const info = async (fake, credentials, address) => {
     const v = await using(fake.fetch, () => connect(address, credentials).repositoryInfo());
@@ -773,6 +833,11 @@ test("UC-001 4 — repositoryInfo: default branch, visibility, whether the token
 // a commit pushed after the snapshot changes nothing it reads; it lists every file of that commit — on GitLab across the pages of
 // the tree —, gives each file's blob SHA without a request, and reads each file's text once, exactly; a path the commit does not
 // hold is read as null, and its blob as null, without a request.
+// TST-476077 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 4; UC-001 5; GITLAB PRODUCTS ARE SUPPORTED
+// given: fake GitHub and GitLab servers holding the repository's files, GitLab with a paged tree
+// input: readSnapshot of the branch; reading files, blob() and a missing path
+// expect: the snapshot is the repository at one commit: the branch is resolved once and the tree and every file are read at that commit, never by the branch name; it lists every file, gives each blob SHA without a request, reads each file's text once, exactly; a missing path is read as null and its blob as null without a request
 test("UC-001 4–5 — readSnapshot: the repository at one commit, its files read at that commit, each once", async () => {
   const many = { ...FILES };
   for (let i = 0; i < 130; i++) many[`docs/approvals/r${String(i).padStart(3, "0")}.md`] = `kind: use-case\nn: ${i}\n`;
@@ -804,6 +869,11 @@ test("UC-001 4–5 — readSnapshot: the repository at one commit, its files rea
 // readSnapshot with NotFound naming that branch; a server the page cannot reach — the browser's fetch fails with a TypeError, as
 // it does for a server that refuses the page's origin — fails every call with Unreachable, giving the browser's reason, on GitHub
 // and on a GitLab server alike.
+// TST-476078 · level: unit · module: MOD-repository-hosts
+// guards: UC-001 2a; UC-001 4a; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: fake GitHub and GitLab servers lacking the repository (or not showing it without a token) and lacking the branch; a fetch that fails with a TypeError, as for a server refusing the page's origin
+// input: repositoryInfo, readSnapshot and commitFiles of each
+// expect: a missing repository fails repositoryInfo and readSnapshot with NotFound naming the repository; a missing branch fails readSnapshot with NotFound naming the branch; an unreachable server fails every call with Unreachable giving the browser's reason, on GitHub and GitLab alike
 test("UC-001 2a, 4a — NotFound names the repository or the branch; a server the page cannot reach is Unreachable", async () => {
   for (const [fake, address, token] of [[fakeGitHub(), GITHUB, GH_TOKEN], [fakeGitLab(), GITLAB, GL_TOKEN]]) {
     const label = address.server;
@@ -829,6 +899,11 @@ test("UC-001 2a, 4a — NotFound names the repository or the branch; a server th
 // NO SECRET IN THE REPOSITORY — Expected: a commit with a file whose text holds a configured secret, or the host's own token, is
 // refused as a whole with SecretRefused naming that file — never the secret's value — before anything is sent, on GitHub and on
 // a GitLab server. Counter-proof: the same commit without the secret is written.
+// TST-476079 · level: unit · module: MOD-repository-hosts
+// guards: NO SECRET IN THE REPOSITORY
+// given: a commit with a file whose text holds a configured secret, or the host's own token; on GitHub and on a GitLab server; the same commit without the secret
+// input: commitFiles of the commit
+// expect: it is refused as a whole with SecretRefused naming the file, never the secret's value, before anything is sent; the same commit without the secret is written
 test("NO SECRET IN THE REPOSITORY — a commit holding a configured secret or the token is refused before anything is sent", async () => {
   const secret = "endpoint-key-CONFIGURED-0123456789";
   for (const [make, address, token] of [[fakeGitHub, GITHUB, GH_TOKEN], [fakeGitLab, GITLAB, GL_TOKEN]]) {

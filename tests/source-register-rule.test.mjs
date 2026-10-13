@@ -27,11 +27,11 @@ const VALID = [
 ].join("\n");
 const findingsOf = (text, path = "docs/sources/SRC-x.md") => documentFindings(sourceSchemas().entry, readDocument(sourceSchemas().entry, path, text));
 
+// TST-472932 · level: unit · module: MOD-source-register
 // guards: THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004
 // given: a valid register entry; the same without `authority`, which every entry requires
 // input: documentFindings(sourceSchemas().entry, the entry read)
-// expect: the valid entry gives no finding; the other gives an error, without any exception, whose rule is `THE INSTANCE KEEPS THE SOURCE REGISTER`
-//         and whose text names `authority`
+// expect: the valid entry gives no finding; the other gives an error, without any exception, whose rule is `THE INSTANCE KEEPS THE SOURCE REGISTER` and whose text names `authority`
 test("documentFindings — an entry missing a required field gives a finding that names the rule of the register, and throws nothing", () => {
   assert.deepEqual(findingsOf(VALID), [], "known positive: a valid entry");
   const found = findingsOf(VALID.replace(/^authority: .*\n/m, ""));
@@ -40,11 +40,11 @@ test("documentFindings — an entry missing a required field gives a finding tha
   assert.ok(found.some((each) => each.what.includes("authority")));
 });
 
+// TST-472933 · level: unit · module: MOD-source-register
 // guards: THE INSTANCE KEEPS THE SOURCE REGISTER; THE SOURCE KIND IS ONE OF A CLOSED SET
 // given: a valid entry; the same with a kind outside the closed set; the same with a section the format forbids
 // input: documentFindings of each
-// expect: no finding for the valid one; for each other at least one error naming `THE INSTANCE KEEPS THE SOURCE REGISTER` where no part of the schema
-//         names its own rule, none thrown
+// expect: no finding for the valid one; for each other at least one error naming `THE INSTANCE KEEPS THE SOURCE REGISTER` where no part of the schema names its own rule, none thrown
 test("documentFindings — a kind outside the set and a section the format forbids are findings of the register's rule too", () => {
   assert.deepEqual(findingsOf(VALID), [], "known positive: a valid entry");
   for (const text of [VALID.replace("kind: document", "kind: nonsense"), `${VALID}\n## Notes\n\nA section the format does not have.\n`]) {
@@ -53,6 +53,7 @@ test("documentFindings — a kind outside the set and a section the format forbi
   }
 });
 
+// TST-472934 · level: unit · module: MOD-source-register
 // guards: THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004
 // given: every register entry this repository holds, docs/sources/SRC-*.md, as it stands; and each with its `authority` line removed
 // input: documentFindings of each

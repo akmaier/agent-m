@@ -27,14 +27,11 @@ const { recogniseLegalText } = sourceRegister;
 const AI_ACT_CELEX = { celex: "32024R1689" };
 const AI_ACT_ELI = { eli: "http://data.europa.eu/eli/reg/2024/1689/oj" };
 
+// TST-472907 · level: unit · module: MOD-source-register
 // guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004
-// given: the AI Act's EUR-Lex addresses as a browser shows them — the HTML text and the document page, in English and in German,
-//        with the colon written plain and as %3A, with a language parameter after it —, the address of the General Data Protection
-//        Regulation and that of its consolidated text of 4 May 2016
+// given: the AI Act's EUR-Lex addresses as a browser shows them — the HTML text and the document page, in English and in German, with the colon written plain and as %3A, with a language parameter after it —, the address of the General Data Protection Regulation and that of its consolidated text of 4 May 2016
 // input: recogniseLegalText(address) for each
-// expect: { celex: "32024R1689" } for each of the AI Act's, and { celex: "32016R0679" } for the other, and the consolidated text's
-//         number with its date for the third, and the Commission's proposal of the AI Act, whose kind of act has two letters: the
-//         one key celex and no eli
+// expect: { celex: "32024R1689" } for each of the AI Act's, and { celex: "32016R0679" } for the other, and the consolidated text's number with its date for the third, and the Commission's proposal of the AI Act, whose kind of act has two letters: the one key celex and no eli
 test("recogniseLegalText — an EUR-Lex address yields the CELEX number it names", () => {
   for (const address of [
     "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32024R1689",
@@ -50,12 +47,11 @@ test("recogniseLegalText — an EUR-Lex address yields the CELEX number it names
   assert.deepEqual(recogniseLegalText("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52021PC0206"), { celex: "52021PC0206" });
 });
 
+// TST-472908 · level: unit · module: MOD-source-register
 // guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004
-// given: the AI Act's ELI addresses — on EUR-Lex and on data.europa.eu, with http and https, with the language and a closing slash —
-//        and another regulation's
+// given: the AI Act's ELI addresses — on EUR-Lex and on data.europa.eu, with http and https, with the language and a closing slash — and another regulation's
 // input: recogniseLegalText(address) for each
-// expect: { eli: "http://data.europa.eu/eli/reg/2024/1689/oj" } for each of the AI Act's, and { eli: "http://data.europa.eu/eli/reg/2016/679/oj" }
-//         for the other, the same without /oj, a directive's and an implementing regulation's: the one key eli and no celex
+// expect: { eli: "http://data.europa.eu/eli/reg/2024/1689/oj" } for each of the AI Act's, and { eli: "http://data.europa.eu/eli/reg/2016/679/oj" } for the other, the same without /oj, a directive's and an implementing regulation's: the one key eli and no celex
 test("recogniseLegalText — an ELI address yields the ELI it names", () => {
   for (const address of [
     "https://eur-lex.europa.eu/eli/reg/2024/1689/oj",
@@ -72,11 +68,9 @@ test("recogniseLegalText — an ELI address yields the ELI it names", () => {
   assert.deepEqual(recogniseLegalText("https://eur-lex.europa.eu/eli/reg_impl/2023/2138/oj"), { eli: "http://data.europa.eu/eli/reg_impl/2023/2138/oj" });
 });
 
+// TST-472909 · level: unit · module: MOD-source-register
 // guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004
-// given: addresses that name no text of the EU — the AI Act's path and query on another site, on a host that only begins or ends like
-//        EUR-Lex's, a CELEX number on the other server (CELEX numbers are read from EUR-Lex's addresses), EUR-Lex's home page and
-//        a page without a CELEX number, a CELEX number of no form, an ELI of no form (a year of two digits, a number of letters, a type with a digit, a path that has more before /eli/), an address of no scheme the web uses, a bare CELEX number, a
-//        bare ELI path, no address at all — and, as the known positive, the AI Act's EUR-Lex address
+// given: addresses that name no text of the EU — the AI Act's path and query on another site, on a host that only begins or ends like EUR-Lex's, a CELEX number on the other server (CELEX numbers are read from EUR-Lex's addresses), EUR-Lex's home page and a page without a CELEX number, a CELEX number of no form, an ELI of no form (a year of two digits, a number of letters, a type with a digit, a path that has more before /eli/), an address of no scheme the web uses, a bare CELEX number, a bare ELI path, no address at all — and, as the known positive, the AI Act's EUR-Lex address
 // input: recogniseLegalText(address) for each
 // expect: the AI Act's CELEX number for the known positive; null for every other
 test("recogniseLegalText — an address of another site, or of no text, gives null", () => {

@@ -45,9 +45,11 @@ function byKey(settings) {
 }
 
 // TST-279-01 · module: MOD-browser-store · guards: UC-044; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
+// TST-472117 · level: unit · module: MOD-browser-store
+// guards: UC-044; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
 // given: an empty browser store and the accepted jump-host value
 // input: write it, reopen the same instance, read it, then list settings
-// expected result: the accepted value persists, and list metadata names its bridge setup route without returning login or any stored value
+// expect: the accepted value persists, and list metadata names its bridge setup route without returning login or any stored value
 test("TST-279-01 persists the accepted jump-host value and lists only non-secret metadata", () => {
   install(memoryStorage());
   const first = openStore(INSTANCE);
@@ -69,9 +71,11 @@ test("TST-279-01 persists the accepted jump-host value and lists only non-secret
 });
 
 // TST-279-02 · module: MOD-browser-store · guards: UC-044; CONFIGURATION LIVES IN THE BROWSER
+// TST-472118 · level: unit · module: MOD-browser-store
+// guards: UC-044; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
 // given: two Agent M instances in one browser
 // input: write a jump host for each instance and list both
-// expected result: each instance reads and lists only its own jump-host setting
+// expect: each instance reads and lists only its own jump-host setting
 test("TST-279-02 isolates jump-host settings between instances", () => {
   install(memoryStorage());
   const first = openStore("alice/one");
@@ -87,9 +91,11 @@ test("TST-279-02 isolates jump-host settings between instances", () => {
 });
 
 // TST-279-03 · module: MOD-browser-store · guards: A CLEAR IS A REAL CLEAR; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// TST-472119 · level: unit · module: MOD-browser-store
+// guards: UC-044; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
 // given: a stored jump host including its optional login
 // input: clearSetting(store, "jump-host")
-// expected result: the actual localStorage entry, including its login, is gone and unknown settings remain refused
+// expect: the actual localStorage entry, including its login, is gone and unknown settings remain refused
 test("TST-279-03 clears the actual jump-host entry including its login and still refuses unknown keys", () => {
   const storage = memoryStorage();
   install(storage);

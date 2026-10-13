@@ -1,10 +1,3 @@
-// TST-288101
-// level: component
-// module: MOD-settings-pages
-// guards: UC-042; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE
-// given: the actual dashboard Settings section and canonical endpoint, Bridge, jump-host, and remote-session browser records
-// input: the person opens that public section, downloads its canonical export, clears those four browser records, and imports that file.
-// expect: one public control states the secret grants, downloads every delivered record, restores their exact bytes, and writes no repository.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -18,6 +11,13 @@ const byClass = (root, name) => {
   visit(root); return found;
 };
 
+// TST-288101
+// level: component
+// module: MOD-settings-pages
+// guards: UC-042; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE
+// given: the actual dashboard Settings section and canonical endpoint, Bridge, jump-host, and remote-session browser records
+// input: the person opens that public section, downloads its canonical export, clears those four browser records, and imports that file.
+// expect: one public control states the secret grants, downloads every delivered record, restores their exact bytes, and writes no repository.
 test("TST-288101: dashboard Settings exports and restores every delivered setup secret through its canonical route", async () => {
   const entries = {
     [key("endpoint:campus")]: JSON.stringify({ url: "https://models.example.test/v1", kind: "openai-compatible", model: "campus", key: "endpoint-secret", throughBridge: false }),

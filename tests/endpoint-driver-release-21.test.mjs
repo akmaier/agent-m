@@ -33,7 +33,8 @@ const FAULTS = {
   "TST-316904": ['throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message }, config, where));', 'return {};'],
 };
 
-// TST-316901
+// TST-316901 · level: release · module: MOD-endpoint-calls
+// guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: one prepared DriverInput and constructed OpenAI-compatible and Anthropic answers in Node.
 // input: send the same public Driver input through each provider shape.
 // expect: each makes one direct request containing the prepared prompt once and returns the provider answer kind.
@@ -54,7 +55,8 @@ test("TST-316901: prepared input is one direct request for both provider shapes"
     && !init.body.includes(INPUT.parts[0].text)));
 });
 
-// TST-316902
+// TST-316902 · level: release · module: MOD-endpoint-calls
+// guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a controlled browser-context driver and an endpoint answer without usage.
 // input: send the same public DriverInput in browser context.
 // expect: answer kind is unchanged and absent usage and cost remain null.
@@ -67,7 +69,8 @@ test("TST-316902: browser-context direct driver preserves absent usage as null",
   assert.deepEqual(await endpointDriver(OPENAI, PARTICIPANT).send(INPUT), { text: "browser", usage: null });
 });
 
-// TST-316903
+// TST-316903 · level: release · module: MOD-endpoint-calls
+// guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a browser blocked before a response and an already aborted signal.
 // input: send the public driver once for each constructed failure.
 // expect: browser blockage is named with working routes, cancellation is preserved, and neither retries.
@@ -92,7 +95,8 @@ test("TST-316903: blocked and cancelled direct calls remain named single request
   assert.equal(calls, 2);
 });
 
-// TST-316904
+// TST-316904 · level: release · module: MOD-endpoint-calls
+// guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: constructed key-refused and input-too-long provider replies.
 // input: send once for each reply through the public direct driver.
 // expect: each keeps its diagnosis, does not cut input, and makes no retry.

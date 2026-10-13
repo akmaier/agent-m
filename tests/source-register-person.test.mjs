@@ -77,11 +77,10 @@ const links = () => readDocument(sourceSchemas().links, "docs/sources.md", text(
 
 // ---------------------------------------------------------------- the source of a person
 
+// TST-472921 · level: unit · module: MOD-source-register
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-019
-// given: this instance's register — the book and SRC-po-a-maier, kind person, identifier github.com/akmaier — and its links
-//        file docs/sources.md, which links both
-// input: personSource(links, register, "github.com/akmaier"); and, as the check that the instance's data do not answer for every
-//        account, personSource for github.com/nobody
+// given: this instance's register — the book and SRC-po-a-maier, kind person, identifier github.com/akmaier — and its links file docs/sources.md, which links both
+// input: personSource(links, register, "github.com/akmaier"); and, as the check that the instance's data do not answer for every account, personSource for github.com/nobody
 // expect: "SRC-po-a-maier", the identifier of that entry; null for the other account
 test("personSource — this instance's SRC-po-a-maier is the source of github.com/akmaier", () => {
   assert.equal(personSource(INSTANCE_LINKS(), INSTANCE_REGISTER(), "github.com/akmaier"), "SRC-po-a-maier");
@@ -89,15 +88,10 @@ test("personSource — this instance's SRC-po-a-maier is the source of github.co
   assert.equal(personSource(INSTANCE_LINKS(), INSTANCE_REGISTER(), "github.com/nobody"), null);
 });
 
+// TST-472922 · level: unit · module: MOD-source-register
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; A REQUIREMENT HAS A REGISTERED SOURCE; UC-019
-// given: the fixture register and links above: SRC-alice (a person, github.com/alice, linked) listed after SRC-alice-old (the same
-//        account, not linked); SRC-bob (github.com/bob, not linked); SRC-acme (an organisation, github.com/acme, linked);
-//        SRC-anon (a person with no identifier, linked) and SRC-blank (an empty one, linked); SRC-carol
-//        (gitlab.example.org/carol, linked)
-// input: personSource for github.com/alice, for gitlab.example.org/carol, and then for: github.com/nobody, no entry of that
-//        account; github.com/bob, an entry the product does not link; github.com/acme, an entry of another kind; accounts that
-//        differ from an entry's by the server, by a letter at either end, or by being only the account name; and no account —
-//        undefined, null, an empty text —, which no entry without an identifier or with an empty one is the source of
+// given: the fixture register and links above: SRC-alice (a person, github.com/alice, linked) listed after SRC-alice-old (the same account, not linked); SRC-bob (github.com/bob, not linked); SRC-acme (an organisation, github.com/acme, linked); SRC-anon (a person with no identifier, linked) and SRC-blank (an empty one, linked); SRC-carol (gitlab.example.org/carol, linked)
+// input: personSource for github.com/alice, for gitlab.example.org/carol, and then for: github.com/nobody, no entry of that account; github.com/bob, an entry the product does not link; github.com/acme, an entry of another kind; accounts that differ from an entry's by the server, by a letter at either end, or by being only the account name; and no account — undefined, null, an empty text —, which no entry without an identifier or with an empty one is the source of
 // expect: "SRC-alice", not SRC-alice-old, and "SRC-carol"; null for every other
 test("personSource — null for an account without an entry, for an entry the product does not link and for an entry of another kind", () => {
   const found = (account) => personSource(links(), register(), account);
@@ -114,13 +108,11 @@ test("personSource — null for an account without an entry, for an entry the pr
   for (const account of [undefined, null, ""]) assert.equal(found(account), null, `no account: ${String(account)}`);
 });
 
+// TST-472923 · level: unit · module: MOD-source-register
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-019
-// given: this instance's SRC-po-a-maier, and the fixture's person entries — SRC-alice with the identifier github.com/alice and
-//        SRC-carol with gitlab.example.org/carol, accounts on two servers — each read with the schema sourceSchemas gives
-// input: documentFindings of each entry with that schema; and, as the known positive, of an entry whose kind is none of the
-//        schema's
-// expect: no finding for any, and for each the front matter key `identifier` holds the account `<server>/<account>` as written;
-//         for the entry of a kind the schema does not know, a finding
+// given: this instance's SRC-po-a-maier, and the fixture's person entries — SRC-alice with the identifier github.com/alice and SRC-carol with gitlab.example.org/carol, accounts on two servers — each read with the schema sourceSchemas gives
+// input: documentFindings of each entry with that schema; and, as the known positive, of an entry whose kind is none of the schema's
+// expect: no finding for any, and for each the front matter key `identifier` holds the account `<server>/<account>` as written; for the entry of a kind the schema does not know, a finding
 test("sourceSchemas — a person's entry with its identifier, the account on a repository server, passes the schema", () => {
   const entries = [[instanceEntry("SRC-po-a-maier"), "github.com/akmaier"],
     [entryDocument(entryOf("SRC-alice")), "github.com/alice"], [entryDocument(entryOf("SRC-carol")), "gitlab.example.org/carol"]];

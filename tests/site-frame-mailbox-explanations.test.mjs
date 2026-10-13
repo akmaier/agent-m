@@ -37,11 +37,11 @@ function assertClaims(topic, claims) {
   for (const [pattern, says] of claims) assert.match(text, pattern, `${topic}: it says ${says}`);
 }
 
+// TST-472816 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-037
 // given: explanations.md, and the five topics of connecting a mailbox
 // input: explain(topic) for each
-// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is
-//         this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
+// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
 test("explain — each topic of connecting a mailbox is a folded What is this? with its text", () => {
   assert.match(renderArtifact("an *unclosed mark and `another").textContent, /[*`]/,
     "known positive: the renderer leaves a mark that is not closed standing");
@@ -59,6 +59,7 @@ test("explain — each topic of connecting a mailbox is a folded What is this? w
   }
 });
 
+// TST-472817 · level: unit · module: MOD-site-frame
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-037 (step 1, table)
 // given: the topic mailbox-routes
 // input: explain("mailbox-routes")
@@ -81,6 +82,7 @@ test("explain — mailbox-routes: the two routes (UC-037)", () => {
   ]);
 });
 
+// TST-472818 · level: unit · module: MOD-site-frame
 // guards: UC-037 (step 2, alternative 2a)
 // given: the topic mailbox-app-registration
 // input: explain("mailbox-app-registration")
@@ -99,6 +101,7 @@ test("explain — mailbox-app-registration: registering the app, and whom to ask
   ]);
 });
 
+// TST-472819 · level: unit · module: MOD-site-frame
 // guards: UC-037 (step 4.1)
 // given: the topic mail-server-settings
 // input: explain("mail-server-settings")
@@ -115,6 +118,7 @@ test("explain — mail-server-settings: where a provider lists IMAP and SMTP set
   ]);
 });
 
+// TST-472820 · level: unit · module: MOD-site-frame
 // guards: UC-037 (step 4.2, alternative 7c)
 // given: the topic gmail-app-password
 // input: explain("gmail-app-password")
@@ -133,6 +137,7 @@ test("explain — gmail-app-password: Gmail's app password, 2-Step Verification,
   ]);
 });
 
+// TST-472821 · level: unit · module: MOD-site-frame
 // guards: UC-037 (step 6, alternative 6a)
 // given: the topic mailbox-processing-places
 // input: explain("mailbox-processing-places")
@@ -153,6 +158,7 @@ test("explain — mailbox-processing-places: the processing places a mailbox's m
   ]);
 });
 
+// TST-472822 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF
 // given: the five topics
 // input: the rendered text of each
@@ -164,12 +170,11 @@ test("explain — the topics of connecting a mailbox point to no chapter of the 
   }
 });
 
+// TST-472823 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-037 (step 4.2: "A folded explanation links Google's page for creating one")
 // given: the renderer, shown on a Markdown link as the known positive; and the five topics of connecting a mailbox
 // input: explain("gmail-app-password"), and explain of each of the other four
-// expect: the app-password topic holds exactly one link, to https://myaccount.google.com/apppasswords — the address that Google's own
-//         help page "Sign in with app passwords" (https://support.google.com/accounts/answer/185833) gives as "Create and manage your
-//         app passwords" — whose text names app passwords; none of the other four holds a link
+// expect: the app-password topic holds exactly one link, to https://myaccount.google.com/apppasswords — the address that Google's own help page "Sign in with app passwords" (https://support.google.com/accounts/answer/185833) gives as "Create and manage your app passwords" — whose text names app passwords; none of the other four holds a link
 test("explain — gmail-app-password: links Google's page for creating an app password (UC-037 4.2)", () => {
   const links = (element) => element.getElementsByTagName("a");
   assert.equal(links(renderArtifact("[a page](https://example.org/page)")).length, 1, "known positive: the renderer keeps a Markdown link");

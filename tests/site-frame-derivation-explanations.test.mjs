@@ -39,11 +39,11 @@ function assertClaims(topic, claims) {
   for (const [pattern, says] of claims) assert.match(text, pattern, `${topic}: it says ${says}`);
 }
 
+// TST-472798 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-005
 // given: explanations.md, and the seven topics of deriving requirements
 // input: explain(topic) for each
-// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is
-//         this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
+// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
 test("explain — each topic of deriving requirements is a folded What is this? with its text", () => {
   assert.match(renderArtifact("an *unclosed mark and `another").textContent, /[*`]/,
     "known positive: the renderer leaves a mark that is not closed standing");
@@ -61,11 +61,11 @@ test("explain — each topic of deriving requirements is a folded What is this? 
   }
 });
 
+// TST-472799 · level: unit · module: MOD-site-frame
 // guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A REQUIREMENT HAS A REGISTERED SOURCE; UC-005 (step 1) and alternative 1a
 // given: the topic linked-version
 // input: explain("linked-version")
-// expect: text saying Agent M reads exactly the version linked to the product; checks the file's hash, the SHA-256 against the one recorded
-//         when the version was registered; and that when it differs nothing is sent, and a new version must be registered
+// expect: text saying Agent M reads exactly the version linked to the product; checks the file's hash, the SHA-256 against the one recorded when the version was registered; and that when it differs nothing is sent, and a new version must be registered
 test("explain — linked-version: exactly the linked version is read and its hash checked (UC-005 step 1, 1a)", () => {
   assertClaims("linked-version", [
     [/reads exactly the version that is linked to the product/, "Agent M reads exactly the linked version"],
@@ -78,12 +78,11 @@ test("explain — linked-version: exactly the linked version is read and its has
   ]);
 });
 
+// TST-472800 · level: unit · module: MOD-site-frame
 // guards: DERIVATION SEES THE EXISTING REQUIREMENTS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-005 (steps 2 and 4) and alternative 2a
 // given: the topic existing-requirements
 // input: explain("existing-requirements")
-// expect: text saying candidates are drafted against the existing requirements, not beside them; that Agent M collects every existing requirement,
-//         those of the SPEC and of the open change queues, and sends them with the excerpt and chapter 8 of the book; that when it does not fit
-//         nothing is sent, the count and what fits are told, a larger context or a smaller part offered, and no requirement is dropped silently
+// expect: text saying candidates are drafted against the existing requirements, not beside them; that Agent M collects every existing requirement, those of the SPEC and of the open change queues, and sends them with the excerpt and chapter 8 of the book; that when it does not fit nothing is sent, the count and what fits are told, a larger context or a smaller part offered, and no requirement is dropped silently
 test("explain — existing-requirements: every existing requirement goes with the excerpt (UC-005 steps 2, 4, 2a)", () => {
   assertClaims("existing-requirements", [
     [/against the requirements the product already has, not beside them/, "candidates are drafted against the existing requirements, not beside them"],
@@ -98,12 +97,11 @@ test("explain — existing-requirements: every existing requirement goes with th
   ]);
 });
 
+// TST-472801 · level: unit · module: MOD-site-frame
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; ONE CLICK PER DECISION; UC-005 (step 3) and alternative 3a
 // given: the topic derivation-run-panel
 // input: explain("derivation-run-panel")
-// expect: text saying the panel comes before anything is sent; names the destination and where it processes data; says exactly what is sent — the
-//         excerpt and the existing requirements, with the chapter — and how many requirements are included; states the limit of correction rounds;
-//         and that Run is the one click that sends, nothing being sent without it
+// expect: text saying the panel comes before anything is sent; names the destination and where it processes data; says exactly what is sent — the excerpt and the existing requirements, with the chapter — and how many requirements are included; states the limit of correction rounds; and that Run is the one click that sends, nothing being sent without it
 test("explain — derivation-run-panel: what the panel before a derivation shows (UC-005 step 3, 3a)", () => {
   assertClaims("derivation-run-panel", [
     [/appears before anything is sent/, "the panel comes before anything is sent"],
@@ -117,13 +115,11 @@ test("explain — derivation-run-panel: what the panel before a derivation shows
   ]);
 });
 
-// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED;
-//   UC-005 (steps 5 and 6.2 and 7)
+// TST-472802 · level: unit · module: MOD-site-frame
+// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; UC-005 (steps 5 and 6.2 and 7)
 // given: the topic candidate-classes
 // input: explain("candidate-classes")
-// expect: text defining the four classes — new: nothing existing covers it; change: it alters a named existing requirement; duplicate: it restates
-//         one; conflict: it contradicts one —; saying an exact match of name or normalised rule is a duplicate without a model, whatever the model
-//         said; that the panel groups candidates by class beside the requirement each refers to; and that a candidate can be moved to another class
+// expect: text defining the four classes — new: nothing existing covers it; change: it alters a named existing requirement; duplicate: it restates one; conflict: it contradicts one —; saying an exact match of name or normalised rule is a duplicate without a model, whatever the model said; that the panel groups candidates by class beside the requirement each refers to; and that a candidate can be moved to another class
 test("explain — candidate-classes: the four classes of a candidate (UC-005 steps 5, 6, 7)", () => {
   assertClaims("candidate-classes", [
     [/New: nothing existing covers it/, "new means nothing existing covers it"],
@@ -137,14 +133,11 @@ test("explain — candidate-classes: the four classes of a candidate (UC-005 ste
   ]);
 });
 
-// guards: A REQUIREMENT HAS FOUR FIELDS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED;
-//   WHAT A PERSON DECIDES IS NOT SENT BACK; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; UC-005 (step 6.3)
+// TST-472803 · level: unit · module: MOD-site-frame
+// guards: A REQUIREMENT HAS FOUR FIELDS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; UC-005 (step 6.3)
 // given: the topic candidate-correction
 // input: explain("candidate-correction")
-// expect: text saying the checks need no model and the findings go back as one line each, like compiler messages; that a candidate without one
-//         of the four fields of a requirement — its name, its source, its rule or its check, as A REQUIREMENT HAS FOUR FIELDS gives them — is an error, and a rule with a conjunction a warning to split or justify; that the participant
-//         corrects up to the limit of rounds on the run panel; that conflicts are never sent back; and that what is left after the last round is
-//         shown flagged, with the rounds counted
+// expect: text saying the checks need no model and the findings go back as one line each, like compiler messages; that a candidate without one of the four fields of a requirement — its name, its source, its rule or its check, as A REQUIREMENT HAS FOUR FIELDS gives them — is an error, and a rule with a conjunction a warning to split or justify; that the participant corrects up to the limit of rounds on the run panel; that conflicts are never sent back; and that what is left after the last round is shown flagged, with the rounds counted
 test("explain — candidate-correction: findings sent back, the rounds and what is left (UC-005 step 6.3)", () => {
   assert.doesNotMatch(bodyText("candidate-correction"), /four fields or its check/, "the check is one of the four fields, not set apart from them");
   assertClaims("candidate-correction", [
@@ -160,12 +153,11 @@ test("explain — candidate-correction: findings sent back, the rounds and what 
   ]);
 });
 
+// TST-472804 · level: unit · module: MOD-site-frame
 // guards: A CONFLICT IS DECIDED BY A PERSON; UC-005 (steps 6, 7 and 8) and alternative 7a
 // given: the topic conflict-and-normative-source
 // input: explain("conflict-and-normative-source")
-// expect: text saying a conflict contradicts a named existing requirement; a person decides each, it is not sent back; that when it involves a
-//         normative source the panel says which side is normative, yet a normative source does not win automatically, because the product may
-//         be out of its scope; and that an undecided conflict stays in the panel and is not written
+// expect: text saying a conflict contradicts a named existing requirement; a person decides each, it is not sent back; that when it involves a normative source the panel says which side is normative, yet a normative source does not win automatically, because the product may be out of its scope; and that an undecided conflict stays in the panel and is not written
 test("explain — conflict-and-normative-source: a person decides, a normative source does not win (UC-005 step 7, 7a)", () => {
   assertClaims("conflict-and-normative-source", [
     [/A conflict is a candidate that contradicts a named existing requirement/, "a conflict contradicts a named existing requirement"],
@@ -177,15 +169,11 @@ test("explain — conflict-and-normative-source: a person decides, a normative s
   ]);
 });
 
-// guards: A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE,
-//   NOT A REQUIREMENT; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT;
-//   UC-005 (step 8)
+// TST-472805 · level: unit · module: MOD-site-frame
+// guards: A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-005 (step 8)
 // given: the topic write-proposals
 // input: explain("write-proposals")
-// expect: text saying Write proposals is one click that writes a new queue under docs/spec-freigaben/, its entries open until accepted; the entry
-//         for each class — new adds the requirement to its section; change changes it under its name with the current text beside it and its
-//         impact list; duplicate adds the new source; conflict is written only as resolved —; that every entry records the Agent M version,
-//         participant, model and date; and that the SPEC is unchanged until entries are accepted
+// expect: text saying Write proposals is one click that writes a new queue under docs/spec-freigaben/, its entries open until accepted; the entry for each class — new adds the requirement to its section; change changes it under its name with the current text beside it and its impact list; duplicate adds the new source; conflict is written only as resolved —; that every entry records the Agent M version, participant, model and date; and that the SPEC is unchanged until entries are accepted
 test("explain — write-proposals: the queue Write proposals writes (UC-005 step 8)", () => {
   assertClaims("write-proposals", [
     [/Write proposals is one click/, "Write proposals is one click"],

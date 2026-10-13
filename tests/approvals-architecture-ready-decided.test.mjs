@@ -61,12 +61,11 @@ const WHOLE = "THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE";
 const ready = () => approvalStrategies?.preconditions?.["architecture-ready"];
 const named = (found) => `${found.what} ${found.fix}`;
 
+// TST-472007 · level: unit · module: MOD-approvals
 // guards: STATUS IS DERIVED FROM THE RECORDS; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
-// given: the product above, whose only open entries by the records alone are 01, 03, 04 and the other queue's 01; entry 01 has a decision row
-//        naming a short commit and no record, entry 04 a row naming a whole commit and no record
+// given: the product above, whose only open entries by the records alone are 01, 03, 04 and the other queue's 01; entry 01 has a decision row naming a short commit and no record, entry 04 a row naming a whole commit and no record
 // input: the precondition architecture-ready
-// expect: one warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, naming the proposals of entry 03 and of the other queue's entry 01,
-//         and neither entry 01 nor entry 04 of the first queue, which their rows decide, nor entry 02, which a record decides
+// expect: one warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, naming the proposals of entry 03 and of the other queue's entry 01, and neither entry 01 nor entry 04 of the first queue, which their rows decide, nor entry 02, which a record decides
 test("architecture-ready — an entry whose decision row names its SPEC commit is not named open, with no approval record", async () => {
   assert.ok(ready(), `architecture-ready: ${approvalsModule.error?.message}`);
   const found = await ready()(contextOf(FILES));
@@ -78,6 +77,7 @@ test("architecture-ready — an entry whose decision row names its SPEC commit i
   for (const decided of [E1, E4]) assert.ok(!named(found).includes(decided), `${decided} is decided by its row and not named in: ${named(found)}`);
 });
 
+// TST-472008 · level: unit · module: MOD-approvals
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-022
 // given: the same product
 // input: the precondition architecture-ready
@@ -89,11 +89,11 @@ test("architecture-ready — an entry named by an approval record is not named o
   assert.ok(!named(found).includes(E2), `${E2} is not named in: ${named(found)}`);
 });
 
+// TST-472009 · level: unit · module: MOD-approvals
 // guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
 // given: the same product, and, as the known positive for what is decided, the product without entries 03 and the other queue
 // input: the precondition architecture-ready, for each
-// expect: with entry 03 and the other queue's entry 01 a warning that names exactly those two proposals and nothing else of the queues; without
-//         them none (null): every entry left is decided
+// expect: with entry 03 and the other queue's entry 01 a warning that names exactly those two proposals and nothing else of the queues; without them none (null): every entry left is decided
 test("architecture-ready — an entry that neither a record nor a decision row decides is named open in the warning", async () => {
   assert.ok(ready(), `architecture-ready: ${approvalsModule.error?.message}`);
   const found = await ready()(contextOf(FILES));

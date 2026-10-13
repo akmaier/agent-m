@@ -50,11 +50,11 @@ const contextOf = (resource, { product = Object.values(ROWS), instance = [] } = 
 const textOf = async (context) => (await recipe(context))[0].text;
 const failureOf = (p) => Promise.resolve(p).then(() => null, (error) => error);
 
+// TST-472580 · level: unit · module: MOD-resource-list
 // guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (7b)
 // given: a product whose list holds a compute resource `cluster` on the runner gpu; a job that names it
 // input: the recipe resource-check
-// expect: one part named cluster, with no source, no artifact and required; its text names the resource, its kind and its address, the runner `gpu` and the processing place, and asks for the
-//         partitions with the scheduler's own read-only command — for SLURM sinfo —, as the one request, and nothing else
+// expect: one part named cluster, with no source, no artifact and required; its text names the resource, its kind and its address, the runner `gpu` and the processing place, and asks for the partitions with the scheduler's own read-only command — for SLURM sinfo —, as the one request, and nothing else
 test("resource-check gives, as one part, a compute resource and the harmless request on its runner", async () => {
   const parts = await recipe(contextOf("cluster"));
   assert.equal(parts.length, 1);
@@ -69,11 +69,11 @@ test("resource-check gives, as one part, a compute resource and the harmless req
   assert.match(text, /exactly one request/);
 });
 
+// TST-472581 · level: unit · module: MOD-resource-list
 // guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (7)
 // given: an endpoint and an agent whose route names the runner cpu; compute on the runner gpu first
 // input: the recipe for each
-// expect: compute on its runner is given; the endpoint and the agent are refused with NotRunnerCheck naming the resource and its kind — they are checked by a harmless probe through the
-//         Bridge their route names, not by a runner's check job — and no part is given
+// expect: compute on its runner is given; the endpoint and the agent are refused with NotRunnerCheck naming the resource and its kind — they are checked by a harmless probe through the Bridge their route names, not by a runner's check job — and no part is given
 test("resource-check refuses an endpoint or an agent that names a runner, by name", async () => {
   assert.equal((await recipe(contextOf("cluster"))).length, 1, "known positive");
   for (const [name, kind] of [["llm", "endpoint"], ["coder", "agent"]]) {
@@ -83,12 +83,11 @@ test("resource-check refuses an endpoint or an agent that names a runner, by nam
   }
 });
 
+// TST-472582 · level: unit · module: MOD-resource-list
 // guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER
-// given: a list with a compute resource on the runner gpu; a compute resource on a Bridge, a repository, and an endpoint probed through a Bridge; a name no list holds; a job that names none;
-//        a resource only the instance's list holds
+// given: a list with a compute resource on the runner gpu; a compute resource on a Bridge, a repository, and an endpoint probed through a Bridge; a name no list holds; a job that names none; a resource only the instance's list holds
 // input: the recipe for each
-// expect: the runner's resource is given; the other three are refused with NotRunnerCheck naming the resource and how it is checked; the unknown name with ResourceNotFound; no name with
-//         ResourceNotNamed; the instance's resource found in the instance's list
+// expect: the runner's resource is given; the other three are refused with NotRunnerCheck naming the resource and how it is checked; the unknown name with ResourceNotFound; no name with ResourceNotNamed; the instance's resource found in the instance's list
 test("resource-check refuses a resource that is not checked on a runner, by name", async () => {
   assert.equal((await recipe(contextOf("cluster"))).length, 1, "known positive");
   for (const [name, how] of [["gpu-box", "probe through the Bridge"], ["tools", "read on its host"], ["llm-bridge", "probe through the Bridge"]]) {
@@ -103,11 +102,11 @@ test("resource-check refuses a resource that is not checked on a runner, by name
   assert.match(await textOf(only), /shared\.example\.org/);
 });
 
+// TST-472583 · level: unit · module: MOD-resource-list
 // guards: A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY
 // given: compute on a runner whose Secret is ci:CLUSTER_KEY; one whose key is kept in a browser; one whose Secret column holds a value, sk-live-abc123def456; one with none
 // input: the recipe for each
-// expect: the first names the secret CLUSTER_KEY and says the key is read from the runner's environment and sent only to this resource's address; the second says the key does not reach
-//         the runner; the third's part holds nothing of the value; the last says no credential is declared
+// expect: the first names the secret CLUSTER_KEY and says the key is read from the runner's environment and sent only to this resource's address; the second says the key does not reach the runner; the third's part holds nothing of the value; the last says no credential is declared
 test("resource-check names a secret and holds no secret's value", async () => {
   const named = await textOf(contextOf("cluster-key"));
   assert.match(named, /CI secret `CLUSTER_KEY`/);
@@ -121,6 +120,7 @@ test("resource-check names a secret and holds no secret's value", async () => {
   assert.match(await textOf(contextOf("cluster")), /no credential/i);
 });
 
+// TST-472584 · level: unit · module: MOD-resource-list
 // guards: ONE DEFINITION, THREE DRIVERS; UC-040 (7b)
 // given: the recipe registered with the job runner under MOD-resource-list, the kind check-resource, and a drafter that runs code and tests
 // input: prepareJob("check-resource", the context)

@@ -32,6 +32,8 @@ function controls() {
 }
 
 // CASE ITM-278-RELEASE-01
+// TST-472518 · level: release · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the public #spec dashboard, once with its stored token and once with no token
 // input: open the fresh section then open, close, and reopen its current requirement
 // expect: both views expose the same current detail and neither interaction writes a repository

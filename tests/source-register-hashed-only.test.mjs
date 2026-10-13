@@ -53,12 +53,11 @@ const hostOf = (held) => {
   return { asked, open: async () => ({ repositoryInfo: async () => ({ defaultBranch: "main" }), readSnapshot: async () => snapshot }) };
 };
 
+// TST-472903 · level: unit · module: MOD-source-register
 // guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 6
-// given: the entry of a registration with two files kept and one only hashed, as registrationCommits plans it, and a product's links file that
-//        names its version with the version's hash over all three files
+// given: the entry of a registration with two files kept and one only hashed, as registrationCommits plans it, and a product's links file that names its version with the version's hash over all three files
 // input: linkedVersion(links, [entry], "SRC-x"), its version's files
-// expect: three files by name, chapter-1.md and appendix.md stored, paid.pdf not; each with the SHA-256 of its bytes; and the hash the link records
-//        is the hash of the lines `<SHA-256>  <name>` of all three files, the one hashed only included
+// expect: three files by name, chapter-1.md and appendix.md stored, paid.pdf not; each with the SHA-256 of its bytes; and the hash the link records is the hash of the lines `<SHA-256> <name>` of all three files, the one hashed only included
 test("linkedVersion — a registration's file only hashed is read with stored false, the two kept ones with true, all three in the version's hash", async () => {
   assert.equal(typeof registrationCommits, "function", "the module provides registrationCommits");
   const files = [CHAPTER, APPENDIX, HASHED];
@@ -70,12 +69,11 @@ test("linkedVersion — a registration's file only hashed is read with stored fa
   assert.equal(version.hash, hashOfFiles(version.files), "the hash is over all three files as read");
 });
 
+// TST-472904 · level: unit · module: MOD-source-register
 // guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-005
-// given: that version, whose holder has the two kept files and none of the one only hashed; known positive first — a holder that has the third
-//        too, and the version read with it stored
+// given: that version, whose holder has the two kept files and none of the one only hashed; known positive first — a holder that has the third too, and the version read with it stored
 // input: readContent(version, open) with a host of the tests' own
-// expect: the two files kept, by name, with their bytes; the path of the file only hashed is never asked for, and no error; with the third file
-//         marked stored, the same read asks for it and is refused with ContentUnreadable
+// expect: the two files kept, by name, with their bytes; the path of the file only hashed is never asked for, and no error; with the third file marked stored, the same read asks for it and is refused with ContentUnreadable
 test("readContent — reads the files kept of a registration and never asks for the one only hashed", async () => {
   const entry = await registered([CHAPTER, APPENDIX, HASHED]);
   const version = versionOf(entry, "2026-10-12");
@@ -89,6 +87,7 @@ test("readContent — reads the files kept of a registration and never asks for 
   await assert.rejects(readContent(wrongly, hostOf(held).open), (error) => error.name === "ContentUnreadable");
 });
 
+// TST-472905 · level: unit · module: MOD-source-register
 // guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: this instance's own entry SRC-vibe-coding, written before any file could be only hashed, and a registration of three files all kept
 // input: linkedVersion for each
@@ -104,12 +103,11 @@ test("linkedVersion — a version with no note reads every file as stored", asyn
   assert.deepEqual(Object.values(storedOf(kept)), [true, true, true]);
 });
 
+// TST-472906 · level: unit · module: MOD-source-register
 // guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
-// given: an entry of two versions. The first lists unpaid.pdf, paid.pdf and scan.pdf, its note naming `paid.pdf, scan.pdf`; the second lists paid.pdf
-//        again with no note. A third entry whose note names a file that its table does not list
+// given: an entry of two versions. The first lists unpaid.pdf, paid.pdf and scan.pdf, its note naming `paid.pdf, scan.pdf`; the second lists paid.pdf again with no note. A third entry whose note names a file that its table does not list
 // input: linkedVersion for each of the two versions; and for the third
-// expect: the first: paid.pdf and scan.pdf not stored, unpaid.pdf stored — a name is a whole name, not a part of one; the second: paid.pdf stored,
-//         the note of the first version is not the second's; the third: every listed file stored
+// expect: the first: paid.pdf and scan.pdf not stored, unpaid.pdf stored — a name is a whole name, not a part of one; the second: paid.pdf stored, the note of the first version is not the second's; the third: every listed file stored
 test("linkedVersion — a note names whole files of its own version, in a list of several", () => {
   const entry = entryOf(["---", "id: SRC-x", "title: A source", "kind: document", "authority: advisory", "licence: restricted — terms", "---",
     "# SRC-x A source", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",

@@ -30,6 +30,8 @@ function install(storage) {
 }
 
 // TST-ITM-259-01
+// TST-472112 · level: unit · module: MOD-browser-store
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CLEAR IS A REAL CLEAR
 // given: a browser store where an author saves an OpenAI-compatible endpoint with a key
 // input: reopen the same instance's store
 // expect: the endpoint URL, kind, model, key and throughBridge choice remain exactly as saved
@@ -44,6 +46,8 @@ test("an endpoint survives reopening the same instance store", () => {
 });
 
 // TST-ITM-259-02
+// TST-472113 · level: unit · module: MOD-browser-store
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CLEAR IS A REAL CLEAR
 // given: an endpoint that does not require an API key
 // input: save then read that endpoint
 // expect: its optional key is absent while the other endpoint fields are kept
@@ -59,6 +63,8 @@ test("an endpoint without a key is stored unchanged", () => {
 });
 
 // TST-ITM-259-03
+// TST-472114 · level: unit · module: MOD-browser-store
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CLEAR IS A REAL CLEAR
 // given: a stored endpoint whose key was refused by a constructed endpoint response
 // input: reopen and read it, then explicitly write a replacement key
 // expect: reading retains the refused key; only the explicit write replaces it
@@ -78,6 +84,8 @@ test("a refused endpoint key changes only when the author explicitly writes a re
 });
 
 // TST-ITM-259-04
+// TST-472115 · level: unit · module: MOD-browser-store
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CLEAR IS A REAL CLEAR
 // given: an endpoint and its recorded last test stored in localStorage
 // input: clear the endpoint
 // expect: the endpoint's actual localStorage entry is removed, not only hidden from reads
@@ -96,6 +104,8 @@ test("clearing an endpoint removes its actual localStorage entry", () => {
 });
 
 // TST-ITM-259-05
+// TST-472116 · level: unit · module: MOD-browser-store
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CLEAR IS A REAL CLEAR
 // given: two Agent M instances in one browser, each with endpoint and paired Bridge settings
 // input: save distinct values under each instance's prefix
 // expect: neither instance reads the other instance's endpoint, Bridge, or recorded Bridge test

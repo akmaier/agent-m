@@ -161,16 +161,11 @@ const fieldsOf = (path, body) => readDocument(approvalSchema, path, body).fields
 
 // ---------------------------------------------------------------- accepting what was shown
 
-// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT;
-//         THE GATE IS RECORDED; UC-008
-// given: the product above, on GitHub, of the account alice, whose default branch `trunk` holds UC-001 (accepted), UC-002 (open)
-//        and UC-003 (changed), and the person bob, who was shown UC-002 and UC-003 as they stand
+// TST-472001 · level: unit · module: MOD-approvals
+// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT; THE GATE IS RECORDED; UC-008
+// given: the product above, on GitHub, of the account alice, whose default branch `trunk` holds UC-001 (accepted), UC-002 (open) and UC-003 (changed), and the person bob, who was shown UC-002 and UC-003 as they stand
 // input: acceptShown(host, the two files with the blobs shown, "bob")
-// expect: one commit on `trunk`, on the head that was read, that holds the two records and nothing else — each at
-//         docs/approvals/<id>-<the first twelve digits of its blob>.md and of three lines, kind use-case, the use case's path and
-//         the 40-digit blob shown —; its message names bob, who accepted, and UC-002 and UC-003, what he accepted; the result is
-//         { commit: that commit, recorded: the two paths in the order shown, leftOut: [] }; the use cases themselves are
-//         unchanged, and the head's statuses give both accepted
+// expect: one commit on `trunk`, on the head that was read, that holds the two records and nothing else — each at docs/approvals/<id>-<the first twelve digits of its blob>.md and of three lines, kind use-case, the use case's path and the 40-digit blob shown —; its message names bob, who accepted, and UC-002 and UC-003, what he accepted; the result is { commit: that commit, recorded: the two paths in the order shown, leftOut: [] }; the use cases themselves are unchanged, and the head's statuses give both accepted
 test("acceptShown — two use cases shown are accepted in one commit, one record each naming the blob that was shown", async () => {
   const fake = fakeHost({ files: PRODUCT });
   const read = fake.head();
@@ -197,14 +192,11 @@ test("acceptShown — two use cases shown are accepted in one commit, one record
   assert.deepEqual([UC2_PATH, UC3_PATH].map((path) => after.get(path).status), ["accepted", "accepted"]);
 });
 
+// TST-472002 · level: unit · module: MOD-approvals
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; UC-008
-// given: the same product; bob was shown UC-002, UC-003 and UC-004, and after that another writer's commit changed UC-003 on
-//        `trunk` and removed UC-004 from it
+// given: the same product; bob was shown UC-002, UC-003 and UC-004, and after that another writer's commit changed UC-003 on `trunk` and removed UC-004 from it
 // input: acceptShown(host, the three files with the blobs that were shown, "bob")
-// expect: one commit holding the record of UC-002 alone, whose message names UC-002 and neither UC-003 nor UC-004; the result is
-//         { commit, recorded: UC-002's path, leftOut: UC-003's path and UC-004's, in the order shown, each with the reason
-//         "changed since shown" and no name }; UC-003 has no record of the text shown nor of the text it has now — only the
-//         earlier record it had — and UC-004 has none
+// expect: one commit holding the record of UC-002 alone, whose message names UC-002 and neither UC-003 nor UC-004; the result is { commit, recorded: UC-002's path, leftOut: UC-003's path and UC-004's, in the order shown, each with the reason "changed since shown" and no name }; UC-003 has no record of the text shown nor of the text it has now — only the earlier record it had — and UC-004 has none
 test("acceptShown — a file that changed after it was shown is left out and named, and the others are recorded", async () => {
   const fake = fakeHost({ files: PRODUCT });
   const shown = [shownOf(UC2_PATH, UC2), shownOf(UC3_PATH, UC3), shownOf(UC4_PATH, UC4)];
@@ -224,19 +216,11 @@ test("acceptShown — a file that changed after it was shown is left out and nam
     "UC-003 has no record of the text shown or of the text it has now, and UC-004 none");
 });
 
+// TST-472003 · level: unit · module: MOD-approvals
 // guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; UC-008
-// given: the same product, in which A SAMPLE RULE is in the SPEC and A PROPOSED RULE stands only in an open queue; UC-004
-//        realises A PROPOSED RULE; ARC-001 is forced by UC-001 and A SAMPLE RULE, both accepted; ARC-002 is forced by UC-001,
-//        UC-002, A PROPOSED RULE, UC-003, UC-099 and A SAMPLE RULE — UC-002 is open, UC-003 is changed, UC-099 is no use case of
-//        the product; MOD-sample realises A SAMPLE RULE and A PROPOSED RULE; bob was shown UC-004, ARC-001 and ARC-002
-// input: acceptanceBlockers(path, the head's snapshot) for each of those and for MOD-sample; then acceptShown(host, the three files
-//        with the blobs shown, "bob"); then acceptShown(host, UC-004 and ARC-002 alone, "bob")
-// expect: the blockers are A PROPOSED RULE for UC-004, none for ARC-001, UC-002, A PROPOSED RULE, UC-003 and UC-099 for ARC-002,
-//         in the order the file names them — neither UC-001 nor A SAMPLE RULE —, and A PROPOSED RULE for MOD-sample; the first
-//         acceptShown makes one commit holding the record of ARC-001 alone, whose kind is architecture-decision, and returns
-//         recorded: ARC-001's path and leftOut: UC-004 and ARC-002 in the order shown, each with the reason "rests on what is not
-//         accepted" and its blockers as names; the second rejects with NothingToAccept, which carries that leftOut, and writes
-//         nothing
+// given: the same product, in which A SAMPLE RULE is in the SPEC and A PROPOSED RULE stands only in an open queue; UC-004 realises A PROPOSED RULE; ARC-001 is forced by UC-001 and A SAMPLE RULE, both accepted; ARC-002 is forced by UC-001, UC-002, A PROPOSED RULE, UC-003, UC-099 and A SAMPLE RULE — UC-002 is open, UC-003 is changed, UC-099 is no use case of the product; MOD-sample realises A SAMPLE RULE and A PROPOSED RULE; bob was shown UC-004, ARC-001 and ARC-002
+// input: acceptanceBlockers(path, the head's snapshot) for each of those and for MOD-sample; then acceptShown(host, the three files with the blobs shown, "bob"); then acceptShown(host, UC-004 and ARC-002 alone, "bob")
+// expect: the blockers are A PROPOSED RULE for UC-004, none for ARC-001, UC-002, A PROPOSED RULE, UC-003 and UC-099 for ARC-002, in the order the file names them — neither UC-001 nor A SAMPLE RULE —, and A PROPOSED RULE for MOD-sample; the first acceptShown makes one commit holding the record of ARC-001 alone, whose kind is architecture-decision, and returns recorded: ARC-001's path and leftOut: UC-004 and ARC-002 in the order shown, each with the reason "rests on what is not accepted" and its blockers as names; the second rejects with NothingToAccept, which carries that leftOut, and writes nothing
 test("acceptShown — a file that rests on what is not accepted is left out and named with it, and a click that accepts nothing is refused", async () => {
   const fake = fakeHost({ files: PRODUCT });
   const snapshot = await fake.host.readSnapshot("trunk");
@@ -269,13 +253,11 @@ test("acceptShown — a file that rests on what is not accepted is left out and 
   assert.equal(fake.head(), written);
 });
 
+// TST-472004 · level: unit · module: MOD-approvals
 // guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; THE GATE IS RECORDED; UC-008
-// given: the same product; bob was shown UC-002; (1) the host refuses the write with PermissionMissing — bob has no write access
-//        (UC-008 4a) —; (2) another writer's commit lands on `trunk` after the head was read
+// given: the same product; bob was shown UC-002; (1) the host refuses the write with PermissionMissing — bob has no write access (UC-008 4a) —; (2) another writer's commit lands on `trunk` after the head was read
 // input: acceptShown(host, UC-002 with the blob shown, "bob")
-// expect: (1) it rejects with PermissionMissing, with the host's fields, for the caller to offer GitHub's route; (2) it rejects
-//         with Moved, naming the head the branch stands at now; in both the host's write was tried once and no record of bob's is
-//         on the branch
+// expect: (1) it rejects with PermissionMissing, with the host's fields, for the caller to offer GitHub's route; (2) it rejects with Moved, naming the head the branch stands at now; in both the host's write was tried once and no record of bob's is on the branch
 test("acceptShown — a write the host refuses or the branch has moved past is named as the host names it, and nothing is written", async () => {
   const renewal = "https://github.com/settings/personal-access-tokens";
   const cases = [
@@ -301,13 +283,11 @@ test("acceptShown — a write the host refuses or the branch has moved past is n
 
 // ---------------------------------------------------------------- without a token
 
+// TST-472005 · level: unit · module: MOD-approvals
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-008; UC-006
-// given: the record that accepts UC-002 — its path and its three lines —, and the snapshot of the product on GitHub, which holds
-//        UC-002's text
+// given: the record that accepts UC-002 — its path and its three lines —, and the snapshot of the product on GitHub, which holds UC-002's text
 // input: fallbackAcceptLink(the record, the snapshot)
-// expect: { url, path, text } with the record's path and text as they are, for a copy button; the url GitHub's new-file page of
-//         alice/product, whose only parameters are the file name — the record's path — and the file's content — the record —;
-//         nothing of UC-002's text anywhere in it
+// expect: { url, path, text } with the record's path and text as they are, for a copy button; the url GitHub's new-file page of alice/product, whose only parameters are the file name — the record's path — and the file's content — the record —; nothing of UC-002's text anywhere in it
 test("fallbackAcceptLink — without a token, GitHub's new-file page carries the record's path and the record, and no reviewed text", async () => {
   const fake = fakeHost({ files: PRODUCT });
   const snapshot = await fake.host.readSnapshot("trunk");
@@ -332,6 +312,7 @@ test("fallbackAcceptLink — without a token, GitHub's new-file page carries the
   for (const line of reviewed) assert.ok(!carried.includes(line), `no reviewed text travels in the link: ${line}`);
 });
 
+// TST-472006 · level: unit · module: MOD-approvals
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-008
 // given: the same record, and the snapshot of a product on a GitLab server, team/product on gitlab.example.org
 // input: fallbackAcceptLink(the record, that snapshot); and, as the known positive, with the snapshot of the product on GitHub

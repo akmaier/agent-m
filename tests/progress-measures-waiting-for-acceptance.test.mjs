@@ -72,12 +72,11 @@ function queueFixture() {
   return { texts, blobs, records };
 }
 
+// TST-472462 · level: unit · module: MOD-progress-measures
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; STATUS IS DERIVED FROM THE RECORDS; UC-047
-// given: one open SPEC change entry beside an approved and an in-SPEC one (queueFixture), one open use case, one
-//        accepted architecture decision and one changed module
+// given: one open SPEC change entry beside an approved and an in-SPEC one (queueFixture), one open use case, one accepted architecture decision and one changed module
 // input: waitingForAcceptance(null, snapshot)
-// expect: exactly the open entry, the open use case and the changed module, each with its id, path and blob — nothing
-//         for the accepted decision, the approved entry or the in-SPEC entry
+// expect: exactly the open entry, the open use case and the changed module, each with its id, path and blob — nothing for the accepted decision, the approved entry or the in-SPEC entry
 test("waitingForAcceptance — an open SPEC entry, an open use case and a changed module wait; an accepted decision, an approved and an in-SPEC entry do not", async () => {
   const UC_BLOB = "a1".repeat(20);
   const ARC_BLOB = "b2".repeat(20);
@@ -112,6 +111,7 @@ test("waitingForAcceptance — an open SPEC entry, an open use case and a change
   ].sort(byId));
 });
 
+// TST-472463 · level: unit · module: MOD-progress-measures
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; UC-047
 // given: one open architecture decision and one changed use case, no SPEC change queue in the repository
 // input: waitingForAcceptance(null, snapshot)
@@ -139,6 +139,7 @@ test("waitingForAcceptance — an open architecture decision and a changed use c
   ].sort(byId));
 });
 
+// TST-472464 · level: unit · module: MOD-progress-measures
 // guards: UC-047
 // given: a repository with no reviewed file and no SPEC change queue
 // input: waitingForAcceptance(null, snapshot)
@@ -148,6 +149,7 @@ test("waitingForAcceptance — an empty repository waits for nothing", async () 
   assert.deepEqual(await waitingForAcceptance(emptyTagsHost, snapshot), []);
 });
 
+// TST-472465 · level: unit · module: MOD-progress-measures
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // given: a candidate's done run-tests record and its candidate tag, with no release report yet
 // input: waitingForAcceptance(host, snapshot)

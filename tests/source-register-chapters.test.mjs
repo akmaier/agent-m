@@ -57,9 +57,9 @@ const openThe = (snapshot) => async () => ({ repositoryInfo: async () => ({ defa
 
 // ---------------------------------------------------------------- sha256
 
+// TST-472883 · level: component · module: MOD-source-register
 // guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
-// given: known positive first — the empty text, whose SHA-256 is e3b0c442…b855; then the text of chapter 8 as the disk
-//        holds it, and the same as its UTF-8 bytes; the register entry's recorded SHA-256 of that file
+// given: known positive first — the empty text, whose SHA-256 is e3b0c442…b855; then the text of chapter 8 as the disk holds it, and the same as its UTF-8 bytes; the register entry's recorded SHA-256 of that file
 // input: sha256 of each
 // expect: the known value for the empty text; for chapter 8, as text and as bytes, the hash the entry records
 test("sha256 — the SHA-256 of a text's UTF-8 bytes or of bytes, as 64 lowercase hexadecimal digits", async () => {
@@ -72,12 +72,11 @@ test("sha256 — the SHA-256 of a text's UTF-8 bytes or of bytes, as 64 lowercas
 
 // ---------------------------------------------------------------- readContent
 
+// TST-472884 · level: component · module: MOD-source-register
 // guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
-// given: known positive first — the version 2026-10-05 with two of its files and their recorded hashes, held by this
-//        instance; then the same with chapter 8 changed by one character, and with chapter 8 missing
+// given: known positive first — the version 2026-10-05 with two of its files and their recorded hashes, held by this instance; then the same with chapter 8 changed by one character, and with chapter 8 missing
 // input: readContent(version, open), open giving the host of this instance
-// expect: both files, by name, with their bytes as the disk holds them; for the changed file HashMismatch naming the file,
-//         the recorded and the actual hash; for the missing one ContentUnreadable naming the file
+// expect: both files, by name, with their bytes as the disk holds them; for the changed file HashMismatch naming the file, the recorded and the actual hash; for the missing one ContentUnreadable naming the file
 test("readContent — reads every stored file of a version and checks each against its recorded SHA-256", async () => {
   const two = recorded.filter((file) => [fileOf(8), fileOf(13)].includes(file.name));
   const files = await readContent(versionOf(two), openThe(snapshotOf()));
@@ -95,14 +94,11 @@ test("readContent — reads every stored file of a version and checks each again
 
 // ---------------------------------------------------------------- the four recipes
 
-// guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING;
-//         AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION
-//         JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+// TST-472885 · level: component · module: MOD-source-register
+// guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
 // given: this instance, whose register entry SRC-vibe-coding has the version 2026-10-05 with the book's chapters
 // input: each of the four recipes of sourceStrategies, with a job's context on this instance
-// expect: one part per chapter of the recipe's row, in the order of their numbers; each the whole file as the disk holds
-//         it, required, naming SRC-vibe-coding as its only source, and naming in its name the file, the version and the
-//         version's hash — the SHA-256 of the files' hash lines, sorted by name
+// expect: one part per chapter of the recipe's row, in the order of their numbers; each the whole file as the disk holds it, required, naming SRC-vibe-coding as its only source, and naming in its name the file, the version and the version's hash — the SHA-256 of the files' hash lines, sorted by name
 test("sourceStrategies — each chapter recipe gives the chapters of its kind of work, whole, in order, pinned to the version and its hash", async () => {
   const lines = [...recorded].sort((a, b) => (a.name < b.name ? -1 : 1)).map((file) => `${file.sha256}  ${file.name}\n`);
   const versionHash = hex(lines.join(""));
@@ -117,12 +113,11 @@ test("sourceStrategies — each chapter recipe gives the chapters of its kind of
   }
 });
 
+// TST-472886 · level: component · module: MOD-source-register
 // guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
-// given: this instance's entry with a second, newer version appended — the last row of ## Versions — whose files list only
-//        chapter 13, under its own `### Files of`
+// given: this instance's entry with a second, newer version appended — the last row of ## Versions — whose files list only chapter 13, under its own `### Files of`
 // input: chapters-for-tests and chapters-for-requirements on that instance
-// expect: chapters-for-tests reads chapter 13 from the newer version's folder; chapters-for-requirements is refused with
-//         ChapterMissing naming chapter 8 and the newer version
+// expect: chapters-for-tests reads chapter 13 from the newer version's folder; chapters-for-requirements is refused with ChapterMissing naming chapter 8 and the newer version
 test("sourceStrategies — a chapter recipe reads the newest version, and names a chapter that version lacks", async () => {
   const newer = "2026-11-01";
   const thirteen = fileOf(13);
@@ -139,6 +134,7 @@ test("sourceStrategies — a chapter recipe reads the newest version, and names 
     (error) => error.name === "ChapterMissing" && error.chapter === 8 && error.version === newer);
 });
 
+// TST-472887 · level: component · module: MOD-source-register
 // guards: A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
 // given: known positive first — this instance; then an instance without the register entry SRC-vibe-coding
 // input: chapters-for-requirements on each

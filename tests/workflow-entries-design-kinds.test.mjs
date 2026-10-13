@@ -165,14 +165,11 @@ const expectedProvenance = (w, id, kind, rounds) => [`Agent-M-Version: ${w.agent
 
 // ---------------------------------------------------------------- a change of a use case
 
+// TST-473198 · level: unit · module: MOD-workflow-entries
 // guards: A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: a product holding the use case UC-001, its requirement and a queued job of `change-use-case` that asks for a change of UC-001 with an
-//        instruction; an instance with the participant, the book's chapter and a source the product links; a fixture endpoint that answers the
-//        changed use case, classed a change of UC-001
+// given: a product holding the use case UC-001, its requirement and a queued job of `change-use-case` that asks for a change of UC-001 with an instruction; an instance with the participant, the book's chapter and a source the product links; a fixture endpoint that answers the changed use case, classed a change of UC-001
 // input: onRecordsChanged
-// expect: outcome `done`; one commit by the writer on the product's main that changes UC-001's file to the drafted text and nothing else — an
-//         open file: no approval record —, its message ending with the provenance lines of the job (the version and commit of Agent M, the job, the
-//         kind, the participant, the model, the rounds and the instruction); the file itself naming none of them; the job's End appended
+// expect: outcome `done`; one commit by the writer on the product's main that changes UC-001's file to the drafted text and nothing else — an open file: no approval record —, its message ending with the provenance lines of the job (the version and commit of Agent M, the job, the kind, the participant, the model, the rounds and the instruction); the file itself naming none of them; the job's End appended
 test("onRecordsChanged — a queued change-use-case job ends in one commit of an open file", async () => {
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(USE_CASE_JOB, "change-use-case", { useCase: "UC-001", instruction: INSTRUCTION }, agentM))],
     extra: { "SPEC.md": SPEC, "docs/sources.md": LINKS, [UC_PATH]: UC_BEFORE } }, async (w) => {
@@ -196,12 +193,11 @@ test("onRecordsChanged — a queued change-use-case job ends in one commit of an
 
 // ---------------------------------------------------------------- a change of requirements
 
+// TST-473199 · level: unit · module: MOD-workflow-entries
 // guards: A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: the same product and instance, and a queued job of `change-requirements` naming the requirement, the person's own source — which the
-//        product links — and an instruction; a fixture endpoint that answers a candidate that changes the requirement
+// given: the same product and instance, and a queued job of `change-requirements` naming the requirement, the person's own source — which the product links — and an instruction; a fixture endpoint that answers a candidate that changes the requirement
 // input: onRecordsChanged
-// expect: outcome `done`; one commit by the writer that adds a new queue under docs/spec-freigaben/ — its index, its decisions, the proposal and its
-//         rationale — and changes nothing else: SPEC.md byte-identical; the commit's message ending with the provenance lines of the job
+// expect: outcome `done`; one commit by the writer that adds a new queue under docs/spec-freigaben/ — its index, its decisions, the proposal and its rationale — and changes nothing else: SPEC.md byte-identical; the commit's message ending with the provenance lines of the job
 test("onRecordsChanged — a queued change-requirements job ends in a new queue, SPEC.md byte-identical", async () => {
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(REQUIREMENTS_JOB, "change-requirements", { requirements: [RULE], source: "SRC-fixture-po", instruction: INSTRUCTION }, agentM))],
     extra: { "SPEC.md": SPEC, "docs/sources.md": LINKS, [UC_PATH]: UC_BEFORE } }, async (w) => {
@@ -225,12 +221,11 @@ test("onRecordsChanged — a queued change-requirements job ends in a new queue,
 
 // ---------------------------------------------------------------- a derivation of use cases
 
+// TST-473200 · level: unit · module: MOD-workflow-entries
 // guards: A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: a product with a requirement that no use case realises and a queued job of `derive-use-cases` that names it; a fixture endpoint that
-//        answers one new use case, under a placeholder identifier
+// given: a product with a requirement that no use case realises and a queued job of `derive-use-cases` that names it; a fixture endpoint that answers one new use case, under a placeholder identifier
 // input: onRecordsChanged
-// expect: outcome `done`; one commit by the writer that adds the use case under the next free identifier, UC-001, as an open file — no record —,
-//         its message ending with the provenance lines of the job
+// expect: outcome `done`; one commit by the writer that adds the use case under the next free identifier, UC-001, as an open file — no record —, its message ending with the provenance lines of the job
 test("onRecordsChanged — a queued derive-use-cases job ends in one commit of a new open use case", async () => {
   const derive = (agentM) => ({ ...jobStart(USE_CASE_JOB, "derive-use-cases", { requirements: [RULE], instruction: INSTRUCTION }, agentM), worksOn: [RULE] });
   await withWorkspace({ records: (agentM) => [recordFile(derive(agentM))], extra: { "SPEC.md": SPEC, "docs/sources.md": LINKS } }, async (w) => {

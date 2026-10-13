@@ -48,13 +48,12 @@ const LOCAL = { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", mod
 const ARGS = { name: "local", kind: LOCAL.kind, baseUrl: LOCAL.url, model: LOCAL.model, key: LOCAL.key };
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 
-// TST-269001
-// Module: MOD-settings-pages
-// Level: unit
-// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; THE PAGE STATES WHAT IT SENDS WHERE; A CREDENTIAL IS NEVER PLACED IN A URL
-// input/precondition: a paired loopback Bridge and a local endpoint entered on the public endpoints Route
-// expected: Save precedes one disclosed Bridge endpoint-test call, whose canonical args contain the endpoint key only in JSON, then the actual answer marks it working
 // Planted fault: replacing the Bridge probe with testEndpoint makes the Bridge-route assertion fail.
+// TST-269001 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; THE PAGE STATES WHAT IT SENDS WHERE; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: a paired loopback Bridge and a local endpoint entered on the public endpoints Route
+// input: Save on the endpoints Route
+// expect: Save precedes one disclosed Bridge endpoint-test call, whose canonical args contain the endpoint key only in JSON, then the actual answer marks it working
 test("TST-269001: a local endpoint saves then probes only its paired Bridge", async (t) => {
   const store = freshStore(), calls = [];
   const oldFetch = globalThis.fetch;
@@ -77,13 +76,12 @@ test("TST-269001: a local endpoint saves then probes only its paired Bridge", as
   assert.match(byClass(target, "endpoint-result")[0].textContent, /working/i);
 });
 
-// TST-269002
-// Module: MOD-settings-pages
-// Level: unit
-// guards: UC-003 alternative 4b; CONFIGURATION LIVES IN THE BROWSER
-// input/precondition: a paired Bridge answers endpoint-test with a provider key refusal
-// expected: the provider diagnosis is shown, the endpoint key remains stored, and reload reads the refused key
 // Planted fault: replacing the provider diagnosis with generic text makes the provider-message assertion fail.
+// TST-269002 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 4b; CONFIGURATION LIVES IN THE BROWSER
+// given: a paired Bridge answers endpoint-test with a provider key refusal
+// input: the endpoint is tested through the Bridge, then the Route is reloaded
+// expect: the provider diagnosis is shown, the endpoint key remains stored, and reload reads the refused key
 test("TST-269002: a provider refusal through Bridge remains a stored provider diagnosis", async (t) => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = async () => json(200, { answer: { works: false, diagnosis: { reason: "key refused", message: "Provider says key is invalid.", routes: [] } } });
@@ -98,13 +96,12 @@ test("TST-269002: a provider refusal through Bridge remains a stored provider di
   assert.equal(byClass(reloaded, "endpoint-key")[0].value, LOCAL.key);
 });
 
-// TST-269003
-// Module: MOD-settings-pages
-// Level: unit
-// guards: UC-003 alternative 2a; UC-044; CONFIGURATION LIVES IN THE BROWSER
-// input/precondition: no paired Bridge is stored and a local endpoint is completed
-// expected: Save retains the endpoint, makes no direct or Bridge request, and offers the actionable pairing handoff without success
 // Planted fault: removing the public Bridge setup action makes the handoff assertion fail.
+// TST-269003 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; UC-044; CONFIGURATION LIVES IN THE BROWSER
+// given: no paired Bridge is stored and a local endpoint is completed
+// input: Save
+// expect: Save retains the endpoint, makes no direct or Bridge request, and offers the actionable pairing handoff without success
 test("TST-269003: absent Bridge setup retains the endpoint and directs the author to pairing", async (t) => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   let calls = 0;
@@ -121,13 +118,12 @@ test("TST-269003: absent Bridge setup retains the endpoint and directs the autho
   assert.deepEqual(navigations, [{ route: "bridge", params: {} }]);
 });
 
-// TST-269004
-// Module: MOD-settings-pages
-// Level: unit
-// guards: UC-003 alternative 2a; UC-044; AN UNSUPPORTED ENDPOINT SAYS SO
-// input/precondition: a paired Bridge rejects its token, then an unavailable Bridge gives no answer
-// expected: each named Bridge failure is actionable and neither is presented as a provider answer or success
 // Planted fault: collapsing TokenRefused into a generic Bridge failure makes the named-failure assertion fail.
+// TST-269004 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; UC-044; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: a paired Bridge rejects its token, then an unavailable Bridge gives no answer
+// input: the endpoint is tested through each Bridge
+// expect: each named Bridge failure is actionable and neither is presented as a provider answer or success
 test("TST-269004: refused and unavailable Bridges stay distinct from provider diagnoses", async (t) => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   let mode = "refused";
@@ -145,13 +141,12 @@ test("TST-269004: refused and unavailable Bridges stay distinct from provider di
   assert.doesNotMatch(byClass(target, "endpoint-result")[0].textContent, /working/i);
 });
 
-// TST-269005
-// Module: MOD-settings-pages
-// Level: unit
-// guards: UC-003 alternative 2a; UC-044 alternative 6a.5; A CREDENTIAL IS NEVER PLACED IN A URL
-// input/precondition: an accepted HTTPS Bridge address/token and its separately stored jump-host web login
-// expected: the endpoint test uses the HTTPS Bridge, maps canonical args, and puts both credentials only in their distinct headers
 // Planted fault: omitting the transient jump-host login when constructing BridgeSettings makes the Basic-header assertion fail.
+// TST-269005 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; UC-044 alternative 6a.5; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: an accepted HTTPS Bridge address/token and its separately stored jump-host web login
+// input: the endpoint is tested through the HTTPS Bridge
+// expect: the endpoint test uses the HTTPS Bridge, maps canonical args, and puts both credentials only in their distinct headers
 test("TST-269005: HTTPS Bridge testing reads the separate jump-host login into transient settings", async (t) => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   let call;

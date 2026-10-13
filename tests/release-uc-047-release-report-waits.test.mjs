@@ -36,15 +36,12 @@ function capture() {
   return shown;
 }
 
-// TST-293002
-// Module: MOD-notifications · MOD-progress-measures · MOD-release-evidence
-// Guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
-// Level: release
-// Precondition: this browser has notifications on and records an unfinished tagged release candidate as its baseline.
-// Input: an unchanged due check runs before End; its public run-tests record ends done, is checked again unchanged, then
-//        receives its release report and tag.
-// Expected: the release report appears once at release-v<version>, identifies this repository, opens #release, and stops
-//           appearing both while unchanged and after acceptance.
+// Module (as the case stated it): MOD-notifications · MOD-progress-measures · MOD-release-evidence
+// TST-293002 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: this browser has notifications on and records an unfinished tagged release candidate as its baseline.
+// input: an unchanged due check runs before End; its public run-tests record ends done, is checked again unchanged, then receives its release report and tag.
+// expect: the release report appears once at release-v<version>, identifies this repository, opens #release, and stops appearing both while unchanged and after acceptance.
 test("TST-293002: release notification names and routes exactly one completed report", async () => {
   const tags = [{ name: CANDIDATE, commit: "a".repeat(40) }];
   const server = await repoServer({ files: { [JOB]: record() }, handlers: [(url) => url.origin === API && /\/tags$/.test(url.pathname)

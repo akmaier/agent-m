@@ -50,11 +50,11 @@ const classed = (item, kind = item.class, of = item.of, from = [item.passage]) =
 const compose = (items, classes = items.map((item) => classed(item)), source = JOB, spec = SPEC) => entrySections(spec, { candidates: items }, classes, source);
 const block = (name, sources, rule, check) => text(`**${name}** *(${sources})*`, rule, `*Check:* ${check}`).slice(0, -1);
 
+// TST-473031 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; THE PERSON WHO PROMPTS IS A SOURCE; UC-019
 // given: a candidate classed as a change of A SAMPLE RULE — drafted under another name, with a new rule and a new check, from "ch. 8"
 // input: entrySections(SPEC, draft, classes, "Job Source")
-// expect: one section, section 1, whose text is the old one with A SAMPLE RULE's block replaced by the existing name, the sources it had
-//         and the job's with the passage, the candidate's rule and check; every other byte of the section as it was; section 2 not returned
+// expect: one section, section 1, whose text is the old one with A SAMPLE RULE's block replaced by the existing name, the sources it had and the job's with the passage, the candidate's rule and check; every other byte of the section as it was; section 2 not returned
 test("entrySections — a change replaces the requirement under its existing name, keeping its sources and adding the job's", () => {
   const item = candidate("A BETTER NAME", { rule: "A reader reads a file whole, or says why not.", check: "`tests/better.test.mjs`", class: "change", of: "A SAMPLE RULE" });
   const result = compose([item]);
@@ -64,12 +64,11 @@ test("entrySections — a change replaces the requirement under its existing nam
   assert.deepEqual(result, [{ anchor: "## 1. Reading", until: null, text: SECTION_1.replace(old, changed) }]);
 });
 
+// TST-473032 · level: unit · module: MOD-spec-changes
 // guards: A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; THE PERSON WHO PROMPTS IS A SOURCE; UC-005
-// given: a candidate classed as a duplicate of ANOTHER SAMPLE RULE, which names a source besides the product owner's, merged from two
-//        passages, "ch. 8" and "ch. 9"; and, to show the same call adding, a duplicate of A WRITE RULE
+// given: a candidate classed as a duplicate of ANOTHER SAMPLE RULE, which names a source besides the product owner's, merged from two passages, "ch. 8" and "ch. 9"; and, to show the same call adding, a duplicate of A WRITE RULE
 // input: entrySections(SPEC, draft, classes, "Job Source")
-// expect: the head line of ANOTHER SAMPLE RULE with its two sources kept and an item for each passage added, every other byte as it was;
-//         for A WRITE RULE the head line with the job's source added; no requirement added
+// expect: the head line of ANOTHER SAMPLE RULE with its two sources kept and an item for each passage added, every other byte as it was; for A WRITE RULE the head line with the job's source added; no requirement added
 test("entrySections — a duplicate adds the job's source with each passage to the existing requirement, nothing else", () => {
   const item = candidate("RESTATES IT", { class: "duplicate", of: "ANOTHER SAMPLE RULE" });
   const result = compose([item], [classed(item, "duplicate", "ANOTHER SAMPLE RULE", ["ch. 8", "ch. 9"])]);
@@ -80,9 +79,9 @@ test("entrySections — a duplicate adds the job's source with each passage to t
   assert.deepEqual(compose([other]), [{ anchor: "## 2. Writing", until: null, text: SECTION_2.replace("*(Fixture PO)*", "*(Fixture PO; Job Source, ch. 8)*") }]);
 });
 
+// TST-473033 · level: unit · module: MOD-spec-changes
 // guards: A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; UC-005
-// given: a duplicate whose job source and passage the requirement names already, and, to show the same call changing a section, the same
-//        with another passage
+// given: a duplicate whose job source and passage the requirement names already, and, to show the same call changing a section, the same with another passage
 // input: entrySections(SPEC, draft, classes, "Job Source")
 // expect: no section for the first — the text would not change —, the section for the second
 test("entrySections — a section that a draft leaves as it is is not returned", () => {
@@ -93,12 +92,11 @@ test("entrySections — a section that a draft leaves as it is is not returned",
   assert.deepEqual(known, []);
 });
 
+// TST-473034 · level: unit · module: MOD-spec-changes
 // guards: UC-005; A CHANGE IS PROPOSED UNDER THE EXISTING NAME
-// given: new candidates — one with no artifact named, one whose class names ANOTHER SAMPLE RULE as its neighbour; section 1 ends with an
-//        empty line, section 2 with a line end only; and the first again in a SPEC without a final line end
+// given: new candidates — one with no artifact named, one whose class names ANOTHER SAMPLE RULE as its neighbour; section 1 ends with an empty line, section 2 with a line end only; and the first again in a SPEC without a final line end
 // input: entrySections(SPEC, draft, classes, "Job Source") for each
-// expect: the requirement after the last requirement of its section, an empty line before it where the section has none: in the last
-//         section with no neighbour named, in section 1 with the neighbour; with no final line end the SPEC's end then an empty line first
+// expect: the requirement after the last requirement of its section, an empty line before it where the section has none: in the last section with no neighbour named, in section 1 with the neighbour; with no final line end the SPEC's end then an empty line first
 test("entrySections — a new requirement is added at the end of its section", () => {
   const last = candidate("A NEW RULE", { rule: "A thing happens.", check: "`tests/new.test.mjs`" });
   const added = block("A NEW RULE", "Job Source, ch. 8", "A thing happens.", "`tests/new.test.mjs`");
@@ -112,9 +110,9 @@ test("entrySections — a new requirement is added at the end of its section", (
   assert.deepEqual(compose([last], undefined, JOB, bare), [{ anchor: "## 2. Writing", until: null, text: `${SECTION_2.slice(0, -1)}\n\n${added}` }], "no final line end");
 });
 
+// TST-473035 · level: unit · module: MOD-spec-changes
 // guards: A CONFLICT IS DECIDED BY A PERSON; UC-005
-// given: a candidate classed as a conflict with A SAMPLE RULE, which no person has decided; and, to show the same call composing it, the
-//        class the person gave it — a change of A SAMPLE RULE
+// given: a candidate classed as a conflict with A SAMPLE RULE, which no person has decided; and, to show the same call composing it, the class the person gave it — a change of A SAMPLE RULE
 // input: entrySections(SPEC, draft, classes, "Job Source") for each
 // expect: the undecided conflict in no section; the same candidate classed change composed into section 1
 test("entrySections — a conflict is composed only as the person resolved it, an undecided one not at all", () => {
@@ -124,12 +122,11 @@ test("entrySections — a conflict is composed only as the person resolved it, a
   assert.deepEqual(compose([item], [classed(item, "conflict", "A SAMPLE RULE")]), []);
 });
 
+// TST-473036 · level: unit · module: MOD-spec-changes
 // guards: UC-005; UC-019; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT
-// given: one candidate of each class in one draft — a change of A SAMPLE RULE, a duplicate of A WRITE RULE, a new requirement next to
-//        ANOTHER SAMPLE RULE, and an undecided conflict with A SAMPLE RULE —, in the order new, conflict, duplicate, change
+// given: one candidate of each class in one draft — a change of A SAMPLE RULE, a duplicate of A WRITE RULE, a new requirement next to ANOTHER SAMPLE RULE, and an undecided conflict with A SAMPLE RULE —, in the order new, conflict, duplicate, change
 // input: entrySections(SPEC, draft, classes, "Job Source")
-// expect: two sections in the order of the SPEC: section 1 with the change and the new requirement after ANOTHER SAMPLE RULE, section 2
-//         with the duplicate's source; the conflict nowhere; the prose of section 1 and the heading lines as they were
+// expect: two sections in the order of the SPEC: section 1 with the change and the new requirement after ANOTHER SAMPLE RULE, section 2 with the duplicate's source; the conflict nowhere; the prose of section 1 and the heading lines as they were
 test("entrySections — one candidate of each class are composed into their sections, in the order of the SPEC", () => {
   const nu = candidate("A NEARBY RULE", { rule: "A thing happens.", check: "`tests/new.test.mjs`", of: "ANOTHER SAMPLE RULE" });
   const conflict = candidate("CONTRADICTS IT", { class: "conflict", of: "A SAMPLE RULE" });
@@ -145,11 +142,11 @@ test("entrySections — one candidate of each class are composed into their sect
   assert.ok(result[0].text.includes("Some prose about reading.\n\n"), "the prose stays");
 });
 
+// TST-473037 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; UC-019
 // given: a SPEC written with CR LF line ends, and the candidates of the test above that change a requirement, add a source and add a requirement
 // input: entrySections(spec, draft, classes, "Job Source")
-// expect: every line the module writes ends in CR LF as its neighbours do, and every byte it did not touch is as it was: the section with
-//         its CR LFs turned to LF is the section of the LF fixture
+// expect: every line the module writes ends in CR LF as its neighbours do, and every byte it did not touch is as it was: the section with its CR LFs turned to LF is the section of the LF fixture
 test("entrySections — the line ends of the section are kept", () => {
   const crlf = SPEC.replace(/\n/g, "\r\n");
   const change = candidate("A CHANGED RULE", { rule: "A reader reads a file whole, or says why not.", check: "`tests/changed.test.mjs`", class: "change", of: "A SAMPLE RULE" });
@@ -163,6 +160,7 @@ test("entrySections — the line ends of the section are kept", () => {
   assert.equal(result[0].text.replace(/\r\n/g, "\n"), plain[0].text);
 });
 
+// TST-473038 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; THE PERSON WHO PROMPTS IS A SOURCE
 // given: a change of ANOTHER SAMPLE RULE, which names a source of another register entry besides the product owner's
 // input: entrySections(SPEC, draft, classes, "Job Source")
@@ -173,6 +171,7 @@ test("entrySections — a change names the source of the rule it points to as we
   assert.ok(section.text.includes("**ANOTHER SAMPLE RULE** *(Fixture PO; Other Source, Art. 2; Job Source, ch. 8)*\nA reader sees the names of files."));
 });
 
+// TST-473039 · level: unit · module: MOD-spec-changes
 // guards: A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; A CHANGE IS PROPOSED UNDER THE EXISTING NAME
 // given: a duplicate of a requirement the SPEC does not hold, and a change of one; and a new requirement in a SPEC with no section
 // input: entrySections(...)
@@ -185,6 +184,7 @@ test("entrySections — a requirement the SPEC lacks is RequirementNotFound, a S
   assert.throws(() => compose([candidate("Z")], undefined, JOB, HEAD), RangeError);
 });
 
+// TST-473040 · level: unit · module: MOD-spec-changes
 // guards: THE PERSON WHO PROMPTS IS A SOURCE
 // given: the source of the job as an empty string, and as a number; and a source that is text
 // input: entrySections(SPEC, draft, classes, source)
@@ -198,6 +198,7 @@ test("entrySections — the job's source is text", () => {
   assert.throws(() => compose([item], undefined, "  "), TypeError, "white space only");
 });
 
+// TST-473041 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005
 // given: a new candidate and a change whose rule and check run over several lines, with runs of white space
 // input: entrySections(SPEC, draft, classes, "Job Source")
@@ -211,6 +212,7 @@ test("entrySections — a rule and a check are written on one line each", () => 
   assert.ok(section.text.includes("**A NEW RULE** *(Job Source, ch. 8)*\nA thing happens twice.\n*Check:* `tests/new.test.mjs` and more"));
 });
 
+// TST-473042 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT
 // given: a SPEC whose last requirement is the last line, with no line end after it, and a change of it, and a duplicate of it
 // input: entrySections(spec, draft, classes, "Job Source")

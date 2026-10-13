@@ -30,12 +30,11 @@ function once(identifiers) {
 
 // ---------------------------------------------------------------- a numbered kind
 
+// TST-472244 · level: unit · module: MOD-identifiers
 // guards: THE NAME IS THE ID AND IT SURVIVES; UC-007; UC-019
-// given: the use-case identifiers the history knows — UC-001, UC-022 and UC-031, the last of them withdrawn, so that only the history
-//        holds it — given in that order, in another order, as a Set and as a generator that can be read once
+// given: the use-case identifiers the history knows — UC-001, UC-022 and UC-031, the last of them withdrawn, so that only the history holds it — given in that order, in another order, as a Set and as a generator that can be read once
 // input: nextIdentifier("UC", everUsed) for each of the four forms
-// expect: UC-032 for each — one more than the highest number ever used, neither the number of identifiers used plus one (UC-004) nor
-//         the lowest number free (UC-002), and not UC-031, which would give the withdrawn identifier again
+// expect: UC-032 for each — one more than the highest number ever used, neither the number of identifiers used plus one (UC-004) nor the lowest number free (UC-002), and not UC-031, which would give the withdrawn identifier again
 test("nextIdentifier — a use case after UC-001, UC-022 and a withdrawn UC-031 is UC-032, whatever form the history is given in", () => {
   const history = ["UC-001", "UC-022", "UC-031"];
   assert.equal(nextIdentifier("UC", history), "UC-032");
@@ -44,11 +43,11 @@ test("nextIdentifier — a use case after UC-001, UC-022 and a withdrawn UC-031 
   assert.equal(nextIdentifier("UC", once(history)), "UC-032");
 });
 
+// TST-472245 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
 // given: histories whose highest number sits where the digits change — UC-999 and UC-1000; UC-008; UC-009; UC-099
 // input: nextIdentifier("UC", everUsed) for each
-// expect: UC-1001, the numbers compared as numbers and not as text (as text, UC-999 is above UC-1000); UC-009; UC-010; UC-100 —
-//         the number written with three digits at least
+// expect: UC-1001, the numbers compared as numbers and not as text (as text, UC-999 is above UC-1000); UC-009; UC-010; UC-100 — the number written with three digits at least
 test("nextIdentifier — the numbers are compared as numbers and written with three digits at least", () => {
   assert.equal(nextIdentifier("UC", ["UC-999", "UC-1000"]), "UC-1001");
   assert.equal(nextIdentifier("UC", ["UC-008"]), "UC-009");
@@ -56,9 +55,9 @@ test("nextIdentifier — the numbers are compared as numbers and written with th
   assert.equal(nextIdentifier("UC", ["UC-099"]), "UC-100");
 });
 
+// TST-472246 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: one history that holds a different highest number for each numbered kind — UC-005, ARC-020, TST-300 and ITM-451 — and,
-//        among them, identifiers of kinds that are not numbered: MOD-identifiers, SRC-eu-ai-act and a requirement's name
+// given: one history that holds a different highest number for each numbered kind — UC-005, ARC-020, TST-300 and ITM-451 — and, among them, identifiers of kinds that are not numbered: MOD-identifiers, SRC-eu-ai-act and a requirement's name
 // input: nextIdentifier(kind, history) for UC, ARC, TST and ITM
 // expect: UC-006, ARC-021, TST-301 and ITM-452 — each kind counts its own numbers, no other kind's number is one of them
 test("nextIdentifier — each numbered kind counts its own numbers", () => {
@@ -69,6 +68,7 @@ test("nextIdentifier — each numbered kind counts its own numbers", () => {
   assert.equal(nextIdentifier("ITM", history), "ITM-452");
 });
 
+// TST-472247 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-007
 // given: no identifier of the kind ever used — an empty history, an empty Set, and a history that holds only other kinds
 // input: nextIdentifier(kind, everUsed) for UC, ARC, TST and ITM on the empty history, and for UC on each of the other two
@@ -79,12 +79,11 @@ test("nextIdentifier — the first identifier of a numbered kind is 001", () => 
   assert.equal(nextIdentifier("UC", ["ITM-451", "MOD-identifiers"]), "UC-001");
 });
 
+// TST-472248 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: ARC, TST and ITM, which the scheme gives exactly three digits, with ARC-998, TST-998 and ITM-998 as the highest number; then
-//        with 999 as the highest; and UC, which takes three digits or more, with UC-999 as the highest
+// given: ARC, TST and ITM, which the scheme gives exactly three digits, with ARC-998, TST-998 and ITM-998 as the highest number; then with 999 as the highest; and UC, which takes three digits or more, with UC-999 as the highest
 // input: nextIdentifier(kind, [<kind>-001, <kind>-<highest>]) for each
-// expect: <kind>-999 after 998 — still an identifier of the scheme —; after 999 a RangeError for each of ARC, TST and ITM, since
-//         ARC-1000 is no identifier of the scheme (kindOfIdentifier gives null); UC-1000, which is one, for UC
+// expect: <kind>-999 after 998 — still an identifier of the scheme —; after 999 a RangeError for each of ARC, TST and ITM, since ARC-1000 is no identifier of the scheme (kindOfIdentifier gives null); UC-1000, which is one, for UC
 test("nextIdentifier — after 999 a three-digit kind has no next identifier, a use case has UC-1000", () => {
   for (const kind of ["ARC", "TST", "ITM"]) {
     // Known positive: 999 itself is still given.
@@ -98,13 +97,11 @@ test("nextIdentifier — after 999 a three-digit kind has no next identifier, a 
 
 // ---------------------------------------------------------------- a slug kind
 
+// TST-472249 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: the slug kinds SRC, MOD and RES with the slugs eu-ai-act, text-tools and alex-cluster, none used; and SRC with the slug
-//        iec-62304, which holds digits, among SRC-vibe-coding, MOD-iec-62304 and UC-022, used before — of the same kind with another
-//        slug, of another kind with this slug, and of another kind
+// given: the slug kinds SRC, MOD and RES with the slugs eu-ai-act, text-tools and alex-cluster, none used; and SRC with the slug iec-62304, which holds digits, among SRC-vibe-coding, MOD-iec-62304 and UC-022, used before — of the same kind with another slug, of another kind with this slug, and of another kind
 // input: nextIdentifier(kind, everUsed, slug) for each
-// expect: <kind>-<slug> for each — SRC-eu-ai-act, MOD-text-tools, RES-alex-cluster, SRC-iec-62304 —, an identifier of its kind by
-//         the scheme (kindOfIdentifier gives the kind); the identifiers used before are no hindrance
+// expect: <kind>-<slug> for each — SRC-eu-ai-act, MOD-text-tools, RES-alex-cluster, SRC-iec-62304 —, an identifier of its kind by the scheme (kindOfIdentifier gives the kind); the identifiers used before are no hindrance
 test("nextIdentifier — a slug kind gets <kind>-<slug>", () => {
   for (const [kind, slug] of [["SRC", "eu-ai-act"], ["MOD", "text-tools"], ["RES", "alex-cluster"]]) {
     const id = nextIdentifier(kind, [], slug);
@@ -116,14 +113,11 @@ test("nextIdentifier — a slug kind gets <kind>-<slug>", () => {
 
 // ---------------------------------------------------------------- an identifier ever used
 
+// TST-472250 · level: unit · module: MOD-identifiers
 // guards: THE NAME IS THE ID AND IT SURVIVES
-// given: SRC-eu-ai-act and SRC-vibe-coding, identifiers the history knows — the first of them withdrawn, so that only the history
-//        holds it — given as an array, as a Set and as a generator; and, to show the same call giving an identifier, the slug
-//        iec-62304, which was never used
-// input: nextIdentifier("SRC", used, "iec-62304"); then nextIdentifier("SRC", used, "eu-ai-act") for each of the three forms; then
-//        nextIdentifier("MOD", used, "eu-ai-act")
-// expect: SRC-iec-62304; for eu-ai-act an error named IdentifierTaken whose message names SRC-eu-ai-act, for each form; for MOD
-//         with the slug eu-ai-act MOD-eu-ai-act — the same slug of another kind is another identifier
+// given: SRC-eu-ai-act and SRC-vibe-coding, identifiers the history knows — the first of them withdrawn, so that only the history holds it — given as an array, as a Set and as a generator; and, to show the same call giving an identifier, the slug iec-62304, which was never used
+// input: nextIdentifier("SRC", used, "iec-62304"); then nextIdentifier("SRC", used, "eu-ai-act") for each of the three forms; then nextIdentifier("MOD", used, "eu-ai-act")
+// expect: SRC-iec-62304; for eu-ai-act an error named IdentifierTaken whose message names SRC-eu-ai-act, for each form; for MOD with the slug eu-ai-act MOD-eu-ai-act — the same slug of another kind is another identifier
 test("nextIdentifier — a slug ever used throws IdentifierTaken, naming the identifier", () => {
   const used = ["SRC-eu-ai-act", "SRC-vibe-coding"];
   // Known positive: a slug that was never used is given.
@@ -137,13 +131,11 @@ test("nextIdentifier — a slug ever used throws IdentifierTaken, naming the ide
 
 // ---------------------------------------------------------------- a history that is not given
 
+// TST-472251 · level: unit · module: MOD-identifiers
 // guards: THE NAME IS THE ID AND IT SURVIVES
-// given: an empty history, to show the same calls giving identifiers; then no history at all — the argument left out, undefined and
-//        null — for a numbered kind and for a slug kind
-// input: nextIdentifier("UC", []) and nextIdentifier("SRC", [], "eu-ai-act"); then nextIdentifier("UC"), and each of the two kinds
-//        with undefined and with null for the history
-// expect: UC-001 and SRC-eu-ai-act for the empty history; a TypeError for each of the others — a history that is not given is not an
-//         empty one, since an identifier withdrawn long ago would then be given again
+// given: an empty history, to show the same calls giving identifiers; then no history at all — the argument left out, undefined and null — for a numbered kind and for a slug kind
+// input: nextIdentifier("UC", []) and nextIdentifier("SRC", [], "eu-ai-act"); then nextIdentifier("UC"), and each of the two kinds with undefined and with null for the history
+// expect: UC-001 and SRC-eu-ai-act for the empty history; a TypeError for each of the others — a history that is not given is not an empty one, since an identifier withdrawn long ago would then be given again
 test("nextIdentifier — a history that is not given is no empty history", () => {
   // Known positive: an empty history is a history that holds nothing.
   assert.equal(nextIdentifier("UC", []), "UC-001");
@@ -157,10 +149,9 @@ test("nextIdentifier — a history that is not given is no empty history", () =>
 
 // ---------------------------------------------------------------- no slug, or a slug that breaks the scheme
 
+// TST-472252 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: RES with the slug alex-cluster, to show the same call giving an identifier; then each slug kind — SRC, MOD, RES — with no
-//        slug and with null; and SRC with the empty slug, a slug that is a number, and slugs that break the scheme — capital letters,
-//        a blank inside, a blank at the end, a double hyphen, a hyphen at the start, a hyphen at the end, an underscore, a slash
+// given: RES with the slug alex-cluster, to show the same call giving an identifier; then each slug kind — SRC, MOD, RES — with no slug and with null; and SRC with the empty slug, a slug that is a number, and slugs that break the scheme — capital letters, a blank inside, a blank at the end, a double hyphen, a hyphen at the start, a hyphen at the end, an underscore, a slash
 // input: nextIdentifier(kind, [], slug) for each
 // expect: RES-alex-cluster; a TypeError for each of the others
 test("nextIdentifier — a slug kind without a slug, or with a slug that breaks the scheme, throws TypeError", () => {
@@ -177,10 +168,9 @@ test("nextIdentifier — a slug kind without a slug, or with a slug that breaks 
 
 // ---------------------------------------------------------------- a kind that gets no identifier from it
 
+// TST-472253 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: UC, to show the same call giving an identifier; then JOB and "requirement", kinds of the scheme that the signature does not
-//        list; and a name that is no kind at all — FOO, the lowercase uc, the empty string, undefined and a number; and JOB with the
-//        slug 20261005-0900-a1b2, which makes JOB-20261005-0900-a1b2, an identifier of the scheme, though not one this gives
+// given: UC, to show the same call giving an identifier; then JOB and "requirement", kinds of the scheme that the signature does not list; and a name that is no kind at all — FOO, the lowercase uc, the empty string, undefined and a number; and JOB with the slug 20261005-0900-a1b2, which makes JOB-20261005-0900-a1b2, an identifier of the scheme, though not one this gives
 // input: nextIdentifier(kind, []) and nextIdentifier(kind, [], "x") for each of the others; and nextIdentifier("JOB", [], the slug)
 // expect: UC-001; a TypeError for each of the others, with a slug and without, and for the JOB whose identifier the scheme accepts
 test("nextIdentifier — a kind outside the seven it lists throws TypeError", () => {

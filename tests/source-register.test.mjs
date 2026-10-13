@@ -186,15 +186,11 @@ const realDisk = (reads) => ({
   readFileSync: (url, encoding) => { reads.push(`disk ${url}`); return readFileSync(url, encoding); },
 });
 
+// TST-472935 · level: unit · module: MOD-source-register
 // guards: UC-002
-// given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser,
-//        without a disk, whose fetch answers the module's own address with the text of the real source.schema.md; (c) as in
-//        a browser whose fetch answers 404 Not Found
+// given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser, without a disk, whose fetch answers the module's own address with the text of the real source.schema.md; (c) as in a browser whose fetch answers 404 Not Found
 // input: (a), (b): sourceSchemas().entry, and readDocument with it of the entry IEC
-// expect: (a) two reads from the disk, of src/source-register/source.schema.md, then links.schema.md; (b) both with
-//         fetch; each gives a schema deep-equal to the one of the module as this file loaded it, and reads IEC as the
-//         entry SRC-iec-62304 of the format `source`. (c) one read, of the same address; the module does not load — a schema
-//         that cannot be read stops its module (MOD-documents, loadSchema) — and the error names source.schema.md and 404
+// expect: (a) two reads from the disk, of src/source-register/source.schema.md, then links.schema.md; (b) both with fetch; each gives a schema deep-equal to the one of the module as this file loaded it, and reads IEC as the entry SRC-iec-62304 of the format `source`. (c) one read, of the same address; the module does not load — a schema that cannot be read stops its module (MOD-documents, loadSchema) — and the error names source.schema.md and 404
 test("sourceSchemas — the entry's schema is read from the module's own source.schema.md: from the disk in Node, from its own address in a browser", async () => {
   const text = readFileSync(SCHEMA_FILE, "utf8");
   const onDisk = await load({ disk: realDisk });
@@ -216,28 +212,20 @@ test("sourceSchemas — the entry's schema is read from the module's own source.
 
 // ---------------------------------------------------------------- sourceSchemas: a register entry read with its schema
 
+// TST-472936 · level: unit · module: MOD-source-register
 // guards: UC-002; A SOURCE DECLARES ITS LICENCE
-// given: IEC — a register entry with every front matter key of the module file's Data but `identifier`; `places` a list of
-//        two, one of them holding a comma; ## Versions with two rows, one cell left out as —, and the files of each version
-//        under a lower heading inside the section; ## Parts
+// given: IEC — a register entry with every front matter key of the module file's Data but `identifier`; `places` a list of two, one of them holding a comma; ## Versions with two rows, one cell left out as —, and the files of each version under a lower heading inside the section; ## Parts
 // input: readDocument(sourceSchemas().entry, "docs/sources/SRC-iec-62304.md", IEC)
-// expect: exactly IEC_DOCUMENT — the format `source`; the identifier SRC-iec-62304; the title, the text of the first heading;
-//         every front matter value by its key, the licence as written, `places` a list of its two items; the sections
-//         ## Versions (line 17) and ## Parts (line 37), each with its text, the two ### headings inside ## Versions; the rows
-//         of ## Versions' first table by the columns Version, Date, Edition, Read from, Files, each with its line, the cell
-//         left out absent; no rows for ## Parts, whose text is kept as it stands; the body every byte after the front matter
+// expect: exactly IEC_DOCUMENT — the format `source`; the identifier SRC-iec-62304; the title, the text of the first heading; every front matter value by its key, the licence as written, `places` a list of its two items; the sections ## Versions (line 17) and ## Parts (line 37), each with its text, the two ### headings inside ## Versions; the rows of ## Versions' first table by the columns Version, Date, Edition, Read from, Files, each with its line, the cell left out absent; no rows for ## Parts, whose text is kept as it stands; the body every byte after the front matter
 test("sourceSchemas — a register entry read through MOD-documents with the entry's schema: its front matter, ## Versions, ## Parts", () => {
   assert.deepEqual(readDocument(entrySchema(), IEC_PATH, IEC), IEC_DOCUMENT);
 });
 
-// guards: A SOURCE DECLARES ITS LICENCE; THE SOURCE KIND IS ONE OF A CLOSED SET; A SOURCE DECLARES ITS AUTHORITY;
-//         A STANDARD IS REGISTERED BY ITS DESIGNATION; A SOURCE VERSION IS NEVER OVERWRITTEN
-// given: known positive first — IEC as read; then IEC as read with one change each: its licence left out; its kind
-//        `repository`, which is not among the seven; its authority `binding`, which is not among the three; its designation
-//        left out, while its kind is `standard`; its first version removed from ## Versions
+// TST-472937 · level: unit · module: MOD-source-register
+// guards: A SOURCE DECLARES ITS LICENCE; THE SOURCE KIND IS ONE OF A CLOSED SET; A SOURCE DECLARES ITS AUTHORITY; A STANDARD IS REGISTERED BY ITS DESIGNATION; A SOURCE VERSION IS NEVER OVERWRITTEN
+// given: known positive first — IEC as read; then IEC as read with one change each: its licence left out; its kind `repository`, which is not among the seven; its authority `binding`, which is not among the three; its designation left out, while its kind is `standard`; its first version removed from ## Versions
 // input: writeDocument(sourceSchemas().entry, the entry)
-// expect: IEC written back byte for byte. Each change refused: DocumentError naming the field licence, kind, authority and
-//         designation; NotAppendable naming row 1 of ## Versions, line 21 — a version is never removed or changed
+// expect: IEC written back byte for byte. Each change refused: DocumentError naming the field licence, kind, authority and designation; NotAppendable naming row 1 of ## Versions, line 21 — a version is never removed or changed
 test("sourceSchemas — the entry's schema holds the module file's rules: a licence, the closed kinds, three authorities, a standard's designation, versions that only grow", () => {
   const read = () => readDocument(entrySchema(), IEC_PATH, IEC);
   assert.equal(writeDocument(entrySchema(), read()), IEC, "known positive: IEC as read is written back byte for byte");
@@ -260,17 +248,11 @@ test("sourceSchemas — the entry's schema holds the module file's rules: a lice
 
 // ---------------------------------------------------------------- permittedPlaces
 
+// TST-472938 · level: unit · module: MOD-source-register
 // guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A SOURCE DECLARES ITS LICENCE; UC-002
-// given: four entries, each read with the entry's schema —
-//        OPEN_HANDBOOK, licence `may be republished — CC BY 4.0`, which also names the place `this machine`;
-//        IEC, licence `restricted — …, under which only the abstract may be republished`, places `this machine` and
-//        `NHR@FAU, Erlangen`;
-//        CONTRACT, licence `restricted — confidential under the contract`, no places;
-//        OLD_MANUAL, licence `unknown`, place `this machine`
+// given: four entries, each read with the entry's schema — OPEN_HANDBOOK, licence `may be republished — CC BY 4.0`, which also names the place `this machine`; IEC, licence `restricted — …, under which only the abstract may be republished`, places `this machine` and `NHR@FAU, Erlangen`; CONTRACT, licence `restricted — confidential under the contract`, no places; OLD_MANUAL, licence `unknown`, place `this machine`
 // input: permittedPlaces(entry) of each
-// expect: OPEN_HANDBOOK "any" — its place does not narrow content that may be republished; IEC its two places, in their
-//         order — its licence's class is its first word, `restricted`, whatever its terms say later; CONTRACT [], none;
-//         OLD_MANUAL ["this machine"] — `unknown` counts as restricted, so it gets its declared places, not any
+// expect: OPEN_HANDBOOK "any" — its place does not narrow content that may be republished; IEC its two places, in their order — its licence's class is its first word, `restricted`, whatever its terms say later; CONTRACT [], none; OLD_MANUAL ["this machine"] — `unknown` counts as restricted, so it gets its declared places, not any
 test("permittedPlaces — four entries: may be republished, any; restricted with places, those; restricted with none, none; unknown, as restricted", () => {
   const read = (id, text) => readDocument(entrySchema(), `docs/sources/${id}.md`, text);
   assert.equal(permittedPlaces(read("SRC-open-handbook", OPEN_HANDBOOK)), "any");
@@ -279,12 +261,11 @@ test("permittedPlaces — four entries: may be republished, any; restricted with
   assert.deepEqual(permittedPlaces(read("SRC-old-manual", OLD_MANUAL)), ["this machine"]);
 });
 
+// TST-472939 · level: unit · module: MOD-source-register
 // guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A SOURCE DECLARES ITS LICENCE; UC-002
 // given: this instance's register entry docs/sources/SRC-vibe-coding.md as it stands, whose licence permits republishing
 // input: readDocument(sourceSchemas().entry, "docs/sources/SRC-vibe-coding.md", its text); permittedPlaces of it
-// expect: the entry SRC-vibe-coding, of kind `document`, licence `may be republished — CC BY 4.0`; its sections ## Versions
-//         and ## Parts, the ### heading of its files inside the first; its first version — which is never changed — read
-//         by the columns Version, Date, Edition, Read from, Files as the entry writes them; and permittedPlaces "any"
+// expect: the entry SRC-vibe-coding, of kind `document`, licence `may be republished — CC BY 4.0`; its sections ## Versions and ## Parts, the ### heading of its files inside the first; its first version — which is never changed — read by the columns Version, Date, Edition, Read from, Files as the entry writes them; and permittedPlaces "any"
 test("permittedPlaces — this instance's entry SRC-vibe-coding, whose licence permits republishing, permits any place", () => {
   const entry = readDocument(entrySchema(), "docs/sources/SRC-vibe-coding.md", readFileSync(VIBE_CODING, "utf8"));
   assert.deepEqual([entry.id, entry.fields.kind, entry.fields.licence],

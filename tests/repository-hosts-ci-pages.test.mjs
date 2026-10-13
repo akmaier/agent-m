@@ -45,6 +45,7 @@ function assertNoCredential(link, origin) {
   assert.ok(!/token|secret=|key=/i.test(page.search), "no token");
 }
 
+// TST-472524 · level: unit · module: MOD-repository-hosts
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the GitHub repository alice/agent-m, connected with a token and one secret value
 // input: webLinks().secrets
@@ -56,6 +57,7 @@ test("MOD-repository-hosts webLinks — the repository's page for CI secrets (Gi
   assert.ok(!link.includes("SECRET"), "neither the token nor a secret in the address");
 });
 
+// TST-472525 · level: unit · module: MOD-repository-hosts
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the GitLab project grp/sub/thesis-tool on gitlab.example.org, connected with a project token
 // input: webLinks().secrets
@@ -67,6 +69,7 @@ test("MOD-repository-hosts webLinks — the project's page for CI variables (Git
   assert.ok(!link.includes("SECRET"), "no token in the address");
 });
 
+// TST-472526 · level: unit · module: MOD-repository-hosts
 // guards: UC-010; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the GitHub repository alice/agent-m
 // input: webLinks().actions
@@ -77,6 +80,7 @@ test("MOD-repository-hosts webLinks — the page of workflow runs (GitHub)", () 
   assertNoCredential(link, "https://github.com");
 });
 
+// TST-472527 · level: unit · module: MOD-repository-hosts
 // guards: UC-010; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the GitLab project grp/sub/thesis-tool on gitlab.example.org
 // input: webLinks().actions
@@ -87,11 +91,11 @@ test("MOD-repository-hosts webLinks — the page of pipelines (GitLab)", () => {
   assertNoCredential(link, "https://gitlab.example.org");
 });
 
+// TST-472528 · level: unit · module: MOD-repository-hosts
 // guards: UC-010; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the GitHub repository alice/agent-m; the run 38165871626, and an id that is no run's number but tries to leave its place
 // input: webLinks().run("38165871626"); webLinks().run("7?token=abc#x/../..")
-// expect: https://github.com/alice/agent-m/actions/runs/38165871626; for the second, one path segment under .../actions/runs/ — no query,
-//         no fragment — so that what is given as an id never becomes part of the address's structure; no request
+// expect: https://github.com/alice/agent-m/actions/runs/38165871626; for the second, one path segment under .../actions/runs/ — no query, no fragment — so that what is given as an id never becomes part of the address's structure; no request
 test("MOD-repository-hosts webLinks — one run's page (GitHub)", () => {
   const [link, odd] = withoutRequests(() => { const links = linksOf(GITHUB); return [links.run("38165871626"), links.run("7?token=abc#x/../..")]; });
   assert.equal(link, "https://github.com/alice/agent-m/actions/runs/38165871626");
@@ -100,11 +104,11 @@ test("MOD-repository-hosts webLinks — one run's page (GitHub)", () => {
   assert.ok(new URL(odd).pathname.startsWith("/alice/agent-m/actions/runs/") && new URL(odd).pathname.split("/").length === 6, "one segment");
 });
 
+// TST-472529 · level: unit · module: MOD-repository-hosts
 // guards: UC-010; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the GitLab project grp/sub/thesis-tool on gitlab.example.org; the pipeline 4711, and an id that tries to leave its place
 // input: webLinks().run("4711"); webLinks().run("7?token=abc#x/../..")
-// expect: https://gitlab.example.org/grp/sub/thesis-tool/-/pipelines/4711; for the second, one path segment under .../-/pipelines/ — no
-//         query, no fragment; no request
+// expect: https://gitlab.example.org/grp/sub/thesis-tool/-/pipelines/4711; for the second, one path segment under .../-/pipelines/ — no query, no fragment; no request
 test("MOD-repository-hosts webLinks — one pipeline's page (GitLab)", () => {
   const [link, odd] = withoutRequests(() => { const links = linksOf(GITLAB); return [links.run("4711"), links.run("7?token=abc#x/../..")]; });
   assert.equal(link, "https://gitlab.example.org/grp/sub/thesis-tool/-/pipelines/4711");

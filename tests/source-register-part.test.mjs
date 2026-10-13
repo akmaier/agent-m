@@ -70,11 +70,11 @@ function contextOf({ instance = INSTANCE, content = CONTENT } = {}) {
 const excerpt = (context, params) => sourceStrategies.recipes["source-excerpt"](context, params);
 const contentReads = (context) => context.reads.filter((each) => /\/(?:01|02|03)_|a\.txt|b\.txt|c\.txt|only\.md/.test(each));
 
+// TST-472914 · level: unit · module: MOD-source-register
 // guards: A LINK NAMES THE PART THAT APPLIES; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: a version of three files; the product's link to it names the part `chapter group`
 // input: source-excerpt with { source: "SRC-handbook" } and no `part`
-// expect: one part naming SRC-handbook, whose text is the three files in the version's order with a blank line between them; its name names the version and the link's part,
-//         and no file
+// expect: one part naming SRC-handbook, whose text is the three files in the version's order with a blank line between them; its name names the version and the link's part, and no file
 test("source-excerpt — without a part, every file of the version, in its order, a blank line between them", async () => {
   const [part, ...rest] = await excerpt(contextOf(), { source: "SRC-handbook" });
   assert.equal(rest.length, 0);
@@ -84,11 +84,11 @@ test("source-excerpt — without a part, every file of the version, in its order
   assert.ok(!THREE.some(([name]) => part.name.includes(name)), "a whole version names no file");
 });
 
+// TST-472915 · level: unit · module: MOD-source-register
 // guards: A LINK NAMES THE PART THAT APPLIES; UC-005 2a
 // given: the same version; a part naming two of its files, given in another order than the version's
 // input: source-excerpt with { source: "SRC-handbook", part: ["03_third.md", "01_first.md"] }
-// expect: one part whose text is those two files in the version's order — first, then third —, a blank line between them, and not the second; its name names the version, the
-//         two files and the link's part
+// expect: one part whose text is those two files in the version's order — first, then third —, a blank line between them, and not the second; its name names the version, the two files and the link's part
 test("source-excerpt — a part of two named files sends those two, in the version's order", async () => {
   const [part] = await excerpt(contextOf(), { source: "SRC-handbook", part: ["03_third.md", "01_first.md"] });
   assert.equal(part.text, `${THREE[0][1]}\n\n${THREE[2][1]}`);
@@ -99,11 +99,11 @@ test("source-excerpt — a part of two named files sends those two, in the versi
   assert.equal(single.text, THREE[1][1], "one file, given as a text");
 });
 
+// TST-472916 · level: unit · module: MOD-source-register
 // guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: the same version; a part naming one of its files and two it does not hold; known positive first — a part naming files it holds
 // input: source-excerpt with each
-// expect: the known positive gives its part; the other is refused as NotInVersion naming exactly the two files the version lacks, in the order the part gives them; no file of the
-//         version was read, since the refusal comes before any content is read; a file named twice that the version lacks is named once
+// expect: the known positive gives its part; the other is refused as NotInVersion naming exactly the two files the version lacks, in the order the part gives them; no file of the version was read, since the refusal comes before any content is read; a file named twice that the version lacks is named once
 test("source-excerpt — a part that names a file the version does not hold is refused as NotInVersion, before anything is read", async () => {
   assert.equal((await excerpt(contextOf(), { source: "SRC-handbook", part: ["01_first.md"] })).length, 1, "known positive");
   const context = contextOf();
@@ -114,11 +114,11 @@ test("source-excerpt — a part that names a file the version does not hold is r
     (error) => error.name === "NotInVersion" && JSON.stringify(error.files) === JSON.stringify(["09_ninth.md"]), "a file is named once");
 });
 
+// TST-472917 · level: unit · module: MOD-source-register
 // guards: UC-005 2a; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: a version of one file
 // input: source-excerpt with no part; with a part naming its file; with a part naming a file it does not hold
-// expect: the file, whole, for the first two — a version of one file has no smaller part, and naming its one file sends it whole —; for the third NotInVersion naming
-//         the file it lacks, as for any version, and nothing read
+// expect: the file, whole, for the first two — a version of one file has no smaller part, and naming its one file sends it whole —; for the third NotInVersion naming the file it lacks, as for any version, and nothing read
 test("source-excerpt — a version of one file is sent whole, and a part naming a file it lacks is refused", async () => {
   for (const part of [undefined, ["only.md"]]) {
     const [sent] = await excerpt(contextOf(), { source: "SRC-note", ...(part ? { part } : {}) });
@@ -131,11 +131,11 @@ test("source-excerpt — a version of one file is sent whole, and a part naming 
   assert.deepEqual(contentReads(context), [], "no content read");
 });
 
+// TST-472918 · level: unit · module: MOD-source-register
 // guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: a restricted version of three files in a content repository; a part naming two; the third file there changed by one character
 // input: source-excerpt with { source: "SRC-secret", part: ["a.txt", "c.txt"] }; known positive first — the whole version of the unchanged content
-// expect: the two files' text, read from the content repository; the file outside the part never asked for — so its change is no HashMismatch of this part —; and the part's
-//         source is SRC-secret, so that the runner gives it only to the places the source permits
+// expect: the two files' text, read from the content repository; the file outside the part never asked for — so its change is no HashMismatch of this part —; and the part's source is SRC-secret, so that the runner gives it only to the places the source permits
 test("source-excerpt — a restricted source's part reads only its named files from the content repository", async () => {
   assert.equal((await excerpt(contextOf(), { source: "SRC-secret" }))[0].text, SECRET.map(([, text]) => text).join("\n\n"), "known positive");
   const changed = { ...CONTENT, "docs/sources/SRC-secret/v1/b.txt": "Secret B, changed.\n" };
@@ -146,6 +146,7 @@ test("source-excerpt — a restricted source's part reads only its named files f
   assert.ok(!context.reads.some((each) => each.endsWith("b.txt")), "b.txt is not read");
 });
 
+// TST-472919 · level: unit · module: MOD-source-register
 // guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-005 2a
 // given: the three-file version; a part that names no file — an empty list
 // input: source-excerpt with { source: "SRC-handbook", part: [] }
@@ -155,6 +156,7 @@ test("source-excerpt — a part that names no file is the whole version", async 
   assert.equal(part.text, THREE.map(([, text]) => text).join("\n\n"));
 });
 
+// TST-472920 · level: unit · module: MOD-source-register
 // guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: the three-file version whose second file the person only hashed (the entry's note `not stored: 02_second.md`, ITM-455), so that the instance holds the other two
 // input: source-excerpt with a part naming the first file; with a part naming the second

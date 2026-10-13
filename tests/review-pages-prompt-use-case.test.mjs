@@ -187,6 +187,7 @@ const userCaseCommits = (fake) => fake.writes().filter((change) => change.files.
 
 // ---------------------------------------------------------------- the page offers it
 
+// TST-472637 · level: unit · module: MOD-review-pages
 // guards: UC-019 (step 1); EVERY STEP EXPLAINS ITSELF
 // given: the page of UC-007, open
 // input: the route with the id UC-007
@@ -202,6 +203,7 @@ test("use-case/<id> — the page offers Change by prompt", async () => {
 
 // ---------------------------------------------------------------- the participants
 
+// TST-472638 · level: unit · module: MOD-review-pages
 // guards: UC-019 (steps 2, 3); A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a register with a model endpoint and a CI agent that declare draft text and a person that does not
 // input: the prompt page of UC-007
@@ -219,6 +221,7 @@ test("use-case/<id>/prompt — the instruction and the participants that can dra
   assert.equal(requests.length, 0);
 });
 
+// TST-472639 · level: unit · module: MOD-review-pages
 // guards: UC-019 (3a)
 // given: a register in which no participant declares draft text
 // input: the prompt page
@@ -234,11 +237,11 @@ test("use-case/<id>/prompt — with no participant able to draft, the reason and
 
 // ---------------------------------------------------------------- the run panel
 
+// TST-472640 · level: unit · module: MOD-review-pages
 // guards: UC-019 (steps 4, 5, 4a, 5a); THE PAGE STATES WHAT IT SENDS WHERE; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
 // given: the prompt page of UC-007; a participant whose context holds 100 tokens and one that holds 200000
 // input: the run panel for each
-// expect: for the large one the panel of change-use-case — the destination, where it processes data, the parts: the instruction, UC-007 with the requirement it realises, and UC-008 —
-//         and the only Run; for the small one the panel says it does not fit and offers no Run; nothing written, nothing sent in either case
+// expect: for the large one the panel of change-use-case — the destination, where it processes data, the parts: the instruction, UC-007 with the requirement it realises, and UC-008 — and the only Run; for the small one the panel says it does not fit and offers no Run; nothing written, nothing sent in either case
 test("use-case/<id>/prompt — the run panel states what is sent where, and a context that does not fit sends nothing", async () => {
   endpointAnswers(draftOf(draft7()));
   const fake = fakeProduct();
@@ -262,6 +265,7 @@ test("use-case/<id>/prompt — the run panel states what is sent where, and a co
 
 // ---------------------------------------------------------------- the draft
 
+// TST-472641 · level: unit · module: MOD-review-pages
 // guards: UC-019 (steps 6, 7, 8); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
 // given: an endpoint that answers a changed UC-007 with an added alternative flow
 // input: the instruction "add error handling to UC-007", Run
@@ -281,6 +285,7 @@ test("use-case/<id>/prompt — the draft opens in the editor as its difference a
   assert.equal(userCaseCommits(fake).length, 0, "nothing written to the use cases");
 });
 
+// TST-472642 · level: unit · module: MOD-review-pages
 // guards: UC-019 (8b); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: an endpoint that answers changes of UC-007 and UC-008 for the instruction "align UC-007 and UC-008 with the new rule"
 // input: Run
@@ -295,11 +300,11 @@ test("use-case/<id>/prompt — several files are shown each on its own, with its
   for (const box of boxes) assert.match(byClass(box, "div", "newer")[0].textContent, /\+ - \*\*2b\./);
 });
 
+// TST-472643 · level: unit · module: MOD-review-pages
 // guards: UC-019 (7a); AN EDITED FILE KEEPS ITS IDENTIFIER; THE ROUNDS ARE COUNTED AND SHOWN
 // given: an endpoint that always answers UC-007 under the identifier UC-043
 // input: Run
-// expect: the loop leaves the finding "id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]", shown with the rounds; the editor opens with the identifier
-//         set back to UC-007 (keptIdentifier sets the front matter's id only), every other byte as drafted
+// expect: the loop leaves the finding "id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]", shown with the rounds; the editor opens with the identifier set back to UC-007 (keptIdentifier sets the front matter's id only), every other byte as drafted
 test("use-case/<id>/prompt — a changed identifier the loop left is restored before the editor opens, and the findings left are shown with the rounds", async () => {
   const wrong = draft7();
   wrong.text = wrong.text.replace("id: UC-007", "id: UC-043").replace("# UC-007", "# UC-043");
@@ -314,6 +319,7 @@ test("use-case/<id>/prompt — a changed identifier the loop left is restored be
   assert.equal(shown, wrong.text.replace("id: UC-043", "id: UC-007"), "only the id of the front matter set back, every other byte as drafted");
 });
 
+// TST-472644 · level: unit · module: MOD-review-pages
 // guards: UC-019 (6c); A GENERATED ARTIFACT IS A PROPOSAL
 // given: an endpoint whose answer is no JSON
 // input: Run
@@ -331,6 +337,7 @@ test("use-case/<id>/prompt — an unusable answer is named, the raw answer folde
 
 // ---------------------------------------------------------------- discard and save
 
+// TST-472645 · level: unit · module: MOD-review-pages
 // guards: UC-019 (5a, 8c); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a draft in the editor
 // input: a click on Discard
@@ -346,11 +353,11 @@ test("use-case/<id>/prompt — Discard removes the draft and writes nothing", as
   assert.equal(userCaseCommits(fake).length, 0);
 });
 
+// TST-472646 · level: unit · module: MOD-review-pages
 // guards: UC-019 (8b, 9); AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; ONE CLICK PER DECISION; A DRAFTED CHANGE IS A PROPOSAL
 // given: two drafts, UC-007 and UC-008, the second edited by the person in its editor
 // input: a click on Save
-// expect: one commit holding both use cases — the drafts, the second as edited, byte for byte, no trailer in a file —, whose message ends with the job's provenance lines:
-//         the kind, the participant and its model, the rounds and the instruction; the page links the commit
+// expect: one commit holding both use cases — the drafts, the second as edited, byte for byte, no trailer in a file —, whose message ends with the job's provenance lines: the kind, the participant and its model, the rounds and the instruction; the page links the commit
 test("use-case/<id>/prompt — Save writes the use cases in one commit with the provenance lines", async () => {
   endpointAnswers(draftOf(draft7(), draft8()));
   const fake = fakeProduct();
@@ -373,6 +380,7 @@ test("use-case/<id>/prompt — Save writes the use cases in one commit with the 
   assert.ok(find(byClass(target, "p", "saved")[0], (node) => node.localName === "a").some((node) => node.getAttribute("href").includes(`/commit/${fake.head()}`)));
 });
 
+// TST-472647 · level: unit · module: MOD-review-pages
 // guards: UC-019 (9a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: two drafts; then another writer changes UC-008 while the participant drafted
 // input: a click on Save
@@ -392,6 +400,7 @@ test("use-case/<id>/prompt — a use case changed meanwhile refuses the save and
   assert.equal(areaIn(draftBoxes(target)[1]).value, draft8().text);
 });
 
+// TST-472648 · level: unit · module: MOD-review-pages
 // guards: UC-019 (9, UC-018 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product whose host cannot write, a draft of UC-007
 // input: a click on Save
@@ -409,6 +418,7 @@ test("use-case/<id>/prompt — without a token, GitHub's page opens for each fil
 
 // ---------------------------------------------------------------- another route
 
+// TST-472649 · level: unit · module: MOD-review-pages
 // guards: UC-019 (6b); A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a product that holds the job workflow, the CI agent chosen
 // input: the run panel, Run
@@ -428,6 +438,7 @@ test("use-case/<id>/prompt — a job of a CI agent is queued there, with the ins
   assert.match(record, /"useCase": "UC-007"/, "and the use case it changes");
 });
 
+// TST-472650 · level: unit · module: MOD-review-pages
 // guards: UC-019 (steps 2, 5a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the prompt page with a participant chosen and no instruction written
 // input: a click on Show the run panel

@@ -58,14 +58,14 @@ async function dashboardAtBridge(t) {
   return { bridge, calls, dom, main, page, server, mounted: () => mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent)) };
 }
 
-// TST-280901
-// Precondition: the relevant canonical browser settings are empty and a real controlled loopback Bridge is paired to
-// the dashboard's Pages origin.
-// Input: Settings → Configure the Agent M Bridge → Pair Bridge with the copied token, reload, use Change, then Clear.
-// Expected: the public Route calls the real /v1/pair API once, persists only the returned address/token, reloads it
-// hidden, Change returns to the route, and Clear removes the raw localStorage record.
 // Planted fault: replacing writeSetting(context.store, "bridge", settings) in src/settings-pages/bridge.mjs with a
 // no-op makes the post-pair raw-storage assertion fail; restoring it returns this case to green.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-bridge-http
+// TST-280901 · level: release · module: MOD-settings-pages
+// guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
+// given: the relevant canonical browser settings are empty and a real controlled loopback Bridge is paired to the dashboard's Pages origin
+// input: Settings → Configure the Agent M Bridge → Pair Bridge with the copied token, reload, use Change, then Clear
+// expect: the public Route calls the real /v1/pair API once, persists only the returned address/token, reloads it hidden, Change returns to the route, and Clear removes the raw localStorage record
 test("TST-280901: public Settings pairs a real Bridge, reloads through Change, and clears raw browser storage", async (t) => {
   const { bridge, calls, main, page, server, mounted } = await dashboardAtBridge(t);
   assert.equal(globalThis.localStorage.getItem(key("bridge")), null, "precondition: no Bridge setting was seeded");
@@ -94,13 +94,14 @@ test("TST-280901: public Settings pairs a real Bridge, reloads through Change, a
   assert.equal(globalThis.localStorage.getItem(key("bridge")), null, "failure node: Clear removes the actual browser storage entry");
 });
 
-// TST-280902
-// Precondition: the public Bridge route starts with empty relevant storage; its real controlled Bridge rejects a wrong token.
-// Input: Pair a refused token, then an unreadable address; separately save the trusted HTTPS address and nested login.
-// Expected: neither failure stores a fake success; HTTPS save makes no request, remains untested, keeps login under
-// jump-host and the copied Bridge token under bridge, reloads hidden, and Settings Change/Clear reaches/removes jump-host.
 // Planted fault: omitting the HTTPS save's writeSetting("bridge", ...) makes the separate Bridge-storage assertion fail;
 // restoring that exact write returns the positive result.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-bridge-http
+// TST-280902 · level: release · module: MOD-settings-pages
+// guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
+// given: the public Bridge route starts with empty relevant storage; its real controlled Bridge rejects a wrong token
+// input: Pair a refused token, then an unreadable address; separately save the trusted HTTPS address and nested login
+// expect: neither failure stores a fake success; HTTPS save makes no request, remains untested, keeps login under jump-host and the copied Bridge token under bridge, reloads hidden, and Settings Change/Clear reaches/removes jump-host
 test("TST-280902: failures do not pair, while configured HTTPS storage stays separate and untested", async (t) => {
   const { bridge, calls, main, page, server, mounted } = await dashboardAtBridge(t);
   main.querySelector(".bridge-address").value = bridge.address;

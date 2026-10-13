@@ -87,14 +87,11 @@ const moduleFile = (id, sentence) => ["---", `id: ${id}`, "title: Lending", "fol
 const OPENED_USE_CASE = useCase("UC-041", "The member presents the book at the desk.");
 const OPENED_MODULE = moduleFile("MOD-lending", "It records which member holds which book.");
 
-// given: a product on GitHub whose default branch `trunk` holds a README, the use case UC-041 and the module file MOD-lending,
-//        each opened by the editor at its blob, with the identifier it declared (openedId); the person saved (1) the use case
-//        with `id: UC-042` in its front matter, (2) the module file with `id: MOD-borrowing`, (3) the use case with the `id:`
-//        line deleted — whatever else was edited
+// TST-472029 · level: unit · module: MOD-artifact-edits
+// guards: AN EDITED FILE KEEPS ITS IDENTIFIER; UC-018; UC-008
+// given: a product on GitHub whose default branch `trunk` holds a README, the use case UC-041 and the module file MOD-lending, each opened by the editor at its blob, with the identifier it declared (openedId); the person saved (1) the use case with `id: UC-042` in its front matter, (2) the module file with `id: MOD-borrowing`, (3) the use case with the `id:` line deleted — whatever else was edited
 // input: saveFile(host, { path, text: the edited text, openedBlob: the blob it was opened at, openedId: UC-041 / MOD-lending })
-// expect: { refused: "identifier changed", openedId: the identifier it was opened with, nowId: the identifier the text declares
-//         — UC-042, MOD-borrowing, null for the text without one }, and nothing written: no commit is attempted, the default
-//         branch stays at the head it had
+// expect: { refused: "identifier changed", openedId: the identifier it was opened with, nowId: the identifier the text declares — UC-042, MOD-borrowing, null for the text without one }, and nothing written: no commit is attempted, the default branch stays at the head it had
 test("saveFile — a use case and a module file saved under another identifier are refused with both identifiers, and nothing is written", async () => {
   for (const [label, path, opened, edited, openedId, nowId] of [
     ["a use case under another identifier", USE_CASE, OPENED_USE_CASE, useCase("UC-042", "The member shows the book at the desk."),
@@ -115,11 +112,11 @@ test("saveFile — a use case and a module file saved under another identifier a
   }
 });
 
-// given: the same product, the same two files opened at their blobs with the identifier each declared; the person edited a
-//        sentence and left the identifier as it was
+// TST-472030 · level: unit · module: MOD-artifact-edits
+// guards: AN EDITED FILE KEEPS ITS IDENTIFIER; UC-018; UC-008
+// given: the same product, the same two files opened at their blobs with the identifier each declared; the person edited a sentence and left the identifier as it was
 // input: saveFile(host, { path, text: the edited text, openedBlob, openedId: UC-041 / MOD-lending })
-// expect: the file saved: one commit on `trunk`, on the head that was read, holding that file alone with the edited text, and the
-//         result { commit: the commit commitFiles returned, blob: the git blob SHA of the edited text }
+// expect: the file saved: one commit on `trunk`, on the head that was read, holding that file alone with the edited text, and the result { commit: the commit commitFiles returned, blob: the git blob SHA of the edited text }
 test("saveFile — a use case and a module file saved under the identifier they were opened with are written", async () => {
   for (const [label, path, opened, edited, openedId] of [
     ["a use case", USE_CASE, OPENED_USE_CASE, useCase("UC-041", "The member shows the book at the desk."), "UC-041"],
@@ -137,12 +134,11 @@ test("saveFile — a use case and a module file saved under the identifier they 
   }
 });
 
-// given: the same product, whose `trunk` holds a README and a test file tests/lending.test.mjs, which the editor opened at its blob
-//        with the identifier TST-014 — a file of a kind that MOD-documents' schemas do not cover, so that the module cannot read
-//        the identifier its text declares; the person edited a line
+// TST-472031 · level: unit · module: MOD-artifact-edits
+// guards: AN EDITED FILE KEEPS ITS IDENTIFIER; UC-018; UC-008
+// given: the same product, whose `trunk` holds a README and a test file tests/lending.test.mjs, which the editor opened at its blob with the identifier TST-014 — a file of a kind that MOD-documents' schemas do not cover, so that the module cannot read the identifier its text declares; the person edited a line
 // input: saveFile(host, { path: the test file, text: the edited text, openedBlob, openedId: "TST-014" })
-// expect: { refused: "identifier changed", openedId: "TST-014", nowId: null }, and nothing written: a file that was said to have an
-//         identifier, and whose identifier cannot be read, is not saved unchecked
+// expect: { refused: "identifier changed", openedId: "TST-014", nowId: null }, and nothing written: a file that was said to have an identifier, and whose identifier cannot be read, is not saved unchecked
 test("saveFile — a file whose identifier the module cannot read is refused when it was opened with one, and nothing is written", async () => {
   const path = "tests/lending.test.mjs";
   const opened = "// TST-014 · level: unit · module: MOD-lending\ntest(\"lend\", () => {});\n";
@@ -157,12 +153,11 @@ test("saveFile — a file whose identifier the module cannot read is refused whe
   assert.equal(fake.head(), before, "the branch stays at its head");
 });
 
-// given: the product above, and the use case UC-041 opened at its blob by (1) a caller that gives no openedId — the settings and
-//        process pages, the callers of saveFile today, give none —, (2) a caller that gives null, a file opened without an
-//        identifier; the text saved declares UC-042
+// TST-472032 · level: unit · module: MOD-artifact-edits
+// guards: AN EDITED FILE KEEPS ITS IDENTIFIER; UC-018; UC-008
+// given: the product above, and the use case UC-041 opened at its blob by (1) a caller that gives no openedId — the settings and process pages, the callers of saveFile today, give none —, (2) a caller that gives null, a file opened without an identifier; the text saved declares UC-042
 // input: saveFile(host, { path: the use case, text: the text with `id: UC-042`, openedBlob }) and the same with openedId: null
-// expect: the file saved as before, whatever identifier its text declares: one commit holding it alone, and the result
-//         { commit: the commit commitFiles returned, blob: the git blob SHA of the text }
+// expect: the file saved as before, whatever identifier its text declares: one commit holding it alone, and the result { commit: the commit commitFiles returned, blob: the git blob SHA of the text }
 test("saveFile — a caller that gives no openedId, or null, is not asked for the identifier", async () => {
   for (const [label, given] of [["no openedId", {}], ["openedId null", { openedId: null }]]) {
     const fake = fakeHost({ ...README, [USE_CASE]: OPENED_USE_CASE });

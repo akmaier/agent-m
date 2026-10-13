@@ -21,12 +21,11 @@ import { artifactSchemaOf, artifactSchemas } from "../src/documents/index.mjs";
 const { useCase, decision, module, item } = artifactSchemas();
 const USE_CASE = "docs/use-cases/UC-007-derive-use-cases-from-requirements.md";
 
+// TST-472149 · level: unit · module: MOD-documents
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; DON'T REPEAT YOURSELF
-// given: the four schemas of artifactSchemas(), and a path for each of four files — a use case, an architecture decision, a
-//        module file and a backlog item —, each written as its schema's path states
+// given: the four schemas of artifactSchemas(), and a path for each of four files — a use case, an architecture decision, a module file and a backlog item —, each written as its schema's path states
 // input: artifactSchemaOf of each path
-// expect: the use-case schema for the use case, the decision schema for the decision, the module schema for the module file and
-//         the item schema for the backlog item — each the very schema artifactSchemas() holds
+// expect: the use-case schema for the use case, the decision schema for the decision, the module schema for the module file and the item schema for the backlog item — each the very schema artifactSchemas() holds
 test("artifactSchemaOf — a use case, a decision, a module file and a backlog item path each give their schema", () => {
   const cases = [
     ["a use case", USE_CASE, useCase, "use-case"],
@@ -41,9 +40,9 @@ test("artifactSchemaOf — a use case, a decision, a module file and a backlog i
   }
 });
 
+// TST-472150 · level: unit · module: MOD-documents
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; DON'T REPEAT YOURSELF
-// given: the item schema, which names two paths — a step of the plan, docs/plan/ITM-{nnn}-{slug}.md, and an item of the
-//        backlog; a plan step's path, and — known positive — the backlog item's path of the same name
+// given: the item schema, which names two paths — a step of the plan, docs/plan/ITM-{nnn}-{slug}.md, and an item of the backlog; a plan step's path, and — known positive — the backlog item's path of the same name
 // input: artifactSchemaOf of each
 // expect: the item schema both times: a plan step is read by the schema of an item
 test("artifactSchemaOf — a plan step's path gives the item schema, as a backlog item's path does", () => {
@@ -52,9 +51,9 @@ test("artifactSchemaOf — a plan step's path gives the item schema, as a backlo
   assert.equal(artifactSchemaOf(plan), item, "a plan step's path gives the item schema");
 });
 
+// TST-472151 · level: unit · module: MOD-documents
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; DON'T REPEAT YOURSELF
-// given: known positive first — a use case's path —; then three paths under docs/ that no schema's pattern matches: a
-//        measurement, the README of the folder of the use cases, and a sprint's record in the folder of the backlog
+// given: known positive first — a use case's path —; then three paths under docs/ that no schema's pattern matches: a measurement, the README of the folder of the use cases, and a sprint's record in the folder of the backlog
 // input: artifactSchemaOf of each
 // expect: the use-case schema for the known positive; null for each of the three
 test("artifactSchemaOf — a path under docs/ that no pattern matches gives null", () => {
@@ -66,11 +65,9 @@ test("artifactSchemaOf — a path under docs/ that no pattern matches gives null
   }
 });
 
+// TST-472152 · level: unit · module: MOD-documents
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; DON'T REPEAT YOURSELF
-// given: known positive first — a use case's path —; then nine paths, each a near miss of a pattern: UC-07 with two digits
-//        where {nnn} is three or more, a capital in a use case's slug and in a module's, one folder more and one in front,
-//        another extension and text after the extension, a use case's file name in the architecture folder, and a backlog
-//        item with no slug
+// given: known positive first — a use case's path —; then nine paths, each a near miss of a pattern: UC-07 with two digits where {nnn} is three or more, a capital in a use case's slug and in a module's, one folder more and one in front, another extension and text after the extension, a use case's file name in the architecture folder, and a backlog item with no slug
 // input: artifactSchemaOf of each
 // expect: the use-case schema for the known positive; null for each of the nine: a pattern matches the whole path
 test("artifactSchemaOf — a pattern's near miss gives null", () => {
