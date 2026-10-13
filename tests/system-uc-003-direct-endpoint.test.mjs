@@ -16,8 +16,8 @@ import { openDashboard, press, repoServer, richDocument } from "./app-harness.mj
 
 const INSTANCE = "akmaier/agent-m";
 const prefix = `agent-m:${INSTANCE}:`;
-const OPENAI = { name: "campus", url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "system-openai-key", throughBridge: false };
-const ANTHROPIC = { name: "claude", url: "https://claude.example.test/v1", kind: "anthropic", model: "claude-tiny", key: "system-anthropic-key", throughBridge: false };
+const OPENAI = { name: "campus", url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "system-openai-key" };
+const ANTHROPIC = { name: "claude", url: "https://claude.example.test/v1", kind: "anthropic", model: "claude-tiny", key: "system-anthropic-key" };
 
 const stored = (name) => JSON.parse(globalThis.localStorage.getItem(`${prefix}endpoint:${name}`));
 const type = (control, value) => { control.value = value; };
@@ -66,7 +66,7 @@ test("TST-292001: Settings Configure saves an OpenAI-compatible endpoint before 
   const { server, page, main, configure: start } = await mountedDashboard([async (url, init) => {
     if (url.href !== `${OPENAI.url}/chat/completions`) return null;
     calls += 1;
-    assert.deepEqual(stored(OPENAI.name), { url: OPENAI.url, kind: OPENAI.kind, model: OPENAI.model, key: OPENAI.key, throughBridge: false }, "failure node: browser-store already holds the form record when endpoint-calls starts");
+    assert.deepEqual(stored(OPENAI.name), { url: OPENAI.url, kind: OPENAI.kind, model: OPENAI.model, key: OPENAI.key }, "failure node: browser-store already holds the form record when endpoint-calls starts");
     assert.equal(init.headers.Authorization, `Bearer ${OPENAI.key}`);
     assert.deepEqual(JSON.parse(init.body), { model: OPENAI.model, messages: [{ role: "user", content: "Reply with one word: ok." }], max_tokens: 1 });
     return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), { status: 200 });
@@ -157,7 +157,7 @@ test("TST-292004: refused key persists through reload until Clear removes the st
 // expect: the named endpoint's form opens in place on the Settings page, reading that record.
 // Planted fault: removing context.go from Change in src/settings-pages/settings.mjs leaves the in-place form assertion failing.
 test("TST-292011: Settings Change opens the stored endpoint's form in place", async () => {
-  const entries = { [`${prefix}endpoint:${OPENAI.name}`]: JSON.stringify({ url: OPENAI.url, kind: OPENAI.kind, model: OPENAI.model, key: OPENAI.key, throughBridge: false }) };
+  const entries = { [`${prefix}endpoint:${OPENAI.name}`]: JSON.stringify({ url: OPENAI.url, kind: OPENAI.kind, model: OPENAI.model, key: OPENAI.key }) };
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries });
   const dom = richDocument(), main = dom.byId("main"); let mounted = [];

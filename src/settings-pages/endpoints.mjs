@@ -1,16 +1,22 @@
-// MOD-settings-pages' direct endpoint configuration route (UC-003). The endpoint call and its
+// MOD-settings-pages' endpoint configuration route (UC-003). The endpoint call and its
 // diagnosis remain MOD-endpoint-calls' responsibility; this route owns only the browser form and
 // the conversion between the browser-store record and EndpointConfig.
 
 import { testEndpoint } from "../endpoint-calls/index.mjs";
-import { bridgeAt, probe } from "../bridge-client/index.mjs";
-import { clearSetting, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
+import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
   node.append(...children);
+  return node;
+}
+
+function option(value, label) {
+  const node = el("option", null, label);
+  node.value = value;
   return node;
 }
 
@@ -37,10 +43,11 @@ function settingFrom(fields) {
     url: fields.url.value.trim(),
     kind: fields.kind.value,
     model: fields.model.value.trim(),
-    throughBridge: fields.throughBridge.checked,
   };
   const key = fields.key.value.trim();
   if (key) value.key = key;
+  const bridge = fields.bridge.value.trim();
+  if (bridge) value.bridge = bridge;
   return value;
 }
 
@@ -61,21 +68,27 @@ function resultText(result) {
   return `✗ ${diagnosis.message}${alternatives}`;
 }
 
-function bridgeFailureText(error) {
+export function bridgeFailureText(error) {
   if (error?.name === "TokenRefused") return "The Bridge refused its pairing token. Copy its current token and pair it again.";
   if (error?.name === "JumpHostLoginRefused") return "The jump host refused its web login. Check that login in Bridge settings and save it again.";
+  if (error?.name === "JumpHostMissing") return "This Bridge is reached through the jump host, and no jump host is stored. Set it up on the Bridge page.";
   if (error?.name === "NoAnswer") return `The Bridge gave no answer. Check ${error.likely?.join(", ") ?? "its address"}.`;
   if (error?.name === "Timeout") return "The Bridge did not answer in time. Check that it is running, then test again.";
   if (error?.name === "BridgeFailed") return `The Bridge could not test this endpoint: ${error.message}`;
   return `The Bridge could not test this endpoint: ${error?.message ?? error}.`;
 }
 
-function bridgeSettings(store) {
-  const bridge = readSetting(store, "bridge");
-  if (!bridge?.address || !bridge?.token) return null;
-  const jumpHost = readSetting(store, "jump-host");
-  const login = bridge.address.startsWith("https://") && jumpHost?.httpsAddress === bridge.address ? jumpHost.login : null;
-  return { address: bridge.address, token: bridge.token, ...(login ? { login } : {}) };
+function bridgeNames(store) {
+  return listSettings(store)
+    .filter((setting) => setting.key.startsWith("bridge:"))
+    .map((setting) => setting.key.slice("bridge:".length));
+}
+
+export function bridgeSettings(store, name) {
+  if (!name) return null;
+  const entry = readSetting(store, `bridge:${name}`);
+  if (!entry || typeof entry !== "object") return null;
+  return settingsOf({ name, ...entry }, readSetting(store, "jump-host"));
 }
 
 function applySetting(fields, name, setting) {
@@ -84,7 +97,7 @@ function applySetting(fields, name, setting) {
   fields.kind.value = setting?.kind ?? "openai-compatible";
   fields.model.value = setting?.model ?? "";
   fields.key.value = setting?.key ?? "";
-  fields.throughBridge.checked = setting?.throughBridge === true;
+  fields.bridge.value = setting?.bridge ?? "";
 }
 
 export const route = {
@@ -92,6 +105,12 @@ export const route = {
   entry: "settings",
   title: "Model endpoint",
   async render(target, context, params = {}) {
+    const requestedName = typeof params.name === "string" ? params.name : "";
+    const loadedSetting = readSetting(context.store, endpointKey(requestedName));
+    const knownBridgeNames = bridgeNames(context.store);
+    const selectedBridge = typeof loadedSetting?.bridge === "string" ? loadedSetting.bridge : "";
+    const options = selectedBridge && !knownBridgeNames.includes(selectedBridge)
+      ? [...knownBridgeNames, selectedBridge] : knownBridgeNames;
     const name = el("input", "endpoint-name");
     const url = el("input", "endpoint-url");
     const kind = el("select", "endpoint-kind",
@@ -99,18 +118,21 @@ export const route = {
       el("option", null, "anthropic"));
     const model = el("input", "endpoint-model");
     const key = el("input", "endpoint-key");
-    const throughBridge = el("input", "endpoint-through-bridge");
+    const bridge = el("select", "endpoint-bridge",
+      option("", "Direct browser request"),
+      ...options.map((name) => option(name, name)));
     const show = el("button", "endpoint-show btn small", "Show");
     const disclosure = el("p", "endpoint-disclosure");
     const test = el("button", "endpoint-test btn primary", "Save and test");
     const clear = el("button", "endpoint-clear btn", "Clear");
     const result = el("p", "endpoint-result");
-    const fields = { name, url, kind, model, key, throughBridge };
+    const fields = { name, url, kind, model, key, bridge };
 
     const discloseDestination = () => {
-      const configuredBridge = bridgeSettings(context.store);
-      disclosure.textContent = throughBridge.checked
-        ? `Agent M sends one short test request to the paired Bridge at ${configuredBridge?.address ?? "the Bridge you set up"}. The endpoint key is inside that Bridge request, and its pairing token and any jump-host login are authorisation headers, never URLs or repository data.`
+      let configuredBridge = null;
+      try { configuredBridge = bridgeSettings(context.store, bridge.value); } catch { configuredBridge = null; }
+      disclosure.textContent = bridge.value
+        ? `Agent M sends one short test request to the Bridge ${bridge.value} at ${configuredBridge?.address ?? "the Bridge you set up"}. The endpoint key is inside that Bridge request, and its pairing token and any jump-host login are authorisation headers, never URLs or repository data.`
         : "Agent M sends one short test request to this endpoint. Its optional key is sent only in that request's authorisation header, never in a URL or repository.";
     };
 
@@ -119,7 +141,6 @@ export const route = {
     model.placeholder = "Model name";
     key.type = "password";
     key.placeholder = "Optional API key";
-    throughBridge.type = "checkbox";
     for (const input of [name, url, model, key]) { input.autocomplete = "off"; input.spellcheck = false; }
 
     show.addEventListener("click", () => {
@@ -128,10 +149,9 @@ export const route = {
       show.textContent = hidden ? "Hide" : "Show";
     });
 
-    const requestedName = typeof params.name === "string" ? params.name : "";
-    applySetting(fields, requestedName, readSetting(context.store, endpointKey(requestedName)));
+    applySetting(fields, requestedName, loadedSetting);
     discloseDestination();
-    throughBridge.addEventListener("change", discloseDestination);
+    bridge.addEventListener("change", discloseDestination);
 
     test.addEventListener("click", async () => {
       const chosenName = name.value.trim();
@@ -146,15 +166,21 @@ export const route = {
       clearSetting(context.store, `last-test:${storeKey}`);
       // On the Settings page, the stored endpoints are listed anew once the outcome is known (UC-042 step 2).
       try {
-        if (stored.throughBridge) {
-          const settings = bridgeSettings(context.store);
-          if (!settings) {
+        if (stored.bridge) {
+          let settings;
+          try { settings = bridgeSettings(context.store, stored.bridge); } catch (error) {
             const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
-            setup.addEventListener("click", () => context.go("bridge", {}));
-            result.replaceChildren("This local model needs Bridge setup before it can be tested. Its endpoint setting remains stored. ", setup);
+            setup.addEventListener("click", () => context.go("bridge", { name: stored.bridge }));
+            result.replaceChildren(`${bridgeFailureText(error)} Its endpoint setting remains stored. `, setup);
             return;
           }
-          result.textContent = "Testing the endpoint through the Bridge…";
+          if (!settings) {
+            const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
+            setup.addEventListener("click", () => context.go("bridge", { name: stored.bridge }));
+            result.replaceChildren(`The endpoint names Bridge ${stored.bridge}, but this browser does not keep it. Its endpoint setting remains stored. `, setup);
+            return;
+          }
+          result.textContent = `Testing the endpoint through Bridge ${stored.bridge}…`;
           try {
             const checked = await probe(bridgeAt(settings), "endpoint-test", endpointConfig(chosenName, stored));
             recordTest(context.store, storeKey, checked);
@@ -196,7 +222,7 @@ export const route = {
       explain("endpoint-model"),
       el("p", null, el("label", null, "API key ", key, " ", show)),
       explain("endpoint-key"),
-      el("p", null, el("label", null, throughBridge, " This local model is reached through the Bridge")),
+      el("p", null, el("label", null, "Bridge ", bridge)),
       explain("endpoint-route"),
       el("p", "notice endpoint-shared-origin", sharedPagesNotice(context)),
       disclosure,

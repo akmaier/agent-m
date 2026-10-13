@@ -11,8 +11,8 @@ import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs"
 import { saveFile } from "../artifact-edits/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
-import { bridgeAt, pair, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { recordTest, route as endpointsRoute } from "./endpoints.mjs";
+import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
+import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxLine } from "./mailbox.mjs";
 
@@ -87,8 +87,25 @@ function endpointLine(target, context, info) {
     show.textContent = hidden ? "Hide" : "Show";
   });
   test.addEventListener("click", async () => {
-    if (setting.throughBridge) {
-      result.textContent = "This local model requires Bridge setup before it can be tested. Its endpoint setting remains stored.";
+    if (setting.bridge) {
+      let bridgeSettings;
+      try { bridgeSettings = endpointBridgeSettings(context.store, setting.bridge); } catch (error) {
+        result.textContent = bridgeFailureText(error);
+        return;
+      }
+      if (!bridgeSettings) {
+        result.textContent = `The endpoint names Bridge ${setting.bridge}, but this browser does not keep it. Change the endpoint or set up that Bridge.`;
+        return;
+      }
+      result.textContent = `Testing the endpoint through Bridge ${setting.bridge}…`;
+      try {
+        const checked = await probe(bridgeAt(bridgeSettings), "endpoint-test", endpointConfig(name, setting));
+        const lastTest = recordTest(context.store, info.key, checked);
+        result.textContent = resultText(checked);
+        status.textContent = stateText(lastTest);
+      } catch (error) {
+        result.textContent = bridgeFailureText(error);
+      }
       return;
     }
     result.textContent = "Testing the endpoint…";
@@ -109,7 +126,9 @@ function endpointLine(target, context, info) {
     el("p", null, `Model: ${setting.model}`),
     status,
     el("p", null, el("label", null, "API key ", key, " ", show)),
-    el("p", "settings-endpoint-disclosure", `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.`),
+    el("p", "settings-endpoint-disclosure", setting.bridge
+      ? `Agent M sends one short test request to Bridge ${setting.bridge}. Its optional endpoint key is inside that Bridge request; Bridge and jump-host credentials are sent only as authorisation headers, never in a URL or repository.`
+      : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.`),
     el("p", null, test, " ", change, " ", clear),
     el("div", "settings-endpoint-explanation", explain("endpoint-test")),
     result,

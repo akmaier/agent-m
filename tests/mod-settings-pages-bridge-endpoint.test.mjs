@@ -41,10 +41,10 @@ function fill(target, setting, name = "local") {
   byClass(target, "endpoint-kind")[0].value = setting.kind;
   byClass(target, "endpoint-model")[0].value = setting.model;
   byClass(target, "endpoint-key")[0].value = setting.key;
-  byClass(target, "endpoint-through-bridge")[0].checked = true;
-  byClass(target, "endpoint-through-bridge")[0].dispatchEvent(new Event("change"));
+  byClass(target, "endpoint-bridge")[0].value = setting.bridge;
+  byClass(target, "endpoint-bridge")[0].dispatchEvent(new Event("change"));
 }
-const LOCAL = { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "local-model", key: "endpoint-key", throughBridge: true };
+const LOCAL = { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "local-model", key: "endpoint-key", bridge: "local" };
 const ARGS = { name: "local", kind: LOCAL.kind, baseUrl: LOCAL.url, model: LOCAL.model, key: LOCAL.key };
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 
@@ -63,7 +63,7 @@ test("TST-269001: a local endpoint saves then probes only its paired Bridge", as
     return json(200, { answer: { works: true, model: LOCAL.model } });
   };
   t.after(() => { globalThis.fetch = oldFetch; });
-  writeSetting(store, "bridge", { address: "http://127.0.0.1:4711", token: "bridge-token" });
+  writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4711", token: "bridge-token" });
   const navigations = [], target = await render(store, {}, navigations);
   fill(target, LOCAL);
   assert.match(byClass(target, "endpoint-disclosure")[0].textContent, /Bridge|destination/i);
@@ -86,7 +86,7 @@ test("TST-269002: a provider refusal through Bridge remains a stored provider di
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = async () => json(200, { answer: { works: false, diagnosis: { reason: "key refused", message: "Provider says key is invalid.", routes: [] } } });
   t.after(() => { globalThis.fetch = oldFetch; });
-  writeSetting(store, "bridge", { address: "http://127.0.0.1:4711", token: "bridge-token" });
+  writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4711", token: "bridge-token" });
   const target = await render(store);
   fill(target, LOCAL);
   await click(byClass(target, "endpoint-test")[0]);
@@ -115,7 +115,7 @@ test("TST-269003: absent Bridge setup retains the endpoint and directs the autho
   const handoff = byClass(target, "endpoint-bridge-setup")[0];
   assert.ok(handoff, "failure node: absent pairing exposes a Bridge setup action");
   await click(handoff);
-  assert.deepEqual(navigations, [{ route: "bridge", params: {} }]);
+  assert.deepEqual(navigations, [{ route: "bridge", params: { name: "local" } }]);
 });
 
 // Planted fault: collapsing TokenRefused into a generic Bridge failure makes the named-failure assertion fail.
@@ -132,7 +132,7 @@ test("TST-269004: refused and unavailable Bridges stay distinct from provider di
     throw new TypeError("Failed to fetch");
   };
   t.after(() => { globalThis.fetch = oldFetch; });
-  writeSetting(store, "bridge", { address: "http://127.0.0.1:4711", token: "old-token" });
+  writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4711", token: "old-token" });
   let target = await render(store); fill(target, LOCAL); await click(byClass(target, "endpoint-test")[0]);
   assert.match(byClass(target, "endpoint-result")[0].textContent, /refused.*token|token.*refused/i);
   mode = "unavailable";
@@ -152,8 +152,8 @@ test("TST-269005: HTTPS Bridge testing reads the separate jump-host login into t
   let call;
   globalThis.fetch = async (url, init = {}) => { call = { url: String(url), init }; return json(200, { answer: { works: true, model: LOCAL.model } }); };
   t.after(() => { globalThis.fetch = oldFetch; });
-  writeSetting(store, "bridge", { address: "https://jump.example.test/bridge/local", token: "bridge-token" });
-  writeSetting(store, "jump-host", { hostname: "jump.example.test", user: "ssh-user", sshPort: 22, portRange: [40100, 40199], httpsAddress: "https://jump.example.test/bridge/local", login: { user: "web-user", password: "web-password" } });
+  writeSetting(store, "bridge:local", { port: 40100, token: "bridge-token" });
+  writeSetting(store, "jump-host", { hostname: "jump.example.test", user: "ssh-user", sshPort: 22, portRange: [40100, 40199], httpsAddress: "https://jump.example.test", login: { user: "web-user", password: "web-password" } });
   const target = await render(store); fill(target, LOCAL); await click(byClass(target, "endpoint-test")[0]);
   assert.equal(call.url, "https://jump.example.test/bridge/local/v1/probes/endpoint-test");
   assert.equal(call.init.headers["x-agent-m-bridge-token"], "bridge-token");

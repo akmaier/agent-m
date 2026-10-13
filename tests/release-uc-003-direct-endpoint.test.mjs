@@ -14,8 +14,8 @@ import { openDashboard, press, repoServer, richDocument, settle } from "./app-ha
 
 const INSTANCE = "akmaier/agent-m";
 const prefix = `agent-m:${INSTANCE}:`;
-const ENDPOINT = { name: "release", url: "https://release-model.example.test/v1", kind: "openai-compatible", model: "release-model", key: "release-browser-only-key", throughBridge: false };
-const BRIDGED = { name: "local", url: "http://127.0.0.1:11434", kind: "openai-compatible", model: "local-model", key: "local-key", throughBridge: true };
+const ENDPOINT = { name: "release", url: "https://release-model.example.test/v1", kind: "openai-compatible", model: "release-model", key: "release-browser-only-key" };
+const BRIDGED = { name: "local", url: "http://127.0.0.1:11434", kind: "openai-compatible", model: "local-model", key: "local-key", bridge: "local" };
 const type = (control, value) => { control.value = value; };
 const setting = (name) => globalThis.localStorage.getItem(`${prefix}endpoint:${name}`);
 
@@ -154,7 +154,7 @@ test("TST-292007: browser blocking remains actionable at the release route", asy
 // expect: localStorage no longer has the record after a further route reload.
 // Planted fault: removing clearSetting in src/settings-pages/endpoints.mjs leaves the post-reload record assertion failing.
 test("TST-292008: Clear removes the persistent endpoint record", async () => {
-  const entries = { [`${prefix}endpoint:${ENDPOINT.name}`]: JSON.stringify({ url: ENDPOINT.url, kind: ENDPOINT.kind, model: ENDPOINT.model, key: ENDPOINT.key, throughBridge: false }) };
+  const entries = { [`${prefix}endpoint:${ENDPOINT.name}`]: JSON.stringify({ url: ENDPOINT.url, kind: ENDPOINT.kind, model: ENDPOINT.model, key: ENDPOINT.key }) };
   const { server, page, main } = await openEndpointDashboard({ entries });
   await page.go(`#endpoints/${ENDPOINT.name}`);
   await press(server, main.querySelector(".endpoint-clear"));
@@ -167,30 +167,30 @@ test("TST-292008: Clear removes the persistent endpoint record", async () => {
 // TST-292009 · level: release · module: MOD-settings-pages
 // guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the public endpoint form has an optional key and destination disclosure.
-// input: the author reads the route, reveals the key, then stores a through-Bridge endpoint.
+// input: the author reads the route, reveals the key, then stores an endpoint whose route names a Bridge.
 // expect: disclosure precedes the control, Show changes only the password control, and Bridge setup is required with zero direct requests.
-// Planted fault: removing the throughBridge return in src/settings-pages/endpoints.mjs makes the zero-request assertion fail.
+// Planted fault: ignoring the stored Bridge name in src/settings-pages/endpoints.mjs makes the zero-request assertion fail.
 test("TST-292009: disclosure and key controls precede a retained Bridge configuration without a direct call", async () => {
   let direct = 0;
-  const { server, main } = await openEndpointDashboard({ handlers: [async (url) => {
+  const entries = { [`${prefix}endpoint:${BRIDGED.name}`]: JSON.stringify({ url: BRIDGED.url, kind: BRIDGED.kind, model: BRIDGED.model, key: BRIDGED.key, bridge: BRIDGED.bridge }) };
+  const { server, page, main } = await openEndpointDashboard({ entries, handlers: [async (url) => {
     if (url.href === `${BRIDGED.url}/chat/completions`) direct += 1;
     return null;
   }] });
+  await page.go(`#endpoints/${BRIDGED.name}`);
   const disclosure = main.querySelector(".endpoint-disclosure");
   const action = main.querySelector(".endpoint-test");
   assert.match(disclosure.textContent, /short test request.*authorisation header/i);
   assert.ok(main.innerHTML.indexOf("endpoint-disclosure") < main.innerHTML.indexOf("endpoint-test"), "the route renders disclosure before Save and test");
-  fill(main, BRIDGED);
   const key = main.querySelector(".endpoint-key");
   assert.equal(key.type, "password");
   await press(server, main.querySelector(".endpoint-show"));
   assert.equal(key.type, "text", "Show reveals the real password control only after the author's click");
   assert.equal(key.value, BRIDGED.key, "Show retains the stored key while changing only its visibility");
-  main.querySelector(".endpoint-through-bridge").checked = true;
   await press(server, action);
-  assert.match(main.querySelector(".endpoint-result").textContent, /Bridge setup/i);
-  assert.equal(direct, 0, "failure node: throughBridge returns before MOD-endpoint-calls");
-  assert.deepEqual(JSON.parse(setting(BRIDGED.name)), { url: BRIDGED.url, kind: BRIDGED.kind, model: BRIDGED.model, key: BRIDGED.key, throughBridge: true }, "the retained browser-store record preserves the Bridge route");
+  assert.match(main.querySelector(".endpoint-result").textContent, /Set up the Bridge|Bridge .*does not keep/i);
+  assert.equal(direct, 0, "failure node: named Bridge route returns before MOD-endpoint-calls");
+  assert.deepEqual(JSON.parse(setting(BRIDGED.name)), { url: BRIDGED.url, kind: BRIDGED.kind, model: BRIDGED.model, key: BRIDGED.key, bridge: "local" }, "the retained browser-store record preserves the Bridge route");
 });
 
 // Module (as the case stated it): MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
