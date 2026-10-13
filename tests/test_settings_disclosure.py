@@ -1,5 +1,5 @@
-# Module: MOD-dashboard-app
-# Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; EVERY STEP EXPLAINS ITSELF; UC-042
+# Module: MOD-settings-pages
+# Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; EVERY STEP EXPLAINS ITSELF; THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE; A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-042
 # Level: component
 """SPEC §7 THE SHARED PAGES ORIGIN IS DISCLOSED — stated before anything is stored.
 
@@ -10,14 +10,19 @@ import re
 import unittest
 from pathlib import Path
 
-from jsrun import ASSETS, js
+from jsrun import ASSETS, SRC, js
 
 
 def dashboard_text(shell: bool = True) -> str:
-    """The dashboard's own files (MOD-dashboard-app): the shell, dashboard-app.mjs, and every view and settings section under
-    docs/assets/dashboard/ — what a test that read the one app file reads now; `shell=False`: the views alone."""
+    """The settings page files: the shell, dashboard-app.mjs, and every view and settings section under
+    docs/assets/dashboard/; `shell=False`: the views alone."""
     views = sorted((ASSETS / "dashboard").rglob("*.mjs"))
     return "\n".join(f.read_text(encoding="utf-8") for f in ([ASSETS / "dashboard-app.mjs"] if shell else []) + views)
+
+
+def mailbox_text() -> str:
+    """MOD-settings-pages' mailbox route source, where the disclosure gates store the mailbox setting."""
+    return (SRC / "settings-pages" / "mailbox.mjs").read_text(encoding="utf-8")
 
 
 class SettingsDisclosure(unittest.TestCase):
@@ -35,6 +40,73 @@ class SettingsDisclosure(unittest.TestCase):
         tag = re.search(r'<input\b[^>]*id="token-input"[^>]*>', body, re.S)
         self.assertIsNotNone(tag, "token input missing")
         self.assertRegex(tag.group(0), r"\bdisabled\b", "the token input must start disabled")
+
+
+def store_test_handler() -> str:
+    src = mailbox_text()
+    start = src.index('storeTest.addEventListener("click"')
+    end = src.index('setup.addEventListener("click"', start)
+    return src[start:end]
+
+
+class MailboxSettingsDisclosure(unittest.TestCase):
+    """SPEC §14 mailbox disclosures before a mailbox connection is stored."""
+
+    # TST-532005 - level: release - module: system
+    # guards: THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE
+    # given: MOD-settings-pages' mailbox source, with the IMAP Store and test handler and the password notice text
+    # input: the password notice gate and the first write of the mailbox setting on the IMAP path
+    # expect: the notice names the owner Pages origin, reading all mail, sending mail in the mailbox name and the named Bridge; the handler returns before the mailbox write when the notice is unread or the password is empty
+    def test_mailbox_password_disclosure_stands_before_the_password_is_stored(self):
+        src = mailbox_text()
+        notice = re.search(r'el\("p", "notice mailbox-password-notice", `([^`]+)`\)', src, re.S)
+        self.assertIsNotNone(notice, "password notice missing")
+        for words in ["Every GitHub Pages site under", "can read it", "read all mail", "send mail in its name",
+                      "no server except the Bridge this connection names"]:
+            self.assertIn(words, notice.group(1))
+        body = store_test_handler()
+        store = body.index('writeSetting(store, "mailbox", connection);')
+        self.assertLess(body.index("if (!passwordRead.checked)"), store)
+        self.assertLess(body.index("if (!password.value)"), store)
+        self.assertIn("Nothing was stored", body[:store])
+
+    # TST-532006 - level: release - module: system
+    # guards: A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE
+    # given: MOD-settings-pages' mailbox source, with Bridges that may or may not be reached through the jump host
+    # input: the jump-host notice, the Bridge selection visibility rule and the first mailbox write on the IMAP path
+    # expect: only a jump-host Bridge shows the notice, the notice names that the password and mails pass it and can be read by its administrator, and the handler returns before storing until that notice is read
+    def test_mailbox_jump_host_disclosure_blocks_only_the_jump_host_route(self):
+        src = mailbox_text()
+        notice = re.search(r'const jumpNotice = el\("p", "notice mailbox-jump-notice", "([^"]+)"\);', src)
+        self.assertIsNotNone(notice, "jump-host notice missing")
+        for words in ["password and the mails pass the jump host", "administers the jump host can read them"]:
+            self.assertIn(words, notice.group(1))
+        self.assertIn("jumpNotice.hidden = !chosen()?.throughJumpHost", src)
+        self.assertIn("jumpRead.hidden = jumpNotice.hidden", src)
+        body = store_test_handler()
+        store = body.index('writeSetting(store, "mailbox", connection);')
+        self.assertLess(body.index("if (bridge.throughJumpHost && !jumpRead.checked)"), store)
+        self.assertIn("jumpHostNoted: bridge.throughJumpHost", body)
+
+    # TST-532007 - level: release - module: system
+    # guards: A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
+    # given: MOD-settings-pages' mailbox source and fixture processing places inside and outside the EU
+    # input: isOutsideEu for this machine, an EU data centre and a USA provider; the outside-EU notice gate and the first mailbox write
+    # expect: this machine and the EU data centre are inside the EU, the USA provider is outside it, the notice names non-compliance with GDPR and the EU AI Act, and the handler returns before storing until that notice is read
+    def test_mailbox_outside_eu_disclosure_blocks_the_store_until_read(self):
+        src = mailbox_text()
+        notice = re.search(r'const PLACE_NOTICE = "([^"]+)"', src)
+        self.assertIsNotNone(notice, "outside-EU notice missing")
+        for words in ["does not comply", "GDPR", "EU AI Act"]:
+            self.assertIn(words, notice.group(1))
+        self.assertEqual(js("return [settingsPagesMailbox.isOutsideEu('this machine'), "
+                            "settingsPagesMailbox.isOutsideEu('FAU data centre (EU)'), "
+                            "settingsPagesMailbox.isOutsideEu('Anthropic, a provider in the USA')];"),
+                         [False, False, True])
+        body = store_test_handler()
+        store = body.index('writeSetting(store, "mailbox", connection);')
+        self.assertLess(body.index("ticked.some(isOutsideEu) && !placeRead.checked"), store)
+        self.assertIn("Nothing was stored", body[:store])
 
 
 if __name__ == "__main__":
