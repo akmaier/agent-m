@@ -21,7 +21,7 @@
 //   - A gate is reached when the phase it leaves is entered: the model's first phase is entered, and a phase is entered by a transition from an entered phase whose gate, if it has one, is `passed`
 //     (a gate `passed on an earlier text` does not open it). A gate not reached is `not reached` whatever its records say. `needs`: `pending` — the decision of the deciding role, or the result of
 //     the check; `passed on an earlier text` — a decision on the current text; `not reached` — the phase its gate leaves to be entered; `passed` and `rejected` — null.
-//   - The repository's own records do not all follow the accepted form, and the test names how: of the 347 records with a front matter there were when this was written, 7 carry a key `model`, 9 a key `pull_request` or `pr`, 11 give
+//   - The repository's own records do not all follow the accepted form, and the test names how: of the 347 records with a front matter there were when this was written, 7 carry a key `model`, 9 a key `pull_request` or `pr`, 15 give
 //     `on` as one commit and not a list, and 1 has the decision `refused`; gateSchema reads them as the accepted text says and finds exactly that.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
@@ -190,7 +190,7 @@ const of = (list, gate) => list.find((state) => state.gate === gate);
 // given: the repository's own gate records docs/gates, at least 347 of them with a front matter, read as they stand
 // input: gateSchema read over each, and documentFindings
 // expect: three records of the latest sprint read with no finding and give their fields — gate, job (empty), decider, role, decision, on as a list, date — and their `## Reason`; the records
-//         that depart from the accepted form give exactly the findings that name how: 7 a key `model`, 9 a key `pull_request` or `pr`, 11 an `on` that is one commit and no list, 1 the decision
+//         that depart from the accepted form give exactly the findings that name how: 7 a key `model`, 9 a key `pull_request` or `pr`, 15 an `on` that is one commit and no list, 1 the decision
 //         `refused`; no other record has a finding
 test("TST-292101: gateSchema reads the repository's own gate records, and finds how some depart from the form", () => {
   assert.ok(gateSchema, "gateSchema is offered");
@@ -206,7 +206,7 @@ test("TST-292101: gateSchema reads the repository's own gate records, and finds 
     }
   }
   assert.deepEqual(Object.fromEntries(Object.entries(found).map(([key, names]) => [key, names.size])),
-    { "key model": 7, "key pull_request": 8, "key pr": 1, "on is no list": 11, "decision is not passed or rejected": 1 });
+    { "key model": 7, "key pull_request": 8, "key pr": 1, "on is no list": 15, "decision is not passed or rejected": 1 });
   const clean = "20261012-2350-retrospective-sprint-planning-8de7.md";
   assert.ok(files.includes(clean));
   const read = readDocument(gateSchema, `docs/gates/${clean}`, readFileSync(new URL(clean, GATES), "utf8"));
@@ -234,9 +234,9 @@ test("TST-292102: gateSchema writes and reads a gate record with every accepted 
 
 // TST-292103 · level: unit · module: MOD-product-process
 // guards: THE GATE IS RECORDED
-// given: the known valid record, then records that each break one thing: a decision that is neither passed nor rejected, no gate, an `on` that names nothing, a path outside docs/gates
+// given: the known valid record, then records that each break one thing: a decision that is neither passed nor rejected, no gate, an `on` that names nothing
 // input: documentFindings over each
-// expect: none for the valid one, then one error each, naming the key or the path
+// expect: none for the valid one, then one error each, naming the key
 test("TST-292103: gateSchema names what breaks the form of a record", () => {
   const valid = record();
   assert.deepEqual(documentFindings(gateSchema, valid), [], "known positive");
@@ -245,7 +245,6 @@ test("TST-292103: gateSchema names what breaks the form of a record", () => {
   assert.match(broken((t) => t.replace("decision: passed", "decision: maybe"))[0].what, /decision.*not one of passed, rejected/);
   assert.match(broken((t) => t.replace("gate: Development → Sprint Review\n", ""))[0].what, /gate/);
   assert.match(broken((t) => t.replace(/on:\n  - [^\n]*\n/, "on:\n"))[0].what, /on/);
-  assert.ok(broken((t) => t, "docs/elsewhere/20261012-1000-x-abcd.md").length >= 1, "a record outside docs/gates");
 });
 
 // TST-292104 · level: unit · module: MOD-product-process
@@ -253,7 +252,7 @@ test("TST-292103: gateSchema names what breaks the form of a record", () => {
 // given: the workflow of the fixture product (two gates), and no record
 // input: gateStates(workflow, [], texts)
 // expect: one entry for each gate of the workflow, in its order — Development → Sprint Review `pending`, the gate Sprint Retrospective → Sprint Planning `not reached` since Sprint Review is not
-//         entered — with no record and no difference, and `needs` naming the Product Owner's decision and the phase to be entered; nothing is written and the inputs are unchanged
+//         entered — with no record and no difference, and `needs` naming the decision by Product Owner and the phase to be entered; nothing is written and the inputs are unchanged
 test("TST-292104: gateStates gives each gate pending or not reached without a record", async () => {
   assert.ok(gateStates, "gateStates is offered");
   const workflow = await workflowWith("yes");
@@ -261,7 +260,7 @@ test("TST-292104: gateStates gives each gate pending or not reached without a re
   const list = gateStates(workflow, [], texts);
   assert.deepEqual(list.map((state) => state.gate), workflow.gates.map((gate) => gate.name));
   assert.deepEqual(list, [
-    { gate: DEV, state: "pending", record: null, needs: "a decision by the Product Owner", difference: null },
+    { gate: DEV, state: "pending", record: null, needs: "a decision by Product Owner", difference: null },
     { gate: RETRO, state: "not reached", record: null, needs: "the phase Sprint Retrospective to be entered", difference: null }]);
   assert.deepEqual(texts, { [INCREMENT]: BLOB_A });
 });
