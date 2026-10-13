@@ -1,6 +1,8 @@
 # Nightly: main's own check. Both suites run once more, as CI runs them, and fail the run when a test fails; Agent M's own
 # SPEC is watched, and no test may open it (tests/test_release_sprint_02_c.py). Pull requests run both suites (tests.yml);
 # a push to main runs none. Started by hand as well, from the repository's Actions page.
+# It also runs the tests of level release of both suites, which a pull request into a sprint's branch leaves out (tests.yml;
+# WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS). A test's level is read as the repository reads it (see tests.yml).
 name: nightly
 
 on:
@@ -21,3 +23,34 @@ jobs:
           node-version: "22"
       - name: No test opens Agent M's own SPEC
         run: cd tests && AGENT_M_NIGHTLY=1 python3 -m unittest -v test_release_sprint_02_c
+      - name: Read the level of each test file
+        run: |
+          cat > "$RUNNER_TEMP/level.mjs" <<'JS'
+          // A test's level is read as the repository reads it: the Level: line among a file's first 20 lines (headerTags of
+          // docs/assets/artifacts/headers.mjs); a file without one, by the one level of its cases' declarations (testDeclarations
+          // of MOD-test-document). Prints the files of level release (mode "release") or all the others (mode "rest").
+          import { readFileSync } from "node:fs";
+          import { pathToFileURL } from "node:url";
+          const root = pathToFileURL(process.cwd() + "/").href;
+          const { headerTags } = await import(root + "docs/assets/artifacts/headers.mjs");
+          const { testDeclarations } = await import(root + "src/test-document/index.mjs");
+          const [mode, ...files] = process.argv.slice(2);
+          const level = (f) => {
+            const text = readFileSync(f, "utf8");
+            const own = headerTags(f, text).level;
+            if (own) return own;
+            const levels = new Set(testDeclarations(f, text).map((d) => d.level));
+            return levels.size === 1 ? [...levels][0] : null;
+          };
+          const chosen = files.filter((f) => (level(f) === "release") === (mode === "release"));
+          if (!chosen.length) { console.error("no " + mode + " test file among " + files.length); process.exit(1); }
+          console.log(chosen.join("\n"));
+          JS
+      - name: Release tests, Python
+        run: |
+          files=$(node "$RUNNER_TEMP/level.mjs" release tests/test*.py)
+          cd tests && python3 -m unittest -v $(echo "$files" | sed 's|^tests/||; s|\.py$||')
+      - name: Release tests, node
+        run: |
+          files=$(node "$RUNNER_TEMP/level.mjs" release tests/*.test.mjs)
+          node --test $files
