@@ -24,8 +24,8 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
    from; MOD-endpoint-calls' configured endpoint short test and direct job-driver transports; and the own data files — schemas, models, practices —
    of the modules whose files state that they read them when
-   they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process
-   MOD-site-frame (its explanations.md), MOD-personal-data, and MOD-resource-list,
+   they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process,
+   MOD-site-frame (its explanations.md), MOD-personal-data, MOD-resource-list and MOD-reuse-facts,
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
    file builds resolved from a path beginning with `./` against the module's own address. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
@@ -276,6 +276,7 @@ PERMITTED_CHANNELS = {
     ("src/site-frame/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/personal-data/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/resource-list/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/reuse-facts/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/", "loading element"): (3, FRAME_ASSET_LOADING, _site_frame_asset),  # link, source and img
     ("src/markdown-render/mermaid.mjs", "loading element"): (1, MERMAID_LIBRARY_LOADING, _mermaid_library_script),
     # MOD-mail-routes' sign-in library: Microsoft's sign-in service is the mail provider's, which NO SERVER permits; its requests are
