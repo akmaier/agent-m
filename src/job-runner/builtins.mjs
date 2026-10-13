@@ -17,6 +17,18 @@ const part = (name, text) => ({ name, text, size: 0, sources: [], required: true
 // A candidate written as the SPEC writes a requirement — its name and the job's source on the head line, then its rule, then
 // its check — for MOD-spec-document to read as it reads one. White space is folded into single blanks: a candidate is one
 // block of lines, whatever its rule and its check hold.
+// Whether a file holds a test case, by its language's form of one at the start of a line (a comment, or a name that only ends in `test`, is none): JavaScript and TypeScript — `test(`, `it(`,
+// `describe(` and their `.only` / `.skip` / `.todo` forms; Python — `def test…(`; Go — `func Test…(`; Rust — `#[test]`; Java and Kotlin — `@Test`. A Markdown file holds a test case where it has a
+// `### TST-` heading, which is its declaration, so it never lacks one; a file of another language, or of data, holds none. A fixture or a helper added under `tests/` has nothing to declare.
+const TEST_CASE_FORMS = [
+  [/\.(?:[cm]?[jt]sx?)$/, /^[ \t]*(?:test|it|describe)(?:\.(?:only|skip|todo))?\(/m],
+  [/\.py$/, /^[ \t]*(?:async[ \t]+)?def[ \t]+test\w*\(/m],
+  [/\.go$/, /^func[ \t]+Test\w*\(/m],
+  [/\.rs$/, /^[ \t]*#\[test\]/m],
+  [/\.(?:java|kt)$/, /^[ \t]*@Test\b/m],
+];
+const holdsTestCase = (path, text) => TEST_CASE_FORMS.some(([name, form]) => name.test(path) && form.test(text));
+
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
 const written = ({ name, rule, check }, source) =>
   [`**${folded(name)}** *(${source})*`, folded(rule), `*Check:* ${folded(check)}`].filter(Boolean).join("\n");
@@ -28,26 +40,53 @@ const CLASS_NAMES_ARTIFACT = "A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CON
 // The kind of node, in MOD-trace-graph's graph, that the group file of each kind arranges.
 const ARRANGED = { requirements: "requirement", "use-cases": "UC", architecture: "ARC", modules: "MOD", tests: "TST" };
 
-// The classes of a draft's candidates against the artifacts the job's parts carry, and the findings on the classes its drafter
-// gave. A candidate is a requirement, as a draft of `{ candidates }` holds it — the module file gives the key values of a
-// requirement only: its reference in the draft its name, its key its name and its rule, the passage it came from its
-// passage. A candidate that the rule finds a duplicate of an existing artifact while its drafter classed it otherwise than
-// as a duplicate of that artifact is an error naming it; so is a change, a duplicate or a conflict that names no artifact a
-// part carries. A draft whose parts carry no artifact has nothing to classify.
+// What the drafts of this check hold: each drafted thing with its reference, the values of its key, the passages it came from and the class its drafter gave, and the kind of artifact it is
+// compared with. A requirement of a draft `{ candidates }` is keyed by its name and its rule, and is compared with every artifact a part carries; a document of a draft `{ files }` — read
+// with the schema `artifactSchemaOf` names for its path and `readDocument` — by the values of that schema's `key` fields, and an item of a draft `{ items }` by its title, each compared with the
+// artifacts of its own kind, by the prefix of their identifier. A file no schema with a key names — a test — has no key and is not classified.
+function draftedOf(draft) {
+  const drafted = [];
+  for (const { name, rule, passage, class: proposed, of } of Array.isArray(draft?.candidates) ? draft.candidates : []) {
+    drafted.push({ ref: name, shown: folded(name), keys: [name, rule], from: [passage].filter(Boolean), proposed, of: of ?? null, kind: null, states: "the name or the rule" });
+  }
+  for (const { path, text, class: proposed, of } of Array.isArray(draft?.files) ? draft.files : []) {
+    const schema = typeof path === "string" ? artifactSchemaOf(path) : null;
+    if (!schema?.key?.length) continue;
+    const document = readDocument(schema, path, String(text ?? ""));
+    const keys = schema.key.map((field) => String(document.fields?.[field] ?? ""));
+    if (keys.every((value) => folded(value) === "")) continue;
+    drafted.push({ ref: path, shown: path, keys, from: [path], proposed, of: of ?? null, kind: schema.identifier.kind, states: `the ${schema.key.join(" and ")}` });
+  }
+  for (const { title, class: proposed, of } of Array.isArray(draft?.items) ? draft.items : []) {
+    if (folded(title) === "") continue;
+    drafted.push({ ref: title, shown: folded(title), keys: [title], from: [], proposed, of: of ?? null, kind: "ITM", states: "the title" });
+  }
+  return drafted;
+}
+
+// The classes of a draft against the artifacts the job's parts carry, and the findings on the classes its drafter gave. A candidate that the rule finds a duplicate of an existing artifact while
+// its drafter classed it otherwise than as a duplicate of that artifact is an error naming it; so is a change, a duplicate or a conflict that names no artifact a part carries. A draft whose
+// parts carry no artifact has nothing to classify.
 function classification(draft, parts) {
   const existing = parts.flatMap((part) => part.artifacts ?? []);
-  const drafted = Array.isArray(draft?.candidates) ? draft.candidates : [];
+  const drafted = draftedOf(draft);
   if (existing.length === 0 || drafted.length === 0) return { classes: [], findings: [] };
-  const classes = classifyCandidates(drafted.map(({ name, rule, passage, class: proposed, of }) => ({ ref: name,
-    keys: [name, rule], from: [passage].filter(Boolean), proposed: { class: proposed, of: of ?? null } })), existing);
+  const classes = [], decisions = new Map();
+  for (const kind of [...new Set(drafted.map((each) => each.kind))]) {
+    const group = drafted.filter((each) => each.kind === kind);
+    const known = kind === null ? existing : existing.filter((artifact) => String(artifact.id).startsWith(`${kind}-`));
+    const decided = classifyCandidates(group.map(({ ref, keys, from, proposed, of }) => ({ ref, keys, from, proposed: { class: proposed, of } })), known);
+    classes.push(...decided);
+    for (const each of group) decisions.set(each, decided.find((one) => one.refs.includes(each.ref)));
+  }
   const carried = new Set(existing.map((artifact) => artifact.id));
-  const findings = drafted.flatMap(({ name, class: proposed, of }) => {
-    const shown = folded(name);
+  const findings = drafted.flatMap((each) => {
+    const { shown, proposed, of } = each;
     const classed = `${proposed}${of ? ` of "${folded(of)}"` : ""}`;
-    const decided = classes.find((each) => each.refs.includes(name));
+    const decided = decisions.get(each);
     if (decided.decidedBy === "rule" && !(proposed === "duplicate" && of === decided.of)) {
       return [finding({ artifact: shown, line: 1, kind: "error", rule: EXACT_DUPLICATE,
-        what: `"${shown}" states the name or the rule of the existing "${decided.of}" and is classed ${classed}`,
+        what: `"${shown}" states ${each.states} of the existing "${decided.of}" and is classed ${classed}`,
         fix: `class it as duplicate of ${decided.of}` })];
     }
     if (["change", "duplicate", "conflict"].includes(proposed) && !carried.has(of)) {
@@ -112,7 +151,7 @@ export const builtins = {
         .join("\n\n")));
     },
     // MOD-test-document's testFindings on every declaration in the files that the branch the coding participant reports adds
-    // or changes, and an error for a file the branch adds that isTestFile calls a test file and that declares none. The branch
+    // or changes, and an error for a file the branch adds that isTestFile calls a test file, that holds a test case — told by its language's form of one — and that declares none: an added test, not a file. The branch
     // is read through the product's host with readSnapshot; a file counts as changed when its blob differs from its blob in
     // the product's own snapshot, where a file the branch adds has none. A branch the host does not hold is a finding sent
     // back, since the participant reported a branch it has not pushed; any other failure of the host is thrown.
@@ -130,11 +169,12 @@ export const builtins = {
       for (const path of branch.paths) {
         const before = snapshot.blob(path);
         if (branch.blob(path) === before) continue;
-        const declarations = testDeclarations(path, await branch.read(path));
+        const text = await branch.read(path);
+        const declarations = testDeclarations(path, text);
         for (const declaration of declarations) found.push(...testFindings(declaration));
-        if (before === null && declarations.length === 0 && isTestFile(path)) {
+        if (before === null && declarations.length === 0 && isTestFile(path) && holdsTestCase(path, text)) {
           found.push(finding({ artifact: path, line: 1, kind: "error", rule: EXPECTED_RESULT,
-            what: "the test file declares no test",
+            what: "the test file holds a test case and declares no test",
             fix: "declare each test case in comment lines directly before it: its TST-<nnn> identifier, then level:, module:, "
               + "guards:, given:, input: and expect:" }));
         }
