@@ -1,11 +1,3 @@
-// TST-290115
-// Module: MOD-settings-pages
-// Level: release
-// Guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
-// Given: a controlled Linux Electron/CDP browser and the public dashboard served from its unchanged repository files.
-// Input: the person opens Settings at phone and desktop widths, selects each Settings tab, and reads long delivered values.
-// Expected: each tab has a readable selected control and visible panel, controls have touch-sized boxes, and neither the
-//           document nor a tab panel overflows horizontally.
 
 import assert from "node:assert/strict";
 import { cpSync, createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -69,6 +61,11 @@ const fixture = () => {
   });
 };
 
+// TST-290115 · level: release · module: MOD-settings-pages
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// given: a controlled Linux Electron/CDP browser and the public dashboard served from its unchanged repository files.
+// input: the person opens Settings at phone and desktop widths, selects each Settings tab, and reads long delivered values.
+// expect: each tab has a readable selected control and visible panel, controls have touch-sized boxes, and neither the document nor a tab panel overflows horizontally.
 test("TST-290115: public Settings tabs fit phone and desktop layouts", { timeout: 120000, concurrency: false }, async (t) => {
   await acquireNativeFixtureLock();
   let child = null, server = null, entryFolder = null, released = false;

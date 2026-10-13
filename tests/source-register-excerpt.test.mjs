@@ -81,13 +81,11 @@ const excerpt = (context, params) => sourceStrategies.recipes["source-excerpt"](
 
 // ---------------------------------------------------------------- linkedVersion
 
+// TST-472895 · level: component · module: MOD-source-register
 // guards: A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES
 // given: the product's links to both sources; the instance's two register entries
-// input: linkedVersion with each of: SRC-iec-62304; an item of a requirement's source by the standard's designation,
-//        "IEC 62304:2006+AMD1:2015, 5.5.5"; one by the book's title, "Vibe Coding, ch. 9"; "IEC 62304:2006+AMD1:20150"
-//        — no entry's name followed by its end or `, ` —; "SRC-unknown"
-// expect: the standard's linked version 2015, with its files and their hashes and the part class B; the same for the
-//         designation; the book's version 2026-10-05 and no part; null for the last two
+// input: linkedVersion with each of: SRC-iec-62304; an item of a requirement's source by the standard's designation, "IEC 62304:2006+AMD1:2015, 5.5.5"; one by the book's title, "Vibe Coding, ch. 9"; "IEC 62304:2006+AMD1:20150" — no entry's name followed by its end or `, ` —; "SRC-unknown"
+// expect: the standard's linked version 2015, with its files and their hashes and the part class B; the same for the designation; the book's version 2026-10-05 and no part; null for the last two
 test("linkedVersion — the version a product links of the source an identifier or a requirement's source item names", () => {
   const links = linksOf(BOTH);
   const iec = linkedVersion(links, register, "SRC-iec-62304");
@@ -101,6 +99,7 @@ test("linkedVersion — the version a product links of the source an identifier 
   assert.equal(linkedVersion(links, register, "SRC-unknown"), null);
 });
 
+// TST-472896 · level: component · module: MOD-source-register
 // guards: A PRODUCT LINKS THE SOURCES THAT APPLY
 // given: known positive first — the product's links to both; then links to the book alone
 // input: linkedVersion(links, register, "SRC-iec-62304") for each
@@ -113,13 +112,11 @@ test("linkedVersion — null for a source the product does not link", () => {
 
 // ---------------------------------------------------------------- source-excerpt
 
-// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE;
-//         A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// TST-472897 · level: component · module: MOD-source-register
+// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: the product linking both; the book's content in the instance, the standard's in its content repository
 // input: source-excerpt with { source: "SRC-vibe-coding" }, then with { source: "SRC-iec-62304" }
-// expect: the book's text as one part naming SRC-vibe-coding as its source, read from the instance, no repository opened;
-//         the standard's text as one part naming SRC-iec-62304 and, in its name, its version and the part class B, read
-//         from its content repository, the one repository opened
+// expect: the book's text as one part naming SRC-vibe-coding as its source, read from the instance, no repository opened; the standard's text as one part naming SRC-iec-62304 and, in its name, its version and the part class B, read from its content repository, the one repository opened
 test("source-excerpt — the linked version's text as one part naming its source, read where its content lies", async () => {
   const opened = [];
   const context = contextOf({ opened });
@@ -130,9 +127,9 @@ test("source-excerpt — the linked version's text as one part naming its source
   for (const word of ["SRC-iec-62304", "2015", "class B"]) assert.ok(iec.name.includes(word), word);
 });
 
+// TST-472898 · level: component · module: MOD-source-register
 // guards: A PRODUCT LINKS THE SOURCES THAT APPLY; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
-// given: known positive first — the product linking both; then links to the book alone; then the standard's content
-//        repository holding its file changed by one character
+// given: known positive first — the product linking both; then links to the book alone; then the standard's content repository holding its file changed by one character
 // input: source-excerpt with { source: "SRC-iec-62304" } for each
 // expect: the part for the first; NotLinked naming the source for the second; HashMismatch naming the file for the third
 test("source-excerpt — a source the product does not link is NotLinked; a changed file is a HashMismatch", async () => {

@@ -137,10 +137,11 @@ const PRODUCT_ENTRIES = {
 // Main flow
 // ==================================================================================================================
 
+// TST-476034 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: a fresh browser (nothing stored)
 // input: opening #settings
-// expect (step 1: "On the settings page, in the section *this browser* (UC-042), the line Notifications says off"): the
-//         Notifications heading and state sit inside the section headed "This browser", and the state reads off
+// expect: (step 1: "On the settings page, in the section *this browser* (UC-042), the line Notifications says off") the Notifications heading and state sit inside the section headed "This browser", and the state reads off
 test("step 1: the line Notifications sits in the section *this browser*, and says off", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
@@ -152,11 +153,11 @@ test("step 1: the line Notifications sits in the section *this browser*, and say
   } finally { browser.restore(); }
 });
 
+// TST-476035 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: a fresh browser, the browser's permission starting "default"
 // input: pressing Switch on, the browser allowing it
-// expect (step 1: "The person presses Switch on. The browser asks its own question... the person allows them. The line
-//         says on, with Test... and Switch off"): the permission is asked exactly once, directly on the click; once
-//         granted, the line reads on and offers Test and Switch off
+// expect: (step 1: "The person presses Switch on. The browser asks its own question... the person allows them. The line says on, with Test... and Switch off") the permission is asked exactly once, directly on the click; once granted, the line reads on and offers Test and Switch off
 test("step 1: Switch on asks the browser's permission once, directly on the click, then offers Test and Switch off", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser({ permission: "default" });
@@ -175,11 +176,11 @@ test("step 1: Switch on asks the browser's permission once, directly on the clic
   } finally { browser.restore(); }
 });
 
-// given: notifications on, due (last check six minutes old); the instance's real stored GitHub token (every page has one,
-//        used for everything else the dashboard does, stored by openDashboard's own default)
+// TST-476036 · level: system · module: MOD-notifications
+// guards: UC-047
+// given: notifications on, due (last check six minutes old); the instance's real stored GitHub token (every page has one, used for everything else the dashboard does, stored by openDashboard's own default)
 // input: opening a review page (#uc)
-// expect (step 2: "It derives them... from the files, the records and the tags, and with the token of each"): the check's
-//         request for the instance's repository carries the browser's stored token as its Authorization header
+// expect: (step 2: "It derives them... from the files, the records and the tags, and with the token of each") the check's request for the instance's repository carries the browser's stored token as its Authorization header
 test("step 2: the check of the instance connects with the instance's own stored token", async () => {
   const seenAuth = [];
   const browser = installBrowser();
@@ -197,15 +198,12 @@ test("step 2: the check of the instance connects with the instance's own stored 
   } finally { browser.restore(); }
 });
 
-// given: notifications on, due; a product this browser keeps (its own address and its own stored token — PRODUCT_ENTRIES),
-//        with something open in its repository
+// Identifier (as the case stated it): TST-279
+// TST-476085 · level: system · module: MOD-notifications
+// guards: UC-047; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: notifications on, due; a product this browser keeps (its own address and its own stored token — PRODUCT_ENTRIES), with something open in its repository
 // input: opening a review page (#uc)
-// expect (step 2: "...and in each product this browser keeps... with the token of each"): the product's repository is
-//         reached at all, and reached with its own token
-// TST-279
-// Module: MOD-notifications
-// Guards: UC-047; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// Level: system
+// expect: (step 2: "...and in each product this browser keeps... with the token of each") the product's repository is reached at all, and reached with its own token
 test("TST-279 step 2: the check also reaches each product this browser keeps, with that product's own token", async () => {
   const { instance, product, productAuthorizations } = await withProduct({}, { "docs/use-cases/UC-500-product-thing.md": "# UC-500\n" });
   const browser = installBrowser();
@@ -221,10 +219,11 @@ test("TST-279 step 2: the check also reaches each product this browser keeps, wi
   } finally { browser.restore(); }
 });
 
+// TST-476037 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: a fixture repository with one use case already open; notifications switched on but never checked (checked: null)
 // input: opening a review page (#uc)
-// expect (step 1/3: "The first check after Switch on tells nothing and takes what waits then as known"): no notification
-//         is shown, even though the use case already waits; it is recorded as the baseline all the same
+// expect: (step 1/3: "The first check after Switch on tells nothing and takes what waits then as known") no notification is shown, even though the use case already waits; it is recorded as the baseline all the same
 test("step 1 into step 3: the first check after Switch on tells nothing, even though something already waits", async () => {
   const server = await repoServer({ files: { "docs/use-cases/UC-520-sample.md": "# UC-520\n" }, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -242,12 +241,11 @@ test("step 1 into step 3: the first check after Switch on tells nothing, even th
   } finally { browser.restore(); }
 });
 
+// TST-476038 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: notifications on, due; a fixture repository empty at the baseline check; then one use case comes to wait
 // input: two checks of the review page, five minutes apart (the second run by hand, browser.tick())
-// expect (step 3: "a notification that names it and where it is... a click on it opens the page where it is accepted"):
-//         the use case is notified once, with its id in the title and an address this dashboard actually resolves
-//         (#uc/<id>) — this also covers 3a: the notification's own title and body already name what waits and where,
-//         so the text leads the person even where a click would not
+// expect: (step 3: "a notification that names it and where it is... a click on it opens the page where it is accepted") the use case is notified once, with its id in the title and an address this dashboard actually resolves (#uc/<id>) — this also covers 3a: the notification's own title and body already name what waits and where, so the text leads the person even where a click would not
 test("step 3 (and 3a): a file come to wait is notified once, naming it and an address this page resolves", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -269,11 +267,11 @@ test("step 3 (and 3a): a file come to wait is notified once, naming it and an ad
   } finally { browser.restore(); }
 });
 
-// given: notifications on, due; a baseline check with nothing open; then four use cases of the same kind come to wait at
-//        once
+// TST-476039 · level: system · module: MOD-notifications
+// guards: UC-047
+// given: notifications on, due; a baseline check with nothing open; then four use cases of the same kind come to wait at once
 // input: two checks, five minutes apart
-// expect (step 3: "When more than three of one kind come at once... one notification names their number instead"): one
-//         notification, not four, naming the count and the kind
+// expect: (step 3: "When more than three of one kind come at once... one notification names their number instead") one notification, not four, naming the count and the kind
 test("step 3: more than three of one kind in one repository give one notification of their number", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -291,10 +289,11 @@ test("step 3: more than three of one kind in one repository give one notificatio
   } finally { browser.restore(); }
 });
 
+// TST-476040 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: notifications on, due; one use case notified at the baseline check
 // input: a second, unchanged check, then a third after the file is edited again (still unaccepted)
-// expect (step 4: "nothing is notified twice while it waits; a file changed again comes to wait anew"): the unchanged
-//         check notifies nothing further; the file edited again is notified a second time
+// expect: (step 4: "nothing is notified twice while it waits; a file changed again comes to wait anew") the unchanged check notifies nothing further; the file edited again is notified a second time
 test("step 4: what was notified is kept — nothing twice while unchanged, a file changed again comes to wait anew", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -324,11 +323,11 @@ test("step 4: what was notified is kept — nothing twice while unchanged, a fil
 // Alternative flows
 // ==================================================================================================================
 
+// TST-476041 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: a fresh browser, the browser's permission starting "default"
 // input: pressing Switch on, the browser (or the person) refusing it
-// expect (1a: "The line says that notifications are blocked for this site, and where the browser's own site settings
-//         allow them; nothing is notified"): the line names the block and where to allow it; Switch on is disabled;
-//         nothing is stored
+// expect: (1a: "The line says that notifications are blocked for this site, and where the browser's own site settings allow them; nothing is notified") the line names the block and where to allow it; Switch on is disabled; nothing is stored
 test("1a: the person, or the browser, refuses — the line says blocked, and where to allow it; nothing is stored", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser({ permission: "default" });
@@ -345,10 +344,11 @@ test("1a: the person, or the browser, refuses — the line says blocked, and whe
   } finally { browser.restore(); }
 });
 
+// TST-476042 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: a fresh browser, navigator reporting an iPhone's Safari not opened from the Home Screen
 // input: opening #settings
-// expect (1b: "Safari shows notifications only for a site added to the Home Screen; the line says so and how to add
-//         it"): the line names the Home Screen and tells the person to add this page to it
+// expect: (1b: "Safari shows notifications only for a site added to the Home Screen; the line says so and how to add it") the line names the Home Screen and tells the person to add this page to it
 test("1b: on an iPhone or iPad not opened from the Home Screen, the line says so and how to add it", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser({ permission: "default", userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari" });
@@ -360,11 +360,11 @@ test("1b: on an iPhone or iPad not opened from the Home Screen, the line says so
   } finally { browser.restore(); }
 });
 
+// TST-476043 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: notifications on, last check one minute old — not yet five minutes (MOD-notifications, Interfaces: due())
 // input: opening a review page (#uc)
-// expect (2a/2b: "nothing is checked"; "the check runs when it runs the page again" — here too, a check only ever runs
-//         when this page's own code runs it, never on its own): the stored check time is left exactly as it was; no
-//         check ran
+// expect: (2a/2b: "nothing is checked"; "the check runs when it runs the page again" — here too, a check only ever runs when this page's own code runs it, never on its own) the stored check time is left exactly as it was; no check ran
 test("2a/2b: while not due, opening the page makes no check — the last check time is left exactly as it was", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
@@ -376,13 +376,11 @@ test("2a/2b: while not due, opening the page makes no check — the last check t
   } finally { browser.restore(); }
 });
 
-// given: notifications on; one use case already notified at the baseline (so "notified" starts non-empty); the review
-//        page's own instance is then made to fail once, on the very next (otherwise due) check — after the page has
-//        already loaded, so this failure can only be the check's own second request, never the page's first rendering
+// TST-476044 · level: system · module: MOD-notifications
+// guards: UC-047
+// given: notifications on; one use case already notified at the baseline (so "notified" starts non-empty); the review page's own instance is then made to fail once, on the very next (otherwise due) check — after the page has already loaded, so this failure can only be the check's own second request, never the page's first rendering
 // input: a second check that fails, then a third that succeeds
-// expect (2c: "a repository... is skipped until the next check... nothing is notified for it in between"): the failed
-//         check shows nothing and leaves "notified" exactly as the baseline left it, but still records its own time (so
-//         the next check is not retried at once); the next, working check notifies the file missed in between
+// expect: (2c: "a repository... is skipped until the next check... nothing is notified for it in between") the failed check shows nothing and leaves "notified" exactly as the baseline left it, but still records its own time (so the next check is not retried at once); the next, working check notifies the file missed in between
 test("2c: a server that cannot be reached is skipped until the next check; nothing lost, nothing notified in between", async () => {
   let failOnce = false;
   const server = await repoServer({
@@ -421,9 +419,11 @@ test("2c: a server that cannot be reached is skipped until the next check; nothi
   } finally { browser.restore(); }
 });
 
+// TST-476045 · level: system · module: MOD-notifications
+// guards: UC-047
 // given: notifications on; something already notified
 // input: pressing Switch off
-// expect (4a: "The checks stop at once, and what was notified is forgotten"): both keys are gone from the store itself
+// expect: (4a: "The checks stop at once, and what was notified is forgotten") both keys are gone from the store itself
 test("4a: Switch off stops the checks and forgets what was notified", async () => {
   const server = await repoServer({ files: { "docs/use-cases/UC-620-sample.md": "# UC-620\n" } });
   const browser = installBrowser();

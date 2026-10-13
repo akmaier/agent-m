@@ -106,15 +106,11 @@ const GATE_DECISION = {
 
 const byName = (...requirements) => new Map(requirements.map((r) => [r.name, r]));
 
+// TST-473060 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS
-// given: INSTANCE — a title line; a preamble with a bold line in capitals and a fenced example of the form, holding a heading
-//        of level two and a head line; then two sections holding three requirements
+// given: INSTANCE — a title line; a preamble with a bold line in capitals and a fenced example of the form, holding a heading of level two and a head line; then two sections holding three requirements
 // input: parseSpec(INSTANCE)
-// expect: the title "Fixture instance — Specification"; two sections — `## 1. Gates` from line 15, `## 2. Records` from line
-//         28 —, each with its byte range, which holds exactly GATES and RECORDS, and the names of its requirements in order;
-//         the three requirements by name, in the order they stand, each with its name, source, rule and check, its section and
-//         its line, as RELEASE_REVIEW, UNIT_VERIFICATION and GATE_DECISION write them out; neither the bold line nor anything
-//         in the fenced block is a section or a requirement — out of its fence, the same example is both
+// expect: the title "Fixture instance — Specification"; two sections — `## 1. Gates` from line 15, `## 2. Records` from line 28 —, each with its byte range, which holds exactly GATES and RECORDS, and the names of its requirements in order; the three requirements by name, in the order they stand, each with its name, source, rule and check, its section and its line, as RELEASE_REVIEW, UNIT_VERIFICATION and GATE_DECISION write them out; neither the bold line nor anything in the fenced block is a section or a requirement — out of its fence, the same example is both
 test("parseSpec — the requirements of a SPEC with their four fields, their section and their line", () => {
   const spec = parseSpec(INSTANCE);
   assert.deepEqual(spec, {
@@ -164,13 +160,11 @@ const SOURCES = lines(
   "*Check:* `tests/test_four.py`",                                                               // 19
 );
 
+// TST-473061 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS; UC-002 (each gate a process requirement adds is marked with the source it comes from)
-// given: SOURCES — a source of one item without a part, one of one item with the part it draws on, one of three items with
-//        and without their parts, and one that runs over three lines
+// given: SOURCES — a source of one item without a part, one of one item with the part it draws on, one of three items with and without their parts, and one that runs over three lines
 // input: parseSpec(SOURCES)
-// expect: each requirement's source as written between `*(` and `)*`, its line breaks kept; its items in `sources`, split at
-//         `;` and trimmed, each keeping the part it draws on — `, ` splits nothing —; the source over several lines read up to
-//         its `)*` on line 17, and the rule beginning on the line after it
+// expect: each requirement's source as written between `*(` and `)*`, its line breaks kept; its items in `sources`, split at `;` and trimmed, each keeping the part it draws on — `, ` splits nothing —; the source over several lines read up to its `)*` on line 17, and the rule beginning on the line after it
 test("parseSpec — a source over several lines, and several sources split at `;`, with and without their parts", () => {
   const got = [...parseSpec(SOURCES).requirements.values()].map(({ name, source, sources, rule, line }) =>
     ({ name, source, sources, rule, line }));
@@ -219,12 +213,11 @@ const CHECKS = lines(
   "*Check:* no automatic check; at review. The branch protection can enforce it.",               // 26
 );
 
+// TST-473062 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS
-// given: CHECKS — a check naming one test; one naming three, separated by ` · `; one naming two and saying what they do, over
-//        two lines; one naming a test followed by a sentence; and two at review, one with a sentence after it
+// given: CHECKS — a check naming one test; one naming three, separated by ` · `; one naming two and saying what they do, over two lines; one naming a test followed by a sentence; and two at review, one with a sentence after it
 // input: parseSpec(CHECKS)
-// expect: each check as written after `*Check:* `, its line breaks kept; in `checkPaths` the paths of the tests it names,
-//         split at ` · `, without the sentence after them; a check at review names none
+// expect: each check as written after `*Check:* `, its line breaks kept; in `checkPaths` the paths of the tests it names, split at ` · `, without the sentence after them; a check at review names none
 test("parseSpec — a check naming several tests split at ` · `, and one at review naming none", () => {
   const got = [...parseSpec(CHECKS).requirements.values()].map(({ name, check, checkPaths }) => ({ name, check, checkPaths }));
   assert.deepEqual(got, [
@@ -277,15 +270,11 @@ const MISSING = lines(
 );
 const SECTION = "## 1. Requirements missing a field";
 
+// TST-473063 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS
-// given: MISSING — a requirement whose head line names no source, one with an empty source, one without a rule, one without
-//        a check — a `*Check:*` line follows only in a paragraph of its own, after an empty line —, one whose check line is
-//        empty, one of a head line alone; then a bold line in capitals followed by a paragraph without a check
+// given: MISSING — a requirement whose head line names no source, one with an empty source, one without a rule, one without a check — a `*Check:*` line follows only in a paragraph of its own, after an empty line —, one whose check line is empty, one of a head line alone; then a bold line in capitals followed by a paragraph without a check
 // input: parseSpec(MISSING)
-// expect: six requirements, each read with its missing field null — `sources` and `checkPaths` empty with it — and every
-//         other field as written; nothing taken from a neighbour: the check of the paragraph on line 17 belongs to no
-//         requirement, and a check is never read as a rule; the bold line on line 25 is no requirement — the same line
-//         followed by its check is one, as NO SOURCE on line 3 shows
+// expect: six requirements, each read with its missing field null — `sources` and `checkPaths` empty with it — and every other field as written; nothing taken from a neighbour: the check of the paragraph on line 17 belongs to no requirement, and a check is never read as a rule; the bold line on line 25 is no requirement — the same line followed by its check is one, as NO SOURCE on line 3 shows
 test("parseSpec — a requirement missing a field is read with that field null, not guessed", () => {
   const spec = parseSpec(MISSING);
   const r = (name, line, fields) => ({ name, source: "Product Owner", sources: ["Product Owner"], rule: "Its rule.", check: null,
@@ -305,12 +294,11 @@ test("parseSpec — a requirement missing a field is read with that field null, 
 
 // ---------------------------------------------------------------- the text of one section
 
+// TST-473064 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS
-// given: GATES alone — the text of one section of INSTANCE, as a change queue's entry holds its proposal: the complete
-//        section from its heading line to its end, nothing else
+// given: GATES alone — the text of one section of INSTANCE, as a change queue's entry holds its proposal: the complete section from its heading line to its end, nothing else
 // input: parseSpec(GATES)
-// expect: no title, so the empty text; one section, `## 1. Gates`, from line 1 over the whole text; its two requirements read
-//         as in INSTANCE — the same fields and section —, each at its line in GATES, 14 lines less than in INSTANCE
+// expect: no title, so the empty text; one section, `## 1. Gates`, from line 1 over the whole text; its two requirements read as in INSTANCE — the same fields and section —, each at its line in GATES, 14 lines less than in INSTANCE
 test("parseSpec — the text of one section, such as a change queue's proposal, is read as a SPEC is read", () => {
   assert.deepEqual(parseSpec(GATES), {
     title: "",
@@ -343,13 +331,11 @@ const PRODUCT = lines(
   "*Check:* no automatic check; at review.",                                                     // 15
 );
 
+// TST-473065 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT NAMES WHAT IT CONSTRAINS; UC-002 (the requirements of the instance's SPEC are the process requirements)
-// given: INSTANCE, the instance's SPEC, whose requirements constrain the development process, and PRODUCT, a product's SPEC,
-//        whose requirements constrain the product
+// given: INSTANCE, the instance's SPEC, whose requirements constrain the development process, and PRODUCT, a product's SPEC, whose requirements constrain the product
 // input: parseSpec of each
-// expect: every requirement of either SPEC has exactly the fields of the module file's Requirement — name, source, sources,
-//         rule, check, checkPaths, section, line —, none of which says what it constrains; A GATE DECISION IS KEPT is read
-//         alike from both, apart from its line, 30 and 13: what it constrains is the SPEC its caller read it from
+// expect: every requirement of either SPEC has exactly the fields of the module file's Requirement — name, source, sources, rule, check, checkPaths, section, line —, none of which says what it constrains; A GATE DECISION IS KEPT is read alike from both, apart from its line, 30 and 13: what it constrains is the SPEC its caller read it from
 test("parseSpec — what a requirement constrains follows from the SPEC it stands in; no field of Requirement holds it", () => {
   const instance = parseSpec(INSTANCE), product = parseSpec(PRODUCT);
   const FIELDS = ["check", "checkPaths", "line", "name", "rule", "section", "source", "sources"];

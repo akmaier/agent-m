@@ -1,11 +1,3 @@
-// TST-290114
-// Module: MOD-settings-pages · MOD-browser-store
-// Level: component
-// Guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE
-// Given: the actual dashboard dispatcher and canonical browser settings for every Settings tab.
-// Input: the person opens #settings and selects each public tab without submitting a form.
-// Expected: dashboard-app dispatches directly to MOD-settings-pages' public Settings Route; all four named tabs have
-//           accessible selected state; selecting a tab neither stores a setting nor asks notification permission.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -30,6 +22,12 @@ const descendants = (root, className) => {
   return found;
 };
 
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store
+// TST-290114 · level: component · module: MOD-settings-pages
+// guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE
+// given: the actual dashboard dispatcher and canonical browser settings for every Settings tab.
+// input: the person opens #settings and selects each public tab without submitting a form.
+// expect: dashboard-app dispatches directly to MOD-settings-pages' public Settings Route; all four named tabs have accessible selected state; selecting a tab neither stores a setting nor asks notification permission.
 test("TST-290114: dashboard composes the public Settings tabs without a setting or permission side effect", async () => {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries: {

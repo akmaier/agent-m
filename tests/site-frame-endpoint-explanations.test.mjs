@@ -6,12 +6,6 @@
 // Module: MOD-site-frame
 // Guards: UC-003; EVERY STEP EXPLAINS ITSELF; THE PAGE STATES WHAT IT SENDS WHERE; A CLEAR IS A REAL CLEAR
 // Level: unit
-// TST-264-01
-//
-// Given: the seven endpoint topics that UC-003's configuration steps require
-// Input: explain(topic) for every endpoint topic
-// Expected: each returns the existing folded What is this? element, whose rendered text explains that step; the test
-//          explanation discloses the short request's endpoint and credential handling.
 
 // This imports the module's existing browser harness unchanged, then exercises its public explain interface. The harness
 // supplies the minimal browser DOM used by MOD-markdown-render; the topics remain this test's only subject.
@@ -32,6 +26,12 @@ const TOPICS = [
   ["endpoint-clear", /localStorage.*nothing is stored/i],
 ];
 
+// TST-264-01
+// TST-478007 · level: unit · module: MOD-site-frame
+// guards: UC-003; EVERY STEP EXPLAINS ITSELF; THE PAGE STATES WHAT IT SENDS WHERE; A CLEAR IS A REAL CLEAR
+// given: the seven endpoint topics that UC-003's configuration steps require
+// input: explain(topic) for every endpoint topic
+// expect: each returns the existing folded What is this? element, whose rendered text explains that step; the test explanation discloses the short request's endpoint and credential handling.
 test("TST-264-01 — explain provides every endpoint configuration step (UC-003)", () => {
   for (const [topic, expected] of TOPICS) {
     const folded = explain(topic);

@@ -62,14 +62,11 @@ const two = finding({ artifact: "SPEC", line: 3, kind: "warning", rule: "ONE STA
 
 // ---------------------------------------------------------------- appendToRecord: each kind of part
 
+// TST-472291 · level: unit · module: MOD-job-ledger
 // guards: A RECORD IS EVIDENCE, NOT A PROPOSAL; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-010; UC-011
-// given: the start of a record, and in turn each kind of part — Taken; a named gate reached; Resumed; a question to the author;
-//        Resumed; Job started; Limits raised with a cost and one without; End done with results, a draft, usage, a cost and a log
+// given: the start of a record, and in turn each kind of part — Taken; a named gate reached; Resumed; a question to the author; Resumed; Job started; Limits raised with a cost and one without; End done with results, a draft, usage, a cost and a log
 // input: appendToRecord(text, part) for each, on the text the one before gave
-// expect: each time a text that begins with the whole text before it and is longer, whose reading gives the part back — taken
-//         { at, by }; the gate with its decider and, once resumed, the record that resumed it; the question as the record's
-//         question, until it is resumed; the job started; the limits, a missing cost as null; the End with its state, results,
-//         draft, usage, cost, no reason and its log — and a state `done` at the end
+// expect: each time a text that begins with the whole text before it and is longer, whose reading gives the part back — taken { at, by }; the gate with its decider and, once resumed, the record that resumed it; the question as the record's question, until it is resumed; the job started; the limits, a missing cost as null; the End with its state, results, draft, usage, cost, no reason and its log — and a state `done` at the end
 test("appendToRecord — each kind of part appended after the last section, the bytes before it unchanged, and read back as the same part", async () => {
   const cost = { known: true, amount: 0.42, currency: "EUR", basis: "reported" };
   const usage = { inputTokens: 1200, outputTokens: 300 };
@@ -105,18 +102,11 @@ test("appendToRecord — each kind of part appended after the last section, the 
   assert.equal(jobState(await recordOf(text), null), "done");
 });
 
+// TST-472292 · level: unit · module: MOD-job-ledger
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-019
-// given: a record taken by its route; an End failed with a reason and no result, with rounds the correction loop made —
-//        (1) two rounds: the first with two findings, one fixed and one justified with its line, the second with none, and no
-//        stoppedBecause; (2) two rounds the second of which has a finding the drafter answered, the loop stopped at its limit,
-//        and a finding a person decides; (3) two rounds whose last still shows a warning the drafter justified before, and
-//        the loop passed
+// given: a record taken by its route; an End failed with a reason and no result, with rounds the correction loop made — (1) two rounds: the first with two findings, one fixed and one justified with its line, the second with none, and no stoppedBecause; (2) two rounds the second of which has a finding the drafter answered, the loop stopped at its limit, and a finding a person decides; (3) two rounds whose last still shows a warning the drafter justified before, and the loop passed
 // input: appendToRecord(taken, End) for each, then the record read back
-// expect: the End's text ends with MOD-job-runner's roundsText of those rounds, of what is left — none for (1) and (3), the last
-//         round's finding for (2) —, of what a person decides, of why the loop stopped (passed for (1) and (3), limit for (2))
-//         and of the record's limit; read back, the End's rounds are the two rounds, each with its number, findings and answers
-//         — `justified` and `answered` with their text, `fixed` without —; the End's draft is still read, and an End with
-//         no round has no round record
+// expect: the End's text ends with MOD-job-runner's roundsText of those rounds, of what is left — none for (1) and (3), the last round's finding for (2) —, of what a person decides, of why the loop stopped (passed for (1) and (3), limit for (2)) and of the record's limit; read back, the End's rounds are the two rounds, each with its number, findings and answers — `justified` and `answered` with their text, `fixed` without —; the End's draft is still read, and an End with no round has no round record
 test("appendToRecord — an End with two rounds writes the round record, and the reader reads the rounds back", async () => {
   const taken = appendToRecord(QUEUED, { part: "taken", at: at(1), by: "tab" });
   const end = { part: "end", at: at(9), state: "failed", results: [], draft: { cases: [] }, usage: null,
@@ -157,13 +147,11 @@ test("appendToRecord — an End with two rounds writes the round record, and the
   assert.deepEqual((await recordOf(bare)).end.rounds, []);
 });
 
+// TST-472293 · level: unit · module: MOD-job-ledger
 // guards: A RECORD IS EVIDENCE, NOT A PROPOSAL; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-010
-// given: a record that has its End; a record not at a gate; a record whose gate is resumed; and, as the known positives, a
-//        record at a named gate and one at a question
-// input: appendToRecord of a Taken, a Job started and a second End to the ended record; of a Resumed to each of the other three
-//        — and to each of the two at a gate
-// expect: RecordEnded for each part to the ended record; NotWaiting for a Resumed to a record not at a gate and to one whose
-//         gate is resumed already; the Resumed is appended to a record at a named gate and to one at a question
+// given: a record that has its End; a record not at a gate; a record whose gate is resumed; and, as the known positives, a record at a named gate and one at a question
+// input: appendToRecord of a Taken, a Job started and a second End to the ended record; of a Resumed to each of the other three — and to each of the two at a gate
+// expect: RecordEnded for each part to the ended record; NotWaiting for a Resumed to a record not at a gate and to one whose gate is resumed already; the Resumed is appended to a record at a named gate and to one at a question
 test("appendToRecord — RecordEnded for a record that has its end, NotWaiting for a resumption of a job not at a gate", async () => {
   const taken = appendToRecord(QUEUED, { part: "taken", at: at(1), by: "tab" });
   const ended = appendToRecord(taken, { part: "end", at: at(2), state: "cancelled", results: [], draft: null, rounds: [], usage: null,
@@ -240,12 +228,11 @@ function fakeHost({ files, beforeFirstCommit = null, refuse = null }) {
 
 const NOW = new Date("2026-10-12T08:30:45Z");
 
+// TST-472294 · level: unit · module: MOD-job-ledger
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-010; UC-011
 // given: a product on GitHub whose default branch `trunk` holds the record of a queued job, and the head the route read
 // input: takeJob(host, path, "https://github.com/alice/product/actions/runs/7", head), with the clock at 08:30 UTC
-// expect: { taken: true, commit: the commit the host made }; one commit attempt, on `trunk`, on the head that was read, holding
-//         the record alone — the text it had with a `## Taken` appended: at 08:30 and by the route, the bytes before unchanged —;
-//         read back, the job is taken by that route and is running
+// expect: { taken: true, commit: the commit the host made }; one commit attempt, on `trunk`, on the head that was read, holding the record alone — the text it had with a `## Taken` appended: at 08:30 and by the route, the bytes before unchanged —; read back, the job is taken by that route and is running
 test("takeJob — a job taken with one commit on the head that was read", async () => {
   mock.timers.enable({ apis: ["Date"], now: NOW });
   try {
@@ -270,16 +257,11 @@ test("takeJob — a job taken with one commit on the head that was read", async 
   }
 });
 
+// TST-472295 · level: unit · module: MOD-job-ledger
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A RECORD IS EVIDENCE, NOT A PROPOSAL; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-010; UC-011
-// given: the same product, in which another writer's commit lands on `trunk` just before the route's commit — (1) one that
-//        appends a gate to the record, which does not take the job; (2) one that appends a Taken by the Bridge "bridge-a"; and
-//        (3) a record that the Bridge had taken already at the head the route read; and (4) a host that refuses the commit with
-//        TokenRefused; and (5) a host that answers every commit with Moved naming the head the commit was made on
+// given: the same product, in which another writer's commit lands on `trunk` just before the route's commit — (1) one that appends a gate to the record, which does not take the job; (2) one that appends a Taken by the Bridge "bridge-a"; and (3) a record that the Bridge had taken already at the head the route read; and (4) a host that refuses the commit with TokenRefused; and (5) a host that answers every commit with Moved naming the head the commit was made on
 // input: takeJob(host, path, "tab", the head first read)
-// expect: (1) { taken: true, commit }, after a first attempt on the old head that the host refused with Moved and a second on
-//         the new head, whose record text is the new head's with `## Taken` appended — the gate stays —; (2) { taken: false, by:
-//         "bridge-a" } after the one refused attempt, and no second; (3) { taken: false, by: "bridge-a" } with no attempt at all;
-//         (4) it rejects with that TokenRefused; (5) it rejects with that Moved after the one attempt, and does not ask again
+// expect: (1) { taken: true, commit }, after a first attempt on the old head that the host refused with Moved and a second on the new head, whose record text is the new head's with `## Taken` appended — the gate stays —; (2) { taken: false, by: "bridge-a" } after the one refused attempt, and no second; (3) { taken: false, by: "bridge-a" } with no attempt at all; (4) it rejects with that TokenRefused; (5) it rejects with that Moved after the one attempt, and does not ask again
 test("takeJob — on a moved head, taken on the new head, or reported as taken by the participant that did", async () => {
   mock.timers.enable({ apis: ["Date"], now: NOW });
   try {

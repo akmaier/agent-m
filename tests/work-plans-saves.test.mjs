@@ -73,13 +73,11 @@ const SPRINT = { team: "team1", goal: "Store and show", start: "2026-10-12", clo
 
 // ---------------------------------------------------------------- startSprint
 
+// TST-473168 · level: unit · module: MOD-work-plans
 // guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
-// given: a product whose team1 has no sprint yet; the model's time box 1 week; the declaration's branch for the sprint
-//        `sprint/<team>/<nn>`; ITM-001 and ITM-002 ready, ITM-002 building on ITM-001, which is selected with it
+// given: a product whose team1 has no sprint yet; the model's time box 1 week; the declaration's branch for the sprint `sprint/<team>/<nn>`; ITM-001 and ITM-002 ready, ITM-002 building on ITM-001, which is selected with it
 // input: startSprint(host, team1's sprint from 2026-10-12, context at HEAD)
-// expect: the branch sprint/team1/01 created at HEAD; one commit on main at HEAD of docs/backlog/sprints/team1/01.md — sprint
-//         1, its goal, start 2026-10-12, end 2026-10-18, the closer, the branch, the selection — with the job's trailers in
-//         its message; the result names the commit, the path, both items added and none removed
+// expect: the branch sprint/team1/01 created at HEAD; one commit on main at HEAD of docs/backlog/sprints/team1/01.md — sprint 1, its goal, start 2026-10-12, end 2026-10-18, the closer, the branch, the selection — with the job's trailers in its message; the result names the commit, the path, both items added and none removed
 test("startSprint — a team's first sprint is its 01, with the end its time box gives and its own branch, created from the head", async () => {
   const host = hostWith({ ...ITEMS });
   const result = await startSprint(host, SPRINT, context());
@@ -96,12 +94,11 @@ test("startSprint — a team's first sprint is its 01, with the end its time box
     removed: [] });
 });
 
+// TST-473169 · level: unit · module: MOD-work-plans
 // guards: EVERY TEAM RUNS SPRINTS OF ITS OWN
-// given: team1 has sprints 01 and 02, team2 sprints 01 to 05; a model without a time box; a declaration without a branch for
-//        the sprint
+// given: team1 has sprints 01 and 02, team2 sprints 01 to 05; a model without a time box; a declaration without a branch for the sprint
 // input: startSprint for team1
-// expect: docs/backlog/sprints/team1/03.md — numbered within the team, whatever team2 has —, with end and branch empty, and no
-//         branch created
+// expect: docs/backlog/sprints/team1/03.md — numbered within the team, whatever team2 has —, with end and branch empty, and no branch created
 test("startSprint — a sprint is numbered within its team; without a time box it has no end, without a declared branch no branch", async () => {
   const sprintFile = (team, n) => [`docs/backlog/sprints/${team}/${String(n).padStart(2, "0")}.md`, "---\nsprint: 1\n---\n"];
   const host = hostWith({ ...ITEMS, ...Object.fromEntries([sprintFile("team1", 1), sprintFile("team1", 2),
@@ -113,12 +110,11 @@ test("startSprint — a sprint is numbered within its team; without a time box i
   assert.equal(host.calls.filter(([w]) => w === "createBranch").length, 0);
 });
 
+// TST-473170 · level: unit · module: MOD-work-plans
 // guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
-// given: (a) ITM-003 waiting for acceptance; (b) ITM-002 selected without ITM-001, which it builds on and which is not done;
-//        (c) team2's sprint 01 holding an item that changes MOD-store, and team1 selecting ITM-001, which changes it
+// given: (a) ITM-003 waiting for acceptance; (b) ITM-002 selected without ITM-001, which it builds on and which is not done; (c) team2's sprint 01 holding an item that changes MOD-store, and team1 selecting ITM-001, which changes it
 // input: startSprint for team1 with each selection
-// expect: each refused with SprintRefused, its reasons naming (a) ITM-003, (b) ITM-002 and ITM-001, (c) team2/01, the held
-//         item and MOD-store; nothing created and nothing committed
+// expect: each refused with SprintRefused, its reasons naming (a) ITM-003, (b) ITM-002 and ITM-001, (c) team2/01, the held item and MOD-store; nothing created and nothing committed
 test("startSprint — refused, with nothing written, for an item waiting for acceptance, one without what it builds on, or one another team's sprint keeps out", async () => {
   const otherTeams = heldItems([readDocument(planSchemas.sprint, "docs/backlog/sprints/team2/01.md",
     "---\nsprint: 1\ngoal: g\nstart: 2026-10-01\nend:\ncloser: bob\nbranch:\nselection:\n  - ITM-009\n---\n# team2 Sprint 01\n")],
@@ -141,11 +137,11 @@ test("startSprint — refused, with nothing written, for an item waiting for acc
   }
 });
 
+// TST-473171 · level: unit · module: MOD-work-plans
 // guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032 6a
 // given: team1's running sprint 01, selecting ITM-001; a new start decision on 2026-10-14 selecting ITM-001 and ITM-003
 // input: startSprint(host, that decision, context with the running sprint)
-// expect: one commit of the running sprint's file, its text followed by ## Selection with at 2026-10-14 and both items; no
-//         branch created; added ITM-003, removed none
+// expect: one commit of the running sprint's file, its text followed by ## Selection with at 2026-10-14 and both items; no branch created; added ITM-003, removed none
 test("startSprint — a new start decision while the sprint runs is appended as ## Selection, naming what it adds and removes", async () => {
   const path = "docs/backlog/sprints/team1/01.md";
   const runningText = "---\nsprint: 1\ngoal: g\nstart: 2026-10-12\nend: 2026-10-18\ncloser: alice\nbranch: sprint/team1/01\n"
@@ -175,15 +171,11 @@ const CLOSE = { sprint: "team1/01",
   unfinished: [{ item: "ITM-002", to: "backlog", reason: "the pages wait for a layout decision" }],
   retrospective: [{ text: "Split the pages' work smaller.", kind: "change", goes: "team agreement" }], newItems: [] };
 
-// guards: A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; A SPRINT ENDS WITH A RETROSPECTIVE; A SPRINT HOLDS ITS ITEMS UNTIL
-//         THEY REACH THE DEFAULT BRANCH
-// given: team1's sprint 01, open, selecting ITM-001 (done) and ITM-002 (not done); its facts; a close with one feedback
-//        line, who took part, ITM-002 back to the backlog, one retrospective change
+// TST-473172 · level: unit · module: MOD-work-plans
+// guards: A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; A SPRINT ENDS WITH A RETROSPECTIVE; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team1's sprint 01, open, selecting ITM-001 (done) and ITM-002 (not done); its facts; a close with one feedback line, who took part, ITM-002 back to the backlog, one retrospective change
 // input: closeSprint(host, the close, context at HEAD)
-// expect: one commit on main of the sprint's file only, appended to: ## Review naming the increment ITM-001, ITM-002 not done,
-//         the feedback and who took part; ## Unfinished items with ITM-002 to the backlog and its reason; ## Retrospective
-//         with the change — and, read again, the closed sprint holds no item: ITM-002 went back to the backlog, and no pull
-//         request of ITM-001 is known as merged
+// expect: one commit on main of the sprint's file only, appended to: ## Review naming the increment ITM-001, ITM-002 not done, the feedback and who took part; ## Unfinished items with ITM-002 to the backlog and its reason; ## Retrospective with the change — and, read again, the closed sprint holds no item: ITM-002 went back to the backlog, and no pull request of ITM-001 is known as merged
 test("closeSprint — the review, the unfinished items and the retrospective are appended to the sprint's record in one commit", async () => {
   const path = "docs/backlog/sprints/team1/01.md";
   const host = hostWith({ ...ITEMS, [path]: OPEN });
@@ -206,9 +198,9 @@ test("closeSprint — the review, the unfinished items and the retrospective are
   assert.deepEqual(heldItems([record], [], ARCHITECTURE, []).map((h) => h.item), []);
 });
 
+// TST-473173 · level: unit · module: MOD-work-plans
 // guards: A SPRINT ENDS WITH A RETROSPECTIVE; UC-041 6a
-// given: the open sprint; a close (a) without a retrospective entry, (b) without a decision for ITM-002, which is not done,
-//        (c) of a sprint whose record has its ## Review already
+// given: the open sprint; a close (a) without a retrospective entry, (b) without a decision for ITM-002, which is not done, (c) of a sprint whose record has its ## Review already
 // input: closeSprint of each
 // expect: (a) RetrospectiveMissing, (b) Undecided naming ITM-002, (c) AlreadyClosed — and nothing committed in any
 test("closeSprint — refused without a retrospective, with an unfinished item undecided, or a second time", async () => {

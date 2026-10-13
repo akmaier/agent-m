@@ -210,12 +210,11 @@ const team1Findings = async (text) => roleAssignmentFindings([assignmentOf(text)
 
 // ---------------------------------------------------------------- roleAssignmentSchema
 
+// TST-472431 · level: unit · module: MOD-product-process
 // guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES
 // given: team1's role assignment; then the same with a front matter key, and with a section ## Notes after ## Roles
 // input: readDocument(roleAssignmentSchema, "docs/role-assignments/team1.md", the text); documentFindings of each
-// expect: the rows of ## Roles, each role with its participants as a list, on lines 7 to 9, and no finding; for the front
-//         matter key and for the other section, one error each naming A ROLE ASSIGNMENT FILLS THE ROLES — on the key's
-//         line 2, on the section's heading line 11
+// expect: the rows of ## Roles, each role with its participants as a list, on lines 7 to 9, and no finding; for the front matter key and for the other section, one error each naming A ROLE ASSIGNMENT FILLS THE ROLES — on the key's line 2, on the section's heading line 11
 test("roleAssignmentSchema — a role assignment is its roles table: each role with its participants, and nothing else", () => {
   const team1 = assignmentOf(TEAM1);
   assert.deepEqual(team1.sections.map((section) => section.heading), ["## Roles"]);
@@ -234,9 +233,9 @@ test("roleAssignmentSchema — a role assignment is its roles table: each role w
 
 // ---------------------------------------------------------------- roleAssignmentFindings
 
+// TST-472432 · level: unit · module: MOD-product-process
 // guards: UC-048; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
-// given: the fixture product's two role assignments, team1 and team2, dev-b holding roles in both; its model works in
-//        sprints
+// given: the fixture product's two role assignments, team1 and team2, dev-b holding roles in both; its model works in sprints
 // input: roleAssignmentFindings([team1, team2], the workflow, the register, [])
 // expect: no finding — one role assignment for each team, and a participant in two of them is no finding
 test("roleAssignmentFindings — one role assignment per team, a participant serving two teams, has no finding", async () => {
@@ -245,11 +244,11 @@ test("roleAssignmentFindings — one role assignment per team, a participant ser
   assert.deepEqual(brief(found), []);
 });
 
+// TST-472433 · level: unit · module: MOD-product-process
 // guards: UC-048; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
 // given: known positive first — team1 alone, its model working without sprints; then team1 and team2 with that model
 // input: roleAssignmentFindings of each
-// expect: no finding for team1 alone; for the two, one error on line 1 of each, naming A PRODUCT HAS ONE ROLE ASSIGNMENT,
-//         OR ONE PER TEAM, its text naming both files
+// expect: no finding for team1 alone; for the two, one error on line 1 of each, naming A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM, its text naming both files
 test("roleAssignmentFindings — more than one role assignment where the model works without sprints is an error", async () => {
   const workflow = await workflowWith("no");
   assert.deepEqual(brief(roleAssignmentFindings([assignmentOf(TEAM1)], workflow, PARTICIPANTS, [])), []);
@@ -261,12 +260,11 @@ test("roleAssignmentFindings — more than one role assignment where the model w
   for (const f of found) assert.ok(f.what.includes("team1.md") && f.what.includes("team2.md"), f.what);
 });
 
+// TST-472434 · level: unit · module: MOD-product-process
 // guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES
-// given: team1 with (a) a row for the role Release tester, which the product's process does not have; (b) a sentence
-//        between its title and ## Roles; (c) a sentence below the roles table
+// given: team1 with (a) a row for the role Release tester, which the product's process does not have; (b) a sentence between its title and ## Roles; (c) a sentence below the roles table
 // input: roleAssignmentFindings of each, alone
-// expect: for each, one error naming A ROLE ASSIGNMENT FILLS THE ROLES, on the line that holds it; its text names the role
-//         or the line
+// expect: for each, one error naming A ROLE ASSIGNMENT FILLS THE ROLES, on the line that holds it; its text names the role or the line
 test("roleAssignmentFindings — a role the process does not have, or anything besides the roles table, is an error", async () => {
   const release = await team1Findings(replaced(TEAM1, 9, "| Developers | dev-a, dev-b |", "| Developers | dev-a, dev-b |",
     "| Release tester | dev-a |"));
@@ -281,12 +279,11 @@ test("roleAssignmentFindings — a role the process does not have, or anything b
   assert.deepEqual(brief(below), [["docs/role-assignments/team1.md", 11, "error", FILLS]]);
 });
 
+// TST-472435 · level: unit · module: MOD-product-process
 // guards: UC-048 3d; A ROLE NAMES HOW MANY FILL IT
-// given: known positive first — team1, whose Developers, which several may fill, are dev-a and dev-b; then team1 with its
-//        Product Owner, whom one participant fills, given alice and bob
+// given: known positive first — team1, whose Developers, which several may fill, are dev-a and dev-b; then team1 with its Product Owner, whom one participant fills, given alice and bob
 // input: roleAssignmentFindings of each, alone
-// expect: no finding for the first; for the second, one error on the row of Product Owner (line 7), naming A ROLE NAMES
-//         HOW MANY FILL IT; its text names the role
+// expect: no finding for the first; for the second, one error on the row of Product Owner (line 7), naming A ROLE NAMES HOW MANY FILL IT; its text names the role
 test("roleAssignmentFindings — more than one participant for a role that one participant fills is an error", async () => {
   assert.deepEqual(brief(await team1Findings(TEAM1)), []);
   const found = await team1Findings(replaced(TEAM1, 7, "| Product Owner | alice |", "| Product Owner | alice, bob |"));
@@ -294,22 +291,22 @@ test("roleAssignmentFindings — more than one participant for a role that one p
   assert.ok(found[0].what.includes("Product Owner"), found[0].what);
 });
 
+// TST-472436 · level: unit · module: MOD-product-process
 // guards: UC-048; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
 // given: team1 with its Developers dev-a and dev-z, a name the instance's list does not hold
 // input: roleAssignmentFindings, alone
-// expect: one error on the row of Developers (line 9), naming PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; its text names
-//         dev-z
+// expect: one error on the row of Developers (line 9), naming PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; its text names dev-z
 test("roleAssignmentFindings — a name the instance's list does not hold is an error", async () => {
   const found = await team1Findings(replaced(TEAM1, 9, "| Developers | dev-a, dev-b |", "| Developers | dev-a, dev-z |"));
   assert.deepEqual(brief(found), [["docs/role-assignments/team1.md", 9, "error", ONCE_PER_INSTANCE]]);
   assert.ok(found[0].what.includes("dev-z"), found[0].what);
 });
 
+// TST-472437 · level: unit · module: MOD-product-process
 // guards: UC-048 3a; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
 // given: team1 with its Product Owner, whom team-scrum fills by a person, (a) held by dev-a, a CLI agent; (b) without a row
 // input: roleAssignmentFindings of each, alone
-// expect: (a) one error on the row of Product Owner (line 7); (b) one error on the heading ## Roles (line 3); each naming A
-//         PROCESS MODEL ORGANISES PEOPLE AND AGENTS, its text naming the role
+// expect: (a) one error on the row of Product Owner (line 7); (b) one error on the heading ## Roles (line 3); each naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS, its text naming the role
 test("roleAssignmentFindings — a role that needs a person and has none is an error", async () => {
   const agent = await team1Findings(replaced(TEAM1, 7, "| Product Owner | alice |", "| Product Owner | dev-a |"));
   assert.deepEqual(brief(agent), [["docs/role-assignments/team1.md", 7, "error", PEOPLE_AND_AGENTS]]);
@@ -320,10 +317,10 @@ test("roleAssignmentFindings — a role that needs a person and has none is an e
 
 // ---------------------------------------------------------------- holdsRole
 
+// TST-472438 · level: unit · module: MOD-product-process
 // guards: UC-048; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // given: team1 and team2
-// input: holdsRole for dev-a as Developers and as Product Owner in team1, and as Developers in team2; dev-b as Scrum Master
-//        in both
+// input: holdsRole for dev-a as Developers and as Product Owner in team1, and as Developers in team2; dev-b as Scrum Master in both
 // expect: dev-a holds Developers in team1, not Product Owner, and nothing in team2; dev-b holds Scrum Master in both
 test("holdsRole — whether a role assignment gives the participant the role", () => {
   const team1 = assignmentOf(TEAM1), team2 = assignmentOf(TEAM2, "team2");
@@ -339,13 +336,11 @@ test("holdsRole — whether a role assignment gives the participant the role", (
 const DEVELOPMENT_GATE = "Development → Sprint Review";
 const RETRO_GATE = "Sprint Retrospective → Sprint Planning";
 
-// guards: UC-048; A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT; A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT
-//         CHECKS
-// given: the gate Development → Sprint Review, decided by the Product Owner, for a job of team1, whose work dev-a did;
-//        alice, team1's Product Owner, and bob, team2's
+// TST-472439 · level: unit · module: MOD-product-process
+// guards: UC-048; A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT; A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS
+// given: the gate Development → Sprint Review, decided by the Product Owner, for a job of team1, whose work dev-a did; alice, team1's Product Owner, and bob, team2's
 // input: mayDecide for alice; for bob; for alice once more, with alice among those whose work the gate checks
-// expect: alice may decide it; bob may not, as no holder of the deciding role in team1, whose holders are alice; alice, had
-//         she done the work, may not, the reason being that she did the work this gate checks
+// expect: alice may decide it; bob may not, as no holder of the deciding role in team1, whose holders are alice; alice, had she done the work, may not, the reason being that she did the work this gate checks
 test("mayDecide — only a holder of the deciding role in the job's role assignment, who did not do the work, passes a gate", async () => {
   const workflow = await workflowWith("yes");
   const team1 = assignmentOf(TEAM1);
@@ -356,12 +351,11 @@ test("mayDecide — only a holder of the deciding role in the job's role assignm
     { may: false, reason: "did the work this gate checks", holders: ["alice"] });
 });
 
+// TST-472440 · level: unit · module: MOD-product-process
 // guards: A GATE NAMES WHO DECIDES IT; A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT
-// given: the gate Sprint Retrospective → Sprint Planning, decided by the check retro-recorded; and a gate the workflow
-//        does not have
+// given: the gate Sprint Retrospective → Sprint Planning, decided by the check retro-recorded; and a gate the workflow does not have
 // input: mayDecide for the check retro-recorded; for another check; for alice; then for alice at Planning → Done
-// expect: the check retro-recorded may decide it; another check and alice may not, the gate not being theirs, with no
-//         holders; a gate the workflow does not have is a TypeError naming it
+// expect: the check retro-recorded may decide it; another check and alice may not, the gate not being theirs, with no holders; a gate the workflow does not have is a TypeError naming it
 test("mayDecide — a gate decided by a check is passed by that check alone; a gate the workflow lacks is refused", async () => {
   const workflow = await workflowWith("yes");
   const team1 = assignmentOf(TEAM1);

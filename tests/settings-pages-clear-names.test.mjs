@@ -98,13 +98,11 @@ function fixture(t, { participants = PARTICIPANTS, mailbox = IMAP, host = "ok" }
   return { store, events, answers, async page() { const target = document.createElement("div"); await view.routes.find((route) => route.name === "settings").render(target, context, {}); return target; } };
 }
 
+// TST-472746 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
-// given: the instance's participants name two agents on lab-pc and one on laptop, beside a model endpoint, a bridge with a similar name and a person; the
-//        mailbox and an endpoint name lab-pc
+// given: the instance's participants name two agents on lab-pc and one on laptop, beside a model endpoint, a bridge with a similar name and a person; the mailbox and an endpoint name lab-pc
 // input: Clear on the line of lab-pc, answered no, then yes
-// expect: the question, asked before anything is cleared, names a-claude (claude) and a-codex (codex), the mailbox and the endpoint hpc, and none of the
-//         others; a no clears nothing and writes nothing; a yes clears the Bridge and its test record and leaves the participants file, the mailbox and the
-//         endpoint as they were, with no commit
+// expect: the question, asked before anything is cleared, names a-claude (claude) and a-codex (codex), the mailbox and the endpoint hpc, and none of the others; a no clears nothing and writes nothing; a yes clears the Bridge and its test record and leaves the participants file, the mailbox and the endpoint as they were, with no commit
 test("Settings — Clear of a Bridge names the participants and the mailbox that name it, and changes neither", async (t) => {
   const f = fixture(t);
   const page = await f.page();
@@ -131,6 +129,7 @@ test("Settings — Clear of a Bridge names the participants and the mailbox that
   assert.ok(f.events.reads.length >= 1, "the participants file was read");
 });
 
+// TST-472747 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: the same instance; laptop, which one participant and no mailbox and no endpoint name
 // input: Clear on the line of laptop
@@ -144,6 +143,7 @@ test("Settings — Clear of another Bridge names only the participants of that B
   for (const other of ["a-claude", "a-codex", "mailbox", "hpc"]) assert.ok(!message.toLowerCase().includes(other.toLowerCase()), `${other} is not named`);
 });
 
+// TST-472748 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: a Microsoft mailbox, which names no Bridge
 // input: Clear on the line of lab-pc
@@ -157,11 +157,11 @@ test("Settings — a Microsoft mailbox names no Bridge", async (t) => {
   assert.doesNotMatch(message, /mailbox/i);
 });
 
+// TST-472749 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: an instance whose participants cannot be read; one whose file is missing; a page with no instance host
 // input: Clear on the line of lab-pc, answered no
-// expect: the first question says the participants could not be read, with the reason, and still names the mailbox; the second names no participant and
-//         claims no failure; the third says nothing of participants; each question is asked and a no clears nothing
+// expect: the first question says the participants could not be read, with the reason, and still names the mailbox; the second names no participant and claims no failure; the third says nothing of participants; each question is asked and a no clears nothing
 test("Settings — Clear says when the participants cannot be read, and never claims there are none", async (t) => {
   const unreadable = fixture(t, { host: "unreadable" });
   await click(byClass(lineOf(await unreadable.page(), "lab-pc"), "settings-bridge-named-clear")[0]);

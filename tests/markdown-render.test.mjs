@@ -282,12 +282,11 @@ const EXPLANATION = [
   "",
 ].join("\n");
 
+// TST-472393 · level: unit · module: MOD-markdown-render
 // guards: UC-002; EVERY STEP EXPLAINS ITSELF (an explanation is Markdown, shown rendered)
-// given: EXPLANATION — two headings, emphasis and strong emphasis, a link, a list and a numbered list, a table, a code span and
-//        a fenced code block
+// given: EXPLANATION — two headings, emphasis and strong emphasis, a link, a list and a numbered list, a table, a code span and a fenced code block
 // input: renderArtifact(EXPLANATION)
-// expect: an element whose HTML holds each of them rendered: <h1> and <h2>, <em> and <strong>, <a href>, <ul> and <ol> with their
-//         <li>, a <table> with its <th> and <td>, <code>, and <pre><code class="language-yaml">
+// expect: an element whose HTML holds each of them rendered: <h1> and <h2>, <em> and <strong>, <a href>, <ul> and <ol> with their <li>, a <table> with its <th> and <td>, <code>, and <pre><code class="language-yaml">
 test("renderArtifact — headings, lists, emphasis, links, tables and code are rendered", () => {
   const rendered = renderArtifact(EXPLANATION);
   assert.equal(rendered.nodeType, 1, "an element");
@@ -318,13 +317,11 @@ const HOSTILE = [
   "",
 ].join("\n");
 
-// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SERVER (a script from a text could read a token from the
-//         browser's store and send it anywhere)
-// given: known positive first — HOSTILE holds a script that sends the stored token to another server, a paragraph with an
-//        event attribute, and a `javascript:` link, between two paragraphs of prose
+// TST-472394 · level: unit · module: MOD-markdown-render
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SERVER (a script from a text could read a token from the browser's store and send it anywhere)
+// given: known positive first — HOSTILE holds a script that sends the stored token to another server, a paragraph with an event attribute, and a `javascript:` link, between two paragraphs of prose
 // input: renderArtifact(HOSTILE)
-// expect: no script and nothing of its text, no event attribute, no `javascript:` address; the prose before and after, the
-//         paragraph's text and the link's text are shown
+// expect: no script and nothing of its text, no event attribute, no `javascript:` address; the prose before and after, the paragraph's text and the link's text are shown
 test("renderArtifact — a script, an event attribute and a javascript: link are removed by the sanitiser", () => {
   const absent = { script: /<script|localStorage/i, "event attribute": /onclick/i, "javascript: link": /javascript:/i };
   for (const [what, pattern] of Object.entries(absent)) assert.match(HOSTILE, pattern, `known positive: the text holds a ${what}`);
@@ -337,12 +334,11 @@ test("renderArtifact — a script, an event attribute and a javascript: link are
 
 const PICTURE = 'The phases, as a picture:\n\n![The phases of Scrum](https://example.org/scrum.png "Scrum")\n';
 
+// TST-472395 · level: unit · module: MOD-markdown-render
 // guards: NO SERVER (an image in a text would be fetched from its host)
-// given: known positive first — PICTURE holds a Markdown image of an address on another host, with its alternative text and
-//        its title
+// given: known positive first — PICTURE holds a Markdown image of an address on another host, with its alternative text and its title
 // input: renderArtifact(PICTURE)
-// expect: no image element; a link to the image's address, with its title, whose text is the alternative text; the prose
-//         before it shown
+// expect: no image element; a link to the image's address, with its title, whose text is the alternative text; the prose before it shown
 test("renderArtifact — an image is shown as a link, never loaded", () => {
   assert.match(PICTURE, /!\[/, "known positive: the text holds an image");
   const html = renderArtifact(PICTURE).innerHTML;
@@ -354,8 +350,8 @@ test("renderArtifact — an image is shown as a link, never loaded", () => {
 const DIAGRAM = ["The flow, as an overview:", "", "```mermaid", "flowchart LR", "  Plan --> Build", "```", "", "The prose holds.", ""]
   .join("\n");
 
-// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW (a diagram that is not drawn
-//         is shown as its source with the reason, and the prose around it is unaffected)
+// TST-472396 · level: unit · module: MOD-markdown-render
+// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW (a diagram that is not drawn is shown as its source with the reason, and the prose around it is unaffected)
 // given: DIAGRAM — a Mermaid block between two paragraphs of prose
 // input: renderArtifact(DIAGRAM)
 // expect: the block as its source with the reason, written out below; the two paragraphs rendered
@@ -367,6 +363,7 @@ test("renderArtifact — a Mermaid block is shown as its source with the reason,
   assert.match(html, /<p>The prose holds\.<\/p>/);
 });
 
+// TST-472397 · level: unit · module: MOD-markdown-render
 // guards: UC-002 (an explanation looks the same each time it is shown)
 // given: a text holding every kind of part above — EXPLANATION, HOSTILE, PICTURE and DIAGRAM —, and another text
 // input: renderArtifact of the text, then of the other text, then of the text again
@@ -388,11 +385,11 @@ const SECTION = "CI green.\nReviewed by a second developer.\nEvery gate recorded
 const nothingToMark = () => [];
 const saved = async () => ({ kind: "saved", link: "https://github.com/akmaier/agent-m/commit/0123456" });
 
+// TST-472398 · level: unit · module: MOD-markdown-render
 // guards: EDITS ARE PREPARED ON THE DASHBOARD (an editor with a live preview)
 // given: an editor opened on "# Before\n"
 // input: the person types "# After\n\nA new line.\n"
-// expect: before, the text area holds the text and the preview shows <h1>Before</h1>; after, the preview shows <h1>After</h1>
-//         and the new paragraph and nothing of "Before", and the editor's text() is the edit
+// expect: before, the text area holds the text and the preview shows <h1>Before</h1>; after, the preview shows <h1>After</h1> and the new paragraph and nothing of "Before", and the editor's text() is the edit
 test("openEditor — the preview follows an edit", () => {
   const target = document.createElement("div");
   const editor = openEditor(target, "# Before\n", { marks: nothingToMark, save: saved });
@@ -405,12 +402,11 @@ test("openEditor — the preview follows an edit", () => {
   assert.equal(editor.text(), "# After\n\nA new line.\n");
 });
 
-// guards: EDITS ARE PREPARED ON THE DASHBOARD; A FINDING READS LIKE A COMPILER MESSAGE (the caller's marks beside their lines,
-//         in the one form of a finding)
+// TST-472399 · level: unit · module: MOD-markdown-render
+// guards: EDITS ARE PREPARED ON THE DASHBOARD; A FINDING READS LIKE A COMPILER MESSAGE (the caller's marks beside their lines, in the one form of a finding)
 // given: an editor opened on SECTION, three lines, whose caller marks line 2 with a warning
 // input: openEditor(target, SECTION, { marks, save })
-// expect: the caller's marks are asked for the text shown; one row of marks per line, the row of line 2 holding the finding in
-//         its one text form, the rows of lines 1 and 3 empty
+// expect: the caller's marks are asked for the text shown; one row of marks per line, the row of line 2 holding the finding in its one text form, the rows of lines 1 and 3 empty
 test("openEditor — a mark is shown beside its line, in the one form of a finding", () => {
   const asked = [];
   const mark = { artifact: "docs/process.md", line: 2, kind: "warning", rule: "A PRODUCT DECLARES ITS DEFINITION OF DONE",
@@ -426,11 +422,11 @@ test("openEditor — a mark is shown beside its line, in the one form of a findi
   ]);
 });
 
+// TST-472400 · level: unit · module: MOD-markdown-render
 // guards: EDITS ARE PREPARED ON THE DASHBOARD (saving hands the edited text over)
 // given: an editor opened on SECTION, whose caller's save records what it is given and answers that it saved
 // input: the person types a fourth line, then clicks Save
-// expect: save is not called before the click (known positive for the count below); after the click it has been called once,
-//         with the edited text
+// expect: save is not called before the click (known positive for the count below); after the click it has been called once, with the edited text
 test("openEditor — Save hands the edited text to the caller's save", async () => {
   const given = [];
   const target = document.createElement("div");
@@ -441,12 +437,11 @@ test("openEditor — Save hands the edited text to the caller's save", async () 
   assert.deepEqual(given, [`${SECTION}\nThe release notes written.`]);
 });
 
+// TST-472401 · level: unit · module: MOD-markdown-render
 // guards: A REFUSED SAVE KEEPS THE EDIT (the edited text stays in the editor, shown beside the newer version)
-// given: an editor opened on SECTION; meanwhile the section was changed on the branch to NEWER, so the caller's save answers
-//        `refused` with NEWER
+// given: an editor opened on SECTION; meanwhile the section was changed on the branch to NEWER, so the caller's save answers `refused` with NEWER
 // input: the person types EDIT, then clicks Save
-// expect: the text area and text() still hold EDIT; NEWER is shown in full; the difference from NEWER to EDIT is shown line by
-//         line — "  " same, "+ " only in the edit, "- " only in the newer version
+// expect: the text area and text() still hold EDIT; NEWER is shown in full; the difference from NEWER to EDIT is shown line by line — " " same, "+ " only in the edit, "- " only in the newer version
 test("openEditor — a refused save keeps the edit, with the newer version and the difference beside it", async () => {
   const NEWER = "CI green.\nThe first commit holds only failing tests.\nEvery gate recorded.";
   const EDIT = `${SECTION}\nThe release notes written.`;

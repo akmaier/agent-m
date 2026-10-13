@@ -23,14 +23,12 @@ const ENDPOINT = {
   throughBridge: false,
 };
 
-// TST-290
-// Module: MOD-settings-pages · MOD-browser-store · MOD-site-frame
-// Level: component
-// Guards: UC-003; UC-001; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE
-// Precondition: this dashboard browser already stores one direct endpoint under MOD-browser-store's instance key.
-// Input: the author opens the dashboard's public Settings entry.
-// Expected: the Settings page retains the legacy browser and notification areas and renders the endpoint slice in its own
-//           endpoints container, where the creation and named-edit controls reach the public UC-003 route.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store · MOD-site-frame
+// TST-290 · level: component · module: MOD-settings-pages
+// guards: UC-003; UC-001; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE
+// given: this dashboard browser already stores one direct endpoint under MOD-browser-store's instance key.
+// input: the author opens the dashboard's public Settings entry.
+// expect: the Settings page retains the legacy browser and notification areas and renders the endpoint slice in its own endpoints container, where the creation and named-edit controls reach the public UC-003 route.
 test("TST-290: Settings composes the stored endpoint slice beside legacy browser settings", async () => {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries: { [ENDPOINT_KEY]: JSON.stringify(ENDPOINT) } });
@@ -48,13 +46,12 @@ test("TST-290: Settings composes the stored endpoint slice beside legacy browser
   assert.match(endpoints.textContent, /tiny-model/, "the endpoint slice reads the canonical browser-store record");
 });
 
-// TST-291
-// Module: MOD-settings-pages · MOD-browser-store
-// Level: component
-// Guards: UC-003; EVERY SETTING IS REACHED FROM ONE PAGE
-// Precondition: this browser stores one endpoint under the instance's canonical browser-store key.
-// Input: the author opens the public creation route, then the same route with the endpoint name as its only parameter.
-// Expected: creation renders the public endpoint form, and named editing loads that endpoint without a dashboard-specific form.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store
+// TST-291 · level: component · module: MOD-settings-pages
+// guards: UC-003; EVERY SETTING IS REACHED FROM ONE PAGE
+// given: this browser stores one endpoint under the instance's canonical browser-store key.
+// input: the author opens the public creation route, then the same route with the endpoint name as its only parameter.
+// expect: creation renders the public endpoint form, and named editing loads that endpoint without a dashboard-specific form.
 test("TST-291: dashboard dispatches public endpoint creation and named editing routes", async () => {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#uc", entries: { [ENDPOINT_KEY]: JSON.stringify({ ...ENDPOINT, key: undefined }) } });

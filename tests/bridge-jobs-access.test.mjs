@@ -75,6 +75,7 @@ async function withRepositories(run) {
   }
 }
 
+// TST-472074 · level: unit · module: MOD-bridge-jobs
 // guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
 // given: the instance and two served products, each a bare repository the computer's login reaches
 // input: testAccess({ instance, products: [a, b] })
@@ -87,11 +88,11 @@ test("testAccess — every repository reached", async () => {
   });
 });
 
+// TST-472075 · level: unit · module: MOD-bridge-jobs
 // guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044; UC-011 3c
 // given: the instance and a served product the login reaches, and a served product it does not — a path that is no repository
 // input: testAccess({ instance, products: [a, missing, b] })
-// expect: the one it does not reach is { reachable: false, reason: git's words — "does not appear to be a git repository" —, naming the
-//         repository }, the others reached with no reason, in the order given
+// expect: the one it does not reach is { reachable: false, reason: git's words — "does not appear to be a git repository" —, naming the repository }, the others reached with no reason, in the order given
 test("testAccess — a repository it does not reach is named with the reason git gives", async () => {
   assert.ok(testAccess, "testAccess is provided");
   await withRepositories(async ({ instance, a, b, none }) => {
@@ -106,12 +107,11 @@ test("testAccess — a repository it does not reach is named with the reason git
   });
 });
 
+// TST-472076 · level: unit · module: MOD-bridge-jobs
 // guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
-// given: the instance, two products and a repository it does not reach, each with a clone the Bridge holds, and the Bridge's own folder
-//        a clone of the instance
+// given: the instance, two products and a repository it does not reach, each with a clone the Bridge holds, and the Bridge's own folder a clone of the instance
 // input: testAccess of all four, with the current folder the instance's clone
-// expect: every clone as it was — its files with their sizes and times, its branches, its head and its working tree — and every origin's
-//         branches as they were; and, as the known positive, a fetch made in a clone is seen by the same check
+// expect: every clone as it was — its files with their sizes and times, its branches, its head and its working tree — and every origin's branches as they were; and, as the known positive, a fetch made in a clone is seen by the same check
 test("testAccess — nothing is changed in any clone", async () => {
   assert.ok(testAccess, "testAccess is provided");
   await withRepositories(async ({ instance, a, b, none }) => {

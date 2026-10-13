@@ -57,21 +57,20 @@ const NONE = "# How the product is developed\n\n**REGISTER**\n\nThe roles are as
 
 const BROKEN = "---\nmodel: scrum-wip\npractices:\n  - devops\n# How the product is developed\n\n**REGISTER**\n";
 
+// TST-473100 · level: unit · module: MOD-text-tools
 // guards: UC-002 (the declaration is read from its front matter)
 // given: WITH, a text whose front matter holds text values, a list of two items and an empty list
 // input: parseFrontMatter(WITH)
-// expect: the fields by key — the empty `gates:` a list —, the keys in the order they stand, the body as every byte after
-//         the closing line, and 11 as the line on which the body begins
+// expect: the fields by key — the empty `gates:` a list —, the keys in the order they stand, the body as every byte after the closing line, and 11 as the line on which the body begins
 test("parseFrontMatter — a text with front matter: its fields, their order, the body and the line it begins on", () => {
   assert.deepEqual(parseFrontMatter(WITH), { fields: WITH_FIELDS, order: WITH_ORDER, body: WITH_BODY, bodyLine: 11 });
 });
 
+// TST-473101 · level: unit · module: MOD-text-tools
 // guards: UC-002
-// given: WITH with its lines ended by CR LF; and a front matter whose values carry blanks around them and whose empty list is
-//        written `[]`
+// given: WITH with its lines ended by CR LF; and a front matter whose values carry blanks around them and whose empty list is written `[]`
 // input: parseFrontMatter of each
-// expect: CR LF — the same fields and order as WITH, no value keeping its CR, the body the text's own bytes after the closing
-//         line, CRs included; blanks — every value trimmed; `[]` — an empty list, not the text "[]"
+// expect: CR LF — the same fields and order as WITH, no value keeping its CR, the body the text's own bytes after the closing line, CRs included; blanks — every value trimmed; `[]` — an empty list, not the text "[]"
 test("parseFrontMatter — CR LF line ends, values trimmed, and `[]` as an empty list", () => {
   const crlf = WITH.replace(/\n/g, "\r\n");
   assert.deepEqual(parseFrontMatter(crlf),
@@ -83,9 +82,9 @@ test("parseFrontMatter — CR LF line ends, values trimmed, and `[]` as an empty
   });
 });
 
+// TST-473102 · level: unit · module: MOD-text-tools
 // guards: UC-002
-// given: known positive first — WITH has front matter; then NONE, which has none; BROKEN, whose closing line is missing; and
-//        WITH preceded by an empty line, so that it lacks the opening line
+// given: known positive first — WITH has front matter; then NONE, which has none; BROKEN, whose closing line is missing; and WITH preceded by an empty line, so that it lacks the opening line
 // input: parseFrontMatter of each
 // expect: none of them throws; each of the three has empty fields and an empty order, and is all body, from line 1
 test("parseFrontMatter — a text without front matter, and one whose front matter is broken, are all body", () => {
@@ -95,6 +94,7 @@ test("parseFrontMatter — a text without front matter, and one whose front matt
   }
 });
 
+// TST-473103 · level: unit · module: MOD-text-tools
 // guards: UC-002
 // given: the three texts WITH, NONE and BROKEN
 // input: formatFrontMatter of what parseFrontMatter read from each
@@ -106,20 +106,19 @@ test("formatFrontMatter — what parseFrontMatter read gives back the same bytes
   }
 });
 
+// TST-473104 · level: unit · module: MOD-text-tools
 // guards: UC-002
-// given: fields whose keys stand in another order than `order` names, a list of two items, an empty list, and a body with
-//        CR LF line ends
+// given: fields whose keys stand in another order than `order` names, a list of two items, an empty list, and a body with CR LF line ends
 // input: formatFrontMatter(fields, ["a", "b", "c"], body)
-// expect: the keys in the order of `order`, the list one item per line as `  - item`, the empty list as `c:` alone, then the
-//         body unchanged
+// expect: the keys in the order of `order`, the list one item per line as ` - item`, the empty list as `c:` alone, then the body unchanged
 test("formatFrontMatter — keys in `order`, a list one item per line, an empty list as `key:` alone, the body unchanged", () => {
   assert.equal(formatFrontMatter({ c: [], b: ["x", "y"], a: "1" }, ["a", "b", "c"], "# Body\r\n"),
     "---\na: 1\nb:\n  - x\n  - y\nc:\n---\n# Body\r\n");
 });
 
+// TST-473105 · level: unit · module: MOD-text-tools
 // guards: UC-002
-// given: known positive first — a key and a value that may stand in front matter; then keys that are not [a-z][a-z0-9_-]*,
-//        and values holding a line break, as a text and as a list item
+// given: known positive first — a key and a value that may stand in front matter; then keys that are not [a-z][a-z0-9_-]*, and values holding a line break, as a text and as a list item
 // input: formatFrontMatter({ [key]: value }, [key], "")
 // expect: the known positive is written; every other call throws a TypeError
 test("formatFrontMatter — a key not of the form [a-z][a-z0-9_-]*, or a value holding a line break, throws a TypeError", () => {
@@ -143,22 +142,20 @@ const EXAMPLE = {
 const EXAMPLE_LINE = "UC-007:12: error: realises \"EXPORT AS PDF\" matches no requirement " +
   "[A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.";
 
+// TST-473106 · level: unit · module: MOD-text-tools
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
 // given: the module file's example finding
 // input: finding(EXAMPLE), then formatFinding of it
-// expect: the finding with all six fields as given, and as text exactly the module file's line:
-//         `UC-007:12: error: realises "EXPORT AS PDF" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an
-//         existing name or remove the line.`
+// expect: the finding with all six fields as given, and as text exactly the module file's line: `UC-007:12: error: realises "EXPORT AS PDF" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.`
 test("finding and formatFinding — the module file's example, as data and as its one line of text", () => {
   const f = finding(EXAMPLE);
   assert.deepEqual(f, EXAMPLE);
   assert.equal(formatFinding(f), EXAMPLE_LINE);
 });
 
+// TST-473107 · level: unit · module: MOD-text-tools
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: four findings — the module file's example; a warning on a file without an identifier, named by its path; a finding
-//        whose text holds brackets, a dash and a date and whose correction ends in a period of its own; and one under a rule
-//        whose name holds an apostrophe and a comma
+// given: four findings — the module file's example; a warning on a file without an identifier, named by its path; a finding whose text holds brackets, a dash and a date and whose correction ends in a period of its own; and one under a rule whose name holds an apostrophe and a comma
 // input: parseFinding(formatFinding(finding(f))) for each
 // expect: each finding read back unchanged
 test("parseFinding — a finding written in its one text form is read back unchanged", () => {
@@ -174,10 +171,9 @@ test("parseFinding — a finding written in its one text form is read back uncha
   for (const f of findings) assert.deepEqual(parseFinding(formatFinding(finding(f))), f, `${f.artifact}:${f.line}`);
 });
 
+// TST-473108 · level: unit · module: MOD-text-tools
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — the module file's example passes; then the example with one field broken at a time: a kind
-//        other than error or warning, a line that is not a whole number of at least 1, a rule that is not a requirement's
-//        name in capitals (in small letters, an identifier, empty)
+// given: known positive first — the module file's example passes; then the example with one field broken at a time: a kind other than error or warning, a line that is not a whole number of at least 1, a rule that is not a requirement's name in capitals (in small letters, an identifier, empty)
 // input: finding(broken)
 // expect: the example is returned; every broken one throws a TypeError
 test("finding — a kind, a line or a rule out of its form throws a TypeError", () => {
@@ -190,10 +186,9 @@ test("finding — a kind, a line or a rule out of its form throws a TypeError", 
   for (const part of broken) assert.throws(() => finding({ ...EXAMPLE, ...part }), TypeError, JSON.stringify(part));
 });
 
+// TST-473109 · level: unit · module: MOD-text-tools
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — the module file's line reads back as its finding; then lines of any other form: empty, prose,
-//        the line without its closing period, with the kind `note`, with line 0, without a line, with its rule in small
-//        letters, and broken over two lines
+// given: known positive first — the module file's line reads back as its finding; then lines of any other form: empty, prose, the line without its closing period, with the kind `note`, with line 0, without a line, with its rule in small letters, and broken over two lines
 // input: parseFinding(line)
 // expect: the finding for the known positive; null for every other line
 test("parseFinding — null for any line of another form", () => {
@@ -216,9 +211,9 @@ test("parseFinding — null for any line of another form", () => {
 // The SHA git itself gives for the same bytes.
 const gitHashObject = (text) => execFileSync("git", ["hash-object", "--stdin"], { input: Buffer.from(text, "utf8") }).toString().trim();
 
+// TST-473110 · level: unit · module: MOD-text-tools
 // guards: AN APPROVAL NAMES THE EXACT TEXT
-// given: texts with and without front matter, a broken one, an empty one, one beyond ASCII, one with CR LF line ends, and one
-//        without a line end at its end
+// given: texts with and without front matter, a broken one, an empty one, one beyond ASCII, one with CR LF line ends, and one without a line end at its end
 // input: await blobSha(text)
 // expect: for each, 40 lowercase hexadecimal digits, the same as `git hash-object --stdin` gives for the text's UTF-8 bytes
 test("blobSha — git's blob SHA of a text, the same as git hash-object gives for its bytes", async () => {
@@ -233,9 +228,9 @@ test("blobSha — git's blob SHA of a text, the same as git hash-object gives fo
   }
 });
 
+// TST-473111 · level: unit · module: MOD-text-tools
 // guards: AN APPROVAL NAMES THE EXACT TEXT
-// given: the empty text and the text "hello\n", whose blob SHAs git names e69de29… (git's empty blob) and ce01362…; and a
-//        text with LF line ends beside the same text with CR LF line ends
+// given: the empty text and the text "hello\n", whose blob SHAs git names e69de29… (git's empty blob) and ce01362…; and a text with LF line ends beside the same text with CR LF line ends
 // input: await blobSha(text)
 // expect: the two known SHAs; and two different SHAs for LF and CR LF — the text is hashed as given
 test("blobSha — the known blobs, and a text hashed as given, line ends included", async () => {
@@ -299,18 +294,16 @@ const UNMARKED = [
   "",
 ].join("\n");
 
+// TST-473112 · level: unit · module: MOD-text-tools
 // guards: A DOCUMENT HOLDS NO HISTORY
 // given: MARKED
 // input: historyMarks(MARKED)
-// expect: nine marks in the order they stand, each with its line — counted from the text's first line, front matter
-//         included —, its kind and its text: the withdrawal of line 3; on line 7 the date 2026-09-23, the stamp
-//         "reworded 2026-09-24" and the withdrawal "withdrawn 2026-09-25", their dates not marked again; the note of line 8;
-//         the section of line 10; the stamps of lines 12 and 13; the date of line 14; line 15's retrieval date no mark
-//         (ITM-225)
+// expect: nine marks in the order they stand, each with its line — counted from the text's first line, front matter included —, its kind and its text: the withdrawal of line 3; on line 7 the date 2026-09-23, the stamp "reworded 2026-09-24" and the withdrawal "withdrawn 2026-09-25", their dates not marked again; the note of line 8; the section of line 10; the stamps of lines 12 and 13; the date of line 14; line 15's retrieval date no mark (ITM-225)
 test("historyMarks — withdrawals, edit stamps and dates, each with its line and its kind", () => {
   assert.deepEqual(historyMarks(MARKED), MARKS);
 });
 
+// TST-473113 · level: unit · module: MOD-text-tools
 // guards: A DOCUMENT HOLDS NO HISTORY
 // given: MARKED with its lines ended by CR LF
 // input: historyMarks of it
@@ -319,6 +312,7 @@ test("historyMarks — the same marks in a text with CR LF line ends", () => {
   assert.deepEqual(historyMarks(MARKED.replace(/\n/g, "\r\n")), MARKS);
 });
 
+// TST-473114 · level: unit · module: MOD-text-tools
 // guards: A DOCUMENT HOLDS NO HISTORY
 // given: known positive first — MARKED has marks; then UNMARKED, a text that records no history, and the empty text
 // input: historyMarks of each
@@ -345,9 +339,9 @@ const FORMS_MARKS = [
   { line: 3, kind: "dated-change", text: "2026-09-25" },
 ];
 
+// TST-473115 · level: unit · module: MOD-text-tools
 // guards: A DOCUMENT HOLDS NO HISTORY
-// given: FORMS, one line per form the module file names for the date of a change: `PO decision <date>`,
-//        `(PO A. Maier, <date>)` and `PO, <date>: …`
+// given: FORMS, one line per form the module file names for the date of a change: `PO decision <date>`, `(PO A. Maier, <date>)` and `PO, <date>: …`
 // input: historyMarks(FORMS)
 // expect: each date marked dated-change, with its line, as the date alone
 test("historyMarks — a date of a change in its three forms, each marked dated-change", () => {
@@ -371,11 +365,11 @@ const NO_MARK = [
   "| nightly | 2026-09-21 |",                            // 8 — a date in a table's cell
 ].join("\n");
 
+// TST-473116 · level: unit · module: MOD-text-tools
 // guards: A DOCUMENT HOLDS NO HISTORY
 // given: NO_MARK
 // input: historyMarks(NO_MARK)
-// expect: known positive — line 1's date is a mark; the other five dates (lines 2-5 and 8) are no mark, so the only mark
-//         found is line 1's
+// expect: known positive — line 1's date is a mark; the other five dates (lines 2-5 and 8) are no mark, so the only mark found is line 1's
 test("historyMarks — a retrieval date, a version, a release, a measurement and a date in a table's cell are no mark", () => {
   const marks = historyMarks(NO_MARK);
   assert.ok(marks.length > 0, "known positive: line 1 is a mark");
@@ -389,13 +383,11 @@ const added = (text, after) => ({ op: "added", text, before: null, after });
 const removed = (text, before) => ({ op: "removed", text, before, after: null });
 const linesOf = (text) => (text === "" ? [] : text.replace(/\r?\n$/, "").split(/\r?\n/));
 
+// TST-473117 · level: unit · module: MOD-text-tools
 // guards: A REFUSED SAVE KEEPS THE EDIT; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: before "a b c" and after "a B c d", one line each
 // input: lineDiff(before, after)
-// expect: every line of both, in order, each with its line before and after where it has one: a same (1, 1); B added
-//         (–, 2) and b removed (2, –), the added line first where a change leaves the order open, as the dashboard's diff
-//         shows it today (docs/assets/review-core.mjs); c same (3, 3); d added (–, 4). Read on one side, the lines are each
-//         text's own lines in order.
+// expect: every line of both, in order, each with its line before and after where it has one: a same (1, 1); B added (–, 2) and b removed (2, –), the added line first where a change leaves the order open, as the dashboard's diff shows it today (docs/assets/review-core.mjs); c same (3, 3); d added (–, 4). Read on one side, the lines are each text's own lines in order.
 test("lineDiff — every line of both texts, in order, each with its line before and after", () => {
   const before = "a\nb\nc\n", after = "a\nB\nc\nd\n";
   const diff = lineDiff(before, after);
@@ -405,13 +397,11 @@ test("lineDiff — every line of both texts, in order, each with its line before
   assert.deepEqual(side(["same", "added"], "after"), linesOf(after).map((t, i) => [i + 1, t]), "the text after");
 });
 
+// TST-473118 · level: unit · module: MOD-text-tools
 // guards: A REFUSED SAVE KEEPS THE EDIT; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
-// given: pairs of texts whose fewest added and removed lines are known — a line moved from the top to the end; three lines
-//        reversed; two lines taken out between three kept; one line changed among six; one value changed in WITH's front
-//        matter
+// given: pairs of texts whose fewest added and removed lines are known — a line moved from the top to the end; three lines reversed; two lines taken out between three kept; one line changed among six; one value changed in WITH's front matter
 // input: lineDiff(before, after)
-// expect: exactly that many added and removed lines — for the moved line, the one line removed at the top and added at the
-//         end, with the three others the same
+// expect: exactly that many added and removed lines — for the moved line, the one line removed at the top and added at the end, with the three others the same
 test("lineDiff — as few added and removed lines as the two texts allow", () => {
   assert.deepEqual(lineDiff("a\nb\nc\nd\n", "b\nc\nd\na\n"),
     [removed("a", 1), same("b", 2, 1), same("c", 3, 2), same("d", 4, 3), added("a", 4)]);
@@ -429,9 +419,9 @@ test("lineDiff — as few added and removed lines as the two texts allow", () =>
   }
 });
 
+// TST-473119 · level: unit · module: MOD-text-tools
 // guards: A REFUSED SAVE KEEPS THE EDIT; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
-// given: known positive first — two texts that differ in one line show that difference; then texts that differ only in their
-//        line endings: LF against CR LF, and a last line with and without its line end
+// given: known positive first — two texts that differ in one line show that difference; then texts that differ only in their line endings: LF against CR LF, and a last line with and without its line end
 // input: lineDiff(before, after)
 // expect: no added and no removed line — every line the same, numbered on both sides
 test("lineDiff — a text that changed only its line endings shows no difference", () => {
@@ -441,6 +431,7 @@ test("lineDiff — a text that changed only its line endings shows no difference
   assert.deepEqual(lineDiff(WITH, WITH.replace(/\n/g, "\r\n")).filter((d) => d.op !== "same"), []);
 });
 
+// TST-473120 · level: unit · module: MOD-text-tools
 // guards: A REFUSED SAVE KEEPS THE EDIT; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: the empty text, which has no line, against itself, against one line, and one line against it
 // input: lineDiff(before, after)

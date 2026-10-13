@@ -81,25 +81,22 @@ function loadedWithoutItsSkeleton({ module, error }, reason) {
     `specSkeleton fails, naming skeleton.md and the reason: ${reason}`);
 }
 
+// TST-473053 · level: unit · module: MOD-spec-document
 // guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
-// given: Node, where the module reads skeleton.md from the disk, and a disk on which that read fails as it does for a missing
-//        file: "ENOENT: no such file or directory, open '…/skeleton.md'"
+// given: Node, where the module reads skeleton.md from the disk, and a disk on which that read fails as it does for a missing file: "ENOENT: no such file or directory, open '…/skeleton.md'"
 // input: the module loaded anew; parseSpec(SPEC); specSkeleton("alice/thesis-tool")
-// expect: one read, of the module's own skeleton.md from the disk; the module loads all the same; parseSpec reads SPEC as
-//         SPEC_READ writes it out; specSkeleton throws an Error whose message names skeleton.md and the reason, "ENOENT"
+// expect: one read, of the module's own skeleton.md from the disk; the module loads all the same; parseSpec reads SPEC as SPEC_READ writes it out; specSkeleton throws an Error whose message names skeleton.md and the reason, "ENOENT"
 test("with skeleton.md unreadable on the disk, the module loads, parseSpec reads a SPEC, and specSkeleton fails with the reason", async () => {
   const loaded = await load({ disk: diskFailing(NO_SUCH_FILE) });
   assert.deepEqual(loaded.reads, [`disk ${SKELETON_FILE.href}`]);
   loadedWithoutItsSkeleton(loaded, "ENOENT");
 });
 
+// TST-473054 · level: unit · module: MOD-spec-document
 // guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
-// given: a browser, where the module reads skeleton.md from its own address with fetch: once the server answers 404 Not Found,
-//        once the request itself fails, as a browser's fetch does without a connection — TypeError "Failed to fetch"
+// given: a browser, where the module reads skeleton.md from its own address with fetch: once the server answers 404 Not Found, once the request itself fails, as a browser's fetch does without a connection — TypeError "Failed to fetch"
 // input: for each, the module loaded anew; parseSpec(SPEC); specSkeleton("alice/thesis-tool")
-// expect: for each, one read, of the module's own skeleton.md from its address; the module loads all the same; parseSpec reads
-//         SPEC as SPEC_READ writes it out; specSkeleton throws an Error whose message names skeleton.md and the reason — "404",
-//         and "Failed to fetch"
+// expect: for each, one read, of the module's own skeleton.md from its address; the module loads all the same; parseSpec reads SPEC as SPEC_READ writes it out; specSkeleton throws an Error whose message names skeleton.md and the reason — "404", and "Failed to fetch"
 test("with skeleton.md not served at the module's address, the module loads, parseSpec reads a SPEC, and specSkeleton fails with the reason", async () => {
   const cases = [
     ["404", async () => new Response("Not Found", { status: 404, statusText: "Not Found" })],
@@ -112,13 +109,11 @@ test("with skeleton.md not served at the module's address, the module loads, par
   }
 });
 
+// TST-473055 · level: unit · module: MOD-spec-document
 // guards: ADDING A PRODUCT CREATES ITS LAYOUT; UC-001
-// given: (a) the module as every page loads it, from its own folder, with its real skeleton.md readable on the disk; (b) the
-//        module loaded anew, once with a disk and once with an address that give A_SKELETON, a text naming `<product>` twice
+// given: (a) the module as every page loads it, from its own folder, with its real skeleton.md readable on the disk; (b) the module loaded anew, once with a disk and once with an address that give A_SKELETON, a text naming `<product>` twice
 // input: specSkeleton("alice/thesis-tool") of each
-// expect: the same text as before — the text read, with "alice/thesis-tool" in every place of `<product>` and every other
-//         byte as read: (a) skeleton.md's own text so; (b) WITH_PRODUCT, after one read each, from the disk and from the
-//         address
+// expect: the same text as before — the text read, with "alice/thesis-tool" in every place of `<product>` and every other byte as read: (a) skeleton.md's own text so; (b) WITH_PRODUCT, after one read each, from the disk and from the address
 test("with skeleton.md readable, specSkeleton gives the same text as before", async () => {
   assert.equal(specSkeleton(PRODUCT), readFileSync(SKELETON_FILE, "utf8").split("<product>").join(PRODUCT));
   const A_SKELETON = lines("# <product> — Specification", "", "**VERBINDLICH (SPEC)**", "", "The binding document of <product>.",

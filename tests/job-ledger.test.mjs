@@ -50,11 +50,11 @@ const START = {
 
 // ---------------------------------------------------------------- newJobId
 
+// TST-472296 · level: unit · module: MOD-job-ledger
 // guards: A JOB IDENTIFIER IS NEVER REUSED
 // given: a fixed instant, and taken holding the identifier Math.random would give first (four hex digits "0")
 // input: newJobId(now, taken), with Math.random replaced so its first four digits collide and its next four do not
-// expect: an identifier of the form JOB-<yyyymmdd>-<hhmm>-<4 hex>; the first candidate is never returned, since it
-//         stands in taken; the one returned is not in taken
+// expect: an identifier of the form JOB-<yyyymmdd>-<hhmm>-<4 hex>; the first candidate is never returned, since it stands in taken; the one returned is not in taken
 test("newJobId — an identifier of the record's form, none of those taken", () => {
   const now = new Date("2026-10-07T12:34:00Z");
   assert.match(newJobId(now, new Set()), /^JOB-20261007-1234-[0-9a-f]{4}$/);
@@ -74,11 +74,11 @@ test("newJobId — an identifier of the record's form, none of those taken", () 
 
 // ---------------------------------------------------------------- startRecord, read back through listJobs
 
+// TST-472297 · level: unit · module: MOD-job-ledger
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a JobStart with every one of its parts — destinations, parameters, an input, a run-less, retry-less job
 // input: startRecord(START), then listJobs of a fixture snapshot holding only that text
-// expect: the one row's record carries every field of START exactly as given, state "queued" (no ## Taken yet), and its
-//         source reachable
+// expect: the one row's record carries every field of START exactly as given, state "queued" (no ## Taken yet), and its source reachable
 test("startRecord — the start of a record with each of its parts, read back as the same start", async () => {
   const { path, text } = startRecord(START);
   assert.equal(path, "docs/jobs/JOB-20261007-0900-a1b2.md");
@@ -182,16 +182,11 @@ usage: {"inputTokens":1000,"outputTokens":200,"minutes":12,"cost":null}
 cost: {"known":true,"amount":3.4,"currency":"USD","basis":"usage at the declared price"}
 `;
 
+// TST-472298 · level: unit · module: MOD-job-ledger
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: RUN_RECORD, one record with each of the six kinds of appended part (job.schema.md, Data: appended) except a
-//        question and a draft, the resumption, the two started jobs and the raised limits each written with their
-//        spaced key
+// given: RUN_RECORD, one record with each of the six kinds of appended part (job.schema.md, Data: appended) except a question and a draft, the resumption, the two started jobs and the raised limits each written with their spaced key
 // input: listJobs of a fixture snapshot holding only that text
-// expect: the row's record carries Taken (by), the one gate resumed by the named gate record (and so no open
-//         question), both started jobs in order, the one limits-raised entry, and the end's state, results, usage and
-//         cost — each exactly as the text states it, its draft null (none in this text) and its rounds empty (no round
-//         record stands in the text, and none is built yet); the derived state is "done" (its last part,
-//         A RECORD IS EVIDENCE, NOT A PROPOSAL)
+// expect: the row's record carries Taken (by), the one gate resumed by the named gate record (and so no open question), both started jobs in order, the one limits-raised entry, and the end's state, results, usage and cost — each exactly as the text states it, its draft null (none in this text) and its rounds empty (no round record stands in the text, and none is built yet); the derived state is "done" (its last part, A RECORD IS EVIDENCE, NOT A PROPOSAL)
 test("listJobs — a record with each kind of part appended, read", async () => {
   const rows = await listJobs([{ address: "org/repo", snapshot: snapshotOf({ [RUN_PATH]: RUN_RECORD }) }], new Map());
   assert.equal(rows.length, 1);
@@ -262,12 +257,11 @@ at: 2026-10-06 10:30 UTC
 question: Which of the two forms should the drafter follow?
 `;
 
+// TST-472299 · level: unit · module: MOD-job-ledger
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: QUESTION_RECORD, whose only "## Gate reached" holds "question:" instead of "gate:"/"decider:", not resumed
 // input: listJobs of a fixture snapshot holding only that text
-// expect: the record's question is the line's text (not null); it names no named gate (gates is empty — a question is
-//         not read as "a gate with no name"); the derived state is "waiting at a gate", as an unresolved named gate
-//         would also give
+// expect: the record's question is the line's text (not null); it names no named gate (gates is empty — a question is not read as "a gate with no name"); the derived state is "waiting at a gate", as an unresolved named gate would also give
 // counter-proof: planting `question: null,` in place of the real read (index.mjs, recordFromDocument) — the second
 //                sprint's own defect — fails this test's `assert.equal(record.question, ...)` line
 test("listJobs — a question to the author is read as the record's question, not a nameless gate", async () => {
@@ -321,12 +315,11 @@ draft:
 \`\`\`
 `;
 
+// TST-472300 · level: unit · module: MOD-job-ledger
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
-// given: DRAFT_RECORD, whose End holds "draft:" and one fenced json block, and no usage/cost (a job that ran away from
-//        the page and handed its draft back, job.schema.md's own note)
+// given: DRAFT_RECORD, whose End holds "draft:" and one fenced json block, and no usage/cost (a job that ran away from the page and handed its draft back, job.schema.md's own note)
 // input: listJobs of a fixture snapshot holding only that text
-// expect: the end's draft is the block's parsed value (not null), its results "waits for a person", its rounds still
-//         empty (an End is read without a round record)
+// expect: the end's draft is the block's parsed value (not null), its results "waits for a person", its rounds still empty (an End is read without a round record)
 // counter-proof: planting `draft: null,` in place of the real read (index.mjs, recordFromDocument) — the second
 //                sprint's own defect — fails this test's `assert.deepEqual(record.end.draft, ...)` line
 test("listJobs — an End's draft is read from its one fenced JSON block", async () => {
@@ -348,13 +341,11 @@ function baseRecord(overrides) {
   return { taken: null, gates: [], question: null, end: null, ...overrides };
 }
 
+// TST-472301 · level: unit · module: MOD-job-ledger
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: records by their last part alone, then the same not-ended record with each kind of live state
 // input: jobState(record, live)
-// expect: not taken -> queued; taken, no open gate, no live -> running; an unresolved named gate -> waiting at a gate;
-//         an unresolved question -> waiting at a gate too, whatever live says; ended -> its end's state; live reachable
-//         and not knowing the job -> ended without record; live reachable, knowing it and cancelling -> cancelling;
-//         live unreachable -> running (the record alone, A RECORD IS EVIDENCE, NOT A PROPOSAL)
+// expect: not taken -> queued; taken, no open gate, no live -> running; an unresolved named gate -> waiting at a gate; an unresolved question -> waiting at a gate too, whatever live says; ended -> its end's state; live reachable and not knowing the job -> ended without record; live reachable, knowing it and cancelling -> cancelling; live unreachable -> running (the record alone, A RECORD IS EVIDENCE, NOT A PROPOSAL)
 test("jobState — the state of a record by its last part, with a live state and without one", () => {
   assert.equal(jobState(baseRecord({}), null), "queued");
   assert.equal(jobState(baseRecord({ taken: { at: new Date(), by: "tab" } }), null), "running");
@@ -381,13 +372,11 @@ test("jobState — the state of a record by its last part, with a live state and
 
 // ---------------------------------------------------------------- listJobs: order, products, a record that fails
 
+// TST-472302 · level: unit · module: MOD-job-ledger
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
-// given: two products — one with a gate-waiting job (oldest) and a job that failed to read, the other with a running
-//        job (newest) and a done job (middle) — the records of the second product named directly, no ## Taken needed
-//        for order
+// given: two products — one with a gate-waiting job (oldest) and a job that failed to read, the other with a running job (newest) and a done job (middle) — the records of the second product named directly, no ## Taken needed for order
 // input: listJobs(products, live)
-// expect: four rows; the gate-waiting job first; then the running job (newest of the rest) before the done job
-//        (older); the unreadable path still listed, with source.reachable false and a reason naming it
+// expect: four rows; the gate-waiting job first; then the running job (newest of the rest) before the done job (older); the unreadable path still listed, with source.reachable false and a reason naming it
 test("listJobs — the jobs of two products newest first, waiting at a gate first, a record that cannot be read listed with the reason", async () => {
   const waiting = `---
 id: JOB-20261001-0900-aaaa
@@ -508,12 +497,11 @@ state: done
 
 // ---------------------------------------------------------------- jobCost
 
+// TST-472303 · level: unit · module: MOD-job-ledger
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: usage with a reported cost; usage with tokens and no reported cost, and a participant with a declared price;
-//        no usage and no price
+// given: usage with a reported cost; usage with tokens and no reported cost, and a participant with a declared price; no usage and no price
 // input: jobCost(usage, participant)
-// expect: the reported cost, basis "reported"; the tokens at the declared price, basis "usage at the declared price";
-//         otherwise known false with the usage given — never a zero amount
+// expect: the reported cost, basis "reported"; the tokens at the declared price, basis "usage at the declared price"; otherwise known false with the usage given — never a zero amount
 test("jobCost — the cost as reported, at the declared price, or unknown, never zero", () => {
   const reported = { inputTokens: 100, outputTokens: 50, minutes: null, cost: { amount: 1.23, currency: "USD" } };
   assert.deepEqual(jobCost(reported, { price: { input: 0.01, output: 0.02, currency: "USD" } }),
@@ -532,6 +520,7 @@ test("jobCost — the cost as reported, at the declared price, or unknown, never
   assert.deepEqual(noPrice, { known: false, usage });
 });
 
+// TST-472304 · level: unit · module: MOD-job-ledger
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // given: two job records whose paths name different start times, and a snapshot that records every read
 // input: recordsNewestFirst(snapshot), stopping after the newest record

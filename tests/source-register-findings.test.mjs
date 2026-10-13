@@ -84,15 +84,11 @@ function assertReported(found, names) {
 
 // ---------------------------------------------------------------- the check
 
+// TST-472899 · level: unit · module: MOD-source-register
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; UC-006
-// given: the register and the links above — the product links the book, SRC-x, the standard and the longer of the two Medical
-//        Devices titles —, and four requirements: one whose item is `Vibe Coding, ch. 9`, one with `SRC-x, Art. 13`, one with
-//        the standard's designation and a part, and one with `Medical Devices, Regulation, Art. 3`, which begins with both
-//        Medical Devices titles, the longer of which the product links
+// given: the register and the links above — the product links the book, SRC-x, the standard and the longer of the two Medical Devices titles —, and four requirements: one whose item is `Vibe Coding, ch. 9`, one with `SRC-x, Art. 13`, one with the standard's designation and a part, and one with `Medical Devices, Regulation, Art. 3`, which begins with both Medical Devices titles, the longer of which the product links
 // input: sourceFindings of the four requirements, the links and the register
-// expect: no finding: the first item names the entry titled Vibe Coding, the second SRC-x, the third the standard by its
-//         designation, the fourth the longer title, the longest match, and each entry is linked. Known positive: the requirement
-//         whose item names SRC-unlinked, an entry the product does not link, is reported by the same call
+// expect: no finding: the first item names the entry titled Vibe Coding, the second SRC-x, the third the standard by its designation, the fourth the longer title, the longest match, and each entry is linked. Known positive: the requirement whose item names SRC-unlinked, an entry the product does not link, is reported by the same call
 test("sourceFindings — an item names the entry whose identifier, title or designation it begins with, the longest match", () => {
   const four = ["NAMES THE BOOK BY ITS TITLE", "NAMES A SOURCE BY ITS IDENTIFIER", "NAMES A STANDARD BY ITS DESIGNATION",
     "NAMES THE LONGER OF TWO TITLES"];
@@ -102,36 +98,32 @@ test("sourceFindings — an item names the entry whose identifier, title or desi
   assert.deepEqual(sourceFindings(requirementsNamed(...four), links(), register()), []);
 });
 
+// TST-472900 · level: unit · module: MOD-source-register
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; UC-006
-// given: the same register and links; a requirement whose only item, `SRC-unlinked, Art. 4`, names an entry the product does
-//        not link
+// given: the same register and links; a requirement whose only item, `SRC-unlinked, Art. 4`, names an entry the product does not link
 // input: sourceFindings of it, the links and the register
-// expect: one error under A REQUIREMENT HAS A REGISTERED SOURCE, on the line of the requirement's head, that names the
-//         requirement and its item, in one line
+// expect: one error under A REQUIREMENT HAS A REGISTERED SOURCE, on the line of the requirement's head, that names the requirement and its item, in one line
 test("sourceFindings — a requirement whose only item names an entry the product does not link is reported, with its line and its item", () => {
   const name = "NAMES AN ENTRY THE PRODUCT DOES NOT LINK";
 
   assertReported(sourceFindings(requirementsNamed(name), links(), register()), [name]);
 });
 
+// TST-472901 · level: unit · module: MOD-source-register
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; UC-006
-// given: the same register and links; three requirements whose items name no entry: one with `Product Owner` and `Whitepaper
-//        X`, one with `Vibe Coding Handbook, ch. 1`, which begins with an entry's title but is followed by neither the end of
-//        the item nor `, `, and one that names no source at all
+// given: the same register and links; three requirements whose items name no entry: one with `Product Owner` and `Whitepaper X`, one with `Vibe Coding Handbook, ch. 1`, which begins with an entry's title but is followed by neither the end of the item nor `, `, and one that names no source at all
 // input: sourceFindings of the three, the links and the register
-// expect: three errors under A REQUIREMENT HAS A REGISTERED SOURCE, in the order of the requirements, each on the line of its
-//         head and naming the requirement and its items — the first two items, the second's one item, the third none —
+// expect: three errors under A REQUIREMENT HAS A REGISTERED SOURCE, in the order of the requirements, each on the line of its head and naming the requirement and its items — the first two items, the second's one item, the third none —
 test("sourceFindings — a requirement whose items name no entry, and one with no item, are reported, with their lines and items", () => {
   const names = ["NAMES NO ENTRY", "BEGINS LIKE AN ENTRY BUT NAMES NONE", "NAMES NO SOURCE"];
 
   assertReported(sourceFindings(requirementsNamed(...names), links(), register()), names);
 });
 
+// TST-472902 · level: unit · module: MOD-source-register
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; UC-006
-// given: the same register and links; a requirement with three items: `Product Owner`, which names no entry, `Vibe Coding, ch.
-//        2`, which names the linked book, and `SRC-unlinked, Art. 1`, which names an entry the product does not link
-// input: sourceFindings of it, the links and the register; and, as the known positive, of the same requirement without its
-//        linked item
+// given: the same register and links; a requirement with three items: `Product Owner`, which names no entry, `Vibe Coding, ch. 2`, which names the linked book, and `SRC-unlinked, Art. 1`, which names an entry the product does not link
+// input: sourceFindings of it, the links and the register; and, as the known positive, of the same requirement without its linked item
 // expect: no finding for the requirement with one linked item among others; the requirement without it is reported
 test("sourceFindings — a requirement with one linked item among others is not reported", () => {
   const [linkedAmongOthers] = requirementsNamed("NAMES ONE LINKED SOURCE AMONG OTHERS");

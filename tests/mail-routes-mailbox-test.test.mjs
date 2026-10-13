@@ -86,12 +86,11 @@ function fakeGraph({ folders = { Reports: 7 }, inbox = 42 } = {}) {
   return requests;
 }
 
+// TST-472375 · level: unit · module: MOD-mail-routes
 // guards: UC-037 (7); A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
-// given: a fake Microsoft Graph that holds INBOX with 42 mails and Reports with 7, and finds Drafts and Sent; the stand-in for the
-//        library's client, signed in as reports@example.org with all three scopes
+// given: a fake Microsoft Graph that holds INBOX with 42 mails and Reports with 7, and finds Drafts and Sent; the stand-in for the library's client, signed in as reports@example.org with all three scopes
 // input: mailbox(connection of the Microsoft route, null).test()
-// expect: { counts: { INBOX: 42, Reports: 7 }, drafts: true, sent: true, sending: "works", route: "graph", encryption: a text }; and,
-//         for a sign-in whose token lacks Mail.Send, `sending` is not "works" but a text that says why
+// expect: { counts: { INBOX: 42, Reports: 7 }, drafts: true, sent: true, sending: "works", route: "graph", encryption: a text }; and, for a sign-in whose token lacks Mail.Send, `sending` is not "works" but a text that says why
 test("test — on the Microsoft route: the mails in each named folder, Drafts and Sent found, sending works", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   signedIn();
@@ -110,12 +109,11 @@ test("test — on the Microsoft route: the mails in each named folder, Drafts an
   assert.match(without.sending, /Mail\.Send/);
 });
 
+// TST-472376 · level: unit · module: MOD-mail-routes
 // guards: THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the fake Graph and the stand-in whose cache holds the token
 // input: mailbox(connection of the Microsoft route, null).test()
-// expect: the token asked of the library's cache silently, for exactly the three scopes and the account; every request goes to Microsoft
-//         Graph's version 1.0 address and carries the token only as `Bearer <token>` in its authorisation header; the token stands in no
-//         address and no body; no request goes anywhere else, and none to a Bridge
+// expect: the token asked of the library's cache silently, for exactly the three scopes and the account; every request goes to Microsoft Graph's version 1.0 address and carries the token only as `Bearer <token>` in its authorisation header; the token stands in no address and no body; no request goes anywhere else, and none to a Bridge
 test("test — on the Microsoft route: the token only in the authorisation header of requests to Microsoft Graph", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   const seen = signedIn();
@@ -133,6 +131,7 @@ test("test — on the Microsoft route: the token only in the authorisation heade
   }
 });
 
+// TST-472377 · level: unit · module: MOD-mail-routes
 // guards: READING THE MAILBOX CHANGES NOTHING IN IT
 // given: the fake Graph, which records the method of every request
 // input: mailbox(connection of the Microsoft route, null).test()
@@ -163,12 +162,11 @@ function fakeBridge(answer) {
   return requests;
 }
 
+// TST-472378 · level: unit · module: MOD-mail-routes
 // guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-037 (7)
 // given: a fake Bridge that answers the operation test with { counts, drafts, sent, sending, route, encryption }
 // input: mailbox(connection of the Bridge route, bridge).test()
-// expect: one request, POST to /v1/mail/test on the Bridge, whose JSON body is { connection, args: {} } with the connection and its
-//         password; the Bridge's token in its header; the password in the body only, in no address and no header; the answer returned as
-//         the Bridge gave it
+// expect: one request, POST to /v1/mail/test on the Bridge, whose JSON body is { connection, args: {} } with the connection and its password; the Bridge's token in its header; the password in the body only, in no address and no header; the answer returned as the Bridge gave it
 test("test — on the Bridge route: one test call with the connection, and the Bridge's answer returned", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   const given = { counts: { INBOX: 42, Reports: 7 }, drafts: true, sent: true, sending: "works", route: "imap", encryption: "TLS 1.3" };
@@ -185,12 +183,6 @@ test("test — on the Bridge route: one test call with the connection, and the B
   assert.ok(!JSON.stringify(requests[0].headers).includes(PASSWORD), "no password in a header");
 });
 
-// guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
-// given: a fake Bridge that fails, each time as Access's client names the failure
-// input: mailbox(connection of the Bridge route, bridge).test() for each
-// expect: the error of the file — BridgeUnavailable with Access's reason for no token, no answer, a refused token, a timeout and a paused
-//         Bridge; NoEncryption naming the server; LoginRefused with the server's answer; FolderNotFound naming the folder; Unreachable
-//         with the mail server's message — and nothing else
 const MESSAGE = (error, message, status = 502) => () => failure(error, message, status);
 for (const [what, bridge, answer, name, check] of [
   ["a Bridge without a token", bridgeAt({ address: "http://127.0.0.1:4711" }), () => json({}), "BridgeUnavailable", (error) => assert.match(error.reason, /token/i)],
@@ -207,6 +199,11 @@ for (const [what, bridge, answer, name, check] of [
   ["a folder the mail server does not have", BRIDGE, MESSAGE("upstream-failed", "Mailbox doesn't exist: Reports"), "FolderNotFound", (error) => assert.equal(error.folder, "Reports")],
   ["a mail server that fails", BRIDGE, MESSAGE("upstream-failed", "connection reset by peer"), "Unreachable", (error) => assert.match(error.reason, /connection reset by peer/)],
 ]) {
+  // TST-477011 · level: unit · module: MOD-mail-routes
+  // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
+  // given: a fake Bridge that fails, each time as Access's client names the failure
+  // input: mailbox(connection of the Bridge route, bridge).test() for each
+  // expect: the error of the file — BridgeUnavailable with Access's reason for no token, no answer, a refused token, a timeout and a paused Bridge; NoEncryption naming the server; LoginRefused with the server's answer; FolderNotFound naming the folder; Unreachable with the mail server's message — and nothing else
   test(`test — on the Bridge route: ${what} is answered with ${name}`, async () => {
     assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
     fakeBridge(answer);
@@ -218,6 +215,7 @@ for (const [what, bridge, answer, name, check] of [
   });
 }
 
+// TST-472379 · level: unit · module: MOD-mail-routes
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 // given: a connection of the Bridge route and a connection of the Microsoft route
 // input: mailbox(Bridge connection, null); mailbox(Bridge connection, bridge); mailbox(Microsoft connection, null)
@@ -231,12 +229,11 @@ test("mailbox — BridgeNeeded on the Bridge route without a Bridge", () => {
   assert.doesNotThrow(() => mailbox(GRAPH_CONNECTION, null));
 });
 
+// TST-472380 · level: unit · module: MOD-mail-routes
 // guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037
-// given: the stand-in; a connection whose account is reports@example.org; one whose account has no domain but whose address is reports@uni.example.de;
-//        one with neither
+// given: the stand-in; a connection whose account is reports@example.org; one whose account has no domain but whose address is reports@uni.example.de; one with neither
 // input: mailbox(connection, null).test() for each
-// expect: the library's client made at the tenant of the account's domain (https://login.microsoftonline.com/example.org), else of the address's
-//         (.../uni.example.de); with neither a MailAddressNeeded asking for the mail address, before any client is made; never /common
+// expect: the library's client made at the tenant of the account's domain (https://login.microsoftonline.com/example.org), else of the address's (.../uni.example.de); with neither a MailAddressNeeded asking for the mail address, before any client is made; never /common
 test("test — the silent token is taken at the tenant of the stored account, else of the address", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   fakeGraph();

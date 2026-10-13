@@ -35,10 +35,11 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
     ...(body === undefined ? {} : { "content-type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 }
 
-// TST-323001
-// given: the public Bridge protocol
-// input: inspect its additive agents, jobs and asks route declarations
-// expect: every selected route and its declared method are public
+ // TST-323001 · level: unit · module: MOD-bridge-http
+ // guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+ // given: the public Bridge protocol
+ // input: inspect its additive agents, jobs and asks route declarations
+ // expect: every selected route and its declared method are public
  test("TST-323001: bridgeApi declares the selected agents, jobs and asks routes", () => {
   const selected = bridgeApi.routes.filter(({ method, path }) => [
     "GET /v1/agents", "POST /v1/jobs", "GET /v1/jobs", "GET /v1/jobs/{id}/log", "POST /v1/jobs/{id}/cancel", "POST /v1/ask", "GET /v1/ask/{ask}",
@@ -58,10 +59,11 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
   assert.deepEqual(route("GET", "/v1/ask/{ask}").answer, { state: ["running", "done", "failed"], text: ["string", "null"], usage: ["object", "null"], error: ["string", "null"] });
 });
 
-// TST-323002
-// given: a paired Bridge with one handler for each selected route
-// input: agents, hand-over, list, log, cancel, agent ask, endpoint ask and ask-follow requests
-// expect: every route reaches its handler with its path params, query and body
+ // TST-323002 · level: unit · module: MOD-bridge-http
+ // guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+ // given: a paired Bridge with one handler for each selected route
+ // input: agents, hand-over, list, log, cancel, agent ask, endpoint ask and ask-follow requests
+ // expect: every route reaches its handler with its path params, query and body
  test("TST-323002: selected routes dispatch params query and bodies to jobs handlers", async (t) => {
   const seen = [], jobs = {};
   for (const key of ["GET /v1/agents", "POST /v1/jobs", "GET /v1/jobs", "GET /v1/jobs/{id}/log", "POST /v1/jobs/{id}/cancel", "POST /v1/ask", "GET /v1/ask/{ask}"])
@@ -85,7 +87,8 @@ async function request(bridge, path, { method = "GET", token = bridge.token, bod
   assert.deepEqual(seen[7][1], { params: { ask: "ASK-323" }, query: {}, body: {} });
 });
 
-// TST-323006
+// TST-323006 · level: unit · module: MOD-bridge-http
+// guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a paired Bridge whose request log is captured and selected ask/log handlers
 // input: an ask body and a job-log query carry distinct private sentinel values
 // expect: logs retain only method, route, status and duration, never either value
@@ -126,10 +129,11 @@ after(() => {
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
 
-// TST-323003
-// given: a paired Bridge with no selected-route handler, and a handler that raises a named error
-// input: request the unhandled list then a hand-over whose handler refuses it
-// expect: missing dispatch is not-found and a known handler error keeps its declared status
+ // TST-323003 · level: unit · module: MOD-bridge-http
+ // guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+ // given: a paired Bridge with no selected-route handler, and a handler that raises a named error
+ // input: request the unhandled list then a hand-over whose handler refuses it
+ // expect: missing dispatch is not-found and a known handler error keeps its declared status
  test("TST-323003: selected routes name missing handlers and handler failures", async (t) => {
   const absent = await running(t);
   assert.deepEqual(await (await request(absent, "/v1/jobs")).json(), { error: "not-found", message: "Bridge handler not found." });
@@ -140,10 +144,11 @@ after(() => {
   assert.deepEqual(await response.json(), { error: "invalid-request", message: "agent unavailable" });
 });
 
-// TST-323004
-// given: a selected handler and a request missing the pairing token
-// input: make the hand-over request with no token
-// expect: token-refused occurs before the jobs handler is called
+ // TST-323004 · level: unit · module: MOD-bridge-http
+ // guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+ // given: a selected handler and a request missing the pairing token
+ // input: make the hand-over request with no token
+ // expect: token-refused occurs before the jobs handler is called
  test("TST-323004: a missing token refuses selected dispatch before its handler", async (t) => {
   let calls = 0;
   const bridge = await running(t, { jobs: { "POST /v1/jobs": async () => { calls += 1; return { accepted: "JOB-323" }; } } });
@@ -152,10 +157,11 @@ after(() => {
   assert.equal(calls, 0);
 });
 
-// TST-323005
-// given: a paused paired Bridge with hand-over, ask, probe, list and cancel handlers
-// input: call each route while paused
-// expect: work starts are paused while listing and cancelling still dispatch
+ // TST-323005 · level: unit · module: MOD-bridge-http
+ // guards: UC-011; UC-017; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+ // given: a paused paired Bridge with hand-over, ask, probe, list and cancel handlers
+ // input: call each route while paused
+ // expect: work starts are paused while listing and cancelling still dispatch
  test("TST-323005: pause refuses starts but permits list and cancellation", async (t) => {
   const seen = [], jobs = {};
   for (const key of ["POST /v1/jobs", "POST /v1/ask", "POST /v1/probes/agent", "GET /v1/jobs", "POST /v1/jobs/{id}/cancel"])

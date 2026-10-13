@@ -104,15 +104,11 @@ const realDisk = (reads) => ({
   readFileSync: (url, encoding) => { reads.push(`disk ${url}`); return readFileSync(url, encoding); },
 });
 
+// TST-472424 · level: unit · module: MOD-participant-list
 // guards: UC-002; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
-// given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser,
-//        without a disk, whose fetch answers the module's own address with the text of the real participants.schema.md;
-//        (c) as in a browser whose fetch answers 404 Not Found
+// given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser, without a disk, whose fetch answers the module's own address with the text of the real participants.schema.md; (c) as in a browser whose fetch answers 404 Not Found
 // input: (a), (b): participantSchema(), and readRegister with it of the register of alice and reviewer-b
-// expect: (a) one read, of src/participant-list/participants.schema.md from the disk; (b) one read, of the same address with
-//         fetch; each gives a schema deep-equal to the one of the module as this file loaded it, which reads the register's
-//         two rows, alice and reviewer-b. (c) one read, of the same address; the module does not load — a schema that cannot
-//         be read stops its module (MOD-documents, loadSchema) — and the error names participants.schema.md and 404
+// expect: (a) one read, of src/participant-list/participants.schema.md from the disk; (b) one read, of the same address with fetch; each gives a schema deep-equal to the one of the module as this file loaded it, which reads the register's two rows, alice and reviewer-b. (c) one read, of the same address; the module does not load — a schema that cannot be read stops its module (MOD-documents, loadSchema) — and the error names participants.schema.md and 404
 test("participantSchema — the register's schema is read from the module's own participants.schema.md: from the disk in Node, from its own address in a browser", async () => {
   const text = readFileSync(SCHEMA_FILE, "utf8");
   const onDisk = await load({ disk: realDisk });
@@ -138,17 +134,11 @@ test("participantSchema — the register's schema is read from the module's own 
 const NAMED = ["Type", "Model", "Processing place", "Capabilities"];
 const namedCells = (cells) => Object.fromEntries(NAMED.filter((column) => column in cells).map((c) => [c, cells[c]]));
 
-// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS
-//         CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS
-//         MODEL; UC-002
+// TST-472425 · level: unit · module: MOD-participant-list
+// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; UC-002
 // given: this instance's register docs/participants.md as it stands — its table under its title, with no heading of its own
 // input: readRegister(participantSchema(), "docs/participants.md", its text); its rows by their Name
-// expect: among the rows, three participants, each with its type, capabilities, processing place and model as the register
-//         writes them, a value written — left out:
-//         - akmaier: Type person, Capabilities all six, no Model and no Processing place;
-//         - developer-opus-d: Type CLI agent, Model claude-opus-5-5, Capabilities all six, Processing place
-//           "Anthropic, a provider in the USA" — one place, its comma kept;
-//         - reviewer-sonnet: Type CLI agent, Model claude-sonnet-5-5, the same capabilities and place
+// expect: among the rows, three participants, each with its type, capabilities, processing place and model as the register writes them, a value written — left out: - akmaier: Type person, Capabilities all six, no Model and no Processing place; - developer-opus-d: Type CLI agent, Model claude-opus-5-5, Capabilities all six, Processing place "Anthropic, a provider in the USA" — one place, its comma kept; - reviewer-sonnet: Type CLI agent, Model claude-sonnet-5-5, the same capabilities and place
 test("participantSchema — this instance's register read into participants, each with its type, capabilities, processing place and model", () => {
   const { rows } = readRegister(participantSchema(), REGISTER_PATH, readFileSync(INSTANCE_REGISTER, "utf8"));
   const byName = new Map(rows.map((row) => [row.cells.Name, row.cells]));
@@ -161,15 +151,11 @@ test("participantSchema — this instance's register read into participants, eac
 
 // ---------------------------------------------------------------- participantSchema: the register's errors
 
+// TST-472426 · level: unit · module: MOD-participant-list
 // guards: A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; UC-002
-// given: known positive first — the register of alice, a person without a model (line 9), and reviewer-b, a CLI agent with
-//        its model (line 10), has no finding; then that register with one more row, line 11, of the type `assistant`, which
-//        is not one of the five; then that register with four more rows, lines 11 to 14, one of each type that works with a
-//        language model — model endpoint, CI agent, CLI agent, sandboxed agent —, each without its model
+// given: known positive first — the register of alice, a person without a model (line 9), and reviewer-b, a CLI agent with its model (line 10), has no finding; then that register with one more row, line 11, of the type `assistant`, which is not one of the five; then that register with four more rows, lines 11 to 14, one of each type that works with a language model — model endpoint, CI agent, CLI agent, sandboxed agent —, each without its model
 // input: documentFindings(participantSchema(), the register read with it), each finding in its text form
-// expect: none for the known positive; for the type outside the five one error, on line 11, naming
-//         A PARTICIPANT HAS ONE OF FIVE TYPES; for the participants without their model four errors, on lines 11 to 14, each
-//         naming A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL — and none for alice, a person without one
+// expect: none for the known positive; for the type outside the five one error, on line 11, naming A PARTICIPANT HAS ONE OF FIVE TYPES; for the participants without their model four errors, on lines 11 to 14, each naming A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL — and none for alice, a person without one
 test("participantSchema — an entry of a type outside the five, and a participant based on a language model without its model, named as errors", () => {
   assert.deepEqual(findingsOf(registerOf()), [], "known positive");
   assert.deepEqual(findingsOf(registerOf(
@@ -205,16 +191,11 @@ const CI_TESTER = { name: "ci-tester", type: "CI agent", model: "example-model",
 const PROVIDER = { name: "reviewer-p", type: "CLI agent", model: "other-model", context: 200000, price: null,
   capabilities: CAPABILITIES, place: "Anthropic, a provider in the USA", route: "bridge lab-pc agent claude" };
 
+// TST-472427 · level: unit · module: MOD-participant-list
 // guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; UC-002
-// given: the role Developers of Scrum, which needs `write to the repository` and `run code and tests` (UC-002, step 4); four
-//        participants — alice, a person, and developer-a, a CLI agent at this machine, each with all six capabilities;
-//        summariser, a model endpoint that can only draft text; ci-tester, a CI agent that can read and write the
-//        repository but not run code and tests
-// input: eligible([alice, developer-a, summariser, ci-tester], { capabilities: ["write to the repository",
-//        "run code and tests"] })
-// expect: offered exactly alice and developer-a, in their order, each with where it processes data — alice none, as a
-//         person, developer-a "this machine"; left out summariser, lacking both capabilities, each named, and ci-tester,
-//         lacking `run code and tests`, named: every participant in exactly one of the two lists
+// given: the role Developers of Scrum, which needs `write to the repository` and `run code and tests` (UC-002, step 4); four participants — alice, a person, and developer-a, a CLI agent at this machine, each with all six capabilities; summariser, a model endpoint that can only draft text; ci-tester, a CI agent that can read and write the repository but not run code and tests
+// input: eligible([alice, developer-a, summariser, ci-tester], { capabilities: ["write to the repository", "run code and tests"] })
+// expect: offered exactly alice and developer-a, in their order, each with where it processes data — alice none, as a person, developer-a "this machine"; left out summariser, lacking both capabilities, each named, and ci-tester, lacking `run code and tests`, named: every participant in exactly one of the two lists
 test("eligible — offers for a role exactly the participants with every capability it needs, each with where it processes data", () => {
   const result = eligible([ALICE, DEVELOPER, SUMMARISER, CI_TESTER],
     { capabilities: ["write to the repository", "run code and tests"] });
@@ -229,15 +210,11 @@ test("eligible — offers for a role exactly the participants with every capabil
   assert.deepEqual(result.eligible.map((p) => [p.name, p.place]), [["alice", null], ["developer-a", "this machine"]]);
 });
 
+// TST-472428 · level: unit · module: MOD-participant-list
 // guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; UC-002
-// given: a need for `draft text` with the places of two restricted sources — SRC-iec-62304 allows "this machine" and
-//        "NHR@FAU, Erlangen", SRC-customer-contract allows "this machine"; five participants — developer-a at this machine;
-//        summariser at NHR@FAU, Erlangen; reviewer-p at "Anthropic, a provider in the USA"; alice, a person, who declares
-//        no place; ci-tester, who cannot draft text, at "GitHub's hosted runners, in the USA"
+// given: a need for `draft text` with the places of two restricted sources — SRC-iec-62304 allows "this machine" and "NHR@FAU, Erlangen", SRC-customer-contract allows "this machine"; five participants — developer-a at this machine; summariser at NHR@FAU, Erlangen; reviewer-p at "Anthropic, a provider in the USA"; alice, a person, who declares no place; ci-tester, who cannot draft text, at "GitHub's hosted runners, in the USA"
 // input: eligible([developer-a, summariser, reviewer-p, alice, ci-tester], that need)
-// expect: offered developer-a alone; left out, each with every reason, in the order of the need — its capabilities, then
-//         its sources —, each naming the place and the source: summariser for SRC-customer-contract; reviewer-p and alice for
-//         both sources; ci-tester for the capability and both sources
+// expect: offered developer-a alone; left out, each with every reason, in the order of the need — its capabilities, then its sources —, each naming the place and the source: summariser for SRC-customer-contract; reviewer-p and alice for both sources; ci-tester for the capability and both sources
 test("eligible — leaves out a participant whose processing place a restricted source does not allow, naming the place and the source", () => {
   const need = { capabilities: ["draft text"], places: [
     { from: "SRC-iec-62304", allowed: ["this machine", "NHR@FAU, Erlangen"] },

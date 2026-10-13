@@ -36,7 +36,8 @@ async function request(server, path, { method = "POST", origin = ORIGIN, token =
   });
 }
 
-// TST-261001
+// TST-261001 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the accepted Bridge API
 // input: inspect its endpoint-test route definition
 // expect: the route is POST /v1/probes/endpoint-test and defines the Bridge-owned configuration/result fields
@@ -49,7 +50,8 @@ test("TST-261001: bridgeApi defines the typed endpoint-test probe", () => {
   assert.deepEqual(bridgeApi.errors, { "token-refused": 401, "origin-refused": 403, "not-found": 404, "invalid-request": 422, "upstream-failed": 502, paused: 503 });
 });
 
-// TST-261010
+// TST-261010 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the public module future Pages code imports for bridgeApi
 // input: inspect its static dependency declarations
 // expect: native browser loading has no Node import or dynamic loader; Node access starts only when operations are called
@@ -64,7 +66,8 @@ test("TST-261010: bridgeApi has a browser-loadable public entry", async () => {
   }
 });
 
-// TST-261002
+// TST-261002 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a requested non-loopback bind address
 // input: start the Bridge server
 // expect: BindRefused is named and no server starts
@@ -73,7 +76,8 @@ test("TST-261002: serveBridge refuses a non-loopback bind", async () => {
   await assert.rejects(() => serveBridge({ host: "0.0.0.0", port: 0, origin: ORIGIN, dataFolder: folder, paused: () => false }, { jobs: {}, mail: {}, tunnels: {} }), { name: "BindRefused" });
 });
 
-// TST-261003
+// TST-261003 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: each accepted loopback address
 // input: start the Bridge with that address
 // expect: each bind succeeds and no non-loopback address is needed
@@ -86,7 +90,8 @@ test("TST-261003: serveBridge accepts every documented loopback bind", async (t)
   }
 });
 
-// TST-261011
+// TST-261011 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a loopback port already held by a Bridge
 // input: start a second Bridge on that port
 // expect: the requested socket failure is named PortInUse
@@ -97,7 +102,8 @@ test("TST-261011: serveBridge names a loopback port already in use", async (t) =
   await assert.rejects(() => serveBridge({ host: "127.0.0.1", port, origin: ORIGIN, dataFolder: folder, paused: () => false }, { jobs: {}, mail: {}, tunnels: {} }), { name: "PortInUse" });
 });
 
-// TST-261004
+// TST-261004 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a new Bridge data folder and a running paired Bridge
 // input: pairAnew rotates its persisted token
 // expect: the old token is refused and the current token is accepted
@@ -113,7 +119,8 @@ test("TST-261004: pairAnew persists and rotates the token", async (t) => {
   assert.equal(current.status, 200);
 });
 
-// TST-261005
+// TST-261005 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a Bridge restarted with its existing data folder
 // input: use its persisted pairing token after restart
 // expect: the token still pairs the person and remains in the user-only data folder
@@ -128,7 +135,8 @@ test("TST-261005: a restarted Bridge keeps its pairing token", async (t) => {
   assert.equal((await request(second, "/v1/pair", { method: "GET" })).status, 200);
 });
 
-// TST-261006
+// TST-261006 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a paired Bridge and an endpoint-test handler
 // input: a preflight and a request from the paired instance origin
 // expect: both are allowed and the request body reaches the supplied handler once
@@ -149,7 +157,8 @@ test("TST-261006: serveBridge allows the paired origin and dispatches endpoint-t
   assert.deepEqual(seen, [CONFIG]);
 });
 
-// TST-261007
+// TST-261007 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a paired Bridge
 // input: an origin other than the paired instance, a missing token, and an invalid endpoint-test body
 // expect: each is refused with its named status before any handler invocation
@@ -164,7 +173,8 @@ test("TST-261007: serveBridge names origin, token and body refusals", async (t) 
   assert.equal(calls, 0);
 });
 
-// TST-261008
+// TST-261008 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a paused Bridge, a handler that raises an accepted named error, and one that raises a non-protocol failure
 // input: endpoint-test requests
 // expect: pause is 503, the named handler error keeps its status, and the generic failure is upstream-failed
@@ -185,7 +195,8 @@ test("TST-261008: serveBridge names pause and handler failures", async (t) => {
   assert.deepEqual(await response.json(), { error: "upstream-failed", message: "local endpoint offline" });
 });
 
-// TST-261009
+// TST-261009 · level: unit · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a paired Bridge whose request logger is captured
 // input: endpoint-test carries an endpoint key and pairing token
 // expect: the log contains method, path, status and duration but neither secret nor body data

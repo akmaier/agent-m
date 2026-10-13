@@ -16,7 +16,8 @@ export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-case
   heading, explain: { ...explain, draft: { requirements: "requirements-to-cover", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop",
     written: "drafted-use-cases", ci: "ci-agent-draft" }, instruction: "change-instruction" }, draft: "derive-use-cases", prompt: "change-use-case" };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
-  plural: "architecture decisions", noun: "architecture decision", heading, explain, restsOn: true, whole: ["architecture-decision", "module"] };
+  plural: "architecture decisions", noun: "architecture decision", heading, restsOn: true, whole: ["architecture-decision", "module"], draft: "derive-architecture",
+  explain: { ...explain, draft: { whole: "what-is-an-architecture", participant: "drafting-participant", reviewer: "architecture-reviewer", panel: "run-panel", ci: "ci-agent-draft" } } };
 export const MODULES = { kind: "module", route: "module", entry: "architecture", title: "Module files", plural: "module files",
   noun: "module file", heading, explain, restsOn: true };
 

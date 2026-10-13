@@ -176,12 +176,11 @@ const namesOf = (parts) => parts.map((part) => part.name);
 
 // ---------------------------------------------------------------- the recipe chosen-requirements
 
+// TST-473009 · level: unit · module: MOD-spec-changes
 // guards: UC-007
-// given: the product above; the parameter requirements naming A WRITE RULE, A SAMPLE RULE, A RULE WITHOUT A SOURCE, A RULE WITHOUT A
-//        CHECK and A NAME WITHOUT A RULE, in that order — not the order the SPEC states them in —, and not ANOTHER SAMPLE RULE
+// given: the product above; the parameter requirements naming A WRITE RULE, A SAMPLE RULE, A RULE WITHOUT A SOURCE, A RULE WITHOUT A CHECK and A NAME WITHOUT A RULE, in that order — not the order the SPEC states them in —, and not ANOTHER SAMPLE RULE
 // input: the recipe chosen-requirements, with the job's context and that parameter
-// expect: five parts in the order named, each named by its requirement and holding it as the SPEC states it — a requirement without a
-//         source, a check or a rule as it lacks them —, with no source of its own and no artifact, and none for the requirement not named
+// expect: five parts in the order named, each named by its requirement and holding it as the SPEC states it — a requirement without a source, a check or a rule as it lacks them —, with no source of its own and no artifact, and none for the requirement not named
 test("chosen-requirements — the requirements the person chose, in the order chosen, each as the SPEC states it", async () => {
   const chosen = ["A WRITE RULE", "A SAMPLE RULE", "A RULE WITHOUT A SOURCE", "A RULE WITHOUT A CHECK", "A NAME WITHOUT A RULE"];
 
@@ -191,14 +190,11 @@ test("chosen-requirements — the requirements the person chose, in the order ch
     chosen.map((name) => ({ name, text: stated(SPEC, name), sources: [], artifacts: undefined })));
 });
 
+// TST-473010 · level: unit · module: MOD-spec-changes
 // guards: UC-007
-// given: the product above, whose use cases realise A SAMPLE RULE, A WRITE RULE, A DECIDED RULE and AN AGING RULE, and whose module
-//        realises A RULE WITHOUT A CHECK; the job's parameters without a choice — none; an empty list; a name that is no list — and, to
-//        show the same call giving a choice, the parameter naming A SAMPLE RULE
+// given: the product above, whose use cases realise A SAMPLE RULE, A WRITE RULE, A DECIDED RULE and AN AGING RULE, and whose module realises A RULE WITHOUT A CHECK; the job's parameters without a choice — none; an empty list; a name that is no list — and, to show the same call giving a choice, the parameter naming A SAMPLE RULE
 // input: the recipe chosen-requirements, with each
-// expect: with a choice, the one part of A SAMPLE RULE; without one, the five requirements that no use case realises — A RULE WITHOUT A
-//         CHECK among them, which only a module realises —, each as the SPEC states it, in the order of MOD-trace-graph's coverageGaps,
-//         by name (so ANOTHER SAMPLE RULE comes last, though the SPEC states it before the three of section 2), and none of the realised
+// expect: with a choice, the one part of A SAMPLE RULE; without one, the five requirements that no use case realises — A RULE WITHOUT A CHECK among them, which only a module realises —, each as the SPEC states it, in the order of MOD-trace-graph's coverageGaps, by name (so ANOTHER SAMPLE RULE comes last, though the SPEC states it before the three of section 2), and none of the realised
 test("chosen-requirements — without a choice, every requirement of the SPEC that no use case realises", async () => {
   const unrealised = ["A NAME WITHOUT A RULE", "A PREAMBLE RULE", "A RULE WITHOUT A CHECK", "A RULE WITHOUT A SOURCE", "ANOTHER SAMPLE RULE"];
 
@@ -214,12 +210,11 @@ test("chosen-requirements — without a choice, every requirement of the SPEC th
 
 // ---------------------------------------------------------------- a name the SPEC does not hold
 
+// TST-473011 · level: unit · module: MOD-spec-changes
 // guards: UC-007; UC-019
-// given: the product above; names that the SPEC holds, and then names it does not: NO SUCH RULE, A SAMPLE RULE (held), and A SECOND QUEUE
-//        RULE, which stands in an open entry of the second queue and not in the SPEC
+// given: the product above; names that the SPEC holds, and then names it does not: NO SUCH RULE, A SAMPLE RULE (held), and A SECOND QUEUE RULE, which stands in an open entry of the second queue and not in the SPEC
 // input: the recipes chosen-requirements and named-requirements, with the held names, and with all three
-// expect: the held names give their parts; the three names give the failure RequirementNotFound, whose requirements are the two the SPEC
-//         does not hold, in the order given, and whose message names both and not A SAMPLE RULE
+// expect: the held names give their parts; the three names give the failure RequirementNotFound, whose requirements are the two the SPEC does not hold, in the order given, and whose message names both and not A SAMPLE RULE
 test("chosen-requirements and named-requirements — a name the SPEC does not hold is a failure naming it, an open entry's among them", async () => {
   for (const recipe of ["chosen-requirements", "named-requirements"]) {
     assert.deepEqual(namesOf(await run(recipe, WITH_QUEUES, { requirements: ["A SAMPLE RULE"] })), ["A SAMPLE RULE"],
@@ -236,13 +231,11 @@ test("chosen-requirements and named-requirements — a name the SPEC does not ho
 
 // ---------------------------------------------------------------- the recipe named-requirements
 
+// TST-473012 · level: unit · module: MOD-spec-changes
 // guards: UC-019; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES
-// given: the product above; the parameter requirements naming A WRITE RULE, A SAMPLE RULE, A RULE WITHOUT A CHECK — which stands in the
-//        same section as A WRITE RULE — and A PREAMBLE RULE, which stands in no section
+// given: the product above; the parameter requirements naming A WRITE RULE, A SAMPLE RULE, A RULE WITHOUT A CHECK — which stands in the same section as A WRITE RULE — and A PREAMBLE RULE, which stands in no section
 // input: the recipe named-requirements, with the job's context and that parameter
-// expect: four parts in the order named, each named by its requirement: for the first three the whole section it stands in, byte for byte
-//         — section 2 twice, section 1 once, with the neighbours of each requirement —, for the last the requirement as the SPEC states it;
-//         with no source of their own and no artifact
+// expect: four parts in the order named, each named by its requirement: for the first three the whole section it stands in, byte for byte — section 2 twice, section 1 once, with the neighbours of each requirement —, for the last the requirement as the SPEC states it; with no source of their own and no artifact
 test("named-requirements — each requirement named, with the whole section it stands in", async () => {
   const named = ["A WRITE RULE", "A SAMPLE RULE", "A RULE WITHOUT A CHECK", "A PREAMBLE RULE"];
 
@@ -256,9 +249,9 @@ test("named-requirements — each requirement named, with the whole section it s
   ]);
 });
 
+// TST-473013 · level: unit · module: MOD-spec-changes
 // guards: UC-019
-// given: the product above; a job that names a requirement, to show the same call giving a part; then a job that names none — no
-//        parameter, and an empty list
+// given: the product above; a job that names a requirement, to show the same call giving a part; then a job that names none — no parameter, and an empty list
 // input: the recipe named-requirements, with each
 // expect: the part of the requirement named; no part where none is named
 test("named-requirements — no requirement named, no part", async () => {
@@ -306,11 +299,11 @@ function assertListed(part, listed) {
   });
 }
 
+// TST-473014 · level: unit · module: MOD-spec-changes
 // guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-005
 // given: the product above without a queue — a new product's case
 // input: the recipe spec-with-queues, with the job's context
-// expect: one part, named for the SPEC, whose text has one block for each of the SPEC's nine requirements in the order they stand, each
-//         as the SPEC states it with the heading line of its section — none for A PREAMBLE RULE — and the state in SPEC
+// expect: one part, named for the SPEC, whose text has one block for each of the SPEC's nine requirements in the order they stand, each as the SPEC states it with the heading line of its section — none for A PREAMBLE RULE — and the state in SPEC
 test("spec-with-queues — every requirement of the SPEC, with its section and its state", async () => {
   const parts = await run("spec-with-queues", WITHOUT_QUEUES);
 
@@ -319,14 +312,11 @@ test("spec-with-queues — every requirement of the SPEC, with its section and i
   assertListed(parts[0], SPEC_LISTED);
 });
 
+// TST-473015 · level: unit · module: MOD-spec-changes
 // guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-005; UC-019
-// given: the product above with its two queues: the older one's entry 01 open, whose proposal changes two requirements of section 1 and
-//        adds the section 1a, 02 approved, 03 in SPEC, 04 stale and 05 waiting for its anchor; the newer one's entry 01 open
+// given: the product above with its two queues: the older one's entry 01 open, whose proposal changes two requirements of section 1 and adds the section 1a, 02 approved, 03 in SPEC, 04 stale and 05 waiting for its anchor; the newer one's entry 01 open
 // input: the recipe spec-with-queues, with the job's context
-// expect: one part whose text lists the SPEC's nine requirements and then the eight of the entries that are not in SPEC — the newer
-//         queue's two, then the older queue's, in the order of its index: three of 01, one each of 02, 04 and 05 —, each as its proposal
-//         states it, with the state of its entry and the heading of the section it stands in there: AN ADDED RULE under 1a, though its
-//         entry starts at section 1; a requirement that an entry changes is listed as the SPEC states it and as the entry proposes it
+// expect: one part whose text lists the SPEC's nine requirements and then the eight of the entries that are not in SPEC — the newer queue's two, then the older queue's, in the order of its index: three of 01, one each of 02, 04 and 05 —, each as its proposal states it, with the state of its entry and the heading of the section it stands in there: AN ADDED RULE under 1a, though its entry starts at section 1; a requirement that an entry changes is listed as the SPEC states it and as the entry proposes it
 test("spec-with-queues — every requirement of every open entry, with the state of its entry, after the SPEC's own", async () => {
   const parts = await run("spec-with-queues", WITH_QUEUES);
 
@@ -334,10 +324,9 @@ test("spec-with-queues — every requirement of every open entry, with the state
   assertListed(parts[0], [...SPEC_LISTED, ...ENTRIES_LISTED]);
 });
 
+// TST-473016 · level: unit · module: MOD-spec-changes
 // guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-005
-// given: the product above with its two queues, whose entry 03 is in SPEC — a decision row names its record — and proposes the section 3
-//        word for word as the SPEC holds it, with A DECIDED RULE; and, to show the same call listing an entry's requirement beside the
-//        SPEC's, A SAMPLE RULE, which the SPEC holds and entry 01 of the older queue proposes in another wording
+// given: the product above with its two queues, whose entry 03 is in SPEC — a decision row names its record — and proposes the section 3 word for word as the SPEC holds it, with A DECIDED RULE; and, to show the same call listing an entry's requirement beside the SPEC's, A SAMPLE RULE, which the SPEC holds and entry 01 of the older queue proposes in another wording
 // input: the recipe spec-with-queues, with the job's context
 // expect: A DECIDED RULE once, in the state in SPEC, and A SAMPLE RULE twice — in SPEC, and open
 test("spec-with-queues — an entry that is in SPEC adds nothing to the SPEC's own requirements", async () => {
@@ -352,11 +341,11 @@ test("spec-with-queues — an entry that is in SPEC adds nothing to the SPEC's o
   assert.ok(decided[0].includes("in SPEC"), decided[0]);
 });
 
+// TST-473017 · level: unit · module: MOD-spec-changes
 // guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-005
 // given: the product above with its two queues
 // input: the recipe spec-with-queues, with the job's context
-// expect: the part carries one artifact for each requirement listed, in the order of the text — the SPEC's nine and the entries' eight —,
-//         whose identifier is the requirement's name and whose key is its name and its rule, the rule as the text it is stated in gives it
+// expect: the part carries one artifact for each requirement listed, in the order of the text — the SPEC's nine and the entries' eight —, whose identifier is the requirement's name and whose key is its name and its rule, the rule as the text it is stated in gives it
 test("spec-with-queues — each requirement is carried as an artifact keyed by its name and its rule", async () => {
   const [part] = await run("spec-with-queues", WITH_QUEUES);
 
@@ -364,13 +353,11 @@ test("spec-with-queues — each requirement is carried as an artifact keyed by i
     { id: each.name, keys: [each.name, ruleOf(each.from, each.name)] })));
 });
 
+// TST-473018 · level: unit · module: MOD-spec-changes
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-005
-// given: the part of the product above with its two queues; three candidates: one that restates the rule of A SECOND QUEUE RULE, which
-//        stands in an open entry only, under another name; one that restates A DECIDED RULE, which the SPEC holds, with the rule
-//        the SPEC states for it; and one that no requirement states
+// given: the part of the product above with its two queues; three candidates: one that restates the rule of A SECOND QUEUE RULE, which stands in an open entry only, under another name; one that restates A DECIDED RULE, which the SPEC holds, with the rule the SPEC states for it; and one that no requirement states
 // input: MOD-documents' classifyCandidates of the candidates against the part's artifacts
-// expect: the first a duplicate of A SECOND QUEUE RULE and the second a duplicate of A DECIDED RULE, each decided by rule; the third new,
-//         left to the participant
+// expect: the first a duplicate of A SECOND QUEUE RULE and the second a duplicate of A DECIDED RULE, each decided by rule; the third new, left to the participant
 test("spec-with-queues — a draft is classified against its artifacts: a restated rule and a restated requirement of the SPEC are duplicates", async () => {
   const [part] = await run("spec-with-queues", WITH_QUEUES);
   const candidate = (ref, name, rule) => ({ ref, keys: [name, rule], from: [`passage of ${ref}`], proposed: { class: "new", of: null } });
@@ -388,9 +375,9 @@ test("spec-with-queues — a draft is classified against its artifacts: a restat
   ]);
 });
 
+// TST-473019 · level: unit · module: MOD-spec-changes
 // guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-005
-// given: the product above, to show the same call giving a part; then a new product whose SPEC has a section and no requirement, and no
-//        queue
+// given: the product above, to show the same call giving a part; then a new product whose SPEC has a section and no requirement, and no queue
 // input: the recipe spec-with-queues, with each
 // expect: one part for the first; no part for the second
 test("spec-with-queues — a product with no requirement gives no part", async () => {
@@ -400,14 +387,11 @@ test("spec-with-queues — a product with no requirement gives no part", async (
   assert.deepEqual(await run("spec-with-queues", fresh), []);
 });
 
+// TST-473020 · level: unit · module: MOD-spec-changes
 // guards: DERIVATION SEES THE EXISTING REQUIREMENTS; UC-005; UC-007; UC-019
-// given: the product above, and copies of its snapshot that cannot read one file each and fail as a host does, with a failure named
-//        Unreachable: the SPEC, the index of the older queue, and the proposal of the newer queue's entry; and the product without a
-//        queue, with the SPEC that cannot be read
-// input: the recipe spec-with-queues with each of the four; the recipes chosen-requirements and named-requirements, with a name the
-//        SPEC holds, with the SPEC that cannot be read; and, to show the same calls giving parts, each on the snapshot that reads every file
-// expect: every call on the snapshot that reads every file gives a part; every call on a snapshot that cannot read a file fails with that
-//         failure, unchanged and naming the file — none gives a part made of what it could read
+// given: the product above, and copies of its snapshot that cannot read one file each and fail as a host does, with a failure named Unreachable: the SPEC, the index of the older queue, and the proposal of the newer queue's entry; and the product without a queue, with the SPEC that cannot be read
+// input: the recipe spec-with-queues with each of the four; the recipes chosen-requirements and named-requirements, with a name the SPEC holds, with the SPEC that cannot be read; and, to show the same calls giving parts, each on the snapshot that reads every file
+// expect: every call on the snapshot that reads every file gives a part; every call on a snapshot that cannot read a file fails with that failure, unchanged and naming the file — none gives a part made of what it could read
 test("the recipes — a file the snapshot cannot read fails the recipe with the snapshot's failure, and leaves nothing out", async () => {
   const unreadable = (snapshot, path) => ({ ...snapshot, read: async (each) => {
     if (each === path) throw Object.assign(new Error(`${path} cannot be read`), { name: "Unreachable" });

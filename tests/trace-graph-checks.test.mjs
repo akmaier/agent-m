@@ -262,12 +262,9 @@ async function repository(edits = {}, { keep = Object.keys(BASE), extra = {} } =
 
 // ---------------------------------------------------------------- a repository that breaks no rule
 
+// TST-473121 · level: unit · module: MOD-trace-graph
 // guards: UC-007; UC-018; UC-019
-// given: the fixture repository as it stands: every name matches a requirement or a use case, the used interface is provided, no
-//        cycle, each module is designed by one decision that it follows, one decision refines nothing and the other refines it,
-//        each item names a module that is described, the plan step names the unit tests of its level, each folder is named after
-//        its module and none lies inside another, no group title is named, no reference is by position, and the links of the use
-//        case reach a file, a folder, its own section and another site
+// given: the fixture repository as it stands: every name matches a requirement or a use case, the used interface is provided, no cycle, each module is designed by one decision that it follows, one decision refines nothing and the other refines it, each item names a module that is described, the plan step names the unit tests of its level, each folder is named after its module and none lies inside another, no group title is named, no reference is by position, and the links of the use case reach a file, a folder, its own section and another site
 // input: graphFindings of its graph, and selfSufficiencyFindings of it for the instance fixture-owner/agent-m
 // expect: no finding from either
 test("graphFindings and selfSufficiencyFindings — a repository that breaks no rule gives no finding", async () => {
@@ -300,13 +297,11 @@ const UNKNOWN_NAMES = [
     artifact: "TST-001", rule: ORIGIN, name: "GHOST RULE" },
 ];
 
+// TST-473122 · level: unit · module: MOD-trace-graph
 // guards: A USE CASE REALISES NAMED REQUIREMENTS; EVERY ARTIFACT NAMES ITS ORIGIN; UC-007; UC-018; UC-019
-// given: the fixture, with in one file a name that is neither a requirement nor a use case: a use case's realises names NO SUCH
-//        RULE, a decision's forced_by UC-099, a module's realises GHOST RULE, a backlog item's realises UC-099 and, in another graph,
-//        the decision ARC-001, which exists but is neither, a test's guards GHOST RULE
+// given: the fixture, with in one file a name that is neither a requirement nor a use case: a use case's realises names NO SUCH RULE, a decision's forced_by UC-099, a module's realises GHOST RULE, a backlog item's realises UC-099 and, in another graph, the decision ARC-001, which exists but is neither, a test's guards GHOST RULE
 // input: graphFindings of the graph of each
-// expect: for each, the one error at the artifact and the line of the name — of a test, the line of its declaration —, under A USE
-//         CASE REALISES NAMED REQUIREMENTS for the use case and under EVERY ARTIFACT NAMES ITS ORIGIN for the others, naming the name
+// expect: for each, the one error at the artifact and the line of the name — of a test, the line of its declaration —, under A USE CASE REALISES NAMED REQUIREMENTS for the use case and under EVERY ARTIFACT NAMES ITS ORIGIN for the others, naming the name
 test("graphFindings — a name in realises, forced_by or guards that matches no requirement or use case is an error", async () => {
   for (const row of UNKNOWN_NAMES) {
     const { lines, graph } = await repository({ [row.path]: row.edit });
@@ -316,9 +311,9 @@ test("graphFindings — a name in realises, forced_by or guards that matches no 
 
 // ---------------------------------------------------------------- a used interface the module does not provide
 
+// TST-473123 · level: unit · module: MOD-trace-graph
 // guards: DEVELOP AGAINST INTERFACES; UC-007; UC-019
-// given: the fixture, with the use that MOD-reader's file states changed to an interface MOD-text does not provide, readWords, and,
-//        in a second graph, to a module no file describes, MOD-nothing
+// given: the fixture, with the use that MOD-reader's file states changed to an interface MOD-text does not provide, readWords, and, in a second graph, to a module no file describes, MOD-nothing
 // input: graphFindings of the graph of each
 // expect: for each, the one error at MOD-reader and the line of that use, under DEVELOP AGAINST INTERFACES, naming the use
 test("graphFindings — a uses edge whose interface the used module's node does not provide is an error", async () => {
@@ -349,13 +344,11 @@ const ASIDE_LINES = [
   "",
 ];
 
+// TST-473124 · level: unit · module: MOD-trace-graph
 // guards: MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE; UC-007; UC-019
-// given: the fixture, with a third module MOD-aside, designed by ARC-001, that MOD-reader uses before it uses MOD-text, and with
-//        MOD-text also using MOD-reader.readFile, so that MOD-reader uses MOD-text and MOD-text uses MOD-reader
+// given: the fixture, with a third module MOD-aside, designed by ARC-001, that MOD-reader uses before it uses MOD-text, and with MOD-text also using MOD-reader.readFile, so that MOD-reader uses MOD-text and MOD-text uses MOD-reader
 // input: graphFindings of its graph
-// expect: one error under MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE, at the module of the cycle whose identifier comes first,
-//         MOD-reader, and the line of its use that stays in the cycle — not that of its use of MOD-aside, which stays outside it —,
-//         naming MOD-reader and MOD-text, and not MOD-aside
+// expect: one error under MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE, at the module of the cycle whose identifier comes first, MOD-reader, and the line of its use that stays in the cycle — not that of its use of MOD-aside, which stays outside it —, naming MOD-reader and MOD-text, and not MOD-aside
 test("graphFindings — a cycle among the modules' uses is an error", async () => {
   const { lines, graph } = await repository({
     [ARC1_PATH]: replace("  - MOD-text", "  - MOD-text", "  - MOD-aside"),
@@ -369,12 +362,11 @@ test("graphFindings — a cycle among the modules' uses is an error", async () =
 
 // ---------------------------------------------------------------- the decision that designs a module
 
+// TST-473125 · level: unit · module: MOD-trace-graph
 // guards: A MODULE BELONGS TO ONE SUBSYSTEM; UC-007; UC-019
-// given: the fixture, with ARC-002 no longer designing MOD-reader; with ARC-001 designing MOD-reader as well as ARC-002; and with
-//        MOD-reader following ARC-001 in place of ARC-002, the decision that designs it
+// given: the fixture, with ARC-002 no longer designing MOD-reader; with ARC-001 designing MOD-reader as well as ARC-002; and with MOD-reader following ARC-001 in place of ARC-002, the decision that designs it
 // input: graphFindings of the graph of each
-// expect: for each, the one error at MOD-reader and the line of its identifier, under A MODULE BELONGS TO ONE SUBSYSTEM: designed by
-//         no decision; designed by more than one, naming ARC-001 and ARC-002; not following ARC-002, naming it
+// expect: for each, the one error at MOD-reader and the line of its identifier, under A MODULE BELONGS TO ONE SUBSYSTEM: designed by no decision; designed by more than one, naming ARC-001 and ARC-002; not following ARC-002, naming it
 test("graphFindings — a module designed by no decision or by more than one, or that does not follow its designer, is an error", async () => {
   const rows = [
     { label: "designed by no decision", edits: { [ARC2_PATH]: then(replace("designs:", "designs: []"), replace("  - MOD-reader")) }, names: ["MOD-reader"] },
@@ -389,14 +381,11 @@ test("graphFindings — a module designed by no decision or by more than one, or
 
 // ---------------------------------------------------------------- the one decision that states the whole architecture
 
+// TST-473126 · level: unit · module: MOD-trace-graph
 // guards: ONE DECISION STATES THE WHOLE ARCHITECTURE; UC-007; UC-019
-// given: the fixture, with ARC-002 refining no decision, so that two decisions refine none; with ARC-001 refining ARC-002, so that
-//        every decision refines another; with ARC-002 refining ARC-009, which is no decision, so that it does not refine ARC-001, the
-//        one that refines none; and a repository of requirements and use cases alone, without a decision
+// given: the fixture, with ARC-002 refining no decision, so that two decisions refine none; with ARC-001 refining ARC-002, so that every decision refines another; with ARC-002 refining ARC-009, which is no decision, so that it does not refine ARC-001, the one that refines none; and a repository of requirements and use cases alone, without a decision
 // input: graphFindings of the graph of each
-// expect: under ONE DECISION STATES THE WHOLE ARCHITECTURE, in the first case one error at each of ARC-001 and ARC-002, at the line of
-//         its identifier; in the second one error at ARC-001, the first by identifier; in the third one error at ARC-002, naming
-//         ARC-001; in the fourth none, since use cases are drafted before any decision (UC-007)
+// expect: under ONE DECISION STATES THE WHOLE ARCHITECTURE, in the first case one error at each of ARC-001 and ARC-002, at the line of its identifier; in the second one error at ARC-001, the first by identifier; in the third one error at ARC-002, naming ARC-001; in the fourth none, since use cases are drafted before any decision (UC-007)
 test("graphFindings — more or fewer than one decision without refines, or a decision that does not refine it, is an error", async () => {
   const id = (lines, n) => lineOf(lines, `id: ARC-00${n}`);
   const many = await repository({ [ARC2_PATH]: replace("refines: ARC-001") });
@@ -415,6 +404,7 @@ test("graphFindings — more or fewer than one decision without refines, or a de
 
 // ---------------------------------------------------------------- the modules an item changes
 
+// TST-473127 · level: unit · module: MOD-trace-graph
 // guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-007; UC-019
 // given: the fixture, with the backlog item ITM-002 changing MOD-nothing, which no file describes, in place of MOD-reader
 // input: graphFindings of its graph
@@ -426,16 +416,11 @@ test("graphFindings — an item that names a module the architecture does not de
 
 // ---------------------------------------------------------------- the tests of a plan step's level
 
+// TST-473128 · level: unit · module: MOD-trace-graph
 // guards: A PLAN STEP NAMES THE TESTS OF ITS LEVEL; UC-007; UC-019
-// given: the fixture's plan step ITM-001, of level module with the unit tests, changed to name component tests in their place;
-//        to name unit and component tests; to be of level system with the unit tests; to name no tests; and, as known positives,
-//        to be of level system with the system and release tests; the backlog item ITM-002, of level module, changed to name
-//        unit and release tests; and the plan step changed to have no level
+// given: the fixture's plan step ITM-001, of level module with the unit tests, changed to name component tests in their place; to name unit and component tests; to be of level system with the unit tests; to name no tests; and, as known positives, to be of level system with the system and release tests; the backlog item ITM-002, of level module, changed to name unit and release tests; and the plan step changed to have no level
 // input: graphFindings of the graph of each
-// expect: for the first four, the one error at ITM-001 and the line of its identifier, under A PLAN STEP NAMES THE TESTS OF ITS
-//         LEVEL, naming the tests of another level (component; component; unit; none to name); for the next two none — a system's tests
-//         are the system and release tests, and the rule is the plan step's, which the backlog item is not; and none for the step
-//         without a level, a finding of its format, MOD-documents'
+// expect: for the first four, the one error at ITM-001 and the line of its identifier, under A PLAN STEP NAMES THE TESTS OF ITS LEVEL, naming the tests of another level (component; component; unit; none to name); for the next two none — a system's tests are the system and release tests, and the rule is the plan step's, which the backlog item is not; and none for the step without a level, a finding of its format, MOD-documents'
 test("graphFindings — a plan step whose tests are not those of its level is an error", async () => {
   const wrong = [
     { label: "component tests at level module", edit: replace("  - unit", "  - component"), names: ["component"] },
@@ -460,12 +445,11 @@ test("graphFindings — a plan step whose tests are not those of its level is an
 
 // ---------------------------------------------------------------- a module's folder
 
+// TST-473129 · level: unit · module: MOD-trace-graph
 // guards: A MODULE IS A FOLDER; UC-007; UC-019
-// given: the fixture, with MOD-reader's folder src/wrong/, which is not named after its identifier; src/text/reader/, which is named
-//        after it but lies inside the folder src/text/ of MOD-text; and no folder
+// given: the fixture, with MOD-reader's folder src/wrong/, which is not named after its identifier; src/text/reader/, which is named after it but lies inside the folder src/text/ of MOD-text; and no folder
 // input: graphFindings of the graph of each
-// expect: for the first two, the one error at MOD-reader and the line of its identifier, under A MODULE IS A FOLDER, naming the
-//         folder; for the third none — a module file without a folder is a finding of its format, MOD-documents'
+// expect: for the first two, the one error at MOD-reader and the line of its identifier, under A MODULE IS A FOLDER, naming the folder; for the third none — a module file without a folder is a finding of its format, MOD-documents'
 test("graphFindings — a module whose folder is not named after its identifier or lies inside another module's folder is an error", async () => {
   for (const folder of ["src/wrong/", "src/text/reader/"]) {
     const { lines, graph } = await repository({ [READER_PATH]: replace("folder: src/reader/", `folder: ${folder}`) });
@@ -478,12 +462,11 @@ test("graphFindings — a module whose folder is not named after its identifier 
 
 // ---------------------------------------------------------------- the title of a group where an identifier is expected
 
+// TST-473130 · level: unit · module: MOD-trace-graph
 // guards: A GROUP CARRIES NO IDENTIFIER; UC-007; UC-019
-// given: the fixture, whose group file holds a group titled Reading, with the use case's realises naming Reading in place of the
-//        requirement
+// given: the fixture, whose group file holds a group titled Reading, with the use case's realises naming Reading in place of the requirement
 // input: graphFindings of its graph
-// expect: the one error at UC-001 and the line of that name, under A GROUP CARRIES NO IDENTIFIER, naming Reading — and no second one,
-//         that the name matches no requirement
+// expect: the one error at UC-001 and the line of that name, under A GROUP CARRIES NO IDENTIFIER, naming Reading — and no second one, that the name matches no requirement
 test("graphFindings — a name where an identifier is expected that is the title of a group is an error", async () => {
   const { lines, graph } = await repository({ [UC_PATH]: replace(`  - ${REQUIREMENT}`, "  - Reading") });
   assert.ok([...graph.nodes.values()].some((node) => node.kind === "group" && node.title === "Reading"), "known positive: the group");
@@ -492,11 +475,11 @@ test("graphFindings — a name where an identifier is expected that is the title
 
 // ---------------------------------------------------------------- a reference by position
 
+// TST-473131 · level: unit · module: MOD-trace-graph
 // guards: A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION; UC-007; UC-018; UC-019
 // given: the fixture, with the use case's goal pointing at "step 5" of another use case
 // input: graphFindings of its graph
-// expect: the one finding is the warning MOD-identifiers' positionalReferences gives for that text — a warning, at the line of the
-//         goal, under A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION, naming the file —, as it gives it
+// expect: the one finding is the warning MOD-identifiers' positionalReferences gives for that text — a warning, at the line of the goal, under A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION, naming the file —, as it gives it
 test("graphFindings — a reference by position is a warning, as positionalReferences gives it", async () => {
   const goal = `${GOAL} It repeats step 5 of UC-002.`;
   const { lines, graph } = await repository({ [UC_PATH]: replace(GOAL, goal) });
@@ -508,11 +491,11 @@ test("graphFindings — a reference by position is a warning, as positionalRefer
 
 // ---------------------------------------------------------------- a link to what the product does not hold
 
+// TST-473132 · level: unit · module: MOD-trace-graph
 // guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; UC-007; UC-018; UC-019
 // given: the fixture, with the use case's link to MOD-reader.md changed to a file the repository does not hold, MOD-missing.md
 // input: selfSufficiencyFindings of its graph for the instance fixture-owner/agent-m
-// expect: the one error at UC-001 and the line of the link, under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT, naming MOD-missing.md —
-//         while the links to the section, to another site and to the folder of the clean repository are none
+// expect: the one error at UC-001 and the line of the link, under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT, naming MOD-missing.md — while the links to the section, to another site and to the folder of the clean repository are none
 test("selfSufficiencyFindings — a link to a path of the repository that it does not hold is an error", async () => {
   const goal = GOAL.replace("MOD-reader.md", "MOD-missing.md");
   const { lines, graph } = await repository({ [UC_PATH]: replace(GOAL, goal) });
@@ -520,14 +503,11 @@ test("selfSufficiencyFindings — a link to a path of the repository that it doe
   assertFindings(selfSufficiencyFindings(graph, INSTANCE), [want("UC-001", lineOf(lines[UC_PATH], goal), SELF, "MOD-missing.md")]);
 });
 
+// TST-473133 · level: unit · module: MOD-trace-graph
 // guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; UC-007; UC-018; UC-019
-// given: the fixture, holding the file docs/use-cases/Übersicht.md, with the use case also linking to it as Übersicht.md and as
-//        %C3%9Cbersicht.md, and to the root of the repository, ../../; and, in a second graph, to ../50%.md, a target with a stray
-//        percent sign, and to https://, an address that is none
+// given: the fixture, holding the file docs/use-cases/Übersicht.md, with the use case also linking to it as Übersicht.md and as %C3%9Cbersicht.md, and to the root of the repository, ../../; and, in a second graph, to ../50%.md, a target with a stray percent sign, and to https://, an address that is none
 // input: selfSufficiencyFindings of the graph of each
-// expect: none for the first, where both targets name the file and the root is held; for the second the one error at UC-001 and
-//         the line of the link, naming ../50%.md — a target that cannot be read as a path is a path the repository does not hold,
-//         and an address that cannot be read is no concern of this check, and neither is a crash
+// expect: none for the first, where both targets name the file and the root is held; for the second the one error at UC-001 and the line of the link, naming ../50%.md — a target that cannot be read as a path is a path the repository does not hold, and an address that cannot be read is no concern of this check, and neither is a crash
 test("selfSufficiencyFindings — a link target is read as an address: the file it names is held, a stray percent sign is a path not held", async () => {
   const extra = { "docs/use-cases/Übersicht.md": ["# Übersicht", ""] };
   const encoded = `${GOAL} See [raw](Übersicht.md), [encoded](%C3%9Cbersicht.md) and [root](../../).`;
@@ -540,15 +520,11 @@ test("selfSufficiencyFindings — a link target is read as an address: the file 
   assertFindings(selfSufficiencyFindings(lost.graph, INSTANCE), [want("UC-001", lineOf(lost.lines[UC_PATH], stray), SELF, "../50%.md")]);
 });
 
+// TST-473134 · level: unit · module: MOD-trace-graph
 // guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; AN INSTANCE IS A FORK OF AGENT M; UC-007; UC-018; UC-019
-// given: the fixture, with the use case also linking to a file of the repository of the instance fixture-owner/agent-m; to the
-//        repository itself; to its dashboard, at the address MOD-identifiers' pagesAddress gives, to a page of it, and written
-//        without its closing slash; to another repository of the same owner, agent-m-tools; to a page of another owner's site of
-//        the same name; to the same owner and name on another host; to another site of the same owner whose name begins the same;
-//        and to an address without a scheme, //example.org/standard
+// given: the fixture, with the use case also linking to a file of the repository of the instance fixture-owner/agent-m; to the repository itself; to its dashboard, at the address MOD-identifiers' pagesAddress gives, to a page of it, and written without its closing slash; to another repository of the same owner, agent-m-tools; to a page of another owner's site of the same name; to the same owner and name on another host; to another site of the same owner whose name begins the same; and to an address without a scheme, //example.org/standard
 // input: selfSufficiencyFindings of the graph of each, for the instance fixture-owner/agent-m
-// expect: for the first five, the one error at UC-001 and the line of the link, under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT,
-//         naming the target; for the others none, which are other places
+// expect: for the first five, the one error at UC-001 and the line of the link, under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT, naming the target; for the others none, which are other places
 test("selfSufficiencyFindings — a link to the instance's repository or to its dashboard is an error, a link to another place is none", async () => {
   const flagged = [
     "https://github.com/fixture-owner/agent-m/blob/main/SPEC.md",

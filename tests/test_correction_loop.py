@@ -150,31 +150,61 @@ class CorrectionLoop(unittest.TestCase):
         cls.runs = js(RUNS)
         cls.conflict = js(CONFLICT)
 
+    # TST-475002 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: fixture jobs with a participant that answers from a list and a stand-in check that always finds an error
+    # input: one run where the error is never fixed (limit) and one where the draft stays unchanged
+    # expect: the never-fixing participant is asked 3 times, stops at limit, 1 error remains; the unchanged draft is asked 2 times, stops as unchanged, 1 error remains
     def test_a_participant_that_never_fixes_its_error_is_asked_exactly_limit_times_or_once_more_than_a_round_without_change(self):
         limit, unchanged = self.runs["limit"], self.runs["unchanged"]
         self.assertEqual((limit["asked"], limit["stopped"], len(limit["remaining"])), (3, "limit", 1))
         self.assertEqual((unchanged["asked"], unchanged["stopped"], len(unchanged["remaining"])), (2, "unchanged", 1))
 
+    # TST-475003 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: the limit run of the fixture jobs, with its round record (roundsText)
+    # input: the round record of the run that reached the limit
+    # expect: the record has the headings Round 1, 2, 3 and the line 'stopped because: limit · limit: 3'
     def test_the_rounds_are_counted_and_shown(self):
         record = self.runs["limit"]["record"]
         self.assertEqual(re.findall(r"^### Round (\d+)", record, re.M), ["1", "2", "3"])
         self.assertIn("stopped because: limit · limit: 3", record)
 
+    # TST-475004 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: a fixture participant that fixes the finding in its second answer
+    # input: a draft that fails a check is run through the loop
+    # expect: the participant is asked 2 times, the run stops as passed with no finding remaining, and the person gets the corrected draft
     def test_a_draft_that_fails_a_check_goes_back_and_the_person_sees_only_the_corrected_draft(self):
         corrected = self.runs["corrected"]
         self.assertEqual((corrected["asked"], corrected["stopped"], corrected["remaining"]), (2, "passed", []))
         self.assertEqual(corrected["draft"], self.runs["correctedDraft"])
 
+    # TST-475005 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: the same failing draft with the correction loop switched off
+    # input: the run with the loop off
+    # expect: the participant is asked once, stops at limit, and the error remains for the person ('matches no requirement')
     def test_counter_proof_with_the_loop_switched_off_the_person_sees_the_error(self):
         off = self.runs["loopOff"]
         self.assertEqual((off["asked"], off["stopped"], len(off["remaining"])), (1, "limit", 1))
         self.assertIn("matches no requirement", off["remaining"][0])
 
+    # TST-475006 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: fixture runs where the participant answers a finding with a justification, once for a warning and once for an error
+    # input: the justified warning run and the justified error run
+    # expect: the justified warning ends the loop (passed, nothing remaining); the unfixed error does not (unchanged, 1 remaining)
     def test_a_justified_warning_ends_the_loop_an_unfixed_error_does_not(self):
         warning, error = self.runs["justified warning"], self.runs["justified error"]
         self.assertEqual((warning["stopped"], warning["remaining"]), ("passed", []))
         self.assertEqual((error["stopped"], len(error["remaining"])), ("unchanged", 1))
 
+    # TST-475007 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: fixture runs with a reviewer whose finding is answered with a justification in one run and left unanswered in the other
+    # input: the answered and the unanswered review runs
+    # expect: the answered finding ends the loop (passed, nothing remaining); the unanswered one stops as unchanged with 1 remaining, a warning
     def test_a_reviewers_finding_answered_with_a_justification_ends_the_loop_an_unanswered_one_does_not(self):
         answered, unanswered = self.runs["reviewAnswered"], self.runs["reviewUnanswered"]
         self.assertEqual((answered["stopped"], answered["remaining"]), ("passed", []))
@@ -182,12 +212,22 @@ class CorrectionLoop(unittest.TestCase):
         self.assertEqual(len(unanswered["remaining"]), 1)
         self.assertIn(": warning: ", unanswered["remaining"][0], "a reviewer's finding is a warning")
 
+    # TST-475008 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: a derive-requirements run whose candidate is a conflict finding that a person must decide
+    # input: the run and every message sent to the participant
+    # expect: the conflict is in forPerson and in no message sent to the participant
     def test_a_conflict_finding_appears_in_no_message_to_the_participant(self):
         conflict = self.conflict
         self.assertEqual(conflict["forPerson"], [conflict["conflict"]], "known positive: the conflict was found")
         for message in conflict["sent"]:
             self.assertNotIn("contradicts EXPORT IS A PDF", message)
 
+    # TST-475009 · level: component · module: MOD-job-runner
+    # guards: THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A REVIEWER'S FINDING IS A WARNING; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; A FINDING READS LIKE A COMPILER MESSAGE
+    # given: all findings of the fixture runs and the conflict run
+    # input: every finding formatted with formatFinding
+    # expect: more than 5 findings found, and each one matches the compiler-message template (artifact:line: kind: what [RULE] — fix.)
     def test_every_finding_of_the_fixture_runs_matches_the_template(self):
         findings = [f for run in self.runs.values() if isinstance(run, dict) and "findings" in run for f in run["findings"]]
         findings += self.conflict["findings"]

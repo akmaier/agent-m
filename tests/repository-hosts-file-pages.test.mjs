@@ -44,13 +44,11 @@ function withoutRequests(run) {
 
 // ---------------------------------------------------------------- GitHub's new-file page
 
+// TST-472538 · level: unit · module: MOD-repository-hosts
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A CREDENTIAL IS NEVER PLACED IN A URL
-// given: the GitHub repository alice/agent-m, connected without a token; the approval record of a module file, three lines, and
-//        the path it is committed at
+// given: the GitHub repository alice/agent-m, connected without a token; the approval record of a module file, three lines, and the path it is committed at
 // input: webLinks().newFile(path, record)
-// expect: a string, GitHub's new-file page of the default branch, https://github.com/alice/agent-m/new/main, whose query holds
-//         exactly two parameters — `filename`, the path, and `value`, the record with its three lines and their line breaks — and
-//         nothing else: no other parameter, no fragment, no user name or password; no request is made
+// expect: a string, GitHub's new-file page of the default branch, https://github.com/alice/agent-m/new/main, whose query holds exactly two parameters — `filename`, the path, and `value`, the record with its three lines and their line breaks — and nothing else: no other parameter, no fragment, no user name or password; no request is made
 test("MOD-repository-hosts webLinks — GitHub's new-file page holds the path and the record, and nothing else (GitHub)", () => {
   const link = withoutRequests(() => connect(GITHUB).webLinks().newFile(RECORD_PATH, RECORD));
   assert.equal(typeof link, "string", "a page, not null");
@@ -64,13 +62,11 @@ test("MOD-repository-hosts webLinks — GitHub's new-file page holds the path an
 
 // ---------------------------------------------------------------- the editor page of a file
 
+// TST-472539 · level: unit · module: MOD-repository-hosts
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A CREDENTIAL IS NEVER PLACED IN A URL
-// given: the path docs/use-cases/UC-001 the first.md, spaces in its file name; the GitHub repository alice/agent-m and the GitLab
-//        project grp/sub/thesis-tool on gitlab.example.org, connected without a token
+// given: the path docs/use-cases/UC-001 the first.md, spaces in its file name; the GitHub repository alice/agent-m and the GitLab project grp/sub/thesis-tool on gitlab.example.org, connected without a token
 // input: webLinks().editFile(path) on each
-// expect: GitHub's editor of the default branch, https://github.com/alice/agent-m/edit/main/docs/use-cases/UC-001%20the%20first.md,
-//         and GitLab's single-file editor, https://gitlab.example.org/grp/sub/thesis-tool/-/edit/main/docs/use-cases/UC-001%20the%20first.md:
-//         the folders' slashes stay, each space is %20, and the address holds nothing else; no request is made
+// expect: GitHub's editor of the default branch, https://github.com/alice/agent-m/edit/main/docs/use-cases/UC-001%20the%20first.md, and GitLab's single-file editor, https://gitlab.example.org/grp/sub/thesis-tool/-/edit/main/docs/use-cases/UC-001%20the%20first.md: the folders' slashes stay, each space is %20, and the address holds nothing else; no request is made
 test("MOD-repository-hosts webLinks — the editor page of a path with spaces (GitHub, GitLab)", () => {
   const path = "docs/use-cases/UC-001 the first.md";
   const [github, gitlab] = withoutRequests(() => [connect(GITHUB).webLinks().editFile(path), connect(GITLAB).webLinks().editFile(path)]);
@@ -80,11 +76,11 @@ test("MOD-repository-hosts webLinks — the editor page of a path with spaces (G
 
 // ---------------------------------------------------------------- no new-file page on GitLab
 
+// TST-472540 · level: unit · module: MOD-repository-hosts
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: the GitLab project grp/sub/thesis-tool, connected without a token; the same path and record as above
 // input: webLinks().newFile(path, record) on the GitLab project, and, as the known positive, on the GitHub repository
-// expect: null on GitLab — it has no page that could be prefilled with the record (UC-008 3c) — and a string, a page, on GitHub
-//         for the same path and record; no request is made
+// expect: null on GitLab — it has no page that could be prefilled with the record (UC-008 3c) — and a string, a page, on GitHub for the same path and record; no request is made
 test("MOD-repository-hosts webLinks — a GitLab project has no new-file page (GitHub, GitLab)", () => {
   const [github, gitlab] = withoutRequests(() => [connect(GITHUB).webLinks().newFile(RECORD_PATH, RECORD),
     connect(GITLAB).webLinks().newFile(RECORD_PATH, RECORD)]);

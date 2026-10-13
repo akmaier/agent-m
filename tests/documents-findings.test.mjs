@@ -358,10 +358,9 @@ const RULED_SCHEMA = {
   ],
 };
 
+// TST-472161 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: RULED_SCHEMA — a schema file whose schema names a rule in each place the language gives one: the schema, a front
-//        matter key's value specification, a section, a column's value specification, a combination of conditions and its
-//        first part, a variant that changes the type, a variant that changes nothing but the rule, and a condition
+// given: RULED_SCHEMA — a schema file whose schema names a rule in each place the language gives one: the schema, a front matter key's value specification, a section, a column's value specification, a combination of conditions and its first part, a variant that changes the type, a variant that changes nothing but the rule, and a condition
 // input: loadSchema(its schema file, "MOD-example")
 // expect: the schema loads, and is exactly the JSON object of its file, each rule where it was written
 test("loadSchema — reads the rule of a schema, a section, a value specification, a condition and a variant", () => {
@@ -396,16 +395,11 @@ const NOT_NAMES = [
   ["a name with a blank at its end", "THE SCHEMA'S RULE "],
 ];
 
+// TST-472162 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — RULED_SCHEMA loads; then RULED_SCHEMA with the rule of one of its nine places — the schema, a
-//        front matter key's value specification, a section, a column's value specification, a combination of conditions, a
-//        part of it, a variant, a variant that changes nothing but the rule, a condition — replaced by one that is not a
-//        requirement's name in capitals: a name in small letters, an identifier UC-002, an empty text, the number 7, a name
-//        with a blank at its end
+// given: known positive first — RULED_SCHEMA loads; then RULED_SCHEMA with the rule of one of its nine places — the schema, a front matter key's value specification, a section, a column's value specification, a combination of conditions, a part of it, a variant, a variant that changes nothing but the rule, a condition — replaced by one that is not a requirement's name in capitals: a name in small letters, an identifier UC-002, an empty text, the number 7, a name with a blank at its end
 // input: loadSchema(the schema file, "MOD-example"), for each place and each such rule
-// expect: each throws a SchemaError whose `key` is the place's key — `rule`, `frontMatter.product.rule`, `sections[0].rule`,
-//         `sections[0].table.columns[1].value.requiredWhen.any[0].rule`, … — and whose `owner` is MOD-example, its message
-//         naming both
+// expect: each throws a SchemaError whose `key` is the place's key — `rule`, `frontMatter.product.rule`, `sections[0].rule`, `sections[0].table.columns[1].value.requiredWhen.any[0].rule`, … — and whose `owner` is MOD-example, its message naming both
 test("loadSchema — a rule that is not a requirement's name in capitals is refused with SchemaError naming its key", () => {
   assert.doesNotThrow(() => load(RULED_SCHEMA), "known positive");
   for (const [place, part, key] of RULE_PLACES) {
@@ -422,6 +416,7 @@ test("loadSchema — a rule that is not a requirement's name in capitals is refu
 
 // ---------------------------------------------------------------- documentFindings: each kind of finding, with its line
 
+// TST-472163 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
 // given: three documents that fit their schemas: the participant register, the process model and the job record
 // input: documentFindings(schema, readDocument(schema, path, text)) for each
@@ -432,13 +427,11 @@ test("documentFindings — a document that fits its schema has no finding", () =
   assert.deepEqual(findingsOf(JOB_SCHEMA, JOB_PATH, JOB), []);
 });
 
+// TST-472164 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — MODEL has no finding; then the model whose front matter has no `name`, a key `owner` the
-//        format does not list (line 3), and `adapted_from` after `measure` (line 5), which the format puts after it — every
-//        other key in the format's order
+// given: known positive first — MODEL has no finding; then the model whose front matter has no `name`, a key `owner` the format does not list (line 3), and `adapted_from` after `measure` (line 5), which the format puts after it — every other key in the format's order
 // input: documentFindings of it, each finding in its text form
-// expect: three errors, in the order of their lines, each naming the schema's own rule, since no part closer to them names
-//         one — `name` missing on line 1; `owner` unknown on line 3; `adapted_from` out of order on line 5
+// expect: three errors, in the order of their lines, each naming the schema's own rule, since no part closer to them names one — `name` missing on line 1; `owner` unknown on line 3; `adapted_from` out of order on line 5
 test("documentFindings — front matter keys missing, unknown and out of order", () => {
   assert.deepEqual(findingsOf(MODEL_SCHEMA, MODEL_PATH, MODEL), [], "known positive");
   const text = [...front("kind: pulled", "owner: akmaier", "measure: items per state over time", "adapted_from: scrum"),
@@ -455,16 +448,11 @@ test("documentFindings — front matter keys missing, unknown and out of order",
   ]);
 });
 
+// TST-472165 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — JOB, a run whose `jobs` lists two jobs, has no finding; then the job record changed in one
-//        place each: a run without `jobs` (required where kind is run); a run whose `jobs` lists nothing (nonEmpty); a job of
-//        kind implement that lists jobs (left out where kind is not run); `started: yesterday`, which is no time — the key
-//        stands on line 8, after the list's two items
+// given: known positive first — JOB, a run whose `jobs` lists two jobs, has no finding; then the job record changed in one place each: a run without `jobs` (required where kind is run); a run whose `jobs` lists nothing (nonEmpty); a job of kind implement that lists jobs (left out where kind is not run); `started: yesterday`, which is no time — the key stands on line 8, after the list's two items
 // input: documentFindings of each, each finding in its text form, its artifact the record's identifier
-// expect: one error each — line 1 for the key that is missing, else the line of its key —, the first three naming the rule of
-//         `jobs`' value specification, since its conditions name none, the fourth the schema's own:
-//         `JOB-20261006-0900-a1b2:1: error: the key jobs is required where kind is run, and left out
-//         [A RUN IS A JOB THAT NAMES ITS JOBS] — give the key jobs a value.` and the three below
+// expect: one error each — line 1 for the key that is missing, else the line of its key —, the first three naming the rule of `jobs`' value specification, since its conditions name none, the fourth the schema's own: `JOB-20261006-0900-a1b2:1: error: the key jobs is required where kind is run, and left out [A RUN IS A JOB THAT NAMES ITS JOBS] — give the key jobs a value.` and the three below
 test("documentFindings — front matter values: required or forbidden by a condition, empty where nonEmpty, not of their type", () => {
   assert.deepEqual(findingsOf(JOB_SCHEMA, JOB_PATH, JOB), [], "known positive");
   const job = (...lines) => [...front(...lines), ...JOB_BODY].join("\n");
@@ -486,13 +474,11 @@ test("documentFindings — front matter values: required or forbidden by a condi
   ]);
 });
 
+// TST-472166 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — MODEL has no finding; then the model with `kind: agile` (line 3), not planned or pulled; and
-//        the model of kind pulled with `measure: plan entries per phase` (line 5), which the variant for pulled work does not
-//        allow
+// given: known positive first — MODEL has no finding; then the model with `kind: agile` (line 3), not planned or pulled; and the model of kind pulled with `measure: plan entries per phase` (line 5), which the variant for pulled work does not allow
 // input: documentFindings of each, each finding in its text form, its artifact the model's path
-// expect: one error each: `kind` on line 3, naming the schema's own rule, since neither `kind` nor a variant names one; and
-//         `measure` on line 5, naming the rule of its value specification, since the variant that holds names none
+// expect: one error each: `kind` on line 3, naming the schema's own rule, since neither `kind` nor a variant names one; and `measure` on line 5, naming the rule of its value specification, since the variant that holds names none
 test("documentFindings — front matter values not of their type, and not of the variant that holds", () => {
   assert.deepEqual(findingsOf(MODEL_SCHEMA, MODEL_PATH, MODEL), [], "known positive");
   assert.deepEqual(findingsOf(MODEL_SCHEMA, MODEL_PATH, MODEL.replace("kind: pulled", "kind: agile")), [
@@ -507,16 +493,11 @@ test("documentFindings — front matter values not of their type, and not of the
   ]);
 });
 
+// TST-472167 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — PARTICIPANTS has no finding; then PARTICIPANTS_BROKEN: a person with a model (row 9); a CLI
-//        agent without its model and its processing place, whose context is `many` (row 10); a participant of type `robot`
-//        without capabilities or a route (row 11); a person without a name (row 12)
+// given: known positive first — PARTICIPANTS has no finding; then PARTICIPANTS_BROKEN: a person with a model (row 9); a CLI agent without its model and its processing place, whose context is `many` (row 10); a participant of type `robot` without capabilities or a route (row 11); a person without a name (row 12)
 // input: documentFindings of it, each finding in its text form
-// expect: eight errors, each on its row's line, in the order of the rows and, within a row, of the columns, each naming the
-//         closest rule: the person's Model, left out where Type is person — the schema's own, since neither the condition,
-//         the column nor the section names one; the agent's Model, required where Type is not person — the condition's;
-//         Context, no number — the schema's; the processing place — the column's; Type — the column's; Capabilities — the
-//         column's; Route and Name, each required — the schema's
+// expect: eight errors, each on its row's line, in the order of the rows and, within a row, of the columns, each naming the closest rule: the person's Model, left out where Type is person — the schema's own, since neither the condition, the column nor the section names one; the agent's Model, required where Type is not person — the condition's; Context, no number — the schema's; the processing place — the column's; Type — the column's; Capabilities — the column's; Route and Name, each required — the schema's
 test("documentFindings — each row of a table, cell by cell: required or forbidden by a condition, not of its type", () => {
   assert.deepEqual(findingsOf(PARTICIPANTS_SCHEMA, "docs/participants.md", PARTICIPANTS), [], "known positive");
   assert.deepEqual(findingsOf(PARTICIPANTS_SCHEMA, "docs/participants.md", PARTICIPANTS_BROKEN), [
@@ -539,9 +520,9 @@ test("documentFindings — each row of a table, cell by cell: required or forbid
   ]);
 });
 
+// TST-472168 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — the register as read has no finding; then the same register whose second participant's
-//        Capabilities a form emptied: an empty list, where the column holds at least one item (nonEmpty)
+// given: known positive first — the register as read has no finding; then the same register whose second participant's Capabilities a form emptied: an empty list, where the column holds at least one item (nonEmpty)
 // input: documentFindings(the register's schema, the register)
 // expect: one error on that participant's row, line 10, naming the column's rule
 test("documentFindings — a cell empty where nonEmpty", () => {
@@ -555,13 +536,11 @@ test("documentFindings — a cell empty where nonEmpty", () => {
   ]);
 });
 
+// TST-472169 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — MODEL has no finding; then the model whose ## Phases has a row without its Role (line 15) and
-//        one without its Name (line 16), and whose ## Flow control has `four` under WIP limit (line 29), where the variant for
-//        WIP limit asks for a number, and `maybe` under Sprints (line 31), where the variant for Sprints asks for yes or no
+// given: known positive first — MODEL has no finding; then the model whose ## Phases has a row without its Role (line 15) and one without its Name (line 16), and whose ## Flow control has `four` under WIP limit (line 29), where the variant for WIP limit asks for a number, and `maybe` under Sprints (line 31), where the variant for Sprints asks for yes or no
 // input: documentFindings of it, each finding in its text form
-// expect: four errors, each on its row's line: Role — the column's rule; Name — the section's, since the column names none;
-//         WIP limit's Value — the variant's; Sprints' Value — the section's, since neither the variant nor the column names one
+// expect: four errors, each on its row's line: Role — the column's rule; Name — the section's, since the column names none; WIP limit's Value — the variant's; Sprints' Value — the section's, since neither the variant nor the column names one
 test("documentFindings — cells not of the variant that holds for their row, and each cell's closest rule", () => {
   assert.deepEqual(findingsOf(MODEL_SCHEMA, MODEL_PATH, MODEL), [], "known positive");
   const text = MODEL.replace("| Sprint planning | Product Owner | ITM |", "| Sprint planning | — | ITM |")
@@ -590,15 +569,11 @@ const FLOW_CONTROL = [
   "",                      // 16
 ];
 
+// TST-472170 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — MODEL has no finding; then two models whose sections stand otherwise:
-//        - ## Flow control, ## Phases (line 17), ## Notes (line 24): ## Transitions missing, ## Phases after ## Flow control,
-//          which the format puts after it, and ## Notes, a section the format does not name, where it allows no other;
-//        - ## Flow control, ## Transitions (line 17): ## Phases missing, ## Transitions after ## Flow control
+// given: known positive first — MODEL has no finding; then two models whose sections stand otherwise: - ## Flow control, ## Phases (line 17), ## Notes (line 24): ## Transitions missing, ## Phases after ## Flow control, which the format puts after it, and ## Notes, a section the format does not name, where it allows no other; - ## Flow control, ## Transitions (line 17): ## Phases missing, ## Transitions after ## Flow control
 // input: documentFindings of each, each finding in its text form
-// expect: the first: ## Transitions missing on line 1, naming the schema's rule, since the section names none; ## Phases out
-//         of order on line 17, naming the section's rule; ## Notes on line 24, the schema's. The second: ## Phases missing on
-//         line 1, naming its rule; ## Transitions out of order on line 17, naming the schema's
+// expect: the first: ## Transitions missing on line 1, naming the schema's rule, since the section names none; ## Phases out of order on line 17, naming the section's rule; ## Notes on line 24, the schema's. The second: ## Phases missing on line 1, naming its rule; ## Transitions out of order on line 17, naming the schema's
 test("documentFindings — required sections missing, sections out of order, and a section the schema forbids", () => {
   assert.deepEqual(findingsOf(MODEL_SCHEMA, MODEL_PATH, MODEL), [], "known positive");
   const order = "put the sections in the order of the format: ## Phases, ## Transitions, ## Flow control.";
@@ -640,9 +615,9 @@ test("documentFindings — required sections missing, sections out of order, and
   ]);
 });
 
+// TST-472171 · level: unit · module: MOD-documents
 // guards: UC-002; A FINDING READS LIKE A COMPILER MESSAGE
-// given: the model with a section ## Notes after its last one (line 33); known positive first — under the model's schema with
-//        `otherSections` allowed, it has no finding; then under the model's schema, which forbids other sections
+// given: the model with a section ## Notes after its last one (line 33); known positive first — under the model's schema with `otherSections` allowed, it has no finding; then under the model's schema, which forbids other sections
 // input: documentFindings of it under each schema
 // expect: none under the first; under the second one error on line 33, naming the schema's own rule
 test("documentFindings — a section the schema does not name is a finding only where the schema forbids other sections", () => {
@@ -657,18 +632,11 @@ test("documentFindings — a section the schema does not name is a finding only 
 
 // ---------------------------------------------------------------- documentFindings: the requirement each finding names
 
+// TST-472172 · level: unit · module: MOD-documents
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: RESOURCES, read under the resource list's schema with the rules of its parts given, then taken away one by one from
-//        the closest outwards; its rows: a repository without its Pin (line 7) — required by the condition, and the
-//        repository variant holds —; data without its Pin (line 8) — required, and no variant holds —; a repository whose
-//        Pin `main` is no sha (line 9) — given, so no condition requires or forbids it —; data with a Route (line 10) —
-//        left out by the condition for every kind but compute —; and compute with a Route (line 11), which fits
+// given: RESOURCES, read under the resource list's schema with the rules of its parts given, then taken away one by one from the closest outwards; its rows: a repository without its Pin (line 7) — required by the condition, and the repository variant holds —; data without its Pin (line 8) — required, and no variant holds —; a repository whose Pin `main` is no sha (line 9) — given, so no condition requires or forbids it —; data with a Route (line 10) — left out by the condition for every kind but compute —; and compute with a Route (line 11), which fits
 // input: the line and the rule of each finding
-// expect: with every rule — the condition's on lines 7, 8 and 10, the variant's on line 9;
-//         without the condition's — the variant's on lines 7 and 9, the value specification's on lines 8 and 10;
-//         without the variant's too — the value specification's on each line;
-//         without the value specification's too — the section's on each line;
-//         with the schema's alone — the schema's on each line
+// expect: with every rule — the condition's on lines 7, 8 and 10, the variant's on line 9; without the condition's — the variant's on lines 7 and 9, the value specification's on lines 8 and 10; without the variant's too — the value specification's on each line; without the value specification's too — the section's on each line; with the schema's alone — the schema's on each line
 test("documentFindings — a value's finding names the condition's rule, then the variant's, the value's, the section's, the schema's", () => {
   const { condition, variant, value, section, schema } = RULE;
   const rules = (given) => rulesOf(resourcesSchema(given), RESOURCES_PATH, RESOURCES);
@@ -680,21 +648,11 @@ test("documentFindings — a value's finding names the condition's rule, then th
   assert.deepEqual(rules({ schema }), [[7, schema], [8, schema], [9, schema], [10, schema]]);
 });
 
+// TST-472173 · level: unit · module: MOD-documents
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: PINS — a repository (line 7) and data (line 8), each without its Pin —, read under the resource list's schema with
-//        the rules of the variant, the value specification, the section and the schema, and Pin required under a combination
-//        of conditions:
-//        - any of: Kind is repository (the first part), Kind is data (the second part);
-//        - all of: Kind is not compute (the first part), Kind is repository or data (the second part);
-//        each with the rules of its parts and of the combination given, then taken away one by one
+// given: PINS — a repository (line 7) and data (line 8), each without its Pin —, read under the resource list's schema with the rules of the variant, the value specification, the section and the schema, and Pin required under a combination of conditions: - any of: Kind is repository (the first part), Kind is data (the second part); - all of: Kind is not compute (the first part), Kind is repository or data (the second part); each with the rules of its parts and of the combination given, then taken away one by one
 // input: the line and the rule of each finding
-// expect: of combined conditions, the first part that holds and names a rule, before the combination's own:
-//         any — with every rule, the first part's on line 7, the second part's on line 8, where the first does not hold;
-//         without the first part's, the combination's on line 7, where the second does not hold, the second part's on line 8;
-//         without both parts' rules, the combination's on both; without the combination's too, the variant's on line 7 and
-//         the value specification's on line 8, where no variant holds;
-//         all — with every rule, the first part's on both; without the first part's, the second part's; without both, the
-//         combination's
+// expect: of combined conditions, the first part that holds and names a rule, before the combination's own: any — with every rule, the first part's on line 7, the second part's on line 8, where the first does not hold; without the first part's, the combination's on line 7, where the second does not hold, the second part's on line 8; without both parts' rules, the combination's on both; without the combination's too, the variant's on line 7 and the value specification's on line 8, where no variant holds; all — with every rule, the first part's on both; without the first part's, the second part's; without both, the combination's
 test("documentFindings — of combined conditions, the first part that holds and names a rule, before the combination's", () => {
   const { variant, value, section, schema, first, second, combination } = RULE;
   const others = { variant, value, section, schema };
@@ -711,13 +669,11 @@ test("documentFindings — of combined conditions, the first part that holds and
   assert.deepEqual(rules(all(undefined, undefined, combination)), [[7, combination], [8, combination]]);
 });
 
+// TST-472174 · level: unit · module: MOD-documents
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: a resource `docs/resources/agent-m.md` of kind repository without its pin, which its front matter requires for a
-//        repository, read under the resource's schema with the rules of the condition, the variant, the value
-//        specification, its section ## Notes and the schema given, then taken away one by one from the closest outwards
+// given: a resource `docs/resources/agent-m.md` of kind repository without its pin, which its front matter requires for a repository, read under the resource's schema with the rules of the condition, the variant, the value specification, its section ## Notes and the schema given, then taken away one by one from the closest outwards
 // input: the line and the rule of its finding
-// expect: one finding, on line 1: the condition's rule; without it, the variant's; without that, the value specification's;
-//         without that, the schema's — never the section's, since a key of the front matter stands in no section
+// expect: one finding, on line 1: the condition's rule; without it, the variant's; without that, the value specification's; without that, the schema's — never the section's, since a key of the front matter stands in no section
 test("documentFindings — a front matter value's finding names the condition's rule, the variant's, the value's, the schema's", () => {
   const { condition, variant, value, section, schema } = RULE;
   const text = [...front("kind: repository"), ...RESOURCE_NOTES].join("\n");
@@ -728,15 +684,11 @@ test("documentFindings — a front matter value's finding names the condition's 
   assert.deepEqual(rules({ section, schema }), [[1, schema]]);
 });
 
+// TST-472175 · level: unit · module: MOD-documents
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: known positive first — the resource whose front matter is in the format's order has no finding; then the resource
-//        whose `pin` (line 4) stands after `licence`, which the format puts after it, with a key `owner` (line 5) the format
-//        does not list, and a section ## Links (line 13) the format does not name, where it allows no other — under the
-//        resource's schema with every rule given: `pin`'s condition, variant and value specification, the section ## Notes
-//        and the schema each name one
+// given: known positive first — the resource whose front matter is in the format's order has no finding; then the resource whose `pin` (line 4) stands after `licence`, which the format puts after it, with a key `owner` (line 5) the format does not list, and a section ## Links (line 13) the format does not name, where it allows no other — under the resource's schema with every rule given: `pin`'s condition, variant and value specification, the section ## Notes and the schema each name one
 // input: the line and the rule of each finding
-// expect: three findings, each naming the schema's own rule: the key out of order on line 4, not `pin`'s own; the unknown key
-//         on line 5; the forbidden section on line 13, not the rule of the section ## Notes
+// expect: three findings, each naming the schema's own rule: the key out of order on line 4, not `pin`'s own; the unknown key on line 5; the forbidden section on line 13, not the rule of the section ## Notes
 test("documentFindings — a key the schema does not list, keys out of order and a forbidden section name the schema's rule", () => {
   const { condition, variant, value, section, schema } = RULE;
   const every = resourceSchema({ condition, variant, value, section, schema });

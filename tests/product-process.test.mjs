@@ -316,16 +316,11 @@ const realDisk = (reads) => ({
   readFileSync: (url, encoding) => { reads.push(`disk ${url}`); return readFileSync(url, encoding); },
 });
 
+// TST-472441 · level: unit · module: MOD-product-process
 // guards: UC-002; UC-048; THE PROCESS MODEL IS DECLARED PER PRODUCT; A ROLE ASSIGNMENT FILLS THE ROLES
-// given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser,
-//        without a disk, whose fetch answers each of the module's own addresses with the text of the real file there;
-//        (c) as in a browser whose fetch answers 404 Not Found
+// given: the module loaded anew three times — (a) as in Node, with a disk that gives the real files; (b) as in a browser, without a disk, whose fetch answers each of the module's own addresses with the text of the real file there; (c) as in a browser whose fetch answers 404 Not Found
 // input: (a), (b): declarationSchema and roleAssignmentSchema, and the fixture product's declaration read with the first
-// expect: (a) three reads, of src/product-process/declaration.schema.md, then of role-assignment.schema.md and of gate-record.schema.md, from the
-//         disk; (b) three reads, of the same addresses with fetch; each gives schemas deep-equal to those of the module as
-//         this file loaded it, the first of which reads the declaration's model, team-scrum. (c) one read, of the
-//         declaration's schema; the module does not load — a schema that cannot be read stops its module (MOD-documents,
-//         loadSchema) — and the error names declaration.schema.md and 404
+// expect: (a) three reads, of src/product-process/declaration.schema.md, then of role-assignment.schema.md and of gate-record.schema.md, from the disk; (b) three reads, of the same addresses with fetch; each gives schemas deep-equal to those of the module as this file loaded it, the first of which reads the declaration's model, team-scrum. (c) one read, of the declaration's schema; the module does not load — a schema that cannot be read stops its module (MOD-documents, loadSchema) — and the error names declaration.schema.md and 404
 test("declarationSchema — the module's schemas are read from its own declaration.schema.md and role-assignment.schema.md: from the disk in Node, from its own address in a browser", async () => {
   const onDisk = await load({ disk: realDisk });
   const atAddress = await load({ disk: undefined,
@@ -350,16 +345,11 @@ test("declarationSchema — the module's schemas are read from its own declarati
 const rowsUnder = (document, heading) =>
   (document.sections.find((section) => section.heading === heading)?.rows ?? []).map((row) => [row.line, row.cells]);
 
-// guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS;
-//         A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A PROCESS REQUIREMENT ADDS TO THE MODEL
+// TST-472442 · level: unit · module: MOD-product-process
+// guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A PROCESS REQUIREMENT ADDS TO THE MODEL
 // given: the fixture product's declaration DECLARATION
 // input: readDocument(declarationSchema, "docs/process.md", DECLARATION); documentFindings(declarationSchema, it)
-// expect: its front matter as written: model team-scrum, model_file docs/process-models/team-scrum.md, model_version VERSION,
-//         and no other key; its sections in order — ## Roles, which names the roles as free text, ## Practices, ## Branches,
-//         ## Definition of Done, ## Gates added by requirements —; the rows of ## Branches: Sprint →
-//         sprint/<nn> (line 27), Development → develop (line 28); of ## Gates added by requirements, on line 38: UNIT
-//         VERIFICATION IS DOCUMENTED, between Development → Sprint Review, its artifacts, condition and decider Product
-//         Owner. And no finding of the schema
+// expect: its front matter as written: model team-scrum, model_file docs/process-models/team-scrum.md, model_version VERSION, and no other key; its sections in order — ## Roles, which names the roles as free text, ## Practices, ## Branches, ## Definition of Done, ## Gates added by requirements —; the rows of ## Branches: Sprint → sprint/<nn> (line 27), Development → develop (line 28); of ## Gates added by requirements, on line 38: UNIT VERIFICATION IS DOCUMENTED, between Development → Sprint Review, its artifacts, condition and decider Product Owner. And no finding of the schema
 test("declarationSchema — a product's declaration read by its schema: front matter, branches and the gates requirements add; its roles are named, never filled", () => {
   const document = declarationOf(DECLARATION);
   assert.deepEqual(document.fields, { model: "team-scrum", model_file: MODEL_PATH, model_version: VERSION });
@@ -377,16 +367,11 @@ test("declarationSchema — a product's declaration read by its schema: front ma
   assert.deepEqual(documentFindings(declarationSchema, document), []);
 });
 
+// TST-472443 · level: unit · module: MOD-product-process
 // guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT
-// given: known positive first — the fixture product's declaration without its line `model_version: …` (line 4); then this
-//        instance's own declaration docs/process.md, as it stands
+// given: known positive first — the fixture product's declaration without its line `model_version: …` (line 4); then this instance's own declaration docs/process.md, as it stands
 // input: readDocument(declarationSchema, "docs/process.md", the text); documentFindings(declarationSchema, it)
-// expect: for the declaration without its model version, one error, on line 1 — a key that is missing stands on no line —,
-//         naming THE PROCESS MODEL IS DECLARED PER PRODUCT. For this instance's declaration, no finding; its front matter as
-//         it writes it — model scrum-wip, model_file docs/process-models/scrum-wip.md and a model_version of 40 hexadecimal
-//         digits, and no other key —; its three role names, and no participant: the role assignments under
-//         docs/role-assignments/ fill the roles; and its one branch, for Sprint, as it writes it: `sprint/<team>/<nn>`, in
-//         backticks
+// expect: for the declaration without its model version, one error, on line 1 — a key that is missing stands on no line —, naming THE PROCESS MODEL IS DECLARED PER PRODUCT. For this instance's declaration, no finding; its front matter as it writes it — model scrum-wip, model_file docs/process-models/scrum-wip.md and a model_version of 40 hexadecimal digits, and no other key —; its three role names, and no participant: the role assignments under docs/role-assignments/ fill the roles; and its one branch, for Sprint, as it writes it: `sprint/<team>/<nn>`, in backticks
 test("declarationSchema — a declaration without its model's version is named; this instance's own docs/process.md is read without a finding", () => {
   const unversioned = declarationOf(removed(DECLARATION, 4, `model_version: ${VERSION}`));
   assert.deepEqual(documentFindings(declarationSchema, unversioned).map((f) => [f.line, f.kind, f.rule]), [[1, "error", DECLARED]]);
@@ -405,13 +390,9 @@ test("declarationSchema — a declaration without its model's version is named; 
 
 // ---------------------------------------------------------------- declarationFindings
 
-// guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A PRACTICE IS NOT
-//         A MODEL; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A PROCESS REQUIREMENT ADDS TO THE MODEL
-// given: the fixture product — its declaration as it stands; the Catalogue at VERSION, whose instance holds team-scrum at
-//        docs/process-models/team-scrum.md, without a finding; its register of participants, in which alice is a person;
-//        its instance's SPEC, which holds UNIT VERIFICATION IS DOCUMENTED. The Product Owner, whom team-scrum fills by a
-//        person, is alice; it declares no practice; it sets a branch for its sprint — team-scrum works in sprints — and one
-//        for the phase Development
+// TST-472444 · level: unit · module: MOD-product-process
+// guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A PRACTICE IS NOT A MODEL; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A PROCESS REQUIREMENT ADDS TO THE MODEL
+// given: the fixture product — its declaration as it stands; the Catalogue at VERSION, whose instance holds team-scrum at docs/process-models/team-scrum.md, without a finding; its register of participants, in which alice is a person; its instance's SPEC, which holds UNIT VERIFICATION IS DOCUMENTED. The Product Owner, whom team-scrum fills by a person, is alice; it declares no practice; it sets a branch for its sprint — team-scrum works in sprints — and one for the phase Development
 // input: declarationFindings(declaration, that catalogue, the participants, the instance's SPEC)
 // expect: no finding — the known positive of every test below, each of which changes one line and finds one
 test("declarationFindings — the fixture product's declaration, against the catalogue at the commit it names, has no finding", async () => {
@@ -420,24 +401,22 @@ test("declarationFindings — the fixture product's declaration, against the cat
   assert.deepEqual(brief(findingsOf(DECLARATION, cat)), []);
 });
 
+// TST-472445 · level: unit · module: MOD-product-process
 // guards: UC-002; THE PROCESS MODEL IS DECLARED PER PRODUCT
-// given: the fixture product's declaration, which names the model at docs/process-models/team-scrum.md at VERSION; the
-//        Catalogue at VERSION, whose instance does not hold that file yet: the named version lacks it
+// given: the fixture product's declaration, which names the model at docs/process-models/team-scrum.md at VERSION; the Catalogue at VERSION, whose instance does not hold that file yet: the named version lacks it
 // input: declarationFindings(declaration, that catalogue, the participants, the instance's SPEC)
-// expect: one error, on the line of model_file (line 3), naming THE PROCESS MODEL IS DECLARED PER PRODUCT; its text names the
-//         file and the commit
+// expect: one error, on the line of model_file (line 3), naming THE PROCESS MODEL IS DECLARED PER PRODUCT; its text names the file and the commit
 test("declarationFindings — a model that the catalogue at the declared commit does not hold at model_file is an error", async () => {
   const found = findingsOf(DECLARATION, await catalogueAt({}));
   assert.deepEqual(brief(found), [[3, "error", DECLARED]]);
   assert.ok(found[0].what.includes(MODEL_PATH) && found[0].what.includes(VERSION), found[0].what);
 });
 
+// TST-472446 · level: unit · module: MOD-product-process
 // guards: UC-002; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; THE PROCESS MODEL IS DECLARED PER PRODUCT
-// given: the fixture product's declaration; the Catalogue at VERSION, whose instance holds team-scrum as it stood then: its
-//        role Scrum Master without capabilities (line 47) — an error finding of the model in that catalogue
+// given: the fixture product's declaration; the Catalogue at VERSION, whose instance holds team-scrum as it stood then: its role Scrum Master without capabilities (line 47) — an error finding of the model in that catalogue
 // input: declarationFindings(declaration, that catalogue, the participants, the instance's SPEC)
-// expect: one error, on the line of model_file (line 3), naming A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; its text
-//         names the model's file
+// expect: one error, on the line of model_file (line 3), naming A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; its text names the model's file
 test("declarationFindings — a model whose findings in the catalogue at the declared commit hold an error is an error", async () => {
   const broken = replaced(MODEL, 47, "| Scrum Master | either | one | read the repository |", "| Scrum Master | either | one | — |");
   const cat = await catalogueAt({ [MODEL_PATH]: broken });
@@ -447,12 +426,11 @@ test("declarationFindings — a model whose findings in the catalogue at the dec
   assert.ok(found[0].what.includes(MODEL_PATH), found[0].what);
 });
 
+// TST-472447 · level: unit · module: MOD-product-process
 // guards: UC-002; THE PROCESS NAMES ROLES, NOT PARTICIPANTS
-// given: known positive first — the fixture product's declaration, which names roles only; then the same declaration
-//        naming alice, a participant of the instance's list, (a) in its text (line 9) and (b) as a branch (line 28)
+// given: known positive first — the fixture product's declaration, which names roles only; then the same declaration naming alice, a participant of the instance's list, (a) in its text (line 9) and (b) as a branch (line 28)
 // input: declarationFindings of each, against the Catalogue at VERSION
-// expect: no finding for the first; for each other, one error on the line that names the participant, naming THE
-//         PROCESS NAMES ROLES, NOT PARTICIPANTS; its text names alice
+// expect: no finding for the first; for each other, one error on the line that names the participant, naming THE PROCESS NAMES ROLES, NOT PARTICIPANTS; its text names alice
 test("declarationFindings — a declaration that names a participant is an error", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   assert.deepEqual(brief(findingsOf(DECLARATION, cat)), []);
@@ -467,13 +445,11 @@ test("declarationFindings — a declaration that names a participant is an error
   }
 });
 
+// TST-472448 · level: unit · module: MOD-product-process
 // guards: UC-002; A PRACTICE IS NOT A MODEL
-// given: known positive first — the declaration naming the shipped Scrum model, with the practice devops (line 21), which
-//        the catalogue holds and which fits scrum; then the same declaration with the practice pair-programming, which the
-//        catalogue does not hold
+// given: known positive first — the declaration naming the shipped Scrum model, with the practice devops (line 21), which the catalogue holds and which fits scrum; then the same declaration with the practice pair-programming, which the catalogue does not hold
 // input: declarationFindings of each, against the Catalogue at VERSION
-// expect: no finding for devops; for pair-programming one error, on line 21, naming A PRACTICE IS NOT A MODEL; its text names
-//         the practice
+// expect: no finding for devops; for pair-programming one error, on line 21, naming A PRACTICE IS NOT A MODEL; its text names the practice
 test("declarationFindings — a practice the catalogue does not hold is an error", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   assert.deepEqual(brief(findingsOf(replaced(SCRUM_DECLARATION, 21, PRACTICES_NONE, "- devops"), cat)), []);
@@ -482,12 +458,11 @@ test("declarationFindings — a practice the catalogue does not hold is an error
   assert.ok(found[0].what.includes("pair-programming"), found[0].what);
 });
 
+// TST-472449 · level: unit · module: MOD-product-process
 // guards: UC-002; A PRACTICE IS NOT A MODEL
-// given: known positive first — the declaration naming the shipped Scrum model, with the practice devops (line 21), whose
-//        `fits` names scrum and kanban; then the fixture product's own declaration, of the model team-scrum, with devops
+// given: known positive first — the declaration naming the shipped Scrum model, with the practice devops (line 21), whose `fits` names scrum and kanban; then the fixture product's own declaration, of the model team-scrum, with devops
 // input: declarationFindings of each, against the Catalogue at VERSION
-// expect: no finding for scrum; for team-scrum one error, on line 21, naming A PRACTICE IS NOT A MODEL; its text names the
-//         practice and the model
+// expect: no finding for scrum; for team-scrum one error, on line 21, naming A PRACTICE IS NOT A MODEL; its text names the practice and the model
 test("declarationFindings — a practice whose fits does not name the model is an error", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   assert.deepEqual(brief(findingsOf(replaced(SCRUM_DECLARATION, 21, PRACTICES_NONE, "- devops"), cat)), []);
@@ -496,14 +471,11 @@ test("declarationFindings — a practice whose fits does not name the model is a
   assert.ok(found[0].what.includes("devops") && found[0].what.includes("team-scrum"), found[0].what);
 });
 
+// TST-472450 · level: unit · module: MOD-product-process
 // guards: UC-002; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
-// given: (a) the fixture product's declaration with its branch for Development (line 28) set for Hotfix, which is no phase of
-//        team-scrum; (b) the declaration as it stands, its branch for Sprint (line 27) included, against the Catalogue at
-//        VERSION whose team-scrum works in no sprints (`| Sprints | no |`, line 56): Sprint names no phase and no time box of
-//        that model
+// given: (a) the fixture product's declaration with its branch for Development (line 28) set for Hotfix, which is no phase of team-scrum; (b) the declaration as it stands, its branch for Sprint (line 27) included, against the Catalogue at VERSION whose team-scrum works in no sprints (`| Sprints | no |`, line 56): Sprint names no phase and no time box of that model
 // input: declarationFindings of each
-// expect: for (a) one error, on line 28, naming A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN, its text naming Hotfix;
-//         for (b) one error, on line 27, naming the same, its text naming Sprint
+// expect: for (a) one error, on line 28, naming A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN, its text naming Hotfix; for (b) one error, on line 27, naming the same, its text naming Sprint
 test("declarationFindings — a branch for a phase the model lacks is an error", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   const hotfix = findingsOf(replaced(DECLARATION, 28, "| Development | develop |", "| Hotfix | hotfix |"), cat);
@@ -517,9 +489,9 @@ test("declarationFindings — a branch for a phase the model lacks is an error",
   assert.ok(sprint[0].what.includes("Sprint"), sprint[0].what);
 });
 
+// TST-472451 · level: unit · module: MOD-product-process
 // guards: UC-002; A PROCESS REQUIREMENT ADDS TO THE MODEL
-// given: the fixture product's declaration with its gate added by requirements (line 38) named by INTEGRATION IS DOCUMENTED,
-//        which the instance's SPEC does not hold
+// given: the fixture product's declaration with its gate added by requirements (line 38) named by INTEGRATION IS DOCUMENTED, which the instance's SPEC does not hold
 // input: declarationFindings, against the Catalogue at VERSION and the instance's SPEC
 // expect: one error, on line 38, naming A PROCESS REQUIREMENT ADDS TO THE MODEL; its text names the requirement
 test("declarationFindings — a gate whose requirement the instance's SPEC does not hold is an error", async () => {
@@ -584,18 +556,11 @@ async function teamScrum() {
   return (await catalogueAt({ [MODEL_PATH]: MODEL })).models.find((model) => model.path === MODEL_PATH);
 }
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PROCESS REQUIREMENT ADDS TO THE MODEL; A PROCESS MODEL
-//         ORGANISES PEOPLE AND AGENTS; A ROLE NAMES THE CAPABILITIES IT NEEDS; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS
-//         OWN; WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
-// given: the fixture product's declaration; team-scrum as the Catalogue at VERSION gives it; no practice; the instance's SPEC;
-//        and the declaration once more without the two rows of its ## Branches (lines 27 and 28)
+// TST-472452 · level: unit · module: MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PROCESS REQUIREMENT ADDS TO THE MODEL; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A ROLE NAMES THE CAPABILITIES IT NEEDS; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES
+// given: the fixture product's declaration; team-scrum as the Catalogue at VERSION gives it; no practice; the instance's SPEC; and the declaration once more without the two rows of its ## Branches (lines 27 and 28)
 // input: workflowOf(declaration, team-scrum, [], the instance's SPEC) of each
-// expect: exactly expectedWorkflow(team-scrum): the model's four phases, four transitions, one verification pair and two
-//         gates, each named `<phase> → <phase>`, with no requirement and no practice; then the gate UNIT VERIFICATION IS
-//         DOCUMENTED adds, between Development and Sprint Review, named by its requirement and marked with it and its
-//         source in the instance's SPEC, `SRC-iec-62304, 5.5.5`; the model's three roles with how many fill each; the branches
-//         Sprint → sprint/<nn> and Development → develop; the five job rules as the Definition of Done — and nothing else.
-//         Without a row under ## Branches, the same workflow with no branch: work merges into the default branch
+// expect: exactly expectedWorkflow(team-scrum): the model's four phases, four transitions, one verification pair and two gates, each named `<phase> → <phase>`, with no requirement and no practice; then the gate UNIT VERIFICATION IS DOCUMENTED adds, between Development and Sprint Review, named by its requirement and marked with it and its source in the instance's SPEC, `SRC-iec-62304, 5.5.5`; the model's three roles with how many fill each; the branches Sprint → sprint/<nn> and Development → develop; the five job rules as the Definition of Done — and nothing else. Without a row under ## Branches, the same workflow with no branch: work merges into the default branch
 test("workflowOf — the model's phases, transitions, pairs and gates, and the gates the process requirements add, each with its requirement and source", async () => {
   const model = await teamScrum();
   assert.deepEqual(workflowOf(declarationOf(DECLARATION), model, [], INSTANCE_SPEC), expectedWorkflow(model));
@@ -603,16 +568,11 @@ test("workflowOf — the model's phases, transitions, pairs and gates, and the g
   assert.deepEqual(workflowOf(declarationOf(unbranched), model, [], INSTANCE_SPEC), { ...expectedWorkflow(model), branches: {} });
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE
-//         MODEL
-// given: (a) the fixture product's declaration with the practice devops (line 21), and devops' file of the shipped
-//        catalogue, read with modelSchema.practice, as the practices — whether it fits is declarationFindings' question;
-//        (b) the declaration with its gate (line 38) named by INTEGRATION IS DOCUMENTED, which the instance's SPEC does not
-//        hold
+// TST-472453 · level: unit · module: MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE MODEL
+// given: (a) the fixture product's declaration with the practice devops (line 21), and devops' file of the shipped catalogue, read with modelSchema.practice, as the practices — whether it fits is declarationFindings' question; (b) the declaration with its gate (line 38) named by INTEGRATION IS DOCUMENTED, which the instance's SPEC does not hold
 // input: workflowOf of each, with team-scrum and the instance's SPEC
-// expect: (a) the workflow of the test above with the practice devops named, and nothing more: no phase, transition, pair or
-//         gate of a practice. (b) the same workflow but for the added gate, which stays, named INTEGRATION IS DOCUMENTED and
-//         marked with that requirement and the source null — declarationFindings names it
+// expect: (a) the workflow of the test above with the practice devops named, and nothing more: no phase, transition, pair or gate of a practice. (b) the same workflow but for the added gate, which stays, named INTEGRATION IS DOCUMENTED and marked with that requirement and the source null — declarationFindings names it
 test("workflowOf — nothing else enters the workflow: a declared practice adds nothing, and a gate whose requirement the SPEC does not hold stays without a source", async () => {
   const model = await teamScrum();
   const devopsPath = "src/model-catalogue/practices/devops.md";
@@ -628,13 +588,11 @@ test("workflowOf — nothing else enters the workflow: a declared practice adds 
   assert.deepEqual(workflowOf(declarationOf(unheld), model, [], INSTANCE_SPEC), expected);
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE
-//         MODEL
-// given: the known-positive team-scrum model and its process-requirement gate; a declaration selecting evidence-practice;
-//        and an accepted practice Document whose ## Adds has model-table-form phases, gates and roles
+// TST-472454 · level: unit · module: MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE MODEL
+// given: the known-positive team-scrum model and its process-requirement gate; a declaration selecting evidence-practice; and an accepted practice Document whose ## Adds has model-table-form phases, gates and roles
 // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
-// expect: the practice's phase, its produced artifact kind, its role and its gate enter the workflow; the gate is marked
-//         with that practice while the existing model and requirement gates retain their own attribution
+// expect: the practice's phase, its produced artifact kind, its role and its gate enter the workflow; the gate is marked with that practice while the existing model and requirement gates retain their own attribution
 test("workflowOf — an explicitly tabled practice adds its phase, artifact, role and marked gate beside the model and requirement gates", async () => {
   const model = await teamScrum();
   const practice = readDocument(modelSchema.practice, "docs/practices/evidence-practice.md", `---
@@ -684,6 +642,7 @@ Fixture practice.
   assert.deepEqual(workflow.gates[2].addedBy, { requirement: "UNIT VERIFICATION IS DOCUMENTED", source: "SRC-iec-62304, 5.5.5" });
 });
 
+// TST-472455 · level: unit · module: MOD-product-process
 // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
 // given: the same selected practice, but its valid ## Adds holds the model's gate table directly, with no extra heading
 // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
@@ -718,16 +677,11 @@ Fixture practice.
   });
 });
 
+// TST-472456 · level: unit · module: MOD-product-process
 // guards: UC-002; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES; A PRODUCT DECLARES ITS DEFINITION OF DONE
-// given: known positive first — the fixture product's declaration with its ## Definition of Done (line 32) adding the
-//        condition `review: 1 by participants other than the implementer`; then the declaration as it stands, whose
-//        Definition of Done says that the job rules hold and no condition is added
+// given: known positive first — the fixture product's declaration with its ## Definition of Done (line 32) adding the condition `review: 1 by participants other than the implementer`; then the declaration as it stands, whose Definition of Done says that the job rules hold and no condition is added
 // input: workflowOf of each, with team-scrum and the instance's SPEC; its `done`
-// expect: for the added condition, the five job rules and then that condition; for the declaration that adds none, exactly
-//         the five job rules, as the module file states them: CI is green; the job's first commit holds only tests and CI
-//         was red on it — for a refactoring job, CI was green on every commit and no test's expected result changed —;
-//         every changed code file lies in the folder of one of the job's modules; every new test names a requirement and a
-//         module; every gate the workflow places before the merge is recorded
+// expect: for the added condition, the five job rules and then that condition; for the declaration that adds none, exactly the five job rules, as the module file states them: CI is green; the job's first commit holds only tests and CI was red on it — for a refactoring job, CI was green on every commit and no test's expected result changed —; every changed code file lies in the folder of one of the job's modules; every new test names a requirement and a module; every gate the workflow places before the merge is recorded
 test("workflowOf — the job rules are the Definition of Done when the declaration adds no condition", async () => {
   const model = await teamScrum();
   const sentence = "The job rules hold for every pull request; no condition is added.";
@@ -737,10 +691,11 @@ test("workflowOf — the job rules are the Definition of Done when the declarati
   assert.deepEqual(workflowOf(declarationOf(DECLARATION), model, [], INSTANCE_SPEC).done, JOB_RULES);
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
-// given: a schema-valid selected practice whose bare ## Adds phase table names a documented artifact kind
-// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
-// expect: the phase produces the kind TST, without the explanatory parenthesis
+ // TST-472457 · level: unit · module: MOD-product-process
+ // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+ // given: a schema-valid selected practice whose bare ## Adds phase table names a documented artifact kind
+ // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+ // expect: the phase produces the kind TST, without the explanatory parenthesis
  test("workflowOf — a practice phase drops its Produces explanation as the model reader does", async () => {
   const model = await teamScrum();
   const practice = readDocument(modelSchema.practice, "docs/practices/evidence-kind.md", `---
@@ -767,10 +722,11 @@ Fixture practice.
   });
 });
 
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
-// given: a schema-valid selected practice whose bare ## Adds holds consecutive Phases and Roles model tables
-// input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
-// expect: each contiguous table contributes only to its matching workflow collection
+ // TST-472458 · level: unit · module: MOD-product-process
+ // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+ // given: a schema-valid selected practice whose bare ## Adds holds consecutive Phases and Roles model tables
+ // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
+ // expect: each contiguous table contributes only to its matching workflow collection
  test("workflowOf — consecutive bare phase and role tables do not cross into each other", async () => {
   const model = await teamScrum();
   const practice = readDocument(modelSchema.practice, "docs/practices/bare-tables.md", `---

@@ -22,6 +22,8 @@ const FILES = {
   [`docs/spec-freigaben/${QUEUE}/01-current.md`]: SPEC,
 };
 
+// TST-472147 · level: component · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a fixture repository with a known main snapshot
 // input: use the public Host to read main, then exactly its returned SHA and an unrelated SHA
 // expect: main and its actual SHA read the same SPEC bytes; the unrelated SHA remains not found
@@ -41,6 +43,8 @@ test("the fixture resolves its actual current head but refuses an unknown SHA", 
   }
 });
 
+// TST-472148 · level: component · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the current fixture SPEC and one open legacy queue
 // input: open #spec through the dashboard's pinned snapshot and address the preserved queue control
 // expect: the public requirements view and the queue are both on the page, and the existing queue control remains reachable

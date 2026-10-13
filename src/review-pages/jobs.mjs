@@ -14,11 +14,14 @@ import { readDocument } from "../documents/index.mjs";
 import { newJobId, listJobs } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
-import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { approvalStrategies, statuses } from "../approvals/index.mjs";
+import { differs, eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { permittedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
 import { el, button, link, problem, TOKEN_STEP } from "./common.mjs";
+import { sourcesOf } from "./spec-entries.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -59,18 +62,18 @@ export async function loadStage(where, jobKind) {
   return { definition, participants, instanceSnapshot, product, needs, drafters: eligible(participants, { capabilities: definition.needs }).eligible };
 }
 
-/** participantList(drafters, product, needs) -> Element — each participant that can draft with where it processes data and its routes, a radio to choose it. */
-export function participantList(drafters, product, needs) {
-  const offered = el("ul", "participants");
+/** participantList(drafters, product, needs, role) -> Element — each participant that can draft with where it processes data and its routes, a radio to choose it; `role` is "participant", or "reviewer" for the reviewing participant of a derivation. */
+export function participantList(drafters, product, needs, role = "participant") {
+  const offered = el("ul", `${role}s`);
   for (const participant of drafters) {
-    const box = el("input", "participant");
+    const box = el("input", role);
     box.type = "radio";
-    box.name = "participant";
+    box.name = role;
     box.value = participant.name;
     const route = el("span", "route");
     const offers = routesFor(participant, product, needs);
     route.append(offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job");
-    const item = el("li", "participant", el("label", null, box, ` ${participant.name} `), el("span", "place", participant.place ?? "no processing place declared"), " ", route);
+    const item = el("li", role, el("label", null, box, ` ${participant.name} `), el("span", "place", participant.place ?? "no processing place declared"), " ", route);
     for (const offer of offers) if (!offer.available) item.append(" ", el("span", "reason", offer.reason));
     item.setAttribute("data-name", participant.name);
     offered.append(item);
@@ -83,6 +86,7 @@ export function participantList(drafters, product, needs) {
  * host and snapshot of the product (or of the instance itself), the token, the context and the target.
  */
 export async function showDraft(where, kind) {
+  if (kind.whole) return showArchitectureDraft(where, kind);
   const { target, snapshot, token, host, context } = where;
   target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, null, `All ${kind.plural}`));
   let graph, loaded;
@@ -131,7 +135,7 @@ const inputsOf = (root, className) => {
   const walk = (node) => [...node.childNodes].flatMap((kid) => (kid.nodeType === 1 ? [kid, ...walk(kid)] : []));
   return walk(root).filter((node) => node.localName === "input" && node.className.split(" ").includes(className));
 };
-export const byClassChecked = (list, name) => inputsOf(list, "participant").some((box) => box.value === name && box.checked);
+export const byClassChecked = (list, name, role = "participant") => inputsOf(list, role).some((box) => box.value === name && box.checked);
 
 // The run panel for the chosen participant and selection; Run starts the job.
 export async function panelOf(run) {
@@ -142,10 +146,11 @@ export async function panelOf(run) {
   const agentM = { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" };
   const jobContext = { kind: definition, params, product: { address: snapshot.repository?.web ?? "", snapshot, host },
     instance: { snapshot: instanceSnapshot, host: context.product ? context.instance.host : host, checkout: null }, connect: async () => host, participants,
-    places: { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
+    places: run.places ?? { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
   let prepared;
   try {
-    prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: [] });
+    prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
+    if (run.relax) prepared = run.relax(prepared);
   } catch (failure) {
     stage.append(problem(failure, token));
     return;
@@ -193,4 +198,115 @@ async function presentDraft(outcome, result, run) {
 export async function jobNotes(snapshot, id) {
   const rows = await listJobs([{ address: snapshot.repository?.web ?? "", snapshot }], new Map());
   return rows.flatMap((row) => row.record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
+}
+
+// ---------------------------------------------------------------- the architecture's derivation, up to Run (UC-022 steps 1 to 4)
+
+const ONLY_ACCEPTED = "ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES";
+const NO_REVIEWER = "NO REVIEWER IS THE DRAFTER";
+
+// The places the product's linked sources allow: for each restricted source the product's links file holds a row of, the places its register entry permits.
+async function placesOf(where) {
+  const { links, register } = await sourcesOf(where);
+  const linked = new Set(links.sections.flatMap((section) => section.rows ?? []).map((row) => String(row.cells.Source ?? "").replaceAll("`", "")));
+  const sources = {};
+  for (const entry of register.filter((each) => linked.has(each.id))) {
+    const allowed = permittedPlaces(entry);
+    if (allowed !== "any") sources[entry.id] = allowed;
+  }
+  return { sources, mailbox: null };
+}
+
+// What the precondition `architecture-ready` found, with the way on: to an open use case's review, to the SPEC changes to decide first, to UC-023 for an existing architecture.
+function readiness(found, snapshot) {
+  const box = el("section", "readiness");
+  if (!found) return box;
+  box.append(el("p", `finding ${found.kind}`, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`));
+  if (found.kind === "warning") box.append(link("#spec-entry", "decide-first", "Decide the open SPEC changes first (UC-006)"));
+  else if (found.rule === ONLY_ACCEPTED) {
+    for (const { id, kind, status } of statuses(snapshot).values()) {
+      if (kind === "use-case" && status !== "accepted") box.append(" ", link(`#use-case/id=${encodeURIComponent(id)}`, "review-link", `Review ${id}`));
+    }
+  } else box.append(link("#decision", "change-architecture", "Change the architecture (UC-023)"));
+  return box;
+}
+
+// Why no reviewer is offered for `drafter`: no other participant that can draft text, none with another model, or none whose place the content may go to.
+function noReviewer(drafter, participants, needs, places) {
+  const others = eligible(participants.filter((each) => each.name !== drafter.name), { capabilities: needs }).eligible;
+  if (others.length === 0) return `No participant other than ${drafter.name} can draft text, so none can review its draft.`;
+  if (!others.some((each) => differs(drafter, each))) return `No other participant that can draft text uses another model than ${drafter.model ?? "the drafter's"}.`;
+  return `No participant that uses another model than ${drafter.name} processes data at a place that ${Object.keys(places.sources).join(", ")} permit.`;
+}
+
+/**
+ * showArchitectureDraft(where, kind) — the drafting page of the architecture (`decision/draft`): what the derivation covers, what the precondition found, the drafting and the reviewing participant,
+ * the run panel and Run. Nothing is sent before Run.
+ */
+async function showArchitectureDraft(where, kind) {
+  const { target, snapshot, token } = where;
+  target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  let graph, loaded, places, found, reviewing;
+  try {
+    graph = await traceGraph(snapshot);
+    loaded = await loadStage(where, kind.draft);
+    places = await placesOf(where);
+    found = await approvalStrategies.preconditions["architecture-ready"]({ product: { snapshot, address: snapshot.repository?.web ?? "" } });
+    reviewing = await kindOf(loaded.definition.reviewer);
+  } catch (failure) {
+    target.append(problem(failure, token));
+    return;
+  }
+  const { definition, participants, instanceSnapshot, product, needs } = loaded;
+  const requirements = [...graph.nodes.values()].filter((node) => node.kind === "requirement").map((node) => node.id).sort();
+  const useCases = [...statuses(snapshot).values()].filter((each) => each.kind === "use-case").map((each) => each.id).sort();
+  const covers = el("section", "covers", el("h3", null, "What the derivation covers"),
+    el("p", null, `Every requirement of the SPEC (${requirements.length}) and every use case (${useCases.length}); nothing is selected.`));
+  covers.append(el("ul", "covered", ...requirements.map((name) => el("li", "requirement", name)), ...useCases.map((id) => el("li", "use-case", id))));
+  target.append(covers, readiness(found, snapshot));
+
+  const placed = Object.entries(places.sources).map(([from, allowed]) => ({ from, allowed }));
+  const drafters = eligible(participants, { capabilities: definition.needs, places: placed }).eligible;
+  const reviewable = eligible(participants, { capabilities: reviewing.needs, places: placed }).eligible;
+  const offered = participantList(drafters, product, needs);
+  const reviewers = el("div", "reviewer-choice");
+  const reviewersFor = (drafter) => (drafter ? reviewable.filter((each) => differs(drafter, each)) : []);
+  const drafterChosen = () => drafters.find((each) => byClassChecked(offered, each.name));
+  function showReviewers() {
+    const drafter = drafterChosen();
+    reviewers.replaceChildren();
+    if (!drafter) reviewers.append(el("p", "none", "Choose the drafting participant first; the reviewer must use another model."));
+    else if (reviewersFor(drafter).length === 0) reviewers.append(el("p", "no-reviewer", noReviewer(drafter, participants, reviewing.needs, places)));
+    else reviewers.append(participantList(reviewersFor(drafter), product, needs, "reviewer"));
+  }
+  for (const box of inputsOf(offered, "participant")) box.addEventListener("change", showReviewers);
+  showReviewers();
+  target.append(el("section", "drafters", el("h3", null, "Drafting participant"), explain(kind.explain.draft.participant), offered),
+    el("section", "reviewers", el("h3", null, "Reviewing participant"), explain(kind.explain.draft.reviewer), reviewers));
+
+  const stage = el("section", "stage");
+  if (!token) {
+    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", link(TOKEN_STEP, "token-step", "Store the token")), stage);
+    return;
+  }
+  const prepare = button("btn prepare", "Show the run panel");
+  prepare.addEventListener("click", async () => {
+    stage.replaceChildren();
+    const chosen = drafterChosen();
+    if (!chosen) { stage.append(el("p", "problem", "Choose the participant that drafts.")); return; }
+    const candidates = reviewersFor(chosen);
+    const reviewer = candidates.find((each) => byClassChecked(reviewers, each.name, "reviewer"));
+    if (candidates.length && !reviewer) { stage.append(el("p", "problem", "Choose the participant that reviews.")); return; }
+    // An open SPEC change is a warning the person decides on: the page names it, and Run is still offered. A missing reviewer keeps Run from being offered.
+    const relax = (prepared) => ({ ...prepared, blocking: [...prepared.blocking.filter((each) => each.kind === "error"), ...(reviewer ? [] : [{ artifact: "docs/participants.md", line: 1,
+      kind: "error", rule: NO_REVIEWER, what: noReviewer(chosen, participants, reviewing.needs, places), fix: "declare a participant that can draft text and uses another model" }])] });
+    await panelOf({ ...where, definition, kind, jobKind: kind.draft, params: {}, worksOn: [...requirements, ...useCases], present: presentDerivation, chosen,
+      reviewers: reviewer ? [reviewer] : [], places, relax, participants, instanceSnapshot, product, needs, stage });
+  });
+  target.append(prepare, stage);
+}
+
+// What a run of the derivation came to, here: that it ran. The draft that waits for the author is shown by the page that follows.
+async function presentDerivation(outcome, result, run) {
+  result.append(el("p", "ran", `Job ${run.id} ran in this tab.`));
 }

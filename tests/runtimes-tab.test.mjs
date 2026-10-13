@@ -124,11 +124,11 @@ async function queued(extra = {}) {
 const hooksOf = (fake, record = { ...START, path: RECORD_PATH, run: null }) => ({ host: fake.host, record });
 const run = (job, fake, { context = contextOf(), record } = {}) => runtimes.runOnTab(job, context, CONNECTIONS, hooksOf(fake, record));
 
+// TST-472711 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-010 step 2
 // given: a repository whose default branch is `trunk` (not `main`), with no job workflow; a job's start on the tab's route
 // input: queueJob(host, START, { kind: "tab" }, the head read)
-// expect: one commit, on `trunk`, on the head that was read, holding the one file at the record's path: the start record as MOD-job-ledger's startRecord
-//         gives it, with its `## Taken` — `by: tab`, at the job's start — in the same commit; the path and commit returned; no workflow is needed
+// expect: one commit, on `trunk`, on the head that was read, holding the one file at the record's path: the start record as MOD-job-ledger's startRecord gives it, with its `## Taken` — `by: tab`, at the job's start — in the same commit; the path and commit returned; no workflow is needed
 test("queueJob — the tab's route commits the job's start and its taking in one commit", async () => {
   const fake = fakeRepository();
   const head = fake.head();
@@ -144,6 +144,7 @@ test("queueJob — the tab's route commits the job's start and its taking in one
   assert.deepEqual([record.id, record.taken?.by], [START.id, "tab"]);
 });
 
+// TST-472712 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a product whose default branch moved on since the head given was read
 // input: queueJob on the tab's route with the stale head; known positive first — the head read now
@@ -157,11 +158,11 @@ test("queueJob — the tab's route refuses a moved head, with nothing written", 
   assert.equal(fake.writes.length, 1, "nothing more written");
 });
 
+// TST-472713 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE DEFINITION, THREE DRIVERS; UC-019 step 6
 // given: a queued job of a kind whose result a person reviews (`review: person`), attended; a drafter on an endpoint that answers a draft
 // input: runOnTab(prepared, context, connections, { host, record })
-// expect: the result for the page holds the draft, stopped because passed, and nothing written (the writer not called); the endpoint was called at its
-//         own address; the record has its end — state done, `waits for a person` — and the round record, appended in one commit on the head that was read
+// expect: the result for the page holds the draft, stopped because passed, and nothing written (the writer not called); the endpoint was called at its own address; the record has its end — state done, `waits for a person` — and the round record, appended in one commit on the head that was read
 test("runOnTab — an attended job whose result waits for a person returns its draft with nothing written", async () => {
   endpointAnswers();
   writerCalls = [];
@@ -178,11 +179,11 @@ test("runOnTab — an attended job whose result waits for a person returns its d
   assert.equal(fake.writes.at(-1).expectedHead, before[0], "on the head that was read");
 });
 
+// TST-472714 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the same job of a kind with `review: none`; a writer that committed `c0ffee` and changed one file
 // input: runOnTab
-// expect: the writer called once, with the draft, at once; the result's `written` its outcome; the end — done — lists `commit c0ffee` and the file;
-//         and the pull request; the end holds the usage the endpoint reported (10 and 5 tokens), and the round record under `## Rounds`
+// expect: the writer called once, with the draft, at once; the result's `written` its outcome; the end — done — lists `commit c0ffee` and the file; and the pull request; the end holds the usage the endpoint reported (10 and 5 tokens), and the round record under `## Rounds`
 test("runOnTab — a kind of review none is written at once, and its end lists the commit and the usage", async () => {
   endpointAnswers();
   writerCalls = [];
@@ -197,9 +198,9 @@ test("runOnTab — a kind of review none is written at once, and its end lists t
   assert.match(fake.text(), /\n## Rounds\n/);
 });
 
+// TST-472715 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-007 4a
-// given: a job of review none whose writer changed the draft while writing and committed, with two notes; and one whose every file already stood, so it
-//        committed nothing and has no note
+// given: a job of review none whose writer changed the draft while writing and committed, with two notes; and one whose every file already stood, so it committed nothing and has no note
 // input: runOnTab of each
 // expect: the first end lists the commit and, one line each in their order, `note: <note>`, and not `no change`; the second end lists exactly `no change`
 test("runOnTab — the writer's notes are listed in the end, and a writer that committed nothing ends with no change", async () => {
@@ -214,11 +215,11 @@ test("runOnTab — the writer's notes are listed in the end, and a writer that c
   assert.deepEqual((await fake.record()).end.results, ["no change"]);
 });
 
+// TST-472716 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011 step 5
 // given: a queued job of `review: person` whose record names a run; known positive first — the same job whose record names none
 // input: runOnTab of each
-// expect: attended unless the record names a run: the first (no run) is attended, its writer not called; the second is written at once, the writer
-//         called with the draft, and its end — the kind hands its draft back (`written.shown`) — holds that draft as `draft:` and `waits for a person`
+// expect: attended unless the record names a run: the first (no run) is attended, its writer not called; the second is written at once, the writer called with the draft, and its end — the kind hands its draft back (`written.shown`) — holds that draft as `draft:` and `waits for a person`
 test("runOnTab — attended unless its record names a run", async () => {
   endpointAnswers();
   outcome = { commits: [], files: [], pullRequest: null, shown: DRAFT, notes: [] };
@@ -232,11 +233,11 @@ test("runOnTab — attended unless its record names a run", async () => {
   assert.deepEqual([end.draft, end.results], [DRAFT, ["waits for a person"]]);
 });
 
+// TST-472717 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a queued job whose endpoint refuses the key (401); known positive first — the same job against an endpoint that answers
 // input: runOnTab
-// expect: rejected with the driver's own failure, by its name `EndpointFailed`, unchanged; the record has its end — state failed, `reason:` naming
-//         `EndpointFailed` and the endpoint's message —, appended once; the writer not called
+// expect: rejected with the driver's own failure, by its name `EndpointFailed`, unchanged; the record has its end — state failed, `reason:` naming `EndpointFailed` and the endpoint's message —, appended once; the writer not called
 test("runOnTab — a failing driver ends the job by name, with the end appended", async () => {
   writerCalls = [];
   endpointAnswers();
@@ -250,11 +251,11 @@ test("runOnTab — a failing driver ends the job by name, with the end appended"
   assert.deepEqual(writerCalls, []);
 });
 
+// TST-472718 · level: unit · module: MOD-runtimes
 // guards: A JOB STOPS AT EVERY GATE; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a queued job of a kind with the gate point before-write, whose gate in the context is not passed
 // input: runOnTab
-// expect: the result stopped at the gate, its writer not called; the record gains a `Gate reached` naming the gate and its decider, and no End —
-//         the job waits at the gate
+// expect: the result stopped at the gate, its writer not called; the record gains a `Gate reached` naming the gate and its decider, and no End — the job waits at the gate
 test("runOnTab — a gate reached is appended to the record and the job has no end", async () => {
   endpointAnswers();
   writerCalls = [];
@@ -267,11 +268,11 @@ test("runOnTab — a gate reached is appended to the record and the job has no e
   assert.equal(record.end, null);
 });
 
+// TST-472719 · level: unit · module: MOD-runtimes
 // guards: A RUNTIME IS INTERCHANGEABLE; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a drafter whose endpoint is configured with a Bridge to call it that the connections do not hold, an agent's route to a Bridge they do not hold, and one with no configuration at all
 // input: runOnTab of each
-// expect: both refused before any request, by name — `BridgeNotConnected` for a Bridge among no `connections.bridges` (ITM-325 builds the Bridge's driver; tests/runtimes-bridge.test.mjs), and `EndpointNotConfigured` naming
-//         the endpoint — and the record ended failed
+// expect: both refused before any request, by name — `BridgeNotConnected` for a Bridge among no `connections.bridges` (ITM-325 builds the Bridge's driver; tests/runtimes-bridge.test.mjs), and `EndpointNotConfigured` naming the endpoint — and the record ended failed
 test("runOnTab — a Bridge that is not connected, and an endpoint without a configuration, are refused by name", async () => {
   endpointAnswers();
   const attempts = [
@@ -290,11 +291,11 @@ test("runOnTab — a Bridge that is not connected, and an endpoint without a con
   assert.deepEqual(requests, []);
 });
 
+// TST-472720 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE ROUNDS ARE COUNTED AND SHOWN
 // given: a queued job with a check that finds the first draft wanting, and a reviewer on a second endpoint; the drafter answers "first", then "second"
 // input: runOnTab
-// expect: in each of the two rounds the drafter's endpoint called, then the reviewer's, each at its own address; two rounds in the record; the end's usage
-//         the sum of all four exchanges (40 and 20 tokens)
+// expect: in each of the two rounds the drafter's endpoint called, then the reviewer's, each at its own address; two rounds in the record; the end's usage the sum of all four exchanges (40 and 20 tokens)
 test("runOnTab — the drafter and the reviewer each call their own endpoint, and the end sums every exchange's usage", async () => {
   endpointAnswers(200, { drafts: [{ text: "first" }, { text: "second" }] });
   const fake = await queued();
@@ -306,6 +307,7 @@ test("runOnTab — the drafter and the reviewer each call their own endpoint, an
   assert.deepEqual([end.usage.inputTokens, end.usage.outputTokens, end.rounds.length], [40, 20, 2]);
 });
 
+// TST-472721 · level: unit · module: MOD-runtimes
 // guards: A CANCELLED JOB WRITES NOTHING MORE; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a queued job and a signal aborted before it runs; known positive first — the same job without the signal
 // input: runOnTab with the signal in the hooks
@@ -323,6 +325,7 @@ test("runOnTab — a cancelled job is refused as Cancelled and its record is lef
   assert.equal((await fake.record()).end, null);
 });
 
+// TST-472722 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE ROUNDS ARE COUNTED AND SHOWN
 // given: a queued job whose endpoint answers a text that is no answer, in every round
 // input: runOnTab

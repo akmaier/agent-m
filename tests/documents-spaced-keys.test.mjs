@@ -43,10 +43,9 @@ whose field's key holds a space too.
 \`\`\`
 `;
 
+// TST-472191 · level: unit · module: MOD-documents
 // guards: A DATA FORMAT IS DEFINED ONCE
-// given: SCHEMA_TEXT, whose section "## Context" names the field "found by" and whose appended section
-//        "## Gate reached" names the field "gate record" — each a key of two words of a front matter key's form,
-//        separated by one space
+// given: SCHEMA_TEXT, whose section "## Context" names the field "found by" and whose appended section "## Gate reached" names the field "gate record" — each a key of two words of a front matter key's form, separated by one space
 // input: loadSchema(SCHEMA_TEXT, "MOD-sample")
 // expect: no throw; the schema loads, each field named under its spaced key
 test("loadSchema — a schema whose section and appended section name a field whose key holds spaces loads", () => {
@@ -56,9 +55,9 @@ test("loadSchema — a schema whose section and appended section name a field wh
   assert.equal(schema.appended[0].fields["gate record"].type, "text");
 });
 
+// TST-472192 · level: unit · module: MOD-documents
 // guards: A RECORD IS EVIDENCE, NOT A PROPOSAL
-// given: the schema above, and a record whose "## Context" holds the line "found by: a review" and whose appended
-//        "## Gate reached" holds "gate record: docs/approvals/x.md" — each line with its key's space
+// given: the schema above, and a record whose "## Context" holds the line "found by: a review" and whose appended "## Gate reached" holds "gate record: docs/approvals/x.md" — each line with its key's space
 // input: readDocument(schema, path, text)
 // expect: the section's field and the appended section's field each hold the line's value, keyed by the spaced form
 test("readDocument — such a line is read into that field", () => {
@@ -80,12 +79,11 @@ gate record: docs/approvals/x.md
   assert.equal(doc.appended[0].fields["gate record"], "docs/approvals/x.md");
 });
 
+// TST-472193 · level: unit · module: MOD-documents
 // guards: A RECORD IS EVIDENCE, NOT A PROPOSAL
 // given: the schema above, and a record already holding its front matter and "## Context" (no appended section yet)
 // input: appendSection(schema, text, "## Gate reached", { at: "2026-10-07 13:30 UTC", "gate record": "docs/approvals/y.md" })
-// expect: the text returned holds the record's original bytes first, byte for byte, followed by the new section with
-//         its field written as given — the line "gate record: docs/approvals/y.md", with its space —, which reads
-//         back into that same field
+// expect: the text returned holds the record's original bytes first, byte for byte, followed by the new section with its field written as given — the line "gate record: docs/approvals/y.md", with its space —, which reads back into that same field
 test("appendSection — writes it as given", () => {
   const schema = loadSchema(SCHEMA_TEXT, "MOD-sample");
   const before = `---

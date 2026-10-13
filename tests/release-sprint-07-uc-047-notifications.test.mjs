@@ -117,11 +117,11 @@ const PRODUCT_ENTRIES = {
 
 // ==================================================================================================================
 
-// given: a fixture repository with one architecture file already open (no approval record for its current blob);
-//        notifications on, baseline check already run with nothing open
+// TST-472506 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
+// given: a fixture repository with one architecture file already open (no approval record for its current blob); notifications on, baseline check already run with nothing open
 // input: the file comes to wait; a second check (review page, #uc)
-// expect: the browser shows one notification naming the file and the repository it is in, with a link to where it is
-//         accepted (MOD-notifications' own addressOf, as this dashboard resolves it)
+// expect: the browser shows one notification naming the file and the repository it is in, with a link to where it is accepted (MOD-notifications' own addressOf, as this dashboard resolves it)
 test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a file come to wait is notified, naming it and where it is", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -140,6 +140,8 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a file come to wait i
   } finally { browser.restore(); }
 });
 
+// TST-472507 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: a fresh browser; the person on the review page (#uc) before ever visiting settings
 // input: navigating #uc, then #settings — no click yet; then pressing Switch on
 // expect: no page asks the browser's permission before the click; the click on Switch on asks it, once
@@ -156,11 +158,11 @@ test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page asks before the cl
   } finally { browser.restore(); }
 });
 
+// TST-472508 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: a use case accepted by an approval record naming its current blob; notifications on
-// input: a check while it is unchanged; then the file is edited (a new blob, the approval record now stale); a second
-//        check
-// expect: while the blob matches the approval record, the file is not notified (accepted); once edited, the record no
-//         longer names its current blob, and it is notified
+// input: a check while it is unchanged; then the file is edited (a new blob, the approval record now stale); a second check
+// expect: while the blob matches the approval record, the file is not notified (accepted); once edited, the record no longer names its current blob, and it is notified
 test("STATUS IS DERIVED FROM THE RECORDS — accepted while the blob matches the record, waiting once it does not", async () => {
   const path = "docs/use-cases/UC-710-sample.md";
   const text1 = "# UC-710 v1\n";
@@ -184,10 +186,11 @@ test("STATUS IS DERIVED FROM THE RECORDS — accepted while the blob matches the
   } finally { browser.restore(); }
 });
 
+// TST-472509 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: one use case already open; a check records it as waiting
 // input: every entry of this browser's storage is then deleted (DeleteEverything), and the page opened again, fresh
-// expect: the same file is derived as waiting again, from the repository alone — nothing about it was carried over in
-//         storage; deleting all local storage and reloading rederives the same facts
+// expect: the same file is derived as waiting again, from the repository alone — nothing about it was carried over in storage; deleting all local storage and reloading rederives the same facts
 test("PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — deleting all local storage and reloading rederives the same facts", async () => {
   const server = await repoServer({ files: { "docs/use-cases/UC-720-sample.md": "# UC-720\n" }, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -207,10 +210,11 @@ test("PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — deleting all local stor
   } finally { browser.restore(); }
 });
 
+// TST-472510 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: a fresh browser
 // input: pressing Switch on
-// expect: the switch is kept in this browser's own localStorage (and nowhere else — Agent M has no other store for it):
-//         the click makes no write request (POST/PUT/PATCH) to any repository
+// expect: the switch is kept in this browser's own localStorage (and nowhere else — Agent M has no other store for it): the click makes no write request (POST/PUT/PATCH) to any repository
 test("CONFIGURATION LIVES IN THE BROWSER — Switch on is kept in this browser's storage; no write request is made", async () => {
   const written = [];
   const server = await repoServer({
@@ -229,6 +233,8 @@ test("CONFIGURATION LIVES IN THE BROWSER — Switch on is kept in this browser's
   } finally { browser.restore(); }
 });
 
+// TST-472511 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: notifications switched on in this browser (so the dashboard has written "notifications" to localStorage)
 // input: opening the settings page
 // expect: the key the dashboard wrote has a place on this one page — the Notifications panel
@@ -245,10 +251,11 @@ test("EVERY SETTING IS REACHED FROM ONE PAGE — the \"notifications\" key the d
   } finally { browser.restore(); }
 });
 
+// TST-472512 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: notifications switched on
 // input: opening the settings page
-// expect: a test of whether it still works (Test) and a control that clears it (Switch off) are both offered together,
-//         in the same place the setting itself is shown; Test shows the test notification; Switch off clears it
+// expect: a test of whether it still works (Test) and a control that clears it (Switch off) are both offered together, in the same place the setting itself is shown; Test shows the test notification; Switch off clears it
 test("A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN — Test and Switch off sit together with the state", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
@@ -272,14 +279,11 @@ test("A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN — Test and Swi
   } finally { browser.restore(); }
 });
 
+// TST-280 · level: release · module: MOD-notifications
+// guards: UC-047; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a product this browser keeps, with its own token, and something open in its repository; notifications on, due
 // input: opening a review page (#uc)
-// expect: the product's own token reaches only its own server's API — never any other server, never the address or the
-//         body of a request
-// TST-280
-// Module: MOD-notifications
-// Guards: UC-047; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// Level: release
+// expect: the product's own token reaches only its own server's API — never any other server, never the address or the body of a request
 test("TST-280 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a product's own token reaches only its own server", async () => {
   const { instance, product, productAuthorizations } = await withProduct({}, { "docs/use-cases/UC-740-product.md": "# UC-740\n" });
   const browser = installBrowser();
@@ -293,10 +297,11 @@ test("TST-280 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT — a product's own
   } finally { browser.restore(); }
 });
 
+// TST-472513 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: the settings page, notifications off
 // input: reading the folded "What is this?" under Notifications
-// expect: it names what is checked and how often (every five minutes while a page is open), that the checks go with
-//         this browser's own tokens and nowhere else, and that nothing is checked while no page is open
+// expect: it names what is checked and how often (every five minutes while a page is open), that the checks go with this browser's own tokens and nowhere else, and that nothing is checked while no page is open
 test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how often, whose tokens, and when not", async () => {
   const server = await repoServer({ files: {} });
   const browser = installBrowser();
@@ -317,10 +322,11 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
   } finally { browser.restore(); }
 });
 
+// TST-472514 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; EVERY STEP EXPLAINS ITSELF; NO SERVER
 // given: notifications on, due; a product this browser keeps, besides the instance; something waiting in both
 // input: opening a review page (#uc), letting the checks run
-// expect: every request the checks make lands on a known repository server (the instance's or a product's), never on
-//         any other origin — Agent M operates no server of its own that a check could reach
+// expect: every request the checks make lands on a known repository server (the instance's or a product's), never on any other origin — Agent M operates no server of its own that a check could reach
 test("NO SERVER — every request a check makes goes to a repository server, never to any origin of Agent M's own", async () => {
   const { instance } = await withProduct({}, {});
   const origins = new Set();

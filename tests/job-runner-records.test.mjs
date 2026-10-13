@@ -30,12 +30,11 @@ const EXAMPLE = MODULE_FILE.slice(MODULE_FILE.indexOf("```markdown\n## Rounds") 
 
 // ---------------------------------------------------------------- provenanceLines
 
+// TST-472342 · level: unit · module: MOD-job-runner
 // guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: a job of the kind change-use-case by drafter-a with example-model, two rounds, Agent M unreleased at a commit, and
-//        a person's instruction over two lines; then the same without an instruction
+// given: a job of the kind change-use-case by drafter-a with example-model, two rounds, Agent M unreleased at a commit, and a person's instruction over two lines; then the same without an instruction
 // input: provenanceLines of each
-// expect: the seven trailers in the module file's order, the instruction on one line; without an instruction, the six
-//         others
+// expect: the seven trailers in the module file's order, the instruction on one line; without an instruction, the six others
 test("provenanceLines — the trailers every commit of a job carries, in the module file's order, the instruction on one line", () => {
   const job = { agentM: { version: "unreleased", commit: "a".repeat(40) }, jobId: "JOB-20261011-0800-abcd",
     kind: "change-use-case", participant: PARTICIPANT, rounds: 2, instruction: "Add an alternative flow\nfor a refused token." };
@@ -56,9 +55,9 @@ test("provenanceLines — the trailers every commit of a job carries, in the mod
 
 // ---------------------------------------------------------------- roundsText
 
+// TST-472343 · level: unit · module: MOD-job-runner
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A COMPILER MESSAGE
-// given: the rounds of the module file's example: round 1 with an error answered fixed and a warning answered justified,
-//        round 2 with no finding; nothing left; stopped because passed; limit 5
+// given: the rounds of the module file's example: round 1 with an error answered fixed and a warning answered justified, round 2 with no finding; nothing left; stopped because passed; limit 5
 // input: roundsText of them
 // expect: the module file's example, byte for byte; and the text fits the round record's schema, rounds.schema.md
 test("roundsText — the round record's text form, as the module file's example writes it", () => {
@@ -77,11 +76,11 @@ test("roundsText — the round record's text form, as the module file's example 
   assert.deepEqual(documentFindings(ROUNDS_SCHEMA, readDocument(ROUNDS_SCHEMA, "rounds.md", text)), []);
 });
 
+// TST-472344 · level: unit · module: MOD-job-runner
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; WHAT A PERSON DECIDES IS NOT SENT BACK
 // given: one round with one error left unanswered, one finding a person decides, stopped because of the limit 1
 // input: roundsText of it
-// expect: the round with its finding and no answer under it; the line naming one finding left, the limit as the reason;
-//         and the finding a person decides under `For a person:`, after that line
+// expect: the round with its finding and no answer under it; the line naming one finding left, the limit as the reason; and the finding a person decides under `For a person:`, after that line
 test("roundsText — what is left, why the loop stopped, and what a person decides", () => {
   const error = { artifact: "UC-007", line: 4, kind: "error", rule: "AN EDITED FILE KEEPS ITS IDENTIFIER",
     what: "id changed from UC-007 to UC-043", fix: "keep UC-007" };

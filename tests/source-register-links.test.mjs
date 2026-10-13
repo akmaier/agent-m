@@ -79,15 +79,11 @@ const LINKS_DOCUMENT = {
 
 // ---------------------------------------------------------------- sourceSchemas
 
+// TST-472910 · level: unit · module: MOD-source-register
 // guards: UC-002; A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES
 // given: the module, loaded
 // input: sourceSchemas()
-// expect: two schemas, entry and links, in this order. entry is the register entry's, for docs/sources/SRC-{slug}.md. links
-//         is the schema of a product's links file: the format `links`, a document at docs/sources.md, under the rule A PRODUCT
-//         LINKS THE SOURCES THAT APPLY; its one section is the one under the product's own title, { underTitle: true },
-//         required, with a table of the columns Source (an identifier of the kind SRC, required), Version (a text,
-//         required), Hash (a SHA-256: 64 lowercase hexadecimal digits, required) and Part (a text, which may be left out,
-//         under the rule A LINK NAMES THE PART THAT APPLIES)
+// expect: two schemas, entry and links, in this order. entry is the register entry's, for docs/sources/SRC-{slug}.md. links is the schema of a product's links file: the format `links`, a document at docs/sources.md, under the rule A PRODUCT LINKS THE SOURCES THAT APPLY; its one section is the one under the product's own title, { underTitle: true }, required, with a table of the columns Source (an identifier of the kind SRC, required), Version (a text, required), Hash (a SHA-256: 64 lowercase hexadecimal digits, required) and Part (a text, which may be left out, under the rule A LINK NAMES THE PART THAT APPLIES)
 test("sourceSchemas — gives entry and links: links is the schema of a product's docs/sources.md, its table under the product's own title", () => {
   const schemas = sourceSchemas();
   assert.deepEqual(Object.keys(schemas), ["entry", "links"]);
@@ -110,14 +106,11 @@ test("sourceSchemas — gives entry and links: links is the schema of a product'
 
 // ---------------------------------------------------------------- a product's links, read and written
 
+// TST-472911 · level: unit · module: MOD-source-register
 // guards: A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES
-// given: LINKS — a product's links file: its own title on line 1, a sentence, and the links table under them; the row of
-//        line 7 names a part, `class B`, the row of line 8 none, its cell empty
+// given: LINKS — a product's links file: its own title on line 1, a sentence, and the links table under them; the row of line 7 names a part, `class B`, the row of line 8 none, its cell empty
 // input: readRegister(sourceSchemas().links, "docs/sources.md", LINKS), then writeDocument(sourceSchemas().links, the document)
-// expect: exactly LINKS_DOCUMENT — the format `links`, no identifier, the title; one section, the one under the title, its
-//         heading the title line as written, on line 1, its text every line after it —; the rows LINK_ROWS, each with its line,
-//         its cells by the columns Source, Version, Hash and Part, the part of line 8 left out, absent; written back, LINKS
-//         byte for byte
+// expect: exactly LINKS_DOCUMENT — the format `links`, no identifier, the title; one section, the one under the title, its heading the title line as written, on line 1, its text every line after it —; the rows LINK_ROWS, each with its line, its cells by the columns Source, Version, Hash and Part, the part of line 8 left out, absent; written back, LINKS byte for byte
 test("links — a product's links file read with the links schema, rows with and without a part, and written back byte for byte", () => {
   const { document, rows } = readRegister(linksSchema(), "docs/sources.md", LINKS);
   assert.deepEqual(rows, LINK_ROWS);
@@ -125,13 +118,11 @@ test("links — a product's links file read with the links schema, rows with and
   assert.equal(writeDocument(linksSchema(), document), LINKS);
 });
 
+// TST-472912 · level: unit · module: MOD-source-register
 // guards: A PRODUCT LINKS THE SOURCES THAT APPLY
-// given: known positive first — LINKS as read, whose second row leaves its part out; then LINKS as read with its first row's
-//        Version left out, and LINKS as read with its second row's Hash left out
+// given: known positive first — LINKS as read, whose second row leaves its part out; then LINKS as read with its first row's Version left out, and LINKS as read with its second row's Hash left out
 // input: writeDocument(sourceSchemas().links, the document)
-// expect: LINKS written back byte for byte. Each row without its version or its hash refused: DocumentError naming the
-//         section under the title by its heading, the title line, and the row and column — row 1, line 7, column Version;
-//         row 2, line 8, column Hash
+// expect: LINKS written back byte for byte. Each row without its version or its hash refused: DocumentError naming the section under the title by its heading, the title line, and the row and column — row 1, line 7, column Version; row 2, line 8, column Hash
 test("links — a row without its version or its hash is refused by writeDocument with DocumentError naming the row and the column", () => {
   const read = () => readRegister(linksSchema(), "docs/sources.md", LINKS).document;
   assert.equal(writeDocument(linksSchema(), read()), LINKS, "known positive: LINKS as read is written back byte for byte");
@@ -150,6 +141,7 @@ test("links — a row without its version or its hash is refused by writeDocumen
 
 // ---------------------------------------------------------------- this instance's links
 
+// TST-472913 · level: unit · module: MOD-source-register
 // guards: UC-002; A PRODUCT LINKS THE SOURCES THAT APPLY
 // given: this instance's docs/sources.md as it stands, which links the book Vibe Coding
 // input: readRegister(sourceSchemas().links, "docs/sources.md", its text)

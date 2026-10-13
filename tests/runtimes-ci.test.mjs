@@ -84,11 +84,11 @@ function fakeHost({ server = "github", files = {}, workflow = true } = {}) {
   };
 }
 
+// TST-472702 · level: unit · module: MOD-runtimes
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-013
 // given: a product on GitHub whose default branch `trunk` holds its job workflow; a job's start
 // input: queueJob(host, START, { kind: "ci", runner: "hosted" }, the head read)
-// expect: the snapshot read at that head; one commit on `trunk`, on the head read, holding exactly startRecord(START)'s
-//         file, with a message naming the job; the result { path: startRecord(START).path, commit: the commit
-//         commitFiles returned }
+// expect: the snapshot read at that head; one commit on `trunk`, on the head read, holding exactly startRecord(START)'s file, with a message naming the job; the result { path: startRecord(START).path, commit: the commit commitFiles returned }
 test("queueJob — the CI route commits the job's start record at its path, on the head read, in one commit", async () => {
   const fake = fakeHost({});
   const head = fake.head();
@@ -106,6 +106,8 @@ test("queueJob — the CI route commits the job's start record at its path, on t
   assert.deepEqual(result, { path, commit: fake.head() }, "the path and the commit commitFiles returned");
 });
 
+// TST-472703 · level: unit · module: MOD-runtimes
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-013
 // given: a product whose default branch moved on since the head given was read
 // input: queueJob(host, START, { kind: "ci", runner: "hosted" }, the stale head)
 // expect: rejects with the host's Moved, naming the new head; nothing committed
@@ -122,6 +124,8 @@ test("queueJob — the CI route refuses a moved head, with nothing written", asy
   assert.equal(fake.writes.length, 0, "nothing written");
 });
 
+// TST-472704 · level: unit · module: MOD-runtimes
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-013
 // given: a product on GitHub (1), and on GitLab (2), whose default branch holds no Agent M job workflow
 // input: queueJob(host, START, { kind: "ci", runner: "hosted" }, the head read)
 // expect: rejects with WorkflowMissing, naming the file of that server; nothing committed
@@ -139,6 +143,8 @@ test("queueJob — the CI route refuses WorkflowMissing, naming the job workflow
   }
 });
 
+// TST-472705 · level: unit · module: MOD-runtimes
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-013
 // given: a product whose host refuses the commit — a token refused (1), a rate limit used up (2)
 // input: queueJob(host, START, { kind: "ci", runner: "hosted" }, the head read)
 // expect: rejects with the same failure the host named, unchanged; nothing committed

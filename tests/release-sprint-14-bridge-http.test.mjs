@@ -25,6 +25,8 @@ async function probe(bridge, token) {
 }
 
 // CASE ITM-261-RELEASE-01
+// TST-472515 · level: release · module: MOD-bridge-http
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the public Bridge entry, a real loopback server, a constructed endpoint-test handler and a fresh data folder
 // input: a missing-token probe, a paired endpoint-test probe, then pairAnew and probes with the old and new tokens
 // expect: authentication refuses before dispatch; the paired body reaches the handler once and returns its answer; rotation takes

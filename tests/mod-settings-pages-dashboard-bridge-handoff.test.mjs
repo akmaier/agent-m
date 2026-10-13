@@ -22,16 +22,11 @@ const LOCAL = {
   throughBridge: true,
 };
 
-// TST-269006
-// Module: MOD-settings-pages
-// Level: component
-// Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; AN UNSUPPORTED ENDPOINT SAYS SO
-// Precondition: the dashboard browser has no paired Bridge setting.
-// Input: the author opens the actual public endpoint address, enters a valid local through-Bridge endpoint, saves and
-//        tests it, then presses its Set up the Bridge action.
-// Expected: Save retains the canonical endpoint record; the missing pairing does not directly call the local model and
-//           exposes the setup action; its click selects #bridge, where the actual dashboard dispatcher renders the
-//           public Bridge setup Route.
+// TST-269006 · level: component · module: MOD-settings-pages
+// guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: the dashboard browser has no paired Bridge setting.
+// input: the author opens the actual public endpoint address, enters a valid local through-Bridge endpoint, saves and tests it, then presses its Set up the Bridge action.
+// expect: Save retains the canonical endpoint record; the missing pairing does not directly call the local model and exposes the setup action; its click selects #bridge, where the actual dashboard dispatcher renders the public Bridge setup Route.
 test("TST-269006: the public endpoint Route hands absent Bridge setup to the public Bridge Route", async () => {
   const server = await repoServer({ files: {} });
   const page = await openDashboard({ server, hash: "#endpoints" });

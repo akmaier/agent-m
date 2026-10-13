@@ -231,15 +231,11 @@ async function onBoth(read, history = HISTORY) {
 
 // ---------------------------------------------------------------- a file's commits
 
+// TST-472541 · level: unit · module: MOD-repository-hosts
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE
-// given: the history of five commits above; SPEC.md was added in the first, changed in the third and the fifth; the fourth
-//        commit was authored a day before it was committed; Carol, the fifth's author, has no account
-// input: readHistory("SPEC.md", {}) on a GitHub repository and on a GitLab project; then readHistory("SPEC.md", { ref }) with
-//        the third commit's id as ref
-// expect: the fifth, third and first commit, in that order, each { commit, parents, author: { account, name }, date, message,
-//         changes }: the parents the server names (none for the first); the author's name, and on GitHub the account — null
-//         for Carol —, on GitLab null; the date it was committed; the whole message; and every file the commit changed, added,
-//         modified or deleted, in the order the server lists them. With the third commit as ref: the third and the first only
+// given: the history of five commits above; SPEC.md was added in the first, changed in the third and the fifth; the fourth commit was authored a day before it was committed; Carol, the fifth's author, has no account
+// input: readHistory("SPEC.md", {}) on a GitHub repository and on a GitLab project; then readHistory("SPEC.md", { ref }) with the third commit's id as ref
+// expect: the fifth, third and first commit, in that order, each { commit, parents, author: { account, name }, date, message, changes }: the parents the server names (none for the first); the author's name, and on GitHub the account — null for Carol —, on GitLab null; the date it was committed; the whole message; and every file the commit changed, added, modified or deleted, in the order the server lists them. With the third commit as ref: the third and the first only
 test("MOD-repository-hosts readHistory — the commits of a file, newest first, each with its parents, author, date, message and changes (GitHub, GitLab)", async () => {
   const [gh, gl] = await onBoth((host) => host.readHistory("SPEC.md", {}));
   assert.deepEqual(gh, onGitHub(C5, C3, C1), "GitHub");
@@ -253,13 +249,11 @@ test("MOD-repository-hosts readHistory — the commits of a file, newest first, 
 
 // ---------------------------------------------------------------- a rename
 
+// TST-472542 · level: unit · module: MOD-repository-hosts
 // guards: THE NAME IS THE ID AND IT SURVIVES; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
-// given: the history above, in which the fourth commit renames docs/use-cases/UC-001-first.md to UC-001-the-first.md; the
-//        commits before it changed the earlier path, and a GitLab server follows a file across a rename unless it is told not to
+// given: the history above, in which the fourth commit renames docs/use-cases/UC-001-first.md to UC-001-the-first.md; the commits before it changed the earlier path, and a GitLab server follows a file across a rename unless it is told not to
 // input: readHistory of the new path on GitHub and on GitLab
-// expect: the fifth and the fourth commit, not the second and the first, which changed the earlier path; the fourth's one
-//         change { path: the new path, change: "renamed", from: the earlier path }, and the fifth's change of the file plain
-//         "modified", with no `from`
+// expect: the fifth and the fourth commit, not the second and the first, which changed the earlier path; the fourth's one change { path: the new path, change: "renamed", from: the earlier path }, and the fifth's change of the file plain "modified", with no `from`
 test("MOD-repository-hosts readHistory — a rename carries the path it came from (GitHub, GitLab)", async () => {
   const [gh, gl] = await onBoth((host) => host.readHistory(RENAMED, {}));
   assert.deepEqual(gh, onGitHub(C5, C4), "GitHub");
@@ -272,13 +266,11 @@ test("MOD-repository-hosts readHistory — a rename carries the path it came fro
 
 // ---------------------------------------------------------------- limit
 
+// TST-472543 · level: unit · module: MOD-repository-hosts
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: the history above; and a history of 130 commits, each adding a file of its own
-// input: readHistory(null, { limit: 2 }) and readHistory("SPEC.md", { limit: 1 }) on the first; readHistory(null, { limit: 120 })
-//        on the second, on GitHub and on GitLab
-// expect: the two newest commits of the repository and the newest of SPEC.md's, each as above, and the changes of those only
-//         read — two commits' worth of requests for the first, one for the second; for the 130 commits, the 120 newest, in
-//         order, whichever number of commits a server lists to a page
+// input: readHistory(null, { limit: 2 }) and readHistory("SPEC.md", { limit: 1 }) on the first; readHistory(null, { limit: 120 }) on the second, on GitHub and on GitLab
+// expect: the two newest commits of the repository and the newest of SPEC.md's, each as above, and the changes of those only read — two commits' worth of requests for the first, one for the second; for the 130 commits, the 120 newest, in order, whichever number of commits a server lists to a page
 test("MOD-repository-hosts readHistory — limit is honoured, across pages too (GitHub, GitLab)", async () => {
   const [gh, gl, { gh: ghServer, gl: glServer }] = await onBoth((host) => host.readHistory(null, { limit: 2 }));
   assert.deepEqual(gh, onGitHub(C5, C4), "GitHub: the two newest");
@@ -300,11 +292,11 @@ test("MOD-repository-hosts readHistory — limit is honoured, across pages too (
 
 // ---------------------------------------------------------------- the repository, and many files
 
+// TST-472544 · level: unit · module: MOD-repository-hosts
 // guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; THE NAME IS THE ID AND IT SURVIVES
 // given: the history above; and a repository whose only commit adds 250 files
 // input: readHistory(null, {}) on the first; readHistory(null, {}) on the second, on GitHub and on GitLab
-// expect: all five commits, newest first, each as above — the first's three files, the fourth's rename, the fifth's deletion;
-//         for the 250 files, the commit's 250 changes, whichever number of files a server gives to a page
+// expect: all five commits, newest first, each as above — the first's three files, the fourth's rename, the fifth's deletion; for the 250 files, the commit's 250 changes, whichever number of files a server gives to a page
 test("MOD-repository-hosts readHistory — a null path gives the history of the repository, a commit of many files all its changes (GitHub, GitLab)", async () => {
   const [gh, gl] = await onBoth((host) => host.readHistory(null, {}));
   assert.deepEqual(gh, onGitHub(C5, C4, C3, C2, C1), "GitHub: the repository's history");
@@ -320,11 +312,11 @@ test("MOD-repository-hosts readHistory — a null path gives the history of the 
 
 // ---------------------------------------------------------------- a path no commit touched
 
+// TST-472545 · level: unit · module: MOD-repository-hosts
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: the history above; docs/use-cases/UC-002-second.md was added in the third commit, docs/missing.md was never in it
 // input: readHistory of each path, on GitHub and on GitLab
-// expect: the third commit alone for UC-002's file — the known positive —; an empty list for the path no commit touched, not an
-//         error
+// expect: the third commit alone for UC-002's file — the known positive —; an empty list for the path no commit touched, not an error
 test("MOD-repository-hosts readHistory — a path no commit touched gives an empty list (GitHub, GitLab)", async () => {
   const [ghKnown, glKnown] = await onBoth((host) => host.readHistory(SECOND, {}));
   assert.deepEqual(ghKnown, onGitHub(C3), "GitHub, known positive");
@@ -336,14 +328,11 @@ test("MOD-repository-hosts readHistory — a path no commit touched gives an emp
 
 // ---------------------------------------------------------------- the module's named failures
 
+// TST-472546 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
-// given: servers that answer every request with a refused token (401), with no such repository (404), with a used-up rate limit
-//        (GitHub: 403 with X-RateLimit-Remaining 0; GitLab: 429), with a 502 or with no answer at all — a fetch that fails as a
-//        browser's does —; and servers that list the commits well and then use up the limit on the first commit's changes
+// given: servers that answer every request with a refused token (401), with no such repository (404), with a used-up rate limit (GitHub: 403 with X-RateLimit-Remaining 0; GitLab: 429), with a 502 or with no answer at all — a fetch that fails as a browser's does —; and servers that list the commits well and then use up the limit on the first commit's changes
 // input: readHistory("SPEC.md", {}) on each; readHistory(null, { ref: "no-such-branch" }) on the missing repository
-// expect: HostError TokenRefused naming the token and the page where it is renewed; NotFound naming the repository and the
-//         branch; RateLimited naming the account's limit and, on GitHub, when it resets; Unreachable with the server's status
-//         or the browser's reason; and RateLimited, not a list of the commits read so far, for the limit used up on the changes
+// expect: HostError TokenRefused naming the token and the page where it is renewed; NotFound naming the repository and the branch; RateLimited naming the account's limit and, on GitHub, when it resets; Unreachable with the server's status or the browser's reason; and RateLimited, not a list of the commits read so far, for the limit used up on the changes
 test("MOD-repository-hosts readHistory — a refused token, a missing repository, a used-up rate limit and an unreachable server are the module's named failures (GitHub, GitLab)", async () => {
   const RESET = 1790000000;
   const ghHost = () => connect(GITHUB, { token: GH_TOKEN, tokenName: "GitHub token" });

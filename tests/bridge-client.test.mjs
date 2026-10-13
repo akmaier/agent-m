@@ -22,11 +22,11 @@ function json(status, body, headers = {}) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 }
 
-// TST-263001
+// TST-263001 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: a paired loopback Bridge and a constructed endpoint-test answer
 // input: probe(bridge, "endpoint-test", args)
-// expect: the browser calls only the Bridge's probe route, carries its token in the protocol header,
-//         places configuration only in { args }, and unwraps the Bridge answer
+// expect: the browser calls only the Bridge's probe route, carries its token in the protocol header, places configuration only in { args }, and unwraps the Bridge answer
 // Planted fault: changing the endpoint-test body from { args } to args makes the body assertion fail.
 test("TST-263001: endpoint-test goes only to the paired Bridge with configuration in its JSON body", async (t) => {
   const calls = [];
@@ -45,7 +45,8 @@ test("TST-263001: endpoint-test goes only to the paired Bridge with configuratio
   assert.deepEqual(bridge, { address: "http://127.0.0.1:4711", route: "loopback" });
 });
 
-// TST-263002
+// TST-263002 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: an HTTPS jump-host Bridge with web-server credentials and a constructed provider diagnosis
 // input: endpoint-test through that Bridge
 // expect: the Bridge token and jump-host login are headers, while the provider diagnosis remains the result
@@ -65,7 +66,8 @@ test("TST-263002: an HTTPS Bridge sends jump-host login in a header and preserve
   assert.equal(call.url.includes("jump-password"), false);
 });
 
-// TST-263003
+// TST-263003 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: the token copied from a Bridge window and a constructed pairing answer
 // input: pair at a forwarded localhost address
 // expect: it requests /v1/pair with the copied token in the protocol header and returns settings, never a URL secret
@@ -83,7 +85,8 @@ test("TST-263003: pair sends the copied token only as a header and returns reusa
   assert.equal(call.url.includes("copied-token"), false);
 });
 
-// TST-263004
+// TST-263004 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: a Bridge without a stored pairing token
 // input: an endpoint-test probe
 // expect: TokenMissing is named before fetch can run
@@ -95,7 +98,8 @@ test("TST-263004: a missing Bridge token is named before any request", async (t)
   assert.equal(calls, 0, "failure node: token guard prevents fetch");
 });
 
-// TST-263005
+// TST-263005 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: a paired Bridge that refuses its pairing token
 // input: an endpoint-test probe
 // expect: the protocol's token-refused response becomes TokenRefused
@@ -105,7 +109,8 @@ test("TST-263005: a refused pairing token is named TokenRefused", async (t) => {
   await assert.rejects(() => probe(bridgeAt({ address: "http://127.0.0.1:4711", token: "old-token" }), "endpoint-test", CONFIG), (error) => error instanceof BridgeError && error.name === "TokenRefused");
 });
 
-// TST-263006
+// TST-263006 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: an HTTPS jump host that refuses its web-server login before forwarding
 // input: an endpoint-test probe
 // expect: JumpHostLoginRefused remains distinct from a Bridge token refusal
@@ -115,7 +120,8 @@ test("TST-263006: an HTTPS login refusal is named separately from a Bridge token
   await assert.rejects(() => probe(bridgeAt({ address: "https://jump.example.test/session/local", token: "bridge-token", login: { user: "alice", password: "wrong" } }), "endpoint-test", CONFIG), (error) => error instanceof BridgeError && error.name === "JumpHostLoginRefused");
 });
 
-// TST-263007
+// TST-263007 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: a paired Bridge whose own probe handler declines the configuration, and an unreachable Bridge
 // input: endpoint-test probes
 // expect: an accepted Bridge failure preserves code/message while an unreadable answer is NoAnswer with browser limits
@@ -132,7 +138,8 @@ test("TST-263007: Bridge failures and unreadable answers have their separate nam
   await assert.rejects(() => probe(bridgeAt({ address: "https://jump.example.test/session/local", token: "bridge-token" }), "endpoint-test", CONFIG), (error) => error instanceof BridgeError && error.name === "NoAnswer" && error.likely.includes("certificate not trusted"));
 });
 
-// TST-263008
+// TST-263008 · level: unit · module: MOD-bridge-client
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // given: a paired Bridge whose pair and endpoint-test calls first answer, then each fetch or response body receives a constructed TimeoutError
 // input: repeat pair and probe after their known-positive calls
 // expect: both operations name Timeout at either request stage, while ordinary unreadable answers remain NoAnswer

@@ -36,11 +36,9 @@ const NESTED = [
   "app/__tests__/unit/helpers.mjs",
 ];
 
+// TST-473087 · level: unit · module: MOD-test-document
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; DON'T REPEAT YOURSELF; UC-026
-// given: files called helpers — a name that is no test's — in JavaScript (.mjs), Python (.py) and Go (.go), each under each of
-//        the folders tests, test and __tests__; and a JavaScript file under a folder named tests inside src/spec-document, a
-//        Python file four folders deep under tests, a Go file under a folder named test inside pkg/reader, and a JavaScript
-//        file under __tests__/unit inside app
+// given: files called helpers — a name that is no test's — in JavaScript (.mjs), Python (.py) and Go (.go), each under each of the folders tests, test and __tests__; and a JavaScript file under a folder named tests inside src/spec-document, a Python file four folders deep under tests, a Go file under a folder named test inside pkg/reader, and a JavaScript file under __tests__/unit inside app
 // input: isTestFile of each path
 // expect: true for each — the folder alone makes it a test file, whatever its language and however deep the folder or the file lies
 test("isTestFile — a file under a folder named test, tests or __tests__ is a test file, in JavaScript, Python and Go", () => {
@@ -56,9 +54,9 @@ const BY_NAME = [
   "pkg/reader_test.go",                                                // Go
 ];
 
+// TST-473088 · level: unit · module: MOD-test-document
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; DON'T REPEAT YOURSELF; UC-026
-// given: files outside every test folder, named as tests are named in their language: in JavaScript reader.test.mjs,
-//        reader.test.js and reader.spec.ts; in Python test_reader.py and reader_test.py; in Go reader_test.go
+// given: files outside every test folder, named as tests are named in their language: in JavaScript reader.test.mjs, reader.test.js and reader.spec.ts; in Python test_reader.py and reader_test.py; in Go reader_test.go
 // input: isTestFile of each path
 // expect: true for each — the name alone makes it a test file
 test("isTestFile — a file named as tests are named in its language is a test file, in JavaScript, Python and Go", () => {
@@ -69,9 +67,9 @@ test("isTestFile — a file named as tests are named in its language is a test f
 
 const MANUAL = ["tests/manual-tests.md", "tests/manual/walkthrough.md", "test/manual.md", "__tests__/manual.md"];
 
+// TST-473089 · level: unit · module: MOD-test-document
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; DON'T REPEAT YOURSELF; UC-026
-// given: Markdown files under the folder tests — one directly under it, one in a folder inside it — and one each under test and
-//        __tests__
+// given: Markdown files under the folder tests — one directly under it, one in a folder inside it — and one each under test and __tests__
 // input: isTestFile of each path
 // expect: true for each — a Markdown file under such a folder holds manual tests
 test("isTestFile — a Markdown file under a test folder is a test file: it holds manual tests", () => {
@@ -89,11 +87,9 @@ const DOCUMENTS = ["README.md", "SPEC.md", "docs/use-cases/UC-026-generate-a-mul
 // their language.
 const NEAR = ["src/contest.js", "src/testing/reader.mjs", "src/latest/reader.py", "pkg/tests", "src/test.mjs", "pkg/test.go"];
 
+// TST-473090 · level: unit · module: MOD-test-document
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; DON'T REPEAT YOURSELF; UC-026
-// given: code files outside such folders and not named as tests — reader.mjs, reader.py, reader.go —; documents outside such
-//        folders — README.md, SPEC.md, a use case and docs/manual-tests.md —; and names that only hold the word test: the file
-//        src/contest.js, the folder src/testing, the folder src/latest, pkg/tests, a file called tests and not a folder, and
-//        the files src/test.mjs and pkg/test.go
+// given: code files outside such folders and not named as tests — reader.mjs, reader.py, reader.go —; documents outside such folders — README.md, SPEC.md, a use case and docs/manual-tests.md —; and names that only hold the word test: the file src/contest.js, the folder src/testing, the folder src/latest, pkg/tests, a file called tests and not a folder, and the files src/test.mjs and pkg/test.go
 // input: isTestFile of each path; and, to show that the same call says yes where it should, of tests/reader.test.mjs
 // expect: true for the known positive; false for each of the others
 test("isTestFile — a code file and a document outside such folders, and a name that only holds the word test, are no test files", () => {

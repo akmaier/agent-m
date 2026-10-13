@@ -84,11 +84,11 @@ const CHANGE = { target: "SPEC.md", anchor: "## 1. Reading", until: null, text: 
 const written = (commit) => Object.fromEntries(commit.files.map((file) => [file.path, file.text]));
 const schemaText = readFileSync(new URL("../src/spec-changes/queue-rationale.schema.md", import.meta.url), "utf8");
 
+// TST-472983 · level: unit · module: MOD-spec-changes
 // guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
 // given: queues of the day: 'mine' by alice, all open; 'mine-b' by alice with an entry in SPEC; 'bobs' by bob, open; a queue of another day by alice; and alice's 'mine' touched later by bob
 // input: openQueueOf for alice and for bob and for carol, on the day and on a day with none
-// expect: alice's newest queue of the day with no entry in SPEC — 'mine', since 'mine-b' has one —, bob's his own, carol none, the day with none none; the person is the author of the commit that
-//         created the index, not of a later one
+// expect: alice's newest queue of the day with no entry in SPEC — 'mine', since 'mine-b' has one —, bob's his own, carol none, the day with none none; the person is the author of the commit that created the index, not of a later one
 test("openQueueOf — the person's newest queue of the day with no entry in SPEC", async () => {
   assert.ok(openQueueOf, "openQueueOf is offered");
   const files = { ...queueFiles(`${TODAY}_mine`, TODAY, ["## 1. Reading"]), ...queueFiles(`${TODAY}b_mine-b`, TODAY, ["## 1. Reading"], { inSpec: [1] }),
@@ -102,11 +102,11 @@ test("openQueueOf — the person's newest queue of the day with no entry in SPEC
   assert.equal(await openQueueOf("alice", OTHER_DAY, host), `docs/spec-freigaben/${OTHER_DAY}_old`);
 });
 
+// TST-472984 · level: unit · module: MOD-spec-changes
 // guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5, 5a
 // given: a person with no open queue of the day
 // input: proposeSection of an edit of the section Reading
-// expect: one commit on the default branch at the head read, holding a new queue of the day — index.md, entscheidungen.md, the entry 01-reading.md with the section as edited, its rationale — and
-//         nothing else; the index's row for the entry; the SPEC untouched; the result names the commit, the queue, the entry 1 and no other entry it replaces
+// expect: one commit on the default branch at the head read, holding a new queue of the day — index.md, entscheidungen.md, the entry 01-reading.md with the section as edited, its rationale — and nothing else; the index's row for the entry; the SPEC untouched; the result names the commit, the queue, the entry 1 and no other entry it replaces
 test("proposeSection — an edit of a section is one commit holding a new queue with the entry, its rationale and its index row", async () => {
   assert.ok(proposeSection, "proposeSection is offered");
   const f = repository();
@@ -125,11 +125,11 @@ test("proposeSection — an edit of a section is one commit holding a new queue 
   assert.ok(!Object.keys(files).includes("SPEC.md"), "the target is not touched");
 });
 
+// TST-472985 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 5
 // given: the edit of A SAMPLE RULE, which UC-001 realises
 // input: proposeSection; then the written queue read back through queues and entryView
-// expect: the rationale in the schema queue-rationale without a finding: the title `# 1. Reading: …`, the change, the Why as given, the impact list naming A SAMPLE RULE changed and UC-001, the origin as given
-//         with the person; read back, the queue is found with the entry open and the section that holds now beside the proposal, the same impact
+// expect: the rationale in the schema queue-rationale without a finding: the title `# 1. Reading: …`, the change, the Why as given, the impact list naming A SAMPLE RULE changed and UC-001, the origin as given with the person; read back, the queue is found with the entry open and the section that holds now beside the proposal, the same impact
 test("proposeSection — the rationale holds the change, the Why, the impact list and the origin, and the queue reads back open", async () => {
   const f = repository();
   await proposeSection(f.host, CHANGE);
@@ -153,11 +153,11 @@ test("proposeSection — the rationale holds the change, the Why, the impact lis
   assert.deepEqual(view.impact.map((item) => [item.name, item.change, item.referencedBy]), [["A SAMPLE RULE", "changed", ["UC-001"]]]);
 });
 
+// TST-472986 · level: unit · module: MOD-spec-changes
 // guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
 // given: alice's open queue of the day, with an entry for Reading
 // input: proposeSection of an edit of the section Writing
-// expect: no new queue: the entry 02 and its rationale added to that queue, its index row appended to the index with every other byte of it as it was; the earlier entry's files untouched; the
-//         result names that queue and entry 2
+// expect: no new queue: the entry 02 and its rationale added to that queue, its index row appended to the index with every other byte of it as it was; the earlier entry's files untouched; the result names that queue and entry 2
 test("proposeSection — an edit of another section is added to the person's open queue", async () => {
   const folder = `${TODAY}_mine`;
   const files = queueFiles(folder, TODAY, ["## 1. Reading"]);
@@ -172,6 +172,7 @@ test("proposeSection — an edit of another section is added to the person's ope
   assert.equal(out[`${base}/02-writing.md`], change.text);
 });
 
+// TST-472987 · level: unit · module: MOD-spec-changes
 // guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 6a
 // given: alice's open queue, whose entry 01 edits Reading, and a second edit of Reading
 // input: proposeSection
@@ -191,6 +192,7 @@ test("proposeSection — a second edit of a section replaces the entry of that q
   assert.notEqual(out[`${base}/01-reading.begruendung.md`], "# an earlier rationale\n");
 });
 
+// TST-472988 · level: unit · module: MOD-spec-changes
 // guards: A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-018 5
 // given: an edit that renames A SAMPLE RULE to A READING RULE
 // input: proposeSection; and the entry read back
@@ -208,6 +210,7 @@ test("proposeSection — a rename is proposed as the old name withdrawn and the 
   assert.deepEqual(view.impact.map((item) => [item.name, item.change]), [["A SAMPLE RULE", "withdrawn"], ["A READING RULE", "added"]]);
 });
 
+// TST-472989 · level: unit · module: MOD-spec-changes
 // guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018 3a
 // given: an edit opened on a blob that is no longer the section's; and, to show the call writing, the same edit on the section's blob
 // input: proposeSection
@@ -221,6 +224,7 @@ test("proposeSection — a section that changed meanwhile is refused with its ne
   assert.deepEqual(g.commits, []);
 });
 
+// TST-472990 · level: unit · module: MOD-spec-changes
 // guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-019 9
 // given: an edit with a job's provenance lines as trailers, and one of a person's own with none
 // input: proposeSection
@@ -236,6 +240,7 @@ test("proposeSection — the trailers end the commit's message, and a person's o
   assert.ok(!g.commits[0].message.includes("Agent-M-"));
 });
 
+// TST-472991 · level: unit · module: MOD-spec-changes
 // guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
 // given: other open entries that replace Reading: bob's in his queue; and none that replace Writing but one in SPEC that replaced Reading
 // input: proposeSection of an edit of Reading in alice's own queue
@@ -250,6 +255,7 @@ test("proposeSection — other open entries that replace the same section are na
   assert.ok(Object.keys(written(f.commits[0])).every((path) => path.startsWith(`docs/spec-freigaben/${mine}/`)));
 });
 
+// TST-472992 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018 4a
 // given: a GitHub product and a host with no token (canWrite false)
 // input: proposeSection
@@ -269,6 +275,7 @@ test("proposeSection — without a token on GitHub it writes nothing and returns
   assert.equal(result.fallback.find((page) => page.path.endsWith("01-reading.md")).text, READING_EDITED);
 });
 
+// TST-472993 · level: unit · module: MOD-spec-changes
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018 4b
 // given: a GitLab product and a host with no token
 // input: proposeSection
@@ -281,6 +288,7 @@ test("proposeSection — without a token on GitLab it fails with TokenRequired",
   assert.deepEqual(f.commits, []);
 });
 
+// TST-472994 · level: unit · module: MOD-spec-changes
 // guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
 // given: three open queues of alice on the day: one with no letter, one with the letter b, one with the letter c, and an edit of a section none of them holds
 // input: openQueueOf; proposeSection

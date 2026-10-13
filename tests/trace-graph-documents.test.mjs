@@ -215,14 +215,11 @@ const fixture = (files = FILES) => source(Object.fromEntries(files));
 
 // ---------------------------------------------------------------- a use case
 
+// TST-473135 · level: unit · module: MOD-trace-graph
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; THE TRACEABILITY MATRIX IS DERIVED; UC-006; UC-007; UC-018; UC-019
-// given: the fixture's UC-001 — front matter with its id, title and one realised requirement, a heading that names it again,
-//        and a line of its text that writes UC-002 and, between backticks, ANOTHER SAMPLE RULE
+// given: the fixture's UC-001 — front matter with its id, title and one realised requirement, a heading that names it again, and a line of its text that writes UC-002 and, between backticks, ANOTHER SAMPLE RULE
 // input: traceGraph over the fixture repository
-// expect: no file unread; a node UC-001 of kind UC at the line of its `id:`, with the title "Read a file" and the git blob
-//         SHA of the file; a realises edge to A SAMPLE RULE at the line of its list item; a names edge to UC-002 and one to
-//         ANOTHER SAMPLE RULE at the line of the text that writes them — and no edge for the heading or the `id:` line,
-//         which name the use case itself, nor a names edge on the line the realises edge already states
+// expect: no file unread; a node UC-001 of kind UC at the line of its `id:`, with the title "Read a file" and the git blob SHA of the file; a realises edge to A SAMPLE RULE at the line of its list item; a names edge to UC-002 and one to ANOTHER SAMPLE RULE at the line of the text that writes them — and no edge for the heading or the `id:` line, which name the use case itself, nor a names edge on the line the realises edge already states
 test("traceGraph — a use case is a node with its title and blob, a realises edge for the name it realises and a names edge for each name its text writes", async () => {
   const graph = await traceGraph(fixture());
   assert.deepEqual(graph.unread, [], "known positive: every file of the fixture was read");
@@ -239,14 +236,11 @@ test("traceGraph — a use case is a node with its title and blob, a realises ed
 
 // ---------------------------------------------------------------- an architecture decision
 
+// TST-473136 · level: unit · module: MOD-trace-graph
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; THE TRACEABILITY MATRIX IS DERIVED; UC-007; UC-019
-// given: the fixture's ARC-002 — front matter with a refined decision, two forcing names (a requirement and a use case) and
-//        one designed module; and a line of its Context that writes ARC-001, A SAMPLE RULE (between backticks) and UC-001
+// given: the fixture's ARC-002 — front matter with a refined decision, two forcing names (a requirement and a use case) and one designed module; and a line of its Context that writes ARC-001, A SAMPLE RULE (between backticks) and UC-001
 // input: traceGraph over the fixture repository
-// expect: a node ARC-002 of kind ARC with the title "Reading lives in a module" and the git blob SHA of the file; a refines
-//         edge to ARC-001, a forced_by edge to the requirement and one to the use case, a designs edge to MOD-reader, each
-//         at the line of its list item or key; a names edge to each of the three names the Context line writes — the
-//         refined ARC-001 among them, since this line is not the one the refines edge states
+// expect: a node ARC-002 of kind ARC with the title "Reading lives in a module" and the git blob SHA of the file; a refines edge to ARC-001, a forced_by edge to the requirement and one to the use case, a designs edge to MOD-reader, each at the line of its list item or key; a names edge to each of the three names the Context line writes — the refined ARC-001 among them, since this line is not the one the refines edge states
 test("traceGraph — an architecture decision is a node with refines, forced_by and designs edges, and its text's names", async () => {
   const graph = await traceGraph(fixture());
   assert.deepEqual(core(graph.nodes.get("ARC-002")), {
@@ -267,15 +261,11 @@ test("traceGraph — an architecture decision is a node with refines, forced_by 
 
 // ---------------------------------------------------------------- a module file
 
+// TST-473137 · level: unit · module: MOD-trace-graph
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; THE TRACEABILITY MATRIX IS DERIVED; UC-007; UC-019
-// given: the fixture's MOD-reader — front matter with two realised names (a requirement and a use case), one followed
-//        decision and two used interfaces of another module, MOD-text.readLines and MOD-text.Line, and a provided name; and
-//        a line of its Responsibility that writes A SAMPLE RULE (between backticks) and ARC-002
+// given: the fixture's MOD-reader — front matter with two realised names (a requirement and a use case), one followed decision and two used interfaces of another module, MOD-text.readLines and MOD-text.Line, and a provided name; and a line of its Responsibility that writes A SAMPLE RULE (between backticks) and ARC-002
 // input: traceGraph over the fixture repository
-// expect: a node MOD-reader of kind MOD with the title "Reading a file" and the git blob SHA of the file; a realises edge to
-//         each realised name, a follows edge to ARC-002 and one uses edge to each used interface — its target the interface
-//         as the file writes it, MOD-text.readLines and MOD-text.Line —, each at its list item; a names edge to each of the
-//         two names the Responsibility line writes; no edge for the folder or the provided name
+// expect: a node MOD-reader of kind MOD with the title "Reading a file" and the git blob SHA of the file; a realises edge to each realised name, a follows edge to ARC-002 and one uses edge to each used interface — its target the interface as the file writes it, MOD-text.readLines and MOD-text.Line —, each at its list item; a names edge to each of the two names the Responsibility line writes; no edge for the folder or the provided name
 test("traceGraph — a module file is a node with realises, follows and uses edges, and its text's names", async () => {
   const graph = await traceGraph(fixture());
   assert.deepEqual(core(graph.nodes.get("MOD-reader")), {
@@ -296,13 +286,11 @@ test("traceGraph — a module file is a node with realises, follows and uses edg
 
 // ---------------------------------------------------------------- a plan step
 
+// TST-473138 · level: unit · module: MOD-trace-graph
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; THE TRACEABILITY MATRIX IS DERIVED; UC-007; UC-019
-// given: the fixture's plan step ITM-001, under docs/plan/ — front matter with two realised names, one changed module and an
-//        origin that writes "UC-001 step 1"; and a line of its Outcome that writes MOD-reader
+// given: the fixture's plan step ITM-001, under docs/plan/ — front matter with two realised names, one changed module and an origin that writes "UC-001 step 1"; and a line of its Outcome that writes MOD-reader
 // input: traceGraph over the fixture repository
-// expect: a node ITM-001 of kind ITM with the title "The reader" and the git blob SHA of the file; a realises edge to each
-//         realised name and a changes edge to MOD-reader, each at its list item; a names edge to UC-001 at the origin's line
-//         and one to MOD-reader at the Outcome line
+// expect: a node ITM-001 of kind ITM with the title "The reader" and the git blob SHA of the file; a realises edge to each realised name and a changes edge to MOD-reader, each at its list item; a names edge to UC-001 at the origin's line and one to MOD-reader at the Outcome line
 test("traceGraph — a plan step is a node with realises and changes edges, and its text's names", async () => {
   const graph = await traceGraph(fixture());
   assert.deepEqual(core(graph.nodes.get("ITM-001")), {
@@ -319,13 +307,11 @@ test("traceGraph — a plan step is a node with realises and changes edges, and 
 
 // ---------------------------------------------------------------- a backlog item
 
+// TST-473139 · level: unit · module: MOD-trace-graph
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; THE TRACEABILITY MATRIX IS DERIVED; UC-007; UC-019
-// given: the fixture's backlog item ITM-002, under docs/backlog/ — front matter with one realised use case, one changed
-//        module, one item it builds on, and an origin that is a requirement's name
+// given: the fixture's backlog item ITM-002, under docs/backlog/ — front matter with one realised use case, one changed module, one item it builds on, and an origin that is a requirement's name
 // input: traceGraph over the fixture repository
-// expect: a node ITM-002 of kind ITM with the title "The reader page" and the git blob SHA of the file; a realises edge to
-//         UC-001, a changes edge to MOD-reader and a builds_on edge to ITM-001, each at its list item; a names edge to
-//         ANOTHER SAMPLE RULE at the origin's line, which the other edges do not state
+// expect: a node ITM-002 of kind ITM with the title "The reader page" and the git blob SHA of the file; a realises edge to UC-001, a changes edge to MOD-reader and a builds_on edge to ITM-001, each at its list item; a names edge to ANOTHER SAMPLE RULE at the origin's line, which the other edges do not state
 test("traceGraph — a backlog item is a node with realises, changes and builds_on edges, and its origin's name", async () => {
   const graph = await traceGraph(fixture());
   assert.deepEqual(core(graph.nodes.get("ITM-002")), {
@@ -341,13 +327,11 @@ test("traceGraph — a backlog item is a node with realises, changes and builds_
 
 // ---------------------------------------------------------------- the titles of the groups
 
+// TST-473140 · level: unit · module: MOD-trace-graph
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; THE TRACEABILITY MATRIX IS DERIVED; UC-007; UC-019
-// given: the fixture's group file docs/groups/use-cases.md — a group Reading (line 5) that holds UC-001 and a group Details
-//        (line 7) that holds UC-002, and a group Later (line 9) that holds nothing
+// given: the fixture's group file docs/groups/use-cases.md — a group Reading (line 5) that holds UC-001 and a group Details (line 7) that holds UC-002, and a group Later (line 9) that holds nothing
 // input: traceGraph over the fixture repository
-// expect: one node of kind group for each of the three groups, at any depth, each with the group's title, the line of the
-//         title and the git blob SHA of the group file; no edge from the group file; UC-001, which the group Reading lists,
-//         is still the use case's node
+// expect: one node of kind group for each of the three groups, at any depth, each with the group's title, the line of the title and the git blob SHA of the group file; no edge from the group file; UC-001, which the group Reading lists, is still the use case's node
 test("traceGraph — the title of every group of a group file is read, at any depth", async () => {
   const graph = await traceGraph(fixture());
   const TITLE_LINES = { Reading: "- Reading", Details: "  - Details", Later: "- Later" };
@@ -363,13 +347,11 @@ test("traceGraph — the title of every group of a group file is read, at any de
 
 // ---------------------------------------------------------------- a file that cannot be read as its format
 
+// TST-473141 · level: unit · module: MOD-trace-graph
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; THE TRACEABILITY MATRIX IS DERIVED; UC-007; UC-018; UC-019
-// given: the fixture repository with a file docs/use-cases/UC-009-broken.md added between its use case and its decision —
-//        a text that is no use case: it has no front matter; and the same repository without it
+// given: the fixture repository with a file docs/use-cases/UC-009-broken.md added between its use case and its decision — a text that is no use case: it has no front matter; and the same repository without it
 // input: traceGraph over each
-// expect: without the broken file nothing is unread; with it, unread holds that one path, with a reason that names the
-//         missing front matter; the nodes and the edges of the two graphs are the same — the files after the broken one
-//         included —, and there is no node UC-009
+// expect: without the broken file nothing is unread; with it, unread holds that one path, with a reason that names the missing front matter; the nodes and the edges of the two graphs are the same — the files after the broken one included —, and there is no node UC-009
 test("traceGraph — a use case that cannot be read as one is listed in unread, and the graph still holds the others", async () => {
   const BROKEN_PATH = "docs/use-cases/UC-009-broken.md";
   const entries = FILES.slice();

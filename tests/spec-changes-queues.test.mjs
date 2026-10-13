@@ -77,12 +77,11 @@ function sampleQueueSnapshot() {
   return fixtureSnapshot(texts, blobs, records);
 }
 
+// TST-473007 · level: unit · module: MOD-spec-changes
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-047
 // given: the fixture snapshot above
 // input: queues(sampleQueueSnapshot())
-// expect: one queue, its title and target read from the text past the impact table, and its three entries in the
-//         index table's own order — 01 open with no record, 02 approved with its record and no decision, 03 in SPEC
-//         with the same path as both its record and its decision
+// expect: one queue, its title and target read from the text past the impact table, and its three entries in the index table's own order — 01 open with no record, 02 approved with its record and no decision, 03 in SPEC with the same path as both its record and its decision
 test("queues — an open, an approved and an in-SPEC entry, found past an impact table", async () => {
   const result = await queues(sampleQueueSnapshot());
   assert.equal(result.length, 1, "exactly the one queue of the fixture");
@@ -142,6 +141,7 @@ function orderingSnapshot() {
   return fixtureSnapshot({ ...first.texts, ...second.texts }, { ...first.blobs, ...second.blobs });
 }
 
+// TST-473008 · level: unit · module: MOD-spec-changes
 // guards: UC-047
 // given: two queues of different dates, each with one open entry
 // input: queues(orderingSnapshot())

@@ -38,7 +38,8 @@ async function withSvg(run) {
   try { return await run(calls); } finally { if (prior) Object.defineProperty(globalThis, "SVGElement", prior); else delete globalThis.SVGElement; Object.defineProperty(proto, "namespaceURI", namespace); proto.getElementsByTagName = tags; delete globalThis.mermaid; }
 }
 
-// TST-342008
+// TST-342008 · level: release · module: MOD-markdown-render
+// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; NO SERVER; EDITS ARE PREPARED ON THE DASHBOARD; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A REFUSED SAVE KEEPS THE EDIT
 // given: public renderArtifact with front matter, adjacent prose, one drawable Mermaid block and one invalid hostile block
 // input: default rendering and { frontMatter: "hidden" }
 // expect: table/default and hidden option, prose and strict safe drawing remain; invalid source/reason is escaped
@@ -53,7 +54,8 @@ test("TST-342008 public renderer retains prose, table-or-hidden front matter, an
   assert.doesNotMatch(hidden.innerHTML, /<th>id<\/th>/); assert.match(hidden.textContent, /Before\.|After\./);
 }));
 
-// TST-342009
+// TST-342009 · level: release · module: MOD-markdown-render
+// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; NO SERVER; EDITS ARE PREPARED ON THE DASHBOARD; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A REFUSED SAVE KEEPS THE EDIT
 // given: public showDifference before/after texts with one replacement and context 1
 // input: showDifference(before, after, { context: 1 })
 // expect: before→after additions/removals and only adjacent unchanged lines
@@ -63,7 +65,8 @@ test("TST-342009 public difference preserves direction and bounded context", () 
   assert.deepEqual(rows.map((r) => [r.className, r.textContent]), [["dctx", "  one"], ["dadd", "+ TWO"], ["ddel", "- two"], ["dctx", "  three"]]);
 });
 
-// TST-343005
+// TST-343005 · level: release · module: MOD-markdown-render
+// guards: DIAGRAMS ARE MERMAID IN MARKDOWN; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; NO SERVER; EDITS ARE PREPARED ON THE DASHBOARD; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A REFUSED SAVE KEEPS THE EDIT
 // given: public editor with a later compiler finding, a draft against current text, refused save and unsaved close
 // input: setMarks, showDraft, Save, close decline/accept and saved-close baseline
 // expect: marks/draft/preview/difference and refused text remain; close asks only for unsaved work

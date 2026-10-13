@@ -76,21 +76,20 @@ const reasonsOf = (result) => (result.startable ? [] : result.reasons);
 
 // ---------------------------------------------------------------- startable
 
+// TST-473187 · level: unit · module: MOD-work-plans
 // guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
-// given: ITM-001 ready, selected for team1's current sprint; team1's Developers held by dev-a, who has all they need; no
-//        item in progress
+// given: ITM-001 ready, selected for team1's current sprint; team1's Developers held by dev-a, who has all they need; no item in progress
 // input: startable("ITM-001", the states, team1's context)
 // expect: { startable: true } — the known positive of every test below, each of which changes one thing and finds one reason
 test("startable — a ready item selected for its team's current sprint, with a capable holder of the implementing role, may start", () => {
   assert.deepEqual(startable("ITM-001", READY, context()), { startable: true });
 });
 
+// TST-473188 · level: unit · module: MOD-work-plans
 // guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
-// given: two teams' sprints running at once — team1's selects ITM-001 to ITM-003, team2's ITM-004 and ITM-005 —; every item
-//        ready
+// given: two teams' sprints running at once — team1's selects ITM-001 to ITM-003, team2's ITM-004 and ITM-005 —; every item ready
 // input: startable of ITM-004 and of ITM-006 with team1's context; of ITM-004 with team2's context and team2's sprint
-// expect: ITM-004 under team1: one reason, naming ITM-004 and team1's sprint team1/01 — team2's sprint selected it, not
-//         team1's —; ITM-006, selected by no sprint: one reason naming team1/01; ITM-004 under team2: startable
+// expect: ITM-004 under team1: one reason, naming ITM-004 and team1's sprint team1/01 — team2's sprint selected it, not team1's —; ITM-006, selected by no sprint: one reason naming team1/01; ITM-004 under team2: startable
 test("startable — with several teams running sprints, a job starts only for an item its own team's current sprint selected", () => {
   const notTeam1 = reasonsOf(startable("ITM-004", READY, context()));
   assert.equal(notTeam1.length, 1, notTeam1.join(" | "));
@@ -101,6 +100,7 @@ test("startable — with several teams running sprints, a job starts only for an
   assert.deepEqual(startable("ITM-004", READY, context({ assignment: TEAM2, sprint: SPRINT2 })), { startable: true });
 });
 
+// TST-473189 · level: unit · module: MOD-work-plans
 // guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
 // given: ITM-001 ready; (a) a model with sprints, and no sprint of team1 running; (b) a model without sprints, and no sprint
 // input: startable("ITM-001", the states, each context)
@@ -112,9 +112,9 @@ test("startable — in a model with sprints nothing starts while the team runs n
   assert.deepEqual(startable("ITM-001", READY, context({ workflow: WITHOUT_SPRINTS, sprint: null, held: [] })), { startable: true });
 });
 
+// TST-473190 · level: unit · module: MOD-work-plans
 // guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-032 step 1
-// given: ITM-001 (a) waiting for acceptance of UC-007; (b) waiting for ITM-009, an item it builds on that is not done;
-//        (c) a step waiting for the gate Design → Development, decided by the Product Owner; (d) done
+// given: ITM-001 (a) waiting for acceptance of UC-007; (b) waiting for ITM-009, an item it builds on that is not done; (c) a step waiting for the gate Design → Development, decided by the Product Owner; (d) done
 // input: startable("ITM-001", the states of each case, team1's context)
 // expect: one reason each, naming (a) UC-007, (b) ITM-009, (c) the gate Design → Development, (d) that ITM-001 is done
 test("startable — an item whose state is not ready names why: what is not accepted, the item it waits for, the gate before its phase, or that it is done", () => {
@@ -131,13 +131,11 @@ test("startable — an item whose state is not ready names why: what is not acce
   }
 });
 
+// TST-473191 · level: unit · module: MOD-work-plans
 // guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-032 7a
-// given: the limit 2; team1's sprint holds ITM-001, in progress with a job, and ITM-002, in progress with its pull request
-//        open — waiting for review —; team2's sprint holds ITM-004, in progress; ITM-003 ready
-// input: startable("ITM-003", those states, team1's context); then the same with ITM-001 done; and startable("ITM-005",
-//        the first states, team2's context)
-// expect: ITM-003: one reason, naming the limit 2, ITM-001 and ITM-002, and that ITM-002 waits for review; once ITM-001 is
-//         done, startable; ITM-005 under team2: startable — only ITM-004 is in progress under team2's assignment
+// given: the limit 2; team1's sprint holds ITM-001, in progress with a job, and ITM-002, in progress with its pull request open — waiting for review —; team2's sprint holds ITM-004, in progress; ITM-003 ready
+// input: startable("ITM-003", those states, team1's context); then the same with ITM-001 done; and startable("ITM-005", the first states, team2's context)
+// expect: ITM-003: one reason, naming the limit 2, ITM-001 and ITM-002, and that ITM-002 waits for review; once ITM-001 is done, startable; ITM-005 under team2: startable — only ITM-004 is in progress under team2's assignment
 test("startable — the work-in-progress limit counts the items in progress under the item's role assignment, naming them and those waiting for review", () => {
   const busy = withStates(state("ITM-001", "in progress", { job: "JOB-1" }), state("ITM-002", "in progress", { pullRequest: "#7" }),
     state("ITM-004", "in progress", { job: "JOB-4" }));
@@ -150,6 +148,7 @@ test("startable — the work-in-progress limit counts the items in progress unde
   assert.deepEqual(startable("ITM-005", busy, context({ assignment: TEAM2, sprint: SPRINT2 })), { startable: true });
 });
 
+// TST-473192 · level: unit · module: MOD-work-plans
 // guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
 // given: a model without sprints and the limit 2, its one role assignment; ITM-001 and ITM-004 in progress; ITM-003 ready
 // input: startable("ITM-003", those states, a context without sprints)
@@ -161,12 +160,11 @@ test("startable — without sprints, every item in progress counts under the pro
   for (const named of ["2", "ITM-001", "ITM-004"]) assert.ok(reasons[0].includes(named), `${named}: ${reasons[0]}`);
 });
 
+// TST-473193 · level: unit · module: MOD-work-plans
 // guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: ITM-001 ready and selected; team1's Developers held (a) by dev-c alone, who cannot write to the repository or run
-//        code and tests; (b) by alice only for Product Owner, and no Developers row at all
+// given: ITM-001 ready and selected; team1's Developers held (a) by dev-c alone, who cannot write to the repository or run code and tests; (b) by alice only for Product Owner, and no Developers row at all
 // input: startable("ITM-001", the states, team1's context with each assignment)
-// expect: one reason each, naming Developers — the implementing role, the role of the phase that produces MOD —; for (a)
-//         also a capability it needs that no holder has
+// expect: one reason each, naming Developers — the implementing role, the role of the phase that produces MOD —; for (a) also a capability it needs that no holder has
 test("startable — without a holder of the implementing role that has what the role needs, nothing starts", () => {
   const weak = assignment("team1", "dev-c");
   const reasons = reasonsOf(startable("ITM-001", READY, context({ assignment: weak })));

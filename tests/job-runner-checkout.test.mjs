@@ -56,6 +56,7 @@ const contextOf = (instance) => ({ kind: null, params: {}, product: { address: "
 const prepare = (instance) => prepareJob("propose-groups", contextOf(instance), { drafter: DRAFTER, reviewers: [] });
 const same = (a, b) => realpathSync(a) === realpathSync(b);
 
+// TST-472321 · level: unit · module: MOD-job-runner
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; UC-010 step 3
 // given: a context whose instance holds a checkout, a folder, and a snapshot at the commit the job's record names
 // input: prepareJob of a kind whose recipe reads the instance
@@ -69,9 +70,9 @@ test("prepareJob — a context with a checkout of the instance at the record's c
   assert.deepEqual(prepared.parts.map((part) => part.text), [`checkout ${CHECKOUT} at ${RECORD_COMMIT}`]);
 });
 
+// TST-472322 · level: unit · module: MOD-job-runner
 // guards: A RUNTIME IS INTERCHANGEABLE; UC-011 step 3
-// given: a context whose instance has no checkout — null, as in a browser, and with no such key at all, as every context before this item —, its
-//        snapshot at a commit other than the record's, or at none
+// given: a context whose instance has no checkout — null, as in a browser, and with no such key at all, as every context before this item —, its snapshot at a commit other than the record's, or at none
 // input: prepareJob of the same kind
 // expect: the job is prepared as before, whatever commit the snapshot is at; the recipe sees no checkout
 test("prepareJob — a context without a checkout is read as before", async () => {
@@ -84,12 +85,11 @@ test("prepareJob — a context without a checkout is read as before", async () =
   }
 });
 
+// TST-472323 · level: unit · module: MOD-job-runner
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; UC-010 step 3
-// given: a context whose instance holds a checkout whose snapshot is at another commit than the record's — one that differs in its last digit
-//        only, and the record's first seven digits, as a short commit would be — and one whose snapshot has no commit
+// given: a context whose instance holds a checkout whose snapshot is at another commit than the record's — one that differs in its last digit only, and the record's first seven digits, as a short commit would be — and one whose snapshot has no commit
 // input: prepareJob of each; known positive first — the same context at the record's commit
-// expect: the known positive is prepared; each other is refused as CheckoutAtOtherCommit, naming the checkout, the commit the record names and the
-//         one found (null for none), and no recipe ran
+// expect: the known positive is prepared; each other is refused as CheckoutAtOtherCommit, naming the checkout, the commit the record names and the one found (null for none), and no recipe ran
 test("prepareJob — a checkout at another commit than the job's record names is refused as CheckoutAtOtherCommit", async () => {
   assert.ok(await prepare({ checkout: CHECKOUT, snapshot: snapshotAt(RECORD_COMMIT) }), "known positive: the checkout at the record's commit");
   for (const found of [OTHER_COMMIT, RECORD_COMMIT.slice(0, 39) + "c", RECORD_COMMIT.slice(0, 7), null]) {

@@ -78,6 +78,11 @@ def first_assignment(files: dict) -> str:
 class ProcessNamesRoles(unittest.TestCase):
     """THE PROCESS NAMES ROLES, NOT PARTICIPANTS"""
 
+    # TST-475037 · level: component · module: MOD-product-process
+    # guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+    # given: a copy of the instance's docs/process.md with the line '<participant> reviews every increment.' appended, a participant taken from a role assignment
+    # input: declarationFindings of the declaration
+    # expect: exactly one finding of THE PROCESS NAMES ROLES, NOT PARTICIPANTS, naming the participant
     def test_known_positive_a_declaration_naming_a_participant_is_found(self):
         files = instance_files()
         named = next(iter(judged(files)["holders"].values()))[0]
@@ -86,6 +91,11 @@ class ProcessNamesRoles(unittest.TestCase):
         self.assertEqual(len(found), 1, found)
         self.assertIn(named, found[0][4])
 
+    # TST-475038 · level: component · module: MOD-product-process
+    # guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+    # given: the instance's docs/process.md, docs/participants.md, process models and role assignments as they stand
+    # input: declarationFindings of the declaration
+    # expect: no finding of THE PROCESS NAMES ROLES, NOT PARTICIPANTS
     def test_the_declaration_names_no_participant_of_the_instances_list(self):
         self.assertEqual(with_rule(judged(instance_files())["declaration"], NAMES_ROLES), [])
 
@@ -93,6 +103,11 @@ class ProcessNamesRoles(unittest.TestCase):
 class RoleAssignmentFillsTheRoles(unittest.TestCase):
     """A ROLE ASSIGNMENT FILLS THE ROLES"""
 
+    # TST-475039 · level: component · module: MOD-product-process
+    # guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+    # given: a copy of the first role assignment with the row '| Release manager | po-opus |' and the line 'The team meets on Mondays.' appended
+    # input: roleAssignmentFindings over the assignments against the declared model's workflow
+    # expect: two errors of A ROLE ASSIGNMENT FILLS THE ROLES on that file, one naming Release manager and one naming the line 'The team meets on Mondays.'
     def test_known_positive_a_role_the_process_lacks_and_a_line_besides_the_table_are_found(self):
         files = instance_files()
         path = first_assignment(files)
@@ -102,6 +117,11 @@ class RoleAssignmentFillsTheRoles(unittest.TestCase):
         self.assertTrue(any("Release manager" in f[4] for f in found), found)
         self.assertTrue(any("The team meets on Mondays." in f[4] for f in found), found)
 
+    # TST-475040 · level: component · module: MOD-product-process
+    # guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+    # given: the instance's role assignments docs/role-assignments/*.md as they stand
+    # input: schema findings and roleAssignmentFindings of each assignment
+    # expect: every assignment gives its roles participants, has no schema error, and has no finding of A ROLE ASSIGNMENT FILLS THE ROLES
     def test_each_role_assignment_gives_participants_to_the_roles_of_the_process_and_holds_nothing_else(self):
         result = judged(instance_files())
         self.assertTrue(result["holders"], "the instance has a role assignment")
@@ -114,6 +134,11 @@ class RoleAssignmentFillsTheRoles(unittest.TestCase):
 class OneRoleAssignmentOrOnePerTeam(unittest.TestCase):
     """A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM"""
 
+    # TST-475041 · level: component · module: MOD-product-process
+    # guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+    # given: a copy of the instance files with at least two role assignments and the declared model's Sprints set to no
+    # input: roleAssignmentFindings over them, and again over one assignment alone
+    # expect: every assignment gets a finding of A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; with one assignment alone there is none
     def test_known_positive_several_role_assignments_without_sprints_are_found(self):
         files = instance_files()
         teams = [p for p in files if p.startswith(ASSIGNMENTS)]
@@ -125,6 +150,11 @@ class OneRoleAssignmentOrOnePerTeam(unittest.TestCase):
         alone = {p: t for p, t in files.items() if not p.startswith(ASSIGNMENTS) or p == sorted(teams)[0]}
         self.assertEqual(with_rule(judged(alone, sprints="no")["assignments"], ONE_OR_PER_TEAM), [])
 
+    # TST-475042 · level: component · module: MOD-product-process
+    # guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+    # given: the instance's role assignments and declared model as they stand
+    # input: count of role assignments against whether the model works in sprints
+    # expect: at least one assignment for a model with sprints, exactly one without; no finding of A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
     def test_the_number_of_role_assignments_fits_the_model_one_or_one_per_team(self):
         result = judged(instance_files())
         count = len(result["holders"])
@@ -138,6 +168,11 @@ class OneRoleAssignmentOrOnePerTeam(unittest.TestCase):
 class ParticipantMayServeSeveralTeams(unittest.TestCase):
     """A PARTICIPANT MAY SERVE SEVERAL TEAMS"""
 
+    # TST-475043 · level: component · module: MOD-product-process
+    # guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+    # given: a copy of the instance files with two role assignments (the first copied if needed) that share a participant, the model's Sprints set to yes
+    # input: roleAssignmentFindings over them
+    # expect: a shared participant exists (known positive) and no error names it
     def test_a_participant_holding_roles_in_two_teams_is_no_finding(self):
         files = instance_files()
         teams = sorted(p for p in files if p.startswith(ASSIGNMENTS))

@@ -57,9 +57,9 @@ const brief = (findings) => findings.map((found) => [found.artifact, found.kind,
 
 const UC_NEW = file("docs/use-cases/UC-050-import-a-report.md", useCase("UC-050", "Import a report"));
 
+// TST-472310 · level: unit · module: MOD-job-runner
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-007 6a; THE DERIVATION RULES HOLD FOR ARCHITECTURE
-// given: a part showing UC-001 "Export a report", ARC-003 "Use a static client", MOD-reader and the item ITM-010 "Read a file"; a draft of files that holds a use case titled as UC-001 (other letters and spacing), a decision titled
-//        as ARC-003 and a module with the identifier MOD-reader, each classed new, and a use case of another title, classed new
+// given: a part showing UC-001 "Export a report", ARC-003 "Use a static client", MOD-reader and the item ITM-010 "Read a file"; a draft of files that holds a use case titled as UC-001 (other letters and spacing), a decision titled as ARC-003 and a module with the identifier MOD-reader, each classed new, and a use case of another title, classed new
 // input: the check, once, on the draft
 // expect: three errors under EXACT DUPLICATES ARE FOUND WITHOUT A MODEL, in one line each, one for each of the three files, naming UC-001, ARC-003 and MOD-reader respectively — each its own —, and none for the use case of another title
 test("candidate-classes — a drafted use case, decision or module with an existing one's key, classed new, goes back naming it", async () => {
@@ -76,6 +76,7 @@ test("candidate-classes — a drafted use case, decision or module with an exist
   assert.ok(uc.fix.includes("duplicate of UC-001"));
 });
 
+// TST-472311 · level: unit · module: MOD-job-runner
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-007 6a
 // given: the same part; a draft of items with an item titled as ITM-010 ("read A file"), classed new, and an item of another title
 // input: the check on `{ items }`
@@ -86,11 +87,11 @@ test("candidate-classes — a drafted item with an existing item's title, classe
   assert.ok(result.remaining[0].what.includes("ITM-010"));
 });
 
+// TST-472312 · level: unit · module: MOD-job-runner
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // given: the same part, which also shows a requirement named EXPORT A REPORT; a use case titled "Export a report", classed a duplicate of UC-001; a use case titled as a decision, ARC-003, classed new
 // input: the check on both drafts
-// expect: the first passes — no finding — and its class is a duplicate of UC-001 decided by rule; the second gives no finding: a decision's title is no use case's key, and the requirement of that name is
-//         not the use case's duplicate
+// expect: the first passes — no finding — and its class is a duplicate of UC-001 decided by rule; the second gives no finding: a decision's title is no use case's key, and the requirement of that name is not the use case's duplicate
 test("candidate-classes — a use case is compared with the use cases only, and a duplicate classed right passes", async () => {
   const first = await check(FILES, { files: [file("docs/use-cases/UC-051-x.md", useCase("UC-051", "Export a report"), "duplicate", "UC-001")] });
   assert.deepEqual(first.remaining, []);
@@ -99,12 +100,11 @@ test("candidate-classes — a use case is compared with the use cases only, and 
   assert.deepEqual(second.remaining, []);
 });
 
+// TST-472313 · level: unit · module: MOD-job-runner
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; DEDUPLICATED AMONG THEMSELVES
-// given: the same part; a draft of a new use case whose title no artifact has, a change of a use case that a part shows (a use case of another title, naming UC-001), a change of UC-099, which no part shows, and two new use cases of one
-//        title
+// given: the same part; a draft of a new use case whose title no artifact has, a change of a use case that a part shows (a use case of another title, naming UC-001), a change of UC-099, which no part shows, and two new use cases of one title
 // input: the check on the draft
-// expect: one error for the change of UC-099, under A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT, in one line; none for the others; `classes` holds the new use case as new decided by its participant, the change of UC-001 as it was
-//         classed, the change of UC-099 as it was, and the two use cases of one title as one class naming both paths
+// expect: one error for the change of UC-099, under A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT, in one line; none for the others; `classes` holds the new use case as new decided by its participant, the change of UC-001 as it was classed, the change of UC-099 as it was, and the two use cases of one title as one class naming both paths
 test("candidate-classes — a drafted file of no key's match keeps its class, a change names a use case a part shows, and the classes are the documents'", async () => {
   const draft = { files: [UC_NEW, file("docs/use-cases/UC-001-export-a-report.md", useCase("UC-001", "Export a report as PDF"), "change", "UC-001"),
     file("docs/use-cases/UC-070-z.md", useCase("UC-070", "Something else"), "change", "UC-099"),
@@ -121,6 +121,7 @@ test("candidate-classes — a drafted file of no key's match keeps its class, a 
     [["docs/use-cases/UC-071-a.md", "docs/use-cases/UC-072-b.md"], "new", null, "participant"]]);
 });
 
+// TST-472314 · level: unit · module: MOD-job-runner
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
 // given: the same part; a draft of files that are tests — a path under tests/, with a text that has the title of UC-001 —, and a draft whose part shows no artifact, of a use case with UC-001's title
 // input: the check on each
@@ -134,6 +135,7 @@ test("candidate-classes — a draft of tests is not classified, nor a draft whos
   assert.deepEqual([bare.remaining, bare.classes], [[], []]);
 });
 
+// TST-472315 · level: unit · module: MOD-job-runner
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // given: the part's requirement EXPORT A REPORT ("A report may be exported."); a draft of candidates with a requirement of that rule, classed new
 // input: the check on `{ candidates }`

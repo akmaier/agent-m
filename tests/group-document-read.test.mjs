@@ -47,15 +47,11 @@ const EXPECTED = {
 
 const KINDS = ["requirements", "use-cases", "architecture", "modules", "tests"];
 
+// TST-472238 · level: unit · module: MOD-group-document
 // guards: EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN; A GROUP CARRIES NO IDENTIFIER
-// given: the module file's example — a title line, a line saying what the file arranges, and a list of two groups:
-//        Review (line 5) holding UC-006 (line 6) and UC-008 (line 7), Derivation (line 8) holding UC-005 (line 9) and
-//        UC-007 (line 10)
+// given: the module file's example — a title line, a line saying what the file arranges, and a list of two groups: Review (line 5) holding UC-006 (line 6) and UC-008 (line 7), Derivation (line 8) holding UC-005 (line 9) and UC-007 (line 10)
 // input: parseGroupFile("docs/groups/use-cases.md", example); then the same text under the path of each of the five kinds
-// expect: under the use-cases path, kind "use-cases" and exactly two groups, Review then Derivation, each with its title and
-//         line, no group inside it and its two members with identifier and line, and no member at the top level; no group
-//         has an identifier; the title line and the explaining line are neither a group nor a member; under the path of
-//         each kind the same text gives the same groups and that kind
+// expect: under the use-cases path, kind "use-cases" and exactly two groups, Review then Derivation, each with its title and line, no group inside it and its two members with identifier and line, and no member at the top level; no group has an identifier; the title line and the explaining line are neither a group nor a member; under the path of each kind the same text gives the same groups and that kind
 test("parseGroupFile — the module file's example is read into its groups, their members and their lines, its kind from the path", () => {
   assert.ok(EXAMPLE.startsWith("# Use cases — groups\n") && EXAMPLE.split("\n").length === 11,
     "known positive: the module file's example was cut out whole, ten lines");
@@ -67,12 +63,11 @@ test("parseGroupFile — the module file's example is read into its groups, thei
   }
 });
 
+// TST-472239 · level: unit · module: MOD-group-document
 // guards: EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN
-// given: the module file's example; a known positive — the path docs/groups/use-cases.md of a known kind; and the path
-//        docs/groups/sprints.md, of a kind the module does not know
+// given: the module file's example; a known positive — the path docs/groups/use-cases.md of a known kind; and the path docs/groups/sprints.md, of a kind the module does not know
 // input: parseGroupFile(path, example) for each
-// expect: the known path is read, with kind "use-cases"; the unknown one throws an error named NotAGroupFile whose message
-//         names the path
+// expect: the known path is read, with kind "use-cases"; the unknown one throws an error named NotAGroupFile whose message names the path
 test("parseGroupFile — a path of an unknown kind is refused as NotAGroupFile, naming the path", () => {
   assert.equal(parseGroupFile("docs/groups/use-cases.md", EXAMPLE).kind, "use-cases", "known positive: a path of a known kind is read");
   assert.throws(() => parseGroupFile("docs/groups/sprints.md", EXAMPLE), { name: "NotAGroupFile", message: /docs\/groups\/sprints\.md/ });

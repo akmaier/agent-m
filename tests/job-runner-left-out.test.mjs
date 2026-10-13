@@ -57,12 +57,11 @@ const contextOf = (kind) => ({ kind, params: {}, product: { address: "https://gi
   places: { sources: {}, mailbox: null }, gates: [], person: "alice", now: new Date(), agentM: { version: "unreleased",
   commit: "0".repeat(40) }, jobId: null });
 
+// TST-472332 · level: component · module: MOD-job-runner
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
-// given: derive-requirements as this file's disk gives it, source-excerpt a recipe whose part may be left out; known
-//        positive first — the stand-in gives its part; then it fails with NotLinked
+// given: derive-requirements as this file's disk gives it, source-excerpt a recipe whose part may be left out; known positive first — the stand-in gives its part; then it fails with NotLinked
 // input: prepareJob("derive-requirements", its context, { drafter, reviewers: [] }) for each
-// expect: first the excerpt among the parts, not required, and nothing left out; then no excerpt, `leftOut` naming
-//         source-excerpt with the failure's own words as its reason, and the other parts as before
+// expect: first the excerpt among the parts, not required, and nothing left out; then no excerpt, `leftOut` naming source-excerpt with the failure's own words as its reason, and the other parts as before
 test("prepareJob — a part that may be left out is left out with its reason when its recipe fails", async () => {
   const kind = await kindOf("derive-requirements");
   assert.deepEqual(kind.recipes[0], { name: "source-excerpt", optional: true }, "known positive: the disk's definition is read");
@@ -80,6 +79,7 @@ test("prepareJob — a part that may be left out is left out with its reason whe
   assert.deepEqual(left.destinations[0].parts, ["SPEC.md", "08_requirements-engineering.md"]);
 });
 
+// TST-472333 · level: component · module: MOD-job-runner
 // guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: derive-requirements as above; its required recipe spec-with-queues fails with SpecUnreadable
 // input: prepareJob of it

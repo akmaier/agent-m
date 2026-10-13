@@ -73,13 +73,11 @@ const panel = (value, handlers = {}) => runPanel(value, { onRun: async () => {},
 
 // ---------------------------------------------------------------- what goes where
 
+// TST-472846 · level: unit · module: MOD-site-frame
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-005; UC-007; UC-019
-// given: a Prepared value with a drafter that receives three parts, one of which carries the content of SRC-standard, and a reviewer
-//        that receives one of them
+// given: a Prepared value with a drafter that receives three parts, one of which carries the content of SRC-standard, and a reviewer that receives one of them
 // input: runPanel(prepared, handlers)
-// expect: a run panel with one destination for each participant, in order, each naming the participant, its role, its model and its
-//         place, and listing the parts it receives, each with its name and its size in tokens, the source identifier only on the part
-//         that carries it; the size of the whole against the participant's context
+// expect: a run panel with one destination for each participant, in order, each naming the participant, its role, its model and its place, and listing the parts it receives, each with its name and its size in tokens, the source identifier only on the part that carries it; the size of the whole against the participant's context
 test("runPanel — every destination with its participant, role, model and place, and the parts sent there with their sizes", () => {
   const element = panel(prepared());
 
@@ -105,11 +103,11 @@ test("runPanel — every destination with its participant, role, model and place
   assert.ok(said(second).includes("5800") && said(second).includes("9000"), said(second));
 });
 
+// TST-472847 · level: unit · module: MOD-site-frame
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-005
 // given: the Prepared value above, and one whose only destination is a person, who has no model, no place and no context
 // input: runPanel for each
-// expect: the first names the model and the place; the second says the model, the place and the context are not declared, and prints
-//         neither null nor undefined
+// expect: the first names the model and the place; the second says the model, the place and the context are not declared, and prints neither null nor undefined
 test("runPanel — a model, a place or a context that is not declared is said so, never printed as null", () => {
   assert.ok(said(panel(prepared())).includes("model-a"), "known positive: a declared model is named");
 
@@ -122,12 +120,11 @@ test("runPanel — a model, a place or a context that is not declared is said so
 
 // ---------------------------------------------------------------- what does not fit, what is left out, what blocks
 
+// TST-472848 · level: unit · module: MOD-site-frame
 // guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; UC-019
-// given: the Prepared value above, to show Run offered; then one in which the reviewer's context of 9000 tokens cannot hold the 12000
-//        it would receive, so that fits is false and notFitting names the reviewer
+// given: the Prepared value above, to show Run offered; then one in which the reviewer's context of 9000 tokens cannot hold the 12000 it would receive, so that fits is false and notFitting names the reviewer
 // input: runPanel for each
-// expect: with the first a Run button; with the second no Run button, and one statement of what does not fit, naming CI reviewer, the
-//         12000 tokens and the 9000 its context holds
+// expect: with the first a Run button; with the second no Run button, and one statement of what does not fit, naming CI reviewer, the 12000 tokens and the 9000 its context holds
 test("runPanel — a participant whose context is too small is named with what it cannot hold, and Run is not offered", () => {
   assert.ok(buttonNamed(panel(prepared()), "Run"), "known positive: Run is offered when everything fits");
   assert.equal(byClass(panel(prepared()), "not-fitting").length, 0);
@@ -142,12 +139,11 @@ test("runPanel — a participant whose context is too small is named with what i
   for (const word of ["CI reviewer", "12000", "9000"]) assert.ok(text.includes(word), `${word} in "${text}"`);
 });
 
+// TST-472849 · level: unit · module: MOD-site-frame
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-005
-// given: a Prepared value whose only destination is a person, whose context is not declared and who therefore is not in notFitting,
-//        to show Run offered; and one whose notFitting names three participants, the third a person whose context is null
+// given: a Prepared value whose only destination is a person, whose context is not declared and who therefore is not in notFitting, to show Run offered; and one whose notFitting names three participants, the third a person whose context is null
 // input: runPanel for each
-// expect: Run for the first; for the second one statement for each participant, in order — the last, a participant whose context is not
-//         declared, saying so —, and no Run
+// expect: Run for the first; for the second one statement for each participant, in order — the last, a participant whose context is not declared, saying so —, and no Run
 test("runPanel — every participant that does not fit is named, one statement each", () => {
   const unknown = prepared({ destinations: [{ participant: person, role: "drafter", place: "", parts: [CHAPTER.name], size: 345 }] });
   assert.ok(buttonNamed(panel(unknown), "Run"), "known positive: a context that is not declared blocks nothing");
@@ -164,12 +160,11 @@ test("runPanel — every participant that does not fit is named, one statement e
   assert.equal(buttonNamed(element, "Run"), null);
 });
 
+// TST-472850 · level: unit · module: MOD-site-frame
 // guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-005; UC-007
-// given: the Prepared value above, and one in which a part of a recipe that may be left out was left out, with the reason
-//        "the register entry SRC-standard records no version"
+// given: the Prepared value above, and one in which a part of a recipe that may be left out was left out, with the reason "the register entry SRC-standard records no version"
 // input: runPanel for each
-// expect: the first shows no part left out; the second shows that part's recipe and its reason, once, and still offers Run — a part
-//         left out keeps nothing from starting
+// expect: the first shows no part left out; the second shows that part's recipe and its reason, once, and still offers Run — a part left out keeps nothing from starting
 test("runPanel — a part left out is shown with its reason, and does not keep the job from starting", () => {
   assert.equal(byClass(panel(prepared()), "left-out").length, 0, "known positive: nothing left out, nothing shown");
 
@@ -181,9 +176,9 @@ test("runPanel — a part left out is shown with its reason, and does not keep t
   assert.ok(buttonNamed(element, "Run"));
 });
 
+// TST-472851 · level: unit · module: MOD-site-frame
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-019
-// given: the Prepared value above with two findings that keep the job from starting: an error that a participant lacks a capability,
-//        and one that a restricted source may not go to the reviewer's place
+// given: the Prepared value above with two findings that keep the job from starting: an error that a participant lacks a capability, and one that a restricted source may not go to the reviewer's place
 // input: runPanel
 // expect: each finding shown once, in order, with its kind, what it says, its fix and its rule; no Run button
 test("runPanel — a finding that keeps the job from starting is shown whole, and Run is not offered", () => {
@@ -206,6 +201,7 @@ test("runPanel — a finding that keeps the job from starting is shown whole, an
 
 // ---------------------------------------------------------------- the limit
 
+// TST-472852 · level: unit · module: MOD-site-frame
 // guards: THE CORRECTION LOOP HAS A FIXED LIMIT; UC-005; UC-007; UC-019
 // given: the Prepared value above with the limit 5, and one with the limit 3
 // input: runPanel for each
@@ -221,6 +217,7 @@ test("runPanel — the limit of correction rounds fixed for the job", () => {
 
 // ---------------------------------------------------------------- the decision
 
+// TST-472853 · level: unit · module: MOD-site-frame
 // guards: ONE CLICK PER DECISION; THE PAGE STATES WHAT IT SENDS WHERE; UC-005 step 3
 // given: the Prepared value above, a handler onRun that counts its calls
 // input: runPanel, nothing pressed; then Run pressed twice
@@ -240,6 +237,7 @@ test("runPanel — pressing Run calls onRun once, and not before", async () => {
   assert.equal(run.hasAttribute("disabled"), true);
 });
 
+// TST-472854 · level: unit · module: MOD-site-frame
 // guards: ONE CLICK PER DECISION; UC-019 5a
 // given: the Prepared value above; handlers with and without onCancel
 // input: runPanel for each; Cancel pressed where it is offered
@@ -257,6 +255,7 @@ test("runPanel — Cancel is offered only with onCancel, and calls it", () => {
 
 // ---------------------------------------------------------------- text is shown as text
 
+// TST-472855 · level: unit · module: MOD-site-frame
 // guards: THE PAGE STATES WHAT IT SENDS WHERE
 // given: a Prepared value whose participant, part, left-out reason and finding hold markup
 // input: runPanel

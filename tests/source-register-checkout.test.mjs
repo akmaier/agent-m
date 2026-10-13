@@ -57,11 +57,11 @@ const checkout = (files = FILES) => { const folder = checkoutWith(files); folder
 test.after(() => { for (const folder of folders) rmSync(folder, { recursive: true, force: true }); });
 const pathOf = (folder, name) => join(realpathSync(folder), "docs", "sources", BOOK, VERSION, name);
 
+// TST-472888 · level: unit · module: MOD-source-register
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING
 // given: a checkout of the instance holding six chapter files, and a context naming it; each recipe's chapters (8; 13; 9, 10, 11, 12; 9, 11, 12, 13)
 // input: each of the four recipes
-// expect: one part per chapter, in the recipe's order, whose text is the path of that chapter's file in the checkout — and holds none of the chapter's text —, naming SRC-vibe-coding as
-//         its only source, required, and its name the file, the version and the version's hash; no chapter file read through the instance's snapshot
+// expect: one part per chapter, in the recipe's order, whose text is the path of that chapter's file in the checkout — and holds none of the chapter's text —, naming SRC-vibe-coding as its only source, required, and its name the file, the version and the version's hash; no chapter file read through the instance's snapshot
 test("chapter recipes — in a checkout, each part holds the path of its chapter's file and none of its text", async () => {
   const folder = checkout();
   for (const [name, chapters] of Object.entries(CHAPTERS)) {
@@ -78,11 +78,11 @@ test("chapter recipes — in a checkout, each part holds the path of its chapter
   }
 });
 
+// TST-472889 · level: unit · module: MOD-source-register
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: known positive first — the checkout as it is; then the checkout whose chapter 8 file has other bytes than the version records; then one that lacks chapter 8's file
 // input: chapters-for-requirements on each
-// expect: the path for the first; HashMismatch naming the file, the hash the version records and the hash found, for the second; ContentUnreadable naming the missing file for the third; no
-//         part of either
+// expect: the path for the first; HashMismatch naming the file, the hash the version records and the hash found, for the second; ContentUnreadable naming the missing file for the third; no part of either
 test("chapter recipes — a chapter file in the checkout whose bytes differ fails by name, and so does a missing one", async () => {
   assert.equal((await recipe("chapters-for-requirements", contextOf(checkout()).context)).length, 1, "known positive");
   const changed = checkout({ ...FILES, [fileOf(8)]: `${FILES[fileOf(8)]}x` });
@@ -92,6 +92,7 @@ test("chapter recipes — a chapter file in the checkout whose bytes differ fail
   await assert.rejects(recipe("chapters-for-requirements", contextOf(checkout(without)).context), (error) => error.name === "ContentUnreadable" && error.reason.includes(fileOf(8)));
 });
 
+// TST-472890 · level: unit · module: MOD-source-register
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
 // given: the checkout; a changed chapter file that no part of the recipe names (chapter 10, for chapters-for-requirements)
 // input: chapters-for-requirements
@@ -102,6 +103,7 @@ test("chapter recipes — only the files of the recipe's own chapters are checke
   assert.equal(realpathSync(part.text), pathOf(folder, fileOf(8)));
 });
 
+// TST-472891 · level: unit · module: MOD-source-register
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
 // given: a context with a checkout, and an instance whose newest version holds no file for chapter 13
 // input: chapters-for-tests; chapters-for-requirements on the same, as a known positive
@@ -114,6 +116,7 @@ test("chapter recipes — a chapter the version lacks is refused as ChapterMissi
   await assert.rejects(recipe("chapters-for-tests", contextOf(folder, { entry }).context), (error) => error.name === "ChapterMissing" && error.chapter === 13 && error.version === VERSION);
 });
 
+// TST-472892 · level: unit · module: MOD-source-register
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE
 // given: an entry whose note says chapter 8's file was only hashed (`not stored:`, ITM-455), and a checkout that holds a file of that name all the same
 // input: chapters-for-requirements; chapters-for-tests as a known positive
@@ -126,6 +129,7 @@ test("chapter recipes — a chapter file that was only hashed is not given from 
   await assert.rejects(recipe("chapters-for-requirements", contextOf(folder, { entry }).context), (error) => error.name === "ChapterMissing" && error.chapter === 8);
 });
 
+// TST-472893 · level: unit · module: MOD-source-register
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; A RUNTIME IS INTERCHANGEABLE
 // given: a context without a checkout — `null`, as in a browser, and with no such key —, the chapter files in the instance's snapshot
 // input: each recipe
@@ -139,6 +143,7 @@ test("chapter recipes — without a checkout, the whole texts", async () => {
   }
 });
 
+// TST-472894 · level: unit · module: MOD-source-register
 // guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
 // given: this repository itself as the checkout of the instance, its snapshot read from the disk; its register entry docs/sources/SRC-vibe-coding.md
 // input: each of the four recipes, with the repository's root as the checkout

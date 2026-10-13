@@ -202,18 +202,11 @@ const lacking = ({ path, text, last }) => ({ path, text: `${text.slice(0, text.i
 
 // ---------------------------------------------------------------- the correction loop
 
-// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; A USE CASE HAS
-//         ACTOR, PRECONDITION, FLOW AND POSTCONDITION; AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND
-//         CONSEQUENCES
-// given: a kind that names document-schema and no other check, its result reviewed by a person; a drafter that first
-//        drafts four files — a use case without its ## Postcondition, an architecture decision without its ## Consequences,
-//        a module's file without its ## Uses and an item without its ## Acceptance —, then the same four whole, answering
-//        each finding as fixed; known positive: the check passes the four whole documents
+// TST-472324 · level: unit · module: MOD-job-runner
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION; AN ARCHITECTURE DECISION STATES CONTEXT, DECISION, ALTERNATIVES AND CONSEQUENCES
+// given: a kind that names document-schema and no other check, its result reviewed by a person; a drafter that first drafts four files — a use case without its ## Postcondition, an architecture decision without its ## Consequences, a module's file without its ## Uses and an item without its ## Acceptance —, then the same four whole, answering each finding as fixed; known positive: the check passes the four whole documents
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with the four findings and the first draft; each finding an error in the
-//         compiler form — artifact:line, kind, what, [the requirement of its document's format], the correction —, in the
-//         order of the files; two rounds, the first with the four findings each answered fixed, the second with none;
-//         stopped because passed; the corrected draft the result's draft, nothing remaining
+// expect: the drafter asked twice, the second time with the four findings and the first draft; each finding an error in the compiler form — artifact:line, kind, what, [the requirement of its document's format], the correction —, in the order of the files; two rounds, the first with the four findings each answered fixed, the second with none; stopped because passed; the corrected draft the result's draft, nothing remaining
 test("document-schema — documents that lack a required section go back to the drafter in the compiler form, and the corrected draft ends the loop", async () => {
   const lines = DOCUMENTS.map((document) => document.found);
   const first = { files: DOCUMENTS.map(lacking) };

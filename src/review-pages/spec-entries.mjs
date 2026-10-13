@@ -27,7 +27,7 @@ const tickable = (item) => acceptable(item) || item.state === "waiting for its a
 const shownOf = (queue, item, view) => ({ queue: queue.folder, entry: item.number, proposalBlob: view.proposal.blob, sectionBlob: view.current?.blob ?? "" });
 
 // The product's links and the instance's register, which acceptEntries checks every requirement's source against.
-async function sourcesOf({ snapshot, context }) {
+export async function sourcesOf({ snapshot, context }) {
   const { entry: entrySchema, links: linksSchema } = sourceSchemas();
   let holder = snapshot;
   if (context.product) {

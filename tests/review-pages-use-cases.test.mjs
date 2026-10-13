@@ -380,13 +380,11 @@ const recordTextOf = (id, path, body) => recordOf(id, path, body)[1];
 
 // ---------------------------------------------------------------- the list
 
+// TST-472678 · level: unit · module: MOD-review-pages
 // guards: STATUS IS DERIVED FROM THE RECORDS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; EVERY STEP EXPLAINS ITSELF
-// given: a product whose `main` holds four use cases — UC-041 and UC-044 with no record, UC-042 with a record naming its current
-//        text, UC-043 with a record naming an earlier text —, and a token stored in this browser
+// given: a product whose `main` holds four use cases — UC-041 and UC-044 with no record, UC-042 with a record naming its current text, UC-043 with a record naming an earlier text —, and a token stored in this browser
 // input: the route `use-case` rendered with no id; and again for the instance itself, no product chosen
-// expect: a row for each use case with its id as a link to its page, its title and its status — open, accepted, changed since
-//         acceptance —; a tick on each use case that is not accepted, none on UC-042; the folded "What is this?"; for the
-//         instance the same rows; nothing written
+// expect: a row for each use case with its id as a link to its page, its title and its status — open, accepted, changed since acceptance —; a tick on each use case that is not accepted, none on UC-042; the folded "What is this?"; for the instance the same rows; nothing written
 test("MOD-review-pages use-case — the list: every use case with its status and a tick", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -410,12 +408,11 @@ test("MOD-review-pages use-case — the list: every use case with its status and
 
 // ---------------------------------------------------------------- one use case
 
+// TST-472679 · level: unit · module: MOD-review-pages
 // guards: UC-008; THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW; AN APPROVAL NAMES THE EXACT TEXT; EVERY STEP EXPLAINS ITSELF
 // given: the product above, UC-041 open, its text holding a Mermaid diagram, and a token stored
 // input: the route `use-case` rendered with the id UC-041
-// expect: its identifier, title and status open; its prose rendered, and its diagram handed to the renderer; the first twelve
-//         digits of the blob of the text shown; one Accept button, pressable; no difference to a last accepted text; the folded
-//         "What is this?"; nothing written
+// expect: its identifier, title and status open; its prose rendered, and its diagram handed to the renderer; the first twelve digits of the blob of the text shown; one Accept button, pressable; no difference to a last accepted text; the folded "What is this?"; nothing written
 test("MOD-review-pages use-case/<id> — one use case with its text, its diagram and Accept", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -437,12 +434,11 @@ test("MOD-review-pages use-case/<id> — one use case with its text, its diagram
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472680 · level: unit · module: MOD-review-pages
 // guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; ONE CLICK PER DECISION
 // given: UC-041 shown with its Accept, the token stored
 // input: a click on Accept
-// expect: one commit on `main`, on the head that was read, whose message names the person the token is stored under, holding one file, the record docs/approvals/UC-041-<blob12>.md whose
-//         text is "kind: use-case", "file: <the use case's path>", "blob: <the blob of the text shown>"; the page then shows
-//         UC-041 as accepted, with no Accept, and says which commit accepted it
+// expect: one commit on `main`, on the head that was read, whose message names the person the token is stored under, holding one file, the record docs/approvals/UC-041-<blob12>.md whose text is "kind: use-case", "file: <the use case's path>", "blob: <the blob of the text shown>"; the page then shows UC-041 as accepted, with no Accept, and says which commit accepted it
 test("MOD-review-pages use-case/<id> — Accept writes one record naming the blob shown, and the use case is accepted", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -463,12 +459,11 @@ test("MOD-review-pages use-case/<id> — Accept writes one record naming the blo
 
 // ---------------------------------------------------------------- several at once
 
+// TST-472681 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT
-// given: the list shown with a token; UC-041, UC-043 and UC-044 ticked, and UC-043 unticked again; then another writer's commit
-//        changed UC-044 on `main`
+// given: the list shown with a token; UC-041, UC-043 and UC-044 ticked, and UC-043 unticked again; then another writer's commit changed UC-044 on `main`
 // input: a click on Accept ticked
-// expect: the number ticked 2, then one commit holding one record, UC-041's — not UC-043's —, naming the blob that was shown; UC-044 left out and named with the reason
-//         that it changed since it was shown, and still open; UC-041 accepted
+// expect: the number ticked 2, then one commit holding one record, UC-041's — not UC-043's —, naming the blob that was shown; UC-044 left out and named with the reason that it changed since it was shown, and still open; UC-041 accepted
 test("MOD-review-pages use-case — two ticked use cases are accepted in one commit, the one changed after it was shown is left out and named", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -496,11 +491,11 @@ test("MOD-review-pages use-case — two ticked use cases are accepted in one com
 
 // ---------------------------------------------------------------- changed since acceptance
 
+// TST-472682 · level: unit · module: MOD-review-pages
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; EVERY STEP EXPLAINS ITSELF
 // given: UC-043, changed since its text was accepted — the record names an earlier text —, and UC-042, accepted
 // input: the route use-case rendered for each
-// expect: for UC-043 above its text a difference from the last accepted text to the text shown — the earlier sentence marked
-//         removed, the new one added —, headed "Changed since it was last accepted", and Accept; for UC-042 no difference
+// expect: for UC-043 above its text a difference from the last accepted text to the text shown — the earlier sentence marked removed, the new one added —, headed "Changed since it was last accepted", and Accept; for UC-042 no difference
 test("MOD-review-pages use-case/<id> — a changed use case is shown with its difference to the last accepted text", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -521,12 +516,11 @@ test("MOD-review-pages use-case/<id> — a changed use case is shown with its di
 
 // ---------------------------------------------------------------- without a token
 
+// TST-472683 · level: unit · module: MOD-review-pages
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product and no token stored in this browser; UC-041 open
 // input: the route use-case rendered with the id UC-041
-// expect: no Accept; a link to GitHub's new-file page of the repository whose address holds the record's path as `filename` and
-//         the record as `value` and nothing else — no line of the use case's text, not its title —; and, beside it, the record
-//         with its path to copy; nothing written
+// expect: no Accept; a link to GitHub's new-file page of the repository whose address holds the record's path as `filename` and the record as `value` and nothing else — no line of the use case's text, not its title —; and, beside it, the record with its path to copy; nothing written
 test("MOD-review-pages use-case/<id> — without a token on GitHub: GitHub's prefilled page, a link that holds no text, and the record to copy", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -548,12 +542,11 @@ test("MOD-review-pages use-case/<id> — without a token on GitHub: GitHub's pre
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472684 · level: unit · module: MOD-review-pages
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL (A GITHUB PRODUCT USES A TOKEN OF ITS OWN)
-// given: a GitHub product with no token of its own stored in this browser; the instance's own token is stored, and is no token
-//        of this product; UC-041 open
+// given: a GitHub product with no token of its own stored in this browser; the instance's own token is stored, and is no token of this product; UC-041 open
 // input: the route use-case rendered with the id UC-041, and the list
-// expect: no Accept, no tick, no Accept ticked; the link to GitHub's new-file page with the record's path and the record, nothing
-//         else; nothing written
+// expect: no Accept, no tick, no Accept ticked; the link to GitHub's new-file page with the record's path and the record, nothing else; nothing written
 test("MOD-review-pages use-case/<id> — a GitHub product without a token of its own: the instance's token is none, GitHub's page is offered", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -569,12 +562,11 @@ test("MOD-review-pages use-case/<id> — a GitHub product without a token of its
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472685 · level: unit · module: MOD-review-pages
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
-// given: a product on a GitLab server, no token of its own stored in this browser — the instance's GitHub token is stored, and is
-//        no token for a GitLab server; the list and UC-041
+// given: a product on a GitLab server, no token of its own stored in this browser — the instance's GitHub token is stored, and is no token for a GitLab server; the list and UC-041
 // input: the route use-case rendered for the list and for UC-041
-// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that
-//         stores the project's token, #add-product
+// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that stores the project's token, #add-product
 test("MOD-review-pages use-case — a GitLab product without a token: no Accept, and the token's step linked", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost({ repository: ON_GITLAB });
@@ -591,11 +583,11 @@ test("MOD-review-pages use-case — a GitLab product without a token: no Accept,
 
 // ---------------------------------------------------------------- no write access
 
+// TST-472686 · level: unit · module: MOD-review-pages
 // guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a token stored that may not write to the repository: the host refuses the commit with PermissionMissing
 // input: a click on Accept of UC-041
-// expect: the refusal said in the host's words; the GitHub path offered — the link to GitHub's new-file page with the record;
-//         nothing written, UC-041 still open
+// expect: the refusal said in the host's words; the GitHub path offered — the link to GitHub's new-file page with the record; nothing written, UC-041 still open
 test("MOD-review-pages use-case/<id> — PermissionMissing: the GitHub path is offered", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const refusal = failure("PermissionMissing", "Your token may not write to https://github.com/alice/thesis-tool: it lacks Contents.", { permission: "Contents" });
@@ -614,6 +606,7 @@ test("MOD-review-pages use-case/<id> — PermissionMissing: the GitHub path is o
 
 // ---------------------------------------------------------------- only on the person's click
 
+// TST-472687 · level: unit · module: MOD-review-pages
 // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a token stored; the list, an open use case and a changed one rendered, and the ticks changed
 // input: rendering, ticking and unticking — no click on Accept or on Accept ticked

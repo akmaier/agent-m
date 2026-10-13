@@ -195,10 +195,9 @@ const SAMPLE_REFERENCED_BY = ["UC-001", "UC-002", "ARC-001", "ITM-002", "TST-001
 
 // ---------------------------------------------------------------- the states stale and waiting for its anchor
 
+// TST-472964 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
-// given: the queue's entry 01 on "## 1. Reading", whose proposal has a record under its current blob — twice: the record names the blob of
-//        the section as the SPEC holds it now (the text the reviewer saw is the text that holds), and the record names the blob of the
-//        section as it stood one rule's wording earlier (the section changed after the reviewer saw it); no decision row names either
+// given: the queue's entry 01 on "## 1. Reading", whose proposal has a record under its current blob — twice: the record names the blob of the section as the SPEC holds it now (the text the reviewer saw is the text that holds), and the record names the blob of the section as it stood one rule's wording earlier (the section changed after the reviewer saw it); no decision row names either
 // input: queues(snapshot) for each
 // expect: the first approved, with the record as its record; the second stale, with the same record, and no entry creating its anchor
 test("queues — an entry whose section changed after it was shown reads stale", async () => {
@@ -218,13 +217,11 @@ test("queues — an entry whose section changed after it was shown reads stale",
   assert.equal(changed.found.createdBy, null);
 });
 
+// TST-472965 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
-// given: entry 01 with a proposal that changed after it was approved: a record whose file name names the blob of the proposal as it was
-//        (PROPOSAL_RENAMED) while the entry's file holds PROPOSAL now; and, to show the same fixture giving approved, a record under the
-//        blob of the proposal as it holds now
+// given: entry 01 with a proposal that changed after it was approved: a record whose file name names the blob of the proposal as it was (PROPOSAL_RENAMED) while the entry's file holds PROPOSAL now; and, to show the same fixture giving approved, a record under the blob of the proposal as it holds now
 // input: queues(snapshot) for each
-// expect: approved for the record under the current blob, with that record as its record; stale for the record under the earlier blob,
-//         with no record of its own — no record names the proposal as it holds now
+// expect: approved for the record under the current blob, with that record as its record; stale for the record under the earlier blob, with no record of its own — no record names the proposal as it holds now
 test("queues — an entry whose proposal changed after it was approved reads stale", async () => {
   const item = entry(1, "## 1. Reading", PROPOSAL);
   const approvedOn = async (proposal) => {
@@ -241,12 +238,11 @@ test("queues — an entry whose proposal changed after it was approved reads sta
   assert.equal(earlier.found.proposal.blob, gitBlob(PROPOSAL), "the proposal is the one that holds now");
 });
 
+// TST-472966 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: a queue whose entry 01 replaces "## 1. Reading" with section 1 followed by a section "## 1a. Added", and whose entry 02 starts
-//        with "## 1a. Added", a heading the SPEC does not hold; and, to show the same call giving open, the SPEC with that section in it
+// given: a queue whose entry 01 replaces "## 1. Reading" with section 1 followed by a section "## 1a. Added", and whose entry 02 starts with "## 1a. Added", a heading the SPEC does not hold; and, to show the same call giving open, the SPEC with that section in it
 // input: queues(snapshot) for each
-// expect: with the section in the SPEC both entries open with createdBy null; without it entry 01 open with createdBy null and entry 02
-//         waiting for its anchor with createdBy 1
+// expect: with the section in the SPEC both entries open with createdBy null; without it entry 01 open with createdBy null and entry 02 waiting for its anchor with createdBy 1
 test("queues — an entry whose anchor an earlier entry creates reads waiting for its anchor, createdBy naming it", async () => {
   const creator = entry(1, "## 1. Reading", PROPOSAL + ADDED);
   const waiting = entry(2, "## 1a. Added", ADDED_CHANGED);
@@ -257,13 +253,11 @@ test("queues — an entry whose anchor an earlier entry creates reads waiting fo
   assert.deepEqual(await found(SPEC), [[1, "open", null], [2, "waiting for its anchor", 1]]);
 });
 
+// TST-472967 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: the two proposals of the test above, to show the same call finding the entry that waits; then the same two in the other order of
-//        the queue's index (the entry that starts with "## 1a. Added" is entry 01, the one that holds the heading is entry 02); and two
-//        entries that both start with "## 3. Deleting", which the SPEC does not hold, and whose proposals both hold it
+// given: the two proposals of the test above, to show the same call finding the entry that waits; then the same two in the other order of the queue's index (the entry that starts with "## 1a. Added" is entry 01, the one that holds the heading is entry 02); and two entries that both start with "## 3. Deleting", which the SPEC does not hold, and whose proposals both hold it
 // input: queues(snapshot) for each
-// expect: in the first, entry 02 waits for entry 01; in the other two no entry waits and none is created by another — a later entry does
-//         not create an earlier one's anchor, and an entry with the same anchor creates nothing for it: all four open, createdBy null
+// expect: in the first, entry 02 waits for entry 01; in the other two no entry waits and none is created by another — a later entry does not create an earlier one's anchor, and an entry with the same anchor creates nothing for it: all four open, createdBy null
 test("queues — only an earlier entry with another anchor creates an anchor", async () => {
   const states = async (entries) => (await queues(snapshotOf(repositoryFiles({ entries }))))[0].entries.map((e) => [e.number, e.state, e.createdBy]);
   // Known positive: the earlier entry holds the heading, and the later one waits for it.
@@ -275,13 +269,11 @@ test("queues — only an earlier entry with another anchor creates an anchor", a
     [[1, "open", null], [2, "open", null]]);
 });
 
+// TST-472968 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER
-// given: the entries of the tests above that would read stale and waiting, with what the states need taken away: the snapshot without
-//        the target (no SPEC.md), so that no section can be compared and no anchor can be found; and, with the target, a record the
-//        snapshot lists but cannot read
+// given: the entries of the tests above that would read stale and waiting, with what the states need taken away: the snapshot without the target (no SPEC.md), so that no section can be compared and no anchor can be found; and, with the target, a record the snapshot lists but cannot read
 // input: queues(snapshot) for each
-// expect: no new state without the evidence — the entry whose record is under the current blob stays approved (the state ITM-234 derives
-//         from the record's name), and the entry that would wait stays open with createdBy null
+// expect: no new state without the evidence — the entry whose record is under the current blob stays approved (the state ITM-234 derives from the record's name), and the entry that would wait stays open with createdBy null
 test("queues — what cannot be read gives no evidence, and the entry keeps the state its files give", async () => {
   const stale = entry(1, "## 1. Reading", PROPOSAL);
   const creator = entry(2, "## 1. Reading", PROPOSAL + ADDED);
@@ -301,14 +293,11 @@ test("queues — what cannot be read gives no evidence, and the entry keeps the 
     "a record the snapshot cannot read is no evidence against the entry that the record's name approves");
 });
 
+// TST-472969 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER
-// given: four entries, two of them decided, that the records and the SPEC would make stale or waiting if they were not: entry 01 on
-//        "## 2. Writing", decided, whose record names a section that is not the one that holds; entry 02 on "## 1. Reading", not decided,
-//        whose proposal creates "## 1a. Added" and "## 1b. Also"; entry 03 on "## 1a. Added", decided, whose anchor the SPEC does not
-//        hold; entry 04 on "## 1b. Also", not decided, whose anchor the SPEC does not hold either
+// given: four entries, two of them decided, that the records and the SPEC would make stale or waiting if they were not: entry 01 on "## 2. Writing", decided, whose record names a section that is not the one that holds; entry 02 on "## 1. Reading", not decided, whose proposal creates "## 1a. Added" and "## 1b. Also"; entry 03 on "## 1a. Added", decided, whose anchor the SPEC does not hold; entry 04 on "## 1b. Also", not decided, whose anchor the SPEC does not hold either
 // input: queues(snapshot)
-// expect: entries 01 and 03 in SPEC with createdBy null — a decision row decides the state —, entry 02 open with createdBy null, and,
-//         to show the same call finding what waits, entry 04 waiting for its anchor with createdBy 2
+// expect: entries 01 and 03 in SPEC with createdBy null — a decision row decides the state —, entry 02 open with createdBy null, and, to show the same call finding what waits, entry 04 waiting for its anchor with createdBy 2
 test("queues — an entry a decision row names is in SPEC, whatever else the snapshot shows", async () => {
   const writing = entry(1, "## 2. Writing", WRITING.replace("whole", "entirely"));
   const reading = entry(2, "## 1. Reading", PROPOSAL + ADDED + ALSO);
@@ -324,12 +313,11 @@ test("queues — an entry a decision row names is in SPEC, whatever else the sna
   assert.equal(queue.entries[0].decision, decided[0].record.path);
 });
 
+// TST-472970 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: the waiting test's two entries, to show the same call finding the entry that waits; then the same two with entry 01's proposal
-//        holding the heading "## 1a. Added" only as a mention — in a line of prose and in a fenced block of code — and not as a section
+// given: the waiting test's two entries, to show the same call finding the entry that waits; then the same two with entry 01's proposal holding the heading "## 1a. Added" only as a mention — in a line of prose and in a fenced block of code — and not as a section
 // input: queues(snapshot) for each
-// expect: entry 02 waiting for entry 01 in the first; in the second both entries open with createdBy null, since a heading that is only
-//         mentioned is not created
+// expect: entry 02 waiting for entry 01 in the first; in the second both entries open with createdBy null, since a heading that is only mentioned is not created
 test("queues — a mention of a heading is no creation of it", async () => {
   const mention = PROPOSAL + "See ## 1a. Added for more.\n\n```text\n## 1a. Added\n```\n";
   const states = async (creating) => (await queues(snapshotOf(repositoryFiles({ entries: [entry(1, "## 1. Reading", creating), entry(2, "## 1a. Added", ADDED_CHANGED)] }))))[0]
@@ -338,24 +326,22 @@ test("queues — a mention of a heading is no creation of it", async () => {
   assert.deepEqual(await states(mention), [[1, "open", null], [2, "open", null]]);
 });
 
+// TST-472971 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: entry 01 on "## 1. Reading" and entry 02 on "## 2. Writing", both with proposals that hold the heading "## 1a. Added", and
-//        entry 03 on "## 1a. Added", which the SPEC does not hold
+// given: entry 01 on "## 1. Reading" and entry 02 on "## 2. Writing", both with proposals that hold the heading "## 1a. Added", and entry 03 on "## 1a. Added", which the SPEC does not hold
 // input: queues(snapshot)
-// expect: entry 03 waits for its anchor, which entry 01 creates — the first entry of the index that holds it — and not entry 02;
-//         entries 01 and 02 are open with createdBy null
+// expect: entry 03 waits for its anchor, which entry 01 creates — the first entry of the index that holds it — and not entry 02; entries 01 and 02 are open with createdBy null
 test("queues — of several earlier entries that hold a heading, the first creates it", async () => {
   const entries = [entry(1, "## 1. Reading", PROPOSAL + ADDED), entry(2, "## 2. Writing", WRITING + "\n" + ADDED), entry(3, "## 1a. Added", ADDED_CHANGED)];
   const [queue] = await queues(snapshotOf(repositoryFiles({ entries })));
   assert.deepEqual(queue.entries.map((e) => [e.number, e.state, e.createdBy]), [[1, "open", null], [2, "open", null], [3, "waiting for its anchor", 1]]);
 });
 
+// TST-472972 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
-// given: entry 01 with a record under its current blob that names the section as it holds now, to show the same call finding it
-//        approved; and the same record with its `section` line taken out
+// given: entry 01 with a record under its current blob that names the section as it holds now, to show the same call finding it approved; and the same record with its `section` line taken out
 // input: queues(snapshot) for each
-// expect: approved for the first; stale for the second, with the record as its record: a record that names no section is not an approval
-//         of the section that holds
+// expect: approved for the first; stale for the second, with the record as its record: a record that names no section is not an approval of the section that holds
 test("queues — a record that names no section does not approve the section that holds", async () => {
   const item = entry(1, "## 1. Reading", PROPOSAL);
   const whole = record(item, { section: READING });
@@ -367,12 +353,11 @@ test("queues — a record that names no section does not approve the section tha
   assert.equal(bare.entries[0].record, without.path);
 });
 
+// TST-472973 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: entry 01 on "## 1. Reading", whose proposal creates "## 1a. Added", and entry 02 on "## 1a. Added", a heading the SPEC does not
-//        hold, with a record under its proposal's current blob that names the section as entry 01 will write it
+// given: entry 01 on "## 1. Reading", whose proposal creates "## 1a. Added", and entry 02 on "## 1a. Added", a heading the SPEC does not hold, with a record under its proposal's current blob that names the section as entry 01 will write it
 // input: queues(snapshot)
-// expect: entry 01 open with createdBy null; entry 02 approved, with the record as its record and createdBy 1 — it is approved, no
-//         section holds now to compare the record with, and it comes after entry 01
+// expect: entry 01 open with createdBy null; entry 02 approved, with the record as its record and createdBy 1 — it is approved, no section holds now to compare the record with, and it comes after entry 01
 test("queues — an entry whose record names its current proposal is approved though an earlier entry creates its anchor", async () => {
   const creating = entry(1, "## 1. Reading", PROPOSAL + ADDED);
   const after = entry(2, "## 1a. Added", ADDED_CHANGED);
@@ -382,14 +367,11 @@ test("queues — an entry whose record names its current proposal is approved th
   assert.equal(queue.entries[1].record, approval.path);
 });
 
+// TST-472974 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006
-// given: the entries of the "what cannot be read" test — entry 01 with a record that names an earlier section, entry 02 that creates
-//        "## 1a. Added", entry 03 that starts with it —, first in a queue whose line "Zieldatei aller Einträge" names SPEC.md, to show
-//        the states and the views they give; then in a queue whose line names products/sample/SPEC.md, the path of the SPEC where the
-//        queue was written, which the snapshot does not hold, while its three rows name SPEC.md, which it does
+// given: the entries of the "what cannot be read" test — entry 01 with a record that names an earlier section, entry 02 that creates "## 1a. Added", entry 03 that starts with it —, first in a queue whose line "Zieldatei aller Einträge" names SPEC.md, to show the states and the views they give; then in a queue whose line names products/sample/SPEC.md, the path of the SPEC where the queue was written, which the snapshot does not hold, while its three rows name SPEC.md, which it does
 // input: queues(snapshot), entryView(QUEUE, 1, snapshot) and entryView(QUEUE, 3, snapshot) for each
-// expect: the same in both: stale, open and waiting for its anchor with createdBy 2; the view of entry 01 with the section that holds
-//         now and the view of entry 03 with none; and Queue.target as the line gives it, products/sample/SPEC.md in the second
+// expect: the same in both: stale, open and waiting for its anchor with createdBy 2; the view of entry 01 with the section that holds now and the view of entry 03 with none; and Queue.target as the line gives it, products/sample/SPEC.md in the second
 test("queues and entryView — the file an entry's own row names is its target, whatever the queue's line names", async () => {
   const stale = entry(1, "## 1. Reading", PROPOSAL);
   const entries = [stale, entry(2, "## 1. Reading", PROPOSAL + ADDED), entry(3, "## 1a. Added", ADDED_CHANGED)];
@@ -406,13 +388,11 @@ test("queues and entryView — the file an entry's own row names is its target, 
 
 // ---------------------------------------------------------------- entryView
 
+// TST-472975 · level: unit · module: MOD-spec-changes
 // guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006; UC-018
-// given: entry 01 on "## 1. Reading" with PROPOSAL, a rationale file and no record; the SPEC holds section 1 as READING, followed by
-//        section 2
+// given: entry 01 on "## 1. Reading" with PROPOSAL, a rationale file and no record; the SPEC holds section 1 as READING, followed by section 2
 // input: entryView(QUEUE, 1, snapshot)
-// expect: current — the section's exact bytes, up to the next heading, with its blank line —, with their blob; the proposal's text and blob;
-//         the difference of the two as lineDiff gives it, with the three lines that changed removed and their new wording added; the
-//         rationale file's text; the state open and createdBy null
+// expect: current — the section's exact bytes, up to the next heading, with its blank line —, with their blob; the proposal's text and blob; the difference of the two as lineDiff gives it, with the three lines that changed removed and their new wording added; the rationale file's text; the state open and createdBy null
 test("entryView — the section that holds now beside the proposal, their blobs and difference, the rationale, the state", async () => {
   const item = entry(1, "## 1. Reading", PROPOSAL);
   const view = await entryView(QUEUE, 1, snapshotOf(repositoryFiles({ entries: [item], extra: REFERENCES })));
@@ -428,12 +408,11 @@ test("entryView — the section that holds now beside the proposal, their blobs 
   assert.equal(view.createdBy, null);
 });
 
+// TST-472976 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006; UC-018
-// given: PROPOSAL changes SAMPLE's rule, ANOTHER's source and THIRD's check, and leaves FOURTH word for word as it is; SAMPLE is named by
-//        UC-001 (by `realises` and again in the use case's text), UC-002, ARC-001, ITM-002 and TST-001; nothing names ANOTHER or THIRD
+// given: PROPOSAL changes SAMPLE's rule, ANOTHER's source and THIRD's check, and leaves FOURTH word for word as it is; SAMPLE is named by UC-001 (by `realises` and again in the use case's text), UC-002, ARC-001, ITM-002 and TST-001; nothing names ANOTHER or THIRD
 // input: entryView(QUEUE, 1, snapshot).impact
-// expect: the three changed names in the order the proposal states them — SAMPLE referenced by UC-001, UC-002, ARC-001, ITM-002 and TST-001
-//         (use cases first, then the decision, the item, the test; UC-001 once), ANOTHER and THIRD each referenced by nobody — and not FOURTH
+// expect: the three changed names in the order the proposal states them — SAMPLE referenced by UC-001, UC-002, ARC-001, ITM-002 and TST-001 (use cases first, then the decision, the item, the test; UC-001 once), ANOTHER and THIRD each referenced by nobody — and not FOURTH
 test("entryView — the impact list of a changed requirement, with what references it", async () => {
   const item = entry(1, "## 1. Reading", PROPOSAL);
   const { impact } = await entryView(QUEUE, 1, snapshotOf(repositoryFiles({ entries: [item], extra: REFERENCES })));
@@ -444,9 +423,9 @@ test("entryView — the impact list of a changed requirement, with what referenc
   ]);
 });
 
+// TST-472977 · level: unit · module: MOD-spec-changes
 // guards: A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
-// given: PROPOSAL_RENAMED, section 1 with SAMPLE renamed in place to RENAMED and every other word as it is; SAMPLE named by UC-001, UC-002,
-//        ARC-001, ITM-002 and TST-001; RENAMED named by UC-003, although the SPEC does not hold it yet
+// given: PROPOSAL_RENAMED, section 1 with SAMPLE renamed in place to RENAMED and every other word as it is; SAMPLE named by UC-001, UC-002, ARC-001, ITM-002 and TST-001; RENAMED named by UC-003, although the SPEC does not hold it yet
 // input: entryView(QUEUE, 1, snapshot).impact
 // expect: the old name withdrawn, with what references it, before the new name added, with what references it already
 test("entryView — a renamed requirement is the old name withdrawn and the new name added", async () => {
@@ -458,11 +437,11 @@ test("entryView — a renamed requirement is the old name withdrawn and the new 
   ]);
 });
 
+// TST-472978 · level: unit · module: MOD-spec-changes
 // guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
 // given: entry 01 on "## 3. Deleting", a heading the SPEC does not hold and no entry creates, with a proposal of one new requirement
 // input: entryView(QUEUE, 1, snapshot)
-// expect: current null; the proposal with its blob; every line of the difference added; the requirement added with nobody referencing it;
-//         the state open and createdBy null
+// expect: current null; the proposal with its blob; every line of the difference added; the requirement added with nobody referencing it; the state open and createdBy null
 test("entryView — a new section has no current section, and its requirement is added", async () => {
   const item = entry(1, "## 3. Deleting", DELETING);
   const view = await entryView(QUEUE, 1, snapshotOf(repositoryFiles({ entries: [item], extra: REFERENCES })));
@@ -475,6 +454,7 @@ test("entryView — a new section has no current section, and its requirement is
   assert.equal(view.createdBy, null);
 });
 
+// TST-472979 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
 // given: PROPOSAL_PROSE, section 1 with a line of prose added and no requirement touched; the references of the other tests
 // input: entryView(QUEUE, 1, snapshot).impact
@@ -486,12 +466,11 @@ test("entryView — a proposal that touches no requirement has an empty impact l
   assert.ok(view.difference.some((line) => line.op === "added" && line.text === "This section is about reading."));
 });
 
+// TST-472980 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; A STALE APPROVAL IS NOT APPLIED; UC-006
-// given: the queue of the waiting test (entry 01 creates "## 1a. Added", entry 02 starts with it), and the queue of the stale test (entry
-//        01 with a record that names the section as it stood one wording earlier)
+// given: the queue of the waiting test (entry 01 creates "## 1a. Added", entry 02 starts with it), and the queue of the stale test (entry 01 with a record that names the section as it stood one wording earlier)
 // input: entryView(QUEUE, 2, ...) of the first, entryView(QUEUE, 1, ...) of the second
-// expect: the waiting entry's view — state waiting for its anchor, createdBy 1, no current section (the SPEC does not hold one), the added
-//         requirement of its proposal in the impact list; the stale entry's view — state stale, the section that holds now, createdBy null
+// expect: the waiting entry's view — state waiting for its anchor, createdBy 1, no current section (the SPEC does not hold one), the added requirement of its proposal in the impact list; the stale entry's view — state stale, the section that holds now, createdBy null
 test("entryView — the state and createdBy of the entry are in the view", async () => {
   const creator = entry(1, "## 1. Reading", PROPOSAL + ADDED);
   const waiting = entry(2, "## 1a. Added", ADDED_CHANGED);
@@ -508,6 +487,7 @@ test("entryView — the state and createdBy of the entry are in the view", async
   assert.deepEqual(stale.current, { text: READING, blob: gitBlob(READING) });
 });
 
+// TST-472981 · level: unit · module: MOD-spec-changes
 // guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006
 // given: entry 01 with a rationale file, and the same entry in a queue that holds no rationale file
 // input: entryView(QUEUE, 1, snapshot) for each
@@ -521,9 +501,9 @@ test("entryView — a rationale the queue does not hold is the empty rationale",
   assert.deepEqual(without.proposal, with_.proposal);
 });
 
+// TST-472982 · level: unit · module: MOD-spec-changes
 // guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006
-// given: a snapshot with one queue and its entry 01; and the same call for an entry the queue does not hold and for a queue the snapshot
-//        does not hold
+// given: a snapshot with one queue and its entry 01; and the same call for an entry the queue does not hold and for a queue the snapshot does not hold
 // input: entryView(QUEUE, 1, snapshot), entryView(QUEUE, 99, snapshot), entryView("docs/spec-freigaben/2099-01-01_none", 1, snapshot)
 // expect: the view of entry 01; a RangeError for each of the others
 test("entryView — an entry or a queue the snapshot does not hold is a RangeError", async () => {

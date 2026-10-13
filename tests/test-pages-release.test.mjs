@@ -436,16 +436,11 @@ const contextOf = (host) => ({ page: "releases", instance: { repository: "org/pr
 
 // ==================================================================================================================
 
-// guards: UC-013 main flow (steps 1-4), ONE CLICK PER DECISION, EVERY STEP EXPLAINS ITSELF, A PERSON'S OWN INPUT IS
-//         COMMITTED DIRECTLY
-// given: a product with no release tag yet, a schedule naming a runner distinct from any implementer, no test-results
-//        record of the candidate's own commit yet
-// input: render; Start release candidate, one click; before the run has ended, Check results; once test-results
-//        records TST-001 passed on that same commit, Check results again; Accept and release, one click
-// expect: the next version (from nextVersion) and an empty, editable changelog entry are shown before Start; after
-//         Start, the candidate's tag and its queued run are named; before the run has ended, the report is not shown
-//         as complete; once it has, the rendered report names the level, the test and the requirement it guards, with
-//         no reason field asked (the run is green); Accept and release releases, in one click
+// TST-473091 · level: unit · module: MOD-test-pages
+// guards: UC-013 main flow (steps 1-4), ONE CLICK PER DECISION, EVERY STEP EXPLAINS ITSELF, A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: a product with no release tag yet, a schedule naming a runner distinct from any implementer, no test-results record of the candidate's own commit yet
+// input: render; Start release candidate, one click; before the run has ended, Check results; once test-results records TST-001 passed on that same commit, Check results again; Accept and release, one click
+// expect: the next version (from nextVersion) and an empty, editable changelog entry are shown before Start; after Start, the candidate's tag and its queued run are named; before the run has ended, the report is not shown as complete; once it has, the rendered report names the level, the test and the requirement it guards, with no reason field asked (the run is green); Accept and release releases, in one click
 test("release — main flow: version and entry before Start, the candidate and its run after it, the report once the run has ended, Accept and release in one click", async () => {
   const host = releaseHost();
   const context = contextOf(host);
@@ -488,6 +483,7 @@ test("release — main flow: version and entry before Start, the candidate and i
   assert.ok(host.tagOf(`v${expectedVersion}`), "the release tag now stands");
 });
 
+// TST-473092 · level: unit · module: MOD-test-pages
 // guards: UC-013 1a (CALENDAR VERSIONS)
 // given: the product's own last release tag stands in an earlier year than today
 // input: render
@@ -501,11 +497,11 @@ test("release — 1a: the year that changed restarts the version at YYYY.1.0", a
   assert.equal(versionField.value, `${new Date().getUTCFullYear()}.1.0`);
 });
 
+// TST-473093 · level: unit · module: MOD-test-pages
 // guards: UC-013 2a, RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: the schedule's "release" row names the only participant that ever implemented anything in this product
 // input: Start release candidate
-// expect: the panel says only the implementer could run the release tests, naming 2a, and asks to assign a second
-//         participant or to run the release tests as a person; no candidate is shown
+// expect: the panel says only the implementer could run the release tests, naming 2a, and asks to assign a second participant or to run the release tests as a person; no candidate is shown
 test("release — 2a: only the implementing participant can run the release tests", async () => {
   const host = releaseHost({
     runsOn: { release: IMPLEMENTER, user: RUNNER },
@@ -520,13 +516,11 @@ test("release — 2a: only the implementing participant can run the release test
   assert.equal(byClass(target, "report").length, 0, "no candidate was started");
 });
 
+// TST-473094 · level: unit · module: MOD-test-pages
 // guards: UC-013 3a, 3b, A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
-// given: a complete run with one failing test (TST-002) and one model-dependent test (TST-010) whose rate, 6 of 10,
-//        is worse than the last release's own report names (8 of 10, found in the candidate's own commit)
-// input: Start release candidate; once the run has ended, Accept and release without a reason, then with one for
-//        each
-// expect: a reason field is shown for TST-002 and for TST-010 before any click (asked first); Accept and release
-//         without them names both as missing; with a reason for each, it releases
+// given: a complete run with one failing test (TST-002) and one model-dependent test (TST-010) whose rate, 6 of 10, is worse than the last release's own report names (8 of 10, found in the candidate's own commit)
+// input: Start release candidate; once the run has ended, Accept and release without a reason, then with one for each
+// expect: a reason field is shown for TST-002 and for TST-010 before any click (asked first); Accept and release without them names both as missing; with a reason for each, it releases
 test("release — 3a/3b: a red level and a worse rate ask for a reason first; without one Accept and release is refused, with one it releases", async () => {
   const host = releaseHost({
     testFiles: { "tests/sample.test.mjs": MULTI_TEST_FILE },
@@ -567,9 +561,9 @@ test("release — 3a/3b: a red level and a worse rate ask for a reason first; wi
   assert.ok(host.tagOf(`v${expectedVersion}`));
 });
 
+// TST-473095 · level: unit · module: MOD-test-pages
 // guards: UC-013 4a (A VERSION IS NOT REWRITTEN)
-// given: a green, complete candidate for a version whose own release tag already stands (typed into the editable
-//        version field) on a commit other than the candidate's
+// given: a green, complete candidate for a version whose own release tag already stands (typed into the editable version field) on a commit other than the candidate's
 // input: Start release candidate (for that typed version); once the run has ended, Accept and release
 // expect: the release stops, naming 4a; the existing tag is not moved
 test("release — 4a: a tag that already exists stops the release, naming 4a; the existing tag is not moved", async () => {
@@ -595,9 +589,9 @@ test("release — 4a: a tag that already exists stops the release, naming 4a; th
   assert.equal(host.tagOf("v2026.4.0"), originalTagCommit, "the existing tag was not moved");
 });
 
+// TST-473096 · level: unit · module: MOD-test-pages
 // guards: UC-013 4b
-// given: a green, complete candidate; the default branch moves on (an unrelated commit lands) after the report was
-//        shown and before Accept and release is clicked
+// given: a green, complete candidate; the default branch moves on (an unrelated commit lands) after the report was shown and before Accept and release is clicked
 // input: Accept and release
 // expect: the release still succeeds, tagged on the candidate's own tested commit — not the branch's new head
 test("release — 4b: a default branch that moved on while the suite ran still releases, tagged on the tested commit", async () => {

@@ -56,13 +56,11 @@ function aboutIn(text) {
     [key, section.find((line) => line.startsWith(`${key}:`))?.slice(key.length + 1).trim()]));
 }
 
+// TST-472402 · level: unit · module: MOD-model-catalogue
 // guards: UC-002; AGENT M CARRIES THE BOOK'S CATALOGUE
-// given: the snapshot of an instance that holds no model of its own; the five shipped models waterfall, v-model,
-//        reuse-oriented, scrum and kanban, each the file src/model-catalogue/models/<name>.md
+// given: the snapshot of an instance that holds no model of its own; the five shipped models waterfall, v-model, reuse-oriented, scrum and kanban, each the file src/model-catalogue/models/<name>.md
 // input: await catalogue(snapshot)
-// expect: each of the five files has a section ## About with its four lines manages:, accepts:, example: and chapter:, none
-//         of them empty; and the model read from it has as its about exactly these lines — { manages, accepts, example,
-//         chapter }, each the text after its key, as the file writes it
+// expect: each of the five files has a section ## About with its four lines manages:, accepts:, example: and chapter:, none of them empty; and the model read from it has as its about exactly these lines — { manages, accepts, example, chapter }, each the text after its key, as the file writes it
 test("Model.about — every shipped model's ## About is read with its four lines", async () => {
   const got = await catalogue(snapshotOf({}));
   for (const name of MODELS) {
@@ -104,14 +102,11 @@ const WITHOUT = WITH.replace("name: with-about", "name: without-about")
   .replace("## About\n\nmanages: the risk it manages well\naccepts: the risk it accepts\nexample: an example project it suits\n"
     + "chapter: 6, the chapter that explains it\n\n", "");
 
+// TST-472403 · level: unit · module: MOD-model-catalogue
 // guards: UC-002
-// given: the snapshot of an instance holding its two models WITH, whose ## About has the lines `manages: the risk it manages
-//        well`, `accepts: the risk it accepts`, `example: an example project it suits` and `chapter: 6, the chapter that
-//        explains it`, and WITHOUT, the same model without that section
+// given: the snapshot of an instance holding its two models WITH, whose ## About has the lines `manages: the risk it manages well`, `accepts: the risk it accepts`, `example: an example project it suits` and `chapter: 6, the chapter that explains it`, and WITHOUT, the same model without that section
 // input: await catalogue(snapshot)
-// expect: known positive first — WITH's model has as its about { manages: "the risk it manages well", accepts: "the risk it
-//         accepts", example: "an example project it suits", chapter: "6, the chapter that explains it" }; then WITHOUT's
-//         model has as its about null
+// expect: known positive first — WITH's model has as its about { manages: "the risk it manages well", accepts: "the risk it accepts", example: "an example project it suits", chapter: "6, the chapter that explains it" }; then WITHOUT's model has as its about null
 test("Model.about — a model without ## About is read with about null", async () => {
   assert.ok(!WITHOUT.includes("## About") && WITHOUT.includes("## Phases"), "WITHOUT is WITH without its section ## About");
   const got = await catalogue(snapshotOf({ [WITH_PATH]: WITH, [WITHOUT_PATH]: WITHOUT }));

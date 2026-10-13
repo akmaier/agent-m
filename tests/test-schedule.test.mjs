@@ -30,14 +30,11 @@ function levelsOf(document) {
 
 // ---------------------------------------------------------------- defaultSchedule
 
+// TST-473097 · level: unit · module: MOD-test-schedule
 // guards: THE DEFAULT SCHEDULE FOLLOWS THE BOOK; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
 // given: this module's own default-schedule.md, the book's default
 // input: defaultSchedule()
-// expect: a Document read with scheduleSchema (kind "schedule", path docs/tests/schedule.md) and marked as the
-//         default; its "## Levels" rows and columns exactly as docs/architecture/MOD-test-schedule.md's Data table
-//         gives them — unit, component and system ticked for every occasion; paid only for nightly, release
-//         candidate and on demand; release and user only for release candidate and on demand —, and every row
-//         ticked for release candidate
+// expect: a Document read with scheduleSchema (kind "schedule", path docs/tests/schedule.md) and marked as the default; its "## Levels" rows and columns exactly as docs/architecture/MOD-test-schedule.md's Data table gives them — unit, component and system ticked for every occasion; paid only for nightly, release candidate and on demand; release and user only for release candidate and on demand —, and every row ticked for release candidate
 test("defaultSchedule — the book's default, read with the schema, marked as the default", () => {
   const document = defaultSchedule();
   assert.equal(document.kind, "schedule");
@@ -73,14 +70,11 @@ report: build/junit.xml
 | user | | | | ✓ | ✓ | |
 `;
 
+// TST-473098 · level: unit · module: MOD-test-schedule
 // guards: THE DEFAULT SCHEDULE FOLLOWS THE BOOK (its absence: a product's own schedule carries no such mark)
-// given: PRODUCT_SCHEDULE, a product's own docs/tests/schedule.md — a declared nightly time, a command and a report
-//        path (so it runs its tests with neither node's own test runner nor its JUnit reporter), a tick pattern that
-//        differs from the book's default in every one of the five occasion columns, and one row naming a
-//        self-hosted runner
+// given: PRODUCT_SCHEDULE, a product's own docs/tests/schedule.md — a declared nightly time, a command and a report path (so it runs its tests with neither node's own test runner nor its JUnit reporter), a tick pattern that differs from the book's default in every one of the five occasion columns, and one row naming a self-hosted runner
 // input: readDocument(scheduleSchema, "docs/tests/schedule.md", PRODUCT_SCHEDULE)
-// expect: the front matter and the "## Levels" table read back exactly as given, with no finding; document.default
-//         is left unset — only defaultSchedule()'s own document carries it
+// expect: the front matter and the "## Levels" table read back exactly as given, with no finding; document.default is left unset — only defaultSchedule()'s own document carries it
 test("scheduleSchema — a product's own schedule, read with the schema", () => {
   const document = readDocument(scheduleSchema, "docs/tests/schedule.md", PRODUCT_SCHEDULE);
   assert.equal(document.fields.nightly, "03:30");
@@ -114,14 +108,11 @@ command: run-tests
 Not part of the format.
 `;
 
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT (through scheduleSchema's own rule, which every finding here
-//         names, since no closer part of the schema names one)
-// given: MALFORMED_SCHEDULE — no declared nightly time, a Row this format names none of its six for, and a section
-//        the format does not allow
+// TST-473099 · level: unit · module: MOD-test-schedule
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT (through scheduleSchema's own rule, which every finding here names, since no closer part of the schema names one)
+// given: MALFORMED_SCHEDULE — no declared nightly time, a Row this format names none of its six for, and a section the format does not allow
 // input: documentFindings(scheduleSchema, readDocument(scheduleSchema, "docs/tests/schedule.md", MALFORMED_SCHEDULE))
-// expect: three findings, each in MOD-text-tools' one line form: the missing nightly (line 1, where a missing key
-//         always stands), the Row integration (line 8, the row it stands on), and the forbidden section ## Notes
-//         (line 10) — each naming THE TEST SCHEDULE IS DECLARED PER PRODUCT, the schema's own rule
+// expect: three findings, each in MOD-text-tools' one line form: the missing nightly (line 1, where a missing key always stands), the Row integration (line 8, the row it stands on), and the forbidden section ## Notes (line 10) — each naming THE TEST SCHEDULE IS DECLARED PER PRODUCT, the schema's own rule
 test("scheduleSchema — a schedule of another shape, named by MOD-documents' findings", () => {
   const document = readDocument(scheduleSchema, "docs/tests/schedule.md", MALFORMED_SCHEDULE);
   const findings = documentFindings(scheduleSchema, document).map(formatFinding);

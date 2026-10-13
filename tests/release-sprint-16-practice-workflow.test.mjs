@@ -165,11 +165,12 @@ function expectedPracticeWorkflow(target) {
     "the process-requirement gate retains its requirement and source attribution");
 }
 
-// given: an existing Scrum declaration, a requirement-added gate, and the selected DevOps document above;
-// input: through the dashboard's public process caller, select DevOps, deselect it before Save, then Save once;
-// expect: its three bare tables add only their phase/gate/role while selected — exactly the four Scrum phases plus
-//         Evidence review, never the following gate or role rows; explanatory prose creates no workflow row;
-//         deselection removes those additions before any write; the one Save preserves the final declaration.
+// Module (as the case stated it): MOD-product-process; MOD-implementation-pages; MOD-model-catalogue
+// TST-478005 · level: release · module: MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE MODEL; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: an existing Scrum declaration, a requirement-added gate, and the selected DevOps document above
+// input: through the dashboard's public process caller, select DevOps, deselect it before Save, then Save once
+// expect: its three bare tables add only their phase/gate/role while selected — exactly the four Scrum phases plus Evidence review, never the following gate or role rows; explanatory prose creates no workflow row; deselection removes those additions before any write; the one Save preserves the final declaration.
 test("ITM-281 — public process caller derives and clears only selected practice tables before one Save", async (t) => {
   const page = await open(t, PRACTICE);
   assert.ok(!shown(page.target).some((entry) => entry.includes("practice: devops")), "known positive: no practice is selected initially");

@@ -20,6 +20,7 @@ const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
 const filesIn = (folder, pattern) => readdirSync(new URL(folder, ROOT)).filter((name) => pattern.test(name)).sort()
   .map((name) => `${folder}${name}`);
 
+// TST-472153 · level: unit · module: MOD-documents
 // guards: A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
 // given: the module
 // input: artifactSchemas()
@@ -31,12 +32,11 @@ test("artifactSchemas — the use case, the decision, the module and the item, l
     ["use-case", "decision", "module", "item"]);
 });
 
+// TST-472154 · level: unit · module: MOD-documents
 // guards: A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES
-// given: known positive first — docs/architecture/MOD-work-plans.md, which uses MOD-product-process.holdsRole and provides
-//        heldItems —; then every module file of this repository
+// given: known positive first — docs/architecture/MOD-work-plans.md, which uses MOD-product-process.holdsRole and provides heldItems —; then every module file of this repository
 // input: readDocument(artifactSchemas().module, each path, its text)
-// expect: MOD-work-plans read with its identifier, its uses and what it provides; every module file read with its identifier
-//         and a list of the interfaces it uses
+// expect: MOD-work-plans read with its identifier, its uses and what it provides; every module file read with its identifier and a list of the interfaces it uses
 test("artifactSchemas().module — this repository's module files are read with their identifier and the interfaces they use", () => {
   const { module } = artifactSchemas();
   const plans = readDocument(module, "docs/architecture/MOD-work-plans.md", read("docs/architecture/MOD-work-plans.md"));
@@ -60,15 +60,11 @@ const itemText = ({ modules = ["MOD-store"], tests = ["unit"] } = {}) => [
 const rulesAt = (path, text) => documentFindings(artifactSchemas().item, readDocument(artifactSchemas().item, path, text))
   .map((f) => f.rule);
 
-// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; A PLAN STEP NAMES THE TESTS OF ITS LEVEL; THE BACKLOG LIVES IN THE
-//         PRODUCT REPOSITORY; THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY
+// TST-472155 · level: unit · module: MOD-documents
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; A PLAN STEP NAMES THE TESTS OF ITS LEVEL; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY
 // given: known positive first — the fixture item, complete —; then without modules, and without tests
-// input: documentFindings(artifactSchemas().item, the item read at docs/backlog/ITM-007-store-the-drafts.md, and at
-//        docs/plan/ITM-007-store-the-drafts.md)
-// expect: no finding for the complete item at either path; without modules, A BACKLOG ITEM NAMES THE MODULES IT CHANGES under
-//         docs/backlog/ and THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY under docs/plan/; without tests, THE
-//         BACKLOG LIVES IN THE PRODUCT REPOSITORY under docs/backlog/ and A PLAN STEP NAMES THE TESTS OF ITS LEVEL under
-//         docs/plan/
+// input: documentFindings(artifactSchemas().item, the item read at docs/backlog/ITM-007-store-the-drafts.md, and at docs/plan/ITM-007-store-the-drafts.md)
+// expect: no finding for the complete item at either path; without modules, A BACKLOG ITEM NAMES THE MODULES IT CHANGES under docs/backlog/ and THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY under docs/plan/; without tests, THE BACKLOG LIVES IN THE PRODUCT REPOSITORY under docs/backlog/ and A PLAN STEP NAMES THE TESTS OF ITS LEVEL under docs/plan/
 test("artifactSchemas().item — a backlog item and a plan step each name the rule of their own kind", () => {
   const backlog = "docs/backlog/ITM-007-store-the-drafts.md", plan = "docs/plan/ITM-007-store-the-drafts.md";
   assert.deepEqual(rulesAt(backlog, itemText()), []);
@@ -81,9 +77,9 @@ test("artifactSchemas().item — a backlog item and a plan step each name the ru
   assert.deepEqual(rulesAt(plan, itemText({ tests: [] }).replace("tests:\n", "")), ["A PLAN STEP NAMES THE TESTS OF ITS LEVEL"]);
 });
 
+// TST-472156 · level: unit · module: MOD-documents
 // guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; A BACKLOG ITEM NAMES THE MODULES IT CHANGES
-// given: known positive first — docs/backlog/ITM-292's file, which builds on items of its own —; then every backlog item of
-//        this repository
+// given: known positive first — docs/backlog/ITM-292's file, which builds on items of its own —; then every backlog item of this repository
 // input: readDocument(artifactSchemas().item, each path, its text)
 // expect: each read with its identifier, the modules it changes — at least one — and the items it builds on as a list
 test("artifactSchemas().item — this repository's backlog items are read with their modules and what they build on", () => {

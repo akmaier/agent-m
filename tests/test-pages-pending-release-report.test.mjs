@@ -2,13 +2,6 @@
 // in memory and names the route's failure node: resolving a pending report must happen before the new-release form
 // reads its next-version data.
 //
-// TST-289001
-// level: unit
-// module: MOD-test-pages
-// guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
-// given: the selected product has a notification address for release and its pending-report lookup is refused by the host.
-// input: render the release route with no new-candidate interaction.
-// expect: the route names that pending report cannot be reopened and does not read or offer the new-release form.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -84,6 +77,13 @@ function pendingHost({ pending = true, complete = true } = {}) {
 
 // The pending-read sentinel is the observable failure node. The default-branch snapshot is a known-positive Host
 // contract; only the pending lookup's tag read is refused.
+// TST-289001
+// level: unit
+// module: MOD-test-pages
+// guards: UC-013; UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+// given: the selected product has a notification address for release and its pending-report lookup is refused by the host.
+// input: render the release route with no new-candidate interaction.
+// expect: the route names that pending report cannot be reopened and does not read or offer the new-release form.
 test("TST-289001: a refused pending-report lookup is named before the new-release form", async () => {
   const target = new Element("target");
   const host = {

@@ -17,6 +17,8 @@ const request = (args = CONFIG) => ({ params: { kind: "endpoint-test" }, body: {
 const handlerFor = (testEndpoint) => jobHandlers({ testEndpoint })["POST /v1/probes/endpoint-test"];
 
 // TST-262-001
+// TST-472089 · level: unit · module: MOD-bridge-jobs
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; NO SECRET IN THE REPOSITORY; CONFIGURATION LIVES IN THE BROWSER
 // given: a valid local endpoint configuration and a Node-side endpoint test that succeeds
 // input: the endpoint-test probe handler receives body.args
 // expect: it maps those exact fields to EndpointConfig, invokes the Node test once, and returns its success unchanged
@@ -28,6 +30,8 @@ test("TST-262-001: endpoint-test maps body.args once and returns a success uncha
 });
 
 // TST-262-002
+// TST-472090 · level: unit · module: MOD-bridge-jobs
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; NO SECRET IN THE REPOSITORY; CONFIGURATION LIVES IN THE BROWSER
 // given: a valid endpoint configuration and a provider's refused-key diagnosis
 // input: the endpoint-test probe handler calls the Node-side endpoint test
 // expect: the provider diagnosis, including its message, returns structurally unchanged
@@ -37,6 +41,8 @@ test("TST-262-002: endpoint-test returns a refused-key diagnosis unchanged", asy
 });
 
 // TST-262-003
+// TST-472091 · level: unit · module: MOD-bridge-jobs
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; NO SECRET IN THE REPOSITORY; CONFIGURATION LIVES IN THE BROWSER
 // given: a valid endpoint configuration and a provider's unknown-model diagnosis
 // input: the endpoint-test probe handler calls the Node-side endpoint test
 // expect: the provider diagnosis, including its message, returns structurally unchanged
@@ -46,6 +52,8 @@ test("TST-262-003: endpoint-test returns an unknown-model diagnosis unchanged", 
 });
 
 // TST-262-004
+// TST-472092 · level: unit · module: MOD-bridge-jobs
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; NO SECRET IN THE REPOSITORY; CONFIGURATION LIVES IN THE BROWSER
 // given: a valid endpoint configuration and a local model server that cannot be reached
 // input: the endpoint-test probe handler calls the Node-side endpoint test
 // expect: the Node diagnosis returns unchanged and does not claim a browser retry route
@@ -55,6 +63,8 @@ test("TST-262-004: endpoint-test returns an unavailable local-server diagnosis u
 });
 
 // TST-262-005
+// TST-472093 · level: unit · module: MOD-bridge-jobs
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; NO SECRET IN THE REPOSITORY; CONFIGURATION LIVES IN THE BROWSER
 // given: a valid endpoint configuration and another provider failure
 // input: the endpoint-test probe handler calls the Node-side endpoint test
 // expect: the provider diagnosis and message return unchanged
@@ -64,6 +74,8 @@ test("TST-262-005: endpoint-test returns another provider diagnosis unchanged", 
 });
 
 // TST-262-006
+// TST-472094 · level: unit · module: MOD-bridge-jobs
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; NO SECRET IN THE REPOSITORY; CONFIGURATION LIVES IN THE BROWSER
 // given: an endpoint-test request whose body.args is not an EndpointConfig
 // input: the probe handler receives the malformed request directly
 // expect: invalid-request is named and the Node-side endpoint test is never called
@@ -75,6 +87,8 @@ test("TST-262-006: endpoint-test rejects invalid body.args before any endpoint c
 });
 
 // TST-262-007
+// TST-472095 · level: unit · module: MOD-bridge-jobs
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; NO SECRET IN THE REPOSITORY; CONFIGURATION LIVES IN THE BROWSER
 // given: a valid endpoint configuration and an unexpected endpoint-test handler failure
 // input: the probe handler calls the Node-side endpoint test
 // expect: upstream-failed names the original message and the endpoint test is not retried

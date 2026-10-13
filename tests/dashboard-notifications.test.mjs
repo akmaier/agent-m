@@ -181,10 +181,11 @@ async function openMainPage({ server, entries = {} }) {
 // A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // ==================================================================================================================
 
+// TST-472135 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: a fixture instance; notifications on, due for a second check
 // input: a use case and a SPEC change entry both come to open since the baseline check; the second check
-// expect: one notification for the use case and one for the SPEC change entry — each names the file and links the
-//         page where it is accepted (its own review page, through this dashboard's addressOf)
+// expect: one notification for the use case and one for the SPEC change entry — each names the file and links the page where it is accepted (its own review page, through this dashboard's addressOf)
 test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a newly open use case and a newly open SPEC change are each notified, naming the file and linking where it is accepted", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -213,6 +214,8 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a newly open use case
   } finally { browser.restore(); }
 });
 
+// TST-472136 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: a fixture instance; a use case already notified at a prior, due check
 // input: a further check with nothing changed since
 // expect: no further notification — a file already notified yields none
@@ -235,8 +238,9 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — a file already notifi
   } finally { browser.restore(); }
 });
 
-// given: a fixture repository with a use case already waiting; notifications never switched on (no "notifications" key
-//        stored at all — the state Switch off leaves, too)
+// TST-472137 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
+// given: a fixture repository with a use case already waiting; notifications never switched on (no "notifications" key stored at all — the state Switch off leaves, too)
 // input: opening a review page, where a check would otherwise be due
 // expect: nothing is notified — notifications switched off yields none
 test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — notifications switched off yields no notification", async () => {
@@ -256,12 +260,11 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — notifications switche
 // NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // ==================================================================================================================
 
+// TST-472138 · level: release · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: a fresh browser; the person on the main page before ever visiting the dashboard's own pages
-// input: loading the main page (src/home/home.mjs), then the review page (#uc), then #settings — no click yet; then
-//        pressing Switch on
-// expect: no page of the dashboard asks for the permission before the click — the main page, src/home/home.mjs, as
-//         well as the review pages, each of which starts MOD-notifications' checks (the item's Acceptance, corrected
-//         after docs/gates/20261007-1603-development-release-testing-9980.md) —; the click on Switch on asks it, once
+// input: loading the main page (src/home/home.mjs), then the review page (#uc), then #settings — no click yet; then pressing Switch on
+// expect: no page of the dashboard asks for the permission before the click — the main page, src/home/home.mjs, as well as the review pages, each of which starts MOD-notifications' checks (the item's Acceptance, corrected after docs/gates/20261007-1603-development-release-testing-9980.md) —; the click on Switch on asks it, once
 test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page, the main page among them, asks before the click; the click asks once", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser({ permission: "default" });

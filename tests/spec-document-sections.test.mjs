@@ -62,23 +62,20 @@ const SPEC = PREAMBLE + GATES + RECORDS + EXPORT;
 
 // ---------------------------------------------------------------- a section's exact bytes
 
+// TST-473066 · level: unit · module: MOD-spec-document
 // guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006 (step 2, the current section is shown); UC-018 (step 2, its blob SHA is noted)
-// given: SPEC — a preamble, section 1 in line feeds, section 2 in CR LF with trailing spaces after two of its lines, a line of three
-//        blanks, a subheading `### 2.1 Notes` and two empty lines at its end, and section 3, the last, with no line end at the end
-//        of the text
+// given: SPEC — a preamble, section 1 in line feeds, section 2 in CR LF with trailing spaces after two of its lines, a line of three blanks, a subheading `### 2.1 Notes` and two empty lines at its end, and section 3, the last, with no line end at the end of the text
 // input: sectionText(SPEC, heading) for `## 1. Gates`, `## 2. Records` and `## 3. Export`
-// expect: for each, exactly the bytes of the section — from its heading line to the byte before the next heading of level two, or to
-//         the end of the text —: GATES; RECORDS, every CR, every trailing space, the line of blanks, the subheading and the two
-//         empty lines kept; EXPORT, with no line end added at its end
+// expect: for each, exactly the bytes of the section — from its heading line to the byte before the next heading of level two, or to the end of the text —: GATES; RECORDS, every CR, every trailing space, the line of blanks, the subheading and the two empty lines kept; EXPORT, with no line end added at its end
 test("sectionText — the exact bytes of a section, from its heading line to the next heading of level two or the end of the text", () => {
   assert.equal(sectionText(SPEC, "## 1. Gates"), GATES);
   assert.equal(sectionText(SPEC, "## 2. Records"), RECORDS);
   assert.equal(sectionText(SPEC, "## 3. Export"), EXPORT);
 });
 
+// TST-473067 · level: unit · module: MOD-spec-document
 // guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006 (step 2)
-// given: SPEC; and headings it lacks — a section 4, the heading `## 1. Gat`, which only begins a heading line of SPEC, the title
-//        line of level one, and `### 2.1 Notes`, a subheading, which is no section
+// given: SPEC; and headings it lacks — a section 4, the heading `## 1. Gat`, which only begins a heading line of SPEC, the title line of level one, and `### 2.1 Notes`, a subheading, which is no section
 // input: sectionText(SPEC, heading) for each; and, to show that the same call finds a section that is there, for `## 1. Gates`
 // expect: null for each of the four headings the text lacks; for `## 1. Gates` its bytes, not null
 test("sectionText — null for a heading the text lacks", () => {
@@ -95,12 +92,11 @@ test("sectionText — null for a heading the text lacks", () => {
 const NEW_RECORDS = "## 2. Records\n\n**A GATE DECISION IS KEPT** *(Product Owner)*\r\nEvery decision at a gate is kept, signed. \r\n" +
   "*Check:* no automatic check; at review.\n\n";
 
+// TST-473068 · level: unit · module: MOD-spec-document
 // guards: THE APPROVED TEXT IS TAKEN VERBATIM; UC-006 (step 6, the section is replaced byte for byte); UC-018 (step 6)
 // given: SPEC; NEW_RECORDS — a text for section 2 in line feeds and CR LF, with a trailing space and one empty line at its end
-// input: replaceSection(SPEC, "## 2. Records", NEW_RECORDS); and replaceSection(SPEC, heading, sectionText(SPEC, heading)) for each
-//        of the three sections
-// expect: PREAMBLE + GATES + NEW_RECORDS + EXPORT — the bytes of section 2 replaced by NEW_RECORDS exactly, every other byte of
-//         SPEC, the CR LF of none of them touched, as they were; and, for the section's own bytes given back, SPEC unchanged
+// input: replaceSection(SPEC, "## 2. Records", NEW_RECORDS); and replaceSection(SPEC, heading, sectionText(SPEC, heading)) for each of the three sections
+// expect: PREAMBLE + GATES + NEW_RECORDS + EXPORT — the bytes of section 2 replaced by NEW_RECORDS exactly, every other byte of SPEC, the CR LF of none of them touched, as they were; and, for the section's own bytes given back, SPEC unchanged
 test("replaceSection — the bytes of the section replaced by the text given, byte for byte, every other byte unchanged", () => {
   assert.equal(replaceSection(SPEC, "## 2. Records", NEW_RECORDS), PREAMBLE + GATES + NEW_RECORDS + EXPORT);
   for (const heading of ["## 1. Gates", "## 2. Records", "## 3. Export"]) {
@@ -112,9 +108,9 @@ test("replaceSection — the bytes of the section replaced by the text given, by
 const NEW_EXPORT = "## 3. Export\n\n**THE EXPORT IS A PDF** *(Product Owner)*\nThe export of a report is one PDF file, signed.\n*Check:* `tests/export.test.mjs`";
 const NEW_EXPORT_ENDED = `${NEW_EXPORT}\n\n\n`;
 
+// TST-473069 · level: unit · module: MOD-spec-document
 // guards: THE APPROVED TEXT IS TAKEN VERBATIM; UC-006 (step 6)
-// given: SPEC, whose last section, section 3, has no line end at the end of the text; NEW_EXPORT, a text for it with no line end at
-//        its end, and NEW_EXPORT_ENDED, the same ending in three line feeds
+// given: SPEC, whose last section, section 3, has no line end at the end of the text; NEW_EXPORT, a text for it with no line end at its end, and NEW_EXPORT_ENDED, the same ending in three line feeds
 // input: replaceSection(SPEC, "## 3. Export", text) for each of the two
 // expect: PREAMBLE + GATES + RECORDS + the text, exactly — no line end added to the first, none of the three taken from the second
 test("replaceSection — the last section is replaced up to the end of the text, nothing added or taken", () => {
@@ -125,25 +121,22 @@ test("replaceSection — the last section is replaced up to the end of the text,
 // A new section, to stand after section 1.
 const ARCHIVE = lines("## 1a. Archive", "", "**A RECORD IS ARCHIVED** *(Product Owner)*", "A record is archived once.", "*Check:* no automatic check; at review.", "");
 
+// TST-473070 · level: unit · module: MOD-spec-document
 // guards: THE APPROVED TEXT IS TAKEN VERBATIM; UC-006 (step 6, alternative 4d: a heading that another entry creates)
-// given: SPEC, which holds no heading `## 1a. Archive`; ARCHIVE, a section with that heading; and the text GATES + ARCHIVE, which
-//        holds the preceding section, section 1, and after it the new one
+// given: SPEC, which holds no heading `## 1a. Archive`; ARCHIVE, a section with that heading; and the text GATES + ARCHIVE, which holds the preceding section, section 1, and after it the new one
 // input: replaceSection(SPEC, "## 1a. Archive", GATES + ARCHIVE)
-// expect: PREAMBLE + GATES + ARCHIVE + RECORDS + EXPORT — the new section added after section 1, which stands once, and every
-//         other byte as it was; sectionText of the result for `## 1a. Archive` is ARCHIVE
+// expect: PREAMBLE + GATES + ARCHIVE + RECORDS + EXPORT — the new section added after section 1, which stands once, and every other byte as it was; sectionText of the result for `## 1a. Archive` is ARCHIVE
 test("replaceSection — a heading not yet in the SPEC is added as a new section after the preceding section the text holds", () => {
   const added = replaceSection(SPEC, "## 1a. Archive", GATES + ARCHIVE);
   assert.equal(added, PREAMBLE + GATES + ARCHIVE + RECORDS + EXPORT);
   assert.equal(sectionText(added, "## 1a. Archive"), ARCHIVE);
 });
 
+// TST-473071 · level: unit · module: MOD-spec-document
 // guards: THE APPROVED TEXT IS TAKEN VERBATIM; UC-006 (step 6, alternative 5a: nothing is written when the section is not there)
-// given: SPEC, which holds no heading `## 9. Missing`; and, to be given for it, a text of that section alone, a text that begins
-//        with a section SPEC lacks too, and a text with no heading line at all
-// input: replaceSection(SPEC, "## 9. Missing", text) for each; and, to show that the same call does not throw where the section is
-//        there, replaceSection(SPEC, "## 3. Export", NEW_EXPORT)
-// expect: an error named SectionNotFound for each of the three, whose message names the heading `## 9. Missing`; none for the known
-//         positive
+// given: SPEC, which holds no heading `## 9. Missing`; and, to be given for it, a text of that section alone, a text that begins with a section SPEC lacks too, and a text with no heading line at all
+// input: replaceSection(SPEC, "## 9. Missing", text) for each; and, to show that the same call does not throw where the section is there, replaceSection(SPEC, "## 3. Export", NEW_EXPORT)
+// expect: an error named SectionNotFound for each of the three, whose message names the heading `## 9. Missing`; none for the known positive
 test("replaceSection — SectionNotFound, naming the heading, where neither the heading nor a preceding section is in the SPEC", () => {
   // Known positive: the same function does not throw where the section is there.
   assert.doesNotThrow(() => replaceSection(SPEC, "## 3. Export", NEW_EXPORT));
@@ -183,12 +176,11 @@ const NAMED = lines(
   "*Check:* no automatic check; at review.",
 );
 
+// TST-473072 · level: unit · module: MOD-spec-document
 // guards: A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; UC-018 (step 3a, the names an edit touches)
-// given: NAMED — a section holding three requirements, one of them named `A gate is recorded`, with a bold line of prose and the
-//        head line `UC-007` of a use case's identifier among them; and the whole SPEC; and a text with no requirement
+// given: NAMED — a section holding three requirements, one of them named `A gate is recorded`, with a bold line of prose and the head line `UC-007` of a use case's identifier among them; and the whole SPEC; and a text with no requirement
 // input: requirementNamesIn of each
-// expect: for NAMED the three names in the order they stand — `A GATE IS REVIEWED`, `A gate is recorded`, `DON'T REPEAT YOURSELF` —,
-//         the prose and the identifier no name; for the whole SPEC its three requirements, in order; for the text with none, none
+// expect: for NAMED the three names in the order they stand — `A GATE IS REVIEWED`, `A gate is recorded`, `DON'T REPEAT YOURSELF` —, the prose and the identifier no name; for the whole SPEC its three requirements, in order; for the text with none, none
 test("requirementNamesIn — the names of the requirements a text holds as head lines, in order", () => {
   assert.deepEqual(requirementNamesIn(NAMED), ["A GATE IS REVIEWED", "A gate is recorded", "DON'T REPEAT YOURSELF"]);
   assert.deepEqual(requirementNamesIn(SPEC), ["A GATE IS REVIEWED", "A GATE DECISION IS KEPT", "THE EXPORT IS A PDF"]);
@@ -204,14 +196,11 @@ const BEFORE = lines("## 1. Gates", "") + STAYS + requirement("A GATE IS RECORDE
 const RENAMED = lines("## 1. Gates", "") + STAYS + requirement("A GATE DECISION IS RECORDED", "Every decision at a gate is kept.");
 const RULE_CHANGED = lines("## 1. Gates", "") + STAYS + requirement("A GATE IS RECORDED", "Every decision at a gate is kept, with its reason.");
 
+// TST-473073 · level: unit · module: MOD-spec-document
 // guards: A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; UC-018 (step 3a, a changed name is a withdrawal plus an addition)
-// given: BEFORE — a section of three requirements, the third `A GATE IS RECORDED`; RENAMED — the same with the third under the name
-//        `A GATE DECISION IS RECORDED` and its rule as it was; and a pair in which the second version drops `A GATE IS CLOSED`,
-//        renames the third and adds `A GATE IS REOPENED`
+// given: BEFORE — a section of three requirements, the third `A GATE IS RECORDED`; RENAMED — the same with the third under the name `A GATE DECISION IS RECORDED` and its rule as it was; and a pair in which the second version drops `A GATE IS CLOSED`, renames the third and adds `A GATE IS REOPENED`
 // input: renamedRequirements(BEFORE, RENAMED); and renamedRequirements(BEFORE, the second version of the pair)
-// expect: for the rename, `A GATE IS RECORDED` withdrawn and `A GATE DECISION IS RECORDED` added, nothing else; for the pair,
-//         withdrawn `A GATE IS CLOSED` and `A GATE IS RECORDED`, in the order they stand in the first version, and added
-//         `A GATE DECISION IS RECORDED` and `A GATE IS REOPENED`, in the order they stand in the second
+// expect: for the rename, `A GATE IS RECORDED` withdrawn and `A GATE DECISION IS RECORDED` added, nothing else; for the pair, withdrawn `A GATE IS CLOSED` and `A GATE IS RECORDED`, in the order they stand in the first version, and added `A GATE DECISION IS RECORDED` and `A GATE IS REOPENED`, in the order they stand in the second
 test("renamedRequirements — a rename is one name withdrawn and one added", () => {
   assert.deepEqual(renamedRequirements(BEFORE, RENAMED), { withdrawn: ["A GATE IS RECORDED"], added: ["A GATE DECISION IS RECORDED"] });
   const dropsAndAdds = lines("## 1. Gates", "") + requirement("A GATE IS REVIEWED", "A gate is reviewed by a person.") +
@@ -222,12 +211,11 @@ test("renamedRequirements — a rename is one name withdrawn and one added", () 
   });
 });
 
+// TST-473074 · level: unit · module: MOD-spec-document
 // guards: A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; UC-018 (step 3a, a change under the existing name is neither)
 // given: BEFORE; RULE_CHANGED — the same section with the rule of `A GATE IS RECORDED` changed and its name as it was; and RENAMED
-// input: renamedRequirements(BEFORE, RULE_CHANGED) and renamedRequirements(BEFORE, BEFORE); and, to show that the same call finds a
-//        change of name, renamedRequirements(BEFORE, RENAMED)
-// expect: nothing withdrawn and nothing added for the changed rule, and for a section compared with itself; for the rename, one
-//         name withdrawn and one added
+// input: renamedRequirements(BEFORE, RULE_CHANGED) and renamedRequirements(BEFORE, BEFORE); and, to show that the same call finds a change of name, renamedRequirements(BEFORE, RENAMED)
+// expect: nothing withdrawn and nothing added for the changed rule, and for a section compared with itself; for the rename, one name withdrawn and one added
 test("renamedRequirements — a changed rule under the same name is neither withdrawn nor added", () => {
   // Known positive: the same call finds a change of name.
   assert.deepEqual(renamedRequirements(BEFORE, RENAMED).withdrawn, ["A GATE IS RECORDED"]);

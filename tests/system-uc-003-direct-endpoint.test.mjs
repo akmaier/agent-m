@@ -54,13 +54,12 @@ function fill(main, endpoint) {
   type(main.querySelector(".endpoint-key"), endpoint.key);
 }
 
-// TST-292001
-// Module: MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
-// Level: system
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
-// Precondition: Settings is open in a dashboard browser with no endpoint configuration.
-// Input: the author presses Configure a model endpoint, fills an OpenAI-compatible endpoint, and presses Save and test.
-// Expected: the dashboard stores the record before one short authorised request and shows the model working.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
+// TST-292001 · level: system · module: MOD-settings-pages
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: Settings is open in a dashboard browser with no endpoint configuration.
+// input: the author presses Configure a model endpoint, fills an OpenAI-compatible endpoint, and presses Save and test.
+// expect: the dashboard stores the record before one short authorised request and shows the model working.
 // Planted fault: moving writeSetting below testEndpoint in src/settings-pages/endpoints.mjs makes the handler's stored assertion fail.
 test("TST-292001: Settings Configure saves an OpenAI-compatible endpoint before one short request", async () => {
   let calls = 0;
@@ -80,13 +79,12 @@ test("TST-292001: Settings Configure saves an OpenAI-compatible endpoint before 
   assert.equal(globalThis.location.hash, "#settings", "the endpoint is configured on the Settings page");
 });
 
-// TST-292002
-// Module: MOD-settings-pages → MOD-endpoint-calls
-// Level: system
-// Guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
-// Precondition: the dashboard has reached the public endpoint form from Settings.
-// Input: the author stores and tests a controlled Anthropic endpoint.
-// Expected: one Anthropic Messages request succeeds with its key in x-api-key and never in the request URL.
+// Module (as the case stated it): MOD-settings-pages → MOD-endpoint-calls
+// TST-292002 · level: system · module: MOD-settings-pages
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: the dashboard has reached the public endpoint form from Settings.
+// input: the author stores and tests a controlled Anthropic endpoint.
+// expect: one Anthropic Messages request succeeds with its key in x-api-key and never in the request URL.
 // Planted fault: replacing "/messages" by "/chat/completions" in src/endpoint-calls/index.mjs leaves the handler unanswered and this case fails.
 test("TST-292002: the dashboard sends Anthropic's one short Messages request", async () => {
   let observed = null;
@@ -105,13 +103,12 @@ test("TST-292002: the dashboard sends Anthropic's one short Messages request", a
   assert.match(result.textContent, /claude-tiny is working/);
 });
 
-// TST-292003
-// Module: MOD-settings-pages → MOD-endpoint-calls
-// Level: system
-// Guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
-// Precondition: an author has filled a direct endpoint in the dashboard's public form.
-// Input: Save and test meets a browser-visible cross-origin refusal.
-// Expected: the observed reason and both usable CI and Bridge alternatives are shown.
+// Module (as the case stated it): MOD-settings-pages → MOD-endpoint-calls
+// TST-292003 · level: system · module: MOD-settings-pages
+// guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: an author has filled a direct endpoint in the dashboard's public form.
+// input: Save and test meets a browser-visible cross-origin refusal.
+// expect: the observed reason and both usable CI and Bridge alternatives are shown.
 // Planted fault: changing diagnoseEndpoint's browser routes to [] in src/endpoint-calls/index.mjs makes the CI assertion fail.
 test("TST-292003: a browser refusal is actionable through CI and Bridge", async () => {
   const { server, page, main, configure: start } = await mountedDashboard([async (url) => {
@@ -126,13 +123,12 @@ test("TST-292003: a browser refusal is actionable through CI and Bridge", async 
   assert.match(result.textContent, /Bridge/);
 });
 
-// TST-292004
-// Module: MOD-settings-pages → MOD-browser-store
-// Level: system
-// Guards: UC-003 alternative 4b; UC-003 alternative 2b; CONFIGURATION LIVES IN THE BROWSER; A CLEAR IS A REAL CLEAR
-// Precondition: an author can reach the dashboard's endpoint form from Settings.
-// Input: a provider refuses the key, the page reloads, and the author presses Clear.
-// Expected: the provider message is shown and the key survives reload; Clear removes the actual localStorage entry and empties the form.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store
+// TST-292004 · level: system · module: MOD-settings-pages
+// guards: UC-003 alternative 4b; UC-003 alternative 2b; CONFIGURATION LIVES IN THE BROWSER; A CLEAR IS A REAL CLEAR
+// given: an author can reach the dashboard's endpoint form from Settings.
+// input: a provider refuses the key, the page reloads, and the author presses Clear.
+// expect: the provider message is shown and the key survives reload; Clear removes the actual localStorage entry and empties the form.
 // Planted fault: replacing clearSetting with applySetting in src/settings-pages/endpoints.mjs leaves the stored-entry assertion failing.
 test("TST-292004: refused key persists through reload until Clear removes the stored endpoint", async () => {
   const { server, page, main, configure: start } = await mountedDashboard([async (url) => {
@@ -153,13 +149,12 @@ test("TST-292004: refused key persists through reload until Clear removes the st
   assert.match(result.textContent, /cleared from this browser/i);
 });
 
-// TST-292011
-// Module: MOD-settings-pages → MOD-browser-store
-// Level: system
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
-// Precondition: Settings lists a stored named endpoint.
-// Input: the author presses that endpoint's Change control.
-// Expected: the named endpoint's form opens in place on the Settings page, reading that record.
+// Module (as the case stated it): MOD-settings-pages → MOD-browser-store
+// TST-292011 · level: system · module: MOD-settings-pages
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
+// given: Settings lists a stored named endpoint.
+// input: the author presses that endpoint's Change control.
+// expect: the named endpoint's form opens in place on the Settings page, reading that record.
 // Planted fault: removing context.go from Change in src/settings-pages/settings.mjs leaves the in-place form assertion failing.
 test("TST-292011: Settings Change opens the stored endpoint's form in place", async () => {
   const entries = { [`${prefix}endpoint:${OPENAI.name}`]: JSON.stringify({ url: OPENAI.url, kind: OPENAI.kind, model: OPENAI.model, key: OPENAI.key, throughBridge: false }) };

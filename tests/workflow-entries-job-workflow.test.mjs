@@ -156,15 +156,11 @@ const run = (w, extra) => { assert.ok(runEntry, `runEntry: ${entries.error?.mess
 
 // ---------------------------------------------------------------- a queued job, taken and run
 
+// TST-473201 · level: unit · module: MOD-workflow-entries
 // guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; A CI AGENT'S DRAFT ENTERS AS OPEN; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: a product whose `main` holds a queued job of the route `ci hosted`, another of the route `ci runner:lab` and one a runner took already, an instance holding the
-//        participant ci-bot, a fixture endpoint, and the job workflow's environment for the hosted runner with the person's token and the key
+// given: a product whose `main` holds a queued job of the route `ci hosted`, another of the route `ci runner:lab` and one a runner took already, an instance holding the participant ci-bot, a fixture endpoint, and the job workflow's environment for the hosted runner with the person's token and the key
 // input: onRecordsChanged
-// expect: outcome `done`, the summary naming the job; on the origin's main in order: the commit that takes the job, the writer's commit — the
-//         gate's record, open —, and the commit that ends it; the record names the run's address as the route that took it, ends `done` with the
-//         writer's commit as its result, the usage the endpoint reported and the run's address as its log; the other job is not taken; the
-//         one taken already is left as it is; everything committed on main, no other branch; the endpoint asked once, at its address, with the
-//         key in its authorisation header
+// expect: outcome `done`, the summary naming the job; on the origin's main in order: the commit that takes the job, the writer's commit — the gate's record, open —, and the commit that ends it; the record names the run's address as the route that took it, ends `done` with the writer's commit as its result, the usage the endpoint reported and the run's address as its log; the other job is not taken; the one taken already is left as it is; everything committed on main, no other branch; the endpoint asked once, at its address, with the key in its authorisation header
 test("onRecordsChanged — a queued job of this route is taken and run: its writer's commit and its end appended", async () => {
   const requests = fakeEndpoint();
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM })), recordFile(jobStart(OTHER_RUNNER_JOB, { agentM, route: "ci runner:lab" })),
@@ -191,9 +187,9 @@ test("onRecordsChanged — a queued job of this route is taken and run: its writ
   });
 });
 
+// TST-473202 · level: unit · module: MOD-workflow-entries
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: a product with a queued job of the route `ci hosted` and another of the route `ci runner:lab`, and the job workflow's environment of the
-//        self-hosted runner `lab`
+// given: a product with a queued job of the route `ci hosted` and another of the route `ci runner:lab`, and the job workflow's environment of the self-hosted runner `lab`
 // input: onRecordsChanged
 // expect: the job of the route `ci runner:lab` is taken and run; the job of `ci hosted` is left as it is
 test("onRecordsChanged — a self-hosted runner takes the jobs of its own label", async () => {
@@ -209,11 +205,11 @@ test("onRecordsChanged — a self-hosted runner takes the jobs of its own label"
 
 // ---------------------------------------------------------------- a missing secret
 
+// TST-473203 · level: unit · module: MOD-workflow-entries
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; NO SECRET IN THE REPOSITORY
 // given: the product with a queued job, and the environment without the participant's key; and without the person's token
 // input: onRecordsChanged for each; and, as the known positive, with both
-// expect: outcome `not run` each time, the summary naming the secret — FIXTURE_KEY, then AGENT_M_TOKEN — before anything is written: the
-//         origin's main as it was, the job not taken, the endpoint not asked; with both the job is run
+// expect: outcome `not run` each time, the summary naming the secret — FIXTURE_KEY, then AGENT_M_TOKEN — before anything is written: the origin's main as it was, the job not taken, the endpoint not asked; with both the job is run
 test("onRecordsChanged — a missing secret ends the entry not run, naming it, with nothing written", async () => {
   const requests = fakeEndpoint();
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
@@ -232,12 +228,11 @@ test("onRecordsChanged — a missing secret ends the entry not run, naming it, w
 
 // ---------------------------------------------------------------- the context
 
+// TST-473204 · level: unit · module: MOD-workflow-entries
 // guards: ONE DEFINITION, THREE DRIVERS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: the product with a queued job and the workspace of the job workflow
 // input: onRecordsChanged; the recipe of the kind keeps the context the entry gives the runner
-// expect: the context names the product's address, the instance's checkout — the workspace's instance/ folder — with a snapshot read from it
-//         that holds the participants' register, the job's identifier, the person who started it, Agent M's version and commit as the record
-//         names them, and the participants the register lists
+// expect: the context names the product's address, the instance's checkout — the workspace's instance/ folder — with a snapshot read from it that holds the participants' register, the job's identifier, the person who started it, Agent M's version and commit as the record names them, and the participants the register lists
 test("onRecordsChanged — the job's context names the instance's checkout", async () => {
   fakeEndpoint();
   seen = null;
@@ -256,6 +251,7 @@ test("onRecordsChanged — the job's context names the instance's checkout", asy
 
 // ---------------------------------------------------------------- no change
 
+// TST-473205 · level: unit · module: MOD-workflow-entries
 // guards: A CI AGENT'S DRAFT ENTERS AS OPEN; UC-010 4a
 // given: the product already holds the gate's record exactly as the writer would write it, and a queued job
 // input: onRecordsChanged
@@ -273,11 +269,11 @@ test("onRecordsChanged — a result equal to the current files ends done with no
 
 // ---------------------------------------------------------------- a dispatched job
 
+// TST-473206 · level: unit · module: MOD-workflow-entries
 // guards: UC-010 step 1; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A CI AGENT'S DRAFT ENTERS AS OPEN
 // given: a product with another queued job and no record of the one started, and a start from the server's own page with the inputs job, kind, participant, works_on and the parameters
 // input: onDispatch, the event's payload read from the file GITHUB_EVENT_PATH names
-// expect: outcome `done`; the start record committed at docs/jobs/<job>.md — route `ci hosted`, started by the actor, the inputs' parameters —,
-//         then taken and run as a queued job is: the writer's commit and the End; the other queued job is left as it is
+// expect: outcome `done`; the start record committed at docs/jobs/<job>.md — route `ci hosted`, started by the actor, the inputs' parameters —, then taken and run as a queued job is: the writer's commit and the End; the other queued job is left as it is
 test("onDispatch — a dispatched job is started and run", async () => {
   fakeEndpoint();
   const id = "JOB-20261008-0900-d1e2";
@@ -303,11 +299,11 @@ test("onDispatch — a dispatched job is started and run", async () => {
 
 // ---------------------------------------------------------------- no secret in any commit
 
+// TST-473207 · level: unit · module: MOD-workflow-entries
 // guards: NO SECRET IN THE REPOSITORY; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the job run as in the first test; and a job whose endpoint, a leaky one, quotes the key it was given in the reason of its decision
 // input: onRecordsChanged for each; every commit of the product's origin searched for the person's token and the key
-// expect: in neither run does a commit hold either; in the second the writer's commit is refused — nothing of the decision is written — and the
-//         job ends `failed`, the status `failed`
+// expect: in neither run does a commit hold either; in the second the writer's commit is refused — nothing of the decision is written — and the job ends `failed`, the status `failed`
 test("onRecordsChanged — no secret value in any commit", async () => {
   const holdsSecret = (w) => [TOKEN, KEY].some((secret) => git(w.product, "log", "-p", "--all").includes(secret));
   fakeEndpoint();

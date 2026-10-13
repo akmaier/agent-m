@@ -94,11 +94,11 @@ const words = (found) => `${found.what} ${found.fix}`;
 
 // ---------------------------------------------------------------- the recipe
 
+// TST-472010 · level: unit · module: MOD-approvals
 // guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; UC-022
 // given: the product above with UC-001 and UC-003 accepted, UC-002 open and UC-004 changed, and an architecture decision
 // input: the recipe accepted-use-cases, with the job's context and no parameter
-// expect: two parts, one for each accepted use case in the order the files stand, none for UC-002, UC-004 or the decision: each
-//         part's name holds its file's path and its text is the whole file
+// expect: two parts, one for each accepted use case in the order the files stand, none for UC-002, UC-004 or the decision: each part's name holds its file's path and its text is the whole file
 test("accepted-use-cases — one part for each use case a record names the current text of, none for an open or a changed one", async () => {
   const parts = await approvalStrategies.recipes["accepted-use-cases"](contextOf({ ...BASE, [ARC_PATH]: ARC }), {});
 
@@ -112,11 +112,11 @@ test("accepted-use-cases — one part for each use case a record names the curre
 
 // ---------------------------------------------------------------- the precondition
 
+// TST-472011 · level: unit · module: MOD-approvals
 // guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; UC-022
 // given: the product above with UC-001 and UC-003 accepted, UC-002 open and UC-004 changed, no architecture
 // input: the precondition architecture-ready, with the job's context
-// expect: one finding, an error under ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES, of one line, that names UC-002 and
-//         UC-004 and neither UC-001 nor UC-003
+// expect: one finding, an error under ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES, of one line, that names UC-002 and UC-004 and neither UC-001 nor UC-003
 test("architecture-ready — an error names each use case that is open or changed", async () => {
   const found = await approvalStrategies.preconditions["architecture-ready"](contextOf(BASE));
 
@@ -129,12 +129,11 @@ test("architecture-ready — an error names each use case that is open or change
   for (const own of [found.what, found.fix]) assert.match(own, /^[^\n]+$/);
 });
 
+// TST-472012 · level: unit · module: MOD-approvals
 // guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
-// given: a product whose use cases are all accepted and that holds an architecture decision; the same with UC-002 open; and one
-//        that holds a module file and no decision
+// given: a product whose use cases are all accepted and that holds an architecture decision; the same with UC-002 open; and one that holds a module file and no decision
 // input: the precondition architecture-ready, for each
-// expect: one error under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that points to UC-023 — also with a use case
-//         open, whose error does not come instead, and with a module file alone
+// expect: one error under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that points to UC-023 — also with a use case open, whose error does not come instead, and with a module file alone
 test("architecture-ready — a product that has an architecture already is pointed to UC-023", async () => {
   const accepted = { ...READY, [ARC_PATH]: ARC };
   for (const files of [accepted, { ...BASE, [ARC_PATH]: ARC }, { ...READY, [MOD_PATH]: MODULE }]) {
@@ -147,13 +146,11 @@ test("architecture-ready — a product that has an architecture already is point
   }
 });
 
+// TST-472013 · level: unit · module: MOD-approvals
 // guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
-// given: a product whose use cases are all accepted, no architecture, a change queue whose entry 01 a record of its proposal names,
-//        whose entry 02 only a decision row names, the commit that wrote it into the SPEC — decided —, and whose entry 03 a record of an
-//        earlier text of its proposal names — stale, not open —; and a second queue with an entry and no decisions file yet
+// given: a product whose use cases are all accepted, no architecture, a change queue whose entry 01 a record of its proposal names, whose entry 02 only a decision row names, the commit that wrote it into the SPEC — decided —, and whose entry 03 a record of an earlier text of its proposal names — stale, not open —; and a second queue with an entry and no decisions file yet
 // input: the precondition architecture-ready
-// expect: one finding, a warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that names the proposal of the
-//         second queue's entry and no other — not entry 01's, entry 02's or entry 03's — and nothing else of the queues
+// expect: one finding, a warning under THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE, of one line, that names the proposal of the second queue's entry and no other — not entry 01's, entry 02's or entry 03's — and nothing else of the queues
 test("architecture-ready — a warning names each SPEC change that neither an approval record nor a decision row decides", async () => {
   const files = { ...READY, ...QUEUE_FILES, ...QUEUE_RECORDS, ...FRESH_FILES };
   for (const path of Object.keys(files)) if (/spec-2026-10-01_fixture-0[23]-/.test(path) && !(path in QUEUE_RECORDS)) delete files[path];
@@ -168,9 +165,9 @@ test("architecture-ready — a warning names each SPEC change that neither an ap
   for (const own of [found.what, found.fix]) assert.match(own, /^[^\n]+$/);
 });
 
+// TST-472014 · level: unit · module: MOD-approvals
 // guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
-// given: a product that is ready: every use case accepted, no architecture, every SPEC change decided; and, as the known
-//        positive, the same with UC-002 open
+// given: a product that is ready: every use case accepted, no architecture, every SPEC change decided; and, as the known positive, the same with UC-002 open
 // input: the precondition architecture-ready, for each
 // expect: a finding for the one with the open use case; none (null) for the ready product
 test("architecture-ready — a product that is ready gives no finding", async () => {

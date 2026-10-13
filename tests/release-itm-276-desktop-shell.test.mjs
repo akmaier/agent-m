@@ -212,15 +212,14 @@ async function stop(app) {
 }
 const click = (page, label) => evaluate(page.webSocketDebuggerUrl, `[...document.querySelectorAll('button')].find((button) => button.textContent === ${JSON.stringify(label)}).click()`);
 
-// TST-276901
-// Precondition: Electron 44.5.1 is acquired in the established temporary fixture and the production source entry is
-// started for a fork identity with an empty private data folder.
-// Input: inspect the actual renderer's exposed surface and pair once through the real displayed loopback address.
-// Expected: the fork-local window has only the fixed preload controls and no Node globals; the address is loopback;
-// the configured origin and private token pair, while another origin is refused.
 // Planted fault: changing the `127.0.0.1` host in src/desktop-shell/compose.mjs to `0.0.0.0` reaches the real
 // server BindRefused check before token creation, so the private-token precondition fails; restoring that byte-exact
 // source makes this positive pass.
+// TST-276901 · level: release · module: MOD-desktop-shell
+// guards: UC-044; UC-003; THE BRIDGE RUNS AS AN APP; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY
+// given: Electron 44.5.1 is acquired in the established temporary fixture and the production source entry is started for a fork identity with an empty private data folder
+// input: inspect the actual renderer's exposed surface and pair once through the real displayed loopback address
+// expect: the fork-local window has only the fixed preload controls and no Node globals; the address is loopback; the configured origin and private token pair, while another origin is refused
 test("TST-276901: actual forked Electron source keeps its renderer private and pairs only on configured loopback", { timeout: 60000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   try {

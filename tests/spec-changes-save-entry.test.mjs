@@ -96,12 +96,11 @@ async function withQueue({ canWrite = true, server = "github", decisions = "", p
 const EDIT = (queue, more = {}) => ({ queue, entry: 1, text: READING_RENAMED, why: "The name should say what is read.", person: "alice", openedBlob: gitBlob(READING_EDITED), ...more });
 const proposalPath = (queue) => `${queue}/01-reading.md`;
 
+// TST-473025 · level: unit · module: MOD-spec-changes
 // guards: A SPEC EDIT IS SAVED AS A PROPOSAL; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006 3a; UC-018 1a
 // given: alice's open queue with an entry for Reading whose first edit changed A SAMPLE RULE, and a second edit that renames it to A READING RULE
 // input: saveEntry
-// expect: one commit on the default branch at the head read, holding the entry's proposal (the new text) and its rationale and nothing else — no index, no other queue, not the SPEC; the result
-//         names the commit; the rationale is in the schema queue-rationale without a finding, its Why the new one, its impact list computed anew (A SAMPLE RULE withdrawn with UC-001, A READING
-//         RULE added), its Origin as it was; read back, the queue is still the one queue, the entry open with the new proposal
+// expect: one commit on the default branch at the head read, holding the entry's proposal (the new text) and its rationale and nothing else — no index, no other queue, not the SPEC; the result names the commit; the rationale is in the schema queue-rationale without a finding, its Why the new one, its impact list computed anew (A SAMPLE RULE withdrawn with UC-001, A READING RULE added), its Origin as it was; read back, the queue is still the one queue, the entry open with the new proposal
 test("saveEntry — an open entry is saved in place in one commit, with its impact list computed anew", async () => {
   assert.ok(saveEntry, "saveEntry is offered");
   const f = await withQueue();
@@ -130,6 +129,7 @@ test("saveEntry — an open entry is saved in place in one commit, with its impa
   assert.deepEqual(view.impact.map((item) => [item.name, item.change]), [["A SAMPLE RULE", "withdrawn"], ["A READING RULE", "added"]]);
 });
 
+// TST-473026 · level: unit · module: MOD-spec-changes
 // guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018 3a
 // given: an entry whose proposal changed after it was opened (the blob it was opened on is not the proposal's now); and, to show the call writing, the same edit on the right blob
 // input: saveEntry
@@ -143,6 +143,7 @@ test("saveEntry — a proposal that changed meanwhile is refused with its newer 
   assert.deepEqual(g.commits, []);
 });
 
+// TST-473027 · level: unit · module: MOD-spec-changes
 // guards: A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 1a
 // given: an entry that was accepted (a decision of the queue's entscheidungen.md says so), and an entry number the queue does not hold
 // input: saveEntry
@@ -158,6 +159,7 @@ test("saveEntry — an entry that is no longer open is refused naming its state"
   assert.deepEqual(g.commits, []);
 });
 
+// TST-473028 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018 4a
 // given: a GitHub product and a host with no token
 // input: saveEntry
@@ -176,6 +178,7 @@ test("saveEntry — without a token on GitHub it writes nothing and returns GitH
   assert.equal(result.fallback.find((page) => page.path === proposalPath(f.queue)).text, READING_RENAMED);
 });
 
+// TST-473029 · level: unit · module: MOD-spec-changes
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018 4b
 // given: a GitLab product and a host with no token
 // input: saveEntry
@@ -188,6 +191,7 @@ test("saveEntry — without a token on GitLab it fails with TokenRequired", asyn
   assert.deepEqual(f.commits, []);
 });
 
+// TST-473030 · level: unit · module: MOD-spec-changes
 // guards: A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006 3a
 // given: an entry that a job drafted, whose rationale carries a Provenance paragraph beside its Origin
 // input: saveEntry with a new text and a new Why

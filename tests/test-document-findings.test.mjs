@@ -100,14 +100,11 @@ const LEVELS = lines(
   "// expect: an expected result",                                                               // 24
 );
 
+// TST-473083 · level: unit · module: MOD-test-document
 // guards: EVERY TEST HAS ONE LEVEL; UC-026 (step 5, each case carries its level)
-// given: LEVELS — a declaration with no `level` key, one whose `level:` has nothing after it, one of the level "integration",
-//        and one of "unit|component", two levels in one value; every other key given. Then, one declaration each, the five
-//        levels unit, component, system, release and user, each with a module that fits it, every other key given
+// given: LEVELS — a declaration with no `level` key, one whose `level:` has nothing after it, one of the level "integration", and one of "unit|component", two levels in one value; every other key given. Then, one declaration each, the five levels unit, component, system, release and user, each with a module that fits it, every other key given
 // input: testFindings of each declaration, read by testDeclarations
-// expect: exactly one finding for each of the four, an error under EVERY TEST HAS ONE LEVEL that names the declaration and the
-//         line of its first line — TST-101 on line 1, TST-102 on 7, TST-103 on 14, TST-104 on 20 — and says that the level is
-//         missing, and, for the last two, which level it found; none for the declaration of any of the five levels
+// expect: exactly one finding for each of the four, an error under EVERY TEST HAS ONE LEVEL that names the declaration and the line of its first line — TST-101 on line 1, TST-102 on 7, TST-103 on 14, TST-104 on 20 — and says that the level is missing, and, for the last two, which level it found; none for the declaration of any of the five levels
 test("testFindings — a missing or unknown level is an error under EVERY TEST HAS ONE LEVEL, on the declaration's line", () => {
   const found = findingsIn(LEVELS);
   assert.deepEqual(found.map(summary), [
@@ -161,14 +158,11 @@ const RESULTS = lines(
   "// expect: an expected result",                                                               // 26
 );
 
+// TST-478006 · level: unit · module: MOD-test-document
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026 (step 6, cases without an expected result)
-// given: RESULTS — a declaration with no `given`, one with no `input`, one with no `expect`, one whose `expect:` has nothing
-//        after it, and a complete one; every other key given
+// given: RESULTS — a declaration with no `given`, one with no `input`, one with no `expect`, one whose `expect:` has nothing after it, and a complete one; every other key given
 // input: testFindings of each declaration, read by testDeclarations
-// expect: exactly one finding for each of the first four, an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS that
-//         names the declaration and the line of its first line — TST-201 on line 1, TST-202 on 6, TST-203 on 11, TST-204 on
-//         16 — and says which is missing: the precondition, the input, the expected result, the expected result; none for
-//         TST-205
+// expect: exactly one finding for each of the first four, an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS that names the declaration and the line of its first line — TST-201 on line 1, TST-202 on 6, TST-203 on 11, TST-204 on 16 — and says which is missing: the precondition, the input, the expected result, the expected result; none for TST-205
 test("testFindings — a missing precondition, input or expected result is an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS", () => {
   const found = findingsIn(RESULTS);
   assert.deepEqual(found.map(summary), [
@@ -219,16 +213,11 @@ const ORIGINS = lines(
   "// expect: an expected result",                                                               // 28
 );
 
+// TST-473084 · level: unit · module: MOD-test-document
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-026 (step 6, cases that guard nothing)
-// given: ORIGINS — a declaration with no `guards` key, one whose `guards:` has nothing after it, one with no `module` key, one
-//        of level unit that names the module system, and one of level component that names system; every other key given.
-//        Then the declarations that name system or a module as they fit: level system, release and user with the module
-//        system, level unit and component with a module
+// given: ORIGINS — a declaration with no `guards` key, one whose `guards:` has nothing after it, one with no `module` key, one of level unit that names the module system, and one of level component that names system; every other key given. Then the declarations that name system or a module as they fit: level system, release and user with the module system, level unit and component with a module
 // input: testFindings of each declaration, read by testDeclarations
-// expect: exactly one finding for each of the five, an error under EVERY ARTIFACT NAMES ITS ORIGIN that names the declaration
-//         and the line of its first line — TST-301 on line 1, TST-302 on 6, TST-303 on 12, TST-304 on 18, TST-305 on 24 — and
-//         says that the test guards nothing, guards nothing, names no module, names system, names system; none for the
-//         declarations that fit
+// expect: exactly one finding for each of the five, an error under EVERY ARTIFACT NAMES ITS ORIGIN that names the declaration and the line of its first line — TST-301 on line 1, TST-302 on 6, TST-303 on 12, TST-304 on 18, TST-305 on 24 — and says that the test guards nothing, guards nothing, names no module, names system, names system; none for the declarations that fit
 test("testFindings — a test that guards nothing, names no module, or names system at level unit or component is an error under EVERY ARTIFACT NAMES ITS ORIGIN", () => {
   const found = findingsIn(ORIGINS);
   assert.deepEqual(found.map(summary), [
@@ -286,15 +275,11 @@ const RATES = lines(
   "// phrasings: 3",                                                                             // 29
 );
 
+// TST-473085 · level: unit · module: MOD-test-document
 // guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-026 (step 6, model-dependent cases judged on a single run)
-// given: RATES — a declaration with `phrasings: 3` and no `runs`; one with `phrasings: 3` and `runs: 1`; one with `runs: 1` and
-//        no phrasings; one with `phrasings: 3` and `runs: 0`; every other key given. Then the declarations that fit: `runs: 2`
-//        with `phrasings: 3`, `runs: 5` with `phrasings: 4`, and one with neither, an ordinary test
+// given: RATES — a declaration with `phrasings: 3` and no `runs`; one with `phrasings: 3` and `runs: 1`; one with `runs: 1` and no phrasings; one with `phrasings: 3` and `runs: 0`; every other key given. Then the declarations that fit: `runs: 2` with `phrasings: 3`, `runs: 5` with `phrasings: 4`, and one with neither, an ordinary test
 // input: testFindings of each declaration, read by testDeclarations
-// expect: exactly one finding for each of the four, an error under A MODEL-DEPENDENT TEST IS MEASURED AS A RATE that names the
-//         declaration and the line of its first line — TST-401 on line 1, TST-402 on 8, TST-403 on 16, TST-404 on 23 — and
-//         says something of the runs; none for the declarations that fit, two runs being enough and no runs being no fault
-//         in a test that does not depend on a model
+// expect: exactly one finding for each of the four, an error under A MODEL-DEPENDENT TEST IS MEASURED AS A RATE that names the declaration and the line of its first line — TST-401 on line 1, TST-402 on 8, TST-403 on 16, TST-404 on 23 — and says something of the runs; none for the declarations that fit, two runs being enough and no runs being no fault in a test that does not depend on a model
 test("testFindings — phrasings without runs, or fewer than two runs, is an error under A MODEL-DEPENDENT TEST IS MEASURED AS A RATE", () => {
   const found = findingsIn(RATES);
   assert.deepEqual(found.map(summary), [
@@ -350,14 +335,11 @@ const MANUAL = lines(
   "expect: the person records that every step worked",                                           //  9
 );
 
+// TST-473086 · level: unit · module: MOD-test-document
 // guards: EVERY TEST HAS ONE LEVEL; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; EVERY ARTIFACT NAMES ITS ORIGIN; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-026
-// given: FULL — a unit test with a level, a module, two guards and its precondition, input and expected result; a component
-//        test that depends on a model, with also runs 3, phrasings 3 and a paid service; a release test of the module system —,
-//        and MANUAL, a manual test of level user under a heading of a Markdown file
-// input: testFindings of each declaration, read by testDeclarations; and, to show that the same reading finds a fault in this
-//        file, the same with the expected result of TST-501 taken out
-// expect: no finding for FULL or MANUAL; for the file without that line exactly one, an error under A TEST STATES ITS EXPECTED
-//         RESULT BEFORE IT RUNS on TST-501, line 1
+// given: FULL — a unit test with a level, a module, two guards and its precondition, input and expected result; a component test that depends on a model, with also runs 3, phrasings 3 and a paid service; a release test of the module system —, and MANUAL, a manual test of level user under a heading of a Markdown file
+// input: testFindings of each declaration, read by testDeclarations; and, to show that the same reading finds a fault in this file, the same with the expected result of TST-501 taken out
+// expect: no finding for FULL or MANUAL; for the file without that line exactly one, an error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS on TST-501, line 1
 test("testFindings — a complete declaration has no finding", () => {
   // Known positive: the same reading finds the one fault planted in a copy.
   const planted = FULL.replace("// expect: an expected result\n", "");

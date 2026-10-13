@@ -28,11 +28,11 @@ const request = (bridge, token, args, origin = ORIGIN) => fetch(`${bridge.addres
   body: JSON.stringify({ args }),
 });
 
-// TST-268001
+// TST-268001 · level: unit · module: MOD-desktop-shell
+// guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; NO SECRET IN THE REPOSITORY
 // given: the production shell composition, its real paired loopback server, and a controlled local OpenAI-compatible endpoint
 // input: an unpaired request, a cross-origin request, then a paired endpoint-test request through compose.mjs
-// expect: pairing and origin refuse before dispatch; the paired request reaches the controlled endpoint once through jobHandlers,
-//         returns the endpoint-test result, and neither the endpoint key nor URL is retained in the pairing folder or logs
+// expect: pairing and origin refuse before dispatch; the paired request reaches the controlled endpoint once through jobHandlers, returns the endpoint-test result, and neither the endpoint key nor URL is retained in the pairing folder or logs
 // Planted fault: leaving compose.mjs with jobs: {} makes the paired assertion fail with 404 before the controlled endpoint receives a request.
 test("TST-268001: production compose registers endpoint-test with pairing, origin, loopback, and secret boundaries intact", async (t) => {
   const folder = await mkdtemp(join(tmpdir(), "agent-m-268-shell-"));

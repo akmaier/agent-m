@@ -86,28 +86,22 @@ const EXPORT_MIXED = { name: "Export Is A Pdf", source: "Product Owner;\nVibe Co
   sources: ["Product Owner", "Vibe Coding, ch. 13 §6"], rule: "The export of a report is one PDF file.",
   check: "no automatic check; at review.", checkPaths: [], section: "## 1. Names", line: 14 };
 
+// TST-473056 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS; EVERY ARTIFACT HAS AN IDENTIFIER; UC-005 (step 6, a candidate under a name of its own)
-// given: NAMES — a head line of the requirement's form whose name is not in capitals: `Export is a pdf`; then one in capitals;
-//        then, directly after it with no empty line, `export as csv`, a name with no capital letter; then `Export Is A Pdf`,
-//        a name in capitals and small letters, with a source over two lines
+// given: NAMES — a head line of the requirement's form whose name is not in capitals: `Export is a pdf`; then one in capitals; then, directly after it with no empty line, `export as csv`, a name with no capital letter; then `Export Is A Pdf`, a name in capitals and small letters, with a source over two lines
 // input: parseSpec(NAMES)
-// expect: four requirements, in the order they stand, each read with its name as written, its source and that source's items, its
-//         rule, its check, its section and the line of its head line — 3, 7, 10 and 14 —, none lost into another: the check of
-//         EXPORT IS A PDF ends on line 9, where the head line on line 10 begins; the section lists the four names in order
+// expect: four requirements, in the order they stand, each read with its name as written, its source and that source's items, its rule, its check, its section and the line of its head line — 3, 7, 10 and 14 —, none lost into another: the check of EXPORT IS A PDF ends on line 9, where the head line on line 10 begins; the section lists the four names in order
 test("parseSpec — a head line whose name is not in capitals is read as a requirement", () => {
   const spec = parseSpec(NAMES);
   assert.deepEqual([...spec.requirements.values()], [EXPORT_PDF, EXPORT_CAPITALS, EXPORT_CSV, EXPORT_MIXED]);
   assert.deepEqual(spec.sections.map((s) => s.requirements), [["Export is a pdf", "EXPORT IS A PDF", "export as csv", "Export Is A Pdf"]]);
 });
 
+// TST-473057 · level: unit · module: MOD-spec-document
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-005 (step 6) and UC-019 (step 7), findings sent back to the participant
 // given: NAMES; and JUDGED — a requirement named `Export is a pdf` whose check is missing, which is otherwise whole
 // input: requirementFindings of each, read by parseSpec
-// expect: for NAMES, exactly one finding for each of the three requirements whose name is not in capitals, an error under EVERY
-//         ARTIFACT HAS AN IDENTIFIER that names the requirement and the line of its head line — Export is a pdf on line 3,
-//         export as csv on 10, Export Is A Pdf on 14 — and says something of its name; none for EXPORT IS A PDF; for JUDGED the
-//         same error on line 3 and, as for any other requirement, an error under A REQUIREMENT HAS FOUR FIELDS for the check
-//         that is missing — such a requirement is judged, not passed over
+// expect: for NAMES, exactly one finding for each of the three requirements whose name is not in capitals, an error under EVERY ARTIFACT HAS AN IDENTIFIER that names the requirement and the line of its head line — Export is a pdf on line 3, export as csv on 10, Export Is A Pdf on 14 — and says something of its name; none for EXPORT IS A PDF; for JUDGED the same error on line 3 and, as for any other requirement, an error under A REQUIREMENT HAS FOUR FIELDS for the check that is missing — such a requirement is judged, not passed over
 test("requirementFindings — a name that is not in capitals is an error under EVERY ARTIFACT HAS AN IDENTIFIER, on the requirement's line", () => {
   const found = findingsOf(NAMES);
   assert.deepEqual(found.map(summary), [
@@ -152,12 +146,11 @@ const CAPITALS = lines(
   "*Check:* `tests/test_runs.py`",                                                               // 13
 );
 
+// TST-473058 · level: unit · module: MOD-spec-document
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-005
-// given: CAPITALS — three whole requirements whose names are in capitals and hold an apostrophe, a hyphen, a comma and a digit;
-//        and, to show that the same reading finds a fault, the same SPEC with the first name written `Don't repeat yourself`
+// given: CAPITALS — three whole requirements whose names are in capitals and hold an apostrophe, a hyphen, a comma and a digit; and, to show that the same reading finds a fault, the same SPEC with the first name written `Don't repeat yourself`
 // input: requirementFindings of each, read by parseSpec
-// expect: no finding for CAPITALS; for the SPEC with the first name changed exactly one, an error under EVERY ARTIFACT HAS AN
-//         IDENTIFIER on `Don't repeat yourself`, line 3
+// expect: no finding for CAPITALS; for the SPEC with the first name changed exactly one, an error under EVERY ARTIFACT HAS AN IDENTIFIER on `Don't repeat yourself`, line 3
 test("requirementFindings — a name in capitals passes", () => {
   // Known positive: the same reading finds the one name changed in a copy.
   const planted = CAPITALS.replace("**DON'T REPEAT YOURSELF**", "**Don't repeat yourself**");
@@ -203,14 +196,11 @@ const OWN = lines(
   "*Check:* no automatic check; at review.",                                                     // 28
 );
 
+// TST-473059 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS; EVERY ARTIFACT HAS AN IDENTIFIER; UC-005
-// given: OWN — a bold line in capitals without a source, a line of bold prose, and a fenced example of the form with a name not in
-//        capitals, all in the preamble; one section holding a requirement in capitals, a head line `UC-007`, which is the
-//        identifier of a use case, a requirement whose name is not in capitals, and a requirement of the apostrophe
+// given: OWN — a bold line in capitals without a source, a line of bold prose, and a fenced example of the form with a name not in capitals, all in the preamble; one section holding a requirement in capitals, a head line `UC-007`, which is the identifier of a use case, a requirement whose name is not in capitals, and a requirement of the apostrophe
 // input: parseSpec(OWN)
-// expect: the title; one section from line 13 to the end of the text, naming three requirements — A GATE IS REVIEWED on line 15,
-//         `A gate is recorded` on 22, DON'T REPEAT YOURSELF on 26 — and each read with its fields, section and line as in
-//         any SPEC; the bold line, the prose, the fenced example and the head line UC-007 are no requirement, read as before
+// expect: the title; one section from line 13 to the end of the text, naming three requirements — A GATE IS REVIEWED on line 15, `A gate is recorded` on 22, DON'T REPEAT YOURSELF on 26 — and each read with its fields, section and line as in any SPEC; the bold line, the prose, the fenced example and the head line UC-007 are no requirement, read as before
 test("parseSpec — the head lines of a SPEC in capitals read as before; what is no head line stays prose", () => {
   const spec = parseSpec(OWN);
   assert.equal(spec.title, "Fixture instance — Specification");

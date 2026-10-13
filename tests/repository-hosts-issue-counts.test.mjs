@@ -165,13 +165,11 @@ async function onBoth(read, { gh = {}, gl = {} } = {}) {
 
 // ---------------------------------------------------------------- the two counts
 
+// TST-472547 · level: unit · module: MOD-repository-hosts
 // guards: UC-022; DUE DILIGENCE IS FETCHED, NOT RECALLED
-// given: a public repository carol/release-tool on GitHub and a public project space/release-tool on a GitLab server, each
-//        holding three open and two closed issues and — pull requests, merge requests — one open and three closed; GitHub's
-//        search holds also the issues of another repository, carol/other-tool; no token is stored
+// given: a public repository carol/release-tool on GitHub and a public project space/release-tool on a GitLab server, each holding three open and two closed issues and — pull requests, merge requests — one open and three closed; GitHub's search holds also the issues of another repository, carol/other-tool; no token is stored
 // input: connect(address, {}).issueCounts()
-// expect: { open: 3, closed: 2 } from each, a plain object of two numbers; no issue listed: GitHub is asked two searches, each
-//         for one result a page, GitLab one request for the statistics; no token is sent to either
+// expect: { open: 3, closed: 2 } from each, a plain object of two numbers; no issue listed: GitHub is asked two searches, each for one result a page, GitLab one request for the statistics; no token is sent to either
 test("MOD-repository-hosts issueCounts — the open and closed issues of a public repository, without a token (GitHub, GitLab)", async () => {
   const [gh, gl, { github, gitlab }] = await onBoth((address) => connect(address, {}).issueCounts());
   assert.deepEqual(gh, { open: 3, closed: 2 }, "GitHub");
@@ -187,9 +185,9 @@ test("MOD-repository-hosts issueCounts — the open and closed issues of a publi
 
 // ---------------------------------------------------------------- pull requests are not counted
 
+// TST-472548 · level: unit · module: MOD-repository-hosts
 // guards: UC-022; DUE DILIGENCE IS FETCHED, NOT RECALLED
-// given: a public repository and a public project that hold one open issue, no closed one, and five open and seven closed pull
-//        or merge requests — GitHub's search lists pull requests with the issues unless it is told to leave them out
+// given: a public repository and a public project that hold one open issue, no closed one, and five open and seven closed pull or merge requests — GitHub's search lists pull requests with the issues unless it is told to leave them out
 // input: connect(address, {}).issueCounts()
 // expect: { open: 1, closed: 0 } from each: not one of the twelve pull or merge requests is counted
 test("MOD-repository-hosts issueCounts — pull requests are not counted (GitHub, GitLab)", async () => {
@@ -200,14 +198,11 @@ test("MOD-repository-hosts issueCounts — pull requests are not counted (GitHub
 
 // ---------------------------------------------------------------- a private repository
 
+// TST-472549 · level: unit · module: MOD-repository-hosts
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-022
-// given: a private repository on GitHub and a private project on a GitLab server, each serving a client only if it sends the right
-//        token — to any other GitHub's search answers 422, as it does for a repository it does not hold, and GitLab 404 —, each
-//        holding three open and two closed issues and pull or merge requests; a token stored for each
+// given: a private repository on GitHub and a private project on a GitLab server, each serving a client only if it sends the right token — to any other GitHub's search answers 422, as it does for a repository it does not hold, and GitLab 404 —, each holding three open and two closed issues and pull or merge requests; a token stored for each
 // input: connect(address, { token }).issueCounts(), and connect(address, {}).issueCounts() without a token
-// expect: with the token { open: 3, closed: 2 } from each, the token sent to the API of the server that issued it, GitHub's search
-//         included — Authorization: Bearer <token> on each of the two searches, PRIVATE-TOKEN on the request for the statistics;
-//         without a token NotFound naming the repository or the project
+// expect: with the token { open: 3, closed: 2 } from each, the token sent to the API of the server that issued it, GitHub's search included — Authorization: Bearer <token> on each of the two searches, PRIVATE-TOKEN on the request for the statistics; without a token NotFound naming the repository or the project
 test("MOD-repository-hosts issueCounts — a private repository is counted with the token, which is sent to the search too, and is not found without one (GitHub, GitLab)", async () => {
   const [gh, gl, { github, gitlab }] = await onBoth((address) => connect(address, { token: address === GITHUB ? GH_TOKEN : GL_TOKEN }).issueCounts(),
     { gh: { priv: true }, gl: { priv: true } });
@@ -223,13 +218,11 @@ test("MOD-repository-hosts issueCounts — a private repository is counted with 
 
 // ---------------------------------------------------------------- the search limit
 
+// TST-472550 · level: unit · module: MOD-repository-hosts
 // guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
-// given: GitHub's search, whose window allows 30 searches a minute with a token and 10 without, answers a used-up limit as GitHub
-//        does — 403, x-ratelimit-remaining 0, x-ratelimit-resource search, x-ratelimit-reset — (1) to the first search, with a
-//        token; (2) to the first search, without one; (3) to the second search, after the first was served, with a token
+// given: GitHub's search, whose window allows 30 searches a minute with a token and 10 without, answers a used-up limit as GitHub does — 403, x-ratelimit-remaining 0, x-ratelimit-resource search, x-ratelimit-reset — (1) to the first search, with a token; (2) to the first search, without one; (3) to the second search, after the first was served, with a token
 // input: issueCounts() on each
-// expect: HostError RateLimited whose limit is "search" — not "account" nor "network", though the limit is 30 or 10 — and whose
-//         resetsAt is the time x-ratelimit-reset gives; not a refused token, and in (3) not the one count that was read
+// expect: HostError RateLimited whose limit is "search" — not "account" nor "network", though the limit is 30 or 10 — and whose resetsAt is the time x-ratelimit-reset gives; not a refused token, and in (3) not the one count that was read
 test("MOD-repository-hosts issueCounts — the search limit is named when it is used up (GitHub)", async () => {
   for (const [label, credentials, searchesLeft] of [
     ["with a token, none left", { token: GH_TOKEN }, 0],
@@ -245,13 +238,11 @@ test("MOD-repository-hosts issueCounts — the search limit is named when it is 
 
 // ---------------------------------------------------------------- the module's named failures
 
+// TST-472551 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
-// given: servers that answer every request with a refused token (401), a server that knows no such repository or project — GitHub's
-//        search answers 422, as it does for a repository it does not hold or the client may not see; GitLab 404 —, a GitLab server
-//        that answers a used-up limit (429), servers that answer 502, and a fetch that fails as a browser's does
+// given: servers that answer every request with a refused token (401), a server that knows no such repository or project — GitHub's search answers 422, as it does for a repository it does not hold or the client may not see; GitLab 404 —, a GitLab server that answers a used-up limit (429), servers that answer 502, and a fetch that fails as a browser's does
 // input: issueCounts() on each
-// expect: HostError TokenRefused naming the token and the page where it is renewed; NotFound naming the repository; on GitLab
-//         RateLimited naming the account's limit; Unreachable with the server's status or the browser's reason
+// expect: HostError TokenRefused naming the token and the page where it is renewed; NotFound naming the repository; on GitLab RateLimited naming the account's limit; Unreachable with the server's status or the browser's reason
 test("MOD-repository-hosts issueCounts — a refused token, a missing repository, a used-up limit and an unreachable server are the module's named failures (GitHub, GitLab)", async () => {
   const ghHost = (address = GITHUB) => connect(address, { token: GH_TOKEN, tokenName: "GitHub token" });
   const glHost = () => connect(GITLAB, { token: GL_TOKEN, tokenName: "GitLab project token" });

@@ -123,14 +123,11 @@ function fakeHost({ repository = ON_GITHUB, defaultBranch = "trunk", files = {},
   return fake;
 }
 
-// given: a product on GitHub, of the account alice, whose default branch `trunk` holds a README and code, and none of the
-//        layout
+// TST-472051 · level: unit · module: MOD-artifact-edits
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-001
+// given: a product on GitHub, of the account alice, whose default branch `trunk` holds a README and code, and none of the layout
 // input: reviewLayoutCommit(host)
-// expect: one commit on `trunk`, on the head that was read, holding every part of the layout — each folder's README a single
-//         paragraph saying what the folder holds and that its status is derived from the approval records, SPEC.md the
-//         skeleton MOD-spec-document gives this product, CHANGELOG.md its title and nothing else —; the result names that
-//         commit by its sha and its page, `https://github.com/alice/thesis-tool/commit/<sha>`, and the six paths; the
-//         product's own files unchanged; no branch, no pull request; the message names no one — not alice
+// expect: one commit on `trunk`, on the head that was read, holding every part of the layout — each folder's README a single paragraph saying what the folder holds and that its status is derived from the approval records, SPEC.md the skeleton MOD-spec-document gives this product, CHANGELOG.md its title and nothing else —; the result names that commit by its sha and its page, `https://github.com/alice/thesis-tool/commit/<sha>`, and the six paths; the product's own files unchanged; no branch, no pull request; the message names no one — not alice
 test("reviewLayoutCommit — a product without any of the layout gets every part, in one commit on its default branch", async () => {
   const own = { "README.md": "# Thesis tool\n", "src/main.py": "print('thesis')\n" };
   const fake = fakeHost({ files: own });
@@ -164,11 +161,11 @@ test("reviewLayoutCommit — a product without any of the layout gets every part
   assert.doesNotMatch(change.message, /\balice\b/, "the commit names no one — not alice, whose account holds the repository");
 });
 
-// given: a product on a GitLab server whose default branch holds SPEC.md (its own text), a use case in docs/use-cases/ and a
-//        change queue entry in docs/spec-freigaben/ — but no docs/architecture/, no docs/approvals/, no CHANGELOG.md
+// TST-472052 · level: unit · module: MOD-artifact-edits
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-001
+// given: a product on a GitLab server whose default branch holds SPEC.md (its own text), a use case in docs/use-cases/ and a change queue entry in docs/spec-freigaben/ — but no docs/architecture/, no docs/approvals/, no CHANGELOG.md
 // input: reviewLayoutCommit(host)
-// expect: one commit holding only docs/architecture/README.md, docs/approvals/README.md and CHANGELOG.md; SPEC.md, the use case
-//         and the queue entry byte for byte as they were; the result names that commit by its sha and those three paths
+// expect: one commit holding only docs/architecture/README.md, docs/approvals/README.md and CHANGELOG.md; SPEC.md, the use case and the queue entry byte for byte as they were; the result names that commit by its sha and those three paths
 test("reviewLayoutCommit — a product with part of the layout gets only the missing parts", async () => {
   const have = {
     "SPEC.md": "# Thesis tool — Specification\n\nOur own preamble.\n\n## Export\n",
@@ -187,8 +184,9 @@ test("reviewLayoutCommit — a product with part of the layout gets only the mis
   for (const [path, text] of Object.entries(have)) assert.equal(fake.files()[path], text, `${path} as it was`);
 });
 
-// given: (1) a product whose default branch holds SPEC.md, CHANGELOG.md and files in each of the four folders, none of them a
-//        README; (2) an empty product into which reviewLayoutCommit has just written the layout
+// TST-472053 · level: unit · module: MOD-artifact-edits
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-001
+// given: (1) a product whose default branch holds SPEC.md, CHANGELOG.md and files in each of the four folders, none of them a README; (2) an empty product into which reviewLayoutCommit has just written the layout
 // input: reviewLayoutCommit(host)
 // expect: { complete: true }; no commit is attempted, and the branch stays at its head
 test("reviewLayoutCommit — a product with the complete layout gets no commit", async () => {
@@ -214,11 +212,11 @@ test("reviewLayoutCommit — a product with the complete layout gets no commit",
   assert.equal(empty.head(), written);
 });
 
-// given: a product without the layout, whose write is refused — (1) PermissionMissing: a public repository the token does not
-//        reach yet (UC-001 5a); (2) TokenRefused; (3) Moved: another commit lands on the branch after the layout was read
+// TST-472054 · level: unit · module: MOD-artifact-edits
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-001
+// given: a product without the layout, whose write is refused — (1) PermissionMissing: a public repository the token does not reach yet (UC-001 5a); (2) TokenRefused; (3) Moved: another commit lands on the branch after the layout was read
 // input: reviewLayoutCommit(host)
-// expect: it fails with the host's failure — the same name and the same fields —, and nothing of the layout is on the branch:
-//         its files are those it held before, with the other writer's commit in (3)
+// expect: it fails with the host's failure — the same name and the same fields —, and nothing of the layout is on the branch: its files are those it held before, with the other writer's commit in (3)
 test("reviewLayoutCommit — a refused write is named as the host names it, and nothing is written", async () => {
   const own = { "README.md": "# Thesis tool\n" };
   const renewal = "https://github.com/settings/personal-access-tokens";
@@ -245,11 +243,11 @@ test("reviewLayoutCommit — a refused write is named as the host names it, and 
 
 // ---------------------------------------------------------------- ITM-211: the commit with its address, the host alone
 
+// TST-472055 · level: unit · module: MOD-artifact-edits
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-001
 // given: the function as the module exports it; two products alike, of the account alice, without the layout
-// input: reviewLayoutCommit.length; reviewLayoutCommit(host) for the one product, and for the other with a person handed in
-//        beside the host, as callers of the old signature did — reviewLayoutCommit(host, "bob")
-// expect: one declared parameter, the host; and the two commits alike — the same files, the same message — and the two results
-//         alike: nothing beside the host has a part in what is written or returned
+// input: reviewLayoutCommit.length; reviewLayoutCommit(host) for the one product, and for the other with a person handed in beside the host, as callers of the old signature did — reviewLayoutCommit(host, "bob")
+// expect: one declared parameter, the host; and the two commits alike — the same files, the same message — and the two results alike: nothing beside the host has a part in what is written or returned
 test("reviewLayoutCommit — takes the host alone", async () => {
   assert.equal(reviewLayoutCommit.length, 1, "one parameter: the host");
   const own = { "README.md": "# Thesis tool\n" };
@@ -262,11 +260,11 @@ test("reviewLayoutCommit — takes the host alone", async () => {
   assert.deepEqual(b, a, "the same result");
 });
 
-// given: a product without the layout on GitHub, and one on a GitLab server, whose hosts' commitFiles answer with the commit's
-//        sha and its page — GitHub's `…/commit/<sha>`, GitLab's `…/-/commit/<sha>`
+// TST-472056 · level: unit · module: MOD-artifact-edits
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-001
+// given: a product without the layout on GitHub, and one on a GitLab server, whose hosts' commitFiles answer with the commit's sha and its page — GitHub's `…/commit/<sha>`, GitLab's `…/-/commit/<sha>`
 // input: reviewLayoutCommit(host)
-// expect: { commit: { sha, url }, written } — sha and url exactly those the host's commitFiles returned, and written the paths
-//         of that commit
+// expect: { commit: { sha, url }, written } — sha and url exactly those the host's commitFiles returned, and written the paths of that commit
 test("reviewLayoutCommit — returns the commit's sha and url as the host's commitFiles returns them, with the parts written", async () => {
   for (const repository of [ON_GITHUB, ON_GITLAB]) {
     const fake = fakeHost({ repository, files: { "README.md": "# Thesis tool\n" } });
@@ -279,8 +277,9 @@ test("reviewLayoutCommit — returns the commit's sha and url as the host's comm
   }
 });
 
-// given: a product whose repository is held by the account alice on GitHub, and one of the group fau-ai-taskforce on a GitLab
-//        server; a caller that hands a person beside the host, bob, as callers of the old signature did
+// TST-472057 · level: unit · module: MOD-artifact-edits
+// guards: ADDING A PRODUCT CREATES ITS LAYOUT; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-001
+// given: a product whose repository is held by the account alice on GitHub, and one of the group fau-ai-taskforce on a GitLab server; a caller that hands a person beside the host, bob, as callers of the old signature did
 // input: reviewLayoutCommit(host, "bob") for each
 // expect: a message that is not empty and names no one — not the account or group that holds the repository, not bob
 test("reviewLayoutCommit — the commit's message names no one", async () => {
