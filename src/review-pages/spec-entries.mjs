@@ -72,7 +72,7 @@ export const queueService = {
       .map((each) => ({ id: idOf(other, each.number), state: each.state })));
     const order = queue.entries.map((each) => ({ number: each.number, anchor: each.anchor, state: each.state }));
     const result = { title: `${shortOf(queue.folder)} · entry ${pad2(item.number)}`, status: view.state.replaceAll(" ", "-"), label: view.state,
-      nodes: entrySections(view, others, order, hrefOf), hold: null, shown: null, record: null };
+      nodes: entrySections(view, others, order, hrefOf), hold: null, shown: null, record: null, edit: view.state === "open" };
     if (view.state === "waiting for its anchor") {
       result.hold = el("p", "waits", view.createdBy === null ? "Its heading is in no entry of the queue: it cannot be accepted."
         : `It goes only with or after entry ${pad2(view.createdBy)}, which creates its heading: accept them together.`);
