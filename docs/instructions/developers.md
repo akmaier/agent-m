@@ -47,9 +47,10 @@ blob (`git show <blob sha>`) and say so in your report.
   does not hold yet.
 
 ## How you work — the job rules, which are the Definition of Done
-1. **Red first.** Write the tests the item's Acceptance names. Each names the module it exercises (`// Module: MOD-<slug>`
-   at the top) and the requirement it guards (`// Guards: <names>`, bare identifiers separated by `;`), with its
-   expected result readable without running it. Commit only these tests, push the branch and open a pull request into
+1. **Red first.** Write the tests the item's Acceptance names. Each test case carries the test declaration that
+   MOD-test-document's file gives, as comment lines directly before it: first `// TST-<nnn> · level: <level> · module:
+   MOD-<slug>`, then `key: value` lines, `guards:` with the requirement it guards among them, with its expected result
+   readable without running it. Take an identifier no test of the repository uses yet. Commit only these tests, push the branch and open a pull request into
    `sprint/<team>/<nn>`: `gh pr create --repo akmaier/agent-m --base sprint/<team>/<nn> --head item/ITM-<nnn>-<slug>
    --title "ITM-<nnn>: <title>"`. CI must be red on this commit (`gh pr checks`).
 2. **Green.** Implement in the folders of your item's modules (`src/<slug>/`), as the module files describe, only the
