@@ -649,7 +649,7 @@ Fixture practice.
 // expect: the exact model-schema table still adds its marked gate; prose and unrecognised text stay outside the workflow
 test("workflowOf — a valid practice gate table directly under Adds enters the workflow without an invented heading", async () => {
   const model = await teamScrum();
-  const practice = readDocument(modelSchema.practice, "docs/practices/bare-gate.md", `---
+  const practice = readDocument(modelSchema.practice, "src/model-catalogue/practices/bare-gate.md", `---
 name: bare-gate
 fits:
   - team-scrum
@@ -698,7 +698,7 @@ test("workflowOf — the job rules are the Definition of Done when the declarati
  // expect: the phase produces the kind TST, without the explanatory parenthesis
  test("workflowOf — a practice phase drops its Produces explanation as the model reader does", async () => {
   const model = await teamScrum();
-  const practice = readDocument(modelSchema.practice, "docs/practices/evidence-kind.md", `---
+  const practice = readDocument(modelSchema.practice, "src/model-catalogue/practices/evidence-kind.md", `---
 name: evidence-kind
 fits:
   - team-scrum
@@ -729,7 +729,7 @@ Fixture practice.
  // expect: each contiguous table contributes only to its matching workflow collection
  test("workflowOf — consecutive bare phase and role tables do not cross into each other", async () => {
   const model = await teamScrum();
-  const practice = readDocument(modelSchema.practice, "docs/practices/bare-tables.md", `---
+  const practice = readDocument(modelSchema.practice, "src/model-catalogue/practices/bare-tables.md", `---
 name: bare-tables
 fits:
   - team-scrum
