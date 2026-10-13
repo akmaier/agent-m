@@ -112,14 +112,11 @@ const lineOf = (f) => formatFinding(f);
 
 // ---------------------------------------------------------------- the correction loop
 
+// TST-472352 · level: component · module: MOD-job-runner
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
-// given: derive-use-cases, written at once (review none); a check that finds an unknown name under realises in a draft
-//        holding "EXPORT", and nothing in one that does not; a drafter that first drafts with "EXPORT", then without it,
-//        answering the finding as fixed
+// given: derive-use-cases, written at once (review none); a check that finds an unknown name under realises in a draft holding "EXPORT", and nothing in one that does not; a drafter that first drafts with "EXPORT", then without it, answering the finding as fixed
 // input: runJob of it, nobody attending
-// expect: the drafter asked twice — the second time with the finding and its first draft —; two rounds, the first with
-//         the finding answered fixed, the second without a finding; stopped because passed; the writer called once, with
-//         the corrected draft; the usage of both sends
+// expect: the drafter asked twice — the second time with the finding and its first draft —; two rounds, the first with the finding answered fixed, the second without a finding; stopped because passed; the writer called once, with the corrected draft; the usage of both sends
 test("runJob — a draft that fails a check goes back to its participant, and the corrected draft is written", async () => {
   checkFindings = (draft) => (JSON.stringify(draft).includes("EXPORT") ? [UNKNOWN] : []);
   written.length = 0;
@@ -140,13 +137,11 @@ test("runJob — a draft that fails a check goes back to its participant, and th
   assert.deepEqual(result.written, { commits: ["c0ffee"], files: [], pullRequest: null, shown: null });
 });
 
+// TST-472353 · level: component · module: MOD-job-runner
 // guards: THE CORRECTION LOOP HAS A FIXED LIMIT
-// given: derive-use-cases with the limit 3; a check that always finds an error whose text names the draft's number; a
-//        drafter that answers a new draft each round — so each round's finding differs —; then a drafter that answers the
-//        same draft each round — so the second round's finding is the first's
+// given: derive-use-cases with the limit 3; a check that always finds an error whose text names the draft's number; a drafter that answers a new draft each round — so each round's finding differs —; then a drafter that answers the same draft each round — so the second round's finding is the first's
 // input: runJob of each
-// expect: the first asked exactly 3 times, stopped because of the limit, its last finding remaining; the second asked
-//         twice — once more than the round without change —, stopped because unchanged, its finding remaining
+// expect: the first asked exactly 3 times, stopped because of the limit, its last finding remaining; the second asked twice — once more than the round without change —, stopped because unchanged, its finding remaining
 test("runJob — a participant that never fixes its error is asked exactly limit times, or once more than a round without change", async () => {
   checkFindings = (draft) => [finding({ what: `draft ${draft.files[0].text} still realises an unknown name` })];
   const { job, context } = await prepared("derive-use-cases", { limit: 3 });
@@ -160,12 +155,11 @@ test("runJob — a participant that never fixes its error is asked exactly limit
   assert.deepEqual([same.inputs.length, unchanged.stoppedBecause, unchanged.remaining.length], [2, "unchanged", 1]);
 });
 
+// TST-472354 · level: component · module: MOD-job-runner
 // guards: AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
-// given: derive-use-cases; a check that finds one warning on every draft; a drafter that answers it justified; and the
-//        same with an error the drafter answers justified
+// given: derive-use-cases; a check that finds one warning on every draft; a drafter that answers it justified; and the same with an error the drafter answers justified
 // input: runJob of each
-// expect: the justified warning ends the loop after its second round, passed, the justification recorded; the error
-//         answered justified does not — its loop ends unchanged with the error remaining
+// expect: the justified warning ends the loop after its second round, passed, the justification recorded; the error answered justified does not — its loop ends unchanged with the error remaining
 test("runJob — a justified warning ends the loop; an error answered with a justification does not", async () => {
   const { job, context } = await prepared("derive-use-cases");
   for (const [kind, stopped, left] of [["warning", "passed", 0], ["error", "unchanged", 1]]) {
@@ -180,12 +174,11 @@ test("runJob — a justified warning ends the loop; an error answered with a jus
   }
 });
 
+// TST-472355 · level: component · module: MOD-job-runner
 // guards: WHAT A PERSON DECIDES IS NOT SENT BACK
-// given: derive-requirements, whose kind leaves A CONFLICT IS DECIDED BY A PERSON to a person, attended; a check that
-//        finds a conflict on every draft
+// given: derive-requirements, whose kind leaves A CONFLICT IS DECIDED BY A PERSON to a person, attended; a check that finds a conflict on every draft
 // input: runJob of it
-// expect: the drafter asked once, with no finding; the conflict under forPerson, not among the rounds' findings; passed;
-//         nothing written, the result waiting for the person
+// expect: the drafter asked once, with no finding; the conflict under forPerson, not among the rounds' findings; passed; nothing written, the result waiting for the person
 test("runJob — a finding a person decides goes to the person and is never sent back", async () => {
   const conflict = finding({ rule: "A CONFLICT IS DECIDED BY A PERSON", what: "contradicts EXPORT IS A PDF" });
   classFindings = () => [conflict];
@@ -202,14 +195,11 @@ test("runJob — a finding a person decides goes to the person and is never sent
   classFindings = () => [];
 });
 
+// TST-472356 · level: component · module: MOD-job-runner
 // guards: A REVIEWER'S FINDING IS A WARNING
-// given: derive-architecture, reviewed by one participant, attended; a reviewer that finds one finding — written as it
-//        likes — on every draft; a drafter that answers it with the reason it does not hold; then a drafter that leaves
-//        it unanswered
+// given: derive-architecture, reviewed by one participant, attended; a reviewer that finds one finding — written as it likes — on every draft; a drafter that answers it with the reason it does not hold; then a drafter that leaves it unanswered
 // input: runJob of each
-// expect: the reviewer's finding reaches the drafter as a warning; answered, the loop ends after its second round,
-//         passed; unanswered, it does not end there: it stops unchanged with the finding remaining. The reviewer receives
-//         the draft in its input.
+// expect: the reviewer's finding reaches the drafter as a warning; answered, the loop ends after its second round, passed; unanswered, it does not end there: it stops unchanged with the finding remaining. The reviewer receives the draft in its input.
 test("runJob — a reviewer's finding is a warning: answered with its reason it ends the loop; unanswered it does not", async () => {
   checkFindings = () => [];
   stepFindings = () => [];
@@ -233,13 +223,11 @@ test("runJob — a reviewer's finding is a warning: answered with its reason it 
   assert.deepEqual([unanswered.stoppedBecause, unanswered.remaining], ["unchanged", [warning]]);
 });
 
+// TST-472357 · level: component · module: MOD-job-runner
 // guards: THE CORRECTION LOOP HAS A FIXED LIMIT
-// given: derive-use-cases with the limit 2; a drafter that first answers a text that is no JSON, then a readable draft;
-//        then one that answers no JSON both times
+// given: derive-use-cases with the limit 2; a drafter that first answers a text that is no JSON, then a readable draft; then one that answers no JSON both times
 // input: runJob of each
-// expect: the first: its unreadable answer a finding of the first round, sent back with the raw answer as the previous
-//         draft, and the readable draft passes in the second; the second: stopped because unusable, no draft, its raw
-//         answer kept for a person
+// expect: the first: its unreadable answer a finding of the first round, sent back with the raw answer as the previous draft, and the readable draft passes in the second; the second: stopped because unusable, no draft, its raw answer kept for a person
 test("runJob — an answer that cannot be read is a finding of the loop; still unreadable after the last round, the result is unusable", async () => {
   checkFindings = () => [];
   const { job, context } = await prepared("derive-use-cases", { limit: 2 });
@@ -256,13 +244,11 @@ test("runJob — an answer that cannot be read is a finding of the loop; still u
 
 // ---------------------------------------------------------------- steps, writing, gates, cancelling, refusing
 
+// TST-472358 · level: component · module: MOD-job-runner
 // guards: A CI AGENT'S DRAFT ENTERS AS OPEN
-// given: derive-architecture, reviewed by one participant, whose step due-diligence finds one finding; once attended,
-//        once with nobody attending
+// given: derive-architecture, reviewed by one participant, whose step due-diligence finds one finding; once attended, once with nobody attending
 // input: runJob of each; then writeResult of the attended result with a draft the person changed
-// expect: the step's finding among stepFindings and never sent back; attended, nothing written and the result waits;
-//         unattended, the writer called at once with the draft and the step's finding; writeResult runs the step again on
-//         the person's draft and calls the writer with that draft
+// expect: the step's finding among stepFindings and never sent back; attended, nothing written and the result waits; unattended, the writer called at once with the draft and the step's finding; writeResult runs the step again on the person's draft and calls the writer with that draft
 test("runJob and writeResult — the kind's steps run after the loop; a result waits for a person who attends it, else it is written at once", async () => {
   checkFindings = () => [];
   const marked = finding({ artifact: "docs/architecture/ARC-002.md", rule: "A REUSE DECISION RECORDS ITS DUE DILIGENCE",
@@ -289,12 +275,11 @@ test("runJob and writeResult — the kind's steps run after the loop; a result w
   assert.deepEqual(outcome.commits, ["c0ffee"]);
 });
 
+// TST-472359 · level: component · module: MOD-job-runner
 // guards: A JOB STOPS AT EVERY GATE
-// given: implement, whose kind has the gate point before-merge; its context with a gate at before-merge not passed; then
-//        with that gate passed
+// given: implement, whose kind has the gate point before-merge; its context with a gate at before-merge not passed; then with that gate passed
 // input: runJob of each, with onGate keeping the gates it is called for
-// expect: not passed: the writer opens its pull request, then onGate is called with the gate and the job stops with it;
-//         passed: no gate is called and the job ends passed
+// expect: not passed: the writer opens its pull request, then onGate is called with the gate and the job stops with it; passed: no gate is called and the job ends passed
 test("runJob — a job stops at a gate of its kind's points that is not passed, and calls onGate", async () => {
   checkFindings = () => [];
   const report = { branch: "item/ITM-001", commits: ["c0ffee"], pullRequest: "#7" };
@@ -308,6 +293,7 @@ test("runJob — a job stops at a gate of its kind's points that is not passed, 
   }
 });
 
+// TST-472360 · level: component · module: MOD-job-runner
 // guards: A CANCELLED JOB WRITES NOTHING MORE
 // given: derive-use-cases, written at once; a signal aborted before the job runs
 // input: runJob with that signal
@@ -324,6 +310,7 @@ test("runJob — a cancelled job is refused as Cancelled and writes nothing more
   assert.deepEqual([drafter.inputs.length, written.length], [0, 0]);
 });
 
+// TST-472361 · level: component · module: MOD-job-runner
 // guards: THE PAGE STATES WHAT IT SENDS WHERE
 // given: a prepared job with a blocking finding, and one with a participant named as not fitting
 // input: runJob of each
@@ -339,6 +326,7 @@ test("runJob — a prepared job with a blocking finding, or a participant that d
   assert.equal(drafter.inputs.length, 0);
 });
 
+// TST-472362 · level: component · module: MOD-job-runner
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: derive-use-cases; a draft a person changed, with "EXPORT", on which the check finds the unknown name; no drafter
 // input: runJob with that draft as `from`

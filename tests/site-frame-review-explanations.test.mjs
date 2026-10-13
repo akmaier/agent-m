@@ -52,12 +52,11 @@ function assertClaims(topic, claims) {
   for (const [pattern, says] of claims) assert.match(text, pattern, `${topic}: it says ${says}`);
 }
 
+// TST-472838 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-006; UC-008; UC-018
 // given: explanations.md, and the six topics of reviewing, accepting and editing
 // input: explain(topic) for each
-// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What
-//         is this?</summary> and then the topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it, in
-//         which no asterisk or backtick of the Markdown source is left standing
+// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it, in which no asterisk or backtick of the Markdown source is left standing
 test("explain — each topic of reviewing, accepting and editing is a folded What is this? with its text", () => {
   assert.match(renderArtifact("an *unclosed mark and `another").textContent, /[*`]/,
     "known positive: the renderer leaves a mark that is not closed standing");
@@ -75,14 +74,11 @@ test("explain — each topic of reviewing, accepting and editing is a folded Wha
   }
 });
 
-// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT; SEVERAL FILES ARE ACCEPTED IN ONE
-//   CLICK; UC-008 (steps 3 to 5, 3d, 3e); UC-006 (steps 4 and 6)
+// TST-472839 · level: unit · module: MOD-site-frame
+// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-008 (steps 3 to 5, 3d, 3e); UC-006 (steps 4 and 6)
 // given: the topic accepting
 // input: explain("accepting")
-// expect: text saying accepting is a commit — one saved change to the repository — under the accepting person's own account, which
-//         Git records with who and when; that it adds an approval record, a file under docs/approvals/ that names the blob SHA of
-//         exactly the text shown; that several files accepted at once get one record each, a file that changed after it was shown
-//         left out and named; and that for a SPEC change the same commit replaces the section byte for byte and adds the decision
+// expect: text saying accepting is a commit — one saved change to the repository — under the accepting person's own account, which Git records with who and when; that it adds an approval record, a file under docs/approvals/ that names the blob SHA of exactly the text shown; that several files accepted at once get one record each, a file that changed after it was shown left out and named; and that for a SPEC change the same commit replaces the section byte for byte and adds the decision
 test("explain — accepting: what accepting does and what an approval record is (UC-006, UC-008)", () => {
   assertClaims("accepting", [
     [/Accepting is a commit made under your own account/, "accepting is a commit made under the accepting person's own account"],
@@ -99,13 +95,11 @@ test("explain — accepting: what accepting does and what an approval record is 
   ]);
 });
 
-// guards: AN APPROVAL NAMES THE EXACT TEXT; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-008 (step 4); UC-018 (steps 2
-//   and 5)
+// TST-472840 · level: unit · module: MOD-site-frame
+// guards: AN APPROVAL NAMES THE EXACT TEXT; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-008 (step 4); UC-018 (steps 2 and 5)
 // given: the topic blob-sha
 // input: explain("blob-sha")
-// expect: text saying what a blob SHA is — the number Git computes from the content of a file, the same for the same text and
-//         another after any change —, that an approval record names the text by it, and that the editor notes the SHA of the text it
-//         opened, so that Save writes nothing when the file on the branch has another
+// expect: text saying what a blob SHA is — the number Git computes from the content of a file, the same for the same text and another after any change —, that an approval record names the text by it, and that the editor notes the SHA of the text it opened, so that Save writes nothing when the file on the branch has another
 test("explain — blob-sha: what a blob SHA is (UC-008, UC-018)", () => {
   assertClaims("blob-sha", [
     [/A blob SHA is the number Git computes from the content of a file/, "what a blob SHA is"],
@@ -119,14 +113,11 @@ test("explain — blob-sha: what a blob SHA is (UC-008, UC-018)", () => {
   ]);
 });
 
-// guards: STATUS IS DERIVED FROM THE RECORDS; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008 (steps 2a and 5a);
-//   UC-018 (step 6)
+// TST-472841 · level: unit · module: MOD-site-frame
+// guards: STATUS IS DERIVED FROM THE RECORDS; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008 (steps 2a and 5a); UC-018 (step 6)
 // given: the topic edit-after-acceptance
 // input: explain("edit-after-acceptance")
-// expect: text saying an edit gives the file another blob SHA, that no approval record names it, so that the file shows as changed
-//         since acceptance without anyone resetting a status — whether a file counts as accepted is worked out from the records,
-//         and a record vouches for the text it names only —, and that the difference to the text the most recent record names is
-//         shown above the text, to be accepted again
+// expect: text saying an edit gives the file another blob SHA, that no approval record names it, so that the file shows as changed since acceptance without anyone resetting a status — whether a file counts as accepted is worked out from the records, and a record vouches for the text it names only —, and that the difference to the text the most recent record names is shown above the text, to be accepted again
 test("explain — edit-after-acceptance: why an edit after acceptance reopens the review (UC-008, UC-018)", () => {
   assertClaims("edit-after-acceptance", [
     [/approval record names the accepted text by its blob SHA/, "an approval record names the accepted text by its blob SHA"],
@@ -142,14 +133,11 @@ test("explain — edit-after-acceptance: why an edit after acceptance reopens th
   ]);
 });
 
-// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; STATUS IS DERIVED FROM THE
-//   RECORDS; UC-018 (goal and step 6); UC-006 (steps 2 and 6)
+// TST-472842 · level: unit · module: MOD-site-frame
+// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; STATUS IS DERIVED FROM THE RECORDS; UC-018 (goal and step 6); UC-006 (steps 2 and 6)
 // given: the topic spec-edit-waits-for-approval
 // input: explain("spec-edit-waits-for-approval")
-// expect: text saying the SPEC is what the rest is checked against, so a change to it is a decision: a saved requirement becomes a
-//         proposal in a change queue under docs/spec-freigaben/, the dashboard never writes it straight into SPEC.md, and it is
-//         written only after a reviewer has accepted it seen beside the current text; and that a use case, a draft to be read and
-//         corrected, is saved at once and is open until an approval record names the saved text, so that nothing relies on it before
+// expect: text saying the SPEC is what the rest is checked against, so a change to it is a decision: a saved requirement becomes a proposal in a change queue under docs/spec-freigaben/, the dashboard never writes it straight into SPEC.md, and it is written only after a reviewer has accepted it seen beside the current text; and that a use case, a draft to be read and corrected, is saved at once and is open until an approval record names the saved text, so that nothing relies on it before
 test("explain — spec-edit-waits-for-approval: why a SPEC edit waits and a use-case edit is saved at once (UC-018)", () => {
   assertClaims("spec-edit-waits-for-approval", [
     [/checked against/, "the rest of the product is checked against the SPEC"],
@@ -166,14 +154,11 @@ test("explain — spec-edit-waits-for-approval: why a SPEC edit waits and a use-
   ]);
 });
 
-// guards: A QUEUE IS ACCEPTED IN ITS ORDER; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006
-//   (steps 6 and 4d); UC-018 (step 6)
+// TST-472843 · level: unit · module: MOD-site-frame
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006 (steps 6 and 4d); UC-018 (step 6)
 // given: the topic change-queue
 // input: explain("change-queue")
-// expect: text saying a change queue is a folder under docs/spec-freigaben/ with entries, an index.md and entscheidungen.md; that
-//         an entry is open until accepted; that a person's edits collect in the newest queue of the day without an accepted entry;
-//         and that entries accepted together are written in the order of the queue's index, in one commit, one whose heading
-//         another entry creates only together with or after that entry
+// expect: text saying a change queue is a folder under docs/spec-freigaben/ with entries, an index.md and entscheidungen.md; that an entry is open until accepted; that a person's edits collect in the newest queue of the day without an accepted entry; and that entries accepted together are written in the order of the queue's index, in one commit, one whose heading another entry creates only together with or after that entry
 test("explain — change-queue: what a change queue is, and its order (UC-006, UC-018)", () => {
   assertClaims("change-queue", [
     [/folder under docs\/spec-freigaben\//, "a queue is a folder under docs/spec-freigaben/"],
@@ -190,16 +175,11 @@ test("explain — change-queue: what a change queue is, and its order (UC-006, U
   ]);
 });
 
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A GITLAB PRODUCT IS WRITTEN WITH A
-//   TOKEN; UC-008 (steps 3b, 3c, 4a); UC-006 (step 4b); UC-018 (step 4a)
+// TST-472844 · level: unit · module: MOD-site-frame
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-008 (steps 3b, 3c, 4a); UC-006 (step 4b); UC-018 (step 4a)
 // given: the topic github-page-without-token
 // input: explain("github-page-without-token")
-// expect: text saying that a token is a key created on GitHub and stored in this browser, with which the dashboard makes the
-//         commit; that without a token it opens GitHub's own page — the page for a new file with the record filled in to accept,
-//         GitHub's editor with the text on the clipboard to edit —, and that the link never carries the reviewed text; that Commit
-//         changes there makes the commit; that without write access GitHub makes a pull request, a proposal for the maintainers to
-//         review, which counts once a maintainer merges it; that a record that did not arrive is shown with a copy button; and that
-//         GitLab has no such page and needs the project's own token
+// expect: text saying that a token is a key created on GitHub and stored in this browser, with which the dashboard makes the commit; that without a token it opens GitHub's own page — the page for a new file with the record filled in to accept, GitHub's editor with the text on the clipboard to edit —, and that the link never carries the reviewed text; that Commit changes there makes the commit; that without write access GitHub makes a pull request, a proposal for the maintainers to review, which counts once a maintainer merges it; that a record that did not arrive is shown with a copy button; and that GitLab has no such page and needs the project's own token
 test("explain — github-page-without-token: what GitHub's page is when no token is stored (UC-006, UC-008, UC-018)", () => {
   assertClaims("github-page-without-token", [
     [/With a token[^.]*the dashboard makes the commit for you/, "with a token the dashboard makes the commit"],
@@ -223,14 +203,11 @@ test("explain — github-page-without-token: what GitHub's page is when no token
   ]);
 });
 
+// TST-472845 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF
-// given: the topics of reviewing, accepting and editing, and the book Vibe Coding, whose chapter 8 treats how requirements change
-//        and whose chapter 12 treats version control and the pull request as a review gate
+// given: the topics of reviewing, accepting and editing, and the book Vibe Coding, whose chapter 8 treats how requirements change and whose chapter 12 treats version control and the pull request as a review gate
 // input: the rendered text of each topic
-// expect: the topics about accepting, about an edit after acceptance, and about GitHub's page, which are about Git and review,
-//         point to chapter 12, section 10, of the book, on version control and the pull request as a review gate; the topics about a
-//         SPEC edit and about the change queue, which are about how a requirement changes, to chapter 8, section 6, on how
-//         requirements evolve; the topic about a blob SHA, on which the book has no passage, needs none
+// expect: the topics about accepting, about an edit after acceptance, and about GitHub's page, which are about Git and review, point to chapter 12, section 10, of the book, on version control and the pull request as a review gate; the topics about a SPEC edit and about the change queue, which are about how a requirement changes, to chapter 8, section 6, on how requirements evolve; the topic about a blob SHA, on which the book has no passage, needs none
 test("explain — the topics of reviewing, accepting and editing point to the book where it treats them", () => {
   const POINTERS = [
     ["accepting", /In the book Vibe Coding: chapter 12, section 10\./],

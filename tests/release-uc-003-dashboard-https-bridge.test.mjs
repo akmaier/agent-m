@@ -45,12 +45,12 @@ const nativeFetch = globalThis.fetch;
 const listen = (server) => new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", () => resolve(server.address().port)); });
 const close = (server) => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
 
-// TST-266002
-// Precondition: the dashboard holds the separately configured HTTPS jump-host login and Bridge token; a controlled proxy
-// forwards only authenticated requests to a real compose() Bridge and controlled model.
-// Input: Settings -> Configure saves and tests a through-Bridge local endpoint.
-// Expected: the dashboard uses the HTTPS address, Basic login and Bridge token as distinct headers; the proxy forwards one
-// request and the model receives one short request, while no credential appears in the URL or repository ledger.
+// TST-266002 · level: release · module: MOD-settings-pages
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
+// given: the dashboard holds the separately configured HTTPS jump-host login and Bridge token; a controlled proxy forwards only authenticated requests to a real compose() Bridge and controlled model.
+// input: Settings -> Configure saves and tests a through-Bridge local endpoint.
+// expect: the dashboard uses the HTTPS address, Basic login and Bridge token as distinct headers; the proxy forwards one request and the model receives one short request, while no credential appears in the URL or repository ledger.
+// Module (as the file header stated it): MOD-settings-pages -> MOD-browser-store -> MOD-bridge-client -> MOD-bridge-http -> MOD-bridge-jobs -> MOD-desktop-shell
 // Planted fault: removing `...(login ? { login } : {})` from bridgeSettings in src/settings-pages/endpoints.mjs makes the
 // controlled proxy returns 401 and the visible working assertion fails; byte-exact restoration restores this positive.
 test("TST-266002: configured HTTPS forwarding keeps jump-host login separate from the Bridge token", async (t) => {

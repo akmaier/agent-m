@@ -76,10 +76,8 @@ async function gitlabReleaseWorld() {
   return { instance, files, requests, writes };
 }
 
-// TST-283
-// Module: MOD-settings-pages
-// Guards: UC-001; EVERY STEP EXPLAINS ITSELF; A MANAGED PRODUCT NEEDS NO PAGES SITE; ONE REVIEW LAYOUT FOR EVERY PRODUCT; THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; EVERY PRODUCT HAS ITS OWN VERSION LINE; CONFIGURATION LIVES IN THE BROWSER; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; ONE GITHUB TOKEN SERVES EVERY FEATURE; A GITHUB PRODUCT USES A TOKEN OF ITS OWN; A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT; A TOKEN IS SCOPED TO WHAT IT WRITES; THE SHARED PAGES ORIGIN IS DISCLOSED; THE PAGE STATES WHAT IT SENDS WHERE; A PRODUCT IS NAMED BY ITS ADDRESS; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// Level: release
+// TST-283 · level: release · module: MOD-settings-pages
+// guards: UC-001; EVERY STEP EXPLAINS ITSELF; A MANAGED PRODUCT NEEDS NO PAGES SITE; ONE REVIEW LAYOUT FOR EVERY PRODUCT; THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; EVERY PRODUCT HAS ITS OWN VERSION LINE; CONFIGURATION LIVES IN THE BROWSER; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; ONE GITHUB TOKEN SERVES EVERY FEATURE; A GITHUB PRODUCT USES A TOKEN OF ITS OWN; A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT; A TOKEN IS SCOPED TO WHAT IT WRITES; THE SHARED PAGES ORIGIN IS DISCLOSED; THE PAGE STATES WHAT IT SENDS WHERE; A PRODUCT IS NAMED BY ITS ADDRESS; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: an instance dashboard, a GitHub product address and a GitLab product address
 // input: type each address in the actual Add product route
 // expect: server-specific key steps disclose the required scope, storage, destinations, layout and GitLab project-token route before any credential can be stored
@@ -134,10 +132,8 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
   assert.match(glText, /never to GitHub/i);
 });
 
-// TST-286
-// Module: MOD-settings-pages
-// Guards: UC-001; ONE CLICK PER DECISION; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// Level: release
+// TST-286 · level: release · module: MOD-settings-pages
+// guards: UC-001; ONE CLICK PER DECISION; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a browser with its instance token and a public GitHub product containing no review layout
 // input: store the product token, fire a synthetic Add product event, then make one trusted Add product click
 // expect: only the trusted click writes the complete missing layout and canonical browser list; the instance repository remains untouched
@@ -170,10 +166,8 @@ test("TST-286 UC-001 release transaction guards product writes and browser state
     "the canonical instance credential remains distinct from the product credential");
 });
 
-// TST-287
-// Module: MOD-settings-pages
-// Guards: UC-001; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// Level: release
+// TST-287 · level: release · module: MOD-settings-pages
+// guards: UC-001; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a GitLab product and an instance whose GitHub token is present
 // input: paste its project token and expiry, Store and check, then trusted Add product
 // expect: the project token alone reads and writes GitLab, is kept under its canonical project key, and the instance token never reaches GitLab

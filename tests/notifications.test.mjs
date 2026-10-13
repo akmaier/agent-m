@@ -133,13 +133,11 @@ function makePage(store, host, addressOf) {
 
 // ---------------------------------------------------------------- switchOn / switchOff
 
+// TST-472410 · level: unit · module: MOD-notifications
 // guards: NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: a fresh store; the browser's Notification and worker registration stood in for, permission starting "default"
-// input: notificationState(store) (before any call); switchOn(store) with the browser refusing ("denied"); switchOn(store)
-//        again with the browser allowing ("granted")
-// expect: notificationState alone never asks the permission (0 calls); the refusal asks it once, registers no worker and
-//         stores nothing; the allowed call asks it once more (one ask per call, only on the call), registers the worker
-//         once and stores { checked: null } under "notifications"
+// input: notificationState(store) (before any call); switchOn(store) with the browser refusing ("denied"); switchOn(store) again with the browser allowing ("granted")
+// expect: notificationState alone never asks the permission (0 calls); the refusal asks it once, registers no worker and stores nothing; the allowed call asks it once more (one ask per call, only on the call), registers the worker once and stores { checked: null } under "notifications"
 test("switchOn asks the browser's permission only on the call, and a refusal stores nothing", async () => {
   const store = openFreshStore();
   const browser = installBrowser({ permission: "default" });
@@ -168,6 +166,7 @@ test("switchOn asks the browser's permission only on the call, and a refusal sto
   } finally { browser.restore(); }
 });
 
+// TST-472411 · level: unit · module: MOD-notifications
 // guards: A CLEAR IS A REAL CLEAR
 // given: a store with "notifications" and "notified" both set, and a registered worker
 // input: switchOff(store)
@@ -189,11 +188,11 @@ test("switchOff removes both notifications and notified, and unregisters the wor
 
 // ---------------------------------------------------------------- watchForAcceptance
 
+// TST-472412 · level: unit · module: MOD-notifications
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; UC-047
 // given: notifications switched on, never checked (checked: null); one use case already open when the first check runs
 // input: watchForAcceptance(page)
-// expect: no notification is shown; "notified" records the open use case's path and blob as the new baseline; "checked"
-//         is recorded (no longer null)
+// expect: no notification is shown; "notified" records the open use case's path and blob as the new baseline; "checked" is recorded (no longer null)
 test("the first check after Switch on notifies nothing, and only records what waits then", async () => {
   const store = openFreshStore();
   writeSetting(store, "notifications", { checked: null });
@@ -213,13 +212,11 @@ test("the first check after Switch on notifies nothing, and only records what wa
   } finally { browser.restore(); }
 });
 
+// TST-472413 · level: unit · module: MOD-notifications
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; UC-047
-// given: a baseline check with nothing waiting; then one use case comes to wait; then, unchanged, a further check; then
-//        the same use case is edited again (a new blob) while still unaccepted
+// given: a baseline check with nothing waiting; then one use case comes to wait; then, unchanged, a further check; then the same use case is edited again (a new blob) while still unaccepted
 // input: four checks of watchForAcceptance's page, five minutes apart
-// expect: the baseline shows nothing; the use case that came to wait is notified once, naming it and the repository,
-//         with an address built from its kind and id; the unchanged check notifies nothing more (still just the one);
-//         the file edited again is notified anew, as a second, distinct notification
+// expect: the baseline shows nothing; the use case that came to wait is notified once, naming it and the repository, with an address built from its kind and id; the unchanged check notifies nothing more (still just the one); the file edited again is notified anew, as a second, distinct notification
 test("a file come to wait is notified once, with its text and address, and a file changed again anew", async () => {
   const store = openFreshStore();
   writeSetting(store, "notifications", { checked: null });
@@ -264,11 +261,11 @@ test("a file come to wait is notified once, with its text and address, and a fil
   } finally { browser.restore(); }
 });
 
+// TST-472414 · level: unit · module: MOD-notifications
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; UC-047
 // given: a baseline check with nothing waiting; then four use cases of the same repository come to wait at once
 // input: two checks of watchForAcceptance's page, five minutes apart
-// expect: one notification naming their number and kind, not four — with the repository and an address built from the
-//         kind alone (the list, no single id)
+// expect: one notification naming their number and kind, not four — with the repository and an address built from the kind alone (the list, no single id)
 test("more than three of one kind in one repository give one notification of their number", async () => {
   const store = openFreshStore();
   writeSetting(store, "notifications", { checked: null });
@@ -298,15 +295,11 @@ test("more than three of one kind in one repository give one notification of the
   } finally { browser.restore(); }
 });
 
+// TST-472415 · level: unit · module: MOD-notifications
 // guards: UC-047
-// given: a baseline check with one use case already waiting (so "notified" starts non-empty); the next check's
-//        repository cannot be read; the one after that can, with that same use case unchanged and two more come to
-//        wait since the baseline
+// given: a baseline check with one use case already waiting (so "notified" starts non-empty); the next check's repository cannot be read; the one after that can, with that same use case unchanged and two more come to wait since the baseline
 // input: three checks of watchForAcceptance's page, five minutes apart
-// expect: the failed check shows nothing and leaves "notified" exactly as the baseline left it — the one already-
-//         waiting entry neither dropped nor altered — but still records its own time (so the next check is five
-//         minutes later, not retried at once); the following, working check notifies only the two new files, not the
-//         unchanged one, and "notified" ends with all three
+// expect: the failed check shows nothing and leaves "notified" exactly as the baseline left it — the one already- waiting entry neither dropped nor altered — but still records its own time (so the next check is five minutes later, not retried at once); the following, working check notifies only the two new files, not the unchanged one, and "notified" ends with all three
 test("a repository that cannot be read is skipped until the next check", async () => {
   const store = openFreshStore();
   writeSetting(store, "notifications", { checked: null });

@@ -94,11 +94,11 @@ async function bridgePage(store, params = {}) {
 }
 const lineOf = (page, name) => byClass(page, "settings-bridge-named").find((line) => byClass(line, "settings-bridge-named-name")[0]?.textContent === name);
 
+// TST-472736 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: two Bridges kept by name, each with its own address and token, and a Bridge that answers for each
 // input: the Settings page; Test on the first line, then on the second
-// expect: a line for each Bridge under its name, its token hidden until Show; each Test requests only its own address, /v1/pair and /v1/agents,
-//         with its own token in the protocol header; the line names the Bridge and its address as answering, and records the test for it alone
+// expect: a line for each Bridge under its name, its token hidden until Show; each Test requests only its own address, /v1/pair and /v1/agents, with its own token in the protocol header; the line names the Bridge and its address as answering, and records the test for it alone
 test("Settings — each Bridge is a line under its name and is tested at its own address with its own token", async (t) => {
   const store = freshStore();
   writeSetting(store, "bridge:laptop", { address: "http://127.0.0.1:4711", token: "laptop-token" });
@@ -123,12 +123,11 @@ test("Settings — each Bridge is a line under its name and is tested at its own
   assert.ok(calls.slice(2).every((call) => call.init.headers["x-agent-m-bridge-token"] === "forward-token"));
 });
 
+// TST-472737 · level: unit · module: MOD-settings-pages
 // guards: A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; UC-044
-// given: a Bridge at a port of the jump host's range, the jump host with its HTTPS address and web-server login; then a browser that refuses the
-//        certificate; then a Bridge at a port with no jump host stored
+// given: a Bridge at a port of the jump host's range, the jump host with its HTTPS address and web-server login; then a browser that refuses the certificate; then a Bridge at a port with no jump host stored
 // input: Test on its line
-// expect: the requests go to https://jump.example.test/bridge/gpu-box/…, with the web login and the token; a refused connection names the certificate
-//         as a possible cause, and the test is recorded as refused; without a jump host the line says the jump host is missing and requests nothing
+// expect: the requests go to https://jump.example.test/bridge/gpu-box/…, with the web login and the token; a refused connection names the certificate as a possible cause, and the test is recorded as refused; without a jump host the line says the jump host is missing and requests nothing
 test("Settings — a Bridge through the jump host is tested at its HTTPS path, naming the certificate when the browser refuses it", async (t) => {
   const store = freshStore();
   writeSetting(store, "jump-host", JUMP);
@@ -157,11 +156,11 @@ test("Settings — a Bridge through the jump host is tested at its HTTPS path, n
   assert.equal(calls.length, before);
 });
 
+// TST-472738 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-042
 // given: two endpoints, one of which names the Bridge gpu-box in its `bridge`, and the Bridge laptop, which none names
 // input: Clear on the line of gpu-box, refused; Clear again, confirmed; Clear on laptop
-// expect: the question names the endpoint that names gpu-box and not the other; a refusal clears nothing; a confirmation clears the Bridge and its
-//         test record and leaves the endpoint as it was; the question for laptop names no endpoint
+// expect: the question names the endpoint that names gpu-box and not the other; a refusal clears nothing; a confirmation clears the Bridge and its test record and leaves the endpoint as it was; the question for laptop names no endpoint
 test("Settings — Clear names the endpoints that name the Bridge before it clears it", async (t) => {
   const store = freshStore();
   writeSetting(store, "bridge:gpu-box", { port: 40100, token: "gpu-token" });
@@ -194,13 +193,11 @@ test("Settings — Clear names the endpoints that name the Bridge before it clea
   assert.doesNotMatch(asked.at(-1), /hpc|campus/);
 });
 
+// TST-472739 · level: unit · module: MOD-settings-pages
 // guards: UC-044; THE DASHBOARD WRITES THE TUNNEL COMMANDS
-// given: the Bridge route, and a Bridge on this computer that reports the name "lab-mac"; then another at a forwarded address that reports "lab-pc";
-//        then one whose answer names none (the pairing the page has always made)
+// given: the Bridge route, and a Bridge on this computer that reports the name "lab-mac"; then another at a forwarded address that reports "lab-pc"; then one whose answer names none (the pairing the page has always made)
 // input: Pair Bridge with the address and the copied token, for each
-// expect: the first is stored as bridge:lab-mac with its address and token, and also as the single `bridge`; the second as bridge:lab-pc beside it, the
-//         first kept, and the single `bridge` now the second; the third is stored as the single `bridge` alone; the page names the reported name;
-//         Change for a stored name shows its address and token in the fields
+// expect: the first is stored as bridge:lab-mac with its address and token, and also as the single `bridge`; the second as bridge:lab-pc beside it, the first kept, and the single `bridge` now the second; the third is stored as the single `bridge` alone; the page names the reported name; Change for a stored name shows its address and token in the fields
 test("Bridge route — pairing stores the Bridge under the name it reports", async (t) => {
   const store = freshStore();
   const reported = { "http://127.0.0.1:4711/v1/pair": "lab-mac", "http://127.0.0.1:9222/v1/pair": "lab-pc" };
@@ -228,12 +225,11 @@ test("Bridge route — pairing stores the Bridge under the name it reports", asy
   assert.equal(byClass(changed, "bridge-token")[0].value, "pc-token");
 });
 
+// TST-472740 · level: unit · module: MOD-settings-pages
 // guards: UC-011; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS
 // given: a jump host with the ports 40100 to 40102, a Bridge through it at 40100, and one reached directly
 // input: + Bridge through the jump host, named lab-pc, with its copied token; the same name again; a third and fourth name
-// expect: bridge:lab-pc at 40101 — the lowest free port, the direct Bridge holding none — with its token; the reverse and forward commands filled in with
-//         that port; the same name keeps its port; the next name takes 40102; the one after is refused for want of a free port and nothing is
-//         written; no request was made
+// expect: bridge:lab-pc at 40101 — the lowest free port, the direct Bridge holding none — with its token; the reverse and forward commands filled in with that port; the same name keeps its port; the next name takes 40102; the one after is refused for want of a free port and nothing is written; no request was made
 test("Bridge route — + Bridge through the jump host takes the lowest free port and writes the two tunnel commands", async (t) => {
   const store = freshStore();
   writeSetting(store, "jump-host", JUMP);
@@ -272,11 +268,11 @@ test("Bridge route — + Bridge through the jump host takes the lowest free port
   assert.equal(readSetting(bareStore, "bridge:x"), null);
 });
 
+// TST-472741 · level: unit · module: MOD-settings-pages
 // guards: A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; UC-011
 // given: two Bridges through the jump host and one reached directly
 // input: the Bridge route
-// expect: the Apache and nginx configuration name the path /bridge/<name>/ and the port of each Bridge through the jump host, the origin of the page,
-//         and neither the direct Bridge nor any token
+// expect: the Apache and nginx configuration name the path /bridge/<name>/ and the port of each Bridge through the jump host, the origin of the page, and neither the direct Bridge nor any token
 test("Bridge route — the web server's configuration covers every Bridge reached through the jump host", async (t) => {
   const store = freshStore();
   writeSetting(store, "jump-host", JUMP);
@@ -294,12 +290,11 @@ test("Bridge route — the web server's configuration covers every Bridge reache
   }
 });
 
+// TST-472742 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; UC-044
-// given: the jump host with its HTTPS address and login, whose web server answers 404 to a path it does not forward after the login; then one that
-//        refuses the login; then a browser that gets no answer; then a jump host with no HTTPS address
+// given: the jump host with its HTTPS address and login, whose web server answers 404 to a path it does not forward after the login; then one that refuses the login; then a browser that gets no answer; then a jump host with no HTTPS address
 // input: Test on the jump host's line, for each
-// expect: the first call goes to the HTTPS address with the web login and no Bridge token, and the line says the jump host answers and records it as
-//         working; the refusal names the login; no answer names the certificate; no HTTPS address requests nothing and says so
+// expect: the first call goes to the HTTPS address with the web login and no Bridge token, and the line says the jump host answers and records it as working; the refusal names the login; no answer names the certificate; no HTTPS address requests nothing and says so
 test("Settings — the jump host's line has a Test of its own", async (t) => {
   const store = freshStore();
   writeSetting(store, "jump-host", JUMP);

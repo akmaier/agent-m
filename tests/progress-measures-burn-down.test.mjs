@@ -51,13 +51,11 @@ const FACTS = (over = {}) => ({
 });
 const days = (entries) => entries.map(({ day, remaining }) => [day, remaining]);
 
+// TST-472459 · level: unit · module: MOD-progress-measures
 // guards: UC-035; EVERY TEAM RUNS SPRINTS OF ITS OWN; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the facts above, on 2026-10-16
 // input: progressIn(facts, now)
-// expect: the model's measure; for team1 its running sprint's three items with their states and the remaining items per
-//         day from its start to today — 3, 2 after ITM-001's merge on 10-13, 1 after ITM-002's on 10-15 —, not final; for
-//         team2, whose sprint is closed, that sprint's final burn-down over its whole time box — 2, then 1 from 10-03; no
-//         entry for team3, which has no sprint; the grid and the flow not built, null
+// expect: the model's measure; for team1 its running sprint's three items with their states and the remaining items per day from its start to today — 3, 2 after ITM-001's merge on 10-13, 1 after ITM-002's on 10-15 —, not final; for team2, whose sprint is closed, that sprint's final burn-down over its whole time box — 2, then 1 from 10-03; no entry for team3, which has no sprint; the grid and the flow not built, null
 test("progressIn — each team's sprint, its items and the remaining items per day; a closed sprint's burn-down is final", () => {
   const progress = progressIn(FACTS(), NOW);
   assert.equal(progress.measure, "remaining items per time box");
@@ -73,12 +71,11 @@ test("progressIn — each team's sprint, its items and the remaining items per d
   assert.equal(progress.flow, null);
 });
 
+// TST-472460 · level: unit · module: MOD-progress-measures
 // guards: UC-035; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
-// given: team1's sprint changed by a new start decision on 2026-10-14 (## Selection) that adds ITM-006, still open; and, as
-//        a second case, a sprint without a time box — no end —, started 2026-10-14
+// given: team1's sprint changed by a new start decision on 2026-10-14 (## Selection) that adds ITM-006, still open; and, as a second case, a sprint without a time box — no end —, started 2026-10-14
 // input: progressIn(facts with that sprint, now)
-// expect: the remaining items count ITM-006 from 10-14 on — 3, 2, then 3, 2, 2 —, and its items list it; a sprint without a
-//         time box runs from its start to today
+// expect: the remaining items count ITM-006 from 10-14 on — 3, 2, then 3, 2, 2 —, and its items list it; a sprint without a time box runs from its start to today
 test("progressIn — a new start decision counts from its day; a sprint without a time box runs to today", () => {
   const changed = sprint("team1", "01", { start: "2026-10-12", end: "2026-10-18", branch: "sprint/team1/01",
     selection: ["ITM-001", "ITM-002", "ITM-003"], appended: ["## Selection", "", "at: 2026-10-14",
@@ -94,6 +91,7 @@ test("progressIn — a new start decision counts from its day; a sprint without 
   assert.equal(noBox.final, false);
 });
 
+// TST-472461 · level: unit · module: MOD-progress-measures
 // guards: PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE
 // given: (a) a model without sprints; (b) no declared model
 // input: progressIn of each

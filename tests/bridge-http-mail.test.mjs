@@ -52,12 +52,11 @@ function recording(answer = { ok: true }) {
 }
 const mailRoute = () => bridgeApi.routes.find((route) => route.path === "/v1/mail/{operation}");
 
-// TST-419001
+// TST-419001 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: the accepted Bridge API
 // input: the route of the mail operations in bridgeApi.routes
-// expect: POST /v1/mail/{operation}, with the ten operations in the order the module file lists them, the request { connection, args },
-//         the fields of confirm-send ({ ref, sha256 } and { confirmation }) and of send ({ ref, sha256, confirmation }), and the errors
-//         confirmation-refused 409, no-encryption 502, login-refused 502 and upstream-failed 502
+// expect: POST /v1/mail/{operation}, with the ten operations in the order the module file lists them, the request { connection, args }, the fields of confirm-send ({ ref, sha256 } and { confirmation }) and of send ({ ref, sha256, confirmation }), and the errors confirmation-refused 409, no-encryption 502, login-refused 502 and upstream-failed 502
 test("TST-419001: bridgeApi declares the mail route, its ten operations, the fields of confirm-send and send, and its errors", () => {
   const route = mailRoute();
   assert.ok(route, "the route is declared");
@@ -69,11 +68,11 @@ test("TST-419001: bridgeApi declares the mail route, its ten operations, the fie
   assert.deepEqual(route.errors, { "confirmation-refused": 409, "no-encryption": 502, "login-refused": 502, "upstream-failed": 502 });
 });
 
-// TST-419002
+// TST-419002 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge whose mail handlers answer each operation with its own marker, recording what they are given
 // input: POST /v1/mail/<operation> with { connection, args } for each of the ten operations; then a body of another shape
-// expect: status 200 and the handler of that operation alone called, once, with params.operation and the body as it was sent; the
-//         answer returned unchanged, nested values included; a body without connection or args reaches the handler as it is
+// expect: status 200 and the handler of that operation alone called, once, with params.operation and the body as it was sent; the answer returned unchanged, nested values included; a body without connection or args reaches the handler as it is
 test("TST-419002: a mail request reaches the handler of its operation with its body, and its answer comes back unchanged", async (t) => {
   const handlers = Object.fromEntries(OPERATIONS.map((operation) => [operation, recording({ operation, nested: { counts: [1, 2], name: "Drafts" } })]));
   const server = await running(t, { mail: Object.fromEntries(OPERATIONS.map((operation) => [`POST /v1/mail/${operation}`, handlers[operation].handler])) });
@@ -94,11 +93,11 @@ test("TST-419002: a mail request reaches the handler of its operation with its b
   assert.deepEqual(handlers.test.calls.at(-1).body, odd);
 });
 
-// TST-419003
+// TST-419003 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge with a mail handler for test
 // input: POST /v1/mail/test with the token and the instance's origin; then without the token, with another token, from another origin
-// expect: the first answered 200 and the handler called; the others 401 token-refused, 401 token-refused and 403 origin-refused, and the
-//         handler not called again
+// expect: the first answered 200 and the handler called; the others 401 token-refused, 401 token-refused and 403 origin-refused, and the handler not called again
 test("TST-419003: a mail request is refused without the token and from another origin, before any handler", async (t) => {
   const { calls, handler } = recording();
   const server = await running(t, { mail: { "POST /v1/mail/test": handler } });
@@ -115,11 +114,11 @@ test("TST-419003: a mail request is refused without the token and from another o
   assert.equal(calls.length, 1, "no refused request reached the handler");
 });
 
-// TST-419004
+// TST-419004 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge with a mail handler and jobs handlers for the list of jobs and for cancelling one; paused() false, then true
 // input: POST /v1/mail/test, GET /v1/jobs and POST /v1/jobs/j1/cancel, each while running and while paused
-// expect: while running all three answered 200; while paused the mail request answered 503 paused with the handler not called again,
-//         and the other two still 200
+// expect: while running all three answered 200; while paused the mail request answered 503 paused with the handler not called again, and the other two still 200
 test("TST-419004: while paused a mail request answers paused, and the routes that follow a running job still answer", async (t) => {
   let paused = false;
   const { calls, handler } = recording();
@@ -137,11 +136,11 @@ test("TST-419004: while paused a mail request answers paused, and the routes tha
   assert.equal(calls.length, 1, "the paused request did not reach the handler");
 });
 
-// TST-419005
+// TST-419005 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge with a mail handler for test only, and one registered for a name that is no operation
 // input: POST /v1/mail/read (no handler), POST /v1/mail/delete-all (no such operation, a handler under its key), GET /v1/mail/test
-// expect: the first 404 not-found; the second 404 not-found with that handler not called; the third 404 not-found with the handler of test
-//         not called; and, to show the handler is otherwise reachable, POST /v1/mail/test answered 200
+// expect: the first 404 not-found; the second 404 not-found with that handler not called; the third 404 not-found with the handler of test not called; and, to show the handler is otherwise reachable, POST /v1/mail/test answered 200
 test("TST-419005: an operation without a handler, a name that is no operation and another method answer not-found", async (t) => {
   const test_ = recording(), stray = recording();
   const server = await running(t, { mail: { "POST /v1/mail/test": test_.handler, "POST /v1/mail/delete-all": stray.handler } });
@@ -159,12 +158,11 @@ test("TST-419005: an operation without a handler, a name that is no operation an
   assert.equal(test_.calls.length, 1);
 });
 
-// TST-419006
+// TST-419006 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge whose handler of test throws an error carrying a code and a message, one code at a time
-// input: POST /v1/mail/test for confirmation-refused, no-encryption, login-refused, upstream-failed, a code the API does not know, and
-//        an error without a code
-// expect: the status of the route's code — 409, 502, 502, 502 — with { error, message } of the handler's own message; the unknown code and
-//         the missing code answered upstream-failed 502 with the message
+// input: POST /v1/mail/test for confirmation-refused, no-encryption, login-refused, upstream-failed, a code the API does not know, and an error without a code
+// expect: the status of the route's code — 409, 502, 502, 502 — with { error, message } of the handler's own message; the unknown code and the missing code answered upstream-failed 502 with the message
 test("TST-419006: a handler's error is answered with its code and message", async (t) => {
   let failure;
   const server = await running(t, { mail: { "POST /v1/mail/test": async () => { throw failure; } } });
@@ -181,7 +179,8 @@ test("TST-419006: a handler's error is answered with its code and message", asyn
   }
 });
 
-// TST-419007
+// TST-419007 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge with a mail handler; the console's log captured; a request whose body holds a marker password and a marker argument
 // input: POST /v1/mail/test answered, and the same answered with an error whose message names the marker argument
 // expect: a log line for each request with method, path, status and duration; no line holds the password, the argument or the host
@@ -202,7 +201,8 @@ test("TST-419007: the log keeps no part of a mail request's body", async (t) => 
   for (const line of lines) for (const secret of [PASSWORD, "subject-marker-419", "imap.example.test"]) assert.ok(!line.includes(secret), `${secret} in ${line}`);
 });
 
-// TST-419008
+// TST-419008 · level: unit · module: MOD-bridge-http
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: a Bridge with a mail handler for test
 // input: POST /v1/mail/test with a body that is not JSON, then with JSON
 // expect: the first 422 invalid-request with the handler not called; the second 200 with the handler called

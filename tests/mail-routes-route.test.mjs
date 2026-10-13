@@ -44,6 +44,7 @@ function fakeService({ tenants = [], broken = null } = {}) {
   return requests;
 }
 
+// TST-472381 · level: unit · module: MOD-mail-routes
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; UC-037
 // given: Microsoft's service, which knows the domain contoso.example as a Microsoft 365 organisation
 // input: routeFor("reports@contoso.example")
@@ -58,9 +59,9 @@ test("routeFor — a Microsoft 365 address is answered with the Microsoft route"
   assert.deepEqual(requests.map((request) => request.address), [lookupOf("contoso.example")]);
 });
 
+// TST-472382 · level: unit · module: MOD-mail-routes
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; UC-037
-// given: Microsoft's service, which answers for gmail.com as it does for a domain it holds a tenant for (it does: Gmail's domain is
-//        no Microsoft 365 organisation, and a lookup of it still answers)
+// given: Microsoft's service, which answers for gmail.com as it does for a domain it holds a tenant for (it does: Gmail's domain is no Microsoft 365 organisation, and a lookup of it still answers)
 // input: routeFor("someone@gmail.com")
 // expect: the route "imap" with Gmail's servers — imap.gmail.com 993 with TLS, smtp.gmail.com 587 with STARTTLS —, a reason that names Gmail
 test("routeFor — a Gmail address is answered with the IMAP route and Gmail's servers", async () => {
@@ -72,6 +73,7 @@ test("routeFor — a Gmail address is answered with the IMAP route and Gmail's s
   assert.match(answer.reason, /Gmail/);
 });
 
+// TST-472383 · level: unit · module: MOD-mail-routes
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; UC-037
 // given: Microsoft's service, which knows no tenant for the domain mail.example.org
 // input: routeFor("reports@Mail.Example.org") — the domain in capitals, as a person may type it
@@ -86,11 +88,11 @@ test("routeFor — another domain is answered with the IMAP route and no servers
   assert.deepEqual(requests.map((request) => request.address), [lookupOf("mail.example.org")]);
 });
 
+// TST-472384 · level: unit · module: MOD-mail-routes
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; UC-037
 // given: Microsoft's service cannot be reached — once the network fails, once the service answers 503
 // input: routeFor("reports@contoso.example") for each
-// expect: the route "imap", no servers, and a reason that says Microsoft's service could not be reached and what failed ("offline" /
-//         503); nothing thrown, so that the person may change the route
+// expect: the route "imap", no servers, and a reason that says Microsoft's service could not be reached and what failed ("offline" / 503); nothing thrown, so that the person may change the route
 test("routeFor — an unreachable service is answered with the IMAP route and the reason", async () => {
   assert.ok(routeFor, `routeFor: ${mailRoutes.error?.message}`);
   fakeService({ broken: new TypeError("offline") });
@@ -106,11 +108,11 @@ test("routeFor — an unreachable service is answered with the IMAP route and th
   assert.match(refused.reason, /503/);
 });
 
+// TST-472385 · level: unit · module: MOD-mail-routes
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; UC-037
 // given: —
 // input: providerLinks()
-// expect: the address of Microsoft's page for registering an app (Microsoft Entra) and that of the page on which a person reviews and
-//         removes the applications that have access to their data (My Apps); no request
+// expect: the address of Microsoft's page for registering an app (Microsoft Entra) and that of the page on which a person reviews and removes the applications that have access to their data (My Apps); no request
 test("providerLinks — the addresses of Microsoft's pages for registering the app and for withdrawing its access", () => {
   assert.ok(providerLinks, `providerLinks: ${mailRoutes.error?.message}`);
   const requests = fakeService();
@@ -118,11 +120,11 @@ test("providerLinks — the addresses of Microsoft's pages for registering the a
   assert.equal(requests.length, 0, "no request");
 });
 
+// TST-472386 · level: unit · module: MOD-mail-routes
 // guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; UC-037
 // given: the fake service; a Microsoft 365 address, a Gmail address, another domain, an unreachable service, and a text that is no address
 // input: routeFor of each; providerLinks()
-// expect: every request goes to Microsoft's sign-in service, at most one for each address, none with credentials or a body; a text that is no
-//         address is refused with a TypeError and asks nothing
+// expect: every request goes to Microsoft's sign-in service, at most one for each address, none with credentials or a body; a text that is no address is refused with a TypeError and asks nothing
 test("routeFor — no request but the one to Microsoft's service", async () => {
   assert.ok(routeFor, `routeFor: ${mailRoutes.error?.message}`);
   for (const [address, options] of [["a@contoso.example", { tenants: ["contoso.example"] }], ["a@gmail.com", {}], ["a@mail.example.org", {}],

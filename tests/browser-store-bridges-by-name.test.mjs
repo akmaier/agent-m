@@ -64,6 +64,7 @@ const BRIDGES = {
 const TOKENS = Object.values(BRIDGES).map((bridge) => bridge.token);
 const populate = (store) => { for (const [key, value] of Object.entries(BRIDGES)) writeSetting(store, key, value); };
 
+// TST-472106 · level: unit · module: MOD-browser-store
 // guards: CONFIGURATION LIVES IN THE BROWSER; UC-011
 // given: a store; two Bridges reached directly and two through the jump host, each under its name
 // input: writeSetting and readSetting for each; and the key `bridge:` with no name
@@ -79,6 +80,7 @@ test("bridge:<name> — two Bridges of each form are kept under their names and 
   assert.equal(readSetting(store, "bridge:unknown"), null);
 });
 
+// TST-472107 · level: unit · module: MOD-browser-store
 // guards: THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; UC-011
 // given: the four Bridges stored, and none stored in a second store of the same browser
 // input: listSettings of each
@@ -100,6 +102,7 @@ test("bridge:<name> — each stored Bridge is listed as a secret, without its to
   assert.deepEqual(listSettings(openStore("other/instance")).filter((info) => info.key.startsWith("bridge:")), []);
 });
 
+// TST-472108 · level: unit · module: MOD-browser-store
 // guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; UC-042
 // given: the four Bridges stored
 // input: secretValues
@@ -111,6 +114,7 @@ test("bridge:<name> — the token of each Bridge is a secret value, its address 
   assert.deepEqual([...secretValues(store)].sort(), [...TOKENS].sort());
 });
 
+// TST-472109 · level: unit · module: MOD-browser-store
 // guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; UC-042
 // given: the four Bridges stored in one browser, and in another browser one of them already stored with another token
 // input: exportSettings plain and locked, readExport of each, importSettings into the other store
@@ -135,6 +139,7 @@ test("bridge:<name> — Bridges are exported with their tokens and imported, an 
   assert.deepEqual(readSetting(other.store, "bridge:cluster-a"), BRIDGES["bridge:cluster-a"]);
 });
 
+// TST-472110 · level: unit · module: MOD-browser-store
 // guards: A CLEAR IS A REAL CLEAR; UC-011
 // given: the four Bridges stored
 // input: clearSetting of one; then clearEverything
@@ -152,11 +157,11 @@ test("bridge:<name> — one Bridge is cleared with its entry removed, and cleari
   assert.deepEqual(storage.keys(), []);
 });
 
+// TST-472111 · level: unit · module: MOD-browser-store
 // guards: UC-003; UC-042; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: the four Bridges, and an endpoint whose entry names the Bridge that calls it, `bridge: "cluster-a"`, with a key
 // input: write, read, list, secretValues, export and import of the endpoint
-// expect: the entry read back with `bridge` as written; its key a secret and the Bridge's name not; the name survives export and import; the name
-//         is one of the Bridges stored
+// expect: the entry read back with `bridge` as written; its key a secret and the Bridge's name not; the name survives export and import; the name is one of the Bridges stored
 test("endpoint:<name> — an endpoint names the Bridge that calls it", async () => {
   const { store } = fresh();
   populate(store);

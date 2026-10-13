@@ -130,6 +130,8 @@ function find(root, match) { const found = []; (function walk(node) { for (const
 function render(productHost, params = { key: "specification", ref: "pinned-commit" }) { const target = document.createElement("div"); document.body.append(target); return route.render(target, { product: { host: productHost } }, params).then(() => target); }
 
 // CASE ITM-277-01
+// TST-473163 · level: unit · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a public trace Route and a Host whose pinned snapshot has one unsectioned requirement and two sections
 // input: Route.render(target, { product: { host } }, { key: "specification", ref: "pinned-commit" })
 // expect: the Host receives exactly that ref; current requirement names appear once, before/within their sections in SPEC order
@@ -149,6 +151,8 @@ test("the public trace/specification route reads the pinned SPEC and lists each 
 });
 
 // CASE ITM-277-02
+// TST-473164 · level: unit · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the rendered overview and an unsafe HTML image in SECOND REQUIREMENT's rule (known positive: SPEC contains both `<img` and `onerror`)
 // input: a click on SECOND REQUIREMENT's displayed name
 // expect: its name, source, rule and check are readable in the detail, no image node is created, and no route/navigation context is needed
@@ -166,6 +170,8 @@ test("selecting a requirement renders its four fields safely without navigating 
 });
 
 // CASE ITM-278-01
+// TST-473165 · level: unit · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the public trace/specification route with two sectioned requirements and one outside a section
 // input: a fresh render, then each readable section-heading control is clicked to open, close and reopen its own list
 // expect: section lists start hidden, each toggle changes only its own list, and the outside requirement stays reachable
@@ -188,6 +194,8 @@ test("section headings start collapsed and independently toggle their requiremen
 });
 
 // CASE ITM-278-02
+// TST-473166 · level: unit · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a displayed current requirement in a row-local closed detail
 // input: click its existing requirement-name button three times
 // expect: the first click opens readable four fields, the second closes them, and the third reopens them without changing another section
@@ -207,6 +215,8 @@ test("a requirement name toggles its row-local detail closed and open again", as
 });
 
 // CASE ITM-277-03
+// TST-473167 · level: unit · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a Host whose pinned snapshot has no SPEC.md
 // input: the same public specification route
 // expect: it states that the current requirements are empty and calls no write operation

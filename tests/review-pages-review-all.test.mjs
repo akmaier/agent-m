@@ -147,14 +147,11 @@ const buttonOf = (target) => byClass(target, "button", "accept-all")[0];
 
 // ---------------------------------------------------------------- the page
 
+// TST-472651 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008 (3e)
-// given: five use cases — UC-041 and UC-044 open, UC-043 changed since its earlier text was accepted, UC-042 and UC-045 accepted —,
-//        and a token stored
+// given: five use cases — UC-041 and UC-044 open, UC-043 changed since its earlier text was accepted, UC-042 and UC-045 accepted —, and a token stored
 // input: the route use-case rendered with the id all
-// expect: three sections, UC-041, UC-043, UC-044 in that order, each with its identifier, title and status; UC-041 and UC-044 in full
-//         (their sentence on the page, no difference); UC-043 as its difference to the last accepted text — the earlier sentence
-//         removed, the new one added — headed "Changed since it was last accepted"; neither accepted use case on the page; the button
-//         "Accept all 3 shown"; the folded What is this?; nothing written
+// expect: three sections, UC-041, UC-043, UC-044 in that order, each with its identifier, title and status; UC-041 and UC-044 in full (their sentence on the page, no difference); UC-043 as its difference to the last accepted text — the earlier sentence removed, the new one added — headed "Changed since it was last accepted"; neither accepted use case on the page; the button "Accept all 3 shown"; the folded What is this?; nothing written
 test("MOD-review-pages use-case/all — every open or changed use case in sequence, a changed one as its difference, a new one in full", async () => {
   const fake = fakeHost();
   const target = await show(fake);
@@ -180,12 +177,11 @@ test("MOD-review-pages use-case/all — every open or changed use case in sequen
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472652 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; ONE CLICK PER DECISION; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
 // given: the page above with its token
 // input: a click on Accept all 3 shown
-// expect: one commit on `main`, on the head that was read, naming the person the token is stored under, holding three files — the
-//         records of UC-041, UC-043 and UC-044, each "kind: use-case", the use case's path and the blob of the text shown; then the
-//         page drawn again from the repository: nothing to review, no button, and the commit named
+// expect: one commit on `main`, on the head that was read, naming the person the token is stored under, holding three files — the records of UC-041, UC-043 and UC-044, each "kind: use-case", the use case's path and the blob of the text shown; then the page drawn again from the repository: nothing to review, no button, and the commit named
 test("MOD-review-pages use-case/all — Accept all 3 shown writes one commit with three records", async () => {
   const fake = fakeHost();
   const read = fake.head();
@@ -206,11 +202,11 @@ test("MOD-review-pages use-case/all — Accept all 3 shown writes one commit wit
   assert.match(target.textContent, new RegExp(fake.head().slice(0, 7)), "the commit is named");
 });
 
+// TST-472653 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT
 // given: the page above built; then another writer's commit changed UC-044 on `main`
 // input: a click on Accept all 3 shown
-// expect: one commit with two records, UC-041's and UC-043's, naming the blobs shown; UC-044 named as left out with the reason that it
-//         changed since it was shown, and still open on the page drawn again
+// expect: one commit with two records, UC-041's and UC-043's, naming the blobs shown; UC-044 named as left out with the reason that it changed since it was shown, and still open on the page drawn again
 test("MOD-review-pages use-case/all — a use case changed after the page was built is left out and named", async () => {
   const fake = fakeHost();
   const target = await show(fake);
@@ -225,11 +221,11 @@ test("MOD-review-pages use-case/all — a use case changed after the page was bu
   assert.equal(buttonOf(target).textContent, "Accept all 1 shown");
 });
 
+// TST-472654 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
 // given: the product above with a sixth use case, UC-046, that realises A FINE IS CHARGED PER DAY, a requirement the SPEC does not hold
 // input: the page, and a click on Accept all 4 shown
-// expect: one commit with the records of UC-041, UC-043 and UC-044 and not UC-046; UC-046 named as left out with the reason that it
-//         rests on what is not accepted and the name of that requirement
+// expect: one commit with the records of UC-041, UC-043 and UC-044 and not UC-046; UC-046 named as left out with the reason that it rests on what is not accepted and the name of that requirement
 test("MOD-review-pages use-case/all — a use case that names a requirement not yet accepted is left out and named", async () => {
   const fake = fakeHost({ steps: [...STEPS, { [P[46]]: UC46 }] });
   const target = await show(fake);
@@ -243,6 +239,7 @@ test("MOD-review-pages use-case/all — a use case that names a requirement not 
   assert.match(target.textContent, /UC-046 was left out: rests on what is not accepted \(A FINE IS CHARGED PER DAY\)/);
 });
 
+// TST-472655 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: a product whose use cases are all accepted
 // input: the route use-case rendered with the id all
@@ -258,11 +255,11 @@ test("MOD-review-pages use-case/all — with every use case accepted there is no
   assert.equal(buttonOf(target), undefined);
 });
 
+// TST-472656 · level: unit · module: MOD-review-pages
 // guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the page above with a token, and a host that refuses the commit with PermissionMissing
 // input: the page rendered, then a click on Accept all 3 shown
-// expect: nothing written until the click; after it the refusal said in the host's words and the button pressable again, the three
-//         use cases still on the page
+// expect: nothing written until the click; after it the refusal said in the host's words and the button pressable again, the three use cases still on the page
 test("MOD-review-pages use-case/all — a refused commit is said, and the page stays", async () => {
   const refusal = failure("PermissionMissing", "Your token may not write to https://github.com/alice/thesis-tool: it lacks Contents.");
   const fake = fakeHost({ refuse: refusal });
@@ -278,11 +275,11 @@ test("MOD-review-pages use-case/all — a refused commit is said, and the page s
 
 // ---------------------------------------------------------------- without a token
 
+// TST-472657 · level: unit · module: MOD-review-pages
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product, no token stored in this browser
 // input: the route use-case rendered with the id all
-// expect: no Accept all button; for each of the three use cases a link to GitHub's new-file page whose address holds the record's path
-//         and the record and nothing else — no text of the use case —; nothing written
+// expect: no Accept all button; for each of the three use cases a link to GitHub's new-file page whose address holds the record's path and the record and nothing else — no text of the use case —; nothing written
 test("MOD-review-pages use-case/all — without a token on GitHub: one prefilled GitHub page for each record, holding no text", async () => {
   const fake = fakeHost();
   const target = await show(fake, { id: "all" }, { token: false });
@@ -302,6 +299,7 @@ test("MOD-review-pages use-case/all — without a token on GitHub: one prefilled
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472658 · level: unit · module: MOD-review-pages
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 // given: a product on a GitLab server, no token of its own stored
 // input: the route use-case rendered with the id all
@@ -318,6 +316,7 @@ test("MOD-review-pages use-case/all — a GitLab product without a token: no Acc
 
 // ---------------------------------------------------------------- the way to it
 
+// TST-472659 · level: unit · module: MOD-review-pages
 // guards: UC-008 (3e)
 // given: the list of use cases
 // input: the route use-case rendered with no id

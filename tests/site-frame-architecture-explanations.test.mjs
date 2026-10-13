@@ -39,11 +39,11 @@ function assertClaims(topic, claims) {
   for (const [pattern, says] of claims) assert.match(text, pattern, `${topic}: it says ${says}`);
 }
 
+// TST-472791 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-022
 // given: explanations.md, and the four topics of deriving the architecture
 // input: explain(topic) for each
-// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is
-//         this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
+// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
 test("explain — each topic of deriving the architecture is a folded What is this? with its text", () => {
   assert.match(renderArtifact("an *unclosed mark and `another").textContent, /[*`]/,
     "known positive: the renderer leaves a mark that is not closed standing");
@@ -61,6 +61,7 @@ test("explain — each topic of deriving the architecture is a folded What is th
   }
 });
 
+// TST-472792 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-022 (step 1, the table)
 // given: the topic what-is-an-architecture
 // input: explain("what-is-an-architecture")
@@ -90,6 +91,7 @@ test("explain — what-is-an-architecture: what an architecture is (UC-022 1)", 
   ]);
 });
 
+// TST-472793 · level: unit · module: MOD-site-frame
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-022 (step 6)
 // given: the topic architecture-reviewer
 // input: explain("architecture-reviewer")
@@ -115,6 +117,7 @@ test("explain — architecture-reviewer: the reviewing participant and its round
   ]);
 });
 
+// TST-472794 · level: unit · module: MOD-site-frame
 // guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; UC-022 (steps 7, 7a, 7b, 7d)
 // given: the topic due-diligence
 // input: explain("due-diligence")
@@ -137,6 +140,7 @@ test("explain — due-diligence: the due diligence (UC-022 7)", () => {
   ]);
 });
 
+// TST-472795 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-022 (steps 7c, 7d)
 // given: the topic licence-permits
 // input: explain("licence-permits")
@@ -160,12 +164,11 @@ test("explain — licence-permits: what a licence permits (UC-022 7c)", () => {
   ]);
 });
 
+// TST-472796 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF
-// given: the four topics, and the book Vibe Coding, whose chapter 10 treats architecture — its definition after IEEE 1471, the views, the
-//        principles and the pattern families — and whose chapter 6, section 5 (Reuse-Oriented Process Design) treats due diligence
+// given: the four topics, and the book Vibe Coding, whose chapter 10 treats architecture — its definition after IEEE 1471, the views, the principles and the pattern families — and whose chapter 6, section 5 (Reuse-Oriented Process Design) treats due diligence
 // input: the rendered text of each topic
-// expect: what-is-an-architecture points to chapter 10; due-diligence to chapter 6, section 5; architecture-reviewer and licence-permits
-//         to no chapter
+// expect: what-is-an-architecture points to chapter 10; due-diligence to chapter 6, section 5; architecture-reviewer and licence-permits to no chapter
 test("explain — the topics of deriving the architecture point to the book where it treats them", () => {
   assert.match(bodyText("what-is-an-architecture"), /In the book Vibe Coding: chapter 10\./);
   assert.match(bodyText("due-diligence"), /In the book Vibe Coding: chapter 6, section 5, on reuse\./);

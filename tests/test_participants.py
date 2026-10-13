@@ -123,6 +123,11 @@ def with_cell(text: str, name: str, column: str, value: str) -> str:
 class ConfiguredOncePerInstance(unittest.TestCase):
     """PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE"""
 
+    # TST-475029 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: the instance register and three documents: a file named participants_of_team_x.md, a copy of the register with another title, and an example of the table in a code fence
+    # input: participant_lists over these documents
+    # expect: the lists found are the register, the file named participants_of_team_x.md and the copy; the example in a fence is not found
     def test_known_positive_a_second_list_by_its_name_or_its_table_is_found_and_an_example_in_a_fence_is_not(self):
         register = role_files()[REGISTER]
         header = register_header()
@@ -135,15 +140,30 @@ class ConfiguredOncePerInstance(unittest.TestCase):
         self.assertEqual(participant_lists(documents),
                          [REGISTER, "docs/teams/participants_of_team_x.md", "docs/teams/team-x.md"])
 
+    # TST-475030 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: every Markdown file under docs/ and at the root of the instance repository
+    # input: participant_lists over them
+    # expect: the only participant list is docs/participants.md
     def test_docs_participants_md_is_the_instances_only_participant_list(self):
         self.assertEqual(participant_lists(documents_of_the_instance()), [REGISTER])
 
+    # TST-475031 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: the register and the role assignments, with one assigned name replaced by nobody-listed
+    # input: unresolved names of the role assignments against the register's participants
+    # expect: exactly that path and the name nobody-listed are unresolved
     def test_known_positive_an_assigned_name_the_list_does_not_hold_is_found(self):
         files = role_files()
         path, name = assigned(files)[0]
         files[path] = files[path].replace(f"| {name} |", "| nobody-listed |", 1).replace(f" {name},", " nobody-listed,", 1)
         self.assertEqual(unresolved(files), [[path, "nobody-listed"]])
 
+    # TST-475032 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: the register and the product's role assignments docs/role-assignments/*.md
+    # input: unresolved names of the role assignments against the register's participants
+    # expect: the role assignments give names (known positive) and none is unresolved
     def test_the_list_holds_every_name_the_role_assignments_give(self):
         files = role_files()
         self.assertTrue(assigned(files), "known positive: the role assignments give names")
@@ -154,6 +174,11 @@ class RowsDeclareWhatTheRulesAsk(unittest.TestCase):
     """A PARTICIPANT HAS ONE OF FIVE TYPES · A PARTICIPANT DECLARES ITS CAPABILITIES · A PARTICIPANT DECLARES WHERE IT
     PROCESSES DATA"""
 
+    # TST-475033 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: the instance register, its first CLI agent row changed in one cell at a time
+    # input: register findings with Type robot, Capabilities fly, Processing place —
+    # expect: each change gives exactly one error, on the agent's line, naming the rule of five types, capabilities and processing place in turn
     def test_known_positive_a_row_that_breaks_a_rule_is_an_error_on_its_line_naming_that_rule(self):
         register = role_files()[REGISTER]
         agent = first_of_type(register, "CLI agent")
@@ -163,6 +188,11 @@ class RowsDeclareWhatTheRulesAsk(unittest.TestCase):
                 found = register_findings(with_cell(register, agent, column, value))
                 self.assertEqual([f[:3] for f in found if f[1] == "error"], [[line_of(register, agent), "error", rule]])
 
+    # TST-475034 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: docs/participants.md of this instance
+    # input: documentFindings of the register with participantSchema
+    # expect: no error finding
     def test_every_row_of_this_instances_list_fits_the_register_schema(self):
         self.assertEqual([f for f in register_findings(role_files()[REGISTER]) if f[1] == "error"], [])
 
@@ -170,12 +200,22 @@ class RowsDeclareWhatTheRulesAsk(unittest.TestCase):
 class LanguageModelNamesItsModel(unittest.TestCase):
     """A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL"""
 
+    # TST-475035 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: the register, its first CLI agent row with the Model cell set to —
+    # input: register findings
+    # expect: exactly one error, on the agent's line, naming the rule A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
     def test_a_cli_agent_entry_without_a_model_is_rejected(self):
         register = role_files()[REGISTER]
         agent = first_of_type(register, "CLI agent")
         found = register_findings(with_cell(register, agent, "Model", "—"))
         self.assertEqual([f[:3] for f in found if f[1] == "error"], [[line_of(register, agent), "error", MODEL]])
 
+    # TST-475036 · level: component · module: MOD-participant-list
+    # guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL
+    # given: the register, the same CLI agent row with Model set to example-model, and a person row with Model set to —
+    # input: register findings on both rows
+    # expect: no finding on either row; the person row with no model equals the register itself (known positive)
     def test_counter_proof_the_same_entry_naming_its_model_is_accepted_and_a_person_needs_none(self):
         register = role_files()[REGISTER]
         agent, person = first_of_type(register, "CLI agent"), first_of_type(register, "person")

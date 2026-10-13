@@ -24,6 +24,8 @@ const FILES = {
 const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request));
 
 // CASE ITM-277-RELEASE-01
+// TST-472516 · level: release · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the real #spec route, once with the dashboard's stored token and once with none
 // input: open the current overview and select its displayed requirement
 // expect: the known current requirement is readable in both routes, and neither route writes a repository

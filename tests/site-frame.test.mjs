@@ -329,14 +329,11 @@ const nothingToSave = async () => {};
 
 // ---------------------------------------------------------------- schemaForm (Interfaces: schemaForm)
 
+// TST-472865 · level: unit · module: MOD-site-frame
 // guards: UC-002 (the declaration is edited in a form built from its schema)
-// given: SCHEMA — the keys model, model_version and sprint_close; the sections ## Roles, holding a table, ## Practices, which
-//        may be left out, and ## Definition of Done — and DECLARATION, which holds model and model_version, ## Roles,
-//        ## Definition of Done and ## Model, a section the schema does not name
+// given: SCHEMA — the keys model, model_version and sprint_close; the sections ## Roles, holding a table, ## Practices, which may be left out, and ## Definition of Done — and DECLARATION, which holds model and model_version, ## Roles, ## Definition of Done and ## Model, a section the schema does not name
 // input: schemaForm(SCHEMA, DECLARATION, { onSave })
-// expect: one field for each key and each section of the schema, in the schema's order — model, model_version, sprint_close,
-//         ## Roles, ## Practices, ## Definition of Done —, and none for ## Model; the field of each key holds its value, that
-//         of sprint_close none; the field of each section holds its text in an editor, that of ## Practices none
+// expect: one field for each key and each section of the schema, in the schema's order — model, model_version, sprint_close, ## Roles, ## Practices, ## Definition of Done —, and none for ## Model; the field of each key holds its value, that of sprint_close none; the field of each section holds its text in an editor, that of ## Practices none
 test("schemaForm — a field for each key and each section of the schema, holding the document's values", () => {
   const form = schemaForm(SCHEMA, DECLARATION, { onSave: nothingToSave });
   assert.deepEqual(fieldsOf(form).map(nameOf),
@@ -346,15 +343,11 @@ test("schemaForm — a field for each key and each section of the schema, holdin
     [ROLES, "", DONE]);
 });
 
+// TST-472866 · level: unit · module: MOD-site-frame
 // guards: UC-002 (each finding of the declaration beside its field, and Save only while no error remains: 4a)
-// given: DECLARATION with the model_version "0123abc", which MOD-documents' documentFindings finds not to be 40 hexadecimal
-//        digits; and an extra check, as the page of UC-002 adds its own, that warns of the row of the Developers in
-//        ## Roles — line 12 of the file
+// given: DECLARATION with the model_version "0123abc", which MOD-documents' documentFindings finds not to be 40 hexadecimal digits; and an extra check, as the page of UC-002 adds its own, that warns of the row of the Developers in ## Roles — line 12 of the file
 // input: schemaForm(SCHEMA, that declaration, { onSave, extraChecks }); then the person types SHA into model_version
-// expect: beside model_version, its error; beside line 5 of the editor of ## Roles — the row of the Developers —, the
-//         warning, in the one form of a finding; nothing beside any other field or line, nor at the end of the form; Save
-//         not offered. After the typing: nothing beside model_version, the warning still beside its line, and Save offered:
-//         a warning keeps nothing from being saved
+// expect: beside model_version, its error; beside line 5 of the editor of ## Roles — the row of the Developers —, the warning, in the one form of a finding; nothing beside any other field or line, nor at the end of the form; Save not offered. After the typing: nothing beside model_version, the warning still beside its line, and Save offered: a warning keeps nothing from being saved
 test("schemaForm — a finding is shown beside its field, and Save is offered only while no error remains", () => {
   const extraChecks = (declaration) => declaration.sections.find((section) => section.heading === "## Roles").rows
     .filter((row) => row.cells.Role === "Developers")
@@ -411,15 +404,11 @@ const SAVED = [
   "",
 ].join("\n");
 
+// TST-472867 · level: unit · module: MOD-site-frame
 // guards: ONE CLICK PER DECISION; UC-002 (step 9: one click on Save, and the declaration is handed over to be committed)
 // given: the form of DECLARATION, whose caller's onSave keeps every document it is given
-// input: the person types "scrum-master-session" into sprint_close, "- none" into ## Practices, which the declaration lacks,
-//        and a condition in place of the text of ## Definition of Done; then clicks Save, once
-// expect: nothing is handed over before the click; after it, exactly one document. Written with MOD-documents'
-//         writeDocument, it is SAVED: the new key in the schema's order; ## Practices in the schema's place, its text with
-//         the line end that keeps the next heading on a line of its own; the condition; every other part as it was, ## Model
-//         included. Read back from SAVED, it is the same document, each section and row on its line — but for its body,
-//         which stays the text it was read from, as writeDocument needs it
+// input: the person types "scrum-master-session" into sprint_close, "- none" into ## Practices, which the declaration lacks, and a condition in place of the text of ## Definition of Done; then clicks Save, once
+// expect: nothing is handed over before the click; after it, exactly one document. Written with MOD-documents' writeDocument, it is SAVED: the new key in the schema's order; ## Practices in the schema's place, its text with the line end that keeps the next heading on a line of its own; the condition; every other part as it was, ## Model included. Read back from SAVED, it is the same document, each section and row on its line — but for its body, which stays the text it was read from, as writeDocument needs it
 test("schemaForm — Save hands the document over once, on a person's click", async () => {
   const handed = [];
   const form = schemaForm(SCHEMA, DECLARATION, { onSave: async (declaration) => { handed.push(declaration); } });
@@ -438,9 +427,9 @@ test("schemaForm — Save hands the document over once, on a person's click", as
   assert.deepEqual(rest, read);
 });
 
+// TST-472868 · level: unit · module: MOD-site-frame
 // guards: A FORM OPENS WITH ITS FIRST FIELD FOCUSED
-// given: a page whose focus is on the control that opens the form — known positive: the page tells that control apart from
-//        the form's fields
+// given: a page whose focus is on the control that opens the form — known positive: the page tells that control apart from the form's fields
 // input: the form of DECLARATION, built and put into the page in the same turn
 // expect: once that turn is over, the focus is in the field of model, the form's first field, and no longer on the control
 test("schemaForm — the form opens with its first field focused", async () => {
@@ -467,13 +456,11 @@ const LOOK = readFileSync(new URL("../src/site-frame/look.css", import.meta.url)
 const topicText = (topic) => EXPLANATIONS.split(/^## /m).slice(1).find((part) => part.startsWith(`${topic}\n`))
   ?.slice(topic.length + 1);
 
-// guards: EVERY STEP EXPLAINS ITSELF; UC-002 (step 8: a folded explanation says that in Scrum the Developers meet the
-//         Definition of Done, whoever presses merge)
+// TST-472869 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; UC-002 (step 8: a folded explanation says that in Scrum the Developers meet the Definition of Done, whoever presses merge)
 // given: the topic definition-of-done, as explanations.md holds it
 // input: explain("definition-of-done")
-// expect: a <details class="explain">, folded — no open attribute —, holding <summary>What is this?</summary> and then the
-//         topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it, which says that in Scrum
-//         the Developers meet the Definition of Done, whoever presses merge
+// expect: a <details class="explain">, folded — no open attribute —, holding <summary>What is this?</summary> and then the topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it, which says that in Scrum the Developers meet the Definition of Done, whoever presses merge
 test("explain — the folded What is this? of a topic, rendered from explanations.md", () => {
   const text = topicText("definition-of-done");
   assert.ok(text?.trim(), "known positive: explanations.md holds the topic definition-of-done");
@@ -487,9 +474,9 @@ test("explain — the folded What is this? of a topic, rendered from explanation
   assert.match(body.textContent, /In Scrum, the Developers meet the Definition of Done, whoever presses merge\./);
 });
 
+// TST-472870 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF (a topic the file does not hold shows nothing, and the page goes on)
-// given: known positive — the search below finds the topic definition-of-done in explanations.md —; it finds no topic
-//        no-such-topic
+// given: known positive — the search below finds the topic definition-of-done in explanations.md —; it finds no topic no-such-topic
 // input: explain("no-such-topic")
 // expect: no exception; an element without any child
 test("explain — an empty element for a topic the file does not hold", () => {
@@ -515,11 +502,11 @@ test("explain — an empty element for a topic the file does not hold", () => {
 // textContent keeps explanations.md's own line-wrap newlines, which a browser's rendering of the <p> does not show.
 const bodyText = (topic) => (explain(topic).children[1]?.textContent ?? "").replace(/\s+/g, " ");
 
+// TST-472871 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-001 (step 2: pasting the product repository's address)
 // given: the topic repository, as ITM-255 adds it to explanations.md
 // input: explain("repository")
-// expect: text saying a repository holds a project's files and history, with an example address for a GitHub and for a
-//         GitLab product, as UC-001 step 2 gives them
+// expect: text saying a repository holds a project's files and history, with an example address for a GitHub and for a GitLab product, as UC-001 step 2 gives them
 test("explain — repository: what a repository is (UC-001)", () => {
   assert.ok(topicText("repository")?.trim(), "known positive: explanations.md holds the topic repository");
   const text = bodyText("repository");
@@ -528,11 +515,11 @@ test("explain — repository: what a repository is (UC-001)", () => {
   assert.match(text, /gitlab\.rrze\.fau\.de/);
 });
 
+// TST-472872 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-001 (Step A: a key for the product); A GITHUB PRODUCT USES A TOKEN OF ITS OWN
 // given: the topic product-key
 // input: explain("product-key")
-// expect: text saying the product gets a key of its own, and naming the GitLab project access token as the same idea on
-//         that kind of server
+// expect: text saying the product gets a key of its own, and naming the GitLab project access token as the same idea on that kind of server
 test("explain — product-key: why the product gets a key of its own (UC-001)", () => {
   assert.ok(topicText("product-key")?.trim(), "known positive: explanations.md holds the topic product-key");
   const text = bodyText("product-key");
@@ -540,6 +527,7 @@ test("explain — product-key: why the product gets a key of its own (UC-001)", 
   assert.match(text, /project access token/);
 });
 
+// TST-472873 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-001 (Step C: Add the product, one click)
 // given: the topic review-layout-commit
 // input: explain("review-layout-commit")
@@ -554,11 +542,11 @@ test("explain — review-layout-commit: what the commit contains (UC-001)", () =
   assert.match(text, /only whatever of this is missing/);
 });
 
+// TST-472874 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-001 (5b: the product already has the complete layout — nothing is committed)
 // given: the topic reverting-the-commit
 // input: explain("reverting-the-commit")
-// expect: text saying the commit is ordinary and can be reverted on GitHub, and that nothing is committed when nothing was
-//         missing
+// expect: text saying the commit is ordinary and can be reverted on GitHub, and that nothing is committed when nothing was missing
 test("explain — reverting-the-commit: how to undo it (UC-001)", () => {
   assert.ok(topicText("reverting-the-commit")?.trim(), "known positive: explanations.md holds the topic reverting-the-commit");
   const text = bodyText("reverting-the-commit");
@@ -567,12 +555,11 @@ test("explain — reverting-the-commit: how to undo it (UC-001)", () => {
   assert.match(text, /nothing is committed in the first place/);
 });
 
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD KEEPS ITS
-//   PRODUCTS IN THE BROWSER; 1a: another browser's list is empty)
+// TST-472875 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; 1a: another browser's list is empty)
 // given: the topic the-product-list
 // input: explain("the-product-list")
-// expect: text saying the address is kept only in this browser, nothing is written into the instance repository, and
-//         another browser starts with an empty list
+// expect: text saying the address is kept only in this browser, nothing is written into the instance repository, and another browser starts with an empty list
 test("explain — the-product-list: why the product list lives in this browser only (UC-001)", () => {
   assert.ok(topicText("the-product-list")?.trim(), "known positive: explanations.md holds the topic the-product-list");
   const text = bodyText("the-product-list");
@@ -581,6 +568,7 @@ test("explain — the-product-list: why the product list lives in this browser o
   assert.match(text, /empty list/);
 });
 
+// TST-472876 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-013 (step 2: the complete test suite, every level, on the release candidate)
 // given: the topic release-test-levels
 // input: explain("release-test-levels")
@@ -594,12 +582,11 @@ test("explain — release-test-levels: what each level checks (UC-013)", () => {
   assert.match(text, /other than the one who implemented the behaviour/);
 });
 
-// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; 2a: only the implementing
-//   participant is available)
+// TST-472877 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; 2a: only the implementing participant is available)
 // given: the topic independent-release-tests
 // input: explain("independent-release-tests")
-// expect: text saying release tests are written by someone other than the implementer, and what 2a asks the author to do
-//         when only the implementer is available
+// expect: text saying release tests are written by someone other than the implementer, and what 2a asks the author to do when only the implementer is available
 test("explain — independent-release-tests: why a different participant writes them (UC-013)", () => {
   assert.ok(topicText("independent-release-tests")?.trim(), "known positive: explanations.md holds the topic independent-release-tests");
   const text = bodyText("independent-release-tests");
@@ -607,6 +594,7 @@ test("explain — independent-release-tests: why a different participant writes 
   assert.match(text, /assign a second participant/);
 });
 
+// TST-472878 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-013 (A VERSION IS NOT REWRITTEN; 4a: the tag already exists)
 // given: the topic version-not-rewritten
 // input: explain("version-not-rewritten")
@@ -633,13 +621,11 @@ function bridgeStorage() {
   };
 }
 
+// TST-472879 · level: unit · module: MOD-site-frame
 // guards: UC-044; UC-003; MOD-site-frame; MOD-identifiers; EVERY STEP EXPLAINS ITSELF
-// given: an own-protocol Bridge window whose location has the configured Pages hostname and path, an empty browser store,
-//        and one loaded Bridge view whose route records the real context it receives
+// given: an own-protocol Bridge window whose location has the configured Pages hostname and path, an empty browser store, and one loaded Bridge view whose route records the real context it receives
 // input: startPage({ page: "bridge", views: [view], menuViews: [] }), then the route is changed through the fragment
-// expect: the Bridge header and first route are drawn; the context names the configured fork, an empty product state, the
-//         real store and host, and a go callback. The later fragment redraws that route. No repository request or strategy
-//         registration occurs for this empty-strategy page.
+// expect: the Bridge header and first route are drawn; the context names the configured fork, an empty product state, the real store and host, and a go callback. The later fragment redraws that route. No repository request or strategy registration occurs for this empty-strategy page.
 test("startPage — Bridge-only frame routes its loaded view with the configured Pages instance and empty product", async () => {
   const priorLocation = globalThis.location;
   const priorStorage = globalThis.localStorage;
@@ -698,6 +684,7 @@ test("startPage — Bridge-only frame routes its loaded view with the configured
   }
 });
 
+// TST-472880 · level: unit · module: MOD-site-frame
 // guards: MOD-site-frame; MOD-identifiers
 // given: a Pages location and an ordinary local location
 // input: instanceOf(location)
@@ -707,11 +694,11 @@ test("instanceOf — Pages identity through MOD-identifiers and the upstream fal
   assert.equal(instanceOf({ hostname: "127.0.0.1", pathname: "/bridge.html" }), "akmaier/agent-m");
 });
 
+// TST-472881 · level: unit · module: MOD-site-frame
 // guards: UC-044; ONE CLICK PER DECISION; MOD-site-frame
 // given: the started Bridge frame and a supplied notice, then a decision with a title, two lines and a reason field
 // input: notice followed by confirmDecision, first cancelled and then confirmed with the person's reason
-// expect: the notice preserves its text and link; cancellation remains cancelled, and confirmation returns only confirmed
-//         plus the typed reason.
+// expect: the notice preserves its text and link; cancellation remains cancelled, and confirmation returns only confirmed plus the typed reason.
 test("notice and confirmDecision — supplied notice text/link and the person's cancellation or reasoned confirmation", async () => {
   const priorLocation = globalThis.location;
   const priorStorage = globalThis.localStorage;
@@ -747,11 +734,11 @@ test("notice and confirmDecision — supplied notice text/link and the person's 
   }
 });
 
+// TST-472882 · level: unit · module: MOD-site-frame
 // guards: UC-044; EVERY STEP EXPLAINS ITSELF; MOD-site-frame
 // given: the pairing explanation the Bridge shell names
 // input: explain("bridge-pairing")
-// expect: the shared renderer supplies the folded explanation and it tells the person that the displayed token pairs this
-//         dashboard with this local Bridge.
+// expect: the shared renderer supplies the folded explanation and it tells the person that the displayed token pairs this dashboard with this local Bridge.
 test("explain — bridge-pairing gives the Bridge shell its shared folded pairing explanation", () => {
   assert.ok(topicText("bridge-pairing")?.trim(), "known positive: explanations.md holds bridge-pairing");
   const pairing = explain("bridge-pairing");

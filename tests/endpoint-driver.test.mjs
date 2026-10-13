@@ -42,6 +42,8 @@ function endpointFailure(reason) {
 }
 
 // TST-316-001
+// TST-472223 · level: unit · module: MOD-endpoint-calls
+// guards: UC-005; UC-007; UC-010; UC-019; ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a Node driver for an OpenAI-compatible endpoint and a constructed chat completion with reported token use
 // input: send a DriverInput whose prompt already contains its recipe part
 // expect: one exact provider request carries the prompt once, and the answer keeps only provider-reported usage
@@ -64,6 +66,8 @@ test("TST-316-001: OpenAI driver sends the prepared prompt once and returns repo
 });
 
 // TST-316-002
+// TST-472224 · level: unit · module: MOD-endpoint-calls
+// guards: UC-005; UC-007; UC-010; UC-019; ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: an Anthropic endpoint with a constructed Messages response that reports no usage
 // input: send the same prepared DriverInput
 // expect: one Messages request carries the prompt and the returned usage is null, never an estimate
@@ -83,6 +87,8 @@ test("TST-316-002: Anthropic driver returns text and null for an unreported usag
 });
 
 // TST-316-003
+// TST-472225 · level: unit · module: MOD-endpoint-calls
+// guards: UC-005; UC-007; UC-010; UC-019; ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: constructed provider refusals for a key and an overlong input
 // input: send through the endpoint driver
 // expect: each throws EndpointFailed with diagnoseEndpoint's reason and neither retry makes a second request
@@ -102,6 +108,8 @@ test("TST-316-003: refused and overlong requests fail once with their endpoint d
 });
 
 // TST-316-004
+// TST-472226 · level: unit · module: MOD-endpoint-calls
+// guards: UC-005; UC-007; UC-010; UC-019; ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; NO COST IS GUESSED; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a browser-visible fetch block and an already-aborted signal
 // input: send through the driver with that signal
 // expect: the block is named EndpointFailed, and the aborted request passes its signal to fetch and preserves AbortError

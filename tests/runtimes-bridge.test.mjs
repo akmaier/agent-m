@@ -90,12 +90,11 @@ function bridgesAnswer() {
 }
 test.afterEach(() => { globalThis.fetch = realFetch; fake = null; });
 
+// TST-472695 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011 step 2
 // given: a repository whose default branch is `trunk`; a job's start on a Bridge's route; the Bridge `lab-pc`
 // input: queueJob(host, START, { kind: "bridge", bridge: "lab-pc" }, head, bridge); and, as a known positive of the absence, the same without a Bridge handle
-// expect: one commit, on `trunk`, on the head read, of the start record alone — as startRecord gives it, with no `## Taken`: the Bridge takes the job —, made before the hand-over request;
-//         then one request, POST /v1/jobs to the Bridge, with its token, naming the product's address, the record's path and that commit; the path and commit returned; without a handle, the
-//         commit alone and no request
+// expect: one commit, on `trunk`, on the head read, of the start record alone — as startRecord gives it, with no `## Taken`: the Bridge takes the job —, made before the hand-over request; then one request, POST /v1/jobs to the Bridge, with its token, naming the product's address, the record's path and that commit; the path and commit returned; without a handle, the commit alone and no request
 test("queueJob — the Bridge route commits the start, then hands the job over to the named Bridge with its path and commit", async () => {
   assert.equal(typeof queueJob, "function");
   bridgesAnswer();
@@ -115,11 +114,11 @@ test("queueJob — the Bridge route commits the start, then hands the job over t
   assert.deepEqual([fake.writes.length, requests.length], [1, 0], "without a handle the commit stands alone, for the Bridge to take when it next reads the repository");
 });
 
+// TST-472696 · level: unit · module: MOD-runtimes
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011 step 2a
 // given: a Bridge that gives no answer, one that refuses the token, and one that is paused; known positive first — a Bridge that accepts
 // input: queueJob on the Bridge route with each
-// expect: the Bridge client's own error by name — NoAnswer, TokenRefused, BridgeFailed with `paused` — thrown after the commit; the start stays committed (one commit, a record without `## Taken`,
-//         which the Bridge takes when it next reads the repository), and the error carries what was queued, `{ path, commit }`
+// expect: the Bridge client's own error by name — NoAnswer, TokenRefused, BridgeFailed with `paused` — thrown after the commit; the start stays committed (one commit, a record without `## Taken`, which the Bridge takes when it next reads the repository), and the error carries what was queued, `{ path, commit }`
 test("queueJob — a hand-over refused after the commit is reported by name, the start left committed", async () => {
   bridgesAnswer();
   fake = fakeRepository();
@@ -136,6 +135,7 @@ test("queueJob — a hand-over refused after the commit is reported by name, the
   }
 });
 
+// TST-472697 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a product whose default branch moved on since the head was read
 // input: queueJob on the Bridge route with the stale head
@@ -152,11 +152,11 @@ test("queueJob — the Bridge route refuses a moved head, with nothing written a
 const PARTICIPANT = { name: "claude-lab", type: "CLI agent", model: "agent", context: 200000, price: null, capabilities: ["draft text"], place: "this machine", route: "bridge lab-pc agent claude" };
 const INPUT = { prompt: "Write the draft.", parts: [], output: null, findings: [], previous: null, workdir: null };
 
+// TST-472698 · level: unit · module: MOD-runtimes
 // guards: A RUNTIME IS INTERCHANGEABLE; UC-011
 // given: an agent `claude` on the Bridge, whose ask answers `running` twice and then `done` with a text and the usage its runtime reported; and a model endpoint the Bridge calls
 // input: bridgeDriver(bridge, { agent: "claude" }, participant).send(input); bridgeDriver(bridge, { endpoint: config }, participant).send(input)
-// expect: the driver's participant the one given; the agent's text and usage returned as the Bridge gave them; the requests POST /v1/ask with { agent: "claude", input: <the prompt> }, then GET /v1/ask/ask-1 until
-//         done, all with the token; for the endpoint POST /v1/ask with { endpoint: <the configuration>, input: <the prompt> } and the answer returned
+// expect: the driver's participant the one given; the agent's text and usage returned as the Bridge gave them; the requests POST /v1/ask with { agent: "claude", input: <the prompt> }, then GET /v1/ask/ask-1 until done, all with the token; for the endpoint POST /v1/ask with { endpoint: <the configuration>, input: <the prompt> } and the answer returned
 test("bridgeDriver — hands the input to the named agent or to the endpoint the Bridge calls, and returns the answer and usage", async () => {
   assert.equal(typeof runtimes.bridgeDriver, "function");
   bridgesAnswer();
@@ -175,6 +175,7 @@ test("bridgeDriver — hands the input to the named agent or to the endpoint the
   assert.deepEqual(requests[0].body, { endpoint: config, input: "Write the draft." });
 });
 
+// TST-472699 · level: unit · module: MOD-runtimes
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: known positive first — a Bridge that answers; then a Bridge that gives no answer, one that refuses the token, one that is paused, and an agent whose ask ends `failed`
 // input: bridgeDriver(...).send(input) with each
@@ -216,11 +217,11 @@ async function queuedFor() {
   return fake;
 }
 
+// TST-472700 · level: unit · module: MOD-runtimes
 // guards: A RUNTIME IS INTERCHANGEABLE; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011
 // given: two Bridges among `connections.bridges`, `lab-pc` and `office`, at different addresses; a drafter that is an agent on `office`; then a drafter that is a model endpoint whose configuration names `lab-pc`
 // input: runOnTab for each, with the record of a queued job
-// expect: the agent's exchange goes to `office` alone, as { agent } with the prompt, with `office`'s token; the endpoint's to `lab-pc` alone, as { endpoint: <the configuration> }; each result holds the draft the
-//         Bridge returned, and the record ends done with the usage the Bridge reported; no request reaches the model endpoint's own address
+// expect: the agent's exchange goes to `office` alone, as { agent } with the prompt, with `office`'s token; the endpoint's to `lab-pc` alone, as { endpoint: <the configuration> }; each result holds the draft the Bridge returned, and the record ends done with the usage the Bridge reported; no request reaches the model endpoint's own address
 test("runOnTab — the Bridge a participant's route names is chosen by its name among connections.bridges", async () => {
   const bridges = { "lab-pc": bridgeNamed("lab-pc"), office: bridgeNamed("office", OTHER_ADDRESS) };
   const agent = { ...PARTICIPANT, route: "bridge office agent claude" };
@@ -246,6 +247,7 @@ test("runOnTab — the Bridge a participant's route names is chosen by its name 
   assert.equal(end.state, "done");
 });
 
+// TST-472701 · level: unit · module: MOD-runtimes
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a drafter that is an agent on a Bridge `lab-pc`; `connections.bridges` that holds only `office`; and one that holds `lab-pc`, which gives no answer
 // input: runOnTab for each

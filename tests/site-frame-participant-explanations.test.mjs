@@ -43,11 +43,11 @@ function assertClaims(topic, claims) {
   for (const [pattern, says] of claims) assert.match(text, pattern, `${topic}: it says ${says}`);
 }
 
+// TST-472824 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-010; UC-011; UC-017
 // given: explanations.md, and the twelve topics of the routes and of the participants
 // input: explain(topic) for each
-// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is
-//         this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
+// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
 test("explain — each topic of the routes and of the participants is a folded What is this? with its text", () => {
   assert.match(renderArtifact("an *unclosed mark and `another").textContent, /[*`]/,
     "known positive: the renderer leaves a mark that is not closed standing");
@@ -65,6 +65,7 @@ test("explain — each topic of the routes and of the participants is a folded W
   }
 });
 
+// TST-472825 · level: unit · module: MOD-site-frame
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
 // given: the topic participant-person
 // input: explain("participant-person")
@@ -81,6 +82,7 @@ test("explain — participant-person: a person (UC-017)", () => {
   ]);
 });
 
+// TST-472826 · level: unit · module: MOD-site-frame
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
 // given: the topic participant-model-endpoint
 // input: explain("participant-model-endpoint")
@@ -99,6 +101,7 @@ test("explain — participant-model-endpoint: a model endpoint (UC-017)", () => 
   ]);
 });
 
+// TST-472827 · level: unit · module: MOD-site-frame
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
 // given: the topic participant-ci-agent
 // input: explain("participant-ci-agent")
@@ -116,6 +119,7 @@ test("explain — participant-ci-agent: a CI agent (UC-017)", () => {
   ]);
 });
 
+// TST-472828 · level: unit · module: MOD-site-frame
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
 // given: the topic participant-cli-agent
 // input: explain("participant-cli-agent")
@@ -133,6 +137,7 @@ test("explain — participant-cli-agent: a CLI agent (UC-017)", () => {
   ]);
 });
 
+// TST-472829 · level: unit · module: MOD-site-frame
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
 // given: the topic participant-sandboxed-agent
 // input: explain("participant-sandboxed-agent")
@@ -148,6 +153,7 @@ test("explain — participant-sandboxed-agent: a sandboxed agent (UC-017)", () =
   ]);
 });
 
+// TST-472830 · level: unit · module: MOD-site-frame
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-017 (steps 4, 5 and 5a)
 // given: the topic capabilities-and-place
 // input: explain("capabilities-and-place")
@@ -164,6 +170,7 @@ test("explain — capabilities-and-place: capabilities and the processing place 
   ]);
 });
 
+// TST-472831 · level: unit · module: MOD-site-frame
 // guards: UC-017 (step 3, CI agent); A CI AGENT'S DRAFT ENTERS AS OPEN
 // given: the topic ci-agent-runner
 // input: explain("ci-agent-runner")
@@ -183,6 +190,7 @@ test("explain — ci-agent-runner: why a CI agent's workflow reaches nothing sto
   ]);
 });
 
+// TST-472832 · level: unit · module: MOD-site-frame
 // guards: UC-017 (alternative 3b)
 // given: the topic ci-ssh-alternative
 // input: explain("ci-ssh-alternative")
@@ -197,6 +205,7 @@ test("explain — ci-ssh-alternative: the SSH key as an Actions secret and its c
   ]);
 });
 
+// TST-472833 · level: unit · module: MOD-site-frame
 // guards: UC-017 (steps 6 and 6a)
 // given: the topic agent-test
 // input: explain("agent-test")
@@ -211,6 +220,7 @@ test("explain — agent-test: an agent's test through the Bridge (UC-017)", () =
   ]);
 });
 
+// TST-472834 · level: unit · module: MOD-site-frame
 // guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-010 (precondition); EVERY STEP EXPLAINS ITSELF
 // given: the topic job-workflow
 // input: explain("job-workflow")
@@ -229,6 +239,7 @@ test("explain — job-workflow: Agent M's job workflow, its two secrets and the 
   ]);
 });
 
+// TST-472835 · level: unit · module: MOD-site-frame
 // guards: UC-011 (preconditions, 3c); UC-044 (step 3)
 // given: the topic bridge-own-login
 // input: explain("bridge-own-login")
@@ -243,6 +254,7 @@ test("explain — bridge-own-login: a job handed to a Bridge with the computer's
   ]);
 });
 
+// TST-472836 · level: unit · module: MOD-site-frame
 // guards: UC-011 (alternative 2a, 1c)
 // given: the topic bridge-https-route
 // input: explain("bridge-https-route")
@@ -259,12 +271,11 @@ test("explain — bridge-https-route: the route over HTTPS through the jump host
   ]);
 });
 
+// TST-472837 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF
-// given: the twelve topics, and the book Vibe Coding, whose chapter 10, section 6 treats API tokens: a secret credential, charged per
-//        request, never committed to a repository
+// given: the twelve topics, and the book Vibe Coding, whose chapter 10, section 6 treats API tokens: a secret credential, charged per request, never committed to a repository
 // input: the rendered text of each topic
-// expect: the topic about the job workflow, which is about keys and billing per call, points to chapter 10, section 6; no other of the
-//         twelve points to a chapter of the book
+// expect: the topic about the job workflow, which is about keys and billing per call, points to chapter 10, section 6; no other of the twelve points to a chapter of the book
 test("explain — the topics of the routes and of the participants point to the book only where it treats them", () => {
   assert.match(bodyText("job-workflow"), /In the book Vibe Coding: chapter 10, section 6, on API tokens\./, "job-workflow points to the book");
   for (const topic of TOPICS.filter((each) => each !== "job-workflow")) {

@@ -163,6 +163,7 @@ const rowsOf = (target) => find(target, (node) => node.localName === "tr" && nod
 
 // ---------------------------------------------------------------- the routes
 
+// TST-472605 · level: unit · module: MOD-review-pages
 // guards: UC-022; A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS
 // given: the view the module offers
 // input: its routes
@@ -175,13 +176,11 @@ test("MOD-review-pages view — the routes decision and module join the use case
 
 // ---------------------------------------------------------------- the lists
 
+// TST-472606 · level: unit · module: MOD-review-pages
 // guards: STATUS IS DERIVED FROM THE RECORDS; A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS; EVERY STEP EXPLAINS ITSELF
-// given: a product with four decisions — ARC-001 accepted, ARC-003 changed since acceptance, ARC-002 and ARC-004 open — and four module
-//        files — MOD-reader accepted, MOD-lister changed, MOD-writer and MOD-finer open —, and a token
+// given: a product with four decisions — ARC-001 accepted, ARC-003 changed since acceptance, ARC-002 and ARC-004 open — and four module files — MOD-reader accepted, MOD-lister changed, MOD-writer and MOD-finer open —, and a token
 // input: the routes decision and module rendered with no id
-// expect: for the decisions a row for each in the order of the identifiers, with its link to #decision/id=<id>, its title and its status
-//         — open, accepted, changed since acceptance — and a tick on each that is not accepted; for the modules the same under
-//         #module/id=<id>; the folded What is this?; nothing written
+// expect: for the decisions a row for each in the order of the identifiers, with its link to #decision/id=<id>, its title and its status — open, accepted, changed since acceptance — and a tick on each that is not accepted; for the modules the same under #module/id=<id>; the folded What is this?; nothing written
 test("MOD-review-pages decision and module — the lists: every file with its status and a tick", async () => {
   const fake = fakeHost();
   const decisions = await show(fake, "decision");
@@ -203,11 +202,11 @@ test("MOD-review-pages decision and module — the lists: every file with its st
 
 // ---------------------------------------------------------------- one file
 
+// TST-472607 · level: unit · module: MOD-review-pages
 // guards: DIAGRAMS ARE MERMAID IN MARKDOWN; A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS; AN APPROVAL NAMES THE EXACT TEXT
 // given: MOD-writer, open, whose text holds a Mermaid diagram, and a token
 // input: the route module rendered with the id MOD-writer
-// expect: its identifier and title, the status open, its prose, its diagram handed to the renderer, the first twelve digits of the blob of the
-//         text shown, one Accept, no difference, and no section of what it rests on (it names only what is accepted); nothing written
+// expect: its identifier and title, the status open, its prose, its diagram handed to the renderer, the first twelve digits of the blob of the text shown, one Accept, no difference, and no section of what it rests on (it names only what is accepted); nothing written
 test("MOD-review-pages module/<id> — a module file rendered with its diagram and Accept", async () => {
   const fake = fakeHost();
   const target = await show(fake, "module", { id: "MOD-writer" });
@@ -225,11 +224,11 @@ test("MOD-review-pages module/<id> — a module file rendered with its diagram a
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472608 · level: unit · module: MOD-review-pages
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: ARC-003, changed since its earlier text was accepted, and ARC-001, accepted
 // input: the route decision rendered for each
-// expect: for ARC-003 a difference headed "Changed since it was last accepted", the earlier sentence removed and the new one added; for
-//         ARC-001 no difference and no Accept
+// expect: for ARC-003 a difference headed "Changed since it was last accepted", the earlier sentence removed and the new one added; for ARC-001 no difference and no Accept
 test("MOD-review-pages decision/<id> — a changed decision is shown with its difference to the last accepted text", async () => {
   const fake = fakeHost();
   const changed = await show(fake, "decision", { id: "ARC-003" });
@@ -251,12 +250,11 @@ test("MOD-review-pages decision/<id> — a changed decision is shown with its di
 
 // ---------------------------------------------------------------- accepting
 
+// TST-472609 · level: unit · module: MOD-review-pages
 // guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS
 // given: ARC-002 and MOD-writer, open, each resting on accepted artifacts only, and a token
 // input: a click on Accept of each, on a page of its own
-// expect: one commit on `main`, on the head that was read, naming the person, holding one record — "kind: architecture-decision" and the
-//         decision's path and blob, "kind: module" and the module's — at docs/approvals/<id>-<blob12>.md; the page then shows it accepted
-//         with no Accept
+// expect: one commit on `main`, on the head that was read, naming the person, holding one record — "kind: architecture-decision" and the decision's path and blob, "kind: module" and the module's — at docs/approvals/<id>-<blob12>.md; the page then shows it accepted with no Accept
 test("MOD-review-pages decision/<id> and module/<id> — Accept writes one record naming the blob shown", async () => {
   for (const [route, id, path, body, kind] of [["decision", "ARC-002", A(2, "shelves"), ARC2, "architecture-decision"], ["module", "MOD-writer", M("writer"), MOD_WRITER, "module"]]) {
     const fake = fakeHost();
@@ -275,12 +273,11 @@ test("MOD-review-pages decision/<id> and module/<id> — Accept writes one recor
   }
 });
 
+// TST-472610 · level: unit · module: MOD-review-pages
 // guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022 (10a)
-// given: ARC-004, which names UC-002, a use case that is open; MOD-finer, which names a requirement the SPEC does not hold; and, to show
-//        a file that names accepted artifacts only, ARC-002
+// given: ARC-004, which names UC-002, a use case that is open; MOD-finer, which names a requirement the SPEC does not hold; and, to show a file that names accepted artifacts only, ARC-002
 // input: the routes decision and module rendered for each
-// expect: for ARC-004 a section of what it rests on that is not accepted, naming it and UC-002 and no other; for MOD-finer the same naming A FINE
-//         IS CHARGED PER DAY and UC-002, in the order the file names them; no Accept and no GitHub page on either; nothing written; ARC-002 has no such section
+// expect: for ARC-004 a section of what it rests on that is not accepted, naming it and UC-002 and no other; for MOD-finer the same naming A FINE IS CHARGED PER DAY and UC-002, in the order the file names them; no Accept and no GitHub page on either; nothing written; ARC-002 has no such section
 test("MOD-review-pages decision/<id> and module/<id> — a file that names what is not accepted is shown with it named, and not accepted", async () => {
   const fake = fakeHost();
   assert.equal(byClass(await show(fake, "decision", { id: "ARC-002" }), "section", "rests-on").length, 0, "known positive: ARC-002 rests on accepted artifacts");
@@ -297,9 +294,9 @@ test("MOD-review-pages decision/<id> and module/<id> — a file that names what 
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472611 · level: unit · module: MOD-review-pages
 // guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; ONE CLICK PER DECISION
-// given: the page of ARC-002 built while the requirement it names is in the SPEC; then another writer's commit removes that requirement
-//        from the SPEC
+// given: the page of ARC-002 built while the requirement it names is in the SPEC; then another writer's commit removes that requirement from the SPEC
 // input: a click on Accept of ARC-002
 // expect: no commit; the refusal said, naming ARC-002, that it rests on what is not accepted, and the requirement
 test("MOD-review-pages decision/<id> — a requirement that left the SPEC after the page was built refuses the click, and is named", async () => {
@@ -316,6 +313,7 @@ test("MOD-review-pages decision/<id> — a requirement that left the SPEC after 
 
 // ---------------------------------------------------------------- without a token, and an unknown file
 
+// TST-472612 · level: unit · module: MOD-review-pages
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product and no token stored; ARC-002, open
 // input: the route decision rendered with the id ARC-002
@@ -336,6 +334,7 @@ test("MOD-review-pages decision/<id> — without a token on GitHub: GitHub's pre
   assert.equal(fake.writes().length, 0);
 });
 
+// TST-472613 · level: unit · module: MOD-review-pages
 // guards: STATUS IS DERIVED FROM THE RECORDS
 // given: the product above
 // input: the route module rendered with an identifier no file has

@@ -160,15 +160,11 @@ An outcome.
 `;
 const NOT_A_DOCUMENT = "Some words that are no document: no front matter, no title, no sections.\n";
 
+// TST-472316 · level: unit · module: MOD-job-runner
 // guards: DON'T REPEAT YOURSELF; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-007
-// given: a kind that names document-schema alone; a draft of four files — a use case without its ## Postcondition at
-//        docs/use-cases/UC-001-fixture.md, a backlog item without its ## Acceptance at docs/backlog/ITM-001-fixture.md, and
-//        two files whose paths no schema's pattern matches, docs/use-cases/UC-1-short.md, whose number has one digit, and
-//        docs/notes/loose.md, each holding text that is no document
+// given: a kind that names document-schema alone; a draft of four files — a use case without its ## Postcondition at docs/use-cases/UC-001-fixture.md, a backlog item without its ## Acceptance at docs/backlog/ITM-001-fixture.md, and two files whose paths no schema's pattern matches, docs/use-cases/UC-1-short.md, whose number has one digit, and docs/notes/loose.md, each holding text that is no document
 // input: runJob of it without a drafter, the draft as `from`: the draft is checked once
-// expect: two errors, UC-001 under A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION and ITM-001 under THE BACKLOG
-//         LIVES IN THE PRODUCT REPOSITORY, each on line 1 — each file judged by the schema of its path —, and nothing for
-//         either of the two files whose path no pattern matches; the findings remaining
+// expect: two errors, UC-001 under A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION and ITM-001 under THE BACKLOG LIVES IN THE PRODUCT REPOSITORY, each on line 1 — each file judged by the schema of its path —, and nothing for either of the two files whose path no pattern matches; the findings remaining
 test("document-schema — a use case and a backlog item are judged by their schemas, and a path no pattern matches is not judged", async () => {
   const draft = { files: [
     { path: "docs/use-cases/UC-001-fixture.md", text: USE_CASE, class: "new" },
@@ -200,16 +196,11 @@ test("${id}", () => {});
 `;
 const PLAIN = 'test("plain", () => {});\n';   // a test file that declares none
 
+// TST-472318 · level: unit · module: MOD-job-runner
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026
-// given: a product whose default branch holds tests/legacy.test.mjs, which declares none; a participant that reports the
-//        branch tests/export-formats, on which tests/loose.test.mjs is added declaring none, tests/export.test.mjs is added
-//        with the whole TST-001, docs/notes.md is added declaring none and is no test file, and tests/legacy.test.mjs is
-//        changed — and, told of the finding, pushes a declaration for tests/loose.test.mjs and reports again
+// given: a product whose default branch holds tests/legacy.test.mjs, which declares none; a participant that reports the branch tests/export-formats, on which tests/loose.test.mjs is added declaring none, tests/export.test.mjs is added with the whole TST-001, docs/notes.md is added declaring none and is no test file, and tests/legacy.test.mjs is changed — and, told of the finding, pushes a declaration for tests/loose.test.mjs and reports again
 // input: runJob of it, a person attending
-// expect: one finding in the first round, an error naming tests/loose.test.mjs under A TEST STATES ITS EXPECTED RESULT BEFORE
-//         IT RUNS, in one line — not tests/export.test.mjs, whose declaration is whole, nor docs/notes.md, which is no
-//         test file, nor tests/legacy.test.mjs, which the branch changes and does not add —; the participant asked twice, the
-//         second time with that finding; none in the second round; stopped because passed, nothing remaining
+// expect: one finding in the first round, an error naming tests/loose.test.mjs under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS, in one line — not tests/export.test.mjs, whose declaration is whole, nor docs/notes.md, which is no test file, nor tests/legacy.test.mjs, which the branch changes and does not add —; the participant asked twice, the second time with that finding; none in the second round; stopped because passed, nothing remaining
 test("test-declarations — a test file the branch adds that declares none is reported, one it only changes or that is no test file is not", async () => {
   const main = { "tests/legacy.test.mjs": PLAIN };
   const host = hostOf({ [BRANCH]: { "docs/notes.md": "# Notes\n\nSome words.\n", "tests/export.test.mjs": DECLARED("TST-001"),
@@ -232,15 +223,11 @@ test("test-declarations — a test file the branch adds that declares none is re
   result.rounds[0].findings.forEach(sayItInOneLine);
 });
 
+// TST-472319 · level: unit · module: MOD-job-runner
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-026
-// given: a product whose host holds no branch yet; a participant that reports the branch tests/export-formats, which it has
-//        not pushed, and — told of it — pushes the branch with a whole declaration and reports again; and, apart, a host
-//        that fails with Unreachable
+// given: a product whose host holds no branch yet; a participant that reports the branch tests/export-formats, which it has not pushed, and — told of it — pushes the branch with a whole declaration and reports again; and, apart, a host that fails with Unreachable
 // input: runJob of the first, a person attending; runJob of the second
-// expect: the first: the participant asked twice; one error in the first round, under A DRAFT THAT FAILS A CHECK GOES BACK TO
-//         ITS PARTICIPANT, in one line that names the branch; none in the second — the host now holds it, the known positive
-//         —; stopped because passed. The second: the job fails with the host's own Unreachable, thrown as it is, the
-//         participant asked once — a branch the host does not hold is a finding, any other failure of the host is not
+// expect: the first: the participant asked twice; one error in the first round, under A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT, in one line that names the branch; none in the second — the host now holds it, the known positive —; stopped because passed. The second: the job fails with the host's own Unreachable, thrown as it is, the participant asked once — a branch the host does not hold is a finding, any other failure of the host is not
 test("test-declarations — a branch the host does not hold is sent back as a finding, and any other failure of the host is thrown", async () => {
   const host = hostOf({});
   const first = report("c1");
@@ -286,12 +273,11 @@ for (const [category, strategies] of Object.entries({
   }
 }
 
+// TST-472320 · level: unit · module: MOD-job-runner
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026
-// given: the catalogue's write-tests, whose check test-declarations reads the branch the participant reports; known positive
-//        first — the job's context with the product's host; then the same context without it
+// given: the catalogue's write-tests, whose check test-declarations reads the branch the participant reports; known positive first — the job's context with the product's host; then the same context without it
 // input: prepareJob of write-tests for each; then runJob of the job prepared without the host
-// expect: with the host, nothing blocking; without it, one error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS, in
-//         one line, among `blocking`; runJob refuses that job as NotStartable and the participant is asked nothing
+// expect: with the host, nothing blocking; without it, one error under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS, in one line, among `blocking`; runJob refuses that job as NotStartable and the participant is asked nothing
 test("prepareJob — a job of write-tests without the product's host is blocked before it starts", async () => {
   const choice = { drafter: PARTICIPANT, reviewers: [] };
   const kind = await kindOf("write-tests");

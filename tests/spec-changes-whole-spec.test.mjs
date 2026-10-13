@@ -39,6 +39,7 @@ const snapshotOf = (files, read = async (path) => (Object.hasOwn(files, path) ? 
 const run = (snapshot, params = {}) => specStrategies.recipes["whole-spec"](
   { params, product: { address: "https://github.com/alice/product", snapshot, host: null } }, params);
 
+// TST-473043 · level: unit · module: MOD-spec-changes
 // guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; UC-022
 // given: the fixture product, whose SPEC has CR LF line ends, blank lines and blanks at both ends, trailing blanks, a non-ASCII letter and no final line end, and beside it a queue with an open entry
 // input: specStrategies.recipes["whole-spec"](context, params)
@@ -49,6 +50,7 @@ test("whole-spec — the SPEC as it stands, byte for byte, as one part", async (
   assert.deepEqual(parts[0], { name: "SPEC.md", text: SPEC, size: 0, sources: [], required: true });
 });
 
+// TST-473044 · level: unit · module: MOD-spec-changes
 // guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT
 // given: the same SPEC, and an open entry of a queue beside it
 // input: the recipe
@@ -59,6 +61,7 @@ test("whole-spec — the open entries of the queues are not part of the SPEC as 
   assert.ok(!part.text.includes("AN OPEN ENTRY RULE"));
 });
 
+// TST-473045 · level: unit · module: MOD-spec-changes
 // guards: NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY
 // given: a snapshot with an empty SPEC; one without a SPEC.md; one whose read fails with its own failure
 // input: the recipe for each
@@ -104,13 +107,11 @@ const contextOf = (kind, snapshot) => ({
   now: new Date("2026-10-11T08:00:00Z"), agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: null,
 });
 
+// TST-473046 · level: unit · module: MOD-spec-changes
 // guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; UC-022
-// given: derive-architecture, whose recipes name whole-spec, with this module's recipe registered; the fixture product; a drafter whose
-//        context holds the job, and one whose context of 400 tokens does not
+// given: derive-architecture, whose recipes name whole-spec, with this module's recipe registered; the fixture product; a drafter whose context holds the job, and one whose context of 400 tokens does not
 // input: prepareJob("derive-architecture", context, { drafter, reviewers: [] }) for each
-// expect: the part of whole-spec is the SPEC whole, named for its recipe, sized as the runner sizes every part (its characters divided by three,
-//         rounded up); the destination counts the kind's prompt and every part; the small drafter is named as not fitting with that size,
-//         and its parts are the same, whole
+// expect: the part of whole-spec is the SPEC whole, named for its recipe, sized as the runner sizes every part (its characters divided by three, rounded up); the destination counts the kind's prompt and every part; the small drafter is named as not fitting with that size, and its parts are the same, whole
 test("prepareJob — the SPEC part is sized as every part is, and a participant that cannot hold it is named, nothing cut", async () => {
   register("recipes", "whole-spec", specStrategies?.recipes?.["whole-spec"]);
   const kind = await kindOf("derive-architecture");

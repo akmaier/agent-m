@@ -208,14 +208,11 @@ const fileOf = (target, id) => byClass(target, "section", "review-file").find((s
 
 // ---------------------------------------------------------------- the order
 
+// TST-472688 · level: unit · module: MOD-review-pages
 // guards: UC-022; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
-// given: an architecture of seven files — the decision that states the system ARC-001 (accepted), the subsystems' decisions ARC-002
-//        (open) and ARC-003 (changed since acceptance), the module files MOD-desk (open) and MOD-shelf (accepted), and the further
-//        decisions ARC-004 (open) and ARC-006 (accepted) —, and a token
+// given: an architecture of seven files — the decision that states the system ARC-001 (accepted), the subsystems' decisions ARC-002 (open) and ARC-003 (changed since acceptance), the module files MOD-desk (open) and MOD-shelf (accepted), and the further decisions ARC-004 (open) and ARC-006 (accepted) —, and a token
 // input: the route decision rendered with the id all
-// expect: the files not yet accepted in the order ARC-002, ARC-003, MOD-desk, ARC-004 — no accepted file, and the system's decision
-//         accepted so not among them —; ARC-003 as the difference to its last accepted text, the others in full; the button "Accept
-//         all 4 shown"; nothing written
+// expect: the files not yet accepted in the order ARC-002, ARC-003, MOD-desk, ARC-004 — no accepted file, and the system's decision accepted so not among them —; ARC-003 as the difference to its last accepted text, the others in full; the button "Accept all 4 shown"; nothing written
 test("MOD-review-pages decision/all — the files of the whole architecture in their order, a changed one as its difference and a new one in full", async () => {
   const fake = fakeHost();
   const target = await show(fake);
@@ -231,12 +228,11 @@ test("MOD-review-pages decision/all — the files of the whole architecture in t
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
+// TST-472689 · level: unit · module: MOD-review-pages
 // guards: UC-022; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
-// given: the architecture above, in which another writer has put the decision that states the system as ARC-007 — it refines no
-//        other —, and ARC-001, changed since acceptance, now refines it and designs no module
+// given: the architecture above, in which another writer has put the decision that states the system as ARC-007 — it refines no other —, and ARC-001, changed since acceptance, now refines it and designs no module
 // input: the route decision rendered with the id all
-// expect: the decision that states the system, ARC-007, first — though its identifier is the highest —, then the subsystems' decisions
-//         by identifier, the module files, the further decisions by identifier
+// expect: the decision that states the system, ARC-007, first — though its identifier is the highest —, then the subsystems' decisions by identifier, the module files, the further decisions by identifier
 test("MOD-review-pages decision/all — the decision that states the system first, then the subsystems, the modules, the further decisions", async () => {
   const fake = fakeHost();
   fake.land({ [A(7, "system")]: decision({ id: "ARC-007", title: "The whole lending system", forced: [RULE, "UC-001"], sentence: "Lending is a desk and a shelf." }),
@@ -247,11 +243,11 @@ test("MOD-review-pages decision/all — the decision that states the system firs
 
 // ---------------------------------------------------------------- due diligence and rounds
 
+// TST-472690 · level: unit · module: MOD-review-pages
 // guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; UC-022
 // given: the further decision ARC-004, which adopts a library and holds a due-diligence table of two candidates
 // input: the route decision rendered with the id all
-// expect: in the section of ARC-004 a due-diligence section whose table holds both candidates with their licence, the address they were
-//         read from and the date; the table not shown a second time in the decision's text; the other files have none
+// expect: in the section of ARC-004 a due-diligence section whose table holds both candidates with their licence, the address they were read from and the date; the table not shown a second time in the decision's text; the other files have none
 test("MOD-review-pages decision/all — a further decision with its due-diligence table", async () => {
   const target = await show(fakeHost());
   const sections = byClass(fileOf(target, "ARC-004"), "section", "due-diligence");
@@ -265,17 +261,11 @@ test("MOD-review-pages decision/all — a further decision with its due-diligenc
   assert.equal(byClass(target, "section", "due-diligence").length, 1, "only the decision that holds one");
 });
 
+// TST-472691 · level: unit · module: MOD-review-pages
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-022
-// given: the record of the job that drafted the architecture: two rounds — the first with two findings, one fixed and one answered
-//        with its reason, the second with two findings, one justified and one that no answer follows, the loop having stopped at its
-//        limit —, and the record of a newer job
-//        of another kind, which has a round of its own
+// given: the record of the job that drafted the architecture: two rounds — the first with two findings, one fixed and one answered with its reason, the second with two findings, one justified and one that no answer follows, the loop having stopped at its limit —, and the record of a newer job of another kind, which has a round of its own
 // input: the route decision rendered with the id all
-// expect: a rounds section of the drafting job's two rounds and not of the other job's; in the first the finding on ARC-002 with
-//         "fixed" and the finding on ARC-003 with "answered:" and the reason, neither left; in the second both findings marked left,
-//         the one on ARC-004 still with its "justified:" and its reason — the loop stopped at its limit, and what is left is the last
-//         round's findings, as the record's writer counts it —; each finding with its file, line, what it says and the rule it
-//         names; the count left, 2 findings
+// expect: a rounds section of the drafting job's two rounds and not of the other job's; in the first the finding on ARC-002 with "fixed" and the finding on ARC-003 with "answered:" and the reason, neither left; in the second both findings marked left, the one on ARC-004 still with its "justified:" and its reason — the loop stopped at its limit, and what is left is the last round's findings, as the record's writer counts it —; each finding with its file, line, what it says and the rule it names; the count left, 2 findings
 test("MOD-review-pages decision/all — the rounds of the drafting job, each finding with its correction or answer and the findings left", async () => {
   const target = await show(fakeHost());
   const rounds = byClass(target, "section", "rounds")[0];
@@ -305,11 +295,11 @@ test("MOD-review-pages decision/all — the rounds of the drafting job, each fin
 
 // ---------------------------------------------------------------- Accept all N shown
 
+// TST-472692 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; ONE CLICK PER DECISION
 // given: the page of the whole architecture with its four files not yet accepted, and a token
 // input: a click on "Accept all 4 shown"
-// expect: one commit on main, on the head that was read, holding one record for each file shown — ARC-002, ARC-003, MOD-desk, ARC-004 —,
-//         each naming the blob of the text shown, and nothing else; the page then shows no file and says the commit
+// expect: one commit on main, on the head that was read, holding one record for each file shown — ARC-002, ARC-003, MOD-desk, ARC-004 —, each naming the blob of the text shown, and nothing else; the page then shows no file and says the commit
 test("MOD-review-pages decision/all — Accept all N shown writes one record for each file shown", async () => {
   const fake = fakeHost();
   const read = fake.head();
@@ -329,11 +319,11 @@ test("MOD-review-pages decision/all — Accept all N shown writes one record for
   assert.deepEqual(filesOf(target), []);
 });
 
+// TST-472693 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT
 // given: the page of the whole architecture shown; then another writer's commit changed MOD-desk on main
 // input: a click on "Accept all 4 shown"
-// expect: one commit holding the records of ARC-002, ARC-003 and ARC-004 — not MOD-desk's —; MOD-desk named as left out, changed since
-//         shown, in the message
+// expect: one commit holding the records of ARC-002, ARC-003 and ARC-004 — not MOD-desk's —; MOD-desk named as left out, changed since shown, in the message
 test("MOD-review-pages decision/all — a file changed after it was shown is left out and named", async () => {
   const fake = fakeHost();
   const target = await show(fake);
@@ -347,11 +337,11 @@ test("MOD-review-pages decision/all — a file changed after it was shown is lef
   assert.match(byClass(target, "p", "result")[0].textContent, /MOD-desk was left out: changed since shown/);
 });
 
+// TST-472694 · level: unit · module: MOD-review-pages
 // guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-022
 // given: the architecture with a subsystem's decision ARC-005 forced by the open use case UC-002 and its module file MOD-queue
 // input: the route decision rendered with the id all; a click on "Accept all 6 shown"
-// expect: ARC-005 shown with a section that names UC-002 as open; one commit holding the records of every file shown but ARC-005; the
-//         message names ARC-005 as left out because it rests on what is not accepted, and UC-002
+// expect: ARC-005 shown with a section that names UC-002 as open; one commit holding the records of every file shown but ARC-005; the message names ARC-005 as left out because it rests on what is not accepted, and UC-002
 test("MOD-review-pages decision/all — a decision that names an open use case is left out and named", async () => {
   const fake = fakeHost({ reserve: true });
   const target = await show(fake);
@@ -368,18 +358,16 @@ test("MOD-review-pages decision/all — a decision that names an open use case i
   assert.match(byClass(target, "p", "result")[0].textContent, /ARC-005 was left out: rests on what is not accepted \(UC-002\)/);
 });
 
-// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-022
-// given: four drafting jobs, each with two rounds in which the drafter answered every finding — the loop having (1) stopped at its
-//        limit, (2) passed, (3) checked nothing, (4) stopped because a round left the findings unchanged
-// input: the route decision rendered with the id all for each
-// expect: as the record's writer counts what is left, which its `Left:` line states: the findings of the last round, answered or not,
-//         for (1) and (4) — the page says "Left: 1 finding" and marks that finding left, with its answer —; none for (2) and (3), where
-//         the last round's justified finding is not left and the page says "Left: none"
 const ANSWERED = [
   { number: 1, findings: [F1], answers: [{ finding: F1, how: "fixed", text: null }], changed: true },
   { number: 2, findings: [F5], answers: [{ finding: F5, how: "justified", text: "the registry shows no date for it." }], changed: true },
 ];
 for (const [stopped, left] of [["limit", 1], ["passed", 0], ["not checked", 0], ["unchanged", 1]]) {
+  // TST-478028 · level: unit · module: MOD-review-pages
+  // guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-022
+  // given: four drafting jobs, each with two rounds in which the drafter answered every finding — the loop having (1) stopped at its limit, (2) passed, (3) checked nothing, (4) stopped because a round left the findings unchanged
+  // input: the route decision rendered with the id all for each
+  // expect: as the record's writer counts what is left, which its `Left:` line states: the findings of the last round, answered or not, for (1) and (4) — the page says "Left: 1 finding" and marks that finding left, with its answer —; none for (2) and (3), where the last round's justified finding is not left and the page says "Left: none"
   test(`MOD-review-pages decision/all — rounds that the loop left at "${stopped}": ${left ? "the last round's answered finding is left" : "nothing is left"}`, async () => {
     const target = await show(fakeHost({ drafting: draftingRecord(ANSWERED, stopped) }));
     const rounds = byClass(target, "section", "rounds")[0];

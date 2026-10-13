@@ -22,15 +22,11 @@ const NEW = { class: "new", of: null };
 const candidate = (ref, keys, from, proposed = NEW) => ({ ref, keys, from, proposed });
 const classified = (refs, from, cls, of, decidedBy) => ({ refs, from, class: cls, of, decidedBy });
 
+// TST-472157 · level: unit · module: MOD-documents
 // guards: CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-// given: three candidates of one run and no existing artifact: c1 and c2 state one requirement — one name, one rule — from two
-//        passages, "SRC-law, Art. 4" and "SRC-law, Art. 9"; c3 states another from "SRC-law, Art. 6"; each proposed new. Then
-//        three candidates c4, c6, c5 of one run, in that order: c4 and c5 have one name and two rules, c5 and c6 have one rule and
-//        two names, c4 and c6 nothing in common
+// given: three candidates of one run and no existing artifact: c1 and c2 state one requirement — one name, one rule — from two passages, "SRC-law, Art. 4" and "SRC-law, Art. 9"; c3 states another from "SRC-law, Art. 6"; each proposed new. Then three candidates c4, c6, c5 of one run, in that order: c4 and c5 have one name and two rules, c5 and c6 have one rule and two names, c4 and c6 nothing in common
 // input: classifyCandidates([c1, c2, c3], []); classifyCandidates([c4, c6, c5], [])
-// expect: two classes, in the order of the candidates: the first names c1 and c2 and both passages, new, of null, decided by the
-//         participant; the second names c3 alone, with its passage. For the other three, two classes: c4 alone, and c6 and c5
-//         together with both their passages, since they state one rule — the name c4 and c5 share joins nothing
+// expect: two classes, in the order of the candidates: the first names c1 and c2 and both passages, new, of null, decided by the participant; the second names c3 alone, with its passage. For the other three, two classes: c4 alone, and c6 and c5 together with both their passages, since they state one rule — the name c4 and c5 share joins nothing
 test("classifyCandidates — two candidates of one rule are merged into one, naming both passages; a name alone joins nothing", () => {
   const draft = [
     candidate("c1", ["EXPORT AS PDF", "The export is a PDF."], ["SRC-law, Art. 4"]),
@@ -53,17 +49,11 @@ test("classifyCandidates — two candidates of one rule are merged into one, nam
   ]);
 });
 
+// TST-472158 · level: unit · module: MOD-documents
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
-// given: three existing requirements — EXPORT AS PDF, PRINT TWICE and SAVE ON EXIT, each with its rule — and four candidates of
-//        one run: c1 and c4 with the name and the rule of EXPORT AS PDF, from two passages, c1 proposed new; c2 with the name of
-//        PRINT TWICE and another rule, proposed a change of it; c3 with another name and the rule of SAVE ON EXIT, proposed a
-//        conflict with it. Then an architecture decision, whose key is its title: ARC-012 exists, and a candidate with its
-//        title in other letters is proposed new
+// given: three existing requirements — EXPORT AS PDF, PRINT TWICE and SAVE ON EXIT, each with its rule — and four candidates of one run: c1 and c4 with the name and the rule of EXPORT AS PDF, from two passages, c1 proposed new; c2 with the name of PRINT TWICE and another rule, proposed a change of it; c3 with another name and the rule of SAVE ON EXIT, proposed a conflict with it. Then an architecture decision, whose key is its title: ARC-012 exists, and a candidate with its title in other letters is proposed new
 // input: classifyCandidates([c1, c2, c3, c4], the three requirements); classifyCandidates of the decision's candidate
-// expect: three classes, each a duplicate decided by rule, whatever the participant proposed: of EXPORT AS PDF for c1 and c4
-//         together, naming both passages — merged before they are compared with the existing —; c2, which takes the name of PRINT TWICE
-//         with another rule, no duplicate: it keeps the change of PRINT TWICE its participant proposed, decided by the participant; and
-//         a duplicate of SAVE ON EXIT for c3 — its rule equals, under another name —; for the decision, a duplicate of ARC-012 by rule
+// expect: three classes, each a duplicate decided by rule, whatever the participant proposed: of EXPORT AS PDF for c1 and c4 together, naming both passages — merged before they are compared with the existing —; c2, which takes the name of PRINT TWICE with another rule, no duplicate: it keeps the change of PRINT TWICE its participant proposed, decided by the participant; and a duplicate of SAVE ON EXIT for c3 — its rule equals, under another name —; for the decision, a duplicate of ARC-012 by rule
 test("classifyCandidates — a candidate whose rule equals an existing artifact's is a duplicate of it by rule, whatever its participant proposed", () => {
   const existing = [
     { id: "EXPORT AS PDF", keys: ["EXPORT AS PDF", "The export is a PDF."] },
@@ -88,14 +78,11 @@ test("classifyCandidates — a candidate whose rule equals an existing artifact'
     [classified(["d1"], ["UC-022, step 4"], "duplicate", "ARC-012", "rule")]);
 });
 
+// TST-472159 · level: unit · module: MOD-documents
 // guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
-// given: pairs of names that differ only in case ("Export As PDF"), in white space (blanks, a tab, a line break), in quotation
-//        marks (a curly apostrophe, curly double quotes) or in dashes (an en dash, an em dash) from their plain forms; and, as a
-//        control, "EXPORT AS PDF" against "EXPORT AS A PDF", which differ by a word. A key is the name alone
-// input: for each pair, classifyCandidates of the variant and the plain form as two candidates of one run, and of the variant
-//        as a candidate proposed new against the plain form as an existing artifact
-// expect: for each of the six pairs, one class naming both candidates, and the variant a duplicate of the existing artifact by
-//         rule; for the control, two classes of their own, and the candidate kept as new, decided by the participant
+// given: pairs of names that differ only in case ("Export As PDF"), in white space (blanks, a tab, a line break), in quotation marks (a curly apostrophe, curly double quotes) or in dashes (an en dash, an em dash) from their plain forms; and, as a control, "EXPORT AS PDF" against "EXPORT AS A PDF", which differ by a word. A key is the name alone
+// input: for each pair, classifyCandidates of the variant and the plain form as two candidates of one run, and of the variant as a candidate proposed new against the plain form as an existing artifact
+// expect: for each of the six pairs, one class naming both candidates, and the variant a duplicate of the existing artifact by rule; for the control, two classes of their own, and the candidate kept as new, decided by the participant
 test("classifyCandidates — keys that differ only in case, white space, quotation marks or dashes are one key", () => {
   const pairs = [
     ["case", "Export As PDF", "EXPORT AS PDF"],
@@ -117,14 +104,11 @@ test("classifyCandidates — keys that differ only in case, white space, quotati
     "control: a key that differs by a word is another key");
 });
 
+// TST-472160 · level: unit · module: MOD-documents
 // guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
-// given: the existing requirement EXPORT AS PDF, and four candidates whose keys equal none of its keys, proposed new, a change of
-//        EXPORT AS PDF, a duplicate of EXPORT AS PDF — the same obligation in other words, which only a model can tell — and a
-//        conflict with EXPORT AS PDF; the change's name differs from the existing name by a word, and the last two have no
-//        rule text, a blank value that is no key
+// given: the existing requirement EXPORT AS PDF, and four candidates whose keys equal none of its keys, proposed new, a change of EXPORT AS PDF, a duplicate of EXPORT AS PDF — the same obligation in other words, which only a model can tell — and a conflict with EXPORT AS PDF; the change's name differs from the existing name by a word, and the last two have no rule text, a blank value that is no key
 // input: classifyCandidates of the four, with the existing requirement
-// expect: four classes of their own, each with the class and the `of` its participant proposed — new of null, change, duplicate and
-//         conflict of EXPORT AS PDF — decided by the participant
+// expect: four classes of their own, each with the class and the `of` its participant proposed — new of null, change, duplicate and conflict of EXPORT AS PDF — decided by the participant
 test("classifyCandidates — every other candidate keeps the class its participant proposed", () => {
   const existing = [{ id: "EXPORT AS PDF", keys: ["EXPORT AS PDF", "The export is a PDF."] }];
   const draft = [

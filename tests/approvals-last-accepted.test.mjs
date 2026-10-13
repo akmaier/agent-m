@@ -164,13 +164,11 @@ const recordNames = (id) => HISTORY.flatMap((step) => Object.keys(step.write ?? 
 
 // ---------------------------------------------------------------- the last accepted text
 
+// TST-472015 · level: unit · module: MOD-approvals
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; STATUS IS DERIVED FROM THE RECORDS; UC-008
-// given: the history above, in which UC-010 and UC-011 each have two records — the first for the text written first, the second
-//        for the next one — and have been edited since; the older record of UC-010 stands after the newer in the folder, the
-//        older of UC-011 before it; UC-010's older record was committed at 10:00 in +02:00, its newer at 09:00 UTC
+// given: the history above, in which UC-010 and UC-011 each have two records — the first for the text written first, the second for the next one — and have been edited since; the older record of UC-010 stands after the newer in the folder, the older of UC-011 before it; UC-010's older record was committed at 10:00 in +02:00, its newer at 09:00 UTC
 // input: lastAcceptedText("UC-010", host), and lastAcceptedText("UC-011", host)
-// expect: for each the text the newer record names — V2 and W2, not the text the file has now — with the blob that record
-//         names and the path the file had: { text, blob, path }
+// expect: for each the text the newer record names — V2 and W2, not the text the file has now — with the blob that record names and the path the file had: { text, blob, path }
 test("lastAcceptedText — of two records of one use case, the newer one's text", async () => {
   const [older10, newer10] = recordNames("UC-010"), [older11, newer11] = recordNames("UC-011");
   assert.ok(older10 > newer10 && older11 < newer11, "fixture: the older record is neither always first nor always last by name");
@@ -182,9 +180,9 @@ test("lastAcceptedText — of two records of one use case, the newer one's text"
   assert.deepEqual(received, { text: W2, blob: blobOf(W2), path: UC11 });
 });
 
+// TST-472016 · level: unit · module: MOD-approvals
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008
-// given: the history above, in which UC-020 was accepted at one path and has since been renamed to another and edited, so that
-//        the head holds it only at the new path, with another text
+// given: the history above, in which UC-020 was accepted at one path and has since been renamed to another and edited, so that the head holds it only at the new path, with another text
 // input: lastAcceptedText("UC-020", host)
 // expect: the text that was accepted — X1, not the one the renamed file holds now — with its blob and the path it had then
 test("lastAcceptedText — a file renamed after its record is still found, with the text that was accepted", async () => {
@@ -198,9 +196,9 @@ test("lastAcceptedText — a file renamed after its record is still found, with 
   assert.deepEqual(found, { text: X1, blob: blobOf(X1), path: UC20_THEN });
 });
 
+// TST-472017 · level: unit · module: MOD-approvals
 // guards: STATUS IS DERIVED FROM THE RECORDS; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008
-// given: the history above, in which UC-030 has a file and no record, MOD-sample has a file and no record while the record of
-//        MOD-sample-extra, whose identifier begins with it, and that of UC-031 are there; and, as the known positive, UC-031
+// given: the history above, in which UC-030 has a file and no record, MOD-sample has a file and no record while the record of MOD-sample-extra, whose identifier begins with it, and that of UC-031 are there; and, as the known positive, UC-031
 // input: lastAcceptedText for UC-030, for MOD-sample and for an identifier no file has, UC-099; and for UC-031
 // expect: null for the first three; for UC-031 its text, so that the null is not the fixture's
 test("lastAcceptedText — an identifier no record names gives null", async () => {
@@ -211,9 +209,9 @@ test("lastAcceptedText — an identifier no record names gives null", async () =
   assert.deepEqual(await lastAcceptedText("MOD-sample-extra", fakeHost().host), { text: E1, blob: blobOf(E1), path: MOD_EXTRA });
 });
 
+// TST-472018 · level: unit · module: MOD-approvals
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008
-// given: the history above and UC-010 asked for; the host answers the nth of its calls — however many a successful answer
-//        makes — with TokenRefused, for each n in turn
+// given: the history above and UC-010 asked for; the host answers the nth of its calls — however many a successful answer makes — with TokenRefused, for each n in turn
 // input: lastAcceptedText("UC-010", host)
 // expect: it rejects with that TokenRefused, the same name and the same fields, wherever it was refused
 test("lastAcceptedText — TokenRefused is passed on, wherever the host refuses", async () => {
@@ -234,9 +232,9 @@ test("lastAcceptedText — TokenRefused is passed on, wherever the host refuses"
   }
 });
 
+// TST-472019 · level: unit · module: MOD-approvals
 // guards: AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008
-// given: the history above, in which UC-040 was edited after a person saw it and accepted afterwards through GitHub's web
-//        interface: the record names the text seen, Y1, and the file held Y2 when the record was added
+// given: the history above, in which UC-040 was edited after a person saw it and accepted afterwards through GitHub's web interface: the record names the text seen, Y1, and the file held Y2 when the record was added
 // input: lastAcceptedText("UC-040", host)
 // expect: it rejects with NotFound, naming the file — no text other than the one the record names is given
 test("lastAcceptedText — a record whose text its file did not hold when it was added is not answered with another text", async () => {

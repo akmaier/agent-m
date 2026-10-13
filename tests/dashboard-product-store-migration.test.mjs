@@ -39,9 +39,8 @@ function storage(entries = {}) {
     removeItem: (key) => values.delete(key), get length() { return values.size; }, key: (i) => [...values.keys()][i] ?? null };
 }
 
-// TST-265
-// Module: MOD-browser-store
-// Level: component
+// TST-265 · level: component · module: MOD-browser-store
+// guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
 // given: a dashboard browser containing its established token, product list and product token
 // input: open the dashboard adapter for that instance
 // expect: the same values are available through MOD-browser-store's instance-prefixed catalogue
@@ -63,9 +62,8 @@ test("the dashboard migrates its product list and tokens into MOD-browser-store"
   assert.equal(readSetting(store, "github-token:alice/tool").value, "github_pat_PRODUCT");
 });
 
-// TST-267
-// Module: MOD-browser-store
-// Level: component
+// TST-267 · level: component · module: MOD-browser-store
+// guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
 // given: a legacy GitLab project token, including its last test, without a legacy product-list entry
 // input: open the adapter, then import a second product through its established settings API
 // expect: both addresses and token metadata remain visible to the settings/export API and MOD-browser-store
@@ -96,9 +94,8 @@ test("the adapter discovers token-only GitLab products and preserves imported pu
   assert.deepEqual(imported.tested, { refused: true }, "the undated legacy refusal remains visible without inventing an observation time");
 });
 
-// TST-266
-// Module: MOD-dashboard-app
-// Level: integration
+// TST-266 · level: component · module: MOD-browser-store
+// guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
 // given: an instance-prefixed GitHub token and the dashboard's established page harness
 // input: navigate through the public dashboard entry to #add/<address>
 // expect: MOD-settings-pages renders its actual route, prefills the address, and receives the instance token through its store
@@ -115,11 +112,11 @@ test("the dashboard #add entry renders the settings-pages route with its instanc
   assert.equal(readSetting(openStore(instance), "github-token")?.value, "github_pat_INSTANCE");
 });
 
-// TST-266A
+// TST-477004 · level: component · module: MOD-browser-store
+// guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
 // given: the public dashboard entry and an instance-prefixed canonical store
 // input: navigate to #settings through the dashboard dispatcher
-// expect: the current public Settings route, rather than the retired dashboard
-// settings composition, is mounted with all four named panes.
+// expect: the current public Settings route, rather than the retired dashboard settings composition, is mounted with all four named panes.
 test("the dashboard #settings entry mounts the public Settings route", async () => {
   const { repoServer, openDashboard } = await import("./app-harness.mjs");
   const page = await openDashboard({ server: await repoServer({ files: { "SPEC.md": "# Agent M\n" } }), hash: "#uc", token: "github_pat_INSTANCE" });
@@ -130,9 +127,8 @@ test("the dashboard #settings entry mounts the public Settings route", async () 
   assert.doesNotMatch(main.innerHTML, /id="browser-settings"|id="product-settings"/);
 });
 
-// TST-268
-// Module: MOD-dashboard-app
-// Level: integration
+// TST-268 · level: component · module: MOD-browser-store
+// guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
 // given: a configured instance and the public add-product route for its repository
 // input: a synthetic click on the route's Add product control
 // expect: no product commit is attempted; only a person's trusted click may write
@@ -148,10 +144,8 @@ test("the public add-product route rejects a synthetic Add product click", async
   assert.equal(server.writes.length, 0, "a synthetic click must not commit the product layout");
 });
 
-// TST-269
-// Module: MOD-browser-store
-// Guards: UC-042; A CLEAR IS A REAL CLEAR
-// Level: component
+// TST-269 · level: component · module: MOD-browser-store
+// guards: UC-042; A CLEAR IS A REAL CLEAR
 // given: GitHub and GitLab product tokens mirrored through the dashboard adapter
 // input: the existing Settings clear-token callers clear each product token, then the adapter reloads
 // expect: both the public catalogue and the legacy settings view stay clear
@@ -171,10 +165,8 @@ test("clearing product tokens clears their canonical values and cannot resurrect
   assert.equal(reloaded.getGitLabToken(gitlab), null, "reload cannot restore the cleared GitLab token");
 });
 
-// TST-270
-// Module: MOD-browser-store
-// Guards: UC-042; A CLEAR IS A REAL CLEAR; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
-// Level: component
+// TST-270 · level: component · module: MOD-browser-store
+// guards: UC-042; A CLEAR IS A REAL CLEAR; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
 // given: GitHub and GitLab products with their own canonical tokens
 // input: the existing Settings remove-product caller removes each product, then the adapter reloads
 // expect: each address and its token are absent from both stores

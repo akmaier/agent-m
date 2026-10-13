@@ -86,12 +86,11 @@ async function usabilitySettings(page) {
 
 // ---------------------------------------------------------------- the settings page (UC-042, UC-047)
 
+// TST-472132 · level: component · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: the settings page of a fresh browser (nothing stored under MOD-browser-store's prefix yet)
 // input: opening #settings, then the person's click on *Switch on*
-// expect: the line *Notifications* is off before the click, through notificationState; the click asks the browser's
-//         permission directly (NOTIFICATIONS ARE SWITCHED ON BY THE PERSON) and, once granted, switchOn stores the
-//         switch under MOD-browser-store's own key of the instance — "agent-m:<instance>:notifications" — and the
-//         line then reads on, through the same notificationState
+// expect: the line *Notifications* is off before the click, through notificationState; the click asks the browser's permission directly (NOTIFICATIONS ARE SWITCHED ON BY THE PERSON) and, once granted, switchOn stores the switch under MOD-browser-store's own key of the instance — "agent-m:<instance>:notifications" — and the line then reads on, through the same notificationState
 test("the settings page's line Notifications reaches MOD-notifications: off, then Switch on stores the switch under MOD-browser-store's key", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -116,15 +115,11 @@ test("the settings page's line Notifications reaches MOD-notifications: off, the
 
 // ---------------------------------------------------------------- the review pages (UC-047)
 
-// given: an empty fixture repository (nothing waits for acceptance); "notifications" already switched on in this
-//        browser, its last check six minutes old — due for a new one (MOD-notifications, Interfaces: watchForAcceptance)
+// TST-472133 · level: component · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
+// given: an empty fixture repository (nothing waits for acceptance); "notifications" already switched on in this browser, its last check six minutes old — due for a new one (MOD-notifications, Interfaces: watchForAcceptance)
 // input: opening the review pages (openDashboard), with the browser installed above
-// expect: watchForAcceptance registered its one check interval (the only call anywhere in this codebase that passes
-//         60000 to setInterval — src/notifications/checks.mjs's CHECK_EVERY_MS); its immediate first run (before any
-//         interval tick) read MOD-browser-store's store of the instance, checked this empty repository through
-//         MOD-repository-hosts' real connect() against this fixture, found nothing waiting, and wrote the check's own
-//         time back under the very key it was given — proof that the store watchForAcceptance ran with is the
-//         instance's, not some other
+// expect: watchForAcceptance registered its one check interval (the only call anywhere in this codebase that passes 60000 to setInterval — src/notifications/checks.mjs's CHECK_EVERY_MS); its immediate first run (before any interval tick) read MOD-browser-store's store of the instance, checked this empty repository through MOD-repository-hosts' real connect() against this fixture, found nothing waiting, and wrote the check's own time back under the very key it was given — proof that the store watchForAcceptance ran with is the instance's, not some other
 test("the review pages start MOD-notifications' watchForAcceptance with MOD-browser-store's store of the instance", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -156,11 +151,11 @@ function fakeMainPageDom() {
   return { getElementById: (id) => { if (!els.has(id)) els.set(id, { innerHTML: "" }); return els.get(id); } };
 }
 
+// TST-472134 · level: component · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: the same empty fixture and stale "notifications" as the review pages' test above
-// input: importing src/home/home.mjs fresh, with this small environment installed, and letting its start() (run on
-//        import, since globalThis.document then exists) settle
-// expect: the same two proofs as the review pages' test — the one check interval, and the stale check's time replaced
-//         — through the main page's own wiring (src/home/home.mjs startNotifications), not the review pages'
+// input: importing src/home/home.mjs fresh, with this small environment installed, and letting its start() (run on import, since globalThis.document then exists) settle
+// expect: the same two proofs as the review pages' test — the one check interval, and the stale check's time replaced — through the main page's own wiring (src/home/home.mjs startNotifications), not the review pages'
 test("the main page starts MOD-notifications' watchForAcceptance with MOD-browser-store's store of the instance", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -217,10 +212,11 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
 // ITM-238's own system test (tests/system-uc-047-be-told-what-waits-for-your-acceptance.test.mjs) still marks F1 and
 // F2 todo; ITM-243 removes those marks, not this change.
 
+// TST-477001 · level: component · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: a fresh browser (nothing stored)
 // input: opening #settings
-// expect (F1 fixed): the Notifications controls live in the public Usability tab,
-//         with no dashboard-owned browser-settings composition.
+// expect: (F1 fixed) the Notifications controls live in the public Usability tab, with no dashboard-owned browser-settings composition.
 test("ITM-238 F1 fixed: the Notifications controls are in the public Usability tab", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
@@ -232,11 +228,11 @@ test("ITM-238 F1 fixed: the Notifications controls are in the public Usability t
   } finally { browser.restore(); }
 });
 
+// TST-477002 · level: component · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: the dashboard's own stored GitHub token (openDashboard's default), notifications on and due
 // input: opening a review page (#uc)
-// expect (F2 fixed): every request the page makes to the instance's API — the content it shows and the check alike
-//         — carries the dashboard's own stored token (settings-store.mjs's store.getToken(), this page's ghToken()),
-//         never MOD-browser-store's separate, never-written "github-token" setting
+// expect: (F2 fixed) every request the page makes to the instance's API — the content it shows and the check alike — carries the dashboard's own stored token (settings-store.mjs's store.getToken(), this page's ghToken()), never MOD-browser-store's separate, never-written "github-token" setting
 test("ITM-238 F2 fixed: the review pages' check connects the instance with the dashboard's own stored token", async () => {
   const seenAuth = [];
   const browser = installBrowser();
@@ -251,11 +247,11 @@ test("ITM-238 F2 fixed: the review pages' check connects the instance with the d
   } finally { browser.restore(); }
 });
 
-// given: the same main-page environment as "the main page starts…" above, with the dashboard's own stored GitHub
-//        token and notifications due
+// TST-477003 · level: component · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
+// given: the same main-page environment as "the main page starts…" above, with the dashboard's own stored GitHub token and notifications due
 // input: importing src/home/home.mjs fresh
-// expect (F2 fixed): every request the main page makes to the instance's API carries the dashboard's own stored
-//         token — the same fix as the review pages' above, at home.mjs's own call site
+// expect: (F2 fixed) every request the main page makes to the instance's API carries the dashboard's own stored token — the same fix as the review pages' above, at home.mjs's own call site
 test("ITM-238 F2 fixed: the main page's check also connects the instance with the dashboard's own stored token", async () => {
   const seenAuth = [];
   const server = await repoServer({ files: {}, handlers: [emptyTags,

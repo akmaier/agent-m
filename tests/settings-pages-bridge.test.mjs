@@ -36,14 +36,11 @@ function settingsRoute() { const route = view.routes.find((candidate) => candida
 async function renderBridge(store, params = {}, navigations = []) { const target = document.createElement("div"); await bridgeRoute().render(target, contextOf(store, navigations), params); return target; }
 async function renderSettings(store, navigations = []) { const target = document.createElement("div"); await settingsRoute().render(target, contextOf(store, navigations)); return target; }
 
-// TST-280001
-// Module: MOD-settings-pages
-// Guards: UC-044; THE BRIDGE IS PAIRED ONCE; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN;
-// A CLEAR IS A REAL CLEAR; THE SHARED PAGES ORIGIN IS DISCLOSED.
-// input/precondition: an empty browser store and a successful copied-token pair response.
-// expected: the public Bridge Route discloses the shared Pages origin before pairing, stores only pair's returned
-// BridgeSettings, reloads them for Change — in place, on the Settings page —, hides the token until Show, and Clear removes
-// the actual store entry.
+// TST-280001 · level: unit · module: MOD-settings-pages
+// guards: UC-044; THE BRIDGE IS PAIRED ONCE; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; THE SHARED PAGES ORIGIN IS DISCLOSED.
+// given: an empty browser store and a successful copied-token pair response.
+// input: the public Bridge Route is rendered, an address and a copied token are entered and paired, then Change on the Settings page, Show and Clear are used
+// expect: the public Bridge Route discloses the shared Pages origin before pairing, stores only pair's returned BridgeSettings, reloads them for Change — in place, on the Settings page —, hides the token until Show, and Clear removes the actual store entry.
 test("the public Bridge route pairs, reloads, hides and really clears Bridge settings", async () => {
   const store = freshStore();
   const calls = [];
@@ -75,14 +72,11 @@ test("the public Bridge route pairs, reloads, hides and really clears Bridge set
   assert.equal(explained.filter((node) => /What is this\?/.test(node.textContent)).length, 2, "Pairing and HTTPS configuration each carry a folded explanation");
 });
 
-// TST-280002
-// Module: MOD-settings-pages
-// Guards: UC-044; THE BRIDGE IS PAIRED ONCE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS;
-// A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN;
-// A STORED SECRET IS HIDDEN UNTIL SHOWN.
-// input/precondition: a Bridge refuses a copied token, then a trusted HTTPS jump-host address and its own login are entered.
-// expected: pair reports the named refusal without storing success; saving HTTPS settings stores no bridge endpoint
-// request, and keeps jump-host login separate from the Bridge address and token.
+// TST-280002 · level: unit · module: MOD-settings-pages
+// guards: UC-044; THE BRIDGE IS PAIRED ONCE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN; A STORED SECRET IS HIDDEN UNTIL SHOWN.
+// given: a Bridge refuses a copied token (the pair request answers 401)
+// input: the copied token is paired, then a trusted HTTPS jump-host address and its own login are entered and saved.
+// expect: pair reports the named refusal without storing success; saving HTTPS settings stores no bridge endpoint request, and keeps jump-host login separate from the Bridge address and token.
 test("the Bridge route names a refused pair and saves HTTPS jump-host access without a hidden request", async () => {
   const store = freshStore();
   const calls = [];

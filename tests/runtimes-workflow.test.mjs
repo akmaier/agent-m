@@ -67,11 +67,11 @@ const rulesOf = (job) => job.text.split(/\n(?=    - if:)/).slice(1);
 
 // ---------------------------------------------------------------- the files
 
+// TST-472723 · level: unit · module: MOD-runtimes
 // guards: UC-010; AGENT M WORKS WITHOUT A LOCAL INSTALLATION
 // given: an instance alice/agent-m at a commit, two secret names for keys and one for the token, and the runner label gpu
 // input: jobWorkflowFiles("github", …) and jobWorkflowFiles("gitlab", …)
-// expect: for GitHub one file, .github/workflows/agent-m-jobs.yml; for GitLab .gitlab/agent-m-jobs.yml first and then the include the
-//         product's .gitlab-ci.yml needs, at the path .gitlab-ci.yml, which includes that file; each file's text is not empty
+// expect: for GitHub one file, .github/workflows/agent-m-jobs.yml; for GitLab .gitlab/agent-m-jobs.yml first and then the include the product's .gitlab-ci.yml needs, at the path .gitlab-ci.yml, which includes that file; each file's text is not empty
 test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the include its .gitlab-ci.yml needs", () => {
   const github = files("github"), gitlab = files("gitlab");
 
@@ -83,16 +83,11 @@ test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the i
 
 // ---------------------------------------------------------------- the events
 
+// TST-472724 · level: unit · module: MOD-runtimes
 // guards: UC-010
 // given: the two files for the instance, the secrets and the runner above
 // input: the triggers and the steps of the GitHub file; the rules of each job of the GitLab file
-// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day,
-//         and a start by hand with the job's identifier as its input; in every job a step for each of the five events that runs
-//         `node src/workflow-entries/main.mjs <entry>` with the entry of that event — push onRecordsChanged, pull request
-//         onPullRequestClosed, check onCheckCompleted, schedule onSchedule, dispatch onDispatch —, the push step only on the default
-//         branch. GitLab — in every job a rule for each of the five pipeline sources that sets AGENT_M_ENTRY to that entry, the
-//         push rule only on the default branch and for a change of docs/jobs/ or docs/gates/, and a script that runs the
-//         entry
+// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; in every job a step for each of the five events that runs `node src/workflow-entries/main.mjs <entry>` with the entry of that event — push onRecordsChanged, pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule, dispatch onDispatch —, the push step only on the default branch. GitLab — in every job a rule for each of the five pipeline sources that sets AGENT_M_ENTRY to that entry, the push rule only on the default branch and for a change of docs/jobs/ or docs/gates/, and a script that runs the entry
 test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab", () => {
   const github = workflow("github");
   assert.match(github, /\n  push:\n(?:.*\n)*?    paths:\n(?:.*\n)*?      - ["']?docs\/jobs\/\*\*["']?\n(?:.*\n)*?      - ["']?docs\/gates\/\*\*["']?\n/);
@@ -128,13 +123,11 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
 
 // ---------------------------------------------------------------- the routes
 
+// TST-472725 · level: unit · module: MOD-runtimes
 // guards: A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-011
 // given: the runner labels (1) gpu, (2) none, (3) gpu and cpu
 // input: jobWorkflowFiles for each, on GitHub and on GitLab
-// expect: one job for each route — the server's runners and each runner by its label, in that order: (1) two, (2) one, (3) three —;
-//         GitHub: the hosted job runs on ubuntu-latest and a runner's on [self-hosted, "<label>"]; GitLab: the hosted job has no tag and
-//         a runner's has the tag of its label; every job takes the product's jobs of its own route, AGENT_M_RUNNER being `hosted` or
-//         the label
+// expect: one job for each route — the server's runners and each runner by its label, in that order: (1) two, (2) one, (3) three —; GitHub: the hosted job runs on ubuntu-latest and a runner's on [self-hosted, "<label>"]; GitLab: the hosted job has no tag and a runner's has the tag of its label; every job takes the product's jobs of its own route, AGENT_M_RUNNER being `hosted` or the label
 test("jobWorkflowFiles — one job for each route of the product's CI agents", () => {
   for (const [runners, labels] of [[["gpu"], ["gpu"]], [[], []], [["gpu", "cpu"], ["gpu", "cpu"]]]) {
     const github = githubJobs(workflow("github", runners)), gitlab = gitlabJobs(workflow("gitlab", runners));
@@ -156,13 +149,11 @@ test("jobWorkflowFiles — one job for each route of the product's CI agents", (
 
 // ---------------------------------------------------------------- the instance and the product
 
+// TST-472726 · level: unit · module: MOD-runtimes
 // guards: UC-010; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the instance alice/agent-m at the commit 0123…4567
 // input: jobWorkflowFiles on each server
-// expect: GitHub — in every job the product checked out with the person's token, then alice/agent-m checked out at that commit — and at
-//         no other ref —, the entries run from the instance's checkout; GitLab — the instance cloned and set to that commit before the
-//         entry runs, the product's directory handed over as AGENT_M_PRODUCT_DIR; on both the commit stands in the file once for each
-//         job, and nothing runs on a branch name of the instance
+// expect: GitHub — in every job the product checked out with the person's token, then alice/agent-m checked out at that commit — and at no other ref —, the entries run from the instance's checkout; GitLab — the instance cloned and set to that commit before the entry runs, the product's directory handed over as AGENT_M_PRODUCT_DIR; on both the commit stands in the file once for each job, and nothing runs on a branch name of the instance
 test("jobWorkflowFiles — the product is checked out with the person's token and the instance at the commit the file names", () => {
   for (const job of githubJobs(workflow("github"))) {
     const checkouts = stepsOf(job).filter((step) => step.includes("actions/checkout"));
@@ -188,16 +179,11 @@ test("jobWorkflowFiles — the product is checked out with the person's token an
 
 // ---------------------------------------------------------------- the secrets
 
+// TST-472727 · level: unit · module: MOD-runtimes
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; NO SECRET IN THE REPOSITORY
-// given: the secrets AGENT_M_TOKEN, CLAUDE_KEY and OPENAI_KEY, and a second call with the token secret PERSON_TOKEN; and names that are no
-//        names of a secret
-// input: jobWorkflowFiles on each server; and with a name that holds a space, `${{ secrets.X }}`, a quote or a newline, a commit that is
-//        no 40-digit hex, a server that is neither, a repository that is no owner/name, and a runner label with a space
-// expect: GitHub — every secret the file reads is one of the three, as `${{ secrets.<name> }}`, each of the three read, and the workflow's
-//         own token (GITHUB_TOKEN) not at all; GitLab — every variable it reads is one of the three, a predefined CI_ variable or one of
-//         Agent M's own AGENT_M_…, the names listed in AGENT_M_TOKEN_NAME and AGENT_M_KEY_NAMES; no file holds anything of the form of a
-//         token (ghp_, github_pat_, glpat-); the second call reads PERSON_TOKEN and no AGENT_M_TOKEN secret; each bad argument throws a
-//         TypeError and no file is made
+// given: the secrets AGENT_M_TOKEN, CLAUDE_KEY and OPENAI_KEY, and a second call with the token secret PERSON_TOKEN; and names that are no names of a secret
+// input: jobWorkflowFiles on each server; and with a name that holds a space, `${{ secrets.X }}`, a quote or a newline, a commit that is no 40-digit hex, a server that is neither, a repository that is no owner/name, and a runner label with a space
+// expect: GitHub — every secret the file reads is one of the three, as `${{ secrets.<name> }}`, each of the three read, and the workflow's own token (GITHUB_TOKEN) not at all; GitLab — every variable it reads is one of the three, a predefined CI_ variable or one of Agent M's own AGENT_M_…, the names listed in AGENT_M_TOKEN_NAME and AGENT_M_KEY_NAMES; no file holds anything of the form of a token (ghp_, github_pat_, glpat-); the second call reads PERSON_TOKEN and no AGENT_M_TOKEN secret; each bad argument throws a TypeError and no file is made
 test("jobWorkflowFiles — the secrets are named and never valued, the token is the person's and not the workflow's", () => {
   const github = workflow("github"), gitlab = workflow("gitlab");
 
@@ -232,12 +218,11 @@ test("jobWorkflowFiles — the secrets are named and never valued, the token is 
 
 // ---------------------------------------------------------------- without a disk
 
+// TST-472728 · level: unit · module: MOD-runtimes
 // guards: AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-010
-// given: the module loaded as a browser loads it, where `process.getBuiltinModule` gives no disk — a second copy of ci.mjs, loaded
-//        under another address, with that function taken away while it loads — and, as the known positive, the copy loaded as it is
+// given: the module loaded as a browser loads it, where `process.getBuiltinModule` gives no disk — a second copy of ci.mjs, loaded under another address, with that function taken away while it loads — and, as the known positive, the copy loaded as it is
 // input: jobWorkflowFiles on each server, from each copy; and queueJob's other export, RuntimeError, from the copy
-// expect: the copy with the disk gives the files; the copy without it throws an Error, not a TypeError, that says the templates are
-//         read in Node, for each server; and the copy loads, so that the rest of the module stays usable
+// expect: the copy with the disk gives the files; the copy without it throws an Error, not a TypeError, that says the templates are read in Node, for each server; and the copy loads, so that the rest of the module stays usable
 test("jobWorkflowFiles — in a browser, where the templates cannot be read yet, it fails by name and the module still loads", async () => {
   const load = async (tag, withDisk) => {
     const getBuiltinModule = process.getBuiltinModule;

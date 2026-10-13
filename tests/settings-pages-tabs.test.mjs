@@ -1,10 +1,3 @@
-// TST-290109
-// level: unit
-// module: MOD-settings-pages
-// guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN
-// given: the public Settings Route with representative browser settings, including an old unreadable GitLab token key
-// input: the person selects the four Settings tabs without submitting an action
-// expect: each named tab has accessible selected state, only its pane is shown, unreadable stored credentials retain Show, Clear and export access, endpoint and Bridge setup open in place in their tab, and switching panes preserves an unfinished passphrase without a storage write, endpoint request, or permission request
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -46,6 +39,13 @@ const click = (node) => node.dispatchEvent(new Event("click"));
 const trustedClick = (node) => node.fire("click", true);
 function route() { return view.routes.find((candidate) => candidate.name === "settings"); }
 
+// TST-290109
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042; UC-003; UC-017; UC-047; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// given: the public Settings Route with representative browser settings, including an old unreadable GitLab token key
+// input: the person selects the four Settings tabs without submitting an action
+// expect: each named tab has accessible selected state, only its pane is shown, unreadable stored credentials retain Show, Clear and export access, endpoint and Bridge setup open in place in their tab, and switching panes preserves an unfinished passphrase without a storage write, endpoint request, or permission request
 test("TST-290109: Settings tabs preserve unfinished form state without actions", async () => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
@@ -281,16 +281,11 @@ test("TST-290113: Settings removes one legacy collaborator consent row without a
   assert.equal(writes[0].files[0].path, "docs/collaborators.md");
 });
 
-// TST-290130
-// level: unit
-// module: MOD-settings-pages
+// TST-290130 · level: unit · module: MOD-settings-pages
 // guards: UC-042 (step 3); UC-001; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
-// given: the public Settings Route with a stored product list and a product's own token; the page's go records every route
-//        it is asked for; GitHub's replies for that product are constructed, its review layout complete
-// input: the person opens Repositories, presses the product list's Change, Add or remove products, types the product's
-//        address, presses Add product, then Switch to the new product
-// expect: Add a product opens in place, in the Repositories tab, with its address field focused, and the page asks for no
-//         route; Switch to the new product, a route that is no form of the tab, still reaches the page's go with the product
+// given: the public Settings Route with a stored product list and a product's own token; the page's go records every route it is asked for; GitHub's replies for that product are constructed, its review layout complete
+// input: the person opens Repositories, presses the product list's Change, Add or remove products, types the product's address, presses Add product, then Switch to the new product
+// expect: Add a product opens in place, in the Repositories tab, with its address field focused, and the page asks for no route; Switch to the new product, a route that is no form of the tab, still reaches the page's go with the product
 test("TST-290130: the product list's Change opens Add a product in place, in the Repositories tab", async (t) => {
   const storage = new Storage();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });

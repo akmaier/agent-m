@@ -308,11 +308,9 @@ test("TST-409105: doneCheck requires every new test to name a requirement and a 
 
 // TST-409106 · level: unit · module: MOD-product-process
 // guards: THE GATE IS RECORDED
-// given: the passing pull request; no record of its gate; a rejection; a pass on an earlier text of an artifact the record names at BLOB_A while the head holds it changed; a record of another gate; a gate that
-//        leaves a later phase and has no record
+// given: the passing pull request; no record of its gate; a rejection; a pass on an earlier text of an artifact the record names at BLOB_A while the head holds it changed; a record of another gate; a gate that leaves a later phase and has no record
 // input: doneCheck over each
-// expect: nothing for the passing one and when only the later gate (Sprint Retrospective → Sprint Planning) lacks a record; one finding under THE GATE IS RECORDED naming the gate for no record, for the
-//         rejection and for the pass on an earlier text (with its difference)
+// expect: nothing for the passing one and when only the later gate (Sprint Retrospective → Sprint Planning) lacks a record; one finding under THE GATE IS RECORDED naming the gate for no record, for the rejection and for the pass on an earlier text (with its difference)
 test("TST-409106: doneCheck requires every gate before the merge to be recorded on the current texts", async () => {
   assert.deepEqual(await check(example()), [], "known positive: the later gate needs nothing");
   for (const [label, gates] of [["no record", []], ["rejection", [gateRecord({ decision: "rejected" })]], ["another gate", [gateRecord({ gate: "Sprint Retrospective → Sprint Planning" })]]]) {
@@ -331,11 +329,9 @@ test("TST-409106: doneCheck requires every gate before the merge to be recorded 
 
 // TST-409107 · level: unit · module: MOD-product-process
 // guards: A REFACTORING JOB BEGINS WITHOUT A FAILING TEST; A REFACTORING JOB CHANGES NO EXPECTED RESULT
-// given: a refactoring job whose commits are all green and whose test file keeps every assertion and adds one; the same with a red first commit; the same with an assertion's expected value changed; with an assertion
-//        removed; with a declared expect changed
+// given: a refactoring job whose commits are all green and whose test file keeps every assertion and adds one; the same with a red first commit; the same with an assertion's expected value changed; with an assertion removed; with a declared expect changed
 // input: doneCheck(..., { kind: "refactor", modules: ["MOD-product-process"] })
-// expect: nothing for the green one that keeps and adds assertions; one finding under A REFACTORING JOB BEGINS WITHOUT A FAILING TEST naming the red commit; one finding under A REFACTORING JOB CHANGES NO EXPECTED
-//         RESULT, naming the test file and the assertion, for the changed value, the removed assertion and the changed expect; a refactoring job does not need a failing first commit
+// expect: nothing for the green one that keeps and adds assertions; one finding under A REFACTORING JOB BEGINS WITHOUT A FAILING TEST naming the red commit; one finding under A REFACTORING JOB CHANGES NO EXPECTED RESULT, naming the test file and the assertion, for the changed value, the removed assertion and the changed expect; a refactoring job does not need a failing first commit
 test("TST-409107: doneCheck holds a refactoring job to green commits and unchanged expected results", async () => {
   const before = declared("TST-409900", "the sum is 3", "\n  assert.equal(add(1, 2), 3);\n  assert.deepEqual(list(), []);\n");
   const refactor = (head, { ci = ["success", "success"] } = {}) => facts({ commits: [c("1", [SRC_FILE], ci[0]), c("2", [SRC_FILE, TEST_FILE], ci[1])],

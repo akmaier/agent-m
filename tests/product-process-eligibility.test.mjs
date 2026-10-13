@@ -245,13 +245,11 @@ async function workflowAt(cat) {
   return workflowOf(declarationOf(DECLARATION), cat.models.find((model) => model.path === MODEL_PATH), [], INSTANCE_SPEC);
 }
 
+// TST-472429 · level: unit · module: MOD-product-process
 // guards: UC-048 (step 3); A ROLE NAMES THE CAPABILITIES IT NEEDS
-// given: the fixture role assignment — Developers held by dev-a alone; team-scrum at VERSION, without a finding of its own;
-//        the fixture register with (a) dev-a having every capability Developers needs, (b) dev-a without "run code and
-//        tests", which Developers needs; no linked source
+// given: the fixture role assignment — Developers held by dev-a alone; team-scrum at VERSION, without a finding of its own; the fixture register with (a) dev-a having every capability Developers needs, (b) dev-a without "run code and tests", which Developers needs; no linked source
 // input: roleAssignmentFindings([the role assignment], the workflow, that register, [])
-// expect: (a) no finding; (b) one error, on the row of Developers, naming A ROLE NAMES THE CAPABILITIES IT NEEDS; its
-//         text names the holder dev-a, the role Developers and the capability run code and tests
+// expect: (a) no finding; (b) one error, on the row of Developers, naming A ROLE NAMES THE CAPABILITIES IT NEEDS; its text names the holder dev-a, the role Developers and the capability run code and tests
 test("roleAssignmentFindings — a holder that lacks a capability its role needs is an error, naming the holder, the role and the capability", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   assert.deepEqual(cat.findings[MODEL_PATH], [], "team-scrum has no finding at VERSION");
@@ -268,14 +266,11 @@ test("roleAssignmentFindings — a holder that lacks a capability its role needs
     && found[0].what.includes("run code and tests"), found[0].what);
 });
 
+// TST-472430 · level: unit · module: MOD-product-process
 // guards: UC-048 (3c); RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the fixture role assignment — Developers held by dev-a alone, at "this machine"; Product Owner and Scrum Master both
-//        held by alice, a person; team-scrum at VERSION; the restricted source, which permits only NHR@FAU, Erlangen,
-//        linked; dev-a with every capability Developers needs, so only the place is in question
+// given: the fixture role assignment — Developers held by dev-a alone, at "this machine"; Product Owner and Scrum Master both held by alice, a person; team-scrum at VERSION; the restricted source, which permits only NHR@FAU, Erlangen, linked; dev-a with every capability Developers needs, so only the place is in question
 // input: roleAssignmentFindings([the role assignment], the workflow, the register, [the restricted source])
-// expect: one warning, on the row of Developers, naming RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; its text
-//         names the holder dev-a, the role Developers and the source SRC-restricted-test. No finding names alice, who
-//         holds two roles while the same source is linked: a person is judged by capabilities alone
+// expect: one warning, on the row of Developers, naming RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; its text names the holder dev-a, the role Developers and the source SRC-restricted-test. No finding names alice, who holds two roles while the same source is linked: a person is judged by capabilities alone
 test("roleAssignmentFindings — a holder at a place a linked source does not permit is a warning naming the holder, the role and the source; a person holding a role is not warned of it", async () => {
   const cat = await catalogueAt({ [MODEL_PATH]: MODEL });
   const workflow = await workflowAt(cat);

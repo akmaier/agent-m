@@ -1,26 +1,3 @@
-// TST-288001
-// level: unit
-// module: MOD-settings-pages
-// guards: UC-042; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS
-// given: every implemented canonical browser-store setting and a controlled DOM/download boundary
-// input: the person opens Settings and clicks Export settings
-// expect: the secret-and-grants notice precedes one constructed-file download containing every canonical setting
-//
-// TST-288002
-// level: unit
-// module: MOD-settings-pages
-// guards: UC-042 alternative 6a; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
-// given: a canonical plain export and a destination with one existing setting
-// input: the person chooses the constructed file in Settings
-// expect: existing bytes are kept, absent canonical settings are added, and Settings lists both sets
-//
-// TST-288003
-// level: unit
-// module: MOD-settings-pages
-// guards: AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
-// given: canonical settings, a chosen passphrase, and controlled locked and malformed files
-// input: the person exports, imports with the passphrase, then imports malformed bytes into a clean destination
-// expect: locked bytes hide secrets, the passphrase restores settings, and malformed input writes no new setting
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -88,6 +65,13 @@ function populate(store) { for (const [key, value] of Object.entries(SETTINGS)) 
 
 // Failure node: rendered Settings has neither the required disclosure nor an export control, so canonical bytes cannot
 // reach the constructed download boundary.
+// TST-288001
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS
+// given: every implemented canonical browser-store setting and a controlled DOM/download boundary
+// input: the person opens Settings and clicks Export settings
+// expect: the secret-and-grants notice precedes one constructed-file download containing every canonical setting
 test("TST-288001: Settings discloses exported secrets and grants before one canonical download", async () => {
   const store = freshStore(); populate(store);
   const target = await render(store);
@@ -106,6 +90,13 @@ test("TST-288001: Settings discloses exported secrets and grants before one cano
 
 // Failure node: rendered Settings has no import-file control composing canonical importSettings, so kept raw bytes and
 // the complete added/kept result are unavailable.
+// TST-288002
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-042 alternative 6a; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
+// given: a canonical plain export and a destination with one existing setting
+// input: the person chooses the constructed file in Settings
+// expect: existing bytes are kept, absent canonical settings are added, and Settings lists both sets
 test("TST-288002: Settings imports absent canonical settings and keeps existing bytes", async () => {
   const source = freshStore(); populate(source);
   const sourceTarget = await render(source);
@@ -129,6 +120,13 @@ test("TST-288002: Settings imports absent canonical settings and keeps existing 
 
 // Failure node: rendered Settings has no passphrase/file controls composing the canonical lock and error boundaries;
 // this case restores the exact original settings after each attempted import.
+// TST-288003
+// level: unit
+// module: MOD-settings-pages
+// guards: AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
+// given: canonical settings, a chosen passphrase, and controlled locked and malformed files
+// input: the person exports, imports with the passphrase, then imports malformed bytes into a clean destination
+// expect: locked bytes hide secrets, the passphrase restores settings, and malformed input writes no new setting
 test("TST-288003: Settings locks imports with a passphrase and leaves malformed import destinations untouched", async () => {
   const source = freshStore(); populate(source);
   const sourceTarget = await render(source);

@@ -123,9 +123,9 @@ function scheduleText(runsOn = {}) {
 
 // ================================================================== nextVersion
 
+// TST-472466 · level: unit · module: MOD-release-evidence
 // guards: CALENDAR VERSIONS; EVERY PRODUCT HAS ITS OWN VERSION LINE
-// given: this product's own release tags v2026.3.0 and v2026.3.1, and its own candidate tag v2026.3.1-rc.2, today
-//        2026-10-07
+// given: this product's own release tags v2026.3.0 and v2026.3.1, and its own candidate tag v2026.3.1-rc.2, today 2026-10-07
 // input: nextVersion(tags, "minor", today)
 // expect: 2026.4.0 — the candidate tag is not a release and is passed over (from the product's own tags only)
 test("nextVersion — a minor step by default, from the product's own release tags only", () => {
@@ -133,6 +133,7 @@ test("nextVersion — a minor step by default, from the product's own release ta
   assert.equal(nextVersion(tags, "minor", "2026-10-07"), "2026.4.0");
 });
 
+// TST-472467 · level: unit · module: MOD-release-evidence
 // guards: CALENDAR VERSIONS
 // given: the same tags, today 2026-10-07
 // input: nextVersion(tags, "patch", today)
@@ -142,6 +143,7 @@ test("nextVersion — a patch step keeps the minor and steps the patch", () => {
   assert.equal(nextVersion(tags, "patch", "2026-10-07"), "2026.3.2");
 });
 
+// TST-472468 · level: unit · module: MOD-release-evidence
 // guards: CALENDAR VERSIONS
 // given: the latest release tag v2025.9.3, today 2026-01-05 — the year changed since the last release
 // input: nextVersion(tags, "minor", today), and again with "patch"
@@ -154,6 +156,7 @@ test("nextVersion — YYYY.1.0 in a new year, whatever step is asked (1a)", () =
   assert.equal(nextVersion(tags, "patch", "2026-01-05"), "2026.1.0");
 });
 
+// TST-472469 · level: unit · module: MOD-release-evidence
 // guards: CALENDAR VERSIONS
 // given: no release tag at all
 // input: nextVersion([], "minor", "2026-10-07")
@@ -187,13 +190,11 @@ function candidateHost({ runsOn, tags = {}, jobs = {} } = {}) {
 
 const CANDIDATE_RUNNERS = { release: PARTICIPANT_RUNNER, user: PARTICIPANT_RUNNER };
 
+// TST-472470 · level: unit · module: MOD-release-evidence
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: a product with no release candidate tagged yet, its schedule naming a runner for "release" and "user", one
-//        prior implement job by a different participant
+// given: a product with no release candidate tagged yet, its schedule naming a runner for "release" and "user", one prior implement job by a different participant
 // input: startReleaseCandidate(host, "2026.4.0", <candidate commit>, "a changelog entry", "akmaier")
-// expect: candidate "v2026.4.0-rc.1" (the next free N, here 1); a commitFiles call queuing the run (MOD-job-ledger's
-//         own record format), whose "## Parameters" json names the candidate's version, tag and commit and keeps the
-//         changelog entry given
+// expect: candidate "v2026.4.0-rc.1" (the next free N, here 1); a commitFiles call queuing the run (MOD-job-ledger's own record format), whose "## Parameters" json names the candidate's version, tag and commit and keeps the changelog entry given
 test("startReleaseCandidate — the next free N, and the complete run queued with the candidate's version, tag and changelog entry", async () => {
   const host = candidateHost({
     runsOn: CANDIDATE_RUNNERS,
@@ -210,6 +211,7 @@ test("startReleaseCandidate — the next free N, and the complete run queued wit
   assert.match(text, /a changelog entry/);
 });
 
+// TST-472471 · level: unit · module: MOD-release-evidence
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
 // given: the product already carries v2026.4.0-rc.1 and v2026.4.0-rc.3 (not rc.2)
 // input: startReleaseCandidate(host, "2026.4.0", commit, "entry", "akmaier")
@@ -223,9 +225,9 @@ test("startReleaseCandidate — the next free N is the greatest existing one plu
   assert.equal(result.candidate, "v2026.4.0-rc.4");
 });
 
+// TST-472472 · level: unit · module: MOD-release-evidence
 // guards: A VERSION IS NOT REWRITTEN
-// given: v2026.4.0-rc.1 already tagged on a commit other than the one given now (the rare race of two concurrent
-//        clicks naming the same N)
+// given: v2026.4.0-rc.1 already tagged on a commit other than the one given now (the rare race of two concurrent clicks naming the same N)
 // input: startReleaseCandidate with a host whose createTag always refuses with TagExists for that exact name
 // expect: rejects with name TagExists
 // counter-proof: planting `try { await host.createTag(...) } catch {}` (swallowing the failure) in candidate.mjs fails
@@ -241,6 +243,7 @@ test("startReleaseCandidate — TagExists propagates from the host's createTag",
   void real;
 });
 
+// TST-472473 · level: unit · module: MOD-release-evidence
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
 // given: a schedule whose "user" row names no one ("release" does)
 // input: startReleaseCandidate(host, ...)
@@ -257,9 +260,9 @@ test("startReleaseCandidate — NoRunner naming a person-run level the schedule 
   );
 });
 
+// TST-472474 · level: unit · module: MOD-release-evidence
 // guards: RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
-// given: the schedule's "release" row names PARTICIPANT_IMPLEMENTER; every recorded implement job also names
-//        PARTICIPANT_IMPLEMENTER — no other participant has ever implemented anything
+// given: the schedule's "release" row names PARTICIPANT_IMPLEMENTER; every recorded implement job also names PARTICIPANT_IMPLEMENTER — no other participant has ever implemented anything
 // input: startReleaseCandidate(host, ...)
 // expect: rejects NoRunner naming "release" — only the implementer could run the release tests (2a)
 // counter-proof: planting `implementers.size > 0` as `implementers.size > 1` in candidate.mjs's checkRunners fails
@@ -278,11 +281,11 @@ test("startReleaseCandidate — NoRunner naming \"release\" where only the imple
   );
 });
 
+// TST-472475 · level: unit · module: MOD-release-evidence
 // guards: RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: the schedule's "release" row names PARTICIPANT_RUNNER, who differs from the recorded implementer
 // input: startReleaseCandidate(host, ...)
-// expect: resolves (no NoRunner) — a known positive beside the counter-proof above, since a negative result (no
-//         rejection) is otherwise unverified (CLAUDE.md §6a Nr. 2)
+// expect: resolves (no NoRunner) — a known positive beside the counter-proof above, since a negative result (no rejection) is otherwise unverified (CLAUDE.md §6a Nr. 2)
 test("startReleaseCandidate — no NoRunner where the release row's runner differs from every recorded implementer", async () => {
   const host = candidateHost({
     runsOn: CANDIDATE_RUNNERS,
@@ -305,13 +308,11 @@ function runRecord({ commit, rows }) {
     "date: 2026-10-07 10:00 UTC", "---", "## Outcomes", "", table, ""].join("\n");
 }
 
+// TST-472476 · level: unit · module: MOD-release-evidence
 // guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: a repository holding SPEC.md (one requirement) and one test file (TST-001, guarding it), and a result record
-//        of the candidate's commit where TST-001 passed
+// given: a repository holding SPEC.md (one requirement) and one test file (TST-001, guarding it), and a result record of the candidate's commit where TST-001 passed
 // input: releaseReport(at, results, { version, tag, commit, changelog })
-// expect: the text holds every part in the module's own order — "## Limitations" first, then "## Levels", "## Tests",
-//         "## Requirements", "## Changelog entry" —; Limitations empty (the run is green); complete true; failing and
-//         worse both empty
+// expect: the text holds every part in the module's own order — "## Limitations" first, then "## Levels", "## Tests", "## Requirements", "## Changelog entry" —; Limitations empty (the run is green); complete true; failing and worse both empty
 test("releaseReport — its parts in the module's own order, Limitations first, complete and green", async () => {
   const at = fixtureSnapshot({ "SPEC.md": SPEC_TEXT, "tests/sample.test.mjs": TEST_FILE });
   const results = fixtureSnapshot({
@@ -330,6 +331,7 @@ test("releaseReport — its parts in the module's own order, Limitations first, 
   assert.match(text, /Adds the sample feature\./);
 });
 
+// TST-472477 · level: unit · module: MOD-release-evidence
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
 // given: the same repository, but the branch test-results holds no record of the candidate's commit at all
 // input: releaseReport(at, results, candidate)
@@ -358,13 +360,11 @@ function lastReleaseReportText(commit) {
   ].join("\n");
 }
 
+// TST-472478 · level: unit · module: MOD-release-evidence
 // guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
-// given: `at` (the candidate's own commit) already holds the last release's own report, docs/tests/releases/
-//        v2026.3.0.md, naming its tested commit LAST_RELEASE_COMMIT; the branch test-results records TST-010 at
-//        "8 of 10" on LAST_RELEASE_COMMIT and "6 of 10" on the candidate's commit
+// given: `at` (the candidate's own commit) already holds the last release's own report, docs/tests/releases/ v2026.3.0.md, naming its tested commit LAST_RELEASE_COMMIT; the branch test-results records TST-010 at "8 of 10" on LAST_RELEASE_COMMIT and "6 of 10" on the candidate's commit
 // input: releaseReport(at, results, { version: "2026.4.0", ... })
-// expect: "## Limitations" names TST-010 rate — the last release's commit is read from the report `at` already
-//         holds, not left null
+// expect: "## Limitations" names TST-010 rate — the last release's commit is read from the report `at` already holds, not left null
 // counter-proof: planting `const lastRelease = null;` (ignoring the report `at` holds) in report.mjs fails this
 //                test's assert.match
 test("releaseReport — a worse model-dependent rate is read against the last release's commit, found in the report `at` already holds", async () => {
@@ -443,14 +443,11 @@ async function acceptBlob(host, changelog) {
   return blobSha(text);
 }
 
-// guards: THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; ACCEPTING THE RELEASE TEST REPORT RELEASES;
-//         A RELEASE IS TAGGED AND LOGGED
-// given: a green, complete candidate (TST-001 passed); the default branch moves on (an unrelated commit lands) after
-//        the report's blob was shown and before Accept and release is clicked
+// TST-472479 · level: unit · module: MOD-release-evidence
+// guards: THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; ACCEPTING THE RELEASE TEST REPORT RELEASES; A RELEASE IS TAGGED AND LOGGED
+// given: a green, complete candidate (TST-001 passed); the default branch moves on (an unrelated commit lands) after the report's blob was shown and before Accept and release is clicked
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, "akmaier", "2026-10-07")
-// expect: resolves with a commit and tag "v2026.4.0"; the tag stands on the candidate's own tested commit, not the
-//         just-made commit or the moved branch's new head (4b); the ONE commit holds the report's own text at
-//         ACCEPT_PATH together with the approval record and the changelog entry
+// expect: resolves with a commit and tag "v2026.4.0"; the tag stands on the candidate's own tested commit, not the just-made commit or the moved branch's new head (4b); the ONE commit holds the report's own text at ACCEPT_PATH together with the approval record and the changelog entry
 // counter-proof: committing only the approval record and the changelog entry, leaving the report's own file out of
 //                `files` (the defect po-opus's rejection names), fails this test's assert.ok(after.paths.includes(...))
 test("acceptAndRelease — one commit of the report, its approval record and the changelog entry, then the tag on the candidate's own commit, also when the default branch moved on (4b)", async () => {
@@ -471,10 +468,9 @@ test("acceptAndRelease — one commit of the report, its approval record and the
   assert.match(await after.read(approvalPath), /kind: release-report/);
 });
 
+// TST-472480 · level: unit · module: MOD-release-evidence
 // guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
-// given: a candidate with a failing test (TST-002) and a model-dependent test (TST-010) whose rate, 6 of 10, is
-//        worse than the last release's own report names (8 of 10) — that report already stands in the candidate's
-//        own commit, under docs/tests/releases/
+// given: a candidate with a failing test (TST-002) and a model-dependent test (TST-010) whose rate, 6 of 10, is worse than the last release's own report names (8 of 10) — that report already stands in the candidate's own commit, under docs/tests/releases/
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, "akmaier", "2026-10-07")
 // expect: rejects LimitationMissing, naming both TST-002 and TST-010 (3a, 3b)
 // counter-proof: planting `const missing = [];` in report.mjs's acceptAndRelease (nothing ever missing) fails this
@@ -495,6 +491,7 @@ test("acceptAndRelease — LimitationMissing naming each failing test and worse 
   );
 });
 
+// TST-472481 · level: unit · module: MOD-release-evidence
 // guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
 // given: the same candidate, now with a reason recorded for both
 // input: acceptAndRelease(host, { path, blob }, { limitations: { "TST-002": "known flaky fixture", "TST-010": "model drift (accepted)" } }, ...)
@@ -514,6 +511,7 @@ test("acceptAndRelease — resolves once every failing test and worse rate has i
   assert.equal(tag, "v2026.4.0");
 });
 
+// TST-472482 · level: unit · module: MOD-release-evidence
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
 // given: a candidate whose test-results branch holds no record of TST-001 at all
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, ...)
@@ -529,6 +527,7 @@ test("acceptAndRelease — Incomplete while a test has not run on the candidate'
   );
 });
 
+// TST-472483 · level: unit · module: MOD-release-evidence
 // guards: A VERSION IS NOT REWRITTEN
 // given: a green, complete candidate, but v2026.4.0 already stands as a tag (on a commit other than the candidate's)
 // input: acceptAndRelease(host, { path, blob }, { limitations: {} }, ...)
@@ -546,11 +545,11 @@ test("acceptAndRelease — TagExists, an existing tag not moved (4a)", async () 
   assert.equal(host.tagOf("v2026.4.0"), originalTagCommit, "the existing tag was not moved");
 });
 
+// TST-472484 · level: unit · module: MOD-release-evidence
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // given: the newest candidate tag and its run-tests record, first without an End, then with End state done
 // input: reportsAwaitingAcceptance(host, snapshot)
-// expect: no report while the run has not ended; its version, candidate, record and record blob after it ends done;
-//         no report after the release report exists
+// expect: no report while the run has not ended; its version, candidate, record and record blob after it ends done; no report after the release report exists
 test("reportsAwaitingAcceptance — a candidate's complete run waits, but an unfinished or accepted one does not", async () => {
   const path = "docs/jobs/JOB-20261008-0900-aaaa.md";
   const base = ["---", "id: JOB-20261008-0900-aaaa", "kind: run-tests", "works_on:", "  - aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -568,6 +567,7 @@ test("reportsAwaitingAcceptance — a candidate's complete run waits, but an unf
   assert.equal(await reportsAwaitingAcceptance(host, accepted), null);
 });
 
+// TST-472485 · level: unit · module: MOD-release-evidence
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // given: completed candidates in calendar versions 2026.9.0 and 2026.10.0, where only the latter's run is newest
 // input: reportsAwaitingAcceptance(host, snapshot)

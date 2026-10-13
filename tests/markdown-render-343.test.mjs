@@ -60,7 +60,7 @@ const clickSave = async (target) => {
 };
 const saved = async () => ({ kind: "saved", link: "https://example.test/commit/343" });
 
-// TST-343001
+// TST-343001 · level: unit · module: MOD-markdown-render
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; A FINDING READS LIKE A COMPILER MESSAGE
 // given: an editor opened with no marks and a warning for line 2 supplied after it opened
 // input: editor.setMarks([warning])
@@ -79,7 +79,7 @@ test("TST-343001 setMarks shows later findings beside their lines without blocki
   assert.equal(byTag(target, "button").find((button) => button.textContent === "Save").disabled, false);
 });
 
-// TST-343002
+// TST-343002 · level: unit · module: MOD-markdown-render
 // guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; EDITS ARE PREPARED ON THE DASHBOARD
 // given: an editor on CURRENT and a participant's DRAFT that replaces its second line and adds one line
 // input: editor.showDraft(DRAFT, CURRENT)
@@ -102,7 +102,7 @@ test("TST-343002 showDraft keeps the draft in the editor beside its difference f
   ]);
 });
 
-// TST-343003
+// TST-343003 · level: unit · module: MOD-markdown-render
 // guards: EDITS ARE PREPARED ON THE DASHBOARD
 // given: an editor whose text a person changed after opening, and a confirmation that first declines then accepts discard
 // input: editor.close() twice
@@ -126,7 +126,7 @@ test("TST-343003 close asks before discarding an unsaved edit", () => {
   }
 });
 
-// TST-343004
+// TST-343004 · level: unit · module: MOD-markdown-render
 // guards: EDITS ARE PREPARED ON THE DASHBOARD
 // given: one editor never changed, and another changed then saved successfully
 // input: close each editor

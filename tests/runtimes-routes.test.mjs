@@ -74,13 +74,11 @@ function assertRefused(offer, names, label) {
 
 // ---------------------------------------------------------------- the route forms
 
+// TST-472706 · level: unit · module: MOD-runtimes
 // guards: A RUNTIME IS INTERCHANGEABLE; AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-017; UC-010; UC-011
-// given: a private product that holds the job workflow, no need, and a participant of each route form — `endpoint fau-nhr`,
-//        `ci hosted secret …`, `ci runner:gpu secret …`, `ci runner:cpu secret …`, `bridge workstation agent claude`,
-//        `bridge lab-pc agent codex` — and a person, whose route is an account
+// given: a private product that holds the job workflow, no need, and a participant of each route form — `endpoint fau-nhr`, `ci hosted secret …`, `ci runner:gpu secret …`, `ci runner:cpu secret …`, `bridge workstation agent claude`, `bridge lab-pc agent codex` — and a person, whose route is an account
 // input: routesFor(participant, the product, [])
-// expect: for each of the six one offer, available with no reason, of the route it names — the tab; CI on the server's runners;
-//         CI on the runner gpu, and on cpu; the Bridge workstation, and lab-pc —; no offer for the person
+// expect: for each of the six one offer, available with no reason, of the route it names — the tab; CI on the server's runners; CI on the runner gpu, and on cpu; the Bridge workstation, and lab-pc —; no offer for the person
 test("routesFor — each route form is offered on the route it names, and a person on none", () => {
   const found = offers(PRIVATE, []);
 
@@ -90,11 +88,11 @@ test("routesFor — each route form is offered on the route it names, and a pers
 
 // ---------------------------------------------------------------- the self-hosted runner
 
+// TST-472707 · level: unit · module: MOD-runtimes
 // guards: A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; UC-017
 // given: the six participants, with a private product (the known positive), a public one and an internal one, each with the job workflow
 // input: routesFor for each, no need
-// expect: for the private product all six are available; for the public and the internal product the two on a self-hosted runner are
-//         refused, with a reason that names the runner and says the repository is not private, and the four others stay as they were
+// expect: for the private product all six are available; for the public and the internal product the two on a self-hosted runner are refused, with a reason that names the runner and says the repository is not private, and the four others stay as they were
 test("routesFor — a self-hosted runner is offered for a private repository only, and refused with the reason otherwise", () => {
   assert.deepEqual(available(offers(PRIVATE, [])), ALL.map((each) => each.name), "known positive: the private product");
 
@@ -108,11 +106,11 @@ test("routesFor — a self-hosted runner is offered for a private repository onl
 
 // ---------------------------------------------------------------- the job workflow
 
+// TST-472708 · level: unit · module: MOD-runtimes
 // guards: A RUNTIME IS INTERCHANGEABLE; AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-010
 // given: the six participants and a private product without the job workflow
 // input: routesFor, no need
-// expect: the three on the CI route are unavailable, with a reason that names the job workflow's files — those of GitHub and of GitLab
-//         —; the endpoint in the tab and the two on a Bridge are available
+// expect: the three on the CI route are unavailable, with a reason that names the job workflow's files — those of GitHub and of GitLab —; the endpoint in the tab and the two on a Bridge are available
 test("routesFor — the CI route is unavailable, naming the job workflow's files, while the product has none", () => {
   const found = offers({ visibility: "private", jobWorkflow: false }, []);
 
@@ -122,12 +120,11 @@ test("routesFor — the CI route is unavailable, naming the job workflow's files
 
 // ---------------------------------------------------------------- the needs
 
+// TST-472709 · level: unit · module: MOD-runtimes
 // guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-011
 // given: the six participants, a private product with the job workflow, and a job that needs a resource reached by `bridge workstation`
 // input: routesFor, needs [that]; and with a public product, for the participants who are offered
-// expect: only the participant whose route names the Bridge workstation is available; the others are refused with a reason that names
-//         the resource and `bridge workstation` — the participant on the Bridge lab-pc as well as the endpoint and the CI agents, and
-//         one on a runner that is called workstation —; it stays available on the public product
+// expect: only the participant whose route names the Bridge workstation is available; the others are refused with a reason that names the resource and `bridge workstation` — the participant on the Bridge lab-pc as well as the endpoint and the CI agents, and one on a runner that is called workstation —; it stays available on the public product
 test("routesFor — a need reached by a Bridge is offered only to a participant on that Bridge", () => {
   const found = offers(PRIVATE, [BRIDGE_NEED]);
 
@@ -138,13 +135,11 @@ test("routesFor — a need reached by a Bridge is offered only to a participant 
   assertRefused(offers(PRIVATE, [BRIDGE_NEED], [RUNNER_WORKSTATION])[RUNNER_WORKSTATION.name], ["bridge workstation"], "a runner called workstation");
 });
 
+// TST-472710 · level: unit · module: MOD-runtimes
 // guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; UC-005
 // given: the six participants, a private product with the job workflow, and a job that needs a resource reached by `runner:gpu`
 // input: routesFor, needs [that]; with a public product; without the job workflow; and with both needs at once
-// expect: only the participant on the runner labelled gpu is available — not the server's runners, not the runner cpu, not the endpoint,
-//         not a Bridge, also one called gpu —, the others refused with a reason that names the resource and `runner:gpu`; on a public product that one is
-//         refused too, for the repository; without the job workflow, for the files; and with a need of the Bridge workstation and one of the runner gpu, no route
-//         serves both
+// expect: only the participant on the runner labelled gpu is available — not the server's runners, not the runner cpu, not the endpoint, not a Bridge, also one called gpu —, the others refused with a reason that names the resource and `runner:gpu`; on a public product that one is refused too, for the repository; without the job workflow, for the files; and with a need of the Bridge workstation and one of the runner gpu, no route serves both
 test("routesFor — a need reached by a runner is offered on that runner only, and no route serves both a Bridge and a runner", () => {
   const found = offers(PRIVATE, [RUNNER_NEED]);
 

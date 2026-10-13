@@ -128,12 +128,11 @@ async function fill(page, { address = "reports@example.test", bridge = "laptop",
   await put(one(page, "mailbox-folders"), folders);
 }
 
+// TST-472770 · level: unit · module: MOD-settings-pages
 // guards: UC-037; ONE CLICK PER DECISION
-// given: Connect a mailbox for an address of Gmail, which providers.json knows; for an address of a domain Microsoft's sign-in service knows (200) and one
-//        it does not (400); a person who then changes the route
+// given: Connect a mailbox for an address of Gmail, which providers.json knows; for an address of a domain Microsoft's sign-in service knows (200) and one it does not (400); a person who then changes the route
 // input: the address field changed; the route field changed
-// expect: for Gmail the IMAP route with Gmail's servers filled in, imap.gmail.com 993 TLS and smtp.gmail.com 587 STARTTLS, and the account the address; for the
-//         Microsoft domain the route graph with the reason; for the other the IMAP route; the route is the person's to change, and the reason is shown
+// expect: for Gmail the IMAP route with Gmail's servers filled in, imap.gmail.com 993 TLS and smtp.gmail.com 587 STARTTLS, and the account the address; for the Microsoft domain the route graph with the reason; for the other the IMAP route; the route is the person's to change, and the reason is shown
 test("mailbox — the address preselects the route with routeFor, and the person can change it", async (t) => {
   const b = browser(t, { lookup: (url) => (url.includes("/microsoft-org.example/") ? 200 : 400) });
   const page = await b.page();
@@ -157,6 +156,7 @@ test("mailbox — the address preselects the route with routeFor, and the person
   assert.match(one(page, "mailbox-route-reason").textContent, /mail address/i);
 });
 
+// TST-472771 · level: unit · module: MOD-settings-pages
 // guards: UC-037
 // given: the form, and an SMTP port changed from 587 to 465, an IMAP port to 993, a port that has no usual encryption, and an address entered after the account
 // input: the port fields and the address field changed
@@ -181,12 +181,11 @@ test("mailbox — the usual encryption is preset for each port and the account i
   assert.equal(one(page, "mailbox-account").value, "login-name", "the person's account stays");
 });
 
+// TST-472772 · level: unit · module: MOD-settings-pages
 // guards: THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE; THE SHARED PAGES ORIGIN IS DISCLOSED; UC-037 4a
 // given: the form, the notice not ticked; a form filled in but for the tick; then the tick, and the tick taken back
 // input: the notice's tick; Store and test
-// expect: the password field disabled until the notice is ticked, the notice naming the owner's Pages sites, what the password grants, that it goes only to the
-//         Bridge the connection names and the recommended owner; enabled once ticked and disabled again when the tick is taken back; Store and test without the tick
-//         stores nothing and makes no request
+// expect: the password field disabled until the notice is ticked, the notice naming the owner's Pages sites, what the password grants, that it goes only to the Bridge the connection names and the recommended owner; enabled once ticked and disabled again when the tick is taken back; Store and test without the tick stores nothing and makes no request
 test("mailbox — the password field is disabled until its notice is ticked, and nothing is stored before", async (t) => {
   const b = browser(t);
   const page = await b.page();
@@ -214,9 +213,9 @@ test("mailbox — the password field is disabled until its notice is ticked, and
   assert.equal(password.disabled, true);
 });
 
+// TST-472773 · level: unit · module: MOD-settings-pages
 // guards: A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE; UC-037 4b
-// given: the Bridges this browser keeps — laptop on this computer, lab-forward at a forward, gpu-box through the jump host; and a browser with no Bridge on the
-//        loopback
+// given: the Bridges this browser keeps — laptop on this computer, lab-forward at a forward, gpu-box through the jump host; and a browser with no Bridge on the loopback
 // input: the Bridge field
 // expect: the three offered by their names, laptop preset; with none on the loopback none is preset and Store and test names the Bridge as missing
 test("mailbox — the Bridges this browser keeps are offered, this computer's is preset", async (t) => {
@@ -235,11 +234,11 @@ test("mailbox — the Bridges this browser keeps are offered, this computer's is
   assert.match(one(remotePage, "mailbox-result").textContent, /Bridge/);
 });
 
+// TST-472774 · level: unit · module: MOD-settings-pages
 // guards: A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE; UC-037 4b
 // given: the form filled in for the Bridge gpu-box, which is reached through the jump host
 // input: the Bridge chosen; Store and test without the tick; the tick; Store and test; then laptop chosen
-// expect: the jump host's notice shown, naming that the password and the mails pass it and that whoever administers it can read them; without the tick nothing is
-//         stored and no request made; with it stored with jumpHostNoted true; for laptop the notice is hidden and jumpHostNoted false
+// expect: the jump host's notice shown, naming that the password and the mails pass it and that whoever administers it can read them; without the tick nothing is stored and no request made; with it stored with jumpHostNoted true; for laptop the notice is hidden and jumpHostNoted false
 test("mailbox — a Bridge through the jump host is stored only after its notice is ticked", async (t) => {
   const b = browser(t);
   const page = await b.page();
@@ -263,12 +262,11 @@ test("mailbox — a Bridge through the jump host is stored only after its notice
   assert.equal(readSetting(b.store, "mailbox").imap.jumpHostNoted, false);
 });
 
+// TST-472775 · level: unit · module: MOD-settings-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037 6
 // given: an instance whose participants declare three places — this machine, a provider in the USA, a data centre naming the EU —, and a person
 // input: the places shown; the US provider ticked; Store and test without the notice's tick; with it; the other places ticked in another run
-// expect: the three places listed once each, none ticked; ticking the US provider shows the notice that processing personal data there does not comply with the
-//         GDPR and the EU AI Act, and the others show none; without the tick nothing is stored; with it the connection holds only the ticked place, outsideEu true and
-//         notCompliantNoted true; a connection with only this machine and the EU data centre needs no notice and records outsideEu false
+// expect: the three places listed once each, none ticked; ticking the US provider shows the notice that processing personal data there does not comply with the GDPR and the EU AI Act, and the others show none; without the tick nothing is stored; with it the connection holds only the ticked place, outsideEu true and notCompliantNoted true; a connection with only this machine and the EU data centre needs no notice and records outsideEu false
 test("mailbox — a place outside the EU is stored only after its notice, and none is preset", async (t) => {
   const b = browser(t);
   const page = await b.page();
@@ -298,6 +296,7 @@ test("mailbox — a place outside the EU is stored only after its notice, and no
   assert.deepEqual(readSetting(b.store, "mailbox").places, [{ place: "Anthropic, a provider in the USA", outsideEu: true, notCompliantNoted: true }]);
 });
 
+// TST-472776 · level: unit · module: MOD-settings-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-037 6
 // given: an instance whose participants cannot be read
 // input: the page
@@ -312,13 +311,11 @@ test("mailbox — participants that cannot be read offer no place and say so", a
   assert.deepEqual(readSetting(b.store, "mailbox").places, []);
 });
 
+// TST-472777 · level: unit · module: MOD-settings-pages
 // guards: ONE CLICK PER DECISION; THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; UC-037 7
 // given: a correct form for this computer's Bridge, a Bridge whose test answers with two folders, Drafts and Sent found, sending working, route and encryption
 // input: Store and test, once
-// expect: the connection stored as MOD-mail-routes' MailConnection — address, route imap, the folders, the ticked places, the Bridge's name, jumpHostNoted false,
-//         the servers, the account and the password — under the key `mailbox`; one request, POST to the Bridge's /v1/mail/test, with the Bridge's token in its header
-//         and the password in its body only; each part shown: both folders with their counts, Drafts, Sent, sending, the route and the encryption; the mailbox shown as
-//         connected with its route; the test recorded as working; no cookie written and the address untouched
+// expect: the connection stored as MOD-mail-routes' MailConnection — address, route imap, the folders, the ticked places, the Bridge's name, jumpHostNoted false, the servers, the account and the password — under the key `mailbox`; one request, POST to the Bridge's /v1/mail/test, with the Bridge's token in its header and the password in its body only; each part shown: both folders with their counts, Drafts, Sent, sending, the route and the encryption; the mailbox shown as connected with its route; the test recorded as working; no cookie written and the address untouched
 test("mailbox — Store and test, one click, stores the connection and tests it through the chosen Bridge, each part shown", async (t) => {
   const b = browser(t);
   const page = await b.page();
@@ -343,13 +340,11 @@ test("mailbox — Store and test, one click, stores the connection and tests it 
   assert.deepEqual(b.writes, [], "no cookie and nothing in the address");
 });
 
+// TST-472778 · level: unit · module: MOD-settings-pages
 // guards: UC-037 7a; 7b; 7c; 7d
-// given: a Bridge that does not answer; one whose test says a server offers no encryption; one whose answer is a refused login; one whose test finds sending
-//        not working; one that says a folder does not exist
+// given: a Bridge that does not answer; one whose test says a server offers no encryption; one whose answer is a refused login; one whose test finds sending not working; one that says a folder does not exist
 // input: Store and test for each
-// expect: 7a the Bridge named as not answering, with the likely causes, the connection stored and shown as untested, and the way to set up a Bridge; 7b the server named,
-//         that no login was sent to it and that the password would travel in clear text; 7c the server's answer and the folded explanation of an app password;
-//         7d reading and sending shown separately, with the words that reading is possible and sending is not; the folder named; each a failure of the last test
+// expect: 7a the Bridge named as not answering, with the likely causes, the connection stored and shown as untested, and the way to set up a Bridge; 7b the server named, that no login was sent to it and that the password would travel in clear text; 7c the server's answer and the folded explanation of an app password; 7d reading and sending shown separately, with the words that reading is possible and sending is not; the folder named; each a failure of the last test
 test("mailbox — each failure of the test is shown as UC-037 names it", async (t) => {
   const run = async (bridgeAnswer) => {
     const b = browser(t, { bridgeAnswer });
@@ -391,6 +386,7 @@ test("mailbox — each failure of the test is shown as UC-037 names it", async (
   assert.match(missing.text, /folder Receipts/i);
 });
 
+// TST-472779 · level: unit · module: MOD-settings-pages
 // guards: UC-037 5; ONE CLICK PER DECISION
 // given: the form
 // input: the folders field read; Microsoft chosen as the route; Store and test
@@ -407,6 +403,7 @@ test("mailbox — the folders are preset to INBOX, and the Microsoft route store
   assert.equal(b.requests.filter((request) => request.url.includes("/v1/mail/")).length, 0);
 });
 
+// TST-472780 · level: unit · module: MOD-settings-pages
 // guards: EVERY STEP EXPLAINS ITSELF; UC-037
 // given: the form
 // input: the page
@@ -423,9 +420,9 @@ test("mailbox — each step's explanation is folded", async (t) => {
   }
 });
 
+// TST-472781 · level: unit · module: MOD-settings-pages
 // guards: AN EXPORT STATES THAT IT CONTAINS SECRETS; UC-037 1a; UC-042
-// given: the Settings page of a browser with an IMAP mailbox; with a Microsoft mailbox whose sign-in keys the library wrote; with a Microsoft mailbox and no sign-in
-//        keys
+// given: the Settings page of a browser with an IMAP mailbox; with a Microsoft mailbox whose sign-in keys the library wrote; with a Microsoft mailbox and no sign-in keys
 // input: the statement before the export
 // expect: the IMAP mailbox named as a secret with what it grants; the sign-in named with what it grants where its keys are there, and not where they are not
 test("settings — the statement before an export names the mailbox's password and the sign-in tokens it carries", async (t) => {

@@ -204,17 +204,11 @@ const written = (fake) => Object.fromEntries(fake.writes()[0].change.files.map((
 
 // ---------------------------------------------------------------- acceptEntries
 
-// guards: A QUEUE IS ACCEPTED IN ITS ORDER; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; THE APPROVED TEXT IS TAKEN VERBATIM; UC-006
-//         ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE
-// given: the product above, whose default branch `trunk` holds the queue with entries 05 and 06 — 05 replaces section 1 and creates the
-//        section "1a", 06 starts with "1a" — and the person alice, who was shown 05 beside section 1 and 06 beside no section; given
-//        in the order 06, 05
+// TST-472940 · level: unit · module: MOD-spec-changes
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; THE APPROVED TEXT IS TAKEN VERBATIM; UC-006 ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE
+// given: the product above, whose default branch `trunk` holds the queue with entries 05 and 06 — 05 replaces section 1 and creates the section "1a", 06 starts with "1a" — and the person alice, who was shown 05 beside section 1 and 06 beside no section; given in the order 06, 05
 // input: acceptEntries(host, [06 shown, 05 shown], "alice", now, sources)
-// expect: one commit on `trunk`, on the head that was read, holding exactly the two records, the SPEC and the decisions file; the SPEC with
-//         section 1 as 05 proposes it and section "1a" as 06 proposes it, every other byte as it was; the two records named by the
-//         first twelve digits of each proposal's blob, with 05's section the blob of section 1 and 06's the blob of the section "1a" as
-//         05 wrote it; two decision rows appended to the decisions file, 05's first; a message that names alice and the two entries; the
-//         result { commit }; the replaced text is still in the head that was read, and no copy of it is added
+// expect: one commit on `trunk`, on the head that was read, holding exactly the two records, the SPEC and the decisions file; the SPEC with section 1 as 05 proposes it and section "1a" as 06 proposes it, every other byte as it was; the two records named by the first twelve digits of each proposal's blob, with 05's section the blob of section 1 and 06's the blob of the section "1a" as 05 wrote it; two decision rows appended to the decisions file, 05's first; a message that names alice and the two entries; the result { commit }; the replaced text is still in the head that was read, and no copy of it is added
 test("acceptEntries — entries 05 and 06, 06's anchor created by 05, are accepted together in one commit, in index order", async () => {
   const fake = fakeHost({ files: productFiles({ entries: [E05, E06] }) });
   const read = fake.head();
@@ -240,11 +234,11 @@ test("acceptEntries — entries 05 and 06, 06's anchor created by 05, are accept
   assert.equal((await fake.snapshot(read).read("SPEC.md")), SPEC, "the replaced text stands in the head that was read");
 });
 
+// TST-472941 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
 // given: the same product; 06 shown beside no section, as in the test above, without 05
 // input: acceptEntries(host, [06 shown], "alice", now, sources) — and, to show the same fixture accepting, with 05 shown too
-// expect: nothing written and { refused: [{ queue, entry: 6, reason }] }, the reason naming entry 05, which creates 06's anchor; with
-//         05 shown too, one commit
+// expect: nothing written and { refused: [{ queue, entry: 6, reason }] }, the reason naming entry 05, which creates 06's anchor; with 05 shown too, one commit
 test("acceptEntries — 06 alone is refused, naming 05, and nothing is written", async () => {
   const accepting = fakeHost({ files: productFiles({ entries: [E05, E06] }) });
   assert.ok((await acceptEntries(accepting.host, [shownOf(E05, READING), shownOf(E06, "")], "alice", NOW, sources())).commit, "known positive: with 05 it is accepted");
@@ -258,13 +252,11 @@ test("acceptEntries — 06 alone is refused, naming 05, and nothing is written",
   assert.match(result.refused[0].reason, /05/, `the reason names 05: ${result.refused[0].reason}`);
 });
 
+// TST-472942 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: entries 05 and 07, which replace sections 1 and 2; both shown as they stand, to show the same fixture accepting; then 07 shown
-//        with the blob of a proposal it had earlier, and, in another host, 05 shown with the blob of a section 1 that the SPEC no longer
-//        holds
+// given: entries 05 and 07, which replace sections 1 and 2; both shown as they stand, to show the same fixture accepting; then 07 shown with the blob of a proposal it had earlier, and, in another host, 05 shown with the blob of a section 1 that the SPEC no longer holds
 // input: acceptEntries(host, [05 shown, 07 shown], ...) for each
-// expect: both accepted in one commit for the first; for the second nothing written — not 05's change either — and 07 named with a reason
-//         that is the proposal's; for the third nothing written and 05 named with a reason that is the section's
+// expect: both accepted in one commit for the first; for the second nothing written — not 05's change either — and 07 named with a reason that is the proposal's; for the third nothing written and 05 named with a reason that is the section's
 test("acceptEntries — an entry whose proposal or section changed after it was shown is refused and named, and nothing is written", async () => {
   const accepting = fakeHost({ files: productFiles({ entries: [E05, E07] }) });
   assert.ok((await acceptEntries(accepting.host, [shownOf(E05, READING), shownOf(E07, WRITING)], "alice", NOW, sources())).commit, "known positive");
@@ -284,6 +276,7 @@ test("acceptEntries — an entry whose proposal or section changed after it was 
   assert.match(second.refused[0].reason, /section/);
 });
 
+// TST-472943 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: entries 05 and 07; 05 shown with a stale proposal blob and 07 with a stale section blob
 // input: acceptEntries(host, [05 shown, 07 shown], ...)
@@ -298,12 +291,11 @@ test("acceptEntries — every stale entry is named", async () => {
   assert.match(result.refused[1].reason, /section/);
 });
 
+// TST-472944 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; UC-006
-// given: entry 07, whose proposal's requirement names "An unlinked source", a source the register holds and the product does not link,
-//        and, to show the same fixture accepting, entry 07 with the source the product links; entry 05, whole, shown beside it
+// given: entry 07, whose proposal's requirement names "An unlinked source", a source the register holds and the product does not link, and, to show the same fixture accepting, entry 07 with the source the product links; entry 05, whole, shown beside it
 // input: acceptEntries(host, [05 shown, 07 shown], ...) for each
-// expect: the linked one accepted; the unlinked one: nothing written, not 05's change either, and 07 named with a reason that names the
-//         requirement and its source
+// expect: the linked one accepted; the unlinked one: nothing written, not 05's change either, and 07 named with a reason that names the requirement and its source
 test("acceptEntries — a requirement that names no linked source: nothing is written, and the entry is named", async () => {
   const accepting = fakeHost({ files: productFiles({ entries: [E05, E07] }) });
   assert.ok((await acceptEntries(accepting.host, [shownOf(E05, READING), shownOf(E07, WRITING)], "alice", NOW, sources())).commit, "known positive");
@@ -316,6 +308,7 @@ test("acceptEntries — a requirement that names no linked source: nothing is wr
   assert.ok(result.refused[0].reason.includes(WRITE_RULE) && result.refused[0].reason.includes("An unlinked source"), result.refused[0].reason);
 });
 
+// TST-472945 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: entry 05, shown with no section although the SPEC holds section 1; and, to show the same fixture accepting, shown beside it
 // input: acceptEntries(host, [05 shown], ...) for each
@@ -331,6 +324,7 @@ test("acceptEntries — an entry shown with no section while the SPEC holds one 
   assert.match(result.refused[0].reason, /section/);
 });
 
+// TST-472946 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
 // given: entries 05 and 08, both on "## 1. Reading", both shown beside section 1 as the SPEC holds it
 // input: acceptEntries(host, [05 shown, 08 shown], ...)
@@ -344,12 +338,11 @@ test("acceptEntries — of two entries that replace one section, the second is s
   assert.match(result.refused[0].reason, /section/);
 });
 
+// TST-472947 · level: unit · module: MOD-spec-changes
 // guards: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; THE GATE IS RECORDED; UC-006
-// given: entry 07 in a queue whose decisions file is of the retired form — a row with a time that has no UTC and a commit SHA for a reference —
-//        and has no final line end; and, to show the same call on a canonical file, the file of the tests above
+// given: entry 07 in a queue whose decisions file is of the retired form — a row with a time that has no UTC and a commit SHA for a reference — and has no final line end; and, to show the same call on a canonical file, the file of the tests above
 // input: acceptEntries(host, [07 shown], ...)
-// expect: the file as it was, byte for byte, then a line end, then 07's row — nothing of the old rows rewritten; for the canonical file the
-//         old bytes then the row
+// expect: the file as it was, byte for byte, then a line end, then 07's row — nothing of the old rows rewritten; for the canonical file the old bytes then the row
 test("acceptEntries — a decision row is appended to the bytes of the file, whatever form the file is of", async () => {
   const legacy = text("# Decisions — queue 2026-03-01 sample", "", "Append-only.", "", "| 2026-02-28 09:00 | 1 | uebernommen | e2ce99d |").slice(0, -1);
   assert.ok(!legacy.endsWith("\n"));
@@ -362,6 +355,7 @@ test("acceptEntries — a decision row is appended to the bytes of the file, wha
   assert.equal(written(canonical)[`${QUEUE}/entscheidungen.md`], DECISIONS + rowFor(E07));
 });
 
+// TST-472948 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
 // given: entries 05 and 07, decided already — a decision row names 05's record — and the person shown 05 and 07 as they stand
 // input: acceptEntries(host, [05 shown, 07 shown], ...)
@@ -376,6 +370,7 @@ test("acceptEntries — an entry that a decision row names is refused as written
   assert.match(result.refused[0].reason, /already/);
 });
 
+// TST-472949 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; UC-006
 // given: entry 07 shown as it stands; another writer's commit lands on `trunk` right after the head is read
 // input: acceptEntries(host, [07 shown], ...)
@@ -386,6 +381,7 @@ test("acceptEntries — the failure of the host is passed on, unchanged: the bra
   assert.equal(fake.files()["SPEC.md"], SPEC, "the SPEC is as it was");
 });
 
+// TST-472950 · level: unit · module: MOD-spec-changes
 // guards: A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; UC-006
 // given: nothing shown
 // input: acceptEntries(host, [], ...)
@@ -396,12 +392,11 @@ test("acceptEntries — nothing shown is a TypeError", async () => {
   assert.deepEqual(fake.calls(), [], "no request");
 });
 
+// TST-472951 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: a queue whose index lists entry 09 before entry 07 — 09 on "## 1. Reading", 07 on "## 2. Writing" —, both shown as they stand,
-//        in the order of their numbers; and, for applyApproved, the records of the two committed without the dashboard
+// given: a queue whose index lists entry 09 before entry 07 — 09 on "## 1. Reading", 07 on "## 2. Writing" —, both shown as they stand, in the order of their numbers; and, for applyApproved, the records of the two committed without the dashboard
 // input: acceptEntries(host, [07 shown, 09 shown], ...) and applyApproved on the records
-// expect: the decisions file with 09's row before 07's, the order of the index and not of the numbers; the commit's message naming 09
-//         before 07; applyApproved applying 09's record first
+// expect: the decisions file with 09's row before 07's, the order of the index and not of the numbers; the commit's message naming 09 before 07; applyApproved applying 09's record first
 test("acceptEntries and applyApproved — the entries are written in the order of the queue's index, whatever their numbers", async () => {
   const fake = fakeHost({ files: productFiles({ entries: [E09, E07] }) });
   await acceptEntries(fake.host, [shownOf(E07, WRITING), shownOf(E09, READING)], "alice", NOW, sources());
@@ -414,12 +409,11 @@ test("acceptEntries and applyApproved — the entries are written in the order o
   assert.equal(applied.files[`${QUEUE}/entscheidungen.md`], DECISIONS + rowFor(E09) + rowFor(E07));
 });
 
+// TST-472952 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
-// given: entry 07 shown as it stands, to show the same fixture accepting; then four things gone — entry 09, shown, which the queue's index
-//        lacks; a queue, 2099-01-01_none, which the repository lacks; entry 07's proposal file; and the SPEC file
+// given: entry 07 shown as it stands, to show the same fixture accepting; then four things gone — entry 09, shown, which the queue's index lacks; a queue, 2099-01-01_none, which the repository lacks; entry 07's proposal file; and the SPEC file
 // input: acceptEntries(host, [shown], ...) for each
-// expect: accepted; for each of the four nothing written and the entry named with a reason that says what is gone — the entry, the queue,
-//         the proposal, the target
+// expect: accepted; for each of the four nothing written and the entry named with a reason that says what is gone — the entry, the queue, the proposal, the target
 test("acceptEntries — an entry whose files are gone is refused and named, and nothing is written", async () => {
   const accepting = fakeHost({ files: productFiles({ entries: [E07] }) });
   assert.ok((await acceptEntries(accepting.host, [shownOf(E07, WRITING)], "alice", NOW, sources())).commit, "known positive");
@@ -448,12 +442,11 @@ function approvedFiles(records, { entries = records.map(([item]) => item), extra
   return productFiles({ entries, extra: { ...files, ...extra } });
 }
 
+// TST-472953 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; THE APPROVED TEXT IS TAKEN VERBATIM; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
-// given: the records of entries 05 and 06 as acceptEntries wrote them in a host of its own — taken from that commit — committed without
-//        the dashboard to a copy of the product that has no decision row
+// given: the records of entries 05 and 06 as acceptEntries wrote them in a host of its own — taken from that commit — committed without the dashboard to a copy of the product that has no decision row
 // input: applyApproved(snapshot, now)
-// expect: the files it returns — the SPEC and the decisions file — are byte for byte the two files of acceptEntries' commit that are not
-//         records; applied names the two records, 05's first; nothing refused; and it returns them without a write: the snapshot is unchanged
+// expect: the files it returns — the SPEC and the decisions file — are byte for byte the two files of acceptEntries' commit that are not records; applied names the two records, 05's first; nothing refused; and it returns them without a write: the snapshot is unchanged
 test("applyApproved — returns byte for byte what acceptEntries commits for the same records", async () => {
   const dashboard = fakeHost({ files: productFiles({ entries: [E05, E06] }) });
   await acceptEntries(dashboard.host, [shownOf(E05, READING), shownOf(E06, "")], "alice", NOW, sources());
@@ -470,6 +463,7 @@ test("applyApproved — returns byte for byte what acceptEntries commits for the
   assert.deepEqual(workflow.files(), before, "it writes nothing itself");
 });
 
+// TST-472954 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: after an acceptance, the head it made
 // input: applyApproved on that head
@@ -481,12 +475,11 @@ test("applyApproved — a record that a decision row names is left alone", async
   assert.deepEqual(after, { files: {}, applied: [], refused: [] });
 });
 
+// TST-472955 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
-// given: the records of entries 05 and 07 committed without the dashboard — 05's record naming the anchor "## 2. Writing", which is not 05's,
-//        and, to show the same fixture applying, the same records with the right anchor
+// given: the records of entries 05 and 07 committed without the dashboard — 05's record naming the anchor "## 2. Writing", which is not 05's, and, to show the same fixture applying, the same records with the right anchor
 // input: applyApproved(snapshot, now) for each
-// expect: with the right anchor both applied; with the wrong one 05's record refused and named, 07's still applied — a record that fails a
-//         check changes nothing — and the SPEC holds 07's section and not 05's
+// expect: with the right anchor both applied; with the wrong one 05's record refused and named, 07's still applied — a record that fails a check changes nothing — and the SPEC holds 07's section and not 05's
 test("applyApproved — a record whose anchor is not its entry's is refused and named", async () => {
   const right = fakeHost({ files: approvedFiles([[E05, READING], [E07, WRITING]]) });
   assert.equal((await applyApproved(right.snapshot(), NOW)).applied.length, 2, "known positive");
@@ -501,12 +494,11 @@ test("applyApproved — a record whose anchor is not its entry's is refused and 
   assert.equal(result.files[`${QUEUE}/entscheidungen.md`], DECISIONS + rowFor(E07), "only 07's row");
 });
 
+// TST-472956 · level: unit · module: MOD-spec-changes
 // guards: A STALE APPROVAL IS NOT APPLIED; UC-006
-// given: records of entries 05 and 07; 05's names a proposal blob that is no longer the proposal's, 07's a section blob that is no longer
-//        the SPEC's; and a third pair, 05 and 07 whole
+// given: records of entries 05 and 07; 05's names a proposal blob that is no longer the proposal's, 07's a section blob that is no longer the SPEC's; and a third pair, 05 and 07 whole
 // input: applyApproved(snapshot, now)
-// expect: record by record: for the stale proposal 05's record refused naming the proposal, for the stale section 07's refused naming the
-//         section; the whole ones applied; refused records change nothing
+// expect: record by record: for the stale proposal 05's record refused naming the proposal, for the stale section 07's refused naming the section; the whole ones applied; refused records change nothing
 test("applyApproved — a stale record is refused and named, record by record, and the others are applied", async () => {
   const stale = recordFile(E05, { proposal: READING_NEW + ADDED + "an earlier wording\n", section: READING });
   const files = approvedFiles([[E07, WRITING + "an earlier wording\n"]], { entries: [E05, E07], extra: { [stale[0]]: stale[1] } });
@@ -526,6 +518,7 @@ test("applyApproved — a stale record is refused and named, record by record, a
   assert.equal(second.files["SPEC.md"], HEAD + READING_NEW + ADDED + WRITING, "05's section, and 07's not");
 });
 
+// TST-472957 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // given: the records of 05 and 06 committed, and, in another copy of the product, 06's record alone, the queue holding both entries
 // input: applyApproved(snapshot, now) for each
@@ -541,9 +534,9 @@ test("applyApproved — a record whose anchor an earlier entry creates is applie
   assert.deepEqual(alone.files, {});
 });
 
+// TST-472958 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
-// given: the record of entry 07, whose proposal names "An unlinked source" — registered in docs/sources/, not linked in docs/sources.md —,
-//        and, to show the same fixture applying, the record of 07 with the source the product links
+// given: the record of entry 07, whose proposal names "An unlinked source" — registered in docs/sources/, not linked in docs/sources.md —, and, to show the same fixture applying, the record of 07 with the source the product links
 // input: applyApproved(snapshot, now) for each
 // expect: the linked one applied; the unlinked one refused, naming the requirement, and no file
 test("applyApproved — a requirement that names no source the repository links refuses the record", async () => {
@@ -556,6 +549,7 @@ test("applyApproved — a requirement that names no source the repository links 
   assert.deepEqual(result.files, {});
 });
 
+// TST-472959 · level: unit · module: MOD-spec-changes
 // guards: A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // given: the record of 07 naming README.md as its target, and one naming another file as its proposal; and the right record of 07
 // input: applyApproved(snapshot, now) for each
@@ -573,13 +567,11 @@ test("applyApproved — a record that names another target or another proposal t
   }
 });
 
+// TST-472960 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
-// given: a record named like a spec record whose kind is use-case; a spec record of entry 09 that lacks its section line; one whose entry
-//        field is "five"; one of entry 05 that names its queue with a slash at the end; and the right record of 07
+// given: a record named like a spec record whose kind is use-case; a spec record of entry 09 that lacks its section line; one whose entry field is "five"; one of entry 05 that names its queue with a slash at the end; and the right record of 07
 // input: applyApproved(snapshot, now)
-// expect: the use-case record left alone, neither applied nor refused; the incomplete one refused, saying that it lacks the section; the
-//         one with no entry number refused, saying that it is no number; 05's and 07's applied, in index order, the queue read through
-//         its slash
+// expect: the use-case record left alone, neither applied nor refused; the incomplete one refused, saying that it lacks the section; the one with no entry number refused, saying that it is no number; 05's and 07's applied, in index order, the queue read through its slash
 test("applyApproved — a record of another kind is left alone, an incomplete or ill-formed spec record is refused", async () => {
   const useCase = ["docs/approvals/spec-a-use-case-aaaaaaaaaaaa.md", text("kind: use-case", "file: docs/use-cases/UC-001-read-a-file.md", `blob: ${"a".repeat(40)}`)];
   const [bare, bareBody] = recordFile(E09, { section: READING, omit: ["section"] });
@@ -597,13 +589,11 @@ test("applyApproved — a record of another kind is left alone, an incomplete or
   assert.equal(result.files["SPEC.md"], HEAD + READING_NEW + ADDED + WRITING_NEW);
 });
 
+// TST-472961 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A STALE APPROVAL IS NOT APPLIED; UC-006
-// given: entry 05 decided — a decision row names its record — and another record of 05, under an earlier blob of its proposal, that no row
-//        names; then the same without the decision row; then a decision row that names a record of an entry that the queue's index lacks
+// given: entry 05 decided — a decision row names its record — and another record of 05, under an earlier blob of its proposal, that no row names; then the same without the decision row; then a decision row that names a record of an entry that the queue's index lacks
 // input: applyApproved(snapshot, now) for each
-// expect: the first: nothing to do — no file, nothing applied, nothing refused, since the older record belongs to an entry that is written
-//         already; the second: the older record refused as stale, which shows the same record refused where nothing is written; the third:
-//         nothing to do, a record that a row names being left alone though its entry has left the index
+// expect: the first: nothing to do — no file, nothing applied, nothing refused, since the older record belongs to an entry that is written already; the second: the older record refused as stale, which shows the same record refused where nothing is written; the third: nothing to do, a record that a row names being left alone though its entry has left the index
 test("applyApproved — a record of an entry that a decision row names is left alone", async () => {
   const [current, currentBody] = recordFile(E05, { section: READING });
   const [older, olderBody] = recordFile(E05, { proposal: E05.proposal + "an earlier wording\n", section: READING });
@@ -618,10 +608,9 @@ test("applyApproved — a record of an entry that a decision row names is left a
   assert.deepEqual(gone, { files: {}, applied: [], refused: [] });
 });
 
+// TST-472962 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
-// given: a register in which the entry titled "Medical Devices" is linked and the entry titled "Medical Devices, Regulation" is not; the
-//        record of entry 07 whose requirement names "Medical Devices, Art. 3", the linked title; and one that names "Medical Devices,
-//        Regulation, Art. 3", which begins with both titles, the longer of which is not linked
+// given: a register in which the entry titled "Medical Devices" is linked and the entry titled "Medical Devices, Regulation" is not; the record of entry 07 whose requirement names "Medical Devices, Art. 3", the linked title; and one that names "Medical Devices, Regulation, Art. 3", which begins with both titles, the longer of which is not linked
 // input: applyApproved(snapshot, now) for each
 // expect: the first applied; the second refused, naming the requirement — the item names the longest title, linked or not
 test("applyApproved — the register is read whole: an item names the longest title, linked or not", async () => {
@@ -642,11 +631,11 @@ test("applyApproved — the register is read whole: an item names the longest ti
   assert.ok(result.refused[0].reason.includes(WRITE_RULE), result.refused[0].reason);
 });
 
+// TST-472963 · level: unit · module: MOD-spec-changes
 // guards: A QUEUE IS ACCEPTED IN ITS ORDER; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // given: two queues, 2026-03-01_sample and the older 2026-02-01_older, each with one approved entry on "## 2. Writing" — the same section
 // input: applyApproved(snapshot, now)
-// expect: the older queue's record applied first, and the newer one's refused — after the older, the section is no longer the one its
-//         record names — so that the SPEC holds the older entry's section
+// expect: the older queue's record applied first, and the newer one's refused — after the older, the section is no longer the one its record names — so that the SPEC holds the older entry's section
 test("applyApproved — queues are applied oldest first, and the second record on one section is stale", async () => {
   const older = "docs/spec-freigaben/2026-02-01_older";
   const olderEntry = { nr: 1, anchor: "## 2. Writing", proposal: WRITING.replace("whole.", "completely."), slug: "entry-1" };

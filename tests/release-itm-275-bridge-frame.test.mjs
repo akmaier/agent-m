@@ -67,12 +67,13 @@ const { startPage, notice, confirmDecision, explain } = await import("../src/sit
 
 const all = (root) => [root, ...["header", "main", "section", "p", "a", "button", "textarea", "details", "summary", "link", "img"].flatMap((tag) => root.getElementsByTagName(tag))];
 
-// TST-275001
-// Precondition: an own-protocol Bridge window retains a configured GitHub Pages identity and its browser store is empty.
-// Input: the public startPage receives one empty-strategy route, then that route uses context.go and the fragment changes.
-// Expected: the actual route receives the configured repository, a real scoped store and host, no chosen product, and no
-// repository request or write; it rerenders only through the supplied fragment route.
 // Planted fault: changing `product: null` in src/site-frame/index.mjs to a value makes the empty-product assertion fail.
+// Module (as the case stated it): MOD-site-frame · MOD-identifiers
+// TST-275001 · level: release · module: MOD-site-frame
+// guards: UC-003; UC-044; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION
+// given: an own-protocol Bridge window retains a configured GitHub Pages identity and its browser store is empty
+// input: the public startPage receives one empty-strategy route, then that route uses context.go and the fragment changes
+// expect: the actual route receives the configured repository, a real scoped store and host, no chosen product, and no repository request or write; it rerenders only through the supplied fragment route
 test("TST-275001: the release Bridge frame keeps configured identity and routes without repository writes", async () => {
   const previous = { location: globalThis.location, localStorage: globalThis.localStorage, fetch: globalThis.fetch, add: window.addEventListener };
   const location = { hostname: "release-owner.github.io", pathname: "/release-frame/bridge.html", hash: "#pair" };
@@ -110,11 +111,13 @@ test("TST-275001: the release Bridge frame keeps configured identity and routes 
   }
 });
 
-// TST-275002
-// Precondition: the bounded Bridge frame has started with no route and the shared pairing explanation is available.
-// Input: the route shows a supplied notice, the person cancels one decision, then supplies a reason and confirms one.
-// Expected: each supplied line explains itself, cancellation has no reason, and exactly one click returns the typed reason.
 // Planted fault: changing the cancel answer in src/site-frame/index.mjs to `confirmed: true` makes the cancellation assertion fail.
+// Module (as the case stated it): MOD-site-frame · MOD-identifiers
+// TST-275002 · level: release · module: MOD-site-frame
+// guards: UC-003; UC-044; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION
+// given: the bounded Bridge frame has started with no route and the shared pairing explanation is available
+// input: the route shows a supplied notice, the person cancels one decision, then supplies a reason and confirms one
+// expect: each supplied line explains itself, cancellation has no reason, and exactly one click returns the typed reason
 test("TST-275002: the release frame explains pairing and keeps each confirmation to one person decision", async () => {
   const previous = { location: globalThis.location, localStorage: globalThis.localStorage };
   Object.defineProperty(globalThis, "location", { configurable: true, value: { hostname: "release-owner.github.io", pathname: "/release-frame/", hash: "" } });

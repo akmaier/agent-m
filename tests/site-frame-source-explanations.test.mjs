@@ -38,11 +38,11 @@ function assertClaims(topic, claims) {
   for (const [pattern, says] of claims) assert.match(text, pattern, `${topic}: it says ${says}`);
 }
 
+// TST-472856 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-004
 // given: explanations.md, and the seven topics of registering a source
 // input: explain(topic) for each
-// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is
-//         this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
+// expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
 test("explain — each topic of registering a source is a folded What is this? with its text", () => {
   assert.match(renderArtifact("an *unclosed mark and `another").textContent, /[*`]/,
     "known positive: the renderer leaves a mark that is not closed standing");
@@ -60,6 +60,7 @@ test("explain — each topic of registering a source is a folded What is this? w
   }
 });
 
+// TST-472857 · level: unit · module: MOD-site-frame
 // guards: UC-004 (step 2)
 // given: the topic source-kinds
 // input: explain("source-kinds")
@@ -77,6 +78,7 @@ test("explain — source-kinds: the four kinds of source, with an example each (
   ]);
 });
 
+// TST-472858 · level: unit · module: MOD-site-frame
 // guards: UC-004 (steps 3 and 1a)
 // given: the topic source-name
 // input: explain("source-name")
@@ -91,6 +93,7 @@ test("explain — source-name: the name of a source (UC-004)", () => {
   ]);
 });
 
+// TST-472859 · level: unit · module: MOD-site-frame
 // guards: UC-004 (step 3); UC-005 (7a)
 // given: the topic source-authority
 // input: explain("source-authority")
@@ -107,6 +110,7 @@ test("explain — source-authority: the authority of a source (UC-004)", () => {
   ]);
 });
 
+// TST-472860 · level: unit · module: MOD-site-frame
 // guards: UC-004 (steps 3 and 4b)
 // given: the topic source-licence
 // input: explain("source-licence")
@@ -122,6 +126,7 @@ test("explain — source-licence: the licence of a source (UC-004)", () => {
   ]);
 });
 
+// TST-472861 · level: unit · module: MOD-site-frame
 // guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; UC-004 (step 4)
 // given: the topic standard-designation
 // input: explain("standard-designation")
@@ -140,6 +145,7 @@ test("explain — standard-designation: where a standard's designation stands an
   ]);
 });
 
+// TST-472862 · level: unit · module: MOD-site-frame
 // guards: UC-004 (alternative 4a)
 // given: the topic file-only-hashed
 // input: explain("file-only-hashed")
@@ -157,6 +163,7 @@ test("explain — file-only-hashed: a file that is only hashed (UC-004 4a)", () 
   ]);
 });
 
+// TST-472863 · level: unit · module: MOD-site-frame
 // guards: UC-004 (step 5)
 // given: the topic source-public
 // input: explain("source-public")
@@ -173,6 +180,7 @@ test("explain — source-public: what becomes public (UC-004)", () => {
   ]);
 });
 
+// TST-472864 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF
 // given: the seven topics
 // input: the rendered text of each

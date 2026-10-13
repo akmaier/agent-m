@@ -118,11 +118,11 @@ function browser(t, { mailbox = IMAP, tested = "recorded" } = {}) {
 }
 const everything = (storage) => [...storage.values.entries()].map(([key, value]) => `${key}=${value}`).join("\n");
 
+// TST-472764 · level: unit · module: MOD-settings-pages
 // guards: UC-037 8; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: a stored IMAP connection with two places and two folders, tested successfully; and the same with no record of a test (what an import brings)
 // input: the page mailbox, and the Settings page
-// expect: on both pages one block: the address, IMAP through laptop, the folders, both places, the outside one named as outside the EU; the state connected with the date of the test;
-//         the Test and Disconnect controls; without a record of a test: connected and untested; no password anywhere in the text
+// expect: on both pages one block: the address, IMAP through laptop, the folders, both places, the outside one named as outside the EU; the state connected with the date of the test; the Test and Disconnect controls; without a record of a test: connected and untested; no password anywhere in the text
 test("a connected mailbox is shown with its route, folders and places, Test and Disconnect", async (t) => {
   const b = browser(t);
   for (const name of ["mailbox", "settings"]) {
@@ -142,6 +142,7 @@ test("a connected mailbox is shown with its route, folders and places, Test and 
   }
 });
 
+// TST-472765 · level: unit · module: MOD-settings-pages
 // guards: UC-037 8
 // given: no mailbox stored
 // input: the page mailbox, and the Settings page
@@ -151,11 +152,11 @@ test("with no mailbox stored there is nothing to disconnect", async (t) => {
   for (const name of ["mailbox", "settings"]) assert.deepEqual(byClass(await b.open(name), "mailbox-disconnect"), [], name);
 });
 
+// TST-472766 · level: unit · module: MOD-settings-pages
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; UC-037 7a
 // given: a stored IMAP connection whose last test is old; a Bridge that answers the test; then one that is not reachable
 // input: Test
-// expect: the request goes to the connection's Bridge with its token; the parts shown with a check mark; the record of the test is now, working; the connection unchanged; for the
-//         unreachable Bridge a refusal named, the record refused, the state untested, and the connection still stored
+// expect: the request goes to the connection's Bridge with its token; the parts shown with a check mark; the record of the test is now, working; the connection unchanged; for the unreachable Bridge a refusal named, the record refused, the state untested, and the connection still stored
 test("Test on the connected mailbox tests it through its Bridge and records the result", async (t) => {
   const b = browser(t);
   const shown = await b.open();
@@ -176,11 +177,11 @@ test("Test on the connected mailbox tests it through its Bridge and records the 
   assert.deepEqual(readSetting(down.store, "mailbox"), IMAP);
 });
 
+// TST-472767 · level: unit · module: MOD-settings-pages
 // guards: A CLEAR IS A REAL CLEAR; UC-037 8a
 // given: a stored IMAP connection with its password and a record of its test
 // input: Disconnect, answered no; Disconnect again, answered yes — on the page mailbox, and on the Settings page
-// expect: one question each time, asked while the connection is still stored; a no removes nothing; a yes leaves no key `mailbox` or `last-test:mailbox` and no key or value of
-//         localStorage that holds the password; the page says that nothing is stored and shows no connected block; no withdrawal link on the IMAP route
+// expect: one question each time, asked while the connection is still stored; a no removes nothing; a yes leaves no key `mailbox` or `last-test:mailbox` and no key or value of localStorage that holds the password; the page says that nothing is stored and shows no connected block; no withdrawal link on the IMAP route
 test("Disconnect asks once and removes the IMAP connection, its password included, from localStorage", async (t) => {
   for (const name of ["mailbox", "settings"]) {
     const b = browser(t);
@@ -205,11 +206,11 @@ test("Disconnect asks once and removes the IMAP connection, its password include
   }
 });
 
+// TST-472768 · level: unit · module: MOD-settings-pages
 // guards: A CLEAR IS A REAL CLEAR; UC-037 8a
 // given: a stored Microsoft 365 connection with the sign-in library's cache for its client identifier, and the cache of another client identifier beside it
 // input: Disconnect, answered yes
-// expect: the connection and every key of the library for this client, its tokens included, gone from localStorage; the other client's keys kept; the page links Microsoft's page for
-//         withdrawing the app's access (providerLinks), opening in a new tab with no opener, and says nothing is stored; no request is made
+// expect: the connection and every key of the library for this client, its tokens included, gone from localStorage; the other client's keys kept; the page links Microsoft's page for withdrawing the app's access (providerLinks), opening in a new tab with no opener, and says nothing is stored; no request is made
 test("Disconnect on the Microsoft route removes the sign-in token and links the page that withdraws the app's access", async (t) => {
   const b = browser(t, { mailbox: GRAPH });
   b.storage.setItem("msal.other-client.active-account-filters", "{}");
@@ -231,12 +232,11 @@ test("Disconnect on the Microsoft route removes the sign-in token and links the 
   assert.deepEqual(b.requests, [], "no request is made");
 });
 
+// TST-472769 · level: unit · module: MOD-settings-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037 6a
 // given: a stored connection that allows this machine only, and the participants' three places
 // input: Processing places; the outside place ticked and saved without the notice read; the notice read and saved; then the outside place unticked and the inside one ticked
-// expect: the list is the participants' three places with this machine ticked; ticking the outside place shows the notice of step 6 and saving without reading it changes nothing;
-//         after reading it the place is stored with outsideEu and the record that the notice was noted; an inside place needs no notice; every other field of the connection,
-//         its password and its test record unchanged; the page says a mail already handed to a participant is not recalled; no write to a repository
+// expect: the list is the participants' three places with this machine ticked; ticking the outside place shows the notice of step 6 and saving without reading it changes nothing; after reading it the place is stored with outsideEu and the record that the notice was noted; an inside place needs no notice; every other field of the connection, its password and its test record unchanged; the page says a mail already handed to a participant is not recalled; no write to a repository
 test("Processing places changed later: the same list and the same notice, stored only after it", async (t) => {
   const only = { ...IMAP, places: [{ place: "this machine", outsideEu: false }] };
   const b = browser(t, { mailbox: only });

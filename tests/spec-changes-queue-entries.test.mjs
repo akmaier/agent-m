@@ -98,11 +98,11 @@ const NEW = candidate("A WRITER NAMES ITS FILE", { rule: "A writer names the fil
 const DUPLICATE = candidate("RESTATES THE WRITE RULE", { class: "duplicate", of: "A WRITE RULE", passage: "ch. 9" });
 const CONFLICT = candidate("CONTRADICTS ANOTHER", { rule: "A reader sees nothing.", class: "conflict", of: "ANOTHER SAMPLE RULE" });
 
+// TST-472995 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; A CONFLICT IS DECIDED BY A PERSON; UC-005 8
 // given: a result with a change of A SAMPLE RULE, a new requirement, a duplicate of A WRITE RULE and an undecided conflict with ANOTHER SAMPLE RULE, all constraining the product
 // input: the writer
-// expect: one commit to the product's repository holding one queue; its entries the sections the candidates touch — Reading with the change, Writing with the new requirement and the added source —,
-//         each the whole section as entrySections composes it with the job's source; the conflict in none; nothing committed to the instance
+// expect: one commit to the product's repository holding one queue; its entries the sections the candidates touch — Reading with the change, Writing with the new requirement and the added source —, each the whole section as entrySections composes it with the job's source; the conflict in none; nothing committed to the instance
 test("queue-entries — each class is written as the classes say, an undecided conflict not at all", async () => {
   assert.ok(writer, "the writer is offered");
   const f = fixture();
@@ -134,6 +134,7 @@ test("queue-entries — each class is written as the classes say, an undecided c
   assert.ok(Array.isArray(outcome.notes));
 });
 
+// TST-472996 · level: unit · module: MOD-spec-changes
 // guards: A CONFLICT IS DECIDED BY A PERSON; UC-005 7
 // given: the same conflict, which the person resolved as a change of ANOTHER SAMPLE RULE in the classes
 // input: the writer
@@ -149,12 +150,11 @@ test("queue-entries — a conflict the person resolved is written as decided", a
   assert.ok(body.includes("**ANOTHER SAMPLE RULE** *(Product Owner; SRC-fixture-book, ch. 8)*\nA reader sees nothing."));
 });
 
+// TST-472997 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT NAMES WHAT IT CONSTRAINS; UC-005 5b
-// given: two candidates that constrain the process, which the classes say are new, among those of the product: one with a new rule, one that restates GATES ARE NAMED word for word, and
-//        one that restates A PROCESS IDEA, which only an open entry of the instance holds
+// given: two candidates that constrain the process, which the classes say are new, among those of the product: one with a new rule, one that restates GATES ARE NAMED word for word, and one that restates A PROCESS IDEA, which only an open entry of the instance holds
 // input: the writer
-// expect: the instance's repository gets a queue of its own in its own commit: the section Process with the new requirement and the added source of GATES ARE NAMED — the class decided anew by
-//         rule, not as the classes say —; the one that only an open entry holds is not written and noted by name; the product's repository gets only its own candidates; two commits
+// expect: the instance's repository gets a queue of its own in its own commit: the section Process with the new requirement and the added source of GATES ARE NAMED — the class decided anew by rule, not as the classes say —; the one that only an open entry holds is not written and noted by name; the product's repository gets only its own candidates; two commits
 test("queue-entries — a candidate that constrains the process goes to the instance's queue, its class decided against its SPEC and its open queues", async () => {
   const f = fixture();
   const gate = candidate("A JOB NAMES A GATE", { rule: "A job names the gate it stops at.", constrains: "process" });
@@ -178,6 +178,7 @@ test("queue-entries — a candidate that constrains the process goes to the inst
   assert.ok(outcome.notes.some((note) => note.includes("A PROCESS IDEA RESTATED") && note.includes("A PROCESS IDEA") && /open queue/.test(note) && note.includes("2026-10-10_open-idea")), "the restated open entry is noted by name, with its open queue");
 });
 
+// TST-472998 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT HAS A REGISTERED SOURCE; UC-005 5a
 // given: a candidate that points to SRC-unlinked, which the product does not link, one that points to SRC-fixture-book, which it links, and one that points to no source
 // input: the writer
@@ -196,12 +197,11 @@ test("queue-entries — a candidate of a source the product does not link is lef
   assert.equal(outcome.notes.filter((each) => each.includes("SRC-fixture-book")).length, 0);
 });
 
+// TST-472999 · level: unit · module: MOD-spec-changes
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-005 8
 // given: the change of A SAMPLE RULE, which UC-001 realises, and the new requirement, in two sections
 // input: the writer, and its commit's message
-// expect: each entry has a rationale in the schema queue-rationale, which reads it without a finding: its title naming the section and what changes, the paragraphs The change and Why, the
-//         impact list naming UC-001 for the changed requirement and nothing for the new one, the origin — the source with its passage —, and the Agent M version, the participant, the model,
-//         the date and the two rounds; the commit's message ends with the provenance lines of the job; no entry has a decision, no record: they enter open
+// expect: each entry has a rationale in the schema queue-rationale, which reads it without a finding: its title naming the section and what changes, the paragraphs The change and Why, the impact list naming UC-001 for the changed requirement and nothing for the new one, the origin — the source with its passage —, and the Agent M version, the participant, the model, the date and the two rounds; the commit's message ends with the provenance lines of the job; no entry has a decision, no record: they enter open
 test("queue-entries — each entry has its rationale with the impact list and the version that produced it, and the commit carries the provenance lines", async () => {
   const f = fixture();
   await writer(resultOf([CHANGE, NEW]), f.context);
@@ -233,6 +233,7 @@ test("queue-entries — each entry has its rationale with the impact list and th
   assert.ok(indexed.entry, "the register's schema is untouched");
 });
 
+// TST-473000 · level: unit · module: MOD-spec-changes
 // guards: A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-005 8
 // given: the candidates of the first test
 // input: the writer
@@ -248,6 +249,7 @@ test("queue-entries — SPEC.md is left byte for byte as it was", async () => {
   assert.equal(await f.product.snapshot.read("SPEC.md"), PRODUCT_SPEC);
 });
 
+// TST-473001 · level: unit · module: MOD-spec-changes
 // guards: A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; UC-005 7b
 // given: a SPEC whose A WRITE RULE already names the source SRC-fixture-book, ch. 9, and a result whose only candidate restates it from that passage
 // input: the writer
@@ -262,6 +264,7 @@ test("queue-entries — nothing is committed when every section already stands a
   assert.deepEqual((await writer(resultOf([]), fixture().context)).commits, []);
 });
 
+// TST-473002 · level: unit · module: MOD-spec-changes
 // guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-005 8
 // given: a repository that holds a queue of the day, and one more of the day with the letter b
 // input: the writer
@@ -275,6 +278,7 @@ test("queue-entries — the queue of the day takes the next letter", async () =>
   assert.match(folderOf(g.product.host.commits[0])[0], /^docs\/spec-freigaben\/2026-10-12_/);
 });
 
+// TST-473003 · level: unit · module: MOD-spec-changes
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-019 6b
 // given: a job of change-requirements whose parameters carry the person's own source and their instruction
 // input: the writer
@@ -296,6 +300,7 @@ test("queue-entries — a change by prompt names the person's source and records
   assert.ok(commit.message.endsWith(trailers.join("\n")));
 });
 
+// TST-473004 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005 6
 // given: a change of a requirement the SPEC does not hold, beside a change of one it holds
 // input: the writer
@@ -310,6 +315,7 @@ test("queue-entries — a change of a requirement the SPEC does not hold is left
   assert.ok(outcome.notes.some((note) => note.includes("CHANGES A GHOST") && note.includes("A GHOST REQUIREMENT")));
 });
 
+// TST-473005 · level: unit · module: MOD-spec-changes
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005 8
 // given: two new requirements of one section, in the order the draft gives them
 // input: the writer
@@ -322,9 +328,9 @@ test("queue-entries — the candidates of a section are written in the order of 
   assert.ok(body.indexOf("**A WRITE RULE**") < body.indexOf("**FIRST NEW RULE**") && body.indexOf("**FIRST NEW RULE**") < body.indexOf("**SECOND NEW RULE**"));
 });
 
+// TST-473006 · level: unit · module: MOD-spec-changes
 // guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-005 5b
-// given: a product that is its own instance — one repository, one host, one SPEC — and a result with a candidate for the product and one that constrains the process; and, apart, a product and an
-//        instance that are two repositories
+// given: a product that is its own instance — one repository, one host, one SPEC — and a result with a candidate for the product and one that constrains the process; and, apart, a product and an instance that are two repositories
 // input: the writer
 // expect: in one repository two commits whose queues are of one day: the first the day, the second the day with the letter b, no file written twice; in two repositories each queue the day alone
 test("queue-entries — two queues of one day in one repository get the day and then the day with b", async () => {

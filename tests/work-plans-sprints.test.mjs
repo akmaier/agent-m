@@ -81,13 +81,11 @@ const heldIds = (held) => held.map((h) => h.item);
 
 // ---------------------------------------------------------------- planSchemas.sprint
 
+// TST-473174 · level: unit · module: MOD-work-plans
 // guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
-// given: a sprint of team1, number 01, without a time box and without a branch of its own, selecting ITM-001 and ITM-003;
-//        then a new start decision appended as ## Selection, selecting ITM-001 and ITM-002, and its close appended as
-//        ## Unfinished items, sending ITM-002 back to the backlog
+// given: a sprint of team1, number 01, without a time box and without a branch of its own, selecting ITM-001 and ITM-003; then a new start decision appended as ## Selection, selecting ITM-001 and ITM-002, and its close appended as ## Unfinished items, sending ITM-002 back to the backlog
 // input: readDocument(planSchemas.sprint, "docs/backlog/sprints/team1/01.md", the text); documentFindings of it
-// expect: its front matter as written — sprint 1, end and branch empty —; the two appended sections with their fields, in
-//         their order; and no finding
+// expect: its front matter as written — sprint 1, end and branch empty —; the two appended sections with their fields, in their order; and no finding
 test("planSchemas.sprint — a team's sprint record is read with its front matter and the sections appended to it", () => {
   const record = sprint("team1", "01", { selection: ["ITM-001", "ITM-003"], appended: [
     "## Selection", "", "at: 2026-10-13", "selection: ITM-001, ITM-002", "",
@@ -102,6 +100,7 @@ test("planSchemas.sprint — a team's sprint record is read with its front matte
   assert.deepEqual(documentFindings(planSchemas.sprint, record), []);
 });
 
+// TST-473175 · level: unit · module: MOD-work-plans
 // guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
 // given: known positive first — the sprint of the test above, selecting ITM-001; then the same sprint selecting nothing
 // input: documentFindings(planSchemas.sprint, each)
@@ -115,13 +114,11 @@ test("planSchemas.sprint — a sprint that selects no item is an error", () => {
 
 // ---------------------------------------------------------------- heldItems
 
-// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS
-//         HOLD; EVERY TEAM RUNS SPRINTS OF ITS OWN
+// TST-473176 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; EVERY TEAM RUNS SPRINTS OF ITS OWN
 // given: team1's sprint 01 selecting ITM-002 and ITM-003; team2's sprint 01 selecting ITM-004; no pull request yet
 // input: heldItems(those sprints, the items, the architecture, [])
-// expect: each selected item, in the order of the sprints and of their selections, with its sprint and team, the modules it
-//         changes and the modules whose interfaces those use — ITM-002 changes MOD-pages, which uses MOD-store; ITM-004
-//         changes MOD-feed, which uses MOD-mail
+// expect: each selected item, in the order of the sprints and of their selections, with its sprint and team, the modules it changes and the modules whose interfaces those use — ITM-002 changes MOD-pages, which uses MOD-store; ITM-004 changes MOD-feed, which uses MOD-mail
 test("heldItems — every item a team's sprint selects is held, with its sprint, its team, the modules it changes and those they use", () => {
   const sprints = [sprint("team1", "01", { selection: ["ITM-002", "ITM-003"] }), sprint("team2", "01", { selection: ["ITM-004"] })];
   assert.deepEqual(heldItems(sprints, ITEMS, ARCHITECTURE, []), [
@@ -131,9 +128,9 @@ test("heldItems — every item a team's sprint selects is held, with its sprint,
   ]);
 });
 
+// TST-473177 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
-// given: team1's sprint 01, without a branch of its own, selecting ITM-001 and ITM-003; the pull request of ITM-001 into
-//        the default branch (a) open, (b) merged; and (c) no pull requests known — the host could not read them
+// given: team1's sprint 01, without a branch of its own, selecting ITM-001 and ITM-003; the pull request of ITM-001 into the default branch (a) open, (b) merged; and (c) no pull requests known — the host could not read them
 // input: heldItems(that sprint, the items, the architecture, the pull requests of each case)
 // expect: (a) both held; (b) only ITM-003 — ITM-001's change is in the default branch; (c) both held, never guessed
 test("heldItems — an item stays held until a pull request with its change is merged into the default branch", () => {
@@ -144,13 +141,11 @@ test("heldItems — an item stays held until a pull request with its change is m
   assert.deepEqual(heldIds(heldItems(sprints, ITEMS, ARCHITECTURE, "unknown")), ["ITM-001", "ITM-003"]);
 });
 
+// TST-473178 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041 7b
-// given: team1's sprint 01 with its own branch sprint/team1/01, selecting ITM-001 and ITM-003; ITM-001's pull request merged
-//        into that branch on 2026-10-13; and the increment's pull request from that branch into the default branch (a) open,
-//        (b) merged on 2026-10-12, before ITM-001's merge, (c) merged on 2026-10-14, after it
+// given: team1's sprint 01 with its own branch sprint/team1/01, selecting ITM-001 and ITM-003; ITM-001's pull request merged into that branch on 2026-10-13; and the increment's pull request from that branch into the default branch (a) open, (b) merged on 2026-10-12, before ITM-001's merge, (c) merged on 2026-10-14, after it
 // input: heldItems(that sprint, the items, the architecture, the pull requests of each case)
-// expect: (a) and (b) both held — ITM-001's change is in the sprint's branch, not yet in the default branch; (c) only
-//         ITM-003, whose change was never merged
+// expect: (a) and (b) both held — ITM-001's change is in the sprint's branch, not yet in the default branch; (c) only ITM-003, whose change was never merged
 test("heldItems — an item merged into its sprint's own branch stays held until that branch is merged into the default branch after it", () => {
   const sprints = [sprint("team1", "01", { selection: ["ITM-001", "ITM-003"], branch: "sprint/team1/01" })];
   const work = pr(1, "ITM-001", "sprint/team1/01", "merged", "2026-10-13T10:00:00Z");
@@ -162,14 +157,11 @@ test("heldItems — an item merged into its sprint's own branch stays held until
     [work, increment(2, "sprint/team1/01", "merged", "2026-10-14T18:00:00Z")])), ["ITM-003"]);
 });
 
-// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT;
-//         UC-032 6a; UC-041 step 6
-// given: team1's sprint 01 selecting ITM-001 and ITM-003, then a new start decision (## Selection) selecting ITM-001,
-//        ITM-002 and ITM-003, then its close (## Unfinished items) sending ITM-002 back to the backlog and ITM-003 into the
-//        next sprint; team1's sprint 02 selecting ITM-003
+// TST-473179 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032 6a; UC-041 step 6
+// given: team1's sprint 01 selecting ITM-001 and ITM-003, then a new start decision (## Selection) selecting ITM-001, ITM-002 and ITM-003, then its close (## Unfinished items) sending ITM-002 back to the backlog and ITM-003 into the next sprint; team1's sprint 02 selecting ITM-003
 // input: heldItems(both sprints, the items, the architecture, [])
-// expect: ITM-001, held by sprint 01 — its last selection —; ITM-002 not held — it went back to the backlog —; ITM-003 held
-//         by sprint 02 only
+// expect: ITM-001, held by sprint 01 — its last selection —; ITM-002 not held — it went back to the backlog —; ITM-003 held by sprint 02 only
 test("heldItems — a sprint holds its last selection, and an item its close sends back to the backlog or on to the next sprint is no longer its", () => {
   const first = sprint("team1", "01", { selection: ["ITM-001", "ITM-003"], appended: [
     "## Selection", "", "at: 2026-10-13", "selection: ITM-001, ITM-002, ITM-003", "",
@@ -180,9 +172,9 @@ test("heldItems — a sprint holds its last selection, and an item its close sen
     [["ITM-001", "team1/01"], ["ITM-003", "team1/02"]]);
 });
 
+// TST-473180 · level: unit · module: MOD-work-plans
 // guards: EVERY TEAM RUNS SPRINTS OF ITS OWN
-// given: known positive first — team1's sprint 01 selecting ITM-001; then a sprint record that stands in no team's folder,
-//        docs/backlog/sprints/18.md, selecting ITM-003
+// given: known positive first — team1's sprint 01 selecting ITM-001; then a sprint record that stands in no team's folder, docs/backlog/sprints/18.md, selecting ITM-003
 // input: heldItems(both, the items, the architecture, [])
 // expect: ITM-001 held by team1/01; nothing held by the record outside a team's folder — it is no team's sprint
 test("heldItems — a sprint record outside a team's folder holds nothing", () => {
@@ -193,10 +185,9 @@ test("heldItems — a sprint record outside a team's folder holds nothing", () =
     .map((h) => [h.item, h.sprint]), [["ITM-001", "team1/01"]]);
 });
 
+// TST-473181 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041 step 6
-// given: team1's sprint 01, without a branch of its own, selecting ITM-001 and ITM-003, closed — its record holds ## Review,
-//        ## Unfinished items stating its decision in prose only, without fields, as older records do, and ## Retrospective —;
-//        ITM-001's pull request into the default branch open, ITM-003 without one
+// given: team1's sprint 01, without a branch of its own, selecting ITM-001 and ITM-003, closed — its record holds ## Review, ## Unfinished items stating its decision in prose only, without fields, as older records do, and ## Retrospective —; ITM-001's pull request into the default branch open, ITM-003 without one
 // input: heldItems(that sprint, the items, the architecture, ITM-001's open pull request)
 // expect: nothing held — the close sent every item it did not finish back to the backlog or into the team's next sprint
 test("heldItems — a closed sprint holds none of its items that has no merged pull request, in whatever form its close names them", () => {
@@ -208,11 +199,9 @@ test("heldItems — a closed sprint holds none of its items that has no merged p
   assert.deepEqual(heldItems([closed], ITEMS, ARCHITECTURE, [pr(1, "ITM-001", "main")]), []);
 });
 
+// TST-473182 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
-// given: team1's sprint 01 with its own branch sprint/team1/01, selecting ITM-001 and ITM-003, closed as Close sprint writes
-//        it — ## Review, ## Unfinished items sending ITM-003 back to the backlog, ## Retrospective —; ITM-001's pull request
-//        merged into the sprint's branch on 2026-10-13; and the increment's pull request from that branch into the default
-//        branch (a) open, (b) merged on 2026-10-14, after ITM-001's merge
+// given: team1's sprint 01 with its own branch sprint/team1/01, selecting ITM-001 and ITM-003, closed as Close sprint writes it — ## Review, ## Unfinished items sending ITM-003 back to the backlog, ## Retrospective —; ITM-001's pull request merged into the sprint's branch on 2026-10-13; and the increment's pull request from that branch into the default branch (a) open, (b) merged on 2026-10-14, after ITM-001's merge
 // input: heldItems(that sprint, the items, the architecture, the pull requests of each case)
 // expect: (a) ITM-001 held — its change is in the sprint's branch, not yet in the default branch —; (b) nothing held
 test("heldItems — a closed sprint keeps an item merged into its own branch held until that branch is merged into the default branch, and not after", () => {
@@ -227,10 +216,9 @@ test("heldItems — a closed sprint keeps an item merged into its own branch hel
     [work, increment(2, "sprint/team1/01", "merged", "2026-10-14T18:00:00Z")])), []);
 });
 
+// TST-473183 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
-// given: team1's sprint 01, without a branch of its own, selecting ITM-001, then a new start decision (## Selection)
-//        selecting ITM-001 and ITM-003, then its end (## Ended) — not closed: its record holds no ## Review —; ITM-001's pull
-//        request into the default branch open, ITM-003 without one
+// given: team1's sprint 01, without a branch of its own, selecting ITM-001, then a new start decision (## Selection) selecting ITM-001 and ITM-003, then its end (## Ended) — not closed: its record holds no ## Review —; ITM-001's pull request into the default branch open, ITM-003 without one
 // input: heldItems(that sprint, the items, the architecture, ITM-001's open pull request)
 // expect: both held, in the order of the selection
 test("heldItems — a sprint not yet closed holds its items that have no merged pull request", () => {
@@ -248,14 +236,11 @@ test("heldItems — a sprint not yet closed holds its items that have no merged 
 const HELD = heldItems([sprint("team1", "01", { selection: ["ITM-003"] }), sprint("team2", "01", { selection: ["ITM-002", "ITM-004"] })],
   ITEMS, ARCHITECTURE, []);
 
+// TST-473184 · level: unit · module: MOD-work-plans
 // guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-032 step 5
 // given: what the sprints hold, HELD; team1 plans
-// input: conflicts(an item, "team1", HELD, the architecture) for: ITM-002 itself, held by team2; ITM-001, which changes
-//        MOD-store, a module ITM-002 uses; ITM-004 — held by team2 —; and ITM-003, held by team1's own sprint
-// expect: ITM-002: one entry, team2's sprint, ITM-002, MOD-pages; ITM-001: one entry naming team2/01, ITM-002 and MOD-store;
-//         ITM-004: one entry naming team2/01, ITM-004, MOD-feed; ITM-003: its own team's sprint holding it keeps nothing
-//         from the selection, but ITM-004 of team2 uses MOD-mail, which ITM-003 changes — one entry naming team2/01,
-//         ITM-004 and MOD-mail
+// input: conflicts(an item, "team1", HELD, the architecture) for: ITM-002 itself, held by team2; ITM-001, which changes MOD-store, a module ITM-002 uses; ITM-004 — held by team2 —; and ITM-003, held by team1's own sprint
+// expect: ITM-002: one entry, team2's sprint, ITM-002, MOD-pages; ITM-001: one entry naming team2/01, ITM-002 and MOD-store; ITM-004: one entry naming team2/01, ITM-004, MOD-feed; ITM-003: its own team's sprint holding it keeps nothing from the selection, but ITM-004 of team2 uses MOD-mail, which ITM-003 changes — one entry naming team2/01, ITM-004 and MOD-mail
 test("conflicts — an item another team's sprint holds, or one that changes a module a held item uses, is kept from the selection, naming the sprint, the item and the module", () => {
   assert.deepEqual(conflicts(itemNamed("ITM-002"), "team1", HELD, ARCHITECTURE),
     [{ sprint: "team2/01", team: "team2", item: "ITM-002", module: "MOD-pages" }]);
@@ -267,10 +252,10 @@ test("conflicts — an item another team's sprint holds, or one that changes a m
     [{ sprint: "team2/01", team: "team2", item: "ITM-004", module: "MOD-mail" }]);
 });
 
+// TST-473185 · level: unit · module: MOD-work-plans
 // guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
 // given: what the sprints hold, HELD; team2 plans
-// input: conflicts(an item, "team2", HELD, the architecture) for: ITM-001, which changes MOD-store — no item team1's sprint
-//        holds changes or uses it —; and ITM-005, which changes MOD-store and MOD-mail, the module ITM-003 of team1 changes
+// input: conflicts(an item, "team2", HELD, the architecture) for: ITM-001, which changes MOD-store — no item team1's sprint holds changes or uses it —; and ITM-005, which changes MOD-store and MOD-mail, the module ITM-003 of team1 changes
 // expect: none for ITM-001; for ITM-005 one entry naming team1/01, ITM-003 and MOD-mail
 test("conflicts — an item that shares no module with another team's held items is free; one that does is named once per module", () => {
   assert.deepEqual(conflicts(itemNamed("ITM-001"), "team2", HELD, ARCHITECTURE), []);
@@ -278,12 +263,11 @@ test("conflicts — an item that shares no module with another team's held items
     [{ sprint: "team1/01", team: "team1", item: "ITM-003", module: "MOD-mail" }]);
 });
 
+// TST-473186 · level: unit · module: MOD-work-plans
 // guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
-// given: team2's sprint holds ITM-004, which changes MOD-feed and uses MOD-mail, and an item of team1 that changes
-//        MOD-feed and MOD-mail
+// given: team2's sprint holds ITM-004, which changes MOD-feed and uses MOD-mail, and an item of team1 that changes MOD-feed and MOD-mail
 // input: conflicts(that item, "team1", what team2 holds, the architecture)
-// expect: two entries for ITM-004, one per module — MOD-feed, which both change, and MOD-mail, which ITM-004 uses —, in the
-//         order of the modules' identifiers
+// expect: two entries for ITM-004, one per module — MOD-feed, which both change, and MOD-mail, which ITM-004 uses —, in the order of the modules' identifiers
 test("conflicts — every shared module is named, in the order of its identifier", () => {
   const held = heldItems([sprint("team2", "01", { selection: ["ITM-004"] })], ITEMS, ARCHITECTURE, []);
   assert.deepEqual(conflicts(item("ITM-009", ["MOD-mail", "MOD-feed"]), "team1", held, ARCHITECTURE), [

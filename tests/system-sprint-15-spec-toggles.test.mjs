@@ -44,6 +44,8 @@ function sectionControls() {
 }
 
 // CASE ITM-278-SYSTEM-01
+// TST-473081 · level: system · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the public #spec dashboard with a requirement outside sections and two current sections
 // input: fresh render; first section heading clicked open, closed, and reopened; then its requirement is clicked three times
 // expect: section lists begin hidden, the selected section alone changes, and the row-local four-field detail opens, closes, reopens

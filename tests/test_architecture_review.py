@@ -45,6 +45,11 @@ return out;
 
 
 class ArchitectureReview(unittest.TestCase):
+    # TST-475001 · level: component · module: MOD-job-runner
+    # guards: NO REVIEWER IS THE DRAFTER
+    # given: a derive-architecture job reviewed by one participant, prepared with prepareJob (sends nothing), for a drafter and three reviewers
+    # input: reviewer is the drafter itself; another participant with the drafter's model; another participant with another model
+    # expect: the drafter itself and the same-model reviewer each give one blocking error NO REVIEWER IS THE DRAFTER naming the reviewer; the other-model reviewer gives none (counter-proof)
     def test_a_reviewer_that_is_the_drafter_or_uses_its_model_is_refused_before_anything_is_sent(self):
         blocking = js(PREPARE)
         self.assertEqual(blocking["otherModel"], [], "counter-proof: another participant with another model is accepted")

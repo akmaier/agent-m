@@ -34,6 +34,7 @@ const CHOICES = [
   ["the Definition of Done", "definition-of-done"],
 ];
 
+// TST-472797 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-002 (every choice's folded explanation points to the book, as ITM-223-F7 checks it)
 // given: explanations.md, and UC-002's five choices, each a topic it holds
 // input: the Markdown of each topic

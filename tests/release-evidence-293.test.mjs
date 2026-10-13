@@ -155,15 +155,11 @@ function reportInputs(id, currentRuns, runningRuns = "8 of 10") {
   return { at: snapshotOf(atFiles), results: snapshotOf(resultFiles) };
 }
 
-// TST-293101
-// level: unit
-// module: MOD-release-evidence
+// TST-293101 · level: unit · module: MOD-release-evidence
 // guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
-// given: a candidate record of 6 of 10 for a model-dependent test and a running-version record of 8 of 10, whose
-//        prior release report names the running commit
+// given: a candidate record of 6 of 10 for a model-dependent test and a running-version record of 8 of 10, whose prior release report names the running commit
 // input: releaseReport(at, results, candidate)
-// expect: its public Limitations text names the test, current and running rates, and the two-sided 95% Wilson interval
-//         calculated independently by score-test inversion; the NIST 20/25 check rounds to [0.609, 0.911]
+// expect: its public Limitations text names the test, current and running rates, and the two-sided 95% Wilson interval calculated independently by score-test inversion; the NIST 20/25 check rounds to [0.609, 0.911]
 test("TST-293101 releaseReport — a worse 6-of-10 model rate has its two-sided 95% Wilson interval in the public finding", async () => {
   const nist = wilson95ByScoreInversion(20, 25);
   assert.ok(Math.abs(nist.lower - 0.609) < 0.002 && Math.abs(nist.upper - 0.911) < 0.002,
@@ -193,15 +189,11 @@ test("TST-293101 releaseReport — a worse 6-of-10 model rate has its two-sided 
   assert.ok(Math.abs(upper - expected.upper) <= 0.00005, "the displayed upper bound rounds the independent oracle to four decimals");
 });
 
-// TST-293102
-// level: unit
-// module: MOD-release-evidence
+// TST-293102 · level: unit · module: MOD-release-evidence
 // guards: UC-013; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
-// given: three otherwise complete candidate reports: a rate equal to the running version, one above it, and one with
-//        no prior release record
+// given: three otherwise complete candidate reports: a rate equal to the running version, one above it, and one with no prior release record
 // input: releaseReport(at, results, candidate) for each report
-// expect: no worse-rate finding or Wilson interval is added; the returned `worse` stays empty and the existing report
-//         return does not make an acceptance decision
+// expect: no worse-rate finding or Wilson interval is added; the returned `worse` stays empty and the existing report return does not make an acceptance decision
 test("TST-293102 releaseReport — unchanged, improved, and no-baseline rates add no confidence finding or automatic decision", async () => {
   const cases = [
     ["8 of 10", "8 of 10"],

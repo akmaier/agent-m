@@ -59,12 +59,11 @@ function fits(value, schema, at = "draft") {
 
 const CANDIDATE = { name: "A THING IS DONE", rule: "A thing is done.", check: "A test does it.", constrains: "product", passage: "§ 3", class: "new" };
 
+// TST-472277 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; UC-005 5a
-// given: the table's cell "Draft it expects" of `derive-requirements`, which adds to a candidate's name, rule, check, what it constrains, source
-//        passage and class "the source of a rule it points to, where that is not the job's"; and the draft's schema of the kind
+// given: the table's cell "Draft it expects" of `derive-requirements`, which adds to a candidate's name, rule, check, what it constrains, source passage and class "the source of a rule it points to, where that is not the job's"; and the draft's schema of the kind
 // input: kindOf("derive-requirements").answer; candidates without and with a `source`, and with a `source` that is not a text
-// expect: the candidate keeps its seven fields, the six required as before, and `source` is a text that may be left out; a candidate naming a
-//         source is accepted and one without is too; a source that is a number is refused
+// expect: the candidate keeps its seven fields, the six required as before, and `source` is a text that may be left out; a candidate naming a source is accepted and one without is too; a source that is a number is refused
 test("derive-requirements — a candidate may name the source of the rule it points to", async () => {
   assert.match(expects("derive-requirements"), /source of a rule it points to, where that is not the job's/, "known positive: the table's cell is read");
   const { answer } = await kindOf("derive-requirements");
@@ -77,12 +76,11 @@ test("derive-requirements — a candidate may name the source of the rule it poi
   assert.match(fits({ candidates: [{ ...CANDIDATE, source: 7 }] }, answer), /source is not a text/);
 });
 
+// TST-472278 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE PERSON WHO PROMPTS IS A SOURCE; UC-019 step 6
-// given: the table's cell "Draft it expects" of `change-requirements`, "the same"; and the sentence under the table, "A job of `change-requirements`
-//        takes as its parameter `source` the own source of the person who starts it"
+// given: the table's cell "Draft it expects" of `change-requirements`, "the same"; and the sentence under the table, "A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it"
 // input: the draft's schema of both kinds; the purpose of both kinds
-// expect: the two schemas equal; the purpose of `change-requirements` names the parameter `source` as the own source of the person who starts
-//         the job; the purpose of `derive-requirements` names no such parameter
+// expect: the two schemas equal; the purpose of `change-requirements` names the parameter `source` as the own source of the person who starts the job; the purpose of `derive-requirements` names no such parameter
 test("change-requirements — the same candidates as a derivation, and the parameter source is the own source of the person who starts it", async () => {
   assert.equal(expects("change-requirements"), "the same");
   assert.match(CATALOGUE, /A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it/);
@@ -96,12 +94,11 @@ test("change-requirements — the same candidates as a derivation, and the param
 // The six operations of GroupMove, as MOD-group-document's file lists them.
 const OPERATIONS = [...GROUPS.match(/- `GroupMove` —[\s\S]*?(?=\n- `Hierarchy`)/)[0].matchAll(/\{ op: "([a-z-]+)"/g)].map((m) => m[1]);
 
+// TST-472279 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; UC-021 1b
 // given: the table's cell "Draft it expects" of `propose-groups`, "moves, each a `GroupMove` of MOD-group-document"; MOD-group-document's six forms
 // input: kindOf("propose-groups").answer; one move of each form, and the old shape { item, group }
-// expect: the six operations read from MOD-group-document are create, rename, move, move-group, delete and lift; a list of `moves` is the draft;
-//         a move is an object that requires `op`, an enum of exactly these operations, with the texts title, item and the lists of texts in, group,
-//         to; a move of each form is accepted, and so is the empty list
+// expect: the six operations read from MOD-group-document are create, rename, move, move-group, delete and lift; a list of `moves` is the draft; a move is an object that requires `op`, an enum of exactly these operations, with the texts title, item and the lists of texts in, group, to; a move of each form is accepted, and so is the empty list
 test("propose-groups — the draft is a list of GroupMoves of MOD-group-document", async () => {
   assert.match(expects("propose-groups"), /moves, each a `GroupMove` of MOD-group-document/, "known positive: the table's cell is read");
   assert.deepEqual(OPERATIONS, ["create", "rename", "move", "move-group", "delete", "lift"]);
@@ -121,13 +118,11 @@ test("propose-groups — the draft is a list of GroupMoves of MOD-group-document
   assert.equal(fits({ moves: [] }, answer), null);
 });
 
+// TST-472280 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; UC-021 1b
-// given: the draft's schema of `propose-groups`; the answers the kind gave before — moves of the form { item, group } with the group as a text —,
-//        and answers that are no GroupMove
+// given: the draft's schema of `propose-groups`; the answers the kind gave before — moves of the form { item, group } with the group as a text —, and answers that are no GroupMove
 // input: fits of each against the schema; a known positive first
-// expect: the known positive is accepted; { item, group: "Safety / Alarms" } is refused for want of `op`; the same with an `op` and `group` as a
-//         text is refused as not a list; an operation outside the six, `to` as a text, a move that is not an object and a missing `moves` are
-//         refused
+// expect: the known positive is accepted; { item, group: "Safety / Alarms" } is refused for want of `op`; the same with an `op` and `group` as a text is refused as not a list; an operation outside the six, `to` as a text, a move that is not an object and a missing `moves` are refused
 test("propose-groups — an answer of { item, group } is refused, and so is anything that is no GroupMove", async () => {
   const { answer } = await kindOf("propose-groups");
   assert.equal(fits({ moves: [{ op: "move", item: "R", to: ["Safety"] }] }, answer), null, "known positive");
@@ -139,6 +134,7 @@ test("propose-groups — an answer of { item, group } is refused, and so is anyt
   assert.match(fits({}, answer), /has no moves/);
 });
 
+// TST-472281 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; UC-021 1b
 // given: the prompt of `propose-groups`, which tells the participant what to return
 // input: kindOf("propose-groups").prompt

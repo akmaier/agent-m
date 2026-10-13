@@ -179,13 +179,11 @@ const row = (id, kind, path, line, via) => ({ id, kind, path, line, via });
 
 // ---------------------------------------------------------------- the Acceptance's two cases
 
+// TST-473159 · level: unit · module: MOD-trace-graph
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-005; UC-006; UC-018
-// given: the fixture, where A SAMPLE RULE is named by a use case's realises, a decision's forced_by, a backlog item's realises and a
-//        test's guards, and by nothing else — its module names the use case and the decision
+// given: the fixture, where A SAMPLE RULE is named by a use case's realises, a decision's forced_by, a backlog item's realises and a test's guards, and by nothing else — its module names the use case and the decision
 // input: requirementImpact of its graph, for A SAMPLE RULE
-// expect: four rows, one for each of those artifacts, in the order use case, decision, item, test: its identifier and kind, the
-//         file and the line at which it names the requirement — of a test, the line its declaration begins at —, and the edge by
-//         which it does: realises, forced_by, realises, guards
+// expect: four rows, one for each of those artifacts, in the order use case, decision, item, test: its identifier and kind, the file and the line at which it names the requirement — of a test, the line its declaration begins at —, and the edge by which it does: realises, forced_by, realises, guards
 test("requirementImpact — a requirement named by a use case, a decision, an item and a test yields those four rows with path, line and edge", async () => {
   const { lines, graph } = await repository();
   assert.deepEqual(requirementImpact(graph, SAMPLE), [
@@ -196,9 +194,9 @@ test("requirementImpact — a requirement named by a use case, a decision, an it
   ]);
 });
 
+// TST-473160 · level: unit · module: MOD-trace-graph
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-005; UC-006; UC-018
-// given: the same fixture, where ANOTHER SAMPLE RULE is a requirement of its SPEC that nothing names, and NO SUCH RULE is no
-//        requirement
+// given: the same fixture, where ANOTHER SAMPLE RULE is a requirement of its SPEC that nothing names, and NO SUCH RULE is no requirement
 // input: requirementImpact of its graph, for each of the two names — and, first, for A SAMPLE RULE, as a known positive
 // expect: four rows for A SAMPLE RULE; none for each of the others
 test("requirementImpact — a name nothing names yields none", async () => {
@@ -228,13 +226,11 @@ const namedMore = (lines) => [
   row("TST-001", "TST", TEST_PATH, lineOf(lines[TEST_PATH], "// TST-001"), "guards"),
 ];
 
+// TST-473161 · level: unit · module: MOD-trace-graph
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-005; UC-006; UC-018
-// given: the fixture with its module also realising A SAMPLE RULE, the goal of its use case also naming it — twice on the one line,
-//        between backticks —, and a second use case, UC-002, realising it
+// given: the fixture with its module also realising A SAMPLE RULE, the goal of its use case also naming it — twice on the one line, between backticks —, and a second use case, UC-002, realising it
 // input: requirementImpact of its graph, for A SAMPLE RULE
-// expect: seven rows, in the order use cases by identifier and line, decisions, modules, items, tests: UC-001's realises, UC-001's
-//         goal as names — one row, though the name stands twice on its line —, UC-002's realises, ARC-001's forced_by, MOD-reader's
-//         realises, ITM-002's realises and TST-001's guards
+// expect: seven rows, in the order use cases by identifier and line, decisions, modules, items, tests: UC-001's realises, UC-001's goal as names — one row, though the name stands twice on its line —, UC-002's realises, ARC-001's forced_by, MOD-reader's realises, ITM-002's realises and TST-001's guards
 test("requirementImpact — a module's realises and a text that names it are rows too, one for each place and each place once", async () => {
   const { lines, graph } = await repository(NAMED_MORE.edits, { extra: NAMED_MORE.extra });
   const writing = graph.edges.filter((edge) => edge.via === "names" && edge.to === SAMPLE);
@@ -243,6 +239,7 @@ test("requirementImpact — a module's realises and a text that names it are row
   assert.deepEqual(requirementImpact(graph, SAMPLE), namedMore(lines));
 });
 
+// TST-473162 · level: unit · module: MOD-trace-graph
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-005; UC-006; UC-018
 // given: the fixture of the last test, listed once in its order and once in the reverse order by its TextSource
 // input: requirementImpact of the graph of each, for A SAMPLE RULE

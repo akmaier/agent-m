@@ -42,11 +42,11 @@ function recorded(name) {
   return version;
 }
 
+// TST-472058 · level: unit · module: MOD-bridge-build
 // guards: AGENT M'S SOURCE CODE LIVES IN SRC; UC-044
 // given: the three decisions, which record seven versions; the module's package.json
 // input: the manifest's `dependencies` and `devDependencies`
-// expect: each of the seven packages in exactly one of the two sections, at exactly the version its decision records, with no range — no ^, ~, comparison, `*`,
-//         tag or other specifier —, run-time packages in `dependencies`, build-time packages in `devDependencies`, and no package beside the seven
+// expect: each of the seven packages in exactly one of the two sections, at exactly the version its decision records, with no range — no ^, ~, comparison, `*`, tag or other specifier —, run-time packages in `dependencies`, build-time packages in `devDependencies`, and no package beside the seven
 test("package.json — the seven packages at the exact version each decision records, no range, in their sections", () => {
   const expected = Object.fromEntries([...RUN_TIME, ...BUILD_TIME].map((name) => [name, recorded(name)]));
   assert.deepEqual(Object.values(expected).sort(), ["1.17.0", "10.0.15", "2.2.5", "26.15.3", "4.0.4", "44.5.1", "6.8.9"].sort(), "known positive: the decisions are read");
@@ -56,12 +56,11 @@ test("package.json — the seven packages at the exact version each decision rec
   for (const version of [...Object.values(dependencies), ...Object.values(devDependencies)]) assert.match(version, /^\d+\.\d+\.\d+$/, "an exact version");
 });
 
+// TST-472059 · level: unit · module: MOD-bridge-build
 // guards: AGENT M'S SOURCE CODE LIVES IN SRC; UC-044
 // given: the module's package-lock.json, as npm writes a lockfile of version 3
 // input: lockfile().packages for each of the seven packages and for the root
-// expect: the root asks for the manifest's packages at the manifest's versions; each of the seven is installed at exactly the version its decision records,
-//         from the npm registry (`resolved` an https address of registry.npmjs.org naming that version), with an `integrity` of sha512 in the 88-character
-//         form of a 64-byte digest in base64
+// expect: the root asks for the manifest's packages at the manifest's versions; each of the seven is installed at exactly the version its decision records, from the npm registry (`resolved` an https address of registry.npmjs.org naming that version), with an `integrity` of sha512 in the 88-character form of a 64-byte digest in base64
 test("package-lock.json — the same seven versions, each resolved from the registry with its integrity", () => {
   const lock = lockfile();
   assert.equal(lock.lockfileVersion, 3);
@@ -76,11 +75,11 @@ test("package-lock.json — the same seven versions, each resolved from the regi
   }
 });
 
+// TST-472060 · level: unit · module: MOD-bridge-build
 // guards: AGENT M'S SOURCE CODE LIVES IN SRC; UC-044
 // given: ssh2's optional native dependencies, `cpu-features` and `nan` (ARC-052), which the module installs without
 // input: the lockfile's entries `node_modules/nan` and `node_modules/cpu-features`, and the manifest's sections
-// expect: neither is a package of the manifest; in the lockfile each is absent or marked `optional`, so that `npm ci --omit=optional` installs neither; and no
-//         other package of the lockfile that is not optional depends on either; known positive first — ssh2 itself is in the lockfile and not optional
+// expect: neither is a package of the manifest; in the lockfile each is absent or marked `optional`, so that `npm ci --omit=optional` installs neither; and no other package of the lockfile that is not optional depends on either; known positive first — ssh2 itself is in the lockfile and not optional
 test("package-lock.json — neither nan nor cpu-features is among what the lockfile installs", () => {
   const lock = lockfile();
   assert.ok(lock.packages["node_modules/ssh2"] && lock.packages["node_modules/ssh2"].optional !== true, "known positive: ssh2 is installed");

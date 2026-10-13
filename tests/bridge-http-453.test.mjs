@@ -12,10 +12,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bridgeApi } from "../src/bridge-http/index.mjs";
 
-// TST-453001
-// Precondition: the browser-loadable public Bridge protocol.
-// Input: find GET /v1/pair in its public route data.
-// Expected: its method, path, and accepted Bridge/origin answer fields are declared.
+// TST-453001 · level: unit · module: MOD-bridge-http
+// guards: A DATA FORMAT IS DEFINED ONCE
+// given: the browser-loadable public Bridge protocol.
+// input: find GET /v1/pair in its public route data.
+// expect: its method, path, and accepted Bridge/origin answer fields are declared.
 test("TST-453001: bridgeApi declares the accepted public pair route", () => {
   const route = bridgeApi.routes.find((candidate) => candidate.method === "GET" && candidate.path === "/v1/pair");
   assert.deepEqual(route, {

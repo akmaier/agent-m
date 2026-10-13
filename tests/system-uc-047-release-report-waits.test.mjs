@@ -45,15 +45,12 @@ function notifications() {
   return shown;
 }
 
-// TST-293001
-// Module: MOD-notifications · MOD-progress-measures · MOD-release-evidence
-// Guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
-// Level: system
-// Precondition: notifications are on; the instance has a v<version>-rc.N tag and its run-tests job has no End record.
-// Input: an unchanged due check runs before End; the run then ends done and remains unchanged; its report and release tag
-//        are then present.
-// Expected: no notice precedes End; exactly one release-v<version> notice names the repository and release route; no
-//           repeat follows while it waits, and no notice follows acceptance.
+// Module (as the case stated it): MOD-notifications · MOD-progress-measures · MOD-release-evidence
+// TST-293001 · level: system · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: notifications are on; the instance has a v<version>-rc.N tag and its run-tests job has no End record.
+// input: an unchanged due check runs before End; the run then ends done and remains unchanged; its report and release tag are then present.
+// expect: no notice precedes End; exactly one release-v<version> notice names the repository and release route; no repeat follows while it waits, and no notice follows acceptance.
 test("TST-293001: UC-047 derives a release report only after its candidate run ends", async () => {
   const tags = [{ name: CANDIDATE, commit: "a".repeat(40) }];
   const server = await repoServer({ files: { [JOB]: runRecord() }, handlers: [(url) => {

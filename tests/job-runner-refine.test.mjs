@@ -71,11 +71,11 @@ const run = async (drafter, options) => {
   return runJob(job, { drafter, reviewers: [] }, { attended: true, context, ...options });
 };
 
+// TST-472345 · level: unit · module: MOD-job-runner
 // guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019 step 8
 // given: a draft the person wants refined, and a drafter that answers a changed draft
 // input: runJob with `refine` — the draft — and the job's parameter `instruction` — the follow-up instruction —, nobody checking anything
-// expect: one exchange; its input carries the draft as `previous`, as the JSON the loop shows a draft in, and no finding; the result's draft is the
-//         drafter's changed draft, in one round, stopped because passed
+// expect: one exchange; its input carries the draft as `previous`, as the JSON the loop shows a draft in, and no finding; the result's draft is the drafter's changed draft, in one round, stopped because passed
 test("runJob with refine — the first exchange carries the draft as previous and no finding", async () => {
   checkFindings = () => [];
   const draft = draftOf("A long rule that says too much about the second thing.", "Another long rule.");
@@ -88,6 +88,7 @@ test("runJob with refine — the first exchange carries the draft as previous an
   assert.deepEqual([result.draft, result.rounds.length, result.stoppedBecause], [refined, 1, "passed"]);
 });
 
+// TST-472346 · level: unit · module: MOD-job-runner
 // guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019 step 8
 // given: the same job; a draft that is a text
 // input: runJob with `refine` a text
@@ -99,11 +100,11 @@ test("runJob with refine — a draft that is a text is carried as it is", async 
   assert.equal(drafter.inputs[0].previous, "the draft, as a text");
 });
 
+// TST-472347 · level: unit · module: MOD-job-runner
 // guards: UC-019 step 8
 // given: the same job, its parameter `instruction` the follow-up instruction
 // input: runJob with `refine`
-// expect: the first exchange's parts include the part of the recipe `instruction` holding exactly the instruction, and the prompt holds it in the
-//         recipe's named place, among the parts of the kind's other recipes
+// expect: the first exchange's parts include the part of the recipe `instruction` holding exactly the instruction, and the prompt holds it in the recipe's named place, among the parts of the kind's other recipes
 test("runJob with refine — the follow-up instruction is among the parts of the first exchange", async () => {
   checkFindings = () => [];
   const drafter = driver([answer(draftOf("A short rule."))]);
@@ -114,12 +115,11 @@ test("runJob with refine — the follow-up instruction is among the parts of the
   assert.ok(input.parts.some((each) => each.recipe === "spec-with-queues"), "beside the kind's other parts");
 });
 
+// TST-472348 · level: unit · module: MOD-job-runner
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
-// given: the same job; a check that finds an error in the draft the drafter returns first and none in the corrected one; a drafter that answers the
-//        finding fixed
+// given: the same job; a check that finds an error in the draft the drafter returns first and none in the corrected one; a drafter that answers the finding fixed
 // input: runJob with `refine`
-// expect: two exchanges; the second carries the finding and the refined draft as `previous`, not the draft that was refined; two rounds, the first with
-//         the finding answered fixed; the result's draft the corrected one, stopped because passed
+// expect: two exchanges; the second carries the finding and the refined draft as `previous`, not the draft that was refined; two rounds, the first with the finding answered fixed; the result's draft the corrected one, stopped because passed
 test("runJob with refine — the correction loop then runs on the refined draft as for any draft", async () => {
   const flaw = { artifact: "REQUIREMENT 2", line: 1, kind: "error", rule: "A REQUIREMENT IS ONE STATEMENT", what: "the rule says two things", fix: "say one" };
   checkFindings = (draft) => (draft.candidates[1].rule.includes(" and ") ? [flaw] : []);
@@ -136,6 +136,7 @@ test("runJob with refine — the correction loop then runs on the refined draft 
   assert.deepEqual([result.draft, result.stoppedBecause], [corrected, "passed"]);
 });
 
+// TST-472349 · level: unit · module: MOD-job-runner
 // guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: the same job without `refine`
 // input: runJob

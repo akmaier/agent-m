@@ -41,12 +41,11 @@ function fixtureSnapshot() {
   return { paths, blob: (path) => blobs[path] ?? null };
 }
 
+// TST-472020 · level: unit · module: MOD-approvals
 // guards: STATUS IS DERIVED FROM THE RECORDS
 // given: the fixture snapshot above
 // input: statuses(fixtureSnapshot())
-// expect: the use case open (its id has no record), the decision accepted (its record names ARC_BLOB), the module
-//         changed (its record names an earlier blob, not MOD_BLOB) — each keyed by path and carrying its id and kind —,
-//         and exactly these three entries: docs/approvals/README.md names no reviewed file
+// expect: the use case open (its id has no record), the decision accepted (its record names ARC_BLOB), the module changed (its record names an earlier blob, not MOD_BLOB) — each keyed by path and carrying its id and kind —, and exactly these three entries: docs/approvals/README.md names no reviewed file
 test("statuses — the status of a use case, a decision and a module that are open, accepted and changed, each with its kind", () => {
   const result = statuses(fixtureSnapshot());
   assert.deepEqual(result.get("docs/use-cases/UC-010-sample-flow.md"),
@@ -58,12 +57,11 @@ test("statuses — the status of a use case, a decision and a module that are op
   assert.equal(result.size, 3, "docs/approvals/README.md names no reviewed file");
 });
 
+// TST-472021 · level: unit · module: MOD-approvals
 // guards: STATUS IS DERIVED FROM THE RECORDS
-// given: a record text of the schema's format (MOD-approvals, Data) — kind, file and blob, as a use-case record states
-//        them
+// given: a record text of the schema's format (MOD-approvals, Data) — kind, file and blob, as a use-case record states them
 // input: readDocument(approvalSchema, its path, that text).fields
-// expect: kind "use-case", file and blob exactly as the text states them — nothing else, since the text holds no other
-//         key
+// expect: kind "use-case", file and blob exactly as the text states them — nothing else, since the text holds no other key
 test("approvalSchema — a record is read by its schema, as MOD-documents' readDocument gives it", () => {
   const text = `kind: use-case\nfile: docs/use-cases/UC-010-sample-flow.md\nblob: ${UC_BLOB}\n`;
   const doc = readDocument(approvalSchema, `docs/approvals/UC-010-${UC_BLOB.slice(0, 12)}.md`, text);

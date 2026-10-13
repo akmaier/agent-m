@@ -59,6 +59,11 @@ const testNode = (id, path, line) => ({ id, kind: "TST", path, line, title: null
 
 // ---------------------------------------------------------------- the requirements of SPEC.md are nodes
 
+// TST-478015 · level: unit · module: MOD-trace-graph
+// guards: UC-013; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: a repository holding only a SPEC.md with a guarded and an unguarded requirement
+// input: traceGraph over that source
+// expect: the graph holds exactly the two requirements as nodes of kind requirement, at their lines in SPEC.md, and no edge
 test("the requirements of SPEC.md are nodes — MOD-trace-graph", async () => {
   const graph = await traceGraph(source({ "SPEC.md": SPEC_TEXT }));
   assert.deepEqual([...graph.nodes.keys()].sort(), [GUARDED, UNGUARDED].sort());
@@ -85,6 +90,11 @@ const SAMPLE_LINES = [
 ];
 const SAMPLE_TEXT = SAMPLE_LINES.join("\n");
 
+// TST-478016 · level: unit · module: MOD-trace-graph
+// guards: UC-013; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: a test file whose TST-001 guards one requirement and TST-002 guards both requirements of the SPEC.md
+// input: traceGraph over that source
+// expect: the graph holds TST-001 and TST-002 as nodes of kind TST at their lines, with one guards edge per guarded name: TST-001 to the one requirement, TST-002 to both
 test("the tests of a test file are nodes, with a guards edge from each to what it guards — MOD-trace-graph", async () => {
   const graph = await traceGraph(source({ [SAMPLE_PATH]: SAMPLE_TEXT }));
   assert.deepEqual([...graph.nodes.keys()].sort(), ["TST-001", "TST-002"]);
@@ -99,6 +109,11 @@ test("the tests of a test file are nodes, with a guards edge from each to what i
 
 // ---------------------------------------------------------------- a file that cannot be read
 
+// TST-478017 · level: unit · module: MOD-trace-graph
+// guards: UC-013; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: a source that holds neither SPEC.md nor the test file, and fails reading both
+// input: traceGraph over that source
+// expect: unread lists SPEC.md and the test file, each with the reason 'the commit does not hold it', and the graph holds no node and no edge
 test("a file that cannot be read is listed in unread, with the reason — MOD-trace-graph", async () => {
   const graph = await traceGraph(source({}, ["SPEC.md", SAMPLE_PATH]));
   assert.deepEqual(graph.unread, [
@@ -126,6 +141,11 @@ const OTHER_LINES = [
 ];
 
 // Both requirements name "Product Owner" as their source, which tracesTo gives from their nodes (ITM-382).
+// TST-478018 · level: unit · module: MOD-trace-graph
+// guards: UC-013; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: a SPEC.md of two requirements and a test file in which TST-007, declared before TST-003, guards one of them
+// input: tracesTo of the guarded and of the unguarded requirement
+// expect: the guarded requirement gives its source and the tests TST-003 and TST-007 by identifier, not in file order; the unguarded one gives its source and no test
 test("tracesTo gives the tests that guard a requirement, and none for a requirement that no test guards — MOD-trace-graph", async () => {
   const graph = await traceGraph(source({ "SPEC.md": SPEC_TEXT, [OTHER_PATH]: OTHER_LINES.join("\n") }));
   assert.deepEqual(tracesTo(graph, GUARDED),

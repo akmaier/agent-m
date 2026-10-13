@@ -91,14 +91,11 @@ const FILES = [
   { path: ENTRY, text: ENTRY_TEXT, existing: false },
 ];
 
-// given: a product on GitHub whose default branch `main` holds a README and the use case UC-041; the person edited the use case
-//        (an existing file) and wrote a new file for a queue entry; no token is stored
+// TST-472026 · level: unit · module: MOD-artifact-edits
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018; UC-008
+// given: a product on GitHub whose default branch `main` holds a README and the use case UC-041; the person edited the use case (an existing file) and wrote a new file for a queue entry; no token is stored
 // input: fallbackEditLinks([the use case, existing; the entry, new], the snapshot of `main`)
-// expect: two results, in the order of the files — for the use case GitHub's editor page of `main`,
-//         https://github.com/alice/thesis-tool/edit/main/docs/use-cases/UC-041-check-out-a-book.md; for the entry GitHub's
-//         new-file page of `main`, https://github.com/alice/thesis-tool/new/main, whose query holds the path as `filename` and an
-//         empty `value` — each with its path and its text as given, for the clipboard, and nothing else but `differs`, and no
-//         line of any text anywhere in its link, as written or decoded; none refused
+// expect: two results, in the order of the files — for the use case GitHub's editor page of `main`, https://github.com/alice/thesis-tool/edit/main/docs/use-cases/UC-041-check-out-a-book.md; for the entry GitHub's new-file page of `main`, https://github.com/alice/thesis-tool/new/main, whose query holds the path as `filename` and an empty `value` — each with its path and its text as given, for the clipboard, and nothing else but `differs`, and no line of any text anywhere in its link, as written or decoded; none refused
 test("fallbackEditLinks — the editor for an existing file, the new-file page for a new one, the link without the text, the text returned", async () => {
   const fake = fakeHost(BRANCH);
   const snapshot = await fake.host.readSnapshot("main");
@@ -121,9 +118,9 @@ test("fallbackEditLinks — the editor for an existing file, the new-file page f
   }
 });
 
-// given: the product above, and the files of the first test — the use case existing, the entry new — as the edit started, when
-//        `main` held the use case and no entry; the caller reads `main` and hands the snapshot on; (1) nothing changed on `main`
-//        since; (2) another writer's commit removed the use case; (3) another writer's commit created the entry file
+// TST-472027 · level: unit · module: MOD-artifact-edits
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018; UC-008
+// given: the product above, and the files of the first test — the use case existing, the entry new — as the edit started, when `main` held the use case and no entry; the caller reads `main` and hands the snapshot on; (1) nothing changed on `main` since; (2) another writer's commit removed the use case; (3) another writer's commit created the entry file
 // input: fallbackEditLinks(files, the snapshot of `main` as read then)
 // expect: `differs` for the use case and for the entry — (1) false, false; (2) true, false; (3) false, true
 test("fallbackEditLinks — differs once the branch moved: a file removed, a file created", async () => {
@@ -142,8 +139,9 @@ test("fallbackEditLinks — differs once the branch moved: a file removed, a fil
   }
 });
 
-// given: a product on a GitLab server, whose default branch `main` holds a README and the use case UC-041; the same files; no
-//        token is stored — and, as the known positive, the same product on GitHub
+// TST-472028 · level: unit · module: MOD-artifact-edits
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018; UC-008
+// given: a product on a GitLab server, whose default branch `main` holds a README and the use case UC-041; the same files; no token is stored — and, as the known positive, the same product on GitHub
 // input: fallbackEditLinks(files, the snapshot of `main`) on each
 // expect: { refused: "gitlab" } for the GitLab product — there is no fallback, and no link —; links for the GitHub product
 test("fallbackEditLinks — a GitLab product is refused (GitHub, GitLab)", async () => {

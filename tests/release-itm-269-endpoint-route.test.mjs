@@ -59,10 +59,12 @@ const close = (server) => new Promise((resolve, reject) => server.close((error) 
 async function model(answer, observe) { const received = []; const server = http.createServer(async (request, response) => { let body = ""; for await (const chunk of request) body += chunk; const arrival = { path: request.url, authorization: request.headers.authorization, body: JSON.parse(body) }; received.push(arrival); observe?.(arrival); response.writeHead(answer.status, { "content-type": "application/json" }); response.end(JSON.stringify(answer.body)); }); const port = await listen(server); return { address: `http://127.0.0.1:${port}/v1`, received, close: () => close(server) }; }
 async function realBridge(answer, t, observe) { const folder = await mkdtemp(join(tmpdir(), "agent-m-release-269-")); const ownModel = await model(answer, observe); const bridge = await compose({ instance: INSTANCE, origin: ORIGIN, dataFolder: folder, port: 0 }); const original = globalThis.fetch; globalThis.fetch = async (url, init = {}) => original(url, { ...init, headers: { ...init.headers, Origin: ORIGIN } }); t.after(async () => { globalThis.fetch = original; await bridge.close(); await ownModel.close(); await rm(folder, { recursive: true, force: true }); }); return { bridge, ownModel }; }
 
-// TST-269901 — Module: MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-desktop-shell; Level: release.
-// Precondition: public endpoint Route, paired production compose/jobHandlers and a controlled own-model HTTP server.
-// Input: Save and test a local endpoint; reload it; Show its key; Clear it.
-// Expected: Save precedes one real Bridge/model request; reload/Show retain it; raw Clear removes it.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-desktop-shell
+// TST-269901 · level: release · module: MOD-settings-pages
+// guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: public endpoint Route, paired production compose/jobHandlers and a controlled own-model HTTP server
+// input: Save and test a local endpoint; reload it; Show its key; Clear it
+// expect: Save precedes one real Bridge/model request; reload/Show retain it; raw Clear removes it
 test("TST-269901: Route persists, shows, and clears an endpoint through the composed Bridge", async (t) => {
   let settings, setting; const savedAtModelArrival = [];
   const { bridge, ownModel } = await realBridge({ status: 200, body: { choices: [{ message: { content: "ok" } }] } }, t, () => savedAtModelArrival.push(readSetting(settings, "endpoint:local")));
@@ -76,25 +78,34 @@ test("TST-269901: Route persists, shows, and clears an endpoint through the comp
   target = await render(settings, { name: "local" }); const key = all(target, "endpoint-key")[0]; assert.equal(key.value, LOCAL.key, "reload reads the stored endpoint key"); assert.equal(key.type, "password", "stored key starts hidden"); await click(all(target, "endpoint-show")[0]); assert.equal(key.type, "text", "Show reveals only after click"); await click(all(target, "endpoint-clear")[0]); assert.equal(readSetting(settings, "endpoint:local"), null, "failure node: Clear removes the raw browser entry");
 });
 
-// TST-269902 — Module: MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-desktop-shell; Level: release.
-// Precondition: same Route and real compose, but controlled model refuses its API key.
-// Input: Save and test, then reload the Route. Expected: named provider refusal and retained setting.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-desktop-shell
+// TST-269902 · level: release · module: MOD-settings-pages
+// guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: same Route and real compose, but controlled model refuses its API key
+// input: Save and test, then reload the Route
+// expect: named provider refusal and retained setting
 test("TST-269902: Route preserves provider refusal and saved endpoint through real Bridge", async (t) => {
   const { bridge, ownModel } = await realBridge({ status: 401, body: { error: { message: "provider refused this key" } } }, t);
   const settings = store(), setting = { ...LOCAL, url: ownModel.address }; writeSetting(settings, "bridge", { address: bridge.address, token: bridge.token }); const target = await render(settings); fill(target, setting); await click(all(target, "endpoint-test")[0]); await endpointSettles(target);
   assert.match(all(target, "endpoint-result")[0].textContent, /provider refused this key/i, "failure node: named provider diagnosis returns through compose/jobHandlers"); const reloaded = await render(settings, { name: "local" }); assert.equal(all(reloaded, "endpoint-key")[0].value, LOCAL.key, "provider refusal does not discard key on reload"); assert.equal(ownModel.received.length, 1, "one Route test gives one model request");
 });
 
-// TST-269903 — Module: MOD-settings-pages · MOD-browser-store; Level: release.
-// Precondition: completed local endpoint, no paired Bridge. Input: Save/test then Set up the Bridge.
-// Expected: no direct model request; saved record and actionable supplied-context setup handoff.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store
+// TST-269903 · level: release · module: MOD-settings-pages
+// guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: completed local endpoint, no paired Bridge
+// input: Save/test then Set up the Bridge
+// expect: no direct model request; saved record and actionable supplied-context setup handoff
 test("TST-269903: absent pairing stores endpoint and emits setup contract without fallback", async (t) => {
   const settings = store(), navigations = [], original = globalThis.fetch; let calls = 0; globalThis.fetch = async () => { calls += 1; throw new Error("direct fallback"); }; t.after(() => { globalThis.fetch = original; }); const target = await render(settings, {}, navigations); fill(target, { ...LOCAL, url: "http://127.0.0.1:11434/v1" }); await click(all(target, "endpoint-test")[0]); assert.equal(calls, 0, "failure node: absent Bridge makes no direct model request"); assert.equal(readSetting(settings, "endpoint:local").throughBridge, true, "missing pairing retains endpoint"); await click(all(target, "endpoint-bridge-setup")[0]); assert.deepEqual(navigations, [{ route: "bridge", params: {} }], "failure node: Route emits its setup handoff");
 });
 
-// TST-269904 — Module: MOD-settings-pages · MOD-bridge-client; Level: release.
-// Precondition: accepted HTTPS Bridge address/token and separate jump-host login; HTTPS transport controlled at fetch.
-// Input: endpoint test, then refused-token and unavailable transport. Expected: header/body mapping and named diagnoses.
+// Module (as the case stated it): MOD-settings-pages · MOD-bridge-client
+// TST-269904 · level: release · module: MOD-settings-pages
+// guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: accepted HTTPS Bridge address/token and separate jump-host login; HTTPS transport controlled at fetch
+// input: endpoint test, then refused-token and unavailable transport
+// expect: header/body mapping and named diagnoses
 test("TST-269904: Route maps configured HTTPS credentials and names refused/unavailable Bridge", async (t) => {
   const settings = store(), original = globalThis.fetch, calls = []; let mode = "success"; globalThis.fetch = async (url, init = {}) => { calls.push({ url: String(url), init }); if (mode === "refused") return new Response(JSON.stringify({ error: "token-refused" }), { status: 401 }); if (mode === "unavailable") throw new TypeError("network down"); return new Response(JSON.stringify({ answer: { works: true, model: LOCAL.model } }), { status: 200 }); }; t.after(() => { globalThis.fetch = original; }); const address = "https://jump.example.test/bridge/local"; writeSetting(settings, "bridge", { address, token: "bridge-token" }); writeSetting(settings, "jump-host", { hostname: "jump.example.test", user: "ssh-user", sshPort: 22, portRange: [40100, 40199], httpsAddress: address, login: { user: "web-user", password: "web-password" } }); let target = await render(settings); fill(target, { ...LOCAL, url: "http://127.0.0.1:11434/v1" }); await click(all(target, "endpoint-test")[0]); assert.equal(calls[0].url, `${address}/v1/probes/endpoint-test`); assert.equal(calls[0].init.headers["x-agent-m-bridge-token"], "bridge-token"); assert.equal(calls[0].init.headers.Authorization, `Basic ${Buffer.from("web-user:web-password").toString("base64")}`); assert.deepEqual(JSON.parse(calls[0].init.body), { args: { name: "local", kind: LOCAL.kind, baseUrl: "http://127.0.0.1:11434/v1", model: LOCAL.model, key: LOCAL.key } }); assert.equal(calls[0].url.includes("bridge-token") || calls[0].url.includes("web-password") || calls[0].url.includes(LOCAL.key), false, "credentials stay out of controlled HTTPS URL"); mode = "refused"; target = await render(settings, { name: "local" }); await click(all(target, "endpoint-test")[0]); assert.match(all(target, "endpoint-result")[0].textContent, /refused.*token|token.*refused/i, "failure node: refused pairing stays named"); mode = "unavailable"; target = await render(settings, { name: "local" }); await click(all(target, "endpoint-test")[0]); assert.match(all(target, "endpoint-result")[0].textContent, /gave no answer|not running|wrong address/i, "failure node: unavailable Bridge stays actionable");
 });

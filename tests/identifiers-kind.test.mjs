@@ -28,9 +28,9 @@ const EXAMPLES = {
   JOB: "JOB-20261005-0900-a1b2",
 };
 
+// TST-472240 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: one example of each kind the scheme defines — requirement, SRC, UC, ARC, MOD, TST, ITM, RES, JOB — exactly as
-//        the module file's Data table gives it
+// given: one example of each kind the scheme defines — requirement, SRC, UC, ARC, MOD, TST, ITM, RES, JOB — exactly as the module file's Data table gives it
 // input: kindOfIdentifier(example) for each
 // expect: the kind named by the table's own row
 test("kindOfIdentifier — the kind of an identifier of each kind of the scheme", () => {
@@ -39,20 +39,18 @@ test("kindOfIdentifier — the kind of an identifier of each kind of the scheme"
   }
 });
 
+// TST-472241 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: UC-1234, four digits — the scheme gives UC three or more digits, unlike ARC, TST and ITM, which it gives
-//        exactly three
+// given: UC-1234, four digits — the scheme gives UC three or more digits, unlike ARC, TST and ITM, which it gives exactly three
 // input: kindOfIdentifier("UC-1234")
 // expect: "UC"
 test("kindOfIdentifier — UC takes three or more digits", () => {
   assert.equal(kindOfIdentifier("UC-1234"), "UC");
 });
 
+// TST-472242 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: known positive — UC-022, a use case's identifier; then five strings that are none of the scheme's kinds: the
-//        empty string; an ordinary lowercase sentence; a name that reads like a requirement but for one lowercase
-//        letter ("NAMe"); UC-02, two digits — short of UC's three; and ARC-1234, four digits — ARC, unlike UC, takes
-//        exactly three
+// given: known positive — UC-022, a use case's identifier; then five strings that are none of the scheme's kinds: the empty string; an ordinary lowercase sentence; a name that reads like a requirement but for one lowercase letter ("NAMe"); UC-02, two digits — short of UC's three; and ARC-1234, four digits — ARC, unlike UC, takes exactly three
 // input: kindOfIdentifier(each)
 // expect: known positive "UC"; then null for each of the five
 test("kindOfIdentifier — null for a string that is none of the scheme's kinds", () => {
@@ -64,6 +62,7 @@ test("kindOfIdentifier — null for a string that is none of the scheme's kinds"
   assert.equal(kindOfIdentifier("ARC-1234"), null, "ARC takes exactly three digits, unlike UC");
 });
 
+// TST-472243 · level: unit · module: MOD-identifiers
 // guards: MOD-identifiers; AN INSTANCE IS A FORK OF AGENT M
 // given: a GitHub Pages hostname with a repository as its first path segment, and a known positive matching that shape
 // input: instanceOfPagesAddress on that address and on a non-Pages hostname

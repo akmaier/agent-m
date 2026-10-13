@@ -131,11 +131,9 @@ The hierarchy of the modules, each member by its identifier.
 
 // ---------------------------------------------------------------- the check
 
+// TST-472328 · level: unit · module: MOD-job-runner
 // guards: UC-021
-// given: a kind that names group-rules alone, for a job whose parameter kind is use-cases; a product whose snapshot holds four
-//        use cases and their group file, Review (UC-006, UC-008) and Derivation (UC-005, UC-007); a drafter that drafts six
-//        moves, each valid on the file and on the moves before it — create the group Approval, move UC-008 into it, rename
-//        Derivation to Deriving, create Early inside it, move UC-005 into Early, and move the group Review into Approval
+// given: a kind that names group-rules alone, for a job whose parameter kind is use-cases; a product whose snapshot holds four use cases and their group file, Review (UC-006, UC-008) and Derivation (UC-005, UC-007); a drafter that drafts six moves, each valid on the file and on the moves before it — create the group Approval, move UC-008 into it, rename Derivation to Deriving, create Early inside it, move UC-005 into Early, and move the group Review into Approval
 // input: runJob of it, a person attending
 // expect: nothing found; the drafter asked once; the loop stopped because passed, nothing remaining; the draft the result's
 test("group-rules — valid moves on the group file of the kind pass", async () => {
@@ -153,16 +151,11 @@ test("group-rules — valid moves on the group file of the kind pass", async () 
   assert.deepEqual([result.draft, result.stoppedBecause, result.remaining], [{ moves }, "passed", []]);
 });
 
+// TST-472329 · level: unit · module: MOD-job-runner
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-021
-// given: the same job and snapshot; a drafter that drafts five moves — create the group Approval, move ARC-048 into Review, move
-//        UC-005 into Nowhere, delete Review, move UC-008 into Approval — of which the second is an item of another kind, the
-//        third names a group that does not exist, the fourth deletes a group that is not empty, and the first and the last are
-//        valid; told of the findings, it drafts the same five again
+// given: the same job and snapshot; a drafter that drafts five moves — create the group Approval, move ARC-048 into Review, move UC-005 into Nowhere, delete Review, move UC-008 into Approval — of which the second is an item of another kind, the third names a group that does not exist, the fourth deletes a group that is not empty, and the first and the last are valid; told of the findings, it drafts the same five again
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with three findings, one for each refused move, in the order of the moves:
-//         each an error under A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT, in one line, holding the reason
-//         applyMoves gives for that move — and none for the two valid moves —; the loop stops unchanged with those three
-//         remaining
+// expect: the drafter asked twice, the second time with three findings, one for each refused move, in the order of the moves: each an error under A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT, in one line, holding the reason applyMoves gives for that move — and none for the two valid moves —; the loop stops unchanged with those three remaining
 test("group-rules — a refused move goes back to the drafter with its reason", async () => {
   const moves = [{ op: "create", title: "Approval", in: [] }, { op: "move", item: "ARC-048", to: ["Review"] },
     { op: "move", item: "UC-005", to: ["Nowhere"] }, { op: "delete", group: ["Review"] },
@@ -185,15 +178,11 @@ test("group-rules — a refused move goes back to the drafter with its reason", 
   drafter.inputs[1].findings.forEach(sayItInOneLine);
 });
 
+// TST-472330 · level: unit · module: MOD-job-runner
 // guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A GROUP CARRIES NO IDENTIFIER; UC-021
-// given: a job whose parameter kind is modules; a product whose snapshot holds four modules and their group file, in which
-//        MOD-job-runner stands in two groups, Runner on line 6 and Archive on line 11, and the group on line 8 is titled MOD-
-//        documents, a module's identifier; a drafter that drafts one valid move, create the group Spare, which touches neither,
-//        and — told of the findings — drafts it again
+// given: a job whose parameter kind is modules; a product whose snapshot holds four modules and their group file, in which MOD-job-runner stands in two groups, Runner on line 6 and Archive on line 11, and the group on line 8 is titled MOD- documents, a module's identifier; a drafter that drafts one valid move, create the group Spare, which touches neither, and — told of the findings — drafts it again
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with two findings, both errors, in one line: one under AN ITEM HAS ONE PLACE
-//         IN ITS HIERARCHY that names MOD-job-runner, and one under A GROUP CARRIES NO IDENTIFIER that names MOD-documents; the
-//         loop stops unchanged with those two remaining
+// expect: the drafter asked twice, the second time with two findings, both errors, in one line: one under AN ITEM HAS ONE PLACE IN ITS HIERARCHY that names MOD-job-runner, and one under A GROUP CARRIES NO IDENTIFIER that names MOD-documents; the loop stops unchanged with those two remaining
 test("group-rules — a member placed twice and a group titled by an identifier go back to the drafter", async () => {
   const moves = [{ op: "create", title: "Spare", in: [] }];
   const files = { ...MODULES, [MODULE_GROUPS]: BADLY_ARRANGED };
@@ -217,14 +206,11 @@ test("group-rules — a member placed twice and a group titled by an identifier 
   drafter.inputs[1].findings.forEach(sayItInOneLine);
 });
 
-// guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A GROUP CARRIES NO IDENTIFIER; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS
-//         PARTICIPANT; UC-021
-// given: the same job and snapshot; a drafter that first drafts the move that touches neither fault and then, told of the two
-//        findings, drafts three moves that fix them — create the group Spare, move MOD-job-runner into Runner, which takes it out
-//        of every other place, and rename the group MOD-documents to Documents — answering each finding fixed
+// TST-472331 · level: unit · module: MOD-job-runner
+// guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; A GROUP CARRIES NO IDENTIFIER; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-021
+// given: the same job and snapshot; a drafter that first drafts the move that touches neither fault and then, told of the two findings, drafts three moves that fix them — create the group Spare, move MOD-job-runner into Runner, which takes it out of every other place, and rename the group MOD-documents to Documents — answering each finding fixed
 // input: runJob of it, a person attending
-// expect: the drafter asked twice; two findings in the first round, each answered fixed, and none in the second; stopped because
-//         passed with nothing remaining and the corrected draft the result's
+// expect: the drafter asked twice; two findings in the first round, each answered fixed, and none in the second; stopped because passed with nothing remaining and the corrected draft the result's
 test("group-rules — a draft fixed as the findings say passes", async () => {
   const first = { moves: [{ op: "create", title: "Spare", in: [] }] };
   const fixed = { moves: [{ op: "create", title: "Spare", in: [] }, { op: "move", item: "MOD-job-runner", to: ["Runner"] },

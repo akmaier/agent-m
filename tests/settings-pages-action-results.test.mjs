@@ -36,13 +36,11 @@ async function publicSettings({ entries = {}, handlers = [], selectedProduct = n
   return { page, server, pane };
 }
 
-// TST-290125
-// Module: MOD-settings-pages
-// Level: component
-// Guards: UC-042; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
-// Precondition: a chosen product's repository refuses its browser token on the Settings reload.
-// Input: the person opens the dashboard's public Settings route.
-// Expected: Settings still mounts the Repositories pane and exposes the stored token's refused state and renewal path.
+// TST-290125 · level: component · module: MOD-settings-pages
+// guards: UC-042; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: a chosen product's repository refuses its browser token on the Settings reload.
+// input: the person opens the dashboard's public Settings route.
+// expect: Settings still mounts the Repositories pane and exposes the stored token's refused state and renewal path.
 test("TST-290125: refused product metadata does not replace public Settings with a route warning", async () => {
   const { pane } = await publicSettings({
     entries: {
@@ -60,13 +58,11 @@ test("TST-290125: refused product metadata does not replace public Settings with
   assert.match(repositories.textContent, /Renew token/, "the public token row retains its renewal path");
 });
 
-// TST-290126
-// Module: MOD-settings-pages
-// Level: component
-// Guards: UC-042; A CLEAR IS A REAL CLEAR; EVERY SETTING IS REACHED FROM ONE PAGE
-// Precondition: this browser holds one managed product and its product token.
-// Input: the person confirms Clear in the public Repositories pane.
-// Expected: the canonical product and token records are removed and the mounted product list redraws empty.
+// TST-290126 · level: component · module: MOD-settings-pages
+// guards: UC-042; A CLEAR IS A REAL CLEAR; EVERY SETTING IS REACHED FROM ONE PAGE
+// given: this browser holds one managed product and its product token.
+// input: the person confirms Clear in the public Repositories pane.
+// expect: the canonical product and token records are removed and the mounted product list redraws empty.
 test("TST-290126: product Clear redraws the public managed-product list", async () => {
   const priorConfirm = globalThis.confirm;
   globalThis.confirm = () => true;
@@ -89,13 +85,11 @@ test("TST-290126: product Clear redraws the public managed-product list", async 
   } finally { globalThis.confirm = priorConfirm; }
 });
 
-// TST-290127
-// Module: MOD-settings-pages
-// Level: component
-// Guards: UC-042; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
-// Precondition: a public remote-session setting has a forwarded port and copied Bridge token.
-// Input: the person uses its Test control after the controlled bridge answers, then reloads Settings.
-// Expected: Test records canonical last-test state and the reloaded public line shows the saved outcome.
+// TST-290127 · level: component · module: MOD-settings-pages
+// guards: UC-042; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: a public remote-session setting has a forwarded port and copied Bridge token.
+// input: the person uses its Test control after the controlled bridge answers, then reloads Settings.
+// expect: Test records canonical last-test state and the reloaded public line shows the saved outcome.
 test("TST-290127: remote-session Test persists its public result for reload", async () => {
   const { pane, server } = await publicSettings({ entries: {
     [key("remote-session:lab")]: JSON.stringify({ port: 20001, token: "copied-bridge-token" }),

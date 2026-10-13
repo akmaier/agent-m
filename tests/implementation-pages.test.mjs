@@ -466,13 +466,11 @@ function connectedTarget() {
 
 // ---------------------------------------------------------------- the five catalogue models (step 2)
 
-// guards: UC-002 (step 1-2: the page opens, and shows the book's five models in two groups, each with what its about
-//         holds)
+// TST-472266 · level: unit · module: MOD-implementation-pages
+// guards: UC-002 (step 1-2: the page opens, and shows the book's five models in two groups, each with what its about holds)
 // given: a product without docs/process.md, an instance with no custom model of its own
 // input: route.render(target, context)
-// expect: the page shows a card for each of the five shipped models — waterfall, v-model and reuse-oriented in the
-//         plan-driven group, scrum and kanban in the agile one —, each naming what catalogue() itself gives for its
-//         about: the risk it manages, the risk it accepts, the example project and the chapter
+// expect: the page shows a card for each of the five shipped models — waterfall, v-model and reuse-oriented in the plan-driven group, scrum and kanban in the agile one —, each naming what catalogue() itself gives for its about: the risk it manages, the risk it accepts, the example project and the chapter
 test("process route — the five catalogue models, in two groups, each with what its about holds", async () => {
   const instanceHost = fakeHost({ "docs/participants.md": PARTICIPANTS, "SPEC.md": SPEC_TEXT }, INSTANCE_COMMIT);
   const productHost = fakeHost({}, sha1("product-head"));
@@ -504,6 +502,7 @@ test("process route — the five catalogue models, in two groups, each with what
 
 // ---------------------------------------------------------------- a product without, and one with, a declaration (1)
 
+// TST-472267 · level: unit · module: MOD-implementation-pages
 // guards: UC-002 (step 1: the page opens; a product's declaration need not exist yet)
 // given: a product whose repository holds no docs/process.md
 // input: route.render(target, context)
@@ -526,15 +525,11 @@ test("process route — the page of a product without a declaration", async () =
   target.remove();
 });
 
-// guards: UC-002 (steps 1, 4, 5, 8: the page of a product that already declared its process shows the model, its roles
-//         and the Definition of Done; the route inserts the form in the same turn schemaForm returns it, so that its
-//         first field is focused); THE PROCESS NAMES ROLES, NOT PARTICIPANTS
+// TST-472268 · level: unit · module: MOD-implementation-pages
+// guards: UC-002 (steps 1, 4, 5, 8: the page of a product that already declared its process shows the model, its roles and the Definition of Done; the route inserts the form in the same turn schemaForm returns it, so that its first field is focused); THE PROCESS NAMES ROLES, NOT PARTICIPANTS
 // given: a product declaring fixture-model, its roles named and no participant
 // input: route.render(target, context), built and inserted in the one turn of its own microtask queue
-// expect: the model and model_file fields hold the declared model; the form has no field that assigns participants to
-//         roles; each role of the model is shown with how many fill it; once the turn in which render awaited is over,
-//         the page's first field has the focus — known positive: before render, the document's active element is its
-//         body, not a form field
+// expect: the model and model_file fields hold the declared model; the form has no field that assigns participants to roles; each role of the model is shown with how many fill it; once the turn in which render awaited is over, the page's first field has the focus — known positive: before render, the document's active element is its body, not a form field
 test("process route — the page of a product with a declaration, its first field focused", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-2"));
@@ -706,18 +701,11 @@ the repository, run code and tests, use tools, reach the web.
 | reviewer-sonnet | CLI agent | claude-sonnet-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | a Claude Code subagent that \`scrum-master-session\` starts on the Mac of \`akmaier\` to review architecture drafts, reading only; reached without the Agent M Bridge until it exists (ITM-102) |
 `;
 
+// TST-472269 · level: unit · module: MOD-implementation-pages
 // guards: UC-002 (step 1: the page of a product with Agent M's own declaration)
-// given: Agent M's own docs/process.md and docs/participants.md, and, at the commit its model_version names,
-//        docs/process-models/scrum-wip.md — five Produces cells carrying a kind's explanation in parentheses, and
-//        Flow control naming a WIP limit of 4 and a stated (not dashed) Time box of none
+// given: Agent M's own docs/process.md and docs/participants.md, and, at the commit its model_version names, docs/process-models/scrum-wip.md — five Produces cells carrying a kind's explanation in parentheses, and Flow control naming a WIP limit of 4 and a stated (not dashed) Time box of none
 // input: route.render(target, context)
-// expect: the model and model_file fields hold scrum-wip and its path; scrum-wip is offered beside the shipped five;
-//         its four roles are shown; no participant is named in the declaration. Known positive, run directly against this same text: modelFindings names no
-//         error — MOD-model-catalogue, as akmaier's accepted change states it, reads a kind's explanation in
-//         parentheses as the kind alone, so the gate Retrospective → Sprint planning finds the sprint record it
-//         checks produced, and reads a stated Time box of none as no time box, so Flow control names only the WIP
-//         limit. declarationFindings therefore names no error finding beside model_file, and Save is enabled: this
-//         settles the review's point that Agent M's own Save stayed disabled (ITM-258).
+// expect: the model and model_file fields hold scrum-wip and its path; scrum-wip is offered beside the shipped five; its four roles are shown; no participant is named in the declaration. Known positive, run directly against this same text: modelFindings names no error — MOD-model-catalogue, as akmaier's accepted change states it, reads a kind's explanation in parentheses as the kind alone, so the gate Retrospective → Sprint planning finds the sprint record it checks produced, and reads a stated Time box of none as no time box, so Flow control names only the WIP limit. declarationFindings therefore names no error finding beside model_file, and Save is enabled: this settles the review's point that Agent M's own Save stayed disabled (ITM-258).
 test("process route — the page of a product with Agent M's own declaration", async () => {
   const instanceHost = fakeHost({
     "docs/participants.md": AGENT_M_PARTICIPANTS,
@@ -751,15 +739,11 @@ test("process route — the page of a product with Agent M's own declaration", a
 
 // ---------------------------------------------------------------- roles: what each needs; who fills it is the Roles page's (4b)
 
-// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-002 step 4: "Agent M shows the model's roles; for each, whether a
-//         person, an agent or either may fill it, which capabilities it needs, and whether one participant fills it or several
-//         may … Who fills them is set in the product's role assignment (UC-048)."
-// given: fixture-model's Developers, needing "write to the repository" and "run code and tests" — alice and bot-a have
-//        both —, and Reviewer, needing "use tools", which no fixture participant declares
+// TST-472270 · level: unit · module: MOD-implementation-pages
+// guards: A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-002 step 4: "Agent M shows the model's roles; for each, whether a person, an agent or either may fill it, which capabilities it needs, and whether one participant fills it or several may … Who fills them is set in the product's role assignment (UC-048)."
+// given: fixture-model's Developers, needing "write to the repository" and "run code and tests" — alice and bot-a have both —, and Reviewer, needing "use tools", which no fixture participant declares
 // input: route.render(target, context)
-// expect: Developers shown with what it needs and how many fill it, and no participant — not alice, not bot-a, who hold
-//         its capabilities —; Reviewer shown with "use tools", and no notice of a missing participant; each role links to the
-//         Roles page, #roles, where its participants are chosen
+// expect: Developers shown with what it needs and how many fill it, and no participant — not alice, not bot-a, who hold its capabilities —; Reviewer shown with "use tools", and no notice of a missing participant; each role links to the Roles page, #roles, where its participants are chosen
 test("process route — a role shows who may fill it, how many and what it needs; who fills it is the Roles page's", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-3"));
@@ -784,13 +768,11 @@ test("process route — a role shows who may fill it, how many and what it needs
 
 // ---------------------------------------------------------------- findings beside the fields: a participant named
 
-// guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; UC-002 (postcondition: the declaration names the roles that
-//         participants fill, never a participant)
-// given: known positive first — fixture-model declared, naming no participant; then the same declaration whose
-//        Definition of Done names bot-a, a participant of the instance's list
+// TST-472271 · level: unit · module: MOD-implementation-pages
+// guards: THE PROCESS NAMES ROLES, NOT PARTICIPANTS; UC-002 (postcondition: the declaration names the roles that participants fill, never a participant)
+// given: known positive first — fixture-model declared, naming no participant; then the same declaration whose Definition of Done names bot-a, a participant of the instance's list
 // input: route.render(target, context) of each
-// expect: for the first, Save is offered; for the second, Save is disabled, and a finding beside ## Definition of Done
-//         names bot-a and THE PROCESS NAMES ROLES, NOT PARTICIPANTS
+// expect: for the first, Save is offered; for the second, Save is disabled, and a finding beside ## Definition of Done names bot-a and THE PROCESS NAMES ROLES, NOT PARTICIPANTS
 test("process route — the declaration's findings are shown before Save: a participant it names disables Save and is named beside its field", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const clean = connectedTarget();
@@ -816,6 +798,7 @@ test("process route — the declaration's findings are shown before Save: a part
 
 // ---------------------------------------------------------------- a product with no process requirements yet (7a)
 
+// TST-472272 · level: unit · module: MOD-implementation-pages
 // guards: UC-002 (7a: a product without process requirements yet is told so)
 // given: fixture-model declared, its declaration naming no gate added by a requirement
 // input: route.render(target, context)
@@ -836,13 +819,11 @@ test("process route — a product without process requirements is told so", asyn
 
 // ---------------------------------------------------------------- selecting another model (3b)
 
-// guards: UC-002 (3b: the author changes the model; the page lists which artifacts the new model no longer requires,
-//         and deletes none)
-// given: fixture-model declared — phases producing ARC and ITM —; waterfall, a shipped model that produces
-//        requirements, ARC, MOD and TST, but not ITM
+// TST-472273 · level: unit · module: MOD-implementation-pages
+// guards: UC-002 (3b: the author changes the model; the page lists which artifacts the new model no longer requires, and deletes none)
+// given: fixture-model declared — phases producing ARC and ITM —; waterfall, a shipped model that produces requirements, ARC, MOD and TST, but not ITM
 // input: route.render(target, context); the author chooses waterfall's card
-// expect: the lost-artifacts notice names ITM, which fixture-model's phases produce and waterfall's do not, and not
-//         ARC, which both produce
+// expect: the lost-artifacts notice names ITM, which fixture-model's phases produce and waterfall's do not, and not ARC, which both produce
 test("process route — selecting another model lists the kinds of artifact the declared model's phases produce and the selected one's do not", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({ "docs/process.md": declarationText() }, sha1("product-head-7"));
@@ -863,12 +844,11 @@ test("process route — selecting another model lists the kinds of artifact the 
 
 // ---------------------------------------------------------------- Save (step 9) and a refused save
 
-// guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-002 (step 9: one click commits the
-//         declaration; the model's version is the commit the catalogue was read at)
+// TST-472274 · level: unit · module: MOD-implementation-pages
+// guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-002 (step 9: one click commits the declaration; the model's version is the commit the catalogue was read at)
 // given: a product without a declaration; the author picks fixture-model and fills in the required sections
 // input: typing the practices, branches and Definition of Done, then one click on Save
-// expect: nothing is committed before the click; after it, exactly one commit of docs/process.md, whose model_version
-//         is the instance commit the route read the catalogue at
+// expect: nothing is committed before the click; after it, exactly one commit of docs/process.md, whose model_version is the instance commit the route read the catalogue at
 test("process route — Save commits docs/process.md once, naming model_version by the commit the catalogue was read at", async () => {
   const instanceHost = fakeHost(instanceFiles(), INSTANCE_COMMIT);
   const productHost = fakeHost({}, sha1("new-product-head"));
@@ -899,13 +879,11 @@ test("process route — Save commits docs/process.md once, naming model_version 
   target.remove();
 });
 
-// guards: UC-002; A PRACTICE IS NOT A MODEL; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY;
-//         MOD-implementation-pages
-// given: one valid Scrum declaration rendered through the public route with no selected practice; the same instance snapshot
-//        carries devops' explicit gate table, and the route's normal form caller edits ## Practices
+// TST-472275 · level: unit · module: MOD-implementation-pages
+// guards: UC-002; A PRACTICE IS NOT A MODEL; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; MOD-implementation-pages
+// given: one valid Scrum declaration rendered through the public route with no selected practice; the same instance snapshot carries devops' explicit gate table, and the route's normal form caller edits ## Practices
 // input: select devops, deselect it, then press the form's one Save
-// expect: the live workflow gains then loses the marked gate before any write; the one save writes docs/process.md only and
-//         preserves the final no-practice selection
+// expect: the live workflow gains then loses the marked gate before any write; the one save writes docs/process.md only and preserves the final no-practice selection
 test("process route — changing a practice in one live form updates the workflow before Save and Save preserves the selection", async () => {
   const practiceAdds = `| Between | Artifacts | Condition | Decider |
 |---|---|---|---|
@@ -961,8 +939,8 @@ The job rules hold; no condition is added.
   target.remove();
 });
 
-// guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY (a refused save keeps the person's edit, as the module file of
-//         MOD-artifact-edits states for saveFile)
+// TST-472276 · level: unit · module: MOD-implementation-pages
+// guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY (a refused save keeps the person's edit, as the module file of MOD-artifact-edits states for saveFile)
 // given: a product declaring fixture-model; after the page opened, the file is changed elsewhere, outside this page
 // input: typing a condition into ## Definition of Done, then one click on Save
 // expect: nothing new is committed; the typed text stays in the field

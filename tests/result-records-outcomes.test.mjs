@@ -65,13 +65,11 @@ function record({ commit = COMMIT, levels = ["unit"], occasion = "commit", uncom
   return `${front}\n## Outcomes\n\n${table}\n`;
 }
 
+// TST-472599 · level: unit · module: MOD-result-records
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: one run record of COMMIT at level unit (TST-001 passed, TST-002 failed) and a second, on another occasion,
-//        where TST-003 failed after it passed in the first — a flaky test, not a passed one; tests of levels unit
-//        (TST-001, TST-002, TST-003) and component (TST-004, no record of this commit at all)
+// given: one run record of COMMIT at level unit (TST-001 passed, TST-002 failed) and a second, on another occasion, where TST-003 failed after it passed in the first — a flaky test, not a passed one; tests of levels unit (TST-001, TST-002, TST-003) and component (TST-004, no record of this commit at all)
 // input: resultsAt(fixture, COMMIT, tests)
-// expect: level unit — passed 1, failed 1, flaky 1, notRun 0, TST-001 passed, TST-002 failed, TST-003 flaky with
-//         both its records; level component — passed 0, failed 0, flaky 0, notRun 1, TST-004 not run
+// expect: level unit — passed 1, failed 1, flaky 1, notRun 0, TST-001 passed, TST-002 failed, TST-003 flaky with both its records; level component — passed 0, failed 0, flaky 0, notRun 1, TST-004 not run
 test("resultsAt — a commit's outcomes per level, with their counts", async () => {
   const path1 = `runs/${COMMIT}/20261007-1000-commit-aaaa.md`;
   const path2 = `runs/${COMMIT}/20261007-1030-pull-request-bbbb.md`;
@@ -98,9 +96,9 @@ test("resultsAt — a commit's outcomes per level, with their counts", async () 
   assert.equal(component.tests.find((t) => t.id === "TST-004").outcome, "not run");
 });
 
+// TST-472600 · level: unit · module: MOD-result-records
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: a run record of COMMIT at level unit only, naming TST-001; tests also name TST-005 at level system, which no
-//        record of this commit mentions at any level
+// given: a run record of COMMIT at level unit only, naming TST-001; tests also name TST-005 at level system, which no record of this commit mentions at any level
 // input: resultsAt(fixture, COMMIT, tests)
 // expect: level system — notRun 1, passed 0, failed 0; TST-005 not run, never passed
 test("resultsAt — a level without a record of the commit reads not run, never passed", async () => {
@@ -114,9 +112,9 @@ test("resultsAt — a level without a record of the commit reads not run, never 
   assert.equal(system.tests.find((t) => t.id === "TST-005").outcome, "not run");
 });
 
+// TST-472601 · level: unit · module: MOD-result-records
 // guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL
-// given: two records of COMMIT at level unit, both naming TST-001 — one passed, marked uncommitted; one failed, not
-//        marked
+// given: two records of COMMIT at level unit, both naming TST-001 — one passed, marked uncommitted; one failed, not marked
 // input: resultsAt(fixture, COMMIT, [{id: "TST-001", level: "unit"}])
 // expect: TST-001 failed (the uncommitted record's passed outcome is left out, not counted, not averaged in)
 test("resultsAt — a record marked uncommitted is left out", async () => {
@@ -130,12 +128,11 @@ test("resultsAt — a record marked uncommitted is left out", async () => {
   assert.deepEqual([unit.passed, unit.failed, unit.flaky], [0, 1, 0]);
 });
 
+// TST-472602 · level: unit · module: MOD-result-records
 // guards: A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY
-// given: two records of COMMIT — TST-001 (deterministic) passed in one, failed in the other; TST-010 (model-
-//        dependent, a Runs cell in both) at two different rates in the two records
+// given: two records of COMMIT — TST-001 (deterministic) passed in one, failed in the other; TST-010 (model- dependent, a Runs cell in both) at two different rates in the two records
 // input: flakyTests(fixture, COMMIT)
-// expect: exactly TST-001, with both records named in passedIn and failedIn; TST-010 not reported — a model-
-//         dependent test's rate moves by design, which is not the flakiness this requirement names
+// expect: exactly TST-001, with both records named in passedIn and failedIn; TST-010 not reported — a model- dependent test's rate moves by design, which is not the flakiness this requirement names
 test("flakyTests — a deterministic test with both outcomes on one commit, with both records; a model-dependent test is not reported", async () => {
   const path1 = `runs/${COMMIT}/20261007-1000-commit-aaaa.md`;
   const path2 = `runs/${COMMIT}/20261007-1030-pull-request-bbbb.md`;
@@ -151,12 +148,11 @@ test("flakyTests — a deterministic test with both outcomes on one commit, with
   assert.deepEqual(flaky.failedIn, [path2]);
 });
 
+// TST-472603 · level: unit · module: MOD-result-records
 // guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
-// given: TST-010 recorded 6 of 10 at COMMIT and 8 of 10 at RELEASE_COMMIT; TST-011 recorded 9 of 10 at COMMIT and
-//        7 of 10 at RELEASE_COMMIT
+// given: TST-010 recorded 6 of 10 at COMMIT and 8 of 10 at RELEASE_COMMIT; TST-011 recorded 9 of 10 at COMMIT and 7 of 10 at RELEASE_COMMIT
 // input: rateComparison(fixture, COMMIT, RELEASE_COMMIT)
-// expect: TST-010 now "6 of 10", then "8 of 10", worse true (lower); TST-011 now "9 of 10", then "7 of 10", worse
-//         false (not lower)
+// expect: TST-010 now "6 of 10", then "8 of 10", worse true (lower); TST-011 now "9 of 10", then "7 of 10", worse false (not lower)
 test("rateComparison — a rate lower than the last release's is marked worse, one at or above is not", async () => {
   const snapshot = fixtureSnapshot({
     [`runs/${COMMIT}/20261007-1000-commit-aaaa.md`]: record({
@@ -175,6 +171,7 @@ test("rateComparison — a rate lower than the last release's is marked worse, o
   assert.deepEqual([eleven.now, eleven.then, eleven.worse], ["9 of 10", "7 of 10", false]);
 });
 
+// TST-472604 · level: unit · module: MOD-result-records
 // guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // given: TST-010 recorded 6 of 10 at COMMIT; no last release
 // input: rateComparison(fixture, COMMIT, null)

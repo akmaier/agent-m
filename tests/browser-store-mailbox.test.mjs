@@ -119,11 +119,11 @@ function browser({ mailbox = GRAPH } = {}) {
 }
 const byKey = (list) => new Map(list.map((info) => [info.key, info]));
 
+// TST-472120 · level: unit · module: MOD-browser-store
 // guards: CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN; UC-037
 // given: no mailbox stored; then a stored IMAP connection with its password
 // input: listSettings, readSetting, secretValues
-// expect: `mailbox` listed, set or not, as a secret set up in the mailbox, its stored fields read back as written under the instance's prefix; the password in
-//         secretValues and in no list; no other setting's secret changed
+// expect: `mailbox` listed, set or not, as a secret set up in the mailbox, its stored fields read back as written under the instance's prefix; the password in secretValues and in no list; no other setting's secret changed
 test("mailbox — a stored IMAP connection is listed, and its password is a secret that no list returns", () => {
   const { storage, store } = browser({ mailbox: null });
   const unset = byKey(listSettings(store)).get("mailbox");
@@ -138,11 +138,11 @@ test("mailbox — a stored IMAP connection is listed, and its password is a secr
   assert.ok(!JSON.stringify(listSettings(store)).includes(PASSWORD), "no list returns the password");
 });
 
+// TST-472121 · level: unit · module: MOD-browser-store
 // guards: A STORED SECRET IS HIDDEN UNTIL SHOWN; UC-037
 // given: a Microsoft connection naming a client identifier, whose sign-in keys stand in the browser beside those of another client identifier
 // input: listSettings, secretValues, writeSetting of `mailbox-sign-in`
-// expect: the sign-in listed as the mailbox's, a secret, with no token in the list; the tokens of this connection only in secretValues; the sign-in is no key of its
-//         own, so writing it is UnknownSetting; with an IMAP connection, which names no client identifier, no sign-in secret
+// expect: the sign-in listed as the mailbox's, a secret, with no token in the list; the tokens of this connection only in secretValues; the sign-in is no key of its own, so writing it is UnknownSetting; with an IMAP connection, which names no client identifier, no sign-in secret
 test("mailbox — the sign-in keys of a Microsoft connection are listed as the mailbox's sign-in, and their tokens are secrets", () => {
   const { store } = browser();
   const info = byKey(listSettings(store)).get("mailbox-sign-in");
@@ -157,12 +157,11 @@ test("mailbox — the sign-in keys of a Microsoft connection are listed as the m
   assert.deepEqual(secretValues(store), [PASSWORD], "an IMAP connection has no sign-in");
 });
 
+// TST-472122 · level: unit · module: MOD-browser-store
 // guards: A CLEAR IS A REAL CLEAR; UC-037
-// given: a Microsoft connection and its sign-in keys, the sign-in keys of another client identifier and their person in the shared list, the library-wide keys,
-//        another site's key, and another instance's mailbox in the same browser
+// given: a Microsoft connection and its sign-in keys, the sign-in keys of another client identifier and their person in the shared list, the library-wide keys, another site's key, and another instance's mailbox in the same browser
 // input: clearSetting(store, "mailbox")
-// expect: the connection's entry and exactly its library keys gone from localStorage — the person's account entry and its removal from the shared list
-//         included —; every other key as it was, the other instance's entries and the other client identifier's keys among them
+// expect: the connection's entry and exactly its library keys gone from localStorage — the person's account entry and its removal from the shared list included —; every other key as it was, the other instance's entries and the other client identifier's keys among them
 test("mailbox — clearing the mailbox removes the connection and the library's keys for it, and nothing of another instance", () => {
   const { storage, store } = browser();
   const before = storage.keys();
@@ -177,6 +176,7 @@ test("mailbox — clearing the mailbox removes the connection and the library's 
   clearSetting(store, "mailbox");
 });
 
+// TST-472123 · level: unit · module: MOD-browser-store
 // guards: A CLEAR IS A REAL CLEAR; UC-037
 // given: the same browser, with a GitHub token and the mailbox stored for this instance
 // input: clearEverything(store); and clearSetting of the sign-in alone on a fresh browser, where another client identifier's sign-in is in progress
@@ -196,12 +196,11 @@ test("mailbox — clearing everything removes the library's keys with every othe
   assert.deepEqual(readSetting(second.store, "mailbox"), GRAPH, "the connection stays");
 });
 
+// TST-472124 · level: unit · module: MOD-browser-store
 // guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; UC-037
-// given: a Microsoft connection and its sign-in keys; a locked and a plain export of them; a second browser that has none of them, and a third that has the sign-in
-//        keys already
+// given: a Microsoft connection and its sign-in keys; a locked and a plain export of them; a second browser that has none of them, and a third that has the sign-in keys already
 // input: exportSettings, readExport, importSettings
-// expect: `mailbox` among the settings and exactly the connection's library keys in `foreign`, by name and raw value, in the plain file with their tokens and in the
-//         locked one only once opened; the import into the second browser writes the connection and the keys verbatim, and names both as added; the third keeps its keys
+// expect: `mailbox` among the settings and exactly the connection's library keys in `foreign`, by name and raw value, in the plain file with their tokens and in the locked one only once opened; the import into the second browser writes the connection and the keys verbatim, and names both as added; the third keeps its keys
 test("mailbox — an export carries the connection and its sign-in keys, and an import writes both", async () => {
   const { storage, store } = browser();
   const plain = await exportSettings(store);
@@ -229,6 +228,7 @@ test("mailbox — an export carries the connection and its sign-in keys, and an 
   assert.equal(own.storage.getItem("msal.3.token.keys." + CLIENT), JSON.stringify({ idToken: [], accessToken: [], refreshToken: [] }), "an existing key is kept");
 });
 
+// TST-472125 · level: unit · module: MOD-browser-store
 // guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; CONFIGURATION LIVES IN THE BROWSER
 // given: an export whose `foreign` holds, besides the connection's keys, a key of another site, a key under this instance's prefix, a key of another client identifier and a library key whose value is not text
 // input: importSettings
@@ -251,6 +251,7 @@ test("mailbox — an import refuses a foreign key that is not the connection's l
   assert.ok(storage.keys().length > 0);
 });
 
+// TST-472126 · level: unit · module: MOD-browser-store
 // guards: CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; UC-037
 // given: a cookie and an address that record every write
 // input: write, list, read, export, import and clear the mailbox and its sign-in

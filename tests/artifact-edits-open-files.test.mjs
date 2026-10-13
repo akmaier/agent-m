@@ -130,13 +130,11 @@ const tail = (message) => message.split("\n").slice(-PROVENANCE.length);
 
 // ---------------------------------------------------------------- new use cases
 
+// TST-472033 · level: unit · module: MOD-artifact-edits
 // guards: THE NAME IS THE ID AND IT SURVIVES; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; ONE USE CASE, ONE FILE; A CI AGENT'S DRAFT ENTERS AS OPEN
-// given: the product whose head holds UC-001 to UC-004 and whose history also holds UC-006, added and deleted; two drafted new use cases that
-//        carry the placeholder identifiers UC-900 and UC-901 — the second mentions the first —, classed new
+// given: the product whose head holds UC-001 to UC-004 and whose history also holds UC-006, added and deleted; two drafted new use cases that carry the placeholder identifiers UC-900 and UC-901 — the second mentions the first —, classed new
 // input: the writer `open-files` with the result and the job's context
-// expect: one commit on the head that was read holding two files: UC-007 and UC-008 — one past the highest number the history holds —, each at
-//         `docs/use-cases/UC-<n>-<slug>.md`, its front matter id and its first heading replaced, the mention of UC-900 in the second now UC-007,
-//         every other byte as drafted; the outcome names the commit and the two paths, with no pull request and no notes
+// expect: one commit on the head that was read holding two files: UC-007 and UC-008 — one past the highest number the history holds —, each at `docs/use-cases/UC-<n>-<slug>.md`, its front matter id and its first heading replaced, the mention of UC-900 in the second now UC-007, every other byte as drafted; the outcome names the commit and the two paths, with no pull request and no notes
 test("open-files — two new use cases are written in one commit as UC-<n+1> and UC-<n+2>, past a number only the history holds", async () => {
   assert.ok(open(), `editStrategies.writers["open-files"]: ${artifactEdits.error?.message}`);
   const fake = fakeHost();
@@ -158,6 +156,7 @@ test("open-files — two new use cases are written in one commit as UC-<n+1> and
 
 // ---------------------------------------------------------------- changes
 
+// TST-472034 · level: unit · module: MOD-artifact-edits
 // guards: THE NAME IS THE ID AND IT SURVIVES; AN EDITED FILE KEEPS ITS IDENTIFIER; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // given: a drafted change of UC-004, whose path is UC-004's, classed a change of UC-004
 // input: the writer
@@ -173,12 +172,11 @@ test("open-files — a change of UC-004 is written into its file", async () => {
   assert.equal(outcome.commits.length, 1);
 });
 
+// TST-472035 · level: unit · module: MOD-artifact-edits
 // guards: THE NAME IS THE ID AND IT SURVIVES; A GENERATED ARTIFACT IS A PROPOSAL; UC-007 6a
-// given: two drafted use cases its participant classed new, under the placeholders UC-900 and UC-901, which the result's classes — as the
-//        person left them — make a change of UC-004 and a duplicate of UC-004
+// given: two drafted use cases its participant classed new, under the placeholders UC-900 and UC-901, which the result's classes — as the person left them — make a change of UC-004 and a duplicate of UC-004
 // input: the writer, once for each
-// expect: each written as a change to UC-004's file — its path, its id and its first heading UC-004's, the rest as drafted — and no new
-//         identifier: the head after each commit holds UC-001 to UC-004 only
+// expect: each written as a change to UC-004's file — its path, its id and its first heading UC-004's, the rest as drafted — and no new identifier: the head after each commit holds UC-001 to UC-004 only
 test("open-files — a draft the classes make a change or a duplicate of UC-004 is written there, not under a new identifier", async () => {
   assert.ok(open(), `editStrategies.writers["open-files"]: ${artifactEdits.error?.message}`);
   for (const [placeholder, cls] of [["UC-900", "change"], ["UC-901", "duplicate"]]) {
@@ -195,13 +193,11 @@ test("open-files — a draft the classes make a change or a duplicate of UC-004 
 
 // ---------------------------------------------------------------- unknown names
 
+// TST-472036 · level: unit · module: MOD-artifact-edits
 // guards: UC-007 4a, 4b; A GENERATED ARTIFACT IS A PROPOSAL
-// given: a drafted new use case that realises A LOAN HAS A DUE DATE and AN UNKNOWN RULE, which the SPEC does not hold, and another that
-//        realises only AN UNKNOWN RULE
+// given: a drafted new use case that realises A LOAN HAS A DUE DATE and AN UNKNOWN RULE, which the SPEC does not hold, and another that realises only AN UNKNOWN RULE
 // input: the writer
-// expect: both written, as UC-007 and UC-008: the first without the line of the unknown name, the second with its `realises:` list empty —
-//         every other byte as drafted —; the notes name the first use case and the name, the second and the name, and that the second
-//         realises no requirement
+// expect: both written, as UC-007 and UC-008: the first without the line of the unknown name, the second with its `realises:` list empty — every other byte as drafted —; the notes name the first use case and the name, the second and the name, and that the second realises no requirement
 test("open-files — an unknown realised name is removed and noted, and a use case left realising nothing is written and noted", async () => {
   assert.ok(open(), `editStrategies.writers["open-files"]: ${artifactEdits.error?.message}`);
   const fake = fakeHost();
@@ -219,6 +215,7 @@ test("open-files — an unknown realised name is removed and noted, and a use ca
 
 // ---------------------------------------------------------------- nothing to write
 
+// TST-472037 · level: unit · module: MOD-artifact-edits
 // guards: A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // given: a result whose one file, a change of UC-004, is byte for byte what the head holds
 // input: the writer
@@ -237,12 +234,11 @@ test("open-files — a result equal to the head commits nothing", async () => {
 
 // ---------------------------------------------------------------- the check
 
+// TST-472038 · level: unit · module: MOD-artifact-edits
 // guards: AN EDITED FILE KEEPS ITS IDENTIFIER; THE NAME IS THE ID AND IT SURVIVES
-// given: a draft that changes UC-004 and carries the identifier UC-009; a draft that changes UC-004 and keeps UC-004; a new use case with
-//        a new identifier
+// given: a draft that changes UC-004 and carries the identifier UC-009; a draft that changes UC-004 and keeps UC-004; a new use case with a new identifier
 // input: the check `identifier-kept` on each
-// expect: for the first one error finding on the file's path, naming UC-004 as the identifier to keep and UC-009 as the one it carries; none
-//         for the others
+// expect: for the first one error finding on the file's path, naming UC-004 as the identifier to keep and UC-009 as the one it carries; none for the others
 test("identifier-kept — names a changed identifier and passes a kept one", async () => {
   assert.ok(kept(), `editStrategies.checks["identifier-kept"]: ${artifactEdits.error?.message}`);
   const fake = fakeHost();
@@ -260,9 +256,9 @@ test("identifier-kept — names a changed identifier and passes a kept one", asy
 
 // ---------------------------------------------------------------- modules
 
+// TST-472039 · level: unit · module: MOD-artifact-edits
 // guards: THE NAME IS THE ID AND IT SURVIVES
-// given: a drafted new module MOD-lending, which the head holds and the history knows; and, as the known positive, a drafted new module
-//        MOD-fresh that no history holds
+// given: a drafted new module MOD-lending, which the head holds and the history knows; and, as the known positive, a drafted new module MOD-fresh that no history holds
 // input: the writer on each
 // expect: for MOD-lending IdentifierTaken naming MOD-lending, nothing written; MOD-fresh written at `docs/architecture/MOD-fresh.md`
 test("open-files — a module whose identifier the history holds is refused and named", async () => {
@@ -280,13 +276,11 @@ test("open-files — a module whose identifier the history holds is refused and 
 
 // ---------------------------------------------------------------- due diligence
 
+// TST-472040 · level: unit · module: MOD-artifact-edits
 // guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE
-// given: a drafted decision ARC-900 and a drafted module, and, among the step findings, the mark MOD-reuse-facts leaves on the decision —
-//        an error of the rule A REUSE DECISION RECORDS ITS DUE DILIGENCE on the decision's path, naming the registry npm — beside a
-//        warning of the rule DUE DILIGENCE IS FETCHED, NOT RECALLED
+// given: a drafted decision ARC-900 and a drafted module, and, among the step findings, the mark MOD-reuse-facts leaves on the decision — an error of the rule A REUSE DECISION RECORDS ITS DUE DILIGENCE on the decision's path, naming the registry npm — beside a warning of the rule DUE DILIGENCE IS FETCHED, NOT RECALLED
 // input: the writer; and, as the known positive, the same result without the mark
-// expect: with the mark nothing written and DueDiligenceMissing naming the decision's path and the registry npm; without it — with only
-//         the warning, an error of another rule and a warning of the mark's own rule — the files are written
+// expect: with the mark nothing written and DueDiligenceMissing naming the decision's path and the registry npm; without it — with only the warning, an error of another rule and a warning of the mark's own rule — the files are written
 test("open-files — the due-diligence mark writes nothing", async () => {
   assert.ok(open(), `editStrategies.writers["open-files"]: ${artifactEdits.error?.message}`);
   const fake = fakeHost();
@@ -310,13 +304,11 @@ test("open-files — the due-diligence mark writes nothing", async () => {
 
 // ---------------------------------------------------------------- provenance
 
+// TST-472041 · level: unit · module: MOD-artifact-edits
 // guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: a drafted new use case, a job context with Agent M's version and commit, the job's identifier, the kind, the drafter, and a result
-//        of two rounds
+// given: a drafted new use case, a job context with Agent M's version and commit, the job's identifier, the kind, the drafter, and a result of two rounds
 // input: the writer
-// expect: the commit's message ends with MOD-job-runner's provenanceLines of that job — the version and commit, the job, the kind, the
-//         participant and its model, the rounds —, and none of those lines, nor the version, the participant, the model or the job's
-//         identifier, stands in the file
+// expect: the commit's message ends with MOD-job-runner's provenanceLines of that job — the version and commit, the job, the kind, the participant and its model, the rounds —, and none of those lines, nor the version, the participant, the model or the job's identifier, stands in the file
 test("open-files — the provenance lines in the commit message and none in the files", async () => {
   assert.ok(open(), `editStrategies.writers["open-files"]: ${artifactEdits.error?.message}`);
   const fake = fakeHost();

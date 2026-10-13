@@ -43,6 +43,7 @@ function withFetch(t, implementation) {
 }
 const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 
+// TST-472061 · level: unit · module: MOD-bridge-client
 // guards: UC-011
 // given: a Bridge reached directly on the loopback and one at an SSH forward's address, each with a jump host stored and with none
 // input: settingsOf(entry, jumpHost) for each
@@ -53,9 +54,9 @@ test("settingsOf — a Bridge reached directly keeps its own address and carries
   }
 });
 
+// TST-472062 · level: unit · module: MOD-bridge-client
 // guards: A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; UC-011
-// given: a Bridge at a port of the jump host's range, and a jump host with an HTTPS address and the web server's login; the same with a closing slash
-//        on the address, and with no login stored
+// given: a Bridge at a port of the jump host's range, and a jump host with an HTTPS address and the web server's login; the same with a closing slash on the address, and with no login stored
 // input: settingsOf(entry, jumpHost)
 // expect: the HTTPS address with the path /bridge/<name> once, the token, a copy of the login; without a login none
 test("settingsOf — a Bridge at a port is reached at the jump host's HTTPS address with its path and the web server's login", () => {
@@ -69,6 +70,7 @@ test("settingsOf — a Bridge at a port is reached at the jump host's HTTPS addr
   assert.deepEqual(settingsOf(GPU, withoutLogin), { name: "gpu-box", address: "https://jump.example.test/bridge/gpu-box", token: "gpu-token" });
 });
 
+// TST-472063 · level: unit · module: MOD-bridge-client
 // guards: UC-011
 // given: a Bridge at a port, and a jump host with no HTTPS address
 // input: settingsOf
@@ -78,6 +80,7 @@ test("settingsOf — without an HTTPS address a Bridge at a port is reached by t
   assert.deepEqual(settingsOf(MAC, FORWARD_ONLY), { name: "lab-mac", address: "http://localhost:40102", token: "mac-token" });
 });
 
+// TST-472064 · level: unit · module: MOD-bridge-client
 // guards: UC-011
 // given: a Bridge at a port with no jump host stored; the same with one
 // input: settingsOf(entry, null)
@@ -91,6 +94,7 @@ test("settingsOf — a Bridge at a port without a jump host is JumpHostMissing, 
   assert.equal(requests, 0);
 });
 
+// TST-472065 · level: unit · module: MOD-bridge-client
 // guards: A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; UC-011
 // given: the settings of a direct, a forwarded and an HTTPS Bridge
 // input: bridgeAt(settingsOf(entry, jumpHost))
@@ -101,12 +105,11 @@ test("settingsOf — its settings give a handle on the route the Bridge is reach
   assert.deepEqual(bridgeAt(settingsOf(GPU, JUMP)), { address: "https://jump.example.test/bridge/gpu-box", route: "jump-host" });
 });
 
+// TST-472066 · level: unit · module: MOD-bridge-client
 // guards: THE BRIDGE IS PAIRED ONCE; UC-011
-// given: a Bridge at the jump host's HTTPS address with the web server's login that answers /v1/pair with the name "gpu-box"; and one on the
-//        loopback that reports "laptop"
+// given: a Bridge at the jump host's HTTPS address with the web server's login that answers /v1/pair with the name "gpu-box"; and one on the loopback that reports "laptop"
 // input: pair(address, token, login) and pair(address, token)
-// expect: one request, GET /v1/pair, with the token and the Basic login in headers; name is the reported name; settings are { name, address,
-//         token, login } and { name, address, token }; the result itself is still { address, token }
+// expect: one request, GET /v1/pair, with the token and the Basic login in headers; name is the reported name; settings are { name, address, token, login } and { name, address, token }; the result itself is still { address, token }
 test("pair — returns the name the Bridge reports with the settings to store under it", async (t) => {
   const calls = [];
   const reported = { "https://jump.example.test/bridge/gpu-box/v1/pair": "gpu-box", "http://127.0.0.1:4711/v1/pair": "laptop" };
@@ -128,11 +131,11 @@ test("pair — returns the name the Bridge reports with the settings to store un
   assert.equal(calls.length, 2);
 });
 
+// TST-472067 · level: unit · module: MOD-bridge-client
 // guards: EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; UC-011
 // given: entries of both forms — two Bridges at a port, two reached directly, which hold no port — and a range of four ports, then of two
 // input: allocatePort, then tunnelCommands and settingsOf for the new Bridge at the port allocated
-// expect: the lowest port no Bridge at a port holds, the direct ones not counted; NoFreePort naming the range when none is left; the reverse tunnel
-//         and the forward both on that port, no token in the commands; the settings of the new entry forward that port
+// expect: the lowest port no Bridge at a port holds, the direct ones not counted; NoFreePort naming the range when none is left; the reverse tunnel and the forward both on that port, no token in the commands; the settings of the new entry forward that port
 test("allocatePort — the lowest free port over Bridge entries of both forms, the same port in the commands and the settings", () => {
   const entries = [LAPTOP, GPU, FORWARDED, MAC];
   const port = allocatePort([40100, 40103], entries);
@@ -148,11 +151,11 @@ test("allocatePort — the lowest free port over Bridge entries of both forms, t
   assert.equal(settingsOf(fresh, FORWARD_ONLY).address, "http://localhost:40101");
 });
 
+// TST-472068 · level: unit · module: MOD-bridge-client
 // guards: A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; UC-011
 // given: two Bridges at a port, and the path their settings carry at the jump host's HTTPS address
 // input: proxyConfiguration(jumpHost, entries, origin, "nginx" and "apache")
-// expect: for each Bridge the path its settings carry, with a closing slash, forwarded to its port on the loopback — the path from settingsOf, not a
-//         copy of it
+// expect: for each Bridge the path its settings carry, with a closing slash, forwarded to its port on the loopback — the path from settingsOf, not a copy of it
 test("proxyConfiguration — names each Bridge's path as its settings carry it, and its port", () => {
   for (const server of ["nginx", "apache"]) {
     const text = proxyConfiguration(JUMP, [GPU, MAC], ORIGIN, server);

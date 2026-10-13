@@ -78,13 +78,11 @@ const FIELDS = lines(
   "*Check:* `tests/test_all_four.py`",                                                           // 15
 );
 
+// TST-473047 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS; UC-005 (step 6, a candidate without one of the four fields); UC-018 (step 3, a missing field is marked)
-// given: FIELDS — a requirement whose head line names no source, one without a rule, one without a check, and one with all
-//        four fields, which parseSpec reads with the missing field null
+// given: FIELDS — a requirement whose head line names no source, one without a rule, one without a check, and one with all four fields, which parseSpec reads with the missing field null
 // input: requirementFindings(parseSpec(FIELDS))
-// expect: exactly one finding for each of the three, an error under A REQUIREMENT HAS FOUR FIELDS that names the requirement
-//         and the line of its head line — NO SOURCE on line 3, NO RULE on line 7, NO CHECK on line 10 — and says which field is
-//         missing, source, rule and check; none for ALL FOUR
+// expect: exactly one finding for each of the three, an error under A REQUIREMENT HAS FOUR FIELDS that names the requirement and the line of its head line — NO SOURCE on line 3, NO RULE on line 7, NO CHECK on line 10 — and says which field is missing, source, rule and check; none for ALL FOUR
 test("requirementFindings — a missing source, rule or check is an error under A REQUIREMENT HAS FOUR FIELDS, on the requirement's line", () => {
   const found = findingsOf(FIELDS);
   assert.deepEqual(found.map(summary), [
@@ -134,14 +132,11 @@ const CHECKS = lines(
   "*Check:* see the review notes",                                                               // 29
 );
 
+// TST-473048 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT NAMES ITS CHECK; UC-005
-// given: CHECKS — three requirements whose check names a test, names two tests and says what they do, and says that it is made
-//        at review; then four whose check names neither: the word "none", "to be decided", "the export test" — a test by
-//        words, not by its path —, and "see the review notes" — the word review, not that the check is made at review
+// given: CHECKS — three requirements whose check names a test, names two tests and says what they do, and says that it is made at review; then four whose check names neither: the word "none", "to be decided", "the export test" — a test by words, not by its path —, and "see the review notes" — the word review, not that the check is made at review
 // input: requirementFindings(parseSpec(CHECKS))
-// expect: exactly one finding for each of the four, an error under A REQUIREMENT NAMES ITS CHECK that names the requirement
-//         and the line of its head line — NO WORDS on line 15, TO BE DECIDED on 19, NO FILE on 23, THE WORD REVIEW on 27 —;
-//         none for the first three, which show that the same reading finds a check that names a test or review and lets it pass
+// expect: exactly one finding for each of the four, an error under A REQUIREMENT NAMES ITS CHECK that names the requirement and the line of its head line — NO WORDS on line 15, TO BE DECIDED on 19, NO FILE on 23, THE WORD REVIEW on 27 —; none for the first three, which show that the same reading finds a check that names a test or review and lets it pass
 test("requirementFindings — a check that names neither a test nor review is an error under A REQUIREMENT NAMES ITS CHECK", () => {
   const found = findingsOf(CHECKS);
   assert.deepEqual(found.map(summary), [
@@ -190,15 +185,11 @@ const RULES = lines(
   "*Check:* `tests/test_g.py` — a report without a signature fails and is refused.",             // 30
 );
 
+// TST-473049 · level: unit · module: MOD-spec-document
 // guards: ONE STATEMENT PER REQUIREMENT; UC-005 (step 6, a rule containing a conjunction); UC-018 (step 3, a conjunction in the rule is marked)
-// given: RULES — four rules that contain "and" — in the middle of a line, at the start of the rule, and on its second line —
-//        or "additionally"; then three that contain none: "standard handling" — the letters inside other words —, a requirement
-//        named in a code span, whose name holds AND, and a requirement whose name and check hold "and" but whose rule does not
+// given: RULES — four rules that contain "and" — in the middle of a line, at the start of the rule, and on its second line — or "additionally"; then three that contain none: "standard handling" — the letters inside other words —, a requirement named in a code span, whose name holds AND, and a requirement whose name and check hold "and" but whose rule does not
 // input: requirementFindings(parseSpec(RULES))
-// expect: exactly one finding for each of the four, a warning — not an error — under ONE STATEMENT PER REQUIREMENT that names
-//         the requirement and the line of its head line — AND IN THE RULE on line 3, ADDITIONALLY IN THE RULE on 7, AND AT THE
-//         START OF THE RULE on 11, AND ON THE SECOND LINE OF THE RULE on 15 —; none for NO CONJUNCTION, A NAME IN THE RULE and
-//         AND ONLY IN THE CHECK
+// expect: exactly one finding for each of the four, a warning — not an error — under ONE STATEMENT PER REQUIREMENT that names the requirement and the line of its head line — AND IN THE RULE on line 3, ADDITIONALLY IN THE RULE on 7, AND AT THE START OF THE RULE on 11, AND ON THE SECOND LINE OF THE RULE on 15 —; none for NO CONJUNCTION, A NAME IN THE RULE and AND ONLY IN THE CHECK
 test("requirementFindings — a rule with \"and\" or \"additionally\" is a warning under ONE STATEMENT PER REQUIREMENT", () => {
   const found = findingsOf(RULES);
   assert.deepEqual(found.map(summary), [
@@ -240,13 +231,11 @@ const NAMES = lines(
   "*Check:* `tests/test_e.py`",                                                                  // 23
 );
 
+// TST-473050 · level: unit · module: MOD-spec-document
 // guards: THE NAME IS THE ID AND IT SURVIVES; UC-018
-// given: NAMES — ONE NAME given twice in the same section, on lines 3 and 11; ANOTHER NAME given twice in two sections, on lines
-//        7 and 17; and A NAME GIVEN ONCE; every requirement in the full form
+// given: NAMES — ONE NAME given twice in the same section, on lines 3 and 11; ANOTHER NAME given twice in two sections, on lines 7 and 17; and A NAME GIVEN ONCE; every requirement in the full form
 // input: requirementFindings(parseSpec(NAMES))
-// expect: exactly one finding for each name given twice, an error under THE NAME IS THE ID AND IT SURVIVES that names the
-//         requirement and the line of the second — ONE NAME on line 11, ANOTHER NAME on line 17, as parseSpec reads the second
-//         of two of the same name —; none for the first of either, and none for A NAME GIVEN ONCE
+// expect: exactly one finding for each name given twice, an error under THE NAME IS THE ID AND IT SURVIVES that names the requirement and the line of the second — ONE NAME on line 11, ANOTHER NAME on line 17, as parseSpec reads the second of two of the same name —; none for the first of either, and none for A NAME GIVEN ONCE
 test("requirementFindings — a name given twice is an error under THE NAME IS THE ID AND IT SURVIVES, on the second", () => {
   const found = findingsOf(NAMES);
   assert.deepEqual(found.map(summary), [
@@ -293,15 +282,11 @@ const MARKS = {
   "TWO MARKS IN ONE SOURCE": ["2026-09-24", "reworded 2026-09-30"],
 };
 
+// TST-473051 · level: unit · module: MOD-spec-document
 // guards: A DOCUMENT HOLDS NO HISTORY
-// given: HISTORY — a source that dates a change, a rule that holds a note of withdrawal, a check that stamps a rewording, a
-//        source that holds two marks over two lines, and a rule that states a date which is no mark of history, the date a text
-//        was read; every requirement otherwise in the full form
+// given: HISTORY — a source that dates a change, a rule that holds a note of withdrawal, a check that stamps a rewording, a source that holds two marks over two lines, and a rule that states a date which is no mark of history, the date a text was read; every requirement otherwise in the full form
 // input: requirementFindings(parseSpec(HISTORY))
-// expect: one finding for each mark, five in all — an error under A DOCUMENT HOLDS NO HISTORY that names the requirement and the
-//         line of its head line, and in its `what` the mark, as MARKS writes it: DATED BY ITS SOURCE on line 3, WITHDRAWN IN ITS
-//         RULE on 7, STAMPED IN ITS CHECK on 12, TWO MARKS IN ONE SOURCE twice on 16, one finding for each of its two marks —;
-//         none for A DATE THAT IS NO MARK
+// expect: one finding for each mark, five in all — an error under A DOCUMENT HOLDS NO HISTORY that names the requirement and the line of its head line, and in its `what` the mark, as MARKS writes it: DATED BY ITS SOURCE on line 3, WITHDRAWN IN ITS RULE on 7, STAMPED IN ITS CHECK on 12, TWO MARKS IN ONE SOURCE twice on 16, one finding for each of its two marks —; none for A DATE THAT IS NO MARK
 test("requirementFindings — each mark of history is an error under A DOCUMENT HOLDS NO HISTORY", () => {
   const found = findingsOf(HISTORY);
   assert.deepEqual(found.map(summary), [
@@ -347,14 +332,11 @@ const CLEAN = lines(
   "*Check:* `tests/test_d.py`",                                                                  // 21
 );
 
+// TST-473052 · level: unit · module: MOD-spec-document
 // guards: A REQUIREMENT HAS FOUR FIELDS; A REQUIREMENT NAMES ITS CHECK; ONE STATEMENT PER REQUIREMENT; THE NAME IS THE ID AND IT SURVIVES; A DOCUMENT HOLDS NO HISTORY; UC-005; UC-018; UC-019
-// given: CLEAN — four requirements in the full form, with four distinct names in two sections: a check that names a test, one
-//        that names two and says what they do over two lines, one at review, and a source over two lines with the years of a
-//        standard in it
-// input: requirementFindings(parseSpec(CLEAN)); and, to show that the same reading finds a fault in this SPEC, the same with
-//        the check of AT REVIEW taken out
-// expect: no finding for CLEAN; for the SPEC without that check exactly one, an error under A REQUIREMENT HAS FOUR FIELDS on
-//         AT REVIEW, line 12
+// given: CLEAN — four requirements in the full form, with four distinct names in two sections: a check that names a test, one that names two and says what they do over two lines, one at review, and a source over two lines with the years of a standard in it
+// input: requirementFindings(parseSpec(CLEAN)); and, to show that the same reading finds a fault in this SPEC, the same with the check of AT REVIEW taken out
+// expect: no finding for CLEAN; for the SPEC without that check exactly one, an error under A REQUIREMENT HAS FOUR FIELDS on AT REVIEW, line 12
 test("requirementFindings — a requirement in the full form has no finding", () => {
   // Known positive: the same reading finds the one fault planted in a copy.
   const planted = CLEAN.replace("*Check:* no automatic check; at review.\n", "");

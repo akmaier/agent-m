@@ -112,11 +112,11 @@ function github({ pulls = [ghPull(7)], contents = { [`${BASE}:README.md`]: "base
 
 // ---------------------------------------------------------------- GitHub
 
+// TST-472552 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-032
 // given: a GitHub repository with 130 pull requests, 100 on the first page and 30 on the second, of which 3 are merged and 4 closed unmerged, one a draft
 // input: listPullRequests({}) and listPullRequests({ state: "all" })
-// expect: every pull request, across both pages — two requests of 100 to /pulls with state=all and the page named —, each as the PullRequest: number, title, branch, base, head, state, draft, url
-//         and the dates; the token only as a Bearer header to api.github.com, in no address
+// expect: every pull request, across both pages — two requests of 100 to /pulls with state=all and the page named —, each as the PullRequest: number, title, branch, base, head, state, draft, url and the dates; the token only as a Bearer header to api.github.com, in no address
 test("listPullRequests on GitHub — every page, each record in the one shape", async () => {
   const all = Array.from({ length: 130 }, (_, i) => ghPull(i + 1, i < 3 ? { state: "closed", merged_at: "2026-10-12T08:00:00Z", closed_at: "2026-10-12T08:00:00Z" }
     : i < 7 ? { state: "closed", closed_at: "2026-10-11T08:00:00Z" } : i === 7 ? { draft: true } : {}));
@@ -133,11 +133,11 @@ test("listPullRequests on GitHub — every page, each record in the one shape", 
   }
 });
 
+// TST-472553 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-032
 // given: the same repository
 // input: listPullRequests with state "open", "merged", "closed", and with branch "feature-9"
-// expect: open asks for state=open; merged and closed ask for state=closed and keep, the first only those with a merged_at and the second only those without; the branch filter asks for
-//         head=carol:feature-9 and returns that pull request alone; a filter of an unknown state is a TypeError with no request
+// expect: open asks for state=open; merged and closed ask for state=closed and keep, the first only those with a merged_at and the second only those without; the branch filter asks for head=carol:feature-9 and returns that pull request alone; a filter of an unknown state is a TypeError with no request
 test("listPullRequests on GitHub — the state and branch filters", async () => {
   const all = Array.from({ length: 12 }, (_, i) => ghPull(i + 1, i < 3 ? { state: "closed", merged_at: "2026-10-12T08:00:00Z", closed_at: "2026-10-12T08:00:00Z" } : i < 5 ? { state: "closed", closed_at: "2026-10-11T08:00:00Z" } : {}));
   const answer = server([[`${GH}/pulls`, (q) => {
@@ -162,12 +162,11 @@ test("listPullRequests on GitHub — the state and branch filters", async () => 
   assert.equal(refused.requests.length, 0);
 });
 
+// TST-472554 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-002; UC-032
 // given: pull request 7, whose commits the server lists newest first, with check runs and statuses, reviews on both commits, three changed files, and contents at the base and head commits
 // input: pullRequestFacts(7)
-// expect: the pull request; its commits oldest first — first, second — each with its message, the paths it changed (a rename by its new path) and its ci (the first success; the second
-//         failure, since a check failed); the files of the request with their change (added, renamed, deleted); the reviews in the order given — pending left out — with reviewer, verdict, commit,
-//         date; the head's checks: the check runs in order, then the latest status of each context, with state and url; all requests to api.github.com with the token as a Bearer header only
+// expect: the pull request; its commits oldest first — first, second — each with its message, the paths it changed (a rename by its new path) and its ci (the first success; the second failure, since a check failed); the files of the request with their change (added, renamed, deleted); the reviews in the order given — pending left out — with reviewer, verdict, commit, date; the head's checks: the check runs in order, then the latest status of each context, with state and url; all requests to api.github.com with the token as a Bearer header only
 test("pullRequestFacts on GitHub — commits in order with their files and ci, files, reviews and head checks", async () => {
   const host = connect(GITHUB, { token: GH_TOKEN });
   const { result: facts, requests } = await serving(github(), () => host.pullRequestFacts(7));
@@ -190,11 +189,11 @@ test("pullRequestFacts on GitHub — commits in order with their files and ci, f
   assert.ok(requests.every((r) => r.method === "GET" && r.host === "api.github.com" && r.headers.authorization === `Bearer ${GH_TOKEN}` && !r.href.includes(GH_TOKEN)));
 });
 
+// TST-472555 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-002
 // given: the same pull request; contents at BASE (README.md only) and at the head commit (README.md and a.md)
 // input: facts.read("README.md", "base"), read("a.md", "base"), read("a.md", "head"), read("README.md", "head"), and read("a.md", "head") again
-// expect: the base text of README.md, null for a.md at the base (the commit does not hold it), the head texts; every read is a request for a commit's contents by that commit, never by a
-//         branch; the repeated read makes no request; no request is made by pullRequestFacts itself for a text
+// expect: the base text of README.md, null for a.md at the base (the commit does not hold it), the head texts; every read is a request for a commit's contents by that commit, never by a branch; the repeated read makes no request; no request is made by pullRequestFacts itself for a text
 test("pullRequestFacts on GitHub — read(path, side) reads the exact commit of each side, once", async () => {
   const host = connect(GITHUB, { token: GH_TOKEN });
   const { result: facts } = await serving(github(), () => host.pullRequestFacts(7));
@@ -232,12 +231,11 @@ function gitlab({ mrs = [glMr(7)], pipelinesOf = { [C1]: [{ id: 60, status: "suc
 
 // ---------------------------------------------------------------- GitLab
 
+// TST-472556 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-032
 // given: a GitLab project with 130 merge requests over two pages: merged, closed, one locked, one draft
 // input: listPullRequests({}), then with state "open", "merged", "closed" and branch "feature-9"
-// expect: both pages of the project's merge requests with state=all; each as the PullRequest — iid as number, source_branch as branch, target_branch as base, sha as head, web_url as url, the
-//         server's dates; locked is open; open asks for state=opened, merged for merged, closed for closed, the branch for source_branch=feature-9; the token as PRIVATE-TOKEN to the
-//         project's API only, in no address
+// expect: both pages of the project's merge requests with state=all; each as the PullRequest — iid as number, source_branch as branch, target_branch as base, sha as head, web_url as url, the server's dates; locked is open; open asks for state=opened, merged for merged, closed for closed, the branch for source_branch=feature-9; the token as PRIVATE-TOKEN to the project's API only, in no address
 test("listPullRequests on GitLab — every page, each record in the one shape, the filters sent to the server", async () => {
   const all = Array.from({ length: 130 }, (_, i) => glMr(i + 1, i < 2 ? { state: "merged", merged_at: "2026-10-12T08:00:00.000Z", closed_at: null } : i < 4 ? { state: "closed", closed_at: "2026-10-11T08:00:00.000Z" }
     : i === 4 ? { state: "locked" } : i === 5 ? { draft: true } : {}));
@@ -256,12 +254,11 @@ test("listPullRequests on GitLab — every page, each record in the one shape, t
   }
 });
 
+// TST-472557 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-002; UC-032
 // given: merge request 7 with two commits the server lists newest first, pipelines for each commit, diffs, one approval, and the jobs of the head commit's newest pipeline
 // input: pullRequestFacts(7), and read on both sides
-// expect: the commits oldest first with their paths and ci from their newest pipeline (the first success, the second failure; a commit with no pipeline none); the files of the request; the
-//         approval as a verdict `approved` on the head commit, dated by approved_at; the head's checks as the jobs of its newest pipeline with their states; the texts read by the merge base
-//         commit and the head commit, null for a path the commit lacks, a repeated read made once; every request to the project's API with PRIVATE-TOKEN
+// expect: the commits oldest first with their paths and ci from their newest pipeline (the first success, the second failure; a commit with no pipeline none); the files of the request; the approval as a verdict `approved` on the head commit, dated by approved_at; the head's checks as the jobs of its newest pipeline with their states; the texts read by the merge base commit and the head commit, null for a path the commit lacks, a repeated read made once; every request to the project's API with PRIVATE-TOKEN
 test("pullRequestFacts on GitLab — commits, files, approvals, head jobs and the exact sides", async () => {
   const host = connect(GITLAB, { token: GL_TOKEN });
   const { result: facts, requests } = await serving(gitlab(), () => host.pullRequestFacts(7));
@@ -283,6 +280,7 @@ test("pullRequestFacts on GitLab — commits, files, approvals, head jobs and th
   assert.deepEqual(bare.result.checks, []);
 });
 
+// TST-472558 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS
 // given: pipelines in each status of docs.gitlab.com/api/pipelines/
 // input: the ci of a commit whose newest pipeline has it
@@ -296,11 +294,11 @@ test("pullRequestFacts on GitLab — a pipeline's status as a commit's ci", asyn
   }
 });
 
+// TST-472559 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS
 // given: GitHub check runs and statuses in each state of the pages above
 // input: the head checks of a pull request whose head commit has them
-// expect: queued, waiting, requested, pending → queued; in_progress → running; completed by conclusion — success, failure, neutral, cancelled, skipped, "timed out", action_required → failure,
-//         none → neutral; a status: pending → running, success, error → failure, failure; only the latest status of a context (the first listed) counts
+// expect: queued, waiting, requested, pending → queued; in_progress → running; completed by conclusion — success, failure, neutral, cancelled, skipped, "timed out", action_required → failure, none → neutral; a status: pending → running, success, error → failure, failure; only the latest status of a context (the first listed) counts
 test("pullRequestFacts on GitHub — the state of each kind of check", async () => {
   const runs = [run("q", "queued"), run("w", "waiting"), run("r", "requested"), run("p", "pending"), run("i", "in_progress"), run("s", "completed", "success"), run("f", "completed", "failure"),
     run("n", "completed", "neutral"), run("c", "completed", "cancelled"), run("k", "completed", "skipped"), run("t", "completed", "timed_out"), run("a", "completed", "action_required"), run("z", "completed", null)];
@@ -315,6 +313,7 @@ test("pullRequestFacts on GitHub — the state of each kind of check", async () 
 
 // ---------------------------------------------------------------- how they fail
 
+// TST-472560 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
 // given: a host of each server whose server serves the list and the facts first, then answers every request with 401, 403, 404, a used-up limit, 500, and a failing network
 // input: listPullRequests({}) and pullRequestFacts(7)
@@ -339,6 +338,7 @@ test("listPullRequests and pullRequestFacts name how they fail, on each server",
   }
 });
 
+// TST-472561 · level: unit · module: MOD-repository-hosts
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a server that serves everything for pull request 7 but refuses the check runs of the second commit (403), or the reviews (401), or a commit's files (429 with a used-up limit)
 // input: pullRequestFacts(7)
@@ -356,11 +356,11 @@ test("pullRequestFacts fails whole when one of its parts is refused, and a missi
   assert.match(missing.what, /7/);
 });
 
+// TST-472562 · level: unit · module: MOD-repository-hosts
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a host with no token for a public GitHub repository; a host through a clone with no token; a host through a clone with a token; bad numbers and a read of a side that is none
 // input: listPullRequests and pullRequestFacts
-// expect: with no token the requests go with no authorisation header; through a clone without a token NotSupported with no request; through a clone with a token the server's answer; a number
-//         that is no positive integer is a TypeError with no request
+// expect: with no token the requests go with no authorisation header; through a clone without a token NotSupported with no request; through a clone with a token the server's answer; a number that is no positive integer is a TypeError with no request
 test("pull requests without a token, through a clone, and with arguments that are none", async () => {
   const open = await serving(github(), () => connect(GITHUB).listPullRequests({}));
   assert.equal(open.result.length, 1);
@@ -381,11 +381,11 @@ test("pull requests without a token, through a clone, and with arguments that ar
 
 // ---------------------------------------------------------------- a commit's ci and the order of the commits
 
+// TST-472563 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS
 // given: a GitHub pull request whose first commit has only the checks named, nothing else, and its second commit none
 // input: pullRequestFacts(7), for each set of checks of the first commit
-// expect: failure for a timed out run alone, a cancelled run alone and a failed status alone; running for a run in progress beside a success; success for a success beside a skipped and a neutral
-//         run; none for no check at all
+// expect: failure for a timed out run alone, a cancelled run alone and a failed status alone; running for a run in progress beside a success; success for a success beside a skipped and a neutral run; none for no check at all
 test("pullRequestFacts on GitHub — a commit's ci from its checks alone", async () => {
   const base = github();
   const sets = [[[run("t", "completed", "timed_out")], [], "failure"], [[run("c", "completed", "cancelled")], [], "failure"], [[], [{ context: "legacy", state: "failure", target_url: "u" }], "failure"],
@@ -398,6 +398,7 @@ test("pullRequestFacts on GitHub — a commit's ci from its checks alone", async
   }
 });
 
+// TST-472564 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS
 // given: a GitHub pull request whose server lists the second commit first, and whose first commit has the later date (a rebased commit: its committer date is newer than its child's)
 // input: pullRequestFacts(7)
@@ -409,6 +410,7 @@ test("pullRequestFacts — the parents decide the order of the commits before th
   assert.deepEqual(result.commits.map((c) => c.sha), [C1, C2]);
 });
 
+// TST-472565 · level: unit · module: MOD-repository-hosts
 // guards: STATUS IS DERIVED FROM THE RECORDS
 // given: a GitLab merge request whose commits come newest first and name no parent_ids (the page's example omits them), with the dates of the commits
 // input: pullRequestFacts(7)

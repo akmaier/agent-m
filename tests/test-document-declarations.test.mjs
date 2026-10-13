@@ -59,6 +59,11 @@ function markerText(marker, id) {
 const MARKER_NAMES = { "//": "slash-slash", "#": "hash", "--": "dash-dash", ";": "semicolon" };
 
 for (const marker of ["//", "#", "--", ";"]) {
+  // TST-478008 · level: unit · module: MOD-test-document
+  // guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+  // given: a declaration in the comment marker named, with every key MOD-test-document's Data table lists, each on its own line after the identifier
+  // input: that file's text
+  // expect: one TestDeclaration with every key read, `path` the name given and `line` the identifier's line (from 1)
   test(`a '${marker}' declaration is read with every key — MOD-test-document`, () => {
     const path = `fixtures/marker-${MARKER_NAMES[marker]}.test.mjs`;
     const text = markerText(marker, "TST-001");
@@ -66,6 +71,11 @@ for (const marker of ["//", "#", "--", ";"]) {
   });
 }
 
+// TST-478009 · level: unit · module: MOD-test-document
+// guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+// given: a block-comment declaration (lines starting ' *') with every key MOD-test-document's Data table lists, each on its own line after the identifier TST-002
+// input: that file's text
+// expect: one TestDeclaration with every key read, `path` the name given and `line` 2
 test("a ' *' block-comment declaration is read with every key — MOD-test-document", () => {
   const path = "fixtures/marker-block.test.mjs";
   const text = [
@@ -86,6 +96,11 @@ test("a ' *' block-comment declaration is read with every key — MOD-test-docum
   assert.deepEqual(testDeclarations(path, text), [fullExpected("TST-002", path, 2)]);
 });
 
+// TST-478010 · level: unit · module: MOD-test-document
+// guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+// given: a Markdown file whose heading '### TST-003 A sample manual test' is followed by every key as a plain `key: value` line
+// input: that file's text
+// expect: one TestDeclaration with every key read, level user, `path` the name given and `line` 3
 test("a Markdown heading declaration is read with every key — MOD-test-document", () => {
   const path = "fixtures/manual-tests.md";
   const text = [
@@ -110,6 +125,11 @@ test("a Markdown heading declaration is read with every key — MOD-test-documen
 
 // ---------------------------------------------------------------- a missing key
 
+// TST-478011 · level: unit · module: MOD-test-document
+// guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+// given: a declaration TST-004 with level, module, guards, input and expect but no `given` line
+// input: that file's text
+// expect: one TestDeclaration with `given` null and every other stated key read
 test("a declaration missing a key is read with that key null — MOD-test-document", () => {
   const path = "fixtures/missing-key.test.mjs";
   const text = [
@@ -139,6 +159,11 @@ test("a declaration missing a key is read with that key null — MOD-test-docume
 
 // ---------------------------------------------------------------- a declaration ends at the first line not of its form
 
+// TST-478012 · level: unit · module: MOD-test-document
+// guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+// given: a declaration TST-005 followed by a bare `//` line and then given, input and expect lines, and after a blank line a complete declaration TST-006
+// input: that file's text
+// expect: TST-005 is read with given, input and expect null, because it ended at the bare `//` line, and TST-006 is still read with every stated key
 test("a declaration ends at the first line not of its form, and a later one still reads — MOD-test-document", () => {
   const path = "fixtures/ends-at-non-form.test.mjs";
   const text = [
@@ -180,6 +205,11 @@ test("a declaration ends at the first line not of its form, and a later one stil
 // holds ' · ' — and `runs` after it. Given: that declaration. Input: its text. Expect: `expect` holds the value whole,
 // ' · ' included, and `runs` is read, not lost.
 
+// TST-478013 · level: unit · module: MOD-test-document
+// guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+// given: MOD-test-document's own example (its Data section), with `expect` read as UC-047's own notification text, which holds ' · ', and `runs` after it
+// input: its text
+// expect: `expect` holds the value whole, ' · ' included, and `runs` is read, not lost
 test("a following line whose value holds ' · ' does not end the declaration — MOD-test-document", () => {
   const path = "fixtures/middle-dot-value.test.mjs";
   const text = [
@@ -209,6 +239,11 @@ test("a following line whose value holds ' · ' does not end the declaration —
 
 // ---------------------------------------------------------------- a file without a declaration
 
+// TST-478014 · level: unit · module: MOD-test-document
+// guards: UC-013; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+// given: a JavaScript file with only a plain comment naming no TST- identifier and a Markdown file with no heading of the form TST-<nnn>
+// input: each file's text
+// expect: no declaration is found in either
 test("a file without a declaration yields none — MOD-test-document", () => {
   const code = [
     "// a plain comment, naming no TST- identifier",

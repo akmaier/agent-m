@@ -62,11 +62,11 @@ const signedIn = { account: { username: "reports@example.org", homeAccountId: "x
 const failure = (name, errorCode, errorMessage, subError = "") => Object.assign(new Error(`${errorCode}: ${errorMessage}`),
   { name, errorCode, errorMessage, subError });
 
+// TST-472387 · level: unit · module: MOD-mail-routes
 // guards: THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 // given: the stand-in, which signs the account reports@example.org in
 // input: signIn(CLIENT, "reports@example.org")
-// expect: one login, whose request asks for exactly the three scopes — Mail.ReadWrite, Mail.Send, offline_access — and nothing else:
-//         no extra scope to consent to, no other field than the scopes and the hint of the address
+// expect: one login, whose request asks for exactly the three scopes — Mail.ReadWrite, Mail.Send, offline_access — and nothing else: no extra scope to consent to, no other field than the scopes and the hint of the address
 test("signIn — asks for exactly Mail.ReadWrite, Mail.Send and offline_access, and nothing else", async () => {
   assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
   const seen = standIn(signedIn);
@@ -78,11 +78,11 @@ test("signIn — asks for exactly Mail.ReadWrite, Mail.Send and offline_access, 
   assert.equal(seen.logins[0].loginHint, "reports@example.org");
 });
 
+// TST-472388 · level: unit · module: MOD-mail-routes
 // guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER
 // given: the stand-in, on the page of the instance alice/agent-m
 // input: signIn(CLIENT, "reports@example.org")
-// expect: the client created once with the client identifier, the institution's tenant as authority, the instance's Pages address as the return
-//         address and the cache in localStorage; the window used is the popup — no redirect
+// expect: the client created once with the client identifier, the institution's tenant as authority, the instance's Pages address as the return address and the cache in localStorage; the window used is the popup — no redirect
 test("signIn — Microsoft's own window and the token cache in localStorage are configured", async () => {
   assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
   const seen = standIn(signedIn);
@@ -97,6 +97,7 @@ test("signIn — Microsoft's own window and the token cache in localStorage are 
   assert.equal(seen.redirects, 0, "no redirect of the page");
 });
 
+// TST-472389 · level: unit · module: MOD-mail-routes
 // guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER
 // given: the stand-in, whose login answers with the account and, as the library's result has them, an access token and an id token
 // input: signIn(CLIENT, "reports@example.org")
@@ -109,11 +110,11 @@ test("signIn — returns the account, and no token", async () => {
   assert.ok(!JSON.stringify(answer).includes("SECRET"), "no token");
 });
 
+// TST-472390 · level: unit · module: MOD-mail-routes
 // guards: A CREDENTIAL IS NEVER PLACED IN A URL; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER
 // given: the stand-in, which answers with an access token; the page's own window.open and address recorded
 // input: signIn(CLIENT, "reports@example.org")
-// expect: the module opens no window and changes no address itself; every address it hands the library — authority, return address —
-//         is a plain address with no query, no fragment and no token; the token is nowhere in what the module handed over
+// expect: the module opens no window and changes no address itself; every address it hands the library — authority, return address — is a plain address with no query, no fragment and no token; the token is nowhere in what the module handed over
 test("signIn — no token in any address the page opens", async () => {
   assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
   const seen = standIn(signedIn);
@@ -128,11 +129,6 @@ test("signIn — no token in any address the page opens", async () => {
   assert.ok(!JSON.stringify([seen.configs, seen.logins]).includes("SECRET"), "no token handed over");
 });
 
-// guards: UC-037 (3a, 3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
-// given: the stand-in, whose login fails, each time as the library fails
-// input: signIn(CLIENT, "reports@example.org") for each answer
-// expect: the error named after it — PopupBlocked (the browser blocked the window), SignInCancelled (the person closed it),
-//         PermissionDeclined naming the permission, RegistrationRefused with Microsoft's own message, Unreachable with the reason
 const MISSING = "AADSTS700016: Application with identifier '11111111-2222-3333-4444-555555555555' was not found in the directory 'Contoso'.";
 const MISMATCH = "AADSTS50011: The redirect URI 'https://alice.github.io/agent-m/' specified in the request does not match the redirect URIs configured for the application.";
 for (const [what, answer, name, check] of [
@@ -153,6 +149,11 @@ for (const [what, answer, name, check] of [
   ["a token endpoint that is not reached", failure("BrowserAuthError", "post_request_failed", "Post request failed."), "Unreachable",
     (error) => assert.match(error.reason, /Post request failed/)],
 ]) {
+  // TST-477012 · level: unit · module: MOD-mail-routes
+  // guards: UC-037 (3a, 3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
+  // given: the stand-in, whose login fails, each time as the library fails
+  // input: signIn(CLIENT, "reports@example.org") for each answer
+  // expect: the error named after it — PopupBlocked (the browser blocked the window), SignInCancelled (the person closed it), PermissionDeclined naming the permission, RegistrationRefused with Microsoft's own message, Unreachable with the reason
   test(`signIn — ${what} is answered with ${name}`, async () => {
     assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
     standIn(answer);
@@ -164,11 +165,11 @@ for (const [what, answer, name, check] of [
   });
 }
 
+// TST-472391 · level: unit · module: MOD-mail-routes
 // guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; UC-037 (step 3)
 // given: the stand-in; the page of the instance alice/agent-m
-// input: signIn(CLIENT, address) for reports@example.org, for Reports@Uni-Example.DE, 
-// expect: the authority the institution's own tenant: https://login.microsoftonline.com/example.org, .../uni-example.de (the domain in lower case),
-//         for a quoted local part holding an @ the domain after the last @, and for the address with no domain Microsoft's multi-tenant /common; always on the host login.microsoftonline.com, no query
+// input: signIn(CLIENT, address) for reports@example.org, for Reports@Uni-Example.DE,
+// expect: the authority the institution's own tenant: https://login.microsoftonline.com/example.org, .../uni-example.de (the domain in lower case), for a quoted local part holding an @ the domain after the last @, and for the address with no domain Microsoft's multi-tenant /common; always on the host login.microsoftonline.com, no query
 test("signIn — signs in at the tenant of the mail address's domain", async () => {
   assert.ok(signIn, `signIn: ${mailRoutes.error?.message}`);
   for (const [address, tenant] of [["reports@example.org", "example.org"], ["Reports@Uni-Example.DE", "uni-example.de"], ["\"a@b\"@example.org", "example.org"]]) {
@@ -178,6 +179,7 @@ test("signIn — signs in at the tenant of the mail address's domain", async () 
   }
 });
 
+// TST-472392 · level: unit · module: MOD-mail-routes
 // guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037 (step 3)
 // given: the stand-in; no address (null), an empty one, one without a domain ("reports"), one ending in @
 // input: signIn(CLIENT, address) for each

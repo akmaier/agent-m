@@ -46,11 +46,11 @@ const identifiers = (outlined) => [...outlined.members, ...outlined.groups.flatM
 
 // ---------------------------------------------------------------- each kind of move
 
+// TST-472230 · level: unit · module: MOD-group-document
 // guards: UC-021
 // given: the example group file — Review holding UC-006 and UC-008, Derivation holding UC-005 and UC-007
 // input: applyMoves with create "Approval" at the top, then create "Details" in Review
-// expect: both moves applied, none refused; the tree holds Review (now with the empty group Details), Derivation and the new
-//         empty group Approval at the top, each member where it stood
+// expect: both moves applied, none refused; the tree holds Review (now with the empty group Details), Derivation and the new empty group Approval at the top, each member where it stood
 test("applyMoves — create puts a new, empty group at the top or inside a group", () => {
   assert.deepEqual(outline(example()), { groups: [REVIEW(), DERIVATION()], members: [] }, "known positive: the example is read");
   const moves = [{ op: "create", title: "Approval", in: [] }, { op: "create", title: "Details", in: ["Review"] }];
@@ -63,6 +63,7 @@ test("applyMoves — create puts a new, empty group at the top or inside a group
   assert.equal(result.tree.kind, "use-cases");
 });
 
+// TST-472231 · level: unit · module: MOD-group-document
 // guards: UC-021
 // given: the example group file
 // input: applyMoves with rename of the group Review to "Approval"
@@ -74,11 +75,11 @@ test("applyMoves — rename changes the title of a group and nothing else", () =
   assert.deepEqual([result.applied, result.refused], [moves, []]);
 });
 
+// TST-472232 · level: unit · module: MOD-group-document
 // guards: AN ITEM HAS ONE PLACE IN ITS HIERARCHY; REGROUPING LEAVES THE GROUPED FILE UNCHANGED; UC-021
 // given: the example group file
 // input: applyMoves with move of UC-007 into Review, then move of UC-006 to the top level
-// expect: both applied; Review holds UC-008 then UC-007, Derivation holds UC-005, UC-006 stands at the top level; each of the
-//         four use cases stands exactly once in the tree, a moved one leaving no copy behind
+// expect: both applied; Review holds UC-008 then UC-007, Derivation holds UC-005, UC-006 stands at the top level; each of the four use cases stands exactly once in the tree, a moved one leaving no copy behind
 test("applyMoves — move takes an item out of its place and puts it into a group or at the top level, once", () => {
   const moves = [{ op: "move", item: "UC-007", to: ["Review"] }, { op: "move", item: "UC-006", to: [] }];
   const result = applyMoves(example(), moves);
@@ -90,11 +91,11 @@ test("applyMoves — move takes an item out of its place and puts it into a grou
   assert.deepEqual([result.applied, result.refused], [moves, []]);
 });
 
+// TST-472233 · level: unit · module: MOD-group-document
 // guards: UC-021
 // given: the example group file
 // input: applyMoves with move-group of Derivation into Review
-// expect: the move applied; the top level holds Review only, and Review holds UC-006 and UC-008 and the group Derivation with
-//         UC-005 and UC-007
+// expect: the move applied; the top level holds Review only, and Review holds UC-006 and UC-008 and the group Derivation with UC-005 and UC-007
 test("applyMoves — move-group moves a group with all it holds into another group", () => {
   const moves = [{ op: "move-group", group: ["Derivation"], to: ["Review"] }];
   const result = applyMoves(example(), moves);
@@ -105,11 +106,11 @@ test("applyMoves — move-group moves a group with all it holds into another gro
   assert.deepEqual([result.applied, result.refused], [moves, []]);
 });
 
+// TST-472234 · level: unit · module: MOD-group-document
 // guards: REGROUPING LEAVES THE GROUPED FILE UNCHANGED; UC-021
 // given: the example group file
 // input: applyMoves with move of UC-005 and UC-007 into Review, then delete of Derivation, which is empty by then
-// expect: all three applied; the top level holds Review only, with UC-006, UC-008, UC-005 and UC-007 — deleting a group
-//         deleted no item
+// expect: all three applied; the top level holds Review only, with UC-006, UC-008, UC-005 and UC-007 — deleting a group deleted no item
 test("applyMoves — delete removes an empty group, and no item", () => {
   const moves = [
     { op: "move", item: "UC-005", to: ["Review"] },
@@ -121,11 +122,11 @@ test("applyMoves — delete removes an empty group, and no item", () => {
   assert.deepEqual([result.applied, result.refused], [moves, []]);
 });
 
+// TST-472235 · level: unit · module: MOD-group-document
 // guards: UC-021
 // given: the example group file
 // input: applyMoves with move-group of Derivation into Review, then lift of Review — its content moved up one level
-// expect: both applied; Review is still there but empty; Derivation, with UC-005 and UC-007, stands at the top level again
-//         after it, and UC-006 and UC-008 stand at the top level — nothing was deleted
+// expect: both applied; Review is still there but empty; Derivation, with UC-005 and UC-007, stands at the top level again after it, and UC-006 and UC-008 stand at the top level — nothing was deleted
 test("applyMoves — lift moves what a group holds up one level and leaves the group, now empty", () => {
   const moves = [{ op: "move-group", group: ["Derivation"], to: ["Review"] }, { op: "lift", group: ["Review"] }];
   const result = applyMoves(example(), moves);
@@ -165,14 +166,11 @@ const REFUSALS = [
   ["a move of no kind", { op: "split", group: ["Review"] }, 'unknown change "split"'],
 ];
 
+// TST-472236 · level: unit · module: MOD-group-document
 // guards: A GROUP HOLDS ONE KIND OF ARTIFACT; A GROUP CARRIES NO IDENTIFIER; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; UC-021
-// given: the example group file, and each move of the table above applied alone: an item of another kind (a module, a
-//        requirement) or no identifier moved into the tree; a group that is not empty deleted; a group created with an
-//        identifier or a requirement's name as its title, renamed to an identifier, or created without a title; every kind of
-//        move that names a group that does not exist; a group moved into itself; a move of no kind
+// given: the example group file, and each move of the table above applied alone: an item of another kind (a module, a requirement) or no identifier moved into the tree; a group that is not empty deleted; a group created with an identifier or a requirement's name as its title, renamed to an identifier, or created without a title; every kind of move that names a group that does not exist; a group moved into itself; a move of no kind
 // input: applyMoves of each, to a fresh example tree
-// expect: for each, nothing applied; the move refused with the reason the table gives; the tree as the example reads —
-//         and a group moved into a group inside it, once Details stands in Review, refused the same way
+// expect: for each, nothing applied; the move refused with the reason the table gives; the tree as the example reads — and a group moved into a group inside it, once Details stands in Review, refused the same way
 test("applyMoves — each refusal comes with its reason, and a refused move changes nothing", () => {
   for (const [label, move, reason] of REFUSALS) {
     const result = applyMoves(example(), [move]);
@@ -193,6 +191,7 @@ const deepFreeze = (value) => {
   return Object.freeze(value);
 };
 
+// TST-472237 · level: unit · module: MOD-group-document
 // guards: REGROUPING LEAVES THE GROUPED FILE UNCHANGED; UC-021
 // given: the example tree, frozen all through, and a copy of it; moves of every kind, one of them refused
 // input: applyMoves of the moves to the frozen tree

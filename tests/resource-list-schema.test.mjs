@@ -71,6 +71,7 @@ const findingsFor = (...resources) => resourceFindings(resources);
 
 // ---------------------------------------------------------------- resourceSchema
 
+// TST-472585 · level: unit · module: MOD-resource-list
 // guards: A PRODUCT DECLARES ITS RESOURCES; UC-040 (step 2)
 // given: the example list of the module file's Data, with a title and a sentence as every list has
 // input: the list read with resourceSchema and judged by documentFindings; resourceSchema's own rule
@@ -83,6 +84,7 @@ test("resourceSchema reads the module file's example list without a finding", ()
   assert.equal(readRegister(schema, PATH, [...HEAD, EXAMPLE, ""].join("\n")).rows.length, 2, "known positive: both example rows are read");
 });
 
+// TST-472586 · level: unit · module: MOD-resource-list
 // guards: THE RESOURCE KIND IS ONE OF A CLOSED SET; UC-040 (4a)
 // given: a list of one row of each of the six kinds, and the same list with one row of the kind `database`
 // input: both read with resourceSchema
@@ -103,11 +105,11 @@ test("a resource kind outside the closed set is refused", () => {
   assert.equal(found[0].rule, "THE RESOURCE KIND IS ONE OF A CLOSED SET");
 });
 
+// TST-472587 · level: unit · module: MOD-resource-list
 // guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (4a)
 // given: resources of the type Resource: a repository pinned to a full commit; the same pinned to `main`, to a seven-digit abbreviation and to a tag
 // input: resourceFindings of each; and the schema reading of a list whose repository is pinned to `main`
-// expect: none for the commit; for each of the others an error naming A RESOURCE IS PINNED TO AN EXACT STATE and the resource and the pin; the schema's reading
-//         names the same rule
+// expect: none for the commit; for each of the others an error naming A RESOURCE IS PINNED TO AN EXACT STATE and the resource and the pin; the schema's reading names the same rule
 test("a repository pinned to a branch name, an abbreviation or a tag is named", () => {
   assert.deepEqual(findingsFor(GOOD.repository), [], "known positive");
   for (const pin of ["main", "0123456", "v1.2.0"]) {
@@ -122,11 +124,11 @@ test("a repository pinned to a branch name, an abbreviation or a tag is named", 
   assert.ok(rulesOf(schemaFindings(text)).includes("A RESOURCE IS PINNED TO AN EXACT STATE"));
 });
 
+// TST-472588 · level: unit · module: MOD-resource-list
 // guards: A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A RESOURCE DECLARES WHERE IT PROCESSES DATA; A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (2a)
 // given: one resource of each kind with everything its kind requires; then each with a column its kind requires taken away
 // input: resourceFindings of each; the schema's reading of a list with a repository without a licence, a compute without a place and an endpoint without a pin
-// expect: none for the complete ones; for the incomplete an error naming the column's rule — licence for a repository, data and a model; maintainer for a repository,
-//         data, a model and an agent; processing place for compute, an endpoint and an agent; pin for every kind but compute; and the schema names the same rules
+// expect: none for the complete ones; for the incomplete an error naming the column's rule — licence for a repository, data and a model; maintainer for a repository, data, a model and an agent; processing place for compute, an endpoint and an agent; pin for every kind but compute; and the schema names the same rules
 test("a column its kind requires, missing, is named", () => {
   for (const kind of Object.keys(GOOD)) assert.deepEqual(findingsFor(GOOD[kind]), [], `known positive: ${kind}`);
   const required = [
@@ -152,11 +154,11 @@ test("a column its kind requires, missing, is named", () => {
   assert.deepEqual(rulesOf(schemaFindings(text)).sort(), ["A RESOURCE DECLARES ITS LICENCE", "A RESOURCE DECLARES WHERE IT PROCESSES DATA", "A RESOURCE IS PINNED TO AN EXACT STATE"]);
 });
 
+// TST-472589 · level: unit · module: MOD-resource-list
 // guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (4c)
 // given: compute resources whose route is `bridge lab-pc`, `runner:gpu`, and `ssh gpu`, `runner:`, `bridge`, `ci hosted`
 // input: resourceFindings of each
-// expect: none for the first two; for each other an error naming A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER and the route; an endpoint with
-//         its own address as route is not judged by this rule
+// expect: none for the first two; for each other an error naming A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER and the route; an endpoint with its own address as route is not judged by this rule
 test("a compute route that names neither a Bridge nor a runner is named", () => {
   for (const route of ["bridge lab-pc", "runner:gpu"]) assert.deepEqual(findingsFor(withChange("compute", { route })), [], route);
   for (const route of ["ssh gpu", "runner:", "bridge", "ci hosted"]) {
@@ -168,6 +170,7 @@ test("a compute route that names neither a Bridge nor a runner is named", () => 
   assert.deepEqual(findingsFor(withChange("endpoint", { route: "http://workstation.example.org:8000/v1" })), []);
 });
 
+// TST-472590 · level: unit · module: MOD-resource-list
 // guards: COMMIT TESTS CALL NO PAID SERVICE; UC-040
 // given: an endpoint and an agent with Paid yes and no; the same with the mark left out
 // input: resourceFindings of each
@@ -184,6 +187,7 @@ test("an endpoint or an agent without its Paid mark is named", () => {
   assert.deepEqual(findingsFor(withChange("repository", { paid: null })), []);
 });
 
+// TST-472591 · level: unit · module: MOD-resource-list
 // guards: A RESOURCE IS USED, A PARTICIPANT DEVELOPS; UC-040
 // given: a resource that carries capabilities, one that carries a role, one with both empty lists and no role
 // input: resourceFindings of each
@@ -199,6 +203,7 @@ test("an entry that carries a participant's capabilities or role is named", () =
   }
 });
 
+// TST-472592 · level: unit · module: MOD-resource-list
 // guards: A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY; UC-040
 // given: secrets `ci:API_KEY`, `ci:CODER_2`, `browser`, none; and `sk-live-abc123`, `ci:`, `ci:with space`, `ghp_0123456789abcdef`
 // input: resourceFindings of an endpoint with each
@@ -214,6 +219,7 @@ test("a secret's value where its name belongs is named, without repeating it", (
   }
 });
 
+// TST-472593 · level: unit · module: MOD-resource-list
 // guards: A RESOURCE NAMES ITS MAINTAINER; UC-040
 // given: repositories whose maintainer is `@alice`, `person Alice Example`; and `Acme Research Group`, `unknown`, `@alice, @bob`, `org acme`
 // input: resourceFindings of each
@@ -229,11 +235,11 @@ test("a maintainer who is a single person is a warning", () => {
   }
 });
 
+// TST-472594 · level: unit · module: MOD-resource-list
 // guards: A PRODUCT DECLARES ITS RESOURCES; UC-040
 // given: a list of two resources, the second with a branch pin and a secret's value
 // input: resourceFindings of both, in a list
-// expect: every finding is an error or a warning with a requirement's name as its rule, in the artifact docs/resources.md, each naming the position of its entry from 1 as its
-//         line, and none for the first; findings come in the list's order
+// expect: every finding is an error or a warning with a requirement's name as its rule, in the artifact docs/resources.md, each naming the position of its entry from 1 as its line, and none for the first; findings come in the list's order
 test("every finding names its rule, the list and the entry's position", () => {
   const found = findingsFor(GOOD.repository, withChange("repository", { name: "other", pin: "main", secret: "sk-live-abc123" }));
   assert.equal(found.length, 2);

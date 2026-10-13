@@ -59,9 +59,9 @@ const ROWS = [
   "| 2026-03-01 10:02 | 4 | uebernommen | not-a-commit |",
 ];
 
+// TST-473021 · level: unit · module: MOD-spec-changes
 // guards: STATUS IS DERIVED FROM THE RECORDS; THE GATE IS RECORDED; UC-006
-// given: a queue of five entries: 01 decided by a row of the retired form that names a commit and no record; 02 by a row that names its record; 03 by neither; 04 by a row whose fourth cell
-//        is no commit and no record; 05 by neither
+// given: a queue of five entries: 01 decided by a row of the retired form that names a commit and no record; 02 by a row that names its record; 03 by neither; 04 by a row whose fourth cell is no commit and no record; 05 by neither
 // input: queues
 // expect: 01 `in SPEC`, its decision the commit, its record null; 02 `in SPEC` as before, its decision and record the record's path; 03, 04 and 05 `open`
 test("queues — an entry whose decision row names the commit that wrote it into the SPEC reads in SPEC", async () => {
@@ -76,6 +76,7 @@ test("queues — an entry whose decision row names the commit that wrote it into
   }
 });
 
+// TST-473022 · level: unit · module: MOD-spec-changes
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-006
 // given: the same queue
 // input: entryView for each entry
@@ -88,6 +89,7 @@ test("entryView — the state of an entry decided by a row of the retired form i
   assert.equal((await entryView(BASE, 1, snapshot)).proposal.text, proposal(1));
 });
 
+// TST-473023 · level: unit · module: MOD-spec-changes
 // guards: STATUS IS DERIVED FROM THE RECORDS; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // given: rows in other forms: a full 40-digit commit, a short 7-digit one, a commit in capitals, a six-digit cell, a cell of 41 digits, and a row whose decision is not `uebernommen`
 // input: queues
@@ -103,6 +105,7 @@ test("queues — a commit as git writes it decides, any other cell does not", as
   assert.equal((await entryOf(other, 1)).state, "open", "a row that is not an acceptance decides nothing");
 });
 
+// TST-473024 · level: unit · module: MOD-spec-changes
 // guards: STATUS IS DERIVED FROM THE RECORDS; A STALE APPROVAL IS NOT APPLIED
 // given: entry 01 decided by a retired row, and a record that names another proposal blob (a stale record); entry 03 with such a record and no row
 // input: queues

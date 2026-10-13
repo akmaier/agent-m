@@ -75,10 +75,8 @@ async function addPage(w, entries = {}, token = TOKEN) {
   return main;
 }
 
-// TST-281
-// Module: MOD-settings-pages
-// Guards: UC-001; ONE CLICK PER DECISION; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITHUB PRODUCT USES A TOKEN OF ITS OWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// Level: system
+// TST-281 · level: system · module: MOD-settings-pages
+// guards: UC-001; ONE CLICK PER DECISION; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITHUB PRODUCT USES A TOKEN OF ITS OWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: the instance token and an existing public GitHub product repository
 // input: paste its address, acknowledge and store its product token, then make the one trusted Add product click
 // expect: the product is checked and receives the missing review layout with its own token; only canonical browser settings change
@@ -112,10 +110,8 @@ test("TST-281 UC-001 main flow stores a product token and adds the missing layou
     "the canonical instance token is unchanged");
 });
 
-// TST-282
-// Module: MOD-settings-pages
-// Guards: UC-001 5b; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; CONFIGURATION LIVES IN THE BROWSER
-// Level: system
+// TST-282 · level: system · module: MOD-settings-pages
+// guards: UC-001 5b; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; CONFIGURATION LIVES IN THE BROWSER
 // given: a product with the complete review layout and its own stored token
 // input: a synthetic Add product click, then a trusted person click
 // expect: the synthetic event writes neither repository nor browser; the trusted event remembers the address and skips a commit
@@ -140,10 +136,8 @@ test("TST-282 UC-001 alternatives 1a and 5b distinguish a synthetic click from a
   assert.equal(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}github-token:${PRODUCT}`)).value, PRODUCT_TOKEN, "3b: the new browser stores and uses its own product key");
 });
 
-// TST-284
-// Module: MOD-settings-pages
-// Guards: UC-001 2a, 3a, 3b, 4a and 5a; A PRODUCT IS NAMED BY ITS ADDRESS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// Level: system
+// TST-284 · level: system · module: MOD-settings-pages
+// guards: UC-001 2a, 3a, 3b, 4a and 5a; A PRODUCT IS NAMED BY ITS ADDRESS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: product repositories that are missing, inaccessible, private with the instance key, keyless, or read-only
 // input: use the actual Check or Add product control for each alternative
 // expect: refusal and missing paths write no list or repository; a private existing product can use the proven instance key; a keyless page disables Add product
@@ -195,10 +189,8 @@ test("TST-284 UC-001 GitHub alternatives preserve the product and browser bounda
   assert.equal(globalThis.localStorage.getItem(`${PREFIX}products`), null, "5a: a refused write creates no browser entry");
 });
 
-// TST-285
-// Module: MOD-settings-pages
-// Guards: UC-001 3c and 3d; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// Level: system
+// TST-285 · level: system · module: MOD-settings-pages
+// guards: UC-001 3c and 3d; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a GitLab product and its project token, or a project where the person is not Maintainer
 // input: paste the project address and token on the actual dashboard route
 // expect: the token reaches only that GitLab API and adds its layout; the page explains the Maintainer/project-token remedy

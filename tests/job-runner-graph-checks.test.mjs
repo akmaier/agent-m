@@ -115,14 +115,11 @@ const useCase = (realises, goal) => ({ path: UC2_PATH, class: "new", text: text(
 
 // ---------------------------------------------------------------- the check
 
+// TST-472325 · level: unit · module: MOD-job-runner
 // guards: A USE CASE REALISES NAMED REQUIREMENTS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-007
-// given: a kind that names graph-checks alone; a product that holds a SPEC with the one requirement A SAMPLE RULE, UC-001, and
-//        UC-009, which holds two errors and a warning of its own; a drafter that drafts a new use case UC-002 realising A RULE
-//        THE SPEC LACKS and, told of the finding, drafts it again
+// given: a kind that names graph-checks alone; a product that holds a SPEC with the one requirement A SAMPLE RULE, UC-001, and UC-009, which holds two errors and a warning of its own; a drafter that drafts a new use case UC-002 realising A RULE THE SPEC LACKS and, told of the finding, drafts it again
 // input: runJob of it, a person attending
-// expect: before the draft the repository holds three findings (the known positive), all of UC-009; the drafter asked twice, the
-//         second time with one finding: an error under A USE CASE REALISES NAMED REQUIREMENTS on UC-002, naming A RULE THE SPEC
-//         LACKS, in one line — and none of UC-009's three; the loop stops unchanged with that finding remaining
+// expect: before the draft the repository holds three findings (the known positive), all of UC-009; the drafter asked twice, the second time with one finding: an error under A USE CASE REALISES NAMED REQUIREMENTS on UC-002, naming A RULE THE SPEC LACKS, in one line — and none of UC-009's three; the loop stops unchanged with that finding remaining
 test("graph-checks — a drafted use case that realises a name the SPEC lacks goes back, and the repository's own findings do not", async () => {
   assert.deepEqual(placed(await held()), placed([
     { artifact: "UC-009", kind: "error", rule: REALISES }, { artifact: "UC-009", kind: "error", rule: SELF },
@@ -141,13 +138,11 @@ test("graph-checks — a drafted use case that realises a name the SPEC lacks go
   drafter.inputs[1].findings.forEach(sayItInOneLine);
 });
 
+// TST-472326 · level: unit · module: MOD-job-runner
 // guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-007
-// given: the same job and product; a drafter that drafts a new use case UC-002 realising A SAMPLE RULE, whose goal links a page
-//        of the instance's dashboard, and — told of the finding — drafts it again
+// given: the same job and product; a drafter that drafts a new use case UC-002 realising A SAMPLE RULE, whose goal links a page of the instance's dashboard, and — told of the finding — drafts it again
 // input: runJob of it, a person attending
-// expect: the drafter asked twice, the second time with one finding: an error under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT on
-//         UC-002, naming the link, in one line — and none of UC-009's, which links the dashboard too; the loop stops unchanged
-//         with that finding remaining
+// expect: the drafter asked twice, the second time with one finding: an error under THE PRODUCT REPOSITORY IS SELF-SUFFICIENT on UC-002, naming the link, in one line — and none of UC-009's, which links the dashboard too; the loop stops unchanged with that finding remaining
 test("graph-checks — a drafted use case that links the instance's dashboard goes back, and the repository's own findings do not", async () => {
   const link = `${DASHBOARD}docs/`;
   const draft = { files: [useCase("A SAMPLE RULE", `The writer writes a file; see [the dashboard](${link}).`)] };
@@ -164,17 +159,11 @@ test("graph-checks — a drafted use case that links the instance's dashboard go
   drafter.inputs[1].findings.forEach(sayItInOneLine);
 });
 
+// TST-472327 · level: unit · module: MOD-job-runner
 // guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; UC-019; UC-007
-// given: the same job and product; a drafter that first drafts three things — UC-002 realising A RULE THE SPEC LACKS and linking
-//        the dashboard, and UC-009 changed: an actor added, which moves every line of its front matter down, a paragraph added
-//        before its goal, and a second "section 3" in the goal — and then, told of the findings, drafts UC-002 whole and UC-009
-//        as changed but with one "section 3", answering each finding fixed
+// given: the same job and product; a drafter that first drafts three things — UC-002 realising A RULE THE SPEC LACKS and linking the dashboard, and UC-009 changed: an actor added, which moves every line of its front matter down, a paragraph added before its goal, and a second "section 3" in the goal — and then, told of the findings, drafts UC-002 whole and UC-009 as changed but with one "section 3", answering each finding fixed
 // input: runJob of it, a person attending
-// expect: three findings in the first round, each the draft's own: the two errors on UC-002 and one warning under A REFERENCE
-//         NAMES THE IDENTIFIER, NOT THE POSITION on UC-009's file — the second "section 3", since the first is the repository's,
-//         and neither UC-009's two errors nor its first "section 3" come back, though the draft moved every one of them to
-//         another line; none in the second round; the loop ends because passed, nothing remaining, and the corrected draft is
-//         the result's
+// expect: three findings in the first round, each the draft's own: the two errors on UC-002 and one warning under A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION on UC-009's file — the second "section 3", since the first is the repository's, and neither UC-009's two errors nor its first "section 3" come back, though the draft moved every one of them to another line; none in the second round; the loop ends because passed, nothing remaining, and the corrected draft is the result's
 test("graph-checks — a corrected draft ends the loop, and what a changed file already held stays the repository's", async () => {
   const goal = (twice) => `**Goal.** The reader reads a legacy file; see section 3${twice ? " and again section 3" : ""}, and `
     + `[the dashboard](${DASHBOARD}).`;

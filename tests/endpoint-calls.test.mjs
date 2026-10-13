@@ -26,6 +26,7 @@ function withFetch(t, implementation) {
 }
 
 // TST-260-001
+// TST-472213 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: an OpenAI-compatible endpoint configuration with a key and a constructed successful chat response
 // input: testEndpoint(config)
@@ -44,6 +45,7 @@ test("TST-260-001: an OpenAI-compatible test sends one short authorised chat req
 });
 
 // TST-260-002
+// TST-472214 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: an Anthropic configuration without a key and a constructed successful Messages response
 // input: testEndpoint(config)
@@ -62,6 +64,7 @@ test("TST-260-002: an Anthropic test uses its Messages format and omits an absen
 });
 
 // TST-260-003
+// TST-472215 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003
 // given: an endpoint which refuses its supplied credential in its own error message
 // input: testEndpoint(config) against a constructed 401 response
@@ -72,6 +75,7 @@ test("TST-260-003: a refused key keeps the provider message", async (t) => {
 });
 
 // TST-260-004
+// TST-472216 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003
 // given: an endpoint which says the selected model does not exist
 // input: testEndpoint(config) against a constructed 404 response
@@ -82,6 +86,7 @@ test("TST-260-004: an unknown model keeps the provider message", async (t) => {
 });
 
 // TST-260-005
+// TST-472217 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003
 // given: an endpoint which reports that its rate limit is exhausted
 // input: testEndpoint(config) against a constructed 429 response
@@ -92,6 +97,7 @@ test("TST-260-005: a rate limit keeps the provider message", async (t) => {
 });
 
 // TST-260-006
+// TST-472218 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003
 // given: an endpoint which rejects the request for another provider-stated reason
 // input: testEndpoint(config) against a constructed 500 response
@@ -102,6 +108,7 @@ test("TST-260-006: another endpoint error keeps its provider message", async (t)
 });
 
 // TST-260-007
+// TST-472219 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003
 // given: Node cannot connect to the configured address
 // input: testEndpoint(config) where fetch rejects with the constructed network error
@@ -112,6 +119,7 @@ test("TST-260-007: a network failure is not reachable", async (t) => {
 });
 
 // TST-260-008
+// TST-472220 · level: unit · module: MOD-endpoint-calls
 // guards: AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a browser-visible cross-origin refusal from an endpoint
 // input: diagnoseEndpoint(error, config, "browser")
@@ -124,6 +132,7 @@ test("TST-260-008: a browser cross-origin refusal offers CI and Bridge", () => {
 });
 
 // TST-260-009
+// TST-472221 · level: unit · module: MOD-endpoint-calls
 // guards: AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a browser-visible message that the provider's direct-browser opt-in header is missing
 // input: diagnoseEndpoint(error, config, "browser")
@@ -136,6 +145,7 @@ test("TST-260-009: a missing browser opt-in header offers CI and Bridge", () => 
 });
 
 // TST-260-010
+// TST-472222 · level: unit · module: MOD-endpoint-calls
 // guards: AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a browser's opaque fetch failure, whose details the browser conceals
 // input: diagnoseEndpoint(error, config, "browser")

@@ -158,16 +158,17 @@ async function repository(edits = {}, { keep = Object.keys(BASE), extra = {}, re
 
 // ---------------------------------------------------------------- the Acceptance's four cases
 
+// TST-473152 · level: unit · module: MOD-trace-graph
 // guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; UC-007
 // given: the fixture, where AN UNREALISED RULE is realised by its module and guarded by its test but by no use case
 // input: coverageGaps of its graph
-// expect: requirementsWithoutUseCase is that requirement alone — its module and its test name it, which does not make a use case
-//         realise it — and the three that a use case realises are not in it
+// expect: requirementsWithoutUseCase is that requirement alone — its module and its test name it, which does not make a use case realise it — and the three that a use case realises are not in it
 test("coverageGaps — a requirement no use case realises is a gap", async () => {
   const { graph } = await repository();
   assert.deepEqual(coverageGaps(graph).requirementsWithoutUseCase, [UNREALISED]);
 });
 
+// TST-473153 · level: unit · module: MOD-trace-graph
 // guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; A USE CASE REALISES NAMED REQUIREMENTS; UC-007
 // given: the fixture, where UC-002 realises nothing and UC-001 realises three requirements and names one that is none
 // input: coverageGaps of its graph
@@ -177,12 +178,11 @@ test("coverageGaps — a use case that realises nothing is a gap", async () => {
   assert.deepEqual(coverageGaps(graph).useCasesWithoutRequirement, ["UC-002"]);
 });
 
+// TST-473154 · level: unit · module: MOD-trace-graph
 // guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; A USE CASE REALISES NAMED REQUIREMENTS; UC-007
-// given: the fixture, where UC-001 realises A RULE NOBODY WROTE, which is no requirement of its SPEC, and its test guards UC-001,
-//        which is a use case
+// given: the fixture, where UC-001 realises A RULE NOBODY WROTE, which is no requirement of its SPEC, and its test guards UC-001, which is a use case
 // input: coverageGaps of its graph
-// expect: unknownNames is that one name, with UC-001, the file of UC-001 and the line of the name in it — the use case the test guards
-//         is no unknown name
+// expect: unknownNames is that one name, with UC-001, the file of UC-001 and the line of the name in it — the use case the test guards is no unknown name
 test("coverageGaps — an unknown name is a gap, with the use case and the line that name it", async () => {
   const { lines, graph } = await repository();
   assert.deepEqual(coverageGaps(graph).unknownNames, [
@@ -190,9 +190,9 @@ test("coverageGaps — an unknown name is a gap, with the use case and the line 
   ]);
 });
 
+// TST-473155 · level: unit · module: MOD-trace-graph
 // guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; UC-007
-// given: the fixture, where AN UNTESTED RULE is realised by a use case and a module but guarded by no test — the test guards that use
-//        case, UC-001, which does not make it guard the use case's requirements
+// given: the fixture, where AN UNTESTED RULE is realised by a use case and a module but guarded by no test — the test guards that use case, UC-001, which does not make it guard the use case's requirements
 // input: coverageGaps of its graph
 // expect: requirementsWithoutTest is that requirement alone
 test("coverageGaps — a requirement no test guards is a gap", async () => {
@@ -202,13 +202,11 @@ test("coverageGaps — a requirement no test guards is a gap", async () => {
 
 // ---------------------------------------------------------------- what the module file and the Outcome add
 
+// TST-473156 · level: unit · module: MOD-trace-graph
 // guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; UC-007
-// given: the fixture, where AN UNBUILT RULE is realised by no module; and the same fixture without its module file, without its
-//        test file, and without both
+// given: the fixture, where AN UNBUILT RULE is realised by no module; and the same fixture without its module file, without its test file, and without both
 // input: coverageGaps of the graph of each
-// expect: with both, requirementsWithoutModule is AN UNBUILT RULE alone; without the module file it is empty, as without both, and
-//         without the test file requirementsWithoutTest is empty, as without both — the requirements and the use cases give their
-//         gaps in all four
+// expect: with both, requirementsWithoutModule is AN UNBUILT RULE alone; without the module file it is empty, as without both, and without the test file requirementsWithoutTest is empty, as without both — the requirements and the use cases give their gaps in all four
 test("coverageGaps — a requirement no module realises and one no test guards are gaps once the graph holds modules and tests", async () => {
   const whole = coverageGaps((await repository()).graph);
   assert.deepEqual([whole.requirementsWithoutModule, whole.requirementsWithoutTest], [[UNBUILT], [UNTESTED]]);
@@ -252,13 +250,11 @@ const sortedGaps = (lines) => ({
   ],
 });
 
+// TST-473157 · level: unit · module: MOD-trace-graph
 // guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; UC-007
-// given: the fixture with two more requirements, ZEBRA RULE and ALPHA RULE, in that order, which nothing realises; a third use case
-//        that realises nothing; a decision and two use cases that name A RULE NOBODY WROTE; and a second unknown name, ZERO RULE —
-//        listed once in the order of the fixture's files and once in the reverse order
+// given: the fixture with two more requirements, ZEBRA RULE and ALPHA RULE, in that order, which nothing realises; a third use case that realises nothing; a decision and two use cases that name A RULE NOBODY WROTE; and a second unknown name, ZERO RULE — listed once in the order of the fixture's files and once in the reverse order
 // input: coverageGaps of the graph of each
-// expect: the same gaps from both: the requirements by name, the use cases by identifier, the unknown names by name, and who names
-//         one by identifier — ARC-001, UC-001, UC-003 for A RULE NOBODY WROTE, whatever kind of artifact names it
+// expect: the same gaps from both: the requirements by name, the use cases by identifier, the unknown names by name, and who names one by identifier — ARC-001, UC-001, UC-003 for A RULE NOBODY WROTE, whatever kind of artifact names it
 test("coverageGaps — the lists come sorted, and an unknown name lists everything that names it, whatever order the files are listed in", async () => {
   const forward = await repository(MORE.edits, { extra: MORE.extra });
   const backward = await repository(MORE.edits, { extra: MORE.extra, reverse: true });
@@ -268,9 +264,9 @@ test("coverageGaps — the lists come sorted, and an unknown name lists everythi
   assert.deepEqual(coverageGaps(backward.graph), sortedGaps(backward.lines));
 });
 
+// TST-473158 · level: unit · module: MOD-trace-graph
 // guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; UC-007
-// given: the fixture, where the goal of UC-002 also writes AN IMAGINARY RULE between backticks — a name in running text, which is
-//        stated nowhere
+// given: the fixture, where the goal of UC-002 also writes AN IMAGINARY RULE between backticks — a name in running text, which is stated nowhere
 // input: coverageGaps of its graph
 // expect: the same unknown names as without it: one, A RULE NOBODY WROTE — a name a text merely writes is no unknown name
 test("coverageGaps — a name written in a text and stated nowhere is no unknown name", async () => {

@@ -80,13 +80,11 @@ function fakeHost(files) {
   };
 }
 
-// given: a product on GitHub, of the account alice, whose default branch `trunk` holds a README and — (1) — its declaration
-//        docs/process.md, which the editor opened at its blob; (2) a product without docs/process.md, which the editor opened as
-//        a new file, openedBlob null
+// TST-472042 · level: unit · module: MOD-artifact-edits
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-002
+// given: a product on GitHub, of the account alice, whose default branch `trunk` holds a README and — (1) — its declaration docs/process.md, which the editor opened at its blob; (2) a product without docs/process.md, which the editor opened as a new file, openedBlob null
 // input: saveFile(host, { path: "docs/process.md", text: the edited declaration, openedBlob, openedId: null })
-// expect: one commit on `trunk`, on the head that was read, holding docs/process.md alone with the edited text, its message not
-//         empty and naming no one — not alice —; the result { commit: the commit commitFiles returned, blob: the git blob SHA of
-//         the edited text }
+// expect: one commit on `trunk`, on the head that was read, holding docs/process.md alone with the edited text, its message not empty and naming no one — not alice —; the result { commit: the commit commitFiles returned, blob: the git blob SHA of the edited text }
 test("saveFile — a file saved on the blob it was opened on, in one commit on the default branch", async () => {
   for (const [label, files, openedBlob] of [
     ["opened at its blob", { ...README, [PROCESS]: OPENED }, blobSha(OPENED)],
@@ -108,12 +106,11 @@ test("saveFile — a file saved on the blob it was opened on, in one commit on t
   }
 });
 
-// given: a product whose `trunk` holds a README and — (1) — docs/process.md, which the editor opened at its blob and another
-//        writer's commit changed meanwhile; (2) a product without docs/process.md, which the editor opened as a new file,
-//        openedBlob null, and another writer's commit created meanwhile
+// TST-472043 · level: unit · module: MOD-artifact-edits
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-002
+// given: a product whose `trunk` holds a README and — (1) — docs/process.md, which the editor opened at its blob and another writer's commit changed meanwhile; (2) a product without docs/process.md, which the editor opened as a new file, openedBlob null, and another writer's commit created meanwhile
 // input: saveFile(host, { path: "docs/process.md", text: the edited declaration, openedBlob, openedId: null })
-// expect: { refused: "changed meanwhile", current: the other writer's text, currentBlob: its git blob SHA }, and nothing
-//         written: no commit is attempted
+// expect: { refused: "changed meanwhile", current: the other writer's text, currentBlob: its git blob SHA }, and nothing written: no commit is attempted
 test("saveFile — a file that changed meanwhile is refused with its current text, and nothing is written", async () => {
   for (const [label, files, openedBlob] of [
     ["changed meanwhile", { ...README, [PROCESS]: OPENED }, blobSha(OPENED)],

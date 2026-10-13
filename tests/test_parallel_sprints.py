@@ -44,6 +44,11 @@ def before_its_close(path: str) -> str:
 
 
 class EveryTeamRunsSprintsOfItsOwn(unittest.TestCase):
+    # TST-475018 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: the sprint records of the fixture product of tests/parallel_sprints_fixture.py: two teams, team1 running sprint 01, team2 having closed sprint 01 and running sprint 02
+    # input: the folder and number of each sprint path
+    # expect: team1 has sprint 01; team2 has sprints 01 and 02; each numbered within its team
     def test_each_teams_sprints_stand_in_its_own_folder_numbered_within_the_team(self):
         teams = {}
         for path in SPRINTS:
@@ -51,11 +56,21 @@ class EveryTeamRunsSprintsOfItsOwn(unittest.TestCase):
             teams.setdefault(team, []).append(number)
         self.assertEqual(teams, {"team1": ["01"], "team2": ["01", "02"]})
 
+    # TST-475019 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: the running sprint of each team in the fixture product of tests/parallel_sprints_fixture.py: two teams, team1 running sprint 01, team2 having closed sprint 01 and running sprint 02
+    # input: heldItems of the fixture
+    # expect: each running sprint holds what its own team selected, and every entry's team is the team of its sprint
     def test_each_running_sprint_holds_what_its_own_team_selected(self):
         got = by_sprint(held())
         self.assertEqual(got, {f"{team}/{path.split('/')[-1][:-3]}": SELECTIONS[path] for team, path in CURRENT.items()})
         self.assertTrue(all(entry["team"] == entry["sprint"].split("/")[0] for entry in held()))
 
+    # TST-475020 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: team1 holds items in the fixture product of tests/parallel_sprints_fixture.py: two teams, team1 running sprint 01, team2 having closed sprint 01 and running sprint 02
+    # input: heldItems with team2's close undone (sprint text before its review), and with team2's sprint 02 removed (start undone)
+    # expect: team1's held items are the same as now; known positive: team1 holds items
     def test_another_team_starting_or_closing_a_sprint_changes_nothing_a_team_holds(self):
         team1 = lambda entries: [entry for entry in entries if entry["team"] == "team1"]
         now = team1(held())
@@ -63,6 +78,11 @@ class EveryTeamRunsSprintsOfItsOwn(unittest.TestCase):
         self.assertEqual(team1(held(texts={CLOSED: before_its_close(CLOSED)})), now, "team2's close")
         self.assertEqual(team1(held(paths=[p for p in SPRINTS if not p.endswith("team2/02.md")])), now, "team2's start")
 
+    # TST-475021 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: team2's sprint 02 running with two unfinished items, over a fake of the repository host
+    # input: closeSprint of team2/02 (ITM-007 to next sprint, ITM-008 to backlog), then startSprint of team2 selecting ITM-007
+    # expect: the new sprint is docs/backlog/sprints/team2/03.md on branch sprint/team2/03; team1's held items are unchanged; team2 holds only ITM-007 in team2/03
     def test_a_team_closes_its_sprint_and_starts_its_next_numbered_within_the_team_and_the_other_team_holds_the_same(self):
         got = js(prelude() + host_prelude() + f"""
             const team1 = (entries) => entries.filter((e) => e.team === 'team1');
@@ -90,6 +110,11 @@ class EveryTeamRunsSprintsOfItsOwn(unittest.TestCase):
 
 
 class ASprintHoldsItsItemsUntilTheyReachTheDefaultBranch(unittest.TestCase):
+    # TST-475022 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: ITM-001's pull request merged into the sprint branch sprint/team1/01, and a pull request of that branch into main added with a merge time
+    # input: heldItems with the branch merged before the item's merge, after it, and with it open
+    # expect: ITM-001 stays held when the branch is merged before the item or not at all; it is not held when merged after; ITM-003 stays held with an open pull request
     def test_an_item_merged_into_its_sprints_branch_stays_held_until_that_branch_reaches_the_default_branch(self):
         merged_into_branch = next(pr for pr in PULL_REQUESTS if pr["branch"] == "work/ITM-001")
         self.assertEqual((merged_into_branch["state"], merged_into_branch["base"]), ("merged", "sprint/team1/01"))
@@ -103,12 +128,22 @@ class ASprintHoldsItsItemsUntilTheyReachTheDefaultBranch(unittest.TestCase):
         self.assertNotIn("ITM-001", held_items(PULL_REQUESTS + [branch("2026-10-09T12:00:00Z")]), "merged after it")
         self.assertIn("ITM-003", held_items(PULL_REQUESTS + [branch("2026-10-09T12:00:00Z")]), "an open pull request")
 
+    # TST-475023 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: the fixture, team2's sprint 01 closed with ITM-002 merged and ITM-006 back in the backlog
+    # input: heldItems of the fixture, and with the pull requests 1 and 2 removed and sprint 01 as it stood before its close
+    # expect: the closed sprint team2/01 holds nothing; before the merge and close it holds ITM-002 and ITM-006
     def test_an_item_whose_change_reached_the_default_branch_or_that_went_back_to_the_backlog_is_no_longer_held(self):
         self.assertNotIn(CLOSED.split("sprints/")[1][:-3], by_sprint(held()))
         before = held(pull_requests=[pr for pr in PULL_REQUESTS if pr["number"] not in (1, 2)],
                       texts={CLOSED: before_its_close(CLOSED)})
         self.assertEqual(by_sprint(before)["team2/01"], ["ITM-002", "ITM-006"], "known positive: held before merge and close")
 
+    # TST-475024 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: the fixture
+    # input: heldItems with the pull requests unknown
+    # expect: team2/01 holds ITM-002, and team1/01 holds its whole selection
     def test_with_the_pull_requests_unknown_every_selected_item_not_sent_back_is_held(self):
         got = by_sprint(held("unknown"))
         self.assertEqual(got["team2/01"], ["ITM-002"])
@@ -126,6 +161,11 @@ class SprintsOfDifferentTeamsChangeNoModuleTheOtherChangesOrUses(unittest.TestCa
             found |= {(entry["sprint"], entry["item"], module) for module in shared}
         return found
 
+    # TST-475025 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: the held items of the fixture product of tests/parallel_sprints_fixture.py: two teams, team1 running sprint 01, team2 having closed sprint 01 and running sprint 02
+    # input: conflicts of every item for each team
+    # expect: the conflicts are exactly the (sprint, item, module) triples where the item shares a module with another team's held item, each naming sprint, item and module; known positive: some item is kept
     def test_each_item_is_kept_from_a_teams_selection_exactly_when_it_shares_a_module_with_another_teams_held_item(self):
         held_items = held()
         refused = 0
@@ -138,6 +178,11 @@ class SprintsOfDifferentTeamsChangeNoModuleTheOtherChangesOrUses(unittest.TestCa
                     refused += bool(got)
         self.assertTrue(refused, "known positive: some item is kept from a selection")
 
+    # TST-475026 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: ITM-002, which shares a module with an item team1's sprint holds, selected by team2
+    # input: startSprint of team2 with the selection ITM-002
+    # expect: startSprint is refused with SprintRefused, nothing is created or committed, and the reasons name the sprint, the item and the module
     def test_start_sprint_refuses_a_selection_that_shares_a_module_naming_the_sprint_the_item_and_the_module(self):
         candidate = "ITM-002"
         expected = self.expected(candidate, "team2", held())
@@ -159,6 +204,11 @@ class SprintsOfDifferentTeamsChangeNoModuleTheOtherChangesOrUses(unittest.TestCa
 
 
 class SprintPlanningShowsWhatTheOtherTeamsSprintsHold(unittest.TestCase):
+    # TST-475027 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: team2's sprint 02 holds items; the fixture product of tests/parallel_sprints_fixture.py: two teams, team1 running sprint 01, team2 having closed sprint 01 and running sprint 02
+    # input: heldItems entries of other teams than team1
+    # expect: each entry names sprint team2/02, the modules the item changes and the modules it uses; known positive: team2 holds items
     def test_each_item_another_teams_sprint_holds_comes_with_its_sprint_and_the_modules_it_changes_and_uses(self):
         others = [entry for entry in held() if entry["team"] != "team1"]
         self.assertTrue(others, "known positive: team2's sprint holds items")
@@ -168,6 +218,11 @@ class SprintPlanningShowsWhatTheOtherTeamsSprintsHold(unittest.TestCase):
                 self.assertEqual(entry["changes"], ITEMS[entry["item"]])
                 self.assertEqual(entry["uses"], sorted(uses_of(entry["item"])))
 
+    # TST-475028 · level: component · module: MOD-work-plans
+    # guards: EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; UC-032; UC-041
+    # given: team1 plans in the Backlog page of the real dashboard with Plan sprint open, while team2's sprint 02 holds what it selected
+    # input: the planning page rendered for team1
+    # expect: the held list has one row per item team2's sprint 02 holds with its sprint, the modules it changes and the modules they use; known positive: team2 holds items
     def test_a_teams_sprint_planning_lists_every_item_the_other_teams_sprints_hold(self):
         # team1 plans while team2's sprint 02 holds what it selected; team2's closed sprint 01 holds nothing any more — ITM-002
         # is merged into the default branch with the sprint's branch, ITM-006 went back to the backlog. Each row of the list

@@ -545,11 +545,11 @@ const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ---------------------------------------------------------------- the main flow
 
-// Guards: UC-002
+// TST-476019 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product without a declaration, its page opened for the first time, then once more
 // input: routes.process(app), twice
-// expect (step 1): the page opens with the table that keeps the process model and the rules to be met apart, not folded
-//         at the first reading; at the next opening, after the first reading, it is folded
+// expect: (step 1) the page opens with the table that keeps the process model and the rules to be met apart, not folded at the first reading; at the next opening, after the first reading, it is folded
 test("UC-002 main flow, step 1: the page opens with the table of the process model and the rules to be met, folded only after the first reading", async (t) => {
   const first = await openPage(t);
   const table = rulesTable(first.target);
@@ -560,13 +560,11 @@ test("UC-002 main flow, step 1: the page opens with the table of the process mod
   assert.ok(folded(rulesTable(next.target), next.target), "after the first reading, the table is folded");
 });
 
-// Guards: UC-002
+// TST-476020 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product without a declaration; the shipped catalogue
 // input: routes.process(app)
-// expect (steps 1–2): the page, How this product is developed, holds the table of the process model and the rules to be
-//         met — what each answers, where it comes from, examples, its effect —; it offers exactly the book's five
-//         models, in two groups — plan-driven: waterfall, V-model, reuse-oriented; agile: Scrum, Kanban —, each with the
-//         risk it manages, the risk it accepts, the example project it suits and its chapter, as its data file states
+// expect: (steps 1–2) the page, How this product is developed, holds the table of the process model and the rules to be met — what each answers, where it comes from, examples, its effect —; it offers exactly the book's five models, in two groups — plan-driven: waterfall, V-model, reuse-oriented; agile: Scrum, Kanban —, each with the risk it manages, the risk it accepts, the example project it suits and its chapter, as its data file states
 test("UC-002 main flow, steps 1–2: the table, then the book's five models in their two groups, each with its risks, its example and its chapter", async (t) => {
   const { target } = await openPage(t);
 
@@ -592,13 +590,11 @@ test("UC-002 main flow, steps 1–2: the table, then the book's five models in t
   }
 });
 
-// Guards: UC-002
-// given: a product without a declaration; the instance's participants, one of each type: alice (a person), endpoint-x
-//        (a model endpoint, which can neither write to the repository nor run code and tests), ci-bot, cli-bot, box-bot
+// TST-476021 · level: system · module: MOD-implementation-pages
+// guards: UC-002
+// given: a product without a declaration; the instance's participants, one of each type: alice (a person), endpoint-x (a model endpoint, which can neither write to the repository nor run code and tests), ci-bot, cli-bot, box-bot
 // input: the author chooses Scrum
-// expect (steps 3–4): Scrum is the model chosen; its roles are shown as UC-002 names them — the Product Owner a person or
-//         an agent, the Scrum Master either, the Developers either, needing "write to the repository" and "run code and
-//         tests"; no participant is offered here — who fills the roles is the role assignment's, on the Roles page (UC-048)
+// expect: (steps 3–4) Scrum is the model chosen; its roles are shown as UC-002 names them — the Product Owner a person or an agent, the Scrum Master either, the Developers either, needing "write to the repository" and "run code and tests"; no participant is offered here — who fills the roles is the role assignment's, on the Roles page (UC-048)
 test("UC-002 main flow, steps 3–4: the author chooses Scrum; its roles, who may fill each and what it needs; who fills them is the Roles page's", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
@@ -613,12 +609,11 @@ test("UC-002 main flow, steps 3–4: the author chooses Scrum; its roles, who ma
   assert.match(developers, /Roles/, "the Developers link to the Roles page");
 });
 
-// Guards: UC-002
+// TST-476022 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product without a declaration
 // input: the author chooses Scrum
-// expect (step 5): the page shows Scrum's phases, and each of its gates with what it checks — its artifacts and its
-//         condition — and who decides it, as scrum.md states them; with no branch set, it says that the work merges into
-//         the default branch (preset none)
+// expect: (step 5) the page shows Scrum's phases, and each of its gates with what it checks — its artifacts and its condition — and who decides it, as scrum.md states them; with no branch set, it says that the work merges into the default branch (preset none)
 test("UC-002 main flow, step 5: the phases, each gate with what it checks and who decides it; without a branch, work merges into the default branch", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
@@ -634,11 +629,11 @@ test("UC-002 main flow, step 5: the phases, each gate with what it checks and wh
   assert.match(textOf(target), /merged into the default branch/, "preset none: the work merges into the default branch");
 });
 
-// Guards: UC-002
+// TST-476023 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product without a declaration
 // input: the author chooses Scrum
-// expect (step 5): the page shows the transitions between Scrum's phases and which of them pair for verification, as
-//         scrum.md states them
+// expect: (step 5) the page shows the transitions between Scrum's phases and which of them pair for verification, as scrum.md states them
 test("UC-002 main flow, step 5: the transitions between the phases, and which phases pair for verification", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
@@ -654,11 +649,11 @@ test("UC-002 main flow, step 5: the transitions between the phases, and which ph
   }
 });
 
-// Guards: UC-002
+// TST-476024 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product declaring Scrum, its sprint given a branch of its own, sprint/<nn>
 // input: routes.process(app)
-// expect (step 5): the page shows the sprint's branch, and that merging it into the default branch is the gate at the
-//         sprint's end, decided by the Product Owner after the review of the increment
+// expect: (step 5) the page shows the sprint's branch, and that merging it into the default branch is the gate at the sprint's end, decided by the Product Owner after the review of the increment
 test("UC-002 main flow, step 5: a sprint's branch of its own, and its merge into the default branch as the gate at its end, decided by the Product Owner after the review", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ branches: [["Sprint", "sprint/<nn>"]] }) } });
 
@@ -669,11 +664,11 @@ test("UC-002 main flow, step 5: a sprint's branch of its own, and its merge into
   "the gate at the sprint's end: its branch merged into the default branch, decided by the Product Owner after the review");
 });
 
-// Guards: UC-002
+// TST-476025 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product without a declaration; the shipped practices
 // input: the author chooses Scrum and adds the practice devops
-// expect (step 6): the page offers the practices DevOps, prototyping, incremental delivery and the scaling layers, each
-//         with the models it fits as its data file states them; with DevOps added, the model is still Scrum
+// expect: (step 6) the page offers the practices DevOps, prototyping, incremental delivery and the scaling layers, each with the models it fits as its data file states them; with DevOps added, the model is still Scrum
 test("UC-002 main flow, step 6: the practices, each with the models it fits; adding one leaves the model as it is", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
@@ -688,11 +683,11 @@ test("UC-002 main flow, step 6: the practices, each with the models it fits; add
   assert.equal(fieldValue(target, "model"), "scrum", "the practice replaces no model");
 });
 
-// Guards: UC-002
-// given: a product without a declaration; the shipped practices, whose files the instance holds as a fork of Agent M
-//        does (PRACTICE_FILES)
+// TST-476026 · level: system · module: MOD-implementation-pages
+// guards: UC-002
+// given: a product without a declaration; the shipped practices, whose files the instance holds as a fork of Agent M does (PRACTICE_FILES)
 // input: the author chooses Scrum
-// expect (step 6): each practice says what it adds — the first item of its data file's ## Adds, by its name
+// expect: (step 6) each practice says what it adds — the first item of its data file's ## Adds, by its name
 test("UC-002 main flow, step 6: each practice says what it adds", async (t) => {
   const { target } = await openPage(t, { instance: PRACTICE_FILES });
   await choose(target, "scrum");
@@ -706,12 +701,11 @@ test("UC-002 main flow, step 6: each practice says what it adds", async (t) => {
   }
 });
 
-// Guards: UC-002
-// given: a product declaring Scrum whose process requirement adds a gate — REQUIREMENT, accepted from the standard
-//        SRC-standard-fixture, names the gate Development → Sprint Review with the verification record of the increment
+// TST-476027 · level: system · module: MOD-implementation-pages
+// guards: UC-002
+// given: a product declaring Scrum whose process requirement adds a gate — REQUIREMENT, accepted from the standard SRC-standard-fixture, names the gate Development → Sprint Review with the verification record of the increment
 // input: routes.process(app)
-// expect (step 7): the page shows the gate and the artifact the requirement adds, marked with the requirement and the
-//         source it comes from
+// expect: (step 7) the page shows the gate and the artifact the requirement adds, marked with the requirement and the source it comes from
 test("UC-002 main flow, step 7: what the product's process requirements add, each marked with its requirement and its source", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": scrumDeclaration({ added: [ADDED_TO_SCRUM] }) } });
 
@@ -719,13 +713,11 @@ test("UC-002 main flow, step 7: what the product's process requirements add, eac
     "the added gate's artifact, marked with its requirement and its source");
 });
 
-// Guards: UC-002
+// TST-476028 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product without a declaration
 // input: the author chooses Scrum
-// expect (step 8): the Definition of Done is preset to the rules every implementation job already follows — CI green, the
-//         job's first commit held only failing tests, only the job's modules changed, every gate before the merge
-//         recorded —; a folded explanation says that in Scrum the Developers meet the Definition of Done, whoever presses
-//         merge
+// expect: (step 8) the Definition of Done is preset to the rules every implementation job already follows — CI green, the job's first commit held only failing tests, only the job's modules changed, every gate before the merge recorded —; a folded explanation says that in Scrum the Developers meet the Definition of Done, whoever presses merge
 test("UC-002 main flow, step 8: the Definition of Done, preset to the job rules, and the folded word on who meets it in Scrum", async (t) => {
   const { target } = await openPage(t);
   await choose(target, "scrum");
@@ -745,14 +737,11 @@ test("UC-002 main flow, step 8: the Definition of Done, preset to the job rules,
   assert.ok(!word.hasAttribute("open"), "folded");
 });
 
-// Guards: UC-002
+// TST-476029 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product without a declaration; the instance's participants, one of each type
-// input: the author chooses Scrum; gives the sprint the branch sprint/<nn>; adds the practice devops; adds the condition
-//        "review: 1 by participants other than the implementer"; then presses Save, once
-// expect (steps 3–9): nothing is committed before Save; the one click commits docs/process.md to the product repository,
-//         once, with the author's token, and nothing to the instance — declaring exactly one model, Scrum, the practice,
-//         the branch and the added condition, and naming no participant: who fills the roles is the product's role
-//         assignment (UC-048)
+// input: the author chooses Scrum; gives the sprint the branch sprint/<nn>; adds the practice devops; adds the condition "review: 1 by participants other than the implementer"; then presses Save, once
+// expect: (steps 3–9) nothing is committed before Save; the one click commits docs/process.md to the product repository, once, with the author's token, and nothing to the instance — declaring exactly one model, Scrum, the practice, the branch and the added condition, and naming no participant: who fills the roles is the product's role assignment (UC-048)
 test("UC-002 main flow, steps 3–9: the author's choices, then one click on Save commits the declaration to the product repository", async (t) => {
   const page = await openPage(t);
   const { target } = page;
@@ -779,12 +768,11 @@ test("UC-002 main flow, steps 3–9: the author's choices, then one click on Sav
   assert.equal(page.instance.writes.length, 0, "nothing is committed to the instance");
 });
 
-// Guards: UC-002
-// given: a product without a declaration, its page read once before — UC-002 step 1 shows the table of the process model
-//        and the rules to be met unfolded at the first reading only
+// TST-473082 · level: system · module: MOD-implementation-pages
+// guards: UC-002
+// given: a product without a declaration, its page read once before — UC-002 step 1 shows the table of the process model and the rules to be met unfolded at the first reading only
 // input: the page opened again; the author chooses Scrum
-// expect: every choice — the model, the roles' holders, a branch, the practices, the Definition of Done — carries a
-//         folded "What is this?" with a pointer to the book (Vibe Coding, a chapter)
+// expect: every choice — the model, the roles' holders, a branch, the practices, the Definition of Done — carries a folded "What is this?" with a pointer to the book (Vibe Coding, a chapter)
 test("UC-002 main flow: every choice carries a folded What is this? with a pointer to the book", async (t) => {
   await openPage(t);
   const { target } = await openPage(t);
@@ -802,12 +790,11 @@ test("UC-002 main flow: every choice carries a folded What is this? with a point
 
 // ---------------------------------------------------------------- the alternative flows
 
-// Guards: UC-002
-// given: the instance's own process lab-flow, added as a data file in the catalogue's format — docs/process-models/
-//        lab-flow.md —, no line of Agent M's code changed; a product without a declaration
+// TST-476030 · level: system · module: MOD-implementation-pages
+// guards: UC-002
+// given: the instance's own process lab-flow, added as a data file in the catalogue's format — docs/process-models/ lab-flow.md —, no line of Agent M's code changed; a product without a declaration
 // input: routes.process(app); the author chooses lab-flow
-// expect (3a): lab-flow is offered beside the book's five; chosen, the page shows its roles, its phases and its gates as
-//         its data file states them
+// expect: (3a) lab-flow is offered beside the book's five; chosen, the page shows its roles, its phases and its gates as its data file states them
 test("UC-002 alternative flow 3a: the organisation's own process, a data file in the catalogue's format, is offered and used", async (t) => {
   const { target } = await openPage(t, { instance: { [LAB_FLOW_PATH]: LAB_FLOW } });
 
@@ -823,14 +810,11 @@ test("UC-002 alternative flow 3a: the organisation's own process, a data file in
   }
 });
 
-// Guards: UC-002
-// given: a product declaring lab-flow — whose phases produce requirements, ARC, ITM, MOD and TST —, naming no participant,
-//        its declaration naming the gate REQUIREMENT adds (Probe → Handover); in its repository an item and an
-//        architecture file; the instance also holds lab-lite, whose phases produce requirements, MOD and TST
+// TST-476031 · level: system · module: MOD-implementation-pages
+// guards: UC-002
+// given: a product declaring lab-flow — whose phases produce requirements, ARC, ITM, MOD and TST —, naming no participant, its declaration naming the gate REQUIREMENT adds (Probe → Handover); in its repository an item and an architecture file; the instance also holds lab-lite, whose phases produce requirements, MOD and TST
 // input: the author chooses lab-lite, then presses Save
-// expect (3b): the page lists ARC and ITM as the artifacts lab-lite no longer requires — not requirements, MOD or TST —;
-//         the requirement's gate is still shown; the save writes docs/process.md alone, naming lab-lite and keeping the
-//         requirement's gate, and the product's item and architecture file stay
+// expect: (3b) the page lists ARC and ITM as the artifacts lab-lite no longer requires — not requirements, MOD or TST —; the requirement's gate is still shown; the save writes docs/process.md alone, naming lab-lite and keeping the requirement's gate, and the product's item and architecture file stay
 test("UC-002 alternative flow 3b: changing the model lists the artifacts the new one no longer requires; none is deleted, and the process requirement keeps its gate", async (t) => {
   const ITEM = "docs/backlog/ITM-001-a-fixture-item.md", ARCHITECTURE = "docs/architecture/ARC-001-a-fixture-decision.md";
   const added = [REQUIREMENT, "Probe → Handover", "TST", "the verification is documented", "Steward"];
@@ -856,12 +840,11 @@ test("UC-002 alternative flow 3b: changing the model lists the artifacts the new
   assert.equal(page.product.files[ARCHITECTURE], "# ARC-001\n", "the architecture file stays");
 });
 
-// Guards: UC-002
+// TST-476032 · level: system · module: MOD-implementation-pages
+// guards: UC-002
 // given: a product declaring Scrum, its declaration naming no gate a process requirement adds
-// input: routes.process(app); then REQUIREMENT, accepted, adds its gate — the declaration names it — and the page is
-//        opened again
-// expect (7a): first, the view says that the product has no process requirements yet; then the requirement's addition
-//         appears, and the model is still Scrum, its own gates shown
+// input: routes.process(app); then REQUIREMENT, accepted, adds its gate — the declaration names it — and the page is opened again
+// expect: (7a) first, the view says that the product has no process requirements yet; then the requirement's addition appears, and the model is still Scrum, its own gates shown
 test("UC-002 alternative flow 7a: no process requirements yet — the view says so; once one is accepted, its addition appears and the model stays", async (t) => {
   const before = await openPage(t, { product: { "docs/process.md": scrumDeclaration({}) } });
   assert.ok(shownEntries(before.target).some((entry) => /no process requirements/i.test(entry)), "the view says there are none yet");
@@ -876,12 +859,11 @@ test("UC-002 alternative flow 7a: no process requirements yet — the view says 
   }
 });
 
-// Guards: UC-002
-// given: a product declaring Kanban — whose one gate, Review → Done, is a review, no release gate —, its process
-//        requirement adding the gate Kanban does not have: documented verification before release, between Review and Done
+// TST-476033 · level: system · module: MOD-implementation-pages
+// guards: UC-002
+// given: a product declaring Kanban — whose one gate, Review → Done, is a review, no release gate —, its process requirement adding the gate Kanban does not have: documented verification before release, between Review and Done
 // input: routes.process(app)
-// expect (7b): the page shows the gate being added, marked with its requirement, and where — between Review and Done —;
-//         the model stays Kanban, its phases and its own gate shown
+// expect: (7b) the page shows the gate being added, marked with its requirement, and where — between Review and Done —; the model stays Kanban, its phases and its own gate shown
 test("UC-002 alternative flow 7b: a process requirement needs a gate the model does not have — the gate is shown being added, and where; the model stays Kanban", async (t) => {
   const { target } = await openPage(t, { product: { "docs/process.md": kanbanDeclaration({
     added: [[REQUIREMENT, "Review → Done", "the verification record of the item", "the verification is documented", "Reviewer"]] }) } });

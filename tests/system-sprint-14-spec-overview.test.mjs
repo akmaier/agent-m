@@ -51,6 +51,8 @@ function files(spec = OLD) {
 const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request));
 
 // CASE ITM-277-SYSTEM-02
+// TST-473080 · level: system · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a fresh dashboard load after current SPEC bytes change, then fixtures with an empty and an absent SPEC
 // input: open #spec for each fixture
 // expect: only fresh current text appears; empty and absent SPECs name their empty state while queue history remains usable

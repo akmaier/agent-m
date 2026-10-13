@@ -34,13 +34,12 @@ async function settings(entries) {
   return { server, github, repositories, dom };
 }
 
-// TST-290128
-// Module: MOD-settings-pages · MOD-browser-store
-// Level: component
-// Guards: UC-042; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
-// Precondition: this browser has the public Settings GitHub-token row and no shared-origin acknowledgement.
-// Input: the person presses Change, explicitly ticks I have read this, reloads Settings, presses Change again, then unchecks it.
-// Expected: the accepted canonical acknowledgement date is stored only by the tick, restores the checkbox on reload,
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store
+// TST-290128 · level: component · module: MOD-settings-pages
+// guards: UC-042; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
+// given: this browser has the public Settings GitHub-token row and no shared-origin acknowledgement.
+// input: the person presses Change, explicitly ticks I have read this, reloads Settings, presses Change again, then unchecks it.
+// expect: the accepted canonical acknowledgement date is stored only by the tick, restores the checkbox on reload,
 // and unchecking removes its browser record without a repository write.
 test("TST-290128: shared-origin acknowledgement persists only for the explicit checkbox choice", async () => {
   const productAddress = "https://github.com/fixture/product";
@@ -120,14 +119,11 @@ const shownWithin = (row, control) => {
   return found.every((node) => !node.hidden);
 };
 
-// Module: MOD-settings-pages
-// Level: component
-// Guards: UC-042 step 2; THE SHARED PAGES ORIGIN IS DISCLOSED; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
-// Given: the public Settings page with a stored token and no shared-origin acknowledgement in this browser.
-// Input: the person looks at the token's line, then presses Change.
-// Expected: before Change the line shows neither the shared-origin notice nor I have read this, nor Save: nothing the
-//           person cannot use yet. Change shows the notice, I have read this — enabled, focused, and ticked by the
-//           person's click — and Save, in place.
+// TST-472729 · level: component · module: MOD-settings-pages
+// guards: UC-042 step 2; THE SHARED PAGES ORIGIN IS DISCLOSED; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// given: the public Settings page with a stored token and no shared-origin acknowledgement in this browser.
+// input: the person looks at the token's line, then presses Change.
+// expect: before Change the line shows neither the shared-origin notice nor I have read this, nor Save: nothing the person cannot use yet. Change shows the notice, I have read this — enabled, focused, and ticked by the person's click — and Save, in place.
 test("UC-042 step 2: a token line shows its notice and I have read this only when Change opens them, and the box can be ticked", async () => {
   const page = await settings({
     [key("products")]: JSON.stringify(["https://github.com/fixture/product"]),
@@ -152,13 +148,12 @@ test("UC-042 step 2: a token line shows its notice and I have read this only whe
   assert.equal(controls(row, "settings-repository-secret")[0].disabled, false, "ticked, the paste field opens");
 });
 
-// TST-290129
-// Module: MOD-settings-pages · MOD-browser-store
-// Level: component
-// Guards: UC-042; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
-// Given: GitHub Ubuntu CI and an isolated source copy.
-// Input: the acknowledgement readback in repositoryLine is faulted, then restored byte-for-byte.
-// Expected: TST-290128 fails in the faulted copy and passes after exact restoration.
+// Module (as the case stated it): MOD-settings-pages · MOD-browser-store
+// TST-290129 · level: component · module: MOD-settings-pages
+// guards: UC-042; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
+// given: GitHub Ubuntu CI and an isolated source copy.
+// input: the acknowledgement readback in repositoryLine is faulted, then restored byte-for-byte.
+// expect: TST-290128 fails in the faulted copy and passes after exact restoration.
 test("TST-290129: CI counter-proof restores acknowledgement readback for TST-290128", () => {
   if (process.env.GITHUB_ACTIONS !== "true" || process.env.AGENT_M_290_ACK_FAULT_CHILD) return;
   const temporary = mkdtempSync(join(tmpdir(), "agent-m-290-ack-fault-")), copied = join(temporary, "repo");

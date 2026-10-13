@@ -59,6 +59,11 @@ const PRODUCT = [
   mod("MOD-reader", "Reads files at a pinned commit", ["ARC-001"], [], ["readFile"]),
 ];
 
+// TST-478019 · level: unit · module: MOD-trace-pages
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: a small product of three modules in which all used interfaces are provided, and a gap naming MOD-review
+// input: componentDiagram of the product with that gap, then with no second argument and with an empty list
+// expect: MOD-review, named by the gap, is marked gap; MOD-page and MOD-reader are not; no gaps given, by default or as an empty list, marks nothing
 test("UC-025 step 5, MODULE GAPS ARE REPORTED, NOT FORBIDDEN — a module a gap names is marked, a module no gap names is not", () => {
   const { classes } = read(componentDiagram(PRODUCT, [gap("MOD-review")]));
   assert.deepEqual(classes["MOD-review"], new Set(["gap"]), "MOD-review, named by the gap, is marked");
@@ -69,12 +74,22 @@ test("UC-025 step 5, MODULE GAPS ARE REPORTED, NOT FORBIDDEN — a module a gap 
   assert.deepEqual(read(componentDiagram(PRODUCT, [])).classes, {}, "an empty list marks nothing");
 });
 
+// TST-478020 · level: unit · module: MOD-trace-pages
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: the same small product and three gaps: two naming MOD-review (no_subsystem, no_test) and one naming MOD-ghost, which the diagram does not draw
+// input: componentDiagram of the product with those gaps
+// expect: only MOD-review is marked, once as gap, and MOD-ghost marks nothing
 test("UC-025 step 4 and 5 — several gaps naming the same module mark it once; a gap naming no drawn module marks nothing", () => {
   const { classes } = read(componentDiagram(PRODUCT, [gap("MOD-review", "no_subsystem"), gap("MOD-review", "no_test"), gap("MOD-ghost")]));
   assert.deepEqual(Object.keys(classes), ["MOD-review"], "MOD-ghost names no module this diagram draws, so it marks nothing");
   assert.deepEqual(classes["MOD-review"], new Set(["gap"]), "two gaps on MOD-review mark its one box once, not twice");
 });
 
+// TST-478021 · level: unit · module: MOD-trace-pages
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: MOD-page uses MOD-review.status and MOD-review.history; MOD-review has a file and provides status but not history
+// input: componentDiagram of those two modules, then of the same modules with MOD-review also providing history
+// expect: MOD-review keeps its own box and label, is marked missing, and the arrow from MOD-page to it is drawn; once it provides history, nothing is marked
 test("UC-025 5a, MODULE GAPS ARE REPORTED, NOT FORBIDDEN — a used interface an existing module does not provide is drawn as an arrow ending in a box marked missing", () => {
   // MOD-page uses MOD-review.status and MOD-review.history; MOD-review has a file and provides "status", but not "history".
   const product = [
@@ -105,6 +120,11 @@ function large() {
   });
 }
 
+// TST-478022 · level: unit · module: MOD-trace-pages
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: 52 modules with 400 uses, each module also named by a gap
+// input: componentDiagram of those modules and gaps
+// expect: the text stays below 50,000 characters, and every one of the 52 modules is marked gap and none missing
 test("UC-025 step 5 — the text for 52 modules with 400 uses, every module also marked by a gap, stays below Mermaid's limit of 50,000 characters", () => {
   const modules = large();
   const gaps = modules.map((m) => gap(m.id));
