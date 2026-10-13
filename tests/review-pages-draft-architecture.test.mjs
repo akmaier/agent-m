@@ -1,0 +1,420 @@
+// MOD-review-pages' start of the architecture's derivation (ITM-442), as the accepted text of docs/architecture/MOD-review-pages.md states it: "`<k>/draft` — drafting: …
+// for the architecture, what the derivation covers, its preconditions, the drafting and the reviewing participant — a reviewer offered only if it differs from the drafter in
+// participant and model —; then the run panel and *Run*. A job the person starts here and waits for runs in this tab, attended … A job on another route — a CI agent … — is queued
+// there", and UC-022 steps 1 to 4 and the alternative flows 1a, 1b, 1c, 2a, 3a, 4a: what the derivation covers — every requirement and every use case, no selection —; the findings
+// of the precondition `architecture-ready`; the drafting and the reviewing participant, each one that can draft text with where it processes data, a participant whose place a linked
+// source forbids left out, a reviewer only if it differs from the drafter, Run not offered with its reason when none does; the run panel of `derive-architecture`, what does not fit
+// named; Run, one click, the job run in this tab or queued on another route; nothing sent without the click.
+// Run: node --test tests/review-pages-draft-architecture.test.mjs
+//
+// Module: MOD-review-pages
+// Guards: UC-022; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; NO REVIEWER IS THE DRAFTER; THE PAGE STATES WHAT IT SENDS WHERE; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
+// Level: unit
+//
+// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to MOD-repository-hosts'
+// interface; the instance is a read-only snapshot of this repository, whose book is on the disk, with the register of participants the test gives. The model endpoints are fixtures
+// standing behind the global `fetch`, which the test replaces and restores. The real MOD-job-runner, MOD-runtimes, MOD-job-ledger, MOD-approvals, MOD-spec-changes, MOD-source-register,
+// MOD-trace-graph, MOD-participant-list and MOD-site-frame run as they are, the strategies registered as the view hands them to the frame; the step `due-diligence`, which no module
+// registers yet, is a stub of this file. Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
+//   - The address of the page is the decision route with the id `draft` — #decision/id=draft.
+//   - The page holds <section class="covers"> whose <li class="requirement"> and <li class="use-case"> name every requirement and every use case, and no input to select among them.
+//   - The precondition's finding is a <p class="finding error|warning"> in <section class="readiness">; beside an open use case, <a class="review-link"> to #use-case/id=<id>; beside open SPEC
+//     changes, <a class="decide-first"> to #spec-entry; beside an existing architecture, <a class="change-architecture"> to #decision, the list from which a decision is changed (UC-023).
+//   - <li class="participant"> for each participant able to draft text whose place no linked source forbids, as on the page of use cases; <li class="reviewer"> with <input class="reviewer">
+//     (a radio) for each participant offered as reviewer once a drafter is chosen; none before; <p class="no-reviewer"> with the reason when none differs from the drafter.
+//   - <button class="prepare"> shows the run panel; Run is the panel's own button. A reviewer that cannot be offered is a finding of the panel under NO REVIEWER IS THE DRAFTER, and the panel
+//     offers no Run. After a run in the tab the page shows <p class="ran">; the draft that waits for the author is not part of this item.
+//   - A linked source is one the product's docs/sources.md holds a row of; its places are those MOD-source-register's permittedPlaces gives its register entry in the instance.
+// Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
+
+import "./review-pages-use-cases.test.mjs";
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { approvalSchema } from "../src/approvals/index.mjs";
+import { writeDocument } from "../src/documents/index.mjs";
+
+const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
+const { registerStrategies } = await import("../src/job-runner/index.mjs");
+const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
+const route = pages.view?.routes.find((candidate) => candidate.name === "decision");
+(pages.view?.strategies ?? []).forEach((strategies, at) => registerStrategies(`tests/review-pages-draft-architecture.test.mjs#${at}`, strategies));
+// The step due-diligence is registered by no module yet; a stub stands for it, and gives way when a module registers it.
+try { registerStrategies("tests/review-pages-draft-architecture.test.mjs#stub", { steps: { "due-diligence": async (draft) => ({ draft, findings: [] }) } }); } catch { /* registered by a module */ }
+
+// ---------------------------------------------------------------- the product
+
+const text = (...lines) => `${lines.join("\n")}\n`;
+const blobOf = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
+const failure = (name, message, fields = {}) => Object.assign(new Error(message), { name }, fields);
+const ON_GITHUB = { server: "github", origin: "https://github.com", path: "alice/thesis-tool", web: "https://github.com/alice/thesis-tool" };
+const TOKEN = { value: "github_pat_ALICEthesisTOOL0123456789abcdef", name: "Agent M · thesis-tool", expires: "2027-01-01" };
+const RULE = "A LOAN HAS A DUE DATE", OTHER = "A BOOK IS SHELVED";
+const SPEC = text("# Thesis tool — Specification", "", "## Lending", "", `**${RULE}** *(Product Owner)*`, "Every loan states the date by which the book is returned.",
+  "*Check:* `tests/loan.test.mjs`", "", `**${OTHER}** *(Product Owner)*`, "Every book stands on a shelf.", "*Check:* `tests/shelf.test.mjs`");
+const useCase = (id, title, goal, realises) => text("---", `id: ${id}`, `title: ${title}`, "area: lending", "actors:", "  - Member", "realises:",
+  ...realises.map((name) => `  - ${name}`), "---", `# ${id} ${title}`, "", `**Goal.** ${goal}`);
+const UC1_PATH = "docs/use-cases/UC-001-check-out-a-book.md", UC2_PATH = "docs/use-cases/UC-002-extend-a-loan.md";
+const UC1 = useCase("UC-001", "Check out a book", "The member borrows a book.", [RULE]);
+const UC2 = useCase("UC-002", "Extend a loan", "The member extends a loan once.", [OTHER]);
+const accepted = (id, path, body) => ({ [`docs/approvals/${id}-${blobOf(body).slice(0, 12)}.md`]: writeDocument(approvalSchema, { fields: { kind: "use-case", file: path, blob: blobOf(body) } }) });
+// Every use case accepted, no architecture, no SPEC change open: a product from which the first architecture can be derived.
+const READY = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, [UC1_PATH]: UC1, [UC2_PATH]: UC2, ...accepted("UC-001", UC1_PATH, UC1), ...accepted("UC-002", UC2_PATH, UC2) };
+const WORKFLOW = ".github/workflows/agent-m-jobs.yml";
+const ARC_PATH = "docs/architecture/ARC-001-the-whole-system.md";
+const QUEUE = "docs/spec-freigaben/2026-10-01_lending";
+const SECRET_LINK = text("# Requirement sources of the thesis tool", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| SRC-secret | 1 | ${"ab".repeat(32)} | |`);
+
+// ---------------------------------------------------------------- the hosts
+
+function fakeProduct(files = READY) {
+  const calls = [], commits = new Map();
+  let made = 0, head = null;
+  const commitOf = (tree, parent) => {
+    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    commits.set(sha, { tree, parent });
+    return sha;
+  };
+  head = commitOf(new Map(Object.entries(files)), null);
+  const snapshotAt = (sha, ref) => {
+    const { tree } = commits.get(sha);
+    return { repository: ON_GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+      blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
+  };
+  return {
+    files: () => Object.fromEntries(commits.get(head).tree),
+    writes: () => calls.filter((call) => call.fn === "commitFiles").map((call) => call.change),
+    host: {
+      async repositoryInfo() { return { defaultBranch: "trunk", visibility: "public", canWrite: true, archived: false, description: "" }; },
+      async readSnapshot(ref) {
+        if (ref === "trunk") return snapshotAt(head, "trunk");
+        if (commits.has(ref)) return snapshotAt(ref, ref);
+        throw failure("NotFound", `${ref} was not found`);
+      },
+      async readHistory() { return []; },
+      async commitFiles(change) {
+        calls.push({ fn: "commitFiles", change: structuredClone(change) });
+        if (change.branch !== "trunk" || change.expectedHead !== head) throw failure("Moved", "the branch moved", { head });
+        head = commitOf(new Map([...commits.get(head).tree, ...change.files.map((file) => [file.path, file.text])]), head);
+        return { commit: head, url: `${ON_GITHUB.web}/commit/${head}` };
+      },
+    },
+  };
+}
+
+// The instance: this repository's files from the disk — its book among them —, with the register of participants the test gives and the register entries `entries` adds.
+const ROOT = new URL("../", import.meta.url);
+const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
+const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
+const registerOf = (...rows) => `${REGISTER_HEAD}\n${rows.join("\n")}\n`;
+const row = (name, model, place, route, context = 200000) => `| ${name} | model endpoint | ${model} | ${context} | — | draft text | ${place} | ${route} |`;
+const DRAFTER = row("drafter-a", "model-a", "this machine", "endpoint ep1");
+const REVIEWER = row("reviewer-b", "model-b", "this machine", "endpoint ep2");
+const TWIN = row("twin-a", "model-a", "this machine", "endpoint ep3");
+const FAR = row("far-c", "model-c", "a server in Singapore", "endpoint ep4");
+const SMALL = row("small-d", "model-d", "this machine", "endpoint ep5", 50000);
+const CI_ROW = "| ci-agent | CI agent | model-x | 200000 | — | draft text | GitHub Actions in the USA | ci hosted secret CI_KEY |";
+const READER_ROW = "| reader | person | — | — | — | read the repository | — | the GitHub account `reader` |";
+const SECRET_ENTRY = text("---", "id: SRC-secret", "title: Secret rules", "kind: document", "authority: normative", "licence: restricted — internal use only", "places:", "  - this machine", "---",
+  "# SRC-secret Secret rules", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| 1 | 2026-10-01 | v1 | here | 1 file |");
+function fakeInstance(register, entries = {}) {
+  const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" }, ref: "main",
+    commit: "abc123def4567890abc123def4567890abc123de", paths: Object.keys(entries), read: async (path) => (path === "docs/participants.md" ? register : path in entries ? entries[path] : onDisk(path)), blob: () => null };
+  return { host: { async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
+    async readSnapshot() { return snapshot; } } };
+}
+
+// The model endpoints behind the global fetch: ep1 answers the architecture, ep2 the reviewer's findings (none); every request is kept.
+let requests = [];
+const realFetch = globalThis.fetch;
+function endpointsAnswer() {
+  requests = [];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    const draft = String(url).includes("ep2") ? { findings: [] } : { files: [] };
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ draft, answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }),
+      { status: 200, headers: { "content-type": "application/json" } });
+  };
+}
+test.afterEach(() => { globalThis.fetch = realFetch; });
+
+// ---------------------------------------------------------------- the page
+
+const THREE = registerOf(DRAFTER, REVIEWER, TWIN, FAR, SMALL, CI_ROW, READER_ROW);
+async function show(fake, { register = THREE, entries = {}, token = true } = {}) {
+  assert.ok(route, `the route decision: ${pages.error?.message}`);
+  const store = openStore(token ? "alice/agent-m" : "nobody/agent-m");
+  if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
+  for (const name of ["ep1", "ep2", "ep3", "ep4", "ep5"]) writeSetting(store, `endpoint:${name}`, { url: `https://${name}.example.test/v1`, kind: "openai-compatible", model: "m", throughBridge: false });
+  const target = document.createElement("div");
+  document.body.append(target);
+  const context = { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance(register, entries).host }, store, go() {},
+    product: { address: ON_GITHUB.web, kind: "github", host: fake.host } };
+  await route.render(target, context, { id: "draft" });
+  return target;
+}
+function find(root, match) {
+  const found = [];
+  (function walk(node) { for (const kid of node.childNodes) { if (kid.nodeType === 1) { if (match(kid)) found.push(kid); walk(kid); } } })(root);
+  return found;
+}
+const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
+const click = (node) => node.dispatchEvent(new Event("click"));
+async function until(condition, what) {
+  const limit = Date.now() + 2000;
+  while (Date.now() < limit) {
+    if (condition()) return;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.fail(`waited for ${what}`);
+}
+const runButtons = (root) => find(root, (node) => node.localName === "button" && node.textContent === "Run");
+const choose = (target, role, name) => {
+  const box = byClass(target, "input", role).find((each) => each.value === name);
+  assert.ok(box, `${name} is offered as ${role}`);
+  box.checked = true;
+  box.dispatchEvent(new Event("change"));
+};
+const namesOf = (target, role) => byClass(target, "li", role).map((item) => item.getAttribute("data-name")).sort();
+async function panelFor(target, drafter, reviewer) {
+  choose(target, "participant", drafter);
+  if (reviewer) choose(target, "reviewer", reviewer);
+  click(byClass(target, "button", "prepare")[0]);
+  await until(() => byClass(target, "section", "run-panel").length === 1, "the run panel");
+  return byClass(target, "section", "run-panel")[0];
+}
+const linksTo = (target, href) => find(target, (node) => node.localName === "a" && node.getAttribute("href") === href);
+
+// ---------------------------------------------------------------- what the derivation covers
+
+// TST-442001 · level: unit · module: MOD-review-pages
+// guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
+// given: a product whose use cases UC-001 and UC-002 are accepted, with the requirements A LOAN HAS A DUE DATE and A BOOK IS SHELVED, and no architecture
+// input: the page #decision/id=draft
+// expect: the requirements and the use cases listed as covered, all four, and no input — no checkbox, no choice — to select among them; the folded explanation of an architecture; nothing written, nothing sent
+test("decision/draft — the derivation covers every requirement and every use case, and offers no selection", async () => {
+  endpointsAnswer();
+  const fake = fakeProduct();
+  const target = await show(fake);
+  const covers = byClass(target, "section", "covers")[0];
+  assert.ok(covers, "known positive: the page is drawn");
+  assert.deepEqual(byClass(covers, "li", "requirement").map((item) => item.textContent).sort(), [OTHER, RULE].sort());
+  assert.deepEqual(byClass(covers, "li", "use-case").map((item) => item.textContent).sort(), ["UC-001", "UC-002"]);
+  assert.equal(find(target, (node) => node.localName === "input" && node.type === "checkbox").length, 0, "no selection");
+  assert.equal(find(target, (node) => node.localName === "select").length, 0, "no selection");
+  assert.match(find(target, (node) => node.localName === "details")[0].textContent, /architecture/);
+  assert.equal(fake.writes().length, 0, "nothing written");
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// ---------------------------------------------------------------- the findings of the precondition
+
+// TST-442002 · level: unit · module: MOD-review-pages
+// guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; UC-022 (1a)
+// given: a product whose use case UC-002 is open (no approval record), UC-001 accepted
+// input: the page; then the choice of drafter-a and reviewer-b and the run panel
+// expect: an error finding naming UC-002 and not UC-001, with a link Review UC-002 to #use-case/id=UC-002; the run panel offers no Run and lists the finding as blocking; nothing sent
+test("decision/draft — an open use case is named with the link to its review, and nothing is derived", async () => {
+  endpointsAnswer();
+  const files = { ...READY };
+  for (const path of Object.keys(files)) if (path.startsWith("docs/approvals/UC-002")) delete files[path];
+  const open = fakeProduct(files);
+  const target = await show(open);
+  const finding = byClass(target, "p", "finding")[0];
+  assert.ok(finding, "a finding is shown");
+  assert.ok(finding.className.split(" ").includes("error"));
+  assert.match(finding.textContent, /UC-002/);
+  assert.ok(!/UC-001/.test(finding.textContent), "the accepted use case is not named");
+  assert.equal(linksTo(target, "#use-case/id=UC-002").length, 1);
+  assert.equal(linksTo(target, "#use-case/id=UC-001").length, 0);
+  const panel = await panelFor(target, "drafter-a", "reviewer-b");
+  assert.equal(runButtons(panel).length, 0, "no Run");
+  assert.match(byClass(panel, "li", "blocking")[0].textContent, /UC-002/);
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// TST-442003 · level: unit · module: MOD-review-pages
+// guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022 (1b)
+// given: a product whose use cases are accepted and whose change queue holds an entry no record decides
+// input: the page; then the choice of drafter-a and reviewer-b and the run panel
+// expect: a warning finding naming the entry's proposal, with a link to #spec-entry to decide it first; the run panel still offers Run — the SPEC change is the person's choice, not a block
+test("decision/draft — an open SPEC change is named with the choice to decide it first, and Run is still offered", async () => {
+  endpointsAnswer();
+  const entry = `${QUEUE}/01-a-rule.md`;
+  const fake = fakeProduct({ ...READY, [`${QUEUE}/index.md`]: text("# SPEC approvals — queue lending", "", "| Nr | Datei |", "|---|---|", "| 01 | `SPEC.md` |"),
+    [entry]: text("**A NEW RULE** *(Product Owner)*", "A rule.") });
+  const target = await show(fake);
+  const finding = byClass(target, "p", "finding")[0];
+  assert.ok(finding, "a finding is shown");
+  assert.ok(finding.className.split(" ").includes("warning"));
+  assert.ok(finding.textContent.includes(entry), finding.textContent);
+  assert.equal(linksTo(target, "#spec-entry").length, 1);
+  const panel = await panelFor(target, "drafter-a", "reviewer-b");
+  assert.equal(runButtons(panel).length, 1, "Run is offered");
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// TST-442004 · level: unit · module: MOD-review-pages
+// guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022 (1c)
+// given: a product that holds an architecture decision already, ARC-001
+// input: the page; then the run panel
+// expect: an error finding saying the product has an architecture, with a link naming UC-023 to #decision; the run panel offers no Run
+test("decision/draft — an existing architecture leads to UC-023, and no first architecture is drafted beside it", async () => {
+  endpointsAnswer();
+  const fake = fakeProduct({ ...READY, [ARC_PATH]: text("---", "id: ARC-001", "title: The whole system", "---", "# ARC-001 The whole system") });
+  const target = await show(fake);
+  const finding = byClass(target, "p", "finding")[0];
+  assert.ok(finding, "a finding is shown");
+  assert.ok(finding.className.split(" ").includes("error"));
+  assert.match(finding.textContent, /architecture already/);
+  const leading = linksTo(target, "#decision");
+  assert.ok(leading.some((each) => /UC-023/.test(each.textContent)), "a link names UC-023");
+  const panel = await panelFor(target, "drafter-a", "reviewer-b");
+  assert.equal(runButtons(panel).length, 0, "no Run");
+});
+
+// ---------------------------------------------------------------- the participants
+
+// TST-442005 · level: unit · module: MOD-review-pages
+// guards: NO REVIEWER IS THE DRAFTER; UC-022 (2)
+// given: the register holds drafter-a (model-a), twin-a (model-a), reviewer-b (model-b), far-c, small-d, a CI agent and a person that cannot draft text
+// input: the page; then drafter-a chosen as drafter
+// expect: before the choice, no reviewer offered; the drafters are the six that can draft text, each with its place; after it, the reviewers are reviewer-b, far-c and small-d — not drafter-a, not twin-a, which uses drafter-a's model
+test("decision/draft — a reviewer is offered only if it differs from the drafter in participant and in model", async () => {
+  endpointsAnswer();
+  const target = await show(fakeProduct());
+  assert.deepEqual(namesOf(target, "participant"), ["ci-agent", "drafter-a", "far-c", "reviewer-b", "small-d", "twin-a"]);
+  assert.match(byClass(byClass(target, "li", "participant").find((item) => item.getAttribute("data-name") === "reviewer-b"), "span", "place")[0].textContent, /this machine/);
+  assert.deepEqual(namesOf(target, "reviewer"), [], "none before a drafter is chosen");
+  choose(target, "participant", "drafter-a");
+  assert.deepEqual(namesOf(target, "reviewer"), ["ci-agent", "far-c", "reviewer-b", "small-d"]);
+  for (const box of byClass(target, "input", "participant")) box.checked = false; // a browser unchecks the other radios of the group
+  choose(target, "participant", "reviewer-b");
+  assert.deepEqual(namesOf(target, "reviewer"), ["ci-agent", "drafter-a", "far-c", "small-d", "twin-a"], "the offer follows the drafter");
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// TST-442006 · level: unit · module: MOD-review-pages
+// guards: NO REVIEWER IS THE DRAFTER; UC-022 (2a)
+// given: a register whose only participants that can draft text are drafter-a and twin-a, which use the same model
+// input: drafter-a chosen; then Show the run panel
+// expect: no reviewer offered and a paragraph naming the reason — no other participant uses another model; the panel states the reason as a finding of NO REVIEWER IS THE DRAFTER and offers no Run; nothing sent
+test("decision/draft — when no reviewer differs from the drafter, Run is not offered and the reason is named", async () => {
+  endpointsAnswer();
+  const target = await show(fakeProduct(), { register: registerOf(DRAFTER, TWIN, READER_ROW) });
+  choose(target, "participant", "drafter-a");
+  assert.deepEqual(namesOf(target, "reviewer"), []);
+  assert.match(byClass(target, "p", "no-reviewer")[0].textContent, /another model/);
+  click(byClass(target, "button", "prepare")[0]);
+  await until(() => byClass(target, "section", "run-panel").length === 1, "the run panel");
+  const panel = byClass(target, "section", "run-panel")[0];
+  assert.equal(runButtons(panel).length, 0, "no Run");
+  assert.match(byClass(panel, "li", "blocking")[0].textContent, /NO REVIEWER IS THE DRAFTER/);
+  assert.match(byClass(panel, "li", "blocking")[0].textContent, /another model/);
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// TST-442007 · level: unit · module: MOD-review-pages
+// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-022 (2)
+// given: the product links the restricted source SRC-secret, whose register entry permits the place "this machine"; the participants far-c (a server in Singapore) and ci-agent (GitHub Actions in the USA) process data elsewhere
+// input: the page; drafter-a chosen; and, as a known positive, the same page of a product that links no restricted source
+// expect: far-c and ci-agent are offered neither as drafter nor as reviewer; the others are; on the product without the link, both are offered
+test("decision/draft — a participant whose place a linked source forbids is left out as drafter and as reviewer", async () => {
+  endpointsAnswer();
+  const unlinked = await show(fakeProduct());
+  assert.ok(namesOf(unlinked, "participant").includes("far-c") && namesOf(unlinked, "participant").includes("ci-agent"), "known positive: offered without the link");
+  const target = await show(fakeProduct({ ...READY, "docs/sources.md": SECRET_LINK }), { entries: { "docs/sources/SRC-secret.md": SECRET_ENTRY } });
+  assert.deepEqual(namesOf(target, "participant"), ["drafter-a", "reviewer-b", "small-d", "twin-a"]);
+  choose(target, "participant", "drafter-a");
+  assert.deepEqual(namesOf(target, "reviewer"), ["reviewer-b", "small-d"]);
+});
+
+// ---------------------------------------------------------------- the run panel
+
+// TST-442008 · level: unit · module: MOD-review-pages
+// guards: THE PAGE STATES WHAT IT SENDS WHERE; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; UC-022 (3, 4)
+// given: the ready product; drafter-a and reviewer-b chosen
+// input: Show the run panel
+// expect: two destinations — drafter-a as drafter and reviewer-b as reviewer, each with its place — each receiving seven parts: SPEC.md, both use cases and chapters 9 to 12 of the book; in it the only Run; nothing written, nothing sent
+test("decision/draft — the run panel names every destination and every part, and Run is the panel's own", async () => {
+  endpointsAnswer();
+  const fake = fakeProduct();
+  const target = await show(fake);
+  const panel = await panelFor(target, "drafter-a", "reviewer-b");
+  const destinations = byClass(panel, "section", "destination");
+  assert.equal(destinations.length, 2);
+  assert.match(destinations[0].textContent, /drafter-a — drafter/);
+  assert.match(destinations[1].textContent, /reviewer-b — reviewer/);
+  for (const destination of destinations) {
+    assert.match(destination.textContent, /this machine/);
+    const sent = byClass(destination, "li", "part").map((item) => item.textContent.split(" — ")[0]);
+    assert.deepEqual(sent, ["SPEC.md", UC1_PATH, UC2_PATH, ...["09_system-modeling.md", "10_architectural-design.md", "11_agentic-design-and-control-patterns.md", "12_implementation-and-version-control.md"]]);
+  }
+  assert.equal(runButtons(target).length, 1, "one Run");
+  assert.equal(runButtons(panel).length, 1, "and it is the panel's");
+  assert.equal(fake.writes().length, 0, "nothing written");
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// TST-442009 · level: unit · module: MOD-review-pages
+// guards: NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; UC-022 (3a)
+// given: the ready product; small-d, whose context holds 50000 tokens, chosen as drafter, with reviewer-b
+// input: Show the run panel
+// expect: the panel names small-d as unable to hold what it would receive, with the size and its context; it offers no Run; nothing written, nothing sent
+test("decision/draft — a participant whose context is too small is named, and Run is not offered", async () => {
+  endpointsAnswer();
+  const fake = fakeProduct();
+  const target = await show(fake);
+  const panel = await panelFor(target, "small-d", "reviewer-b");
+  const notFitting = byClass(panel, "p", "not-fitting");
+  assert.equal(notFitting.length, 1);
+  assert.match(notFitting[0].textContent, /small-d/);
+  assert.match(notFitting[0].textContent, /50000/);
+  assert.equal(runButtons(target).length, 0, "no Run");
+  assert.equal(fake.writes().length, 0, "nothing written");
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// ---------------------------------------------------------------- Run
+
+// TST-442010 · level: unit · module: MOD-review-pages
+// guards: ONE CLICK PER DECISION; THE PAGE STATES WHAT IT SENDS WHERE; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-022 (4, 4a)
+// given: the panel of drafter-a with reviewer-b, whose endpoints answer an empty architecture and no findings
+// input: a click on Run
+// expect: the job runs in this tab: one request to each endpoint, the record of one job of the kind derive-architecture in docs/jobs/ — its start with taking in one commit, its end in another —, naming every requirement and use case it works on; the page says the job ran
+test("decision/draft — Run starts one job in this tab, attended", async () => {
+  endpointsAnswer();
+  const fake = fakeProduct();
+  const target = await show(fake);
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "p", "ran").length === 1, "the job's end");
+  assert.equal(requests.length, 2, "one exchange with each endpoint");
+  assert.ok(requests[0].includes("ep1") && requests[1].includes("ep2"), requests.join(", "));
+  const records = fake.writes().filter((change) => change.files.some((file) => file.path.startsWith("docs/jobs/")));
+  assert.equal(records.length, 2, "the record: start with taking, then the end");
+  const start = records[0].files[0].text;
+  assert.match(start, /^kind: derive-architecture$/m);
+  for (const name of [RULE, OTHER, "UC-001", "UC-002"]) assert.ok(start.includes(`  - ${name}\n`), `${name} is worked on`);
+  assert.match(byClass(target, "p", "ran")[0].textContent, /JOB-\d{8}-\d{4}-[0-9a-f]{4}/);
+});
+
+// TST-442011 · level: unit · module: MOD-review-pages
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; UC-022 (4)
+// given: a product that holds the job workflow; the CI agent chosen as drafter, with reviewer-b
+// input: the run panel, Run
+// expect: nothing sent to any endpoint; one commit holding the job's start record in docs/jobs/ and nothing else; the page says the job is queued, naming its identifier; the record names the route ci hosted
+test("decision/draft — a job on the CI route is queued there and not run in the tab", async () => {
+  endpointsAnswer();
+  const fake = fakeProduct({ ...READY, [WORKFLOW]: "name: Agent M jobs\n" });
+  const target = await show(fake);
+  await panelFor(target, "ci-agent", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "p", "queued").length === 1, "the queueing");
+  assert.equal(requests.length, 0, "nothing sent from the tab");
+  assert.equal(fake.writes().length, 1, "one commit");
+  assert.deepEqual(fake.writes()[0].files.map((file) => file.path.replace(/JOB-[^.]+/, "JOB")), ["docs/jobs/JOB.md"]);
+  assert.match(byClass(target, "p", "queued")[0].textContent, /JOB-\d{8}-\d{4}-[0-9a-f]{4}/);
+  assert.match(fake.writes()[0].files[0].text, /^route: ci hosted$/m);
+});
