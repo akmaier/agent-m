@@ -202,8 +202,8 @@ const c = (sha, files, ci, message = "m") => ({ sha: sha.repeat(40), message, fi
 const example = (more = {}) => facts({ commits: [c("1", [TEST_FILE], "failure", "tests first"), c("2", [SRC_FILE, TEST_FILE], "success", "implementation")],
   files: [{ path: TEST_FILE, change: "added" }, { path: SRC_FILE, change: "added" }], ...more });
 
-function gateRecord({ gate = DEV, decision = "passed", on = [CODE, "https://example.test/pull/7"], at = "10:00" } = {}) {
-  const text = ["---", `gate: ${gate}`, "job:", "decider: alice", "role: Product Owner", `decision: ${decision}`, "on:", ...on.map((entry) => `  - ${entry}`), `date: 2026-10-13 ${at} UTC`, "---", "# gate", "", "**REGISTER**", ""].join("\n");
+function gateRecord({ gate = DEV, decision = "passed", on = [CODE, "https://example.test/pull/7"], at = "10:00", decider = "alice", role = "Product Owner" } = {}) {
+  const text = ["---", `gate: ${gate}`, "job:", `decider: ${decider}`, `role: ${role}`, `decision: ${decision}`, "on:", ...on.map((entry) => `  - ${entry}`), `date: 2026-10-13 ${at} UTC`, "---", "# gate", "", "**REGISTER**", ""].join("\n");
   return readDocument(gateSchema, `docs/gates/20261013-${at.replace(":", "")}-development-sprint-review-abcd.md`, text);
 }
 const IMPLEMENT = { kind: "implement", modules: ["MOD-product-process"] };
@@ -248,7 +248,7 @@ test("TST-409102: doneCheck names CI that is not green", async () => {
 // guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST
 // given: the passing pull request; one whose first commit also changes a code file; one whose first commit is green; one with no commit; and a fix-bug job on the passing one
 // input: doneCheck over each
-// expect: nothing for the passing one and for the fix-bug job on it; one finding for the code file in the first commit, naming it; one for the first commit not red; one for no commit
+// expect: nothing for the passing one and for the fix-bug job on it; one finding for the code file in the first commit, naming it; one for the first commit not red; one for no commit (and, with no head commit, one that CI is not green)
 test("TST-409103: doneCheck requires the first commit to hold only tests and CI to be red on it", async () => {
   assert.deepEqual(await check(example()), [], "known positive");
   assert.deepEqual(await check(example(), { job: { kind: "fix-bug", modules: ["MOD-product-process"] } }), []);
@@ -259,7 +259,7 @@ test("TST-409103: doneCheck requires the first commit to hold only tests and CI 
   const green = example(); green.commits[0].ci = "success";
   assert.deepEqual(rules(await check(green)), ["AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST"]);
   assert.match((await check(green))[0].what, /red/);
-  assert.deepEqual(rules(await check(example({ commits: [] }))), ["AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST"]);
+  assert.deepEqual(rules(await check(example({ commits: [] }))), ["CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI", "AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST"], "no commit: no green head and no first commit");
 });
 
 // TST-409104 · level: unit · module: MOD-product-process
@@ -366,14 +366,16 @@ test("TST-409108: doneCheck checks the conditions the declaration adds", async (
   const workflow = await workflowWith("yes", added);
   assert.equal(workflow.done.length, 8, "the conditions follow the job rules");
   const review = (reviewer, verdict = "approved") => ({ reviewer, verdict, commit: CODE, date: "2026-10-13T09:00:00Z" });
-  const gates = [gateRecord(), gateRecord({ gate: "Sprint Retrospective → Sprint Planning", at: "11:00" })];
+  const gates = [gateRecord(), gateRecord({ gate: "Sprint Retrospective → Sprint Planning", at: "11:00", decider: "check: retro-recorded", role: "check" })];
   const unmet = await check(example({ reviews: [review("bob")] }), { workflow, gates: [gateRecord()] });
   assert.deepEqual(rules(unmet), Array(3).fill("A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS"));
   assert.ok(unmet.some((f) => /lint/.test(f.what)) && unmet.some((f) => /review: 2/.test(f.what)) && unmet.some((f) => /Sprint Retrospective → Sprint Planning/.test(f.what)));
   const met = example({ reviews: [review("bob"), review("carol"), review("erin", "commented")], checks: [{ name: "node", state: "success", url: "u" }, { name: "lint", state: "success", url: "u" }] });
-  assert.deepEqual(await check(met, { workflow, gates: [...gates, gateRecord({ gate: "Sprint Retrospective → Sprint Planning", at: "11:00" })] }), [], "every added condition holds");
+  assert.deepEqual(await check(met, { workflow, gates: [...gates, gateRecord({ gate: "Sprint Retrospective → Sprint Planning", at: "11:00", decider: "check: retro-recorded", role: "check" })] }), [], "every added condition holds");
   const oneBob = example({ reviews: [review("bob"), review("bob")], checks: met.checks });
   assert.equal((await check(oneBob, { workflow, gates })).length, 1, "two reviews by one reviewer are one");
+  const mixed = example({ reviews: [review("bob"), review("erin", "commented")], checks: met.checks });
+  assert.equal((await check(mixed, { workflow, gates })).length, 1, "a comment is no approval");
 });
 
 // TST-409109 · level: unit · module: MOD-product-process
