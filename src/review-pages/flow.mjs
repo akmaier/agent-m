@@ -16,6 +16,7 @@ import { explain } from "../site-frame/index.mjs";
 import { el, link, button, storedToken, problem, parseServer, TOKEN_STEP } from "./common.mjs";
 import { showEdit } from "./edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
+import { showPrompt } from "./prompt.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
 
@@ -110,6 +111,7 @@ export function reviewRoute(kind) {
     }
     const where = { host, token, snapshot, context, target };
     if (kind.edit) await showEdit(where, kind, params);
+    else if (params.prompt && params.id && kind.prompt) await showPrompt(where, kind, params.id);
     else if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
     else if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
     else if (params.id && service.view) await showEntry(where, params.id);
@@ -315,6 +317,7 @@ export function reviewRoute(kind) {
       target.append(diff);
     }
     target.append(renderArtifact(shortBody(body)));
+    if (kind.prompt) target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/prompt=1`, "prompt-link", "Change by prompt"));
     if (kind.draft && file.status !== "accepted") {
       const notes = await jobNotes(snapshot, file.id);
       if (notes.length) {
