@@ -2,17 +2,16 @@
 // (docs/architecture/MOD-product-process.md): its interface. Of it are built: Workflow; declarationSchema, the schema of a
 // product's docs/process.md, and declarationFindings (declaration.mjs); roleAssignmentSchema, the schema of a product's
 // docs/role-assignments/<name>.md, roleAssignmentFindings and holdsRole (assignments.mjs); workflowOf (workflow.mjs); and
-// mayDecide (gates.mjs). A declaration names roles and never a participant; its role assignments fill the roles, and
+// mayDecide and gateStates (gates.mjs); and gateSchema, the schema of a gate record docs/gates/<…>.md. A declaration names roles and never a participant; its role assignments fill the roles, and
 // roleAssignmentFindings names a holder lacking a capability its role needs, and warns of a holder at a processing place a
 // linked source does not permit: both through MOD-participant-list's eligible, over the participants its participantsOf
-// gives. gateSchema with gate-record.schema.md, gateStates, recordGateDecision, doneCheck and processStrategies are not
-// built yet. workflowOf adds a practice's additions only from its explicit model tables: a shipped practice states its
+// gives. recordGateDecision, doneCheck and processStrategies are not built yet. workflowOf adds a practice's additions only from its explicit model tables: a shipped practice states its
 // `## Adds` in words only.
 //
 // Module: MOD-product-process
 //
 // It belongs to Process (ARC-042). It runs unchanged in a browser and in Node. Its reads are those of its own data files
-// declaration.schema.md and role-assignment.schema.md — the schemas, in MOD-documents' language —, once each, in that
+// declaration.schema.md, role-assignment.schema.md and gate-record.schema.md — the schemas, in MOD-documents' language —, once each, in that
 // order, when the module is loaded: from the disk in Node, from the module's own address in a browser. A schema that cannot
 // be read, or that breaks the language, stops the module's load, as MOD-documents' file says of a broken schema: it stops
 // that module, never a single document. Nothing else is read here, and nothing is written: the declaration, the role
@@ -27,7 +26,7 @@ import { loadSchema } from "../documents/index.mjs";
 export { declarationFindings } from "./declaration.mjs";
 export { roleAssignmentFindings, holdsRole } from "./assignments.mjs";
 export { workflowOf } from "./workflow.mjs";
-export { mayDecide } from "./gates.mjs";
+export { mayDecide, gateStates } from "./gates.mjs";
 
 /**
  * The workflow of a product: the model it follows; the practices its declaration names; the model's phases, the transitions
@@ -48,6 +47,7 @@ export { mayDecide } from "./gates.mjs";
 const OWNER = "MOD-product-process";
 const DECLARATION_FILE = new URL("./declaration.schema.md", import.meta.url);
 const ROLE_ASSIGNMENT_FILE = new URL("./role-assignment.schema.md", import.meta.url);
+const GATE_RECORD_FILE = new URL("./gate-record.schema.md", import.meta.url);
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 
 /**
@@ -65,6 +65,12 @@ export const declarationSchema = loadSchema(disk ? disk.readFileSync(DECLARATION
  */
 export const roleAssignmentSchema = loadSchema(disk ? disk.readFileSync(ROLE_ASSIGNMENT_FILE, "utf8")
   : await ownFile(ROLE_ASSIGNMENT_FILE), OWNER);
+
+/**
+ * gateSchema: Schema — the schema of a gate record docs/gates/<…>.md, read from this module's data file gate-record.schema.md with MOD-documents'
+ * loadSchema: for reading and writing a record through MOD-documents, and for gateStates, recordGateDecision and the pages that show a gate.
+ */
+export const gateSchema = loadSchema(disk ? disk.readFileSync(GATE_RECORD_FILE, "utf8") : await ownFile(GATE_RECORD_FILE), OWNER);
 
 // In a browser: the module's own file, from the address the module itself was loaded from. Throws an Error naming the file
 // and the server's status when it is not served.
