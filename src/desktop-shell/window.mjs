@@ -2,7 +2,7 @@
 import { confirmDecision, explain, notice, startPage } from "../site-frame/index.mjs";
 
 const button = (label, action) => { const control = document.createElement("button"); control.textContent = label; control.addEventListener("click", action); return control; };
-const navigation = (context) => { const links = document.createElement("p"); links.append(button("Pairing", () => context.go("pairing")), button("Settings", () => context.go("settings")), button("Tunnels", () => context.go("tunnels"))); return links; };
+const navigation = (context) => { const links = document.createElement("p"); links.append(button("Agents", () => context.go("agents")), button("Pairing", () => context.go("pairing")), button("Settings", () => context.go("settings")), button("Tunnels", () => context.go("tunnels"))); return links; };
 async function pairing(target, context) {
   const state = await window.bridge.state();
   target.replaceChildren();
@@ -28,6 +28,51 @@ const field = (label, value, type = "text") => {
   input.type = type; input.value = value ?? ""; caption.textContent = label; caption.append(input); return { caption, input };
 };
 const area = (label, value) => { const input = document.createElement("textarea"), caption = document.createElement("label"); input.value = value ?? ""; caption.textContent = label; caption.append(input); return { caption, input }; };
+const installUrl = (agent, platform) => agent.install?.[platform] ?? Object.values(agent.install ?? {})[0] ?? null;
+async function agents(target, context) {
+  const state = await window.bridge.state("agents"), selected = new Map((state.selected ?? []).map((agent) => [agent.name, agent.folder]));
+  const heading = document.createElement("h1"), list = document.createElement("div"), result = document.createElement("p"), rows = [];
+  heading.textContent = "Bridge agents";
+  for (const agent of state.agents ?? []) {
+    const row = document.createElement("p"), name = document.createElement("strong"), status = document.createElement("span");
+    name.textContent = agent.name;
+    if (agent.installed) {
+      const tick = document.createElement("input"), folder = field(" Working folder", selected.get(agent.name) ?? "");
+      tick.type = "checkbox"; tick.checked = selected.has(agent.name);
+      status.textContent = ` ${agent.version ?? "installed"}${agent.loggedIn === false ? " not logged in" : " ready"}`;
+      const choose = button("Choose folder", async () => { const chosen = await window.bridge.chooseFolder(); if (chosen) { folder.input.value = chosen; tick.checked = true; } });
+      row.append(tick, name, status, folder.caption, choose);
+      rows.push({ agent, tick, folder: folder.input });
+    } else {
+      const link = document.createElement("a");
+      link.textContent = "How to install";
+      const href = installUrl(agent, state.platform);
+      if (href) link.setAttribute("href", href);
+      status.textContent = " missing ";
+      row.append(name, status, link);
+    }
+    list.append(row);
+  }
+  const save = button("Save agents", async () => {
+    const agents = rows.filter(({ agent, tick, folder }) => agent.installed && tick.checked && folder.value)
+      .map(({ agent, folder }) => ({ name: agent.name, folder: folder.value }));
+    await window.bridge.state("save-agents", { agents });
+    result.textContent = `Saved ${agents.length} agent(s).`;
+  });
+  const access = button("Test access", async () => {
+    const answer = await window.bridge.state("test-access");
+    const refused = (answer.results ?? []).filter((entry) => !entry.reachable);
+    if (!refused.length) { result.textContent = "All repositories reached."; return; }
+    const failures = document.createElement("ul");
+    for (const entry of refused) {
+      const item = document.createElement("li");
+      item.textContent = `${entry.repository}: ${entry.reason}`;
+      failures.append(item);
+    }
+    result.replaceChildren(failures);
+  });
+  target.replaceChildren(heading, navigation(context), explain("bridge-pairing"), list, save, access, result);
+}
 let taken = null;
 async function settings(target, context) {
   const state = await window.bridge.state("settings"), value = state.settings;
@@ -59,4 +104,4 @@ async function tunnels(target, context) {
   instruction.textContent = jump ? `Add this public key to ~/.ssh/authorized_keys for ${jump.user}@${jump.hostname}, or give it to that jump host's administrator.` : "Set a jump host in a settings export to open tunnels.";
   target.replaceChildren(heading, navigation(context), explain("bridge-pairing"), document.createTextNode("Public key: "), key, button("Copy public key", () => window.bridge.copy(state.publicKey)), instruction, list);
 }
-await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }] }], menuViews: [] });
+await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "agents", entry: null, title: "Agents", render: agents }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }] }], menuViews: [] });

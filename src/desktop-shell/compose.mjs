@@ -4,11 +4,15 @@ import { jobHandlers } from "../bridge-jobs/index.mjs";
 import { closeTunnels, ensureKey, openTunnels, tunnelHandlers } from "../tunnels/index.mjs";
 import { loadSettings } from "./settings.mjs";
 
+export function composeJobHandlers(settings) {
+  return jobHandlers({ agents: settings.agents ?? [] });
+}
+
 export async function compose({ instance, origin, dataFolder, port = bridgeApi.defaultPort, paused = () => false }) {
   const settings = loadSettings(dataFolder, port === 0 ? {} : { port });
   const key = await ensureKey(dataFolder);
   const bridge = await serveBridge({ host: "127.0.0.1", port: port === 0 ? 0 : settings.port, origin, dataFolder, paused },
-    { jobs: jobHandlers(), tunnels: tunnelHandlers });
+    { jobs: composeJobHandlers(settings), tunnels: tunnelHandlers });
   await openTunnels(dataFolder, settings.tunnels, Number(new URL(bridge.address).port));
   return {
     instance,

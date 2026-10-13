@@ -2,6 +2,8 @@
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
+import { installedAgents } from "../agent-processes/index.mjs";
+import { testAccess } from "../bridge-jobs/index.mjs";
 import { compose } from "./compose.mjs";
 import { loadSettings, saveSettings, takeExport } from "./settings.mjs";
 
@@ -18,6 +20,8 @@ const defaultDataFolder = (electron, instance) => {
   const [owner, repository] = instance.split("/");
   return join(electron.app.getPath("appData"), `io.github.${owner}.${repository}.bridge`);
 };
+const platformName = () => process.platform === "darwin" ? "macos" : process.platform === "win32" ? "windows" : "linux";
+const repositoryAddress = (value) => /:\/\//.test(value) || value.startsWith("git@") || value.startsWith("/") ? value : `https://github.com/${value}`;
 const sourceRoot = resolve(new URL("../", import.meta.url).pathname);
 const ownFile = (pathname, repository) => {
   const prefix = `/${repository}/`;
@@ -61,6 +65,12 @@ export async function start(electron, supplied = {}) {
   electron.ipcMain.handle("bridge-state", async (_event, action, value) => {
     if (!action) return bridgeState();
     if (startupFailure) return bridgeState();
+    if (action === "agents") return { platform: platformName(), agents: await installedAgents(), selected: bridge.settings.agents };
+    if (action === "save-agents") {
+      saveSettings(config.dataFolder, { ...bridge.settings, agents: Array.isArray(value?.agents) ? value.agents : [], paused });
+      return restart();
+    }
+    if (action === "test-access") return { results: await testAccess({ instance: repositoryAddress(config.instance), products: bridge.settings.products }) };
     if (action === "settings") return { settings: bridge.settings };
     if (action === "tunnels") return { publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() };
     if (action === "save-settings") {
@@ -80,6 +90,10 @@ export async function start(electron, supplied = {}) {
       return { ...(await restart()), taken: { products: taken.products, jumpHost: taken.jumpHost, tunnels: taken.tunnels } };
     }
     throw new TypeError("Unknown Bridge window request.");
+  });
+  electron.ipcMain.handle("choose-folder", async () => {
+    const answer = await electron.dialog.showOpenDialog(window, { properties: ["openDirectory"] });
+    return answer.canceled ? null : answer.filePaths[0] ?? null;
   });
   electron.ipcMain.handle("pair-anew", async () => { bridge.token = await bridge.pairAnew(); return bridge.token; });
   electron.ipcMain.handle("copy", (_event, text) => electron.clipboard.writeText(String(text)));
