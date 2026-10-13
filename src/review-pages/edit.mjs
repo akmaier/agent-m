@@ -24,7 +24,7 @@ const EMPTY_FIELDS = "****\n\n*Check:*\n";
 const same = (a, b) => a.source === b.source && a.rule === b.rule && a.check === b.check;
 
 // The requirements an edit of a section changes, withdraws or adds, each with the artifacts that name it: a changed name is the old one withdrawn and the new one added.
-function impactOf(graph, before, after) {
+export function impactOf(graph, before, after) {
   const was = parseSpec(before).requirements, is = parseSpec(after).requirements;
   const { withdrawn, added } = renamedRequirements(before, after);
   const namedBy = (name) => [...new Set(requirementImpact(graph, name).map((place) => place.id))];
