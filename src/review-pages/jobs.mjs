@@ -11,9 +11,10 @@
 
 import { readSetting } from "../browser-store/index.mjs";
 import { readDocument } from "../documents/index.mjs";
+import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { newJobId, listJobs } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { prepareJob } from "../job-runner/index.mjs";
+import { prepareJob, runJob, writeResult } from "../job-runner/index.mjs";
 import { approvalStrategies, statuses } from "../approvals/index.mjs";
 import { differs, eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { permittedPlaces } from "../source-register/index.mjs";
@@ -21,6 +22,7 @@ import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
 import { el, button, link, problem, TOKEN_STEP } from "./common.mjs";
+import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
 const REGISTER = "docs/participants.md";
@@ -309,4 +311,143 @@ async function showArchitectureDraft(where, kind) {
 // What a run of the derivation came to, here: that it ran. The draft that waits for the author is shown by the page that follows.
 async function presentDerivation(outcome, result, run) {
   result.append(el("p", "ran", `Job ${run.id} ran in this tab.`));
+  const shown = el("section", "architecture-result", el("h3", null, "Drafted architecture"));
+  const files = el("section", "draft-files");
+  const status = el("div", "draft-actions");
+  let current = outcome;
+
+  const draftFromEditors = () => {
+    const texts = new Map(elementsOf(files, "textarea", "draft-text").map((area) => [area.getAttribute("data-path"), area.value]));
+    return { ...current.draft, files: (current.draft?.files ?? []).map((file) => ({ ...file, text: texts.get(file.path) ?? file.text })) };
+  };
+  const showCurrentDraft = () => {
+    files.replaceChildren(...(current.draft?.files ?? []).map(draftFileView));
+  };
+  const setStatus = (...nodes) => status.replaceChildren(...nodes);
+
+  showCurrentDraft();
+  if (outcome.stoppedBecause === "not checked") shown.append(el("p", "not-checked", "The draft is not checked because a reviewer answer could not be read."));
+  if (outcome.rounds?.length) shown.append(roundsSection(outcome.rounds, outcome.stoppedBecause));
+  if (outcome.remaining?.length) shown.append(findingsList("left", outcome.remaining));
+  if (outcome.stepFindings?.length) shown.append(findingsList("step-findings", outcome.stepFindings));
+  shown.append(files);
+
+  const check = button("btn check-edit", "Check this edit");
+  check.addEventListener("click", async () => {
+    check.disabled = true;
+    setStatus();
+    try {
+      current = await checkDraft(run, draftFromEditors());
+      showCurrentDraft();
+      setStatus(el("p", "checked-edit", "The edited draft was checked as a whole."));
+    } catch (failure) {
+      setStatus(el("p", "result problem", `${failure.name}: ${failure.message}`));
+    } finally {
+      check.disabled = false;
+    }
+  });
+
+  const write = button("btn write-proposals", "Write proposals");
+  write.addEventListener("click", async () => {
+    write.disabled = true;
+    setStatus();
+    try {
+      const written = await writeResult(run.prepared, draftFromEditors(), { result: current, context: run.jobContext });
+      setStatus(el("p", "written", written.files?.length ? `Written: ${written.files.join(", ")}` : "Nothing changed."));
+    } catch (failure) {
+      write.disabled = false;
+      if (failure.name === "DueDiligenceMissing") {
+        setStatus(el("p", "due-diligence-missing", dueDiligenceMissingText(failure, run)));
+      } else {
+        setStatus(el("p", "result problem", `${failure.name}: ${failure.message}`));
+      }
+    }
+  });
+
+  const again = button("btn start-again", "Start again");
+  again.addEventListener("click", () => result.remove());
+  shown.append(el("div", "actions", check, write, again), status);
+  result.append(shown);
+}
+
+function elementsOf(root, localName, className) {
+  const walk = (node) => [...node.childNodes].flatMap((kid) => (kid.nodeType === 1 ? [kid, ...walk(kid)] : []));
+  return walk(root).filter((node) => node.localName === localName && node.className.split(" ").includes(className));
+}
+
+function markdownCells(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return null;
+  return trimmed.slice(1, -1).split("|").map((cell) => cell.trim());
+}
+
+function candidateChoices(file) {
+  const { section } = splitDueDiligence(file.text);
+  if (!section) return [];
+  const out = [];
+  let header = null;
+  for (const line of section.split(/\r?\n/)) {
+    const cells = markdownCells(line);
+    if (!cells) continue;
+    if (cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
+    if (!header) { header = cells; continue; }
+    const at = header.findIndex((cell) => cell.toLowerCase() === "candidate");
+    if (at >= 0 && cells[at]) out.push(cells[at]);
+  }
+  return out;
+}
+
+function draftFileView(file) {
+  const box = el("section", "draft-file", el("h4", null, file.path));
+  box.setAttribute("data-path", file.path);
+  const area = el("textarea", "draft-text");
+  area.value = file.text;
+  area.setAttribute("data-path", file.path);
+  box.append(area);
+  const { section } = splitDueDiligence(file.text);
+  if (section !== null) box.append(dueDiligenceSection(section));
+  const choices = candidateChoices(file);
+  if (choices.length) {
+    const list = el("ul", "reuse-candidates");
+    for (const candidate of choices) {
+      const radio = el("input", "reuse-candidate");
+      radio.type = "radio";
+      radio.name = `reuse-${file.path}`;
+      radio.value = candidate;
+      list.append(el("li", null, el("label", null, radio, ` ${candidate}`)));
+    }
+    box.append(list);
+  }
+  return box;
+}
+
+function findingLine(found) {
+  return `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}`;
+}
+
+function findingsList(className, findings) {
+  const list = el("ul", className);
+  for (const found of findings) list.append(el("li", found.kind, findingLine(found)));
+  return list;
+}
+
+function directEndpointDriver(participant, store) {
+  const name = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
+  const stored = name === undefined ? null : readSetting(store, `endpoint:${name}`);
+  if (!stored) throw Object.assign(new Error(`the endpoint ${name ?? "unknown"} has no configuration`), { name: "EndpointNotConfigured" });
+  return endpointDriver({ name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, participant);
+}
+
+async function checkDraft(run, draft) {
+  const drivers = { drafter: run.prepared.drafter ? directEndpointDriver(run.prepared.drafter, run.context.store) : null,
+    reviewers: run.prepared.reviewers.map((reviewer) => directEndpointDriver(reviewer, run.context.store)) };
+  return runJob(run.prepared, drivers, { attended: true, context: run.jobContext, from: draft });
+}
+
+function dueDiligenceMissingText(failure, run) {
+  const registries = (failure.decisions ?? []).map((each) => each.registry).filter(Boolean);
+  const offered = run.participants.flatMap((participant) => routesFor(participant, run.product, run.needs)
+    .map((offer) => ({ participant, offer }))).find(({ offer }) => offer.available && offer.route.kind !== "tab");
+  const route = offered ? ` Try ${recordRoute(offered.offer.route)} with ${offered.participant.name}.` : " Try a participant that can reach the web.";
+  return `${failure.message}${registries.length ? ` Registry: ${registries.join(", ")}.` : ""}${route}`;
 }
