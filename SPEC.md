@@ -1421,12 +1421,14 @@ whose header names no module of the architecture — is changed by no implementa
 pull request of its own that only makes old code call a module in place of its own code and its texts describe what the
 module does, removes what a module now provides together with the tests of what it removes, names in a test's header the module that now holds what the test
 tests, lets a check of the whole repository allow a module what the module's file states that it uses, lets a test
-helper reach the modules' files, or adds or changes a workflow file that only runs an entry that a module's file names.
+helper reach the modules' files, moves the tests of level `release` out of the run on a pull request into a sprint's
+branch, into the nightly run and the run on a pull request into the default branch, or adds or changes a workflow file that
+only runs an entry that a module's file names.
 *Check:* `tests/test_implementation_job.py` — checks pull requests of a fixture product that change a file no module
 owns, from an implementation job and between jobs. It checks that the implementation job's pull request is refused, that
 a pull request between jobs is refused when it changes such a file in a way the rule does not name, and that one passes
-that replaces code of such a file by a call into a module, or that adds a workflow file that only runs an entry that a
-module's file names.
+that replaces code of such a file by a call into a module, that moves the tests of level `release` out of the run on a
+pull request into a sprint's branch, or that adds a workflow file that only runs an entry that a module's file names.
 
 **MODULE GAPS ARE REPORTED, NOT FORBIDDEN** *(PO A. Maier)*
 A module that realises no requirement, a requirement that no module realises, a module that no test
