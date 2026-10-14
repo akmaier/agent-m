@@ -117,7 +117,12 @@ function editedResult(panel, outcome) {
 }
 
 async function presentRequirementsPrompt(outcome, result, initialRun) {
-  let state = { outcome, run: initialRun };
+  if (outcome.stoppedBecause === "unusable") {
+    result.replaceChildren(el("p", "unusable", "The participant's answer could not be read as requirements. Nothing was written."),
+      el("details", "raw", el("summary", null, "The raw answer"), el("pre", "answer", String(outcome.raw ?? ""))));
+    return;
+  }
+  const state = { outcome, run: initialRun };
   const spec = (await initialRun.snapshot.read(SPEC)) ?? "";
   const parsed = parseSpec(spec);
   const { register } = await sourcesOf(initialRun);
@@ -128,7 +133,8 @@ async function presentRequirementsPrompt(outcome, result, initialRun) {
     const panel = el("section", "requirements-result", el("h3", null, "Requirement candidates"),
       el("p", "rounds", `Correction rounds: ${state.outcome.rounds.length}`), explain(state.run.kind.explain.draft.loop));
     const left = el("ul", "left");
-    for (const finding of state.outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} - ${finding.fix}`));
+    for (const finding of state.outcome.remaining) left.append(el("li", "left",
+      `${finding.artifact}:${finding.line}: ${finding.kind}: ${finding.what} [${finding.rule}] - ${finding.fix}`));
     panel.append(left);
     const list = el("ul", "candidates"), composed = el("section", "composed-sections");
     const showComposed = () => {
@@ -201,7 +207,7 @@ async function presentRequirementsPrompt(outcome, result, initialRun) {
       try {
         const edited = editedResult(panel, state.outcome);
         await refineOnTab(state.run, { ...state.run.params, instruction }, edited.draft, { stage: refinementStage,
-          onResult: async (next) => { state = next; await draw(); } });
+          onResult: async (next) => presentRequirementsPrompt(next.outcome, result, next.run) });
         refine.disabled = false;
       } catch (failure) {
         refine.disabled = false;
