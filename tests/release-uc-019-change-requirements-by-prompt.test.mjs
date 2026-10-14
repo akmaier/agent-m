@@ -1,6 +1,8 @@
 // Independent ITM-418 requirements release battery, authored by Developer terra-d.
 // Successor: Team 2 Developer itm475-integration; implemented no UC-019 production behavior.
 // Original cases: TST-418101..104 by terra-d. Added cases: TST-418105..121 and counterproofs by the successor.
+// TST-418122..123 retain terra-d (Harvey)'s original TST-418127/130 assertions; transferred by developer-terra-e,
+// who implemented no UC-019 production behavior. Original assertion checkpoint: b0ce6dc86108c3ccf73b2d7b1ea94e48961cfdda.
 // Module: MOD-review-pages; MOD-trace-pages; MOD-spec-changes; MOD-source-register; MOD-job-runner; MOD-runtimes
 // Guards: UC-019
 // Level: release
@@ -117,6 +119,7 @@ test("TST-418104: Refine repeats disclosure and the send decision before another
 const sentText = (s, at = 0) => s.endpointRequests[at].body.messages[0].content;
 const resultOf = (s) => one(s.target, "section", "requirements-result");
 const runPrepared = (s) => press(s.server, namedButton(s.target, "Run"));
+const brokenThenFixed = () => [draft(candidate({ check: "" })), draft()];
 
 // TST-418105
 // level: release
@@ -300,7 +303,7 @@ test("TST-418114: a warning ends only after its one-line justification", async (
     const message = requests.at(-1).body.messages[0].content;
     const line = message.split("\n").find((line) => line.includes(": warning:") && line.includes("[ONE STATEMENT PER REQUIREMENT]"));
     assert.ok(line, "the participant receives the warning to justify");
-    return { draft: both, answers: [{ finding: line.replace(" - ", " \u2014 ") + ".", how: "justified", text: "Both displays form one visible state." }] };
+    return { draft: both, answers: [{ finding: line, how: "justified", text: "Both displays form one visible state." }] };
   }] }); await run(s);
   assert.equal(s.endpointRequests.length, 2);
   assert.equal(all(one(resultOf(s), "ul", "left"), "li").length, 0);
@@ -475,6 +478,41 @@ test("TST-418121: the run panel states included requirement and use-case counts 
   assert.match(panel.textContent, /2\s+(?:existing\s+)?requirements?\s+(?:included|sent)/i);
   assert.match(panel.textContent, /0\s+use[ -]cases?\s+(?:included|sent)/i);
   assert.equal(s.endpointRequests.length, 0); assert.equal(s.product.writes.length, 0);
+});
+
+// TST-418122
+// level: release
+// module: MOD-job-runner; MOD-runtimes; MOD-review-pages
+// guards: UC-019; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
+// given: a warning-containing rule, whose next answer retains it and justifies the exact finding received
+// input: Run; fixture participant echoes that finding in answers with how justified and a one-line reason
+// expect: the justified warning ends after two rounds with no remaining warning and its reason recorded
+test("TST-418122: a warning justified using the received finding ends the loop", async () => {
+  const warning = draft(candidate({ rule: "Every loan shows a due date and a time." }));
+  const s = await scenario({ answers: [warning, (requests) => {
+    const prompt = requests.at(-1).body.messages.map((message) => message.content).join("\n");
+    const finding = prompt.split("\n").find((line) => line.includes(": warning:") && line.includes("[ONE STATEMENT PER REQUIREMENT]"));
+    assert.ok(finding, "the participant receives the warning to answer");
+    return { draft: warning, answers: [{ finding, how: "justified", text: "Date and time are one displayed timestamp." }] };
+  }] });
+  await run(s);
+  assert.equal(s.endpointRequests.length, 2);
+  assert.equal(all(one(s.target, "section", "requirements-result"), "li", "left").length, 0, "the justified warning is settled");
+  assert.match(recordTexts(s)[0], /justified: Date and time are one displayed timestamp\./);
+});
+
+// TST-418123
+// level: release
+// module: MOD-review-pages; MOD-job-runner; MOD-runtimes
+// guards: UC-019; THE ROUNDS ARE COUNTED AND SHOWN
+// given: a two-round job whose first draft lacks a check and whose second draft fixes it
+// input: Run and inspect the draft page and the persisted job record
+// expect: the page shows two rounds and the first round's finding, while the record includes both rounds and that finding
+test("TST-418123: the page and record show the correction rounds and their findings", async () => {
+  const s = await scenario({ answers: brokenThenFixed() }); await run(s);
+  assert.match(one(s.target, "p", "rounds").textContent, /2/);
+  assert.match(one(s.target, "section", "requirements-result").textContent, /no check/, "the first round's finding is shown with the corrected draft");
+  const record = recordTexts(s)[0]; assert.match(record, /Round 1/); assert.match(record, /Round 2/); assert.match(record, /no check/);
 });
 
 // Counterproofs are requested explicitly; ordinary CI still runs every behavior case. Each fault is confined to a copied
