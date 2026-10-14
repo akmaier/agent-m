@@ -9,6 +9,7 @@ realises:
 modules:
   - MOD-settings-pages
   - MOD-desktop-shell
+  - MOD-tunnels
   - MOD-test-schedule
 builds_on: []
 tests:
@@ -26,7 +27,9 @@ origin:
 The accumulated Team 2 increment passes its required integration CI. The Bridge composition tests receive the runtime
 packages their existing caller needs; the participant form's example address is a real example host; repository checks
 resolve tracked paths from the repository root; the TLS reverse-tunnel fixture uses the current named-Bridge settings;
-and native Electron tests execute the actual app in the Linux display environment.
+and native Electron tests execute the actual app in the Linux display environment. The tunnel runtime resolves ssh2
+from the Bridge's package manifest, as the existing mail runtime does, rather than relying on Node's environment-only
+search path that Electron does not use.
 
 ## Acceptance
 
