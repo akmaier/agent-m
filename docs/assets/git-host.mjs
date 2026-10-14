@@ -557,6 +557,6 @@ export function tokenRefusal(e, product = null) {
   const id = tokenIdentity(product);
   return { token: id.token, renewUrl: id.renewUrl, renew: id.renew,
     text: isGitLab(product)
-      ? `${id.server} refused your ${id.token} — it has expired, or was rotated or revoked on GitLab.`
-      : `GitHub refused your ${id.token} — it has expired, or was regenerated or deleted on GitHub.` };
+      ? `${id.server} rejected authentication with your ${id.token}.`
+      : `GitHub rejected authentication with your ${id.token}.` };
 }
