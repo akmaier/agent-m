@@ -8,6 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { press } from "./app-harness.mjs";
+import { ask, bridgeAt } from "../src/bridge-client/index.mjs";
 import { scenario, fromTrace, prepare, run, save, all, one, row, namedButton, draft, candidate,
   SOURCE, LOAN, CONFLICT, CHANGED, INSTRUCTION, proposalWrites, proposalTexts, recordTexts, assertProposal } from "./system-uc-019-change-requirements-by-prompt.test.mjs";
 
@@ -45,6 +46,12 @@ test("TST-418101: prompting source follows the author account, not the product o
 // expect: no direct model request; one POST /v1/ask to that named Bridge carries the same instruction and context
 test("TST-418102: a named Bridge endpoint uses the Bridge transport in the public flow", async () => {
   const s = await scenario({ bridge: true });
+  const positive = await ask(bridgeAt({ address: "http://127.0.0.1:9418", token: "fixture-pairing-token" }),
+    { endpoint: { name: "fixture", baseUrl: "https://fixture-endpoint.example.test/v1", kind: "openai-compatible", model: "fixture-model", key: null } }, INSTRUCTION);
+  assert.deepEqual(JSON.parse(positive.text).draft, draft(), "known positive: the actual Bridge client reads the fixture draft");
+  assert.deepEqual(s.bridgeRequests.map((request) => [request.method, new URL(request.url).pathname]), [["POST", "/v1/ask"], ["GET", "/v1/ask/fixture-ask"]]);
+  assert.ok(s.bridgeRequests.every((request) => request.headers["x-agent-m-bridge-token"] === "fixture-pairing-token"));
+  s.bridgeRequests.length = 0;
   await run(s);
   assert.equal(s.endpointRequests.length, 0, "a named Bridge endpoint is never contacted directly");
   const asks = s.bridgeRequests.filter((request) => request.method === "POST" && request.url.endsWith("/v1/ask"));

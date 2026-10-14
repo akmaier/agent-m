@@ -91,16 +91,21 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     const value = answers[Math.min(answerNumber++, answers.length - 1)];
     return typeof value === "function" ? value(endpointRequests, bridgeRequests) : value;
   };
+  const answerText = () => {
+    const value = endpointAnswer();
+    return typeof value === "string" ? value : JSON.stringify(value && Object.hasOwn(value, "draft") ? value : { draft: value, answers: [] });
+  };
   const response = (value) => new Response(JSON.stringify(value), { status: 200, headers: { "content-type": "application/json" } });
   const handler = async (url, init) => {
     if (url.origin === "https://fixture-endpoint.example.test") {
       endpointRequests.push({ url: url.href, body: JSON.parse(init.body), headers: init.headers });
-      return response({ choices: [{ message: { content: JSON.stringify({ draft: endpointAnswer(), answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
+      return response({ choices: [{ message: { content: answerText() } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
     }
     if (url.origin === "http://127.0.0.1:9418") {
       bridgeRequests.push({ url: url.href, method: init.method, body: init.body && JSON.parse(init.body), headers: init.headers });
-      if (url.pathname === "/v1/probe") return response({ version: "1", name: "release-bridge" });
-      return response({ text: JSON.stringify({ draft: endpointAnswer(), answers: [] }), usage: { inputTokens: 10, outputTokens: 5 } });
+      if (init.method === "POST" && url.pathname === "/v1/ask") return response({ ask: "fixture-ask" });
+      if (init.method === "GET" && url.pathname === "/v1/ask/fixture-ask") return response({ state: "done", text: answerText(), usage: { inputTokens: 10, outputTokens: 5 }, error: null });
+      return new Response(JSON.stringify({ error: "not-found" }), { status: 404 });
     }
     return null;
   };
@@ -121,7 +126,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
   const store = openStore(INSTANCE);
   writeSetting(store, `github-token:${repo}`, { value: "github_pat_FIXTURE0123456789", name: "github.com/akmaier", expires: "2027-01-01" });
   writeSetting(store, "endpoint:fixture", { url: "https://fixture-endpoint.example.test/v1", kind: "openai-compatible", model: "fixture-model", ...(bridge ? { bridge: "release-bridge" } : {}) });
-  if (bridge) writeSetting(store, "remote-session:release-bridge", { address: "http://127.0.0.1:9418", token: "fixture-pairing-token", port: 9418 });
+  if (bridge) writeSetting(store, "bridge:release-bridge", { address: "http://127.0.0.1:9418", token: "fixture-pairing-token" });
   const instanceHost = connect(parseAddress(`https://github.com/${INSTANCE}`), { token: "fixture-instance-token" });
   const host = connect(parseAddress(`https://github.com/${repo}`), { token: "fixture-product-token" });
   const target = document.createElement("div");
