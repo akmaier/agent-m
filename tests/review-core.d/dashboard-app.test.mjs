@@ -402,7 +402,7 @@ test("A USED-UP RATE LIMIT IS NAMED — a GitLab product's limit is named by its
 
 test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — the load error still names a refused token and links its renewal", async () => {
   const html = shell.loadErrorHtml({ error: await refused(401, limitHeaders(5000, 4999)), product: GH, ref: "main", hasToken: true, now: AT });
-  assert.match(html, /GitHub refused your GitHub token/);
+  assert.match(html, /GitHub rejected authentication with your GitHub token/);
   assert.ok(html.includes("https://github.com/settings/personal-access-tokens"), "the renewal link");
   assert.doesNotMatch(html, /used up/);
 });
