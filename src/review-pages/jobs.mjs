@@ -188,7 +188,8 @@ async function execute(run, refine) {
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
   const { path } = await queueJob(host, record, offer.route, snapshot.commit);
   if (offer.route.kind !== "tab") return { queued: true, record };
-  const outcome = await runOnTab(prepared, run.jobContext, connectionsOf(run.participants, run.context.store), { host, record: { ...record, path }, refine });
+  const acting = [prepared.drafter, ...prepared.reviewers].filter(Boolean);
+  const outcome = await runOnTab(prepared, run.jobContext, connectionsOf(acting, run.context.store), { host, record: { ...record, path }, refine });
   return { queued: false, outcome, record };
 }
 
