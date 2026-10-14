@@ -6,11 +6,14 @@ realises:
   - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
   - A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
   - NO SERVER
+  - A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+  - AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 modules:
   - MOD-settings-pages
   - MOD-desktop-shell
   - MOD-tunnels
   - MOD-test-schedule
+  - MOD-repository-hosts
 builds_on: []
 tests:
   - system
@@ -30,6 +33,11 @@ resolve tracked paths from the repository root; the TLS reverse-tunnel fixture u
 and native Electron tests execute the actual app in the Linux display environment. The tunnel runtime resolves ssh2
 from the Bridge's package manifest, as the existing mail runtime does, rather than relying on Node's environment-only
 search path that Electron does not use.
+
+A repository-token Test records a credential refusal only when the host names TokenRefused. A rate limit, missing
+permission or transport failure keeps the previous conclusive test and its timestamp, or leaves an absent test absent,
+while the current request's answer is shown separately. An HTTP 401 names the rejected authentication and token with
+its renewal link without asserting an unobserved expiry, regeneration or deletion.
 
 ## Acceptance
 
