@@ -401,3 +401,20 @@ test("requirement prompt — a remaining finding retains its compiler fields", a
   assert.match(findings.textContent, /[^:]+:\d+: error: .+\[[A-Z][^\]]+\] - .+/);
   assert.match(byClass(target, "p", "rounds")[0].textContent, /Correction rounds: 2/);
 });
+
+// TST-398009 · level: unit · module: MOD-review-pages
+// guards: UC-019 step 3; A PARTICIPANT DECLARES ITS CAPABILITIES
+// given: the selected direct drafter and an unselected endpoint whose named Bridge lacks its jump-host setup
+// input: prepare and Run with only the direct drafter selected
+// expect: the selected endpoint answers once; the unused participant's connection prevents no job and sends nothing
+test("requirement prompt — an unused participant's Bridge does not block the selected drafter", async () => {
+  const store = openStore("alice/agent-m");
+  writeSetting(store, "endpoint:unused", { url: "https://unused.example.test/v1", kind: "openai-compatible", model: "unused", bridge: "unused" });
+  writeSetting(store, "bridge:unused", { name: "unused", port: 40100, token: "fixture-only" });
+  endpointAnswers(DRAFT);
+  const target = await show(fakeProduct(), ONE, { register: registerOf(ENDPOINT_ROW,
+    "| unused-drafter | model endpoint | unused | 200000 | - | draft text | this machine | endpoint unused |") });
+  await runIt(target);
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /ep1\.example\.test/);
+});
