@@ -11,8 +11,8 @@
 //
 // The frame parses route parts as key=value. Therefore one requirement arrives as { name, prompt: "1" }, while a group
 // arrives as { requirements: JSON.stringify(names), prompt: "1" }. The page turns either into the job parameter
-// `requirements`, an array. The product owner is the owner in the product's repository address, so this GitHub fixture's
-// account is github.com/alice; SRC-alice is the linked person entry with that identifier. The page follows the existing
+// `requirements`, an array. This instance's author is github.com/alice; SRC-alice is the linked person entry with that
+// identifier. The page follows the existing
 // prompt and requirements-draft vocabulary: textarea.instruction, input.participant, button.prepare, section.run-panel,
 // section.requirements-result, li.candidate with select.class, input.of and textarea.candidate-rule, textarea.refinement,
 // button.refine, and button Save. A refused section is shown in div.newer. Registration and linking lead to #library and
@@ -301,8 +301,8 @@ test("requirement/<name>/prompt — changed classes and a resolved conflict reac
 // TST-398005 · level: unit · module: MOD-review-pages
 // guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the first run's editable candidate draft; the endpoint's second answer is a refined draft
-// input: edit the renewal rule in the page, write a follow-up instruction, press Refine
-// expect: exactly one more run; its request carries the edited current draft and the follow-up instruction, and the refined answer replaces the shown draft
+// input: edit the renewal rule, write a follow-up, press Refine, inspect its renewed panel, then press Run
+// expect: Refine sends nothing; Run makes one more request with the edited draft and follow-up, replacing the shown draft
 test("requirement/<name>/prompt — Refine runs once more with the current edited draft", async () => {
   endpointAnswers(DRAFT, REFINED);
   const fake = fakeProduct();
@@ -321,6 +321,12 @@ test("requirement/<name>/prompt — Refine runs once more with the current edite
   const refine = byClass(target, "button", "refine")[0];
   assert.ok(refine, "Refine is offered");
   click(refine);
+  await until(() => byClass(target, "section", "run-panel").length === 2, "the refinement's run panel");
+  assert.equal(requests.length, 1, "the follow-up is disclosed before the person sends it");
+  const panel = byClass(target, "section", "run-panel")[1];
+  const send = find(panel, (node) => node.localName === "button" && node.textContent === "Run")[0];
+  assert.ok(send, "the refinement has its own send decision");
+  click(send);
   await until(() => requests.length === 2, "one refinement request");
   assert.equal(requests.length, 2, "Refine runs exactly once more");
   assert.match(requests[1].body, /The current draft says a member renews twice\./);

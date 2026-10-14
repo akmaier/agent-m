@@ -58,7 +58,12 @@ const classOf = (candidate, classes) => classes?.find((each) => each.refs?.inclu
   refs: [candidate.name], from: [candidate.passage].filter(Boolean), class: candidate.class, of: candidate.of ?? null,
 };
 
-function candidateRows(panel, outcome, parsed, onChange) {
+function candidateRows(panel, outcome, parsed, source, register, onChange) {
+  const sourceText = (item) => {
+    const id = item.split(",")[0].trim();
+    const entry = register.find((each) => each.id === id);
+    return `${item} (${entry?.fields.authority ?? "authority not registered"})`;
+  };
   const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
   for (const candidate of candidates) {
     const decided = classOf(candidate, outcome.classes);
@@ -73,7 +78,7 @@ function candidateRows(panel, outcome, parsed, onChange) {
     const showCurrent = () => {
       const held = parsed.requirements.get(of.value.trim());
       current.replaceChildren(el("h5", null, "Current requirement"), held
-        ? renderArtifact(`**${held.name}**\n\n${held.rule ?? ""}\n\n*Check:* ${held.check ?? ""}`)
+        ? renderArtifact(`**${held.name}**\n\n${held.rule ?? ""}\n\n*Sources:* ${held.sources.map(sourceText).join("; ")}\n\n*Check:* ${held.check ?? ""}`)
         : el("p", "none", "This candidate refers to no current requirement."));
       difference.replaceChildren(el("h5", null, "Difference"), showDifference(held?.rule ?? "", rule.value));
     };
@@ -85,7 +90,7 @@ function candidateRows(panel, outcome, parsed, onChange) {
     showCurrent();
     const item = el("li", "candidate", el("section", "candidate-draft", el("span", "candidate-name", candidate.name),
       el("label", null, " Class ", select), el("label", null, " of ", of), el("label", null, "Rule", rule),
-      el("label", null, "Check", check)), current, difference);
+      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source)}.`)), current, difference);
     item.setAttribute("data-name", candidate.name);
     panel.append(item);
   }
@@ -115,6 +120,7 @@ async function presentRequirementsPrompt(outcome, result, initialRun) {
   let state = { outcome, run: initialRun };
   const spec = (await initialRun.snapshot.read(SPEC)) ?? "";
   const parsed = parseSpec(spec);
+  const { register } = await sourcesOf(initialRun);
   const opened = new Map();
   for (const section of parsed.sections) opened.set(section.heading, await blobSha(sectionText(spec, section.heading)));
 
@@ -135,7 +141,7 @@ async function presentRequirementsPrompt(outcome, result, initialRun) {
         composed.replaceChildren(el("p", "result problem", `${failure.name}: ${failure.message}`));
       }
     };
-    candidateRows(list, state.outcome, parsed, showComposed);
+    candidateRows(list, state.outcome, parsed, state.run.params.source, register, showComposed);
     panel.append(list, composed);
     showComposed();
 
@@ -185,6 +191,7 @@ async function presentRequirementsPrompt(outcome, result, initialRun) {
     });
 
     const refinement = el("textarea", "refinement");
+    const refinementStage = el("section", "refinement-stage");
     refinement.setAttribute("aria-label", "Follow-up instruction");
     const refine = button("btn refine", "Refine");
     refine.addEventListener("click", async () => {
@@ -193,14 +200,15 @@ async function presentRequirementsPrompt(outcome, result, initialRun) {
       refine.disabled = true;
       try {
         const edited = editedResult(panel, state.outcome);
-        state = await refineOnTab(state.run, { ...state.run.params, instruction }, edited.draft);
-        await draw();
+        await refineOnTab(state.run, { ...state.run.params, instruction }, edited.draft, { stage: refinementStage,
+          onResult: async (next) => { state = next; await draw(); } });
+        refine.disabled = false;
       } catch (failure) {
         refine.disabled = false;
         status.replaceChildren(el("p", "result problem", `${failure.name}: ${failure.message}`));
       }
     });
-    panel.append(el("section", "refine", el("h4", null, "Refine"), refinement, refine), el("div", "actions", save), status, newer);
+    panel.append(el("section", "refine", el("h4", null, "Refine"), refinement, refine, refinementStage), el("div", "actions", save), status, newer);
     result.replaceChildren(panel);
   }
 
@@ -227,8 +235,8 @@ export async function showRequirementsPrompt(where, kind, params) {
   let loaded, source;
   try {
     const sources = await sourcesOf(where);
-    source = personSource(sources.links, sources.register, accountOf(snapshot));
     loaded = await loadStage(where, kind.prompt);
+    source = personSource(sources.links, sources.register, accountOf(loaded.instanceSnapshot));
   } catch (failure) {
     target.append(problem(failure, token));
     return;

@@ -10,6 +10,7 @@
 // job. The job's record is written in the product's repository.
 
 import { readSetting } from "../browser-store/index.mjs";
+import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { newJobId, listJobs } from "../job-ledger/index.mjs";
@@ -34,13 +35,22 @@ const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "c
 
 // The endpoints of the participants as the tab's route calls them: the configuration the page stored for each, and whether it is reached through a Bridge.
 function connectionsOf(participants, store) {
-  const endpoints = {};
+  const endpoints = {}, bridges = {};
+  const connectBridge = (name) => {
+    if (!name || bridges[name]) return;
+    const stored = readSetting(store, `bridge:${name}`);
+    if (stored) bridges[name] = bridgeAt(settingsOf({ name, ...stored }, readSetting(store, "jump-host")));
+  };
   for (const participant of participants) {
     const name = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
     const stored = name === undefined ? null : readSetting(store, `endpoint:${name}`);
-    if (stored) endpoints[name] = { config: { name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, bridge: stored.throughBridge ? "paired" : null };
+    if (stored) {
+      endpoints[name] = { config: { name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, bridge: stored.bridge ?? null };
+      connectBridge(stored.bridge);
+    }
+    connectBridge(/^bridge\s+(\S+)\s+agent\s+\S+/.exec(participant.route ?? "")?.[1]);
   }
-  return { endpoints, bridges: {} };
+  return { endpoints, bridges };
 }
 
 async function defaultSnapshot(host) {
@@ -199,14 +209,23 @@ async function start(run) {
 }
 
 /**
- * refineOnTab(run, params, draft) — records and runs one follow-up of an attended tab job against `draft`.
+ * refineOnTab(run, params, draft, handlers) — discloses a follow-up, whose Run records and executes it against `draft`.
  */
-export async function refineOnTab(run, params, draft) {
+export async function refineOnTab(run, params, draft, { stage, onResult }) {
   const snapshot = await defaultSnapshot(run.host);
   const ready = await preparedRun(run, snapshot, params);
   if (ready.offer?.route.kind !== "tab") throw Object.assign(new Error("Refine is available only for a job running in this tab."), { name: "RouteUnavailable" });
-  const executed = await execute(ready, draft);
-  return { outcome: executed.outcome, run: { ...ready, record: executed.record } };
+  const panel = runPanel(ready.prepared, { onRun: async () => {
+    try {
+      const executed = await execute(ready, draft);
+      await onResult({ outcome: executed.outcome, run: { ...ready, record: executed.record } });
+    } catch (failure) {
+      stage.append(problem(failure, run.token));
+    }
+  } });
+  panel.append(el("section", "refinement-input", el("h4", null, "Follow-up instruction"), el("pre", null, params.instruction),
+    el("h4", null, "Current draft"), el("pre", null, typeof draft === "string" ? draft : JSON.stringify(draft, null, 2))));
+  stage.replaceChildren(explain(run.kind.explain.draft.panel), panel);
 }
 
 // What a run of the drafting job came to: the rounds, what the loop left, the files written.
