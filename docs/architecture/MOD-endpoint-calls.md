@@ -8,6 +8,7 @@ follows:
 uses:
   - MOD-job-runner.Driver
   - MOD-job-runner.DriverInput
+  - MOD-job-runner.driverPrompt
   - MOD-job-runner.Usage
   - MOD-participant-list.Participant
 provides:
@@ -62,7 +63,8 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
   "bridge")[] }`: why a call failed, in the endpoint's or the browser's own words where there are any, and the routes on
   which the same job would work — GitHub Actions (UC-010) or the Bridge (UC-011) — where the browser was the obstacle.
 - `endpointDriver(config: EndpointConfig, participant: Participant) -> Driver` — a driver whose `send` turns the
-  `DriverInput` into one chat request to the endpoint, crosses the network to it, and returns the answer's text and the
+  `DriverInput` into one chat request to the endpoint, using `driverPrompt` once for its message text, crosses the network
+  to it, and returns the answer's text and the
   usage the endpoint reported, or `null` usage where it reports none; it estimates nothing. It throws `EndpointFailed {
   diagnosis }`: the endpoint answered with an error — its message kept, a refused key among them (UC-003) —, the browser
   blocked the call before it reached the endpoint, the network failed, or the endpoint refused the request for its length,
@@ -84,4 +86,5 @@ It reads and writes no file.
 
 - `MOD-job-runner.Driver`, `MOD-job-runner.DriverInput`, `MOD-job-runner.Usage` — the driver type it implements, its
   input, and the usage it returns.
+- `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent as one message.
 - `MOD-participant-list.Participant` — the participant the driver stands for.

@@ -8,6 +8,7 @@ follows:
 uses:
   - MOD-job-runner.runJob
   - MOD-job-runner.provenanceLines
+  - MOD-job-runner.driverPrompt
   - MOD-job-runner.Driver
   - MOD-job-runner.Prepared
   - MOD-job-runner.JobContext
@@ -140,7 +141,7 @@ a person's decision.
   page to show. Fails as the
   drivers fail, by name.
 - `bridgeDriver(bridge: Bridge, target: { agent: string } | { endpoint: EndpointConfig }, participant: Participant) ->
-  Driver` — a driver whose `send` hands the input to the named agent on the Bridge, or to the endpoint the Bridge calls,
+  Driver` — a driver whose `send` hands `driverPrompt(input)` to the named agent on the Bridge, or to the endpoint the Bridge calls,
   through Access's `ask`, across the network to the Bridge, and returns its answer and the usage reported. Fails with what
   the Bridge client names: not running, wrong address, token missing or refused, blocked by the browser, certificate not
   trusted; and, for an endpoint, with the endpoint's own failure, which the Bridge passes on.
@@ -189,6 +190,8 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
 - `MOD-job-runner.runJob`, `MOD-job-runner.provenanceLines`, `MOD-job-runner.Driver`, `MOD-job-runner.Prepared`,
   `MOD-job-runner.JobContext`, `MOD-job-runner.JobResult`, `MOD-job-runner.Strategies`, `MOD-job-runner.WriteOutcome` —
   running a job in the tab, the drivers it builds, and the writer it offers.
+- `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent once through the
+  Bridge; tab callers do not pre-render this context for an endpoint or Bridge driver.
 - `MOD-job-ledger.startRecord`, `MOD-job-ledger.appendToRecord`, `MOD-job-ledger.newJobId`, `MOD-job-ledger.JobStart`,
   `MOD-job-ledger.JobRecord`, `MOD-job-ledger.LiveState` — the records it writes and the live state it reports.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-endpoint-calls.EndpointConfig` — the driver of an endpoint the browser calls,
