@@ -231,10 +231,10 @@ test("UC-042 step 1 · 1b: a token GitHub refused at its last use is shown refus
   const again = await settingsPage(world, agentEntries());
   assert.match(repositoryControl(again.box, "status").textContent, /Refused/, "after the reload");
   const banner = again.page.el("token-banner");
-  assert.ok(banner.includes("<strong>GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub.</strong>"));
+  assert.ok(banner.includes("<strong>GitHub rejected authentication with your GitHub token.</strong>"));
   assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "with Renew");
   await again.page.go("#uc");
-  assert.ok(again.page.el("token-banner").includes("GitHub refused your GitHub token"), "on every page");
+  assert.ok(again.page.el("token-banner").includes("GitHub rejected authentication with your GitHub token"), "on every page");
 });
 
 test("UC-042 step 1: a successful Test after a refusal replaces it — the line works again, and so does the next page load", async () => {
@@ -321,6 +321,7 @@ test("UC-042 step 1: a GitLab project token's last test — works, then refused 
   assert.match(gitlabControl(again.box, "status").textContent, /Last successful test:/, "works, after the reload");
   world.refuseGitLab = true;
   await gitlabControl(again.box, "test").fire("click");
+  assert.equal(gitlabControl(again.box, "result").textContent, "✗ gitlab.example.org rejected authentication with your GitLab token: gitlab.example.org/grp/sub/proj. Renew it on https://gitlab.example.org/grp/sub/proj/-/settings/access_tokens.");
   again = await settingsPage(world, agentEntries());
   assert.match(gitlabControl(again.box, "status").textContent, /Refused/, "refused, after the reload");
 });
