@@ -22,9 +22,11 @@ import { bridgeApi } from "../src/bridge-http/index.mjs";
 const ORIGIN = "https://shell-owner.github.io";
 const PASSWORD = "mail-composition-marker-password-430";
 const ACCOUNT = "reports@example.org";
+const SSH2_FIXTURE = join(tmpdir(), "agent-m-430-ssh2-fixture");
+let desktopModule;
 
-function fakeSsh2Module(root) {
-  const folder = join(root, "node_modules", "ssh2");
+function fakeSsh2Module() {
+  const folder = join(SSH2_FIXTURE, "node_modules", "ssh2");
   mkdirSync(folder, { recursive: true });
   writeFileSync(join(folder, "package.json"), JSON.stringify({ name: "ssh2", version: "1.17.0", main: "index.js" }));
   writeFileSync(join(folder, "index.js"), `
@@ -37,13 +39,14 @@ function fakeSsh2Module(root) {
     };
   `);
   assert.equal(existsSync(join(folder, "index.js")), true, "known positive: local ssh2 fixture is present");
-  return join(root, "node_modules");
+  return join(SSH2_FIXTURE, "node_modules");
 }
 
 async function desktopCompose(root) {
-  process.env.NODE_PATH = fakeSsh2Module(root);
+  process.env.NODE_PATH = fakeSsh2Module();
   Module._initPaths();
-  return import(`../src/desktop-shell/compose.mjs?itm430=${Date.now()}-${Math.random()}`);
+  desktopModule ??= await import(`../src/desktop-shell/compose.mjs?itm430=${Date.now()}-${Math.random()}`);
+  return desktopModule;
 }
 
 function certPair() {
@@ -60,10 +63,10 @@ const onceListening = (server) => new Promise((resolve, reject) => {
   server.once("error", reject);
   server.listen(0, "127.0.0.1", () => { server.off("error", reject); resolve(); });
 });
-const closeServer = (server) => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
-
-function startTlsSocket(socket, logs, attach) {
+function startTlsSocket(socket, logs, attach, sockets) {
   const secure = new tls.TLSSocket(socket, { isServer: true, secureContext: tls.createSecureContext(TLS) });
+  sockets.add(secure);
+  secure.on("close", () => sockets.delete(secure));
   secure.on("error", (error) => logs.errors.push(error.message));
   attach(secure, true);
 }
@@ -103,7 +106,7 @@ async function imapServer({ advertiseStartTls = true } = {}) {
         if (!advertiseStartTls) { no(tag, "STARTTLS unavailable"); return; }
         active.write(`${tag} OK Begin TLS negotiation\r\n`, () => {
           active.removeAllListeners("data");
-          startTlsSocket(active, logs, attach);
+          startTlsSocket(active, logs, attach, sockets);
         });
         return;
       }
@@ -117,7 +120,7 @@ async function imapServer({ advertiseStartTls = true } = {}) {
       if (command === "LIST") { write('* LIST (\\Drafts) "/" "Drafts"'); write('* LIST (\\Sent) "/" "Sent"'); write('* LIST () "/" "INBOX"'); write('* LIST () "/" "Reports"'); ok(tag, "LIST completed"); return; }
       if (command === "LSUB" || command === "ID" || command === "ENABLE" || command === "UNSELECT") { ok(tag, `${command} completed`); return; }
       if (command === "EXAMINE") {
-        const folder = quoted(line).at(-1);
+        const folder = quoted(line).at(-1) ?? line.split(" ").slice(2).join(" ");
         if (folder === "INBOX") { write("* 2 EXISTS"); ok(tag, "[READ-ONLY] EXAMINE completed"); return; }
         if (folder === "Reports") { write("* 1 EXISTS"); ok(tag, "[READ-ONLY] EXAMINE completed"); return; }
         no(tag, `[NONEXISTENT] Mailbox doesn't exist: ${folder}`);
@@ -169,7 +172,7 @@ async function smtpServer({ advertiseStartTls = true } = {}) {
         if (!advertiseStartTls) { write("454 TLS unavailable"); return; }
         active.write("220 Ready to start TLS\r\n", () => {
           active.removeAllListeners("data");
-          startTlsSocket(active, logs, attach);
+          startTlsSocket(active, logs, attach, sockets);
         });
         return;
       }
@@ -228,7 +231,9 @@ function filesUnder(folder) {
 
 async function closeFixture(fixture) {
   for (const socket of fixture.sockets) socket.destroy();
-  await closeServer(fixture.server).catch(() => {});
+  fixture.server.close(() => {});
+  fixture.server.unref?.();
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 async function startComposedBridge(options = {}) {
@@ -259,7 +264,7 @@ async function startComposedBridge(options = {}) {
 // given: MOD-desktop-shell's production compose entry, a paired loopback Bridge, and local IMAP/SMTP servers accepting the marker password only after STARTTLS
 // input: POST /v1/mail/test with the pairing token and mailbox connection; then the same route without the token and from another origin
 // expect: the paired request answers with counts for INBOX and Reports, Drafts and Sent found and sending "works"; the refused requests are 401 and 403 before any mail-server login; no file under the Bridge data folder and no Bridge log line contains the marker password
-test("TST-430001: composed Bridge serves the mailbox test route with pairing, origin and password boundaries", async (t) => {
+test("TST-430001: composed Bridge serves the mailbox test route with pairing, origin and password boundaries", { concurrency: false }, async () => {
   const imap = await imapServer();
   const smtp = await smtpServer();
   let composed;
@@ -269,7 +274,7 @@ test("TST-430001: composed Bridge serves the mailbox test route with pairing, or
     assert.match(bridge.address, /^http:\/\/127\.0\.0\.1:\d+$/, "known positive: compose binds the Bridge to loopback");
 
     const { status, body } = await mailRequest(bridge, bridge.token, { connection: connection(imap, smtp), args: {} });
-    assert.equal(status, 200);
+    assert.equal(status, 200, JSON.stringify(body));
     assert.deepEqual({ ...body, encryption: "checked below" },
       { counts: { INBOX: 2, Reports: 1 }, drafts: true, sent: true, sending: "works", route: "imap", encryption: "checked below" });
     assert.equal(typeof body.encryption, "string");
@@ -285,8 +290,8 @@ test("TST-430001: composed Bridge serves the mailbox test route with pairing, or
     for (const file of filesUnder(dataFolder)) assert.equal(readFileSync(file, "utf8").includes(PASSWORD), false, `${file} contains password`);
     assert.equal(lines.join("\n").includes(PASSWORD), false, "Bridge logs do not contain the mailbox password");
   } finally {
-    await composed?.close();
     await Promise.all([closeFixture(imap), closeFixture(smtp)]);
+    await composed?.close();
   }
 });
 
@@ -295,7 +300,7 @@ test("TST-430001: composed Bridge serves the mailbox test route with pairing, or
 // given: the composed Bridge starts paused, and local IMAP/SMTP servers that do not offer STARTTLS
 // input: POST /v1/mail/test while paused; then after unpausing, POST /v1/mail/test with the no-STARTTLS mailbox connection
 // expect: paused answers 503 before any mail-server command; unpaused answers `no-encryption`, and no LOGIN, AUTHENTICATE or AUTH command was sent to either mail server
-test("TST-430002: composed Bridge pauses mail work and refuses no-TLS mail servers before login", async (t) => {
+test("TST-430002: composed Bridge pauses mail work and refuses no-TLS mail servers before login", { concurrency: false }, async () => {
   const imap = await imapServer({ advertiseStartTls: false });
   const smtp = await smtpServer({ advertiseStartTls: false });
   let composed;
@@ -315,7 +320,7 @@ test("TST-430002: composed Bridge pauses mail work and refuses no-TLS mail serve
     assert.equal([...imap.logs.commands, ...smtp.logs.commands].some((entry) => /\b(LOGIN|AUTHENTICATE|AUTH)\b/i.test(entry.line)), false,
       "failure node: no login or auth is sent before TLS exists");
   } finally {
-    await composed?.close();
     await Promise.all([closeFixture(imap), closeFixture(smtp)]);
+    await composed?.close();
   }
 });

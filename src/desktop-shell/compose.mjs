@@ -1,6 +1,7 @@
 // Module: MOD-desktop-shell
 import { bridgeApi, pairAnew, serveBridge } from "../bridge-http/index.mjs";
 import { jobHandlers, startWatching, stopWatching } from "../bridge-jobs/index.mjs";
+import { mailHandlers } from "../mail-protocols/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import * as approvals from "../approvals/index.mjs";
 import * as specChanges from "../spec-changes/index.mjs";
@@ -15,6 +16,10 @@ let strategiesRegistered = false;
 
 export function composeJobHandlers(settings) {
   return jobHandlers({ agents: settings.agents ?? [] });
+}
+
+export function composeBridgeHandlers(settings) {
+  return { jobs: composeJobHandlers(settings), mail: mailHandlers(), tunnels: tunnelHandlers };
 }
 
 export function bridgeStrategyRegistrations() {
@@ -59,7 +64,7 @@ export async function compose({ instance, origin, dataFolder, port = bridgeApi.d
   const settings = loadSettings(dataFolder, port === 0 ? {} : { port });
   const key = await ensureKey(dataFolder);
   const bridge = await serveBridge({ host: "127.0.0.1", port: port === 0 ? 0 : settings.port, origin, dataFolder, paused },
-    { jobs: composeJobHandlers(settings), tunnels: tunnelHandlers });
+    composeBridgeHandlers(settings));
   await openTunnels(dataFolder, settings.tunnels, Number(new URL(bridge.address).port));
   const jobs = createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching });
   jobs.start();

@@ -50,8 +50,8 @@ export async function serveBridge(config, handlers) {
     if (!route) { error(response, 404, "not-found", "Bridge route not found.", config.origin); log(404); return; }
     if (route.path === "/v1/mail/{operation}") {
       const handler = route.operations.includes(params.operation) ? handlers.mail?.[`POST /v1/mail/${params.operation}`] : undefined;
-      if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
       let text = ""; for await (const chunk of request) text += chunk;
+      if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
       let body;
       try { body = JSON.parse(text); } catch { error(response, 422, "invalid-request", "Bridge request is not JSON.", config.origin); log(422); return; }
       const errors = { ...bridgeApi.errors, ...route.errors };
@@ -105,5 +105,9 @@ export async function serveBridge(config, handlers) {
     server.listen(config.port, config.host);
   });
   const address = server.address(), host = address.family === "IPv6" ? `[${address.address}]` : address.address;
-  return { address: `http://${host}:${address.port}`, token, close: () => new Promise((resolve, reject) => server.close((failure) => failure ? reject(failure) : resolve())) };
+  return { address: `http://${host}:${address.port}`, token, close: () => new Promise((resolve, reject) => {
+    server.close((failure) => failure ? reject(failure) : resolve());
+    server.closeIdleConnections?.();
+    server.closeAllConnections?.();
+  }) };
 }
