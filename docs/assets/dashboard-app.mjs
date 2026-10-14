@@ -528,7 +528,14 @@ async function route() {
     await available;
     loadProducts();
     renderProductSelector();
-    if (kind === "settings") {
+    if (kind === "requirement" || kind === "requirements") {
+      const params = Object.fromEntries(location.hash.slice(1).split("/").slice(1).map((part) => {
+        const at = part.indexOf("=");
+        return at > 0 ? [decodeURIComponent(part.slice(0, at)), decodeURIComponent(part.slice(at + 1))] : null;
+      }).filter(Boolean));
+      const { renderRequirementPrompt } = await loadFile("requirement-prompt-view.mjs");
+      await renderRequirementPrompt(app, main(), kind, params);
+    } else if (kind === "settings") {
       const settings = settingsPages.routes.find((r) => r.name === "settings");
       const settingsStore = openStore(T.instance);
       const address = parseAddress(T.product.address);

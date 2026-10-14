@@ -28,6 +28,7 @@ import assert from "node:assert/strict";
 import * as runtimes from "../src/runtimes/index.mjs";
 import { recordsNewestFirst, startRecord } from "../src/job-ledger/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { formatFinding } from "../src/text-tools/index.mjs";
 
 const { queueJob } = runtimes;
 const REPOSITORY = { server: "github", origin: "https://github.com", path: "alice/product", web: "https://github.com/alice/product" };
@@ -98,15 +99,17 @@ const contextOf = (gates = []) => ({ kind: null, params: {}, product: { address:
 
 // The global fetch while a test runs: the drafter's endpoint (ep1) answers the drafts given in turn (the last again), or the status given, or a text that is no
 // answer; the reviewer's endpoint (ep2) finds nothing; every request is kept.
-let requests = [];
+let requests = [], requestBodies = [];
 const realFetch = globalThis.fetch;
 function endpointAnswers(status = 200, { drafts = [DRAFT], unreadable = false } = {}) {
   requests = [];
+  requestBodies = [];
   const queue = [...drafts];
   const reply = (content) => new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }),
     { status: 200, headers: { "content-type": "application/json" } });
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, init) => {
     requests.push(String(url));
+    requestBodies.push(String(init?.body ?? ""));
     if (status !== 200) return new Response(JSON.stringify({ error: { message: "refused" } }), { status });
     if (String(url).includes("ep2")) return reply(JSON.stringify({ draft: { findings: [] }, answers: [] }));
     if (unreadable) return reply("this is not JSON");
@@ -339,4 +342,51 @@ test("runOnTab — an answer that cannot be read ends the job as failed, with it
   assert.deepEqual([end.state, end.results], ["failed", []]);
   assert.match(end.reason, /could not be read/);
   assert.ok(end.rounds.length >= 1);
+});
+
+// TST-398007 · level: unit · module: MOD-runtimes
+// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
+// given: two queued attended jobs on the tab route, and an endpoint that answers each; the second call's hooks carry a current draft as `refine`
+// input: runOnTab first without `refine`, then with `refine: { text: "the current draft" }`
+// expect: the ordinary request reaches the endpoint without that draft (the counter-proof); the refined request reaches MOD-job-runner with it and carries it as `previous`
+test("runOnTab — forwards the current draft to runJob as refine", async () => {
+  endpointAnswers();
+  await runtimes.runOnTab(jobOf("person"), contextOf(), CONNECTIONS, hooksOf(await queued()));
+  assert.equal(requestBodies.length, 1, "known positive: the ordinary endpoint request was captured");
+  assert.match(requestBodies[0], /Write\./, "known positive: the request is the fixture job's prompt");
+  assert.doesNotMatch(requestBodies[0], /the current draft/, "without refine there is no previous draft");
+
+  endpointAnswers();
+  const fake = await queued();
+  await runtimes.runOnTab(jobOf("person"), contextOf(), CONNECTIONS,
+    { ...hooksOf(fake), refine: { text: "the current draft" } });
+  assert.equal(requestBodies.length, 1, "one refinement exchange");
+  assert.match(requestBodies[0], /the current draft/, "runJob receives the refinement draft as previous");
+});
+
+// TST-398023
+// level: unit
+// module: MOD-runtimes
+// guards: UC-019 step 8; ONE DEFINITION, THREE DRIVERS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: an attended tab job with a recipe part, an edited draft and a check rejecting the first returned draft
+// input: runOnTab with refine; the endpoint returns first, then second
+// expect: two exchanges each contain the recipe part once; the first carries the edited draft once, the second the current draft and canonical finding once, with no stale edited draft
+test("TST-398023: tab refinement and correction context are serialized exactly once", async () => {
+  const part = { name: "source", text: "TAB_RECIPE_CONTEXT", size: 0, sources: [], required: true, recipe: "fixture", artifacts: [] };
+  const job = jobOf("person", [], { checked: true });
+  job.kind = { ...job.kind, prompt: "Write.\n\n{{fixture}}", recipes: [{ name: "fixture" }] };
+  job.parts = [part];
+  const edited = { text: "TAB_EDITED_DRAFT" };
+  const occurrences = (text, value) => text.split(value).length - 1;
+  endpointAnswers(200, { drafts: [{ text: "first" }, { text: "second" }] });
+  const fake = await queued();
+  const result = await runtimes.runOnTab(job, contextOf(), CONNECTIONS, { ...hooksOf(fake), refine: edited });
+  assert.equal(requestBodies.length, 2, "one refinement exchange and one correction exchange");
+  const messages = requestBodies.map((body) => JSON.parse(body).messages[0].content);
+  for (const text of messages) assert.equal(occurrences(text, part.text), 1, "the prepared recipe part occurs once");
+  assert.equal(occurrences(messages[0], JSON.stringify(edited, null, 2)), 1, "the edited draft reaches the refinement once");
+  assert.equal(occurrences(messages[1], JSON.stringify({ text: "first" }, null, 2)), 1, "the current returned draft reaches correction once");
+  assert.equal(occurrences(messages[1], formatFinding(FLAW)), 1, "the canonical finding reaches correction once");
+  assert.equal(occurrences(messages[1], edited.text), 0, "the earlier edited draft is not sent as the current draft");
+  assert.deepEqual([result.draft, result.stoppedBecause], [{ text: "second" }, "passed"]);
 });

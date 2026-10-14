@@ -16,16 +16,16 @@ const GITHUB_PERMISSIONS = Object.freeze([["contents", "write"], ["issues", "wri
 
 const GITHUB_TOKENS = "https://github.com/settings/personal-access-tokens";
 
-// The branch the pages of a file are for: "main", the default of the model (docs/assets/dashboard-app.mjs, deriveTarget). The
-// module file names none, and no request is made that could read the default branch's name; HEAD is not used, for GitHub resolves
-// it to a commit, not to a branch.
-const BRANCH = "main";
+// The branch the pages of a file are for where no caller has handed on the repository's reported default branch.
+const DEFAULT_BRANCH = "main";
 
 // A path in an address: each folder and file name encoded, the slashes kept.
 const encodedPath = (path) => path.split("/").map(encodeURIComponent).join("/");
 
 // address: a RepositoryAddress -> WebLinks, with the pages this item needs.
-export function webLinks(address) {
+export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
+  if (typeof defaultBranch !== "string" || !defaultBranch.trim()) throw new TypeError(`a default branch is a text: ${defaultBranch}`);
+  const branch = encodedPath(defaultBranch);
   if (address.server === "github") {
     return Object.freeze({
       // THE TOKEN LINK IS PREFILLED: name, description, expiry in days and the permissions. THE REPOSITORY CHOICE IS SPELLED OUT:
@@ -45,9 +45,9 @@ export function webLinks(address) {
       // WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK: the new-file page of the default branch with the file's path and an
       // approval record filled in, and nothing else — no reviewed text (NO TEXT TRAVELS IN A URL) and no credential travels in the
       // address. The model is newFileUrl in docs/assets/git-host.mjs.
-      newFile: (path, record) => `${address.web}/new/${BRANCH}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(record)}`,
+      newFile: (path, record) => `${address.web}/new/${branch}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(record)}`,
       // The editor page of a file. The model is editUrl in docs/assets/git-host.mjs.
-      editFile: (path) => `${address.web}/edit/${BRANCH}/${encodedPath(path)}`,
+      editFile: (path) => `${address.web}/edit/${branch}/${encodedPath(path)}`,
       // UC-010: the repository's Settings > Secrets and variables > Actions, where the person stores a secret's value — the address names
       // no secret and carries no value (A CREDENTIAL IS NEVER PLACED IN A URL) —, its workflow runs, and one run.
       secrets: `${address.web}/settings/secrets/actions`,
@@ -65,7 +65,7 @@ export function webLinks(address) {
     newRepository: `${address.origin}/projects/new`,
     // GitLab has no new-file page that takes a record (UC-008 3c): null. Its single-file editor, as GitLab links it itself.
     newFile: () => null,
-    editFile: (path) => `${address.web}/-/edit/${BRANCH}/${encodedPath(path)}`,
+    editFile: (path) => `${address.web}/-/edit/${branch}/${encodedPath(path)}`,
     // UC-010: the project's Settings > CI/CD, where its Variables are, its pipelines, and one pipeline.
     secrets: `${address.web}/-/settings/ci_cd`,
     actions: `${address.web}/-/pipelines`,

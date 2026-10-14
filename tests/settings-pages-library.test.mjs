@@ -107,16 +107,22 @@ function githubFake(mode, order) {
 }
 
 // A browser: the store with the instance's token, the instance host with the register, the commits it records, and a named repository fake.
-function browser(t, { sources = SOURCES, named = "ok" } = {}) {
+function browser(t, { sources = SOURCES, named = "ok", runs = [], logs = {} } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   const store = openStore(INSTANCE);
   writeSetting(store, "github-token", { value: "github_pat_constructed", name: "Agent M", expires: "2027-01-01" });
-  const commits = [], order = [];
+  const commits = [], order = [], started = [];
   const host = {
     repositoryInfo: async () => ({ defaultBranch: "main", visibility: "public", canWrite: true }),
     readSnapshot: async () => ({ commit: "h".repeat(40), paths: [...Object.keys(sources), "docs/sources/SRC-eu-ai-act/2026-10-01/act.html", "docs/sources.md"],
       blob: () => "b".repeat(40), read: async (path) => sources[path] ?? null }),
     commitFiles: async (change) => { order.push("instance"); commits.push(change); return { commit: "i".repeat(40), url: `https://github.com/${INSTANCE}/commit/${"i".repeat(40)}` }; },
+    listCiRuns: async (filter) => runs.filter((run) => (!filter?.workflow || run.workflow === filter.workflow) && (!filter?.branch || run.branch === filter.branch)),
+    ciRunLog: async (id) => logs[id] ?? null,
+    startWorkflow: async (workflow, ref, inputs) => {
+      started.push({ workflow, ref, inputs });
+      return { id: "fresh-run", workflow, commit: "", event: "workflow_dispatch", state: "queued", url: "https://github.com/alice/agent-m/actions/runs/fresh-run", started: null, ended: null };
+    },
     webLinks: () => ({}),
   };
   const fake = githubFake(named, order);
@@ -125,7 +131,7 @@ function browser(t, { sources = SOURCES, named = "ok" } = {}) {
   t.after(() => { globalThis.fetch = priorFetch; });
   const went = [];
   const context = { instance: { repository: INSTANCE, host }, product: null, store, go(name, params) { went.push([name, params]); } };
-  return { store, commits, order, posts: fake.posts, requests: () => fake.posts.length, context, went,
+  return { store, commits, order, posts: fake.posts, started, requests: () => fake.posts.length, context, went,
     async page(params = {}) { const target = document.createElement("div"); document.body.append(target); await route().render(target, context, params); await settle(); return target; } };
 }
 const instanceFiles = (b) => b.commits.flatMap((commit) => commit.files);
@@ -410,6 +416,33 @@ test("library — an EU legal text is registered as its entry alone, a repositor
   const written = instanceFiles(c)[0].text;
   assert.ok(written.includes(NAMED) && written.includes("a".repeat(40)), "the address and the commit are the version's");
   assert.equal(entryOfCommit(c, "SRC-guidelines").fields.kind, "system");
+});
+
+// TST-402001 · level: unit · module: MOD-settings-pages
+// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; ONE CLICK PER DECISION; UC-004 7, 7a
+// given: the library holds three EU legal-text entries: one whose identifier is an EUR-Lex address and has no version rows, one fetched with a version row, and one waiting whose latest onSourcesCommitted run failed naming that source
+// input: the route `library`, then the waiting source's Fetch again button
+// expect: the first source is shown as waiting with Fetch again; the fetched source is shown fetched from its entry; the failed source shows the failure from the run log; Fetch again starts `fetch-sources.yml` once on the default branch and commits nothing from the page itself
+test("library — legal text fetch state is derived from the entry and workflow runs, and Fetch again starts the workflow", async (t) => {
+  const waiting = entryText({ id: "SRC-ai-waiting", title: "AI Act waiting", kind: "regulation", authority: "normative",
+    licence: "may be republished - EU law", identifier: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689" });
+  const fetched = entryText({ id: "SRC-ai-fetched", title: "AI Act fetched", kind: "regulation", authority: "normative",
+    licence: "may be republished - EU law", identifier: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689" },
+  `| \`cellar-2024-07-12\` | 2024-07-16 | - | publication repository, retrieved 2024-07-16, version cellar-2024-07-12 | 1 file, listed below; version hash \`${"c".repeat(64)}\` |\n\n### Files of cellar-2024-07-12\n\n| File | SHA-256 |\n|---|---|\n| \`32024R1689.xhtml\` | \`${"d".repeat(64)}\` |`);
+  const failed = entryText({ id: "SRC-ai-failed", title: "AI Act failed", kind: "regulation", authority: "normative",
+    licence: "may be republished - EU law", identifier: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689" });
+  const b = browser(t, { sources: { "docs/sources/SRC-ai-waiting.md": waiting, "docs/sources/SRC-ai-fetched.md": fetched,
+    "docs/sources/SRC-ai-failed.md": failed }, runs: [{ id: "failed-run", workflow: "fetch-sources.yml", branch: "main", commit: "h".repeat(40),
+    event: "push", state: "failure", url: "https://github.com/alice/agent-m/actions/runs/failed-run", started: "2026-10-14T10:00:00Z", ended: "2026-10-14T10:01:00Z" }],
+  logs: { "failed-run": "onSourcesCommitted: failed - SRC-ai-failed: Unreachable: publication offline" } });
+  const page = await b.page();
+  const row = (name) => byClass(page, "library-source").find((node) => node.textContent.includes(name));
+  assert.match(row("AI Act waiting").textContent, /waiting for fetch/i);
+  assert.match(row("AI Act fetched").textContent, /fetched/i);
+  assert.match(row("AI Act failed").textContent, /publication offline/);
+  await click(descendants(row("AI Act waiting"), (node) => (node.className ?? "").split(" ").includes("library-fetch-again"))[0]);
+  assert.deepEqual(b.started, [{ workflow: "fetch-sources.yml", ref: "main", inputs: {} }]);
+  assert.deepEqual(b.commits, [], "the page does not write fetch state");
 });
 
 // TST-472760 · level: unit · module: MOD-settings-pages

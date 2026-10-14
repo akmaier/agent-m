@@ -52,7 +52,7 @@ async function dashboardFor(t, bridge, endpointOrigin) {
     if (url.origin !== endpointOrigin) return null;
     return nativeFetch(url.href, init);
   }] });
-  const page = await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}bridge`]: JSON.stringify({ address: bridge.address, token: bridge.token }) } });
+  const page = await openDashboard({ server, hash: "#uc", entries: { [`${PREFIX}bridge:local`]: JSON.stringify({ address: bridge.address, token: bridge.token }) } });
   const dom = richDocument(), main = dom.byId("main"); let mounted = [];
   const replace = main.replaceChildren.bind(main); main.replaceChildren = (...children) => { mounted = children; replace(...children); };
   await page.go("#settings");
@@ -93,8 +93,9 @@ test("TST-266001: public Settings sends a local model test through the real comp
   main.querySelector(".endpoint-url").value = endpointUrl;
   main.querySelector(".endpoint-model").value = "controlled-model";
   main.querySelector(".endpoint-key").value = key;
-  main.querySelector(".endpoint-through-bridge").checked = true;
-  expectedStored = { url: endpointUrl, kind: "openai-compatible", model: "controlled-model", key, throughBridge: true };
+  main.querySelector(".endpoint-bridge").value = "local";
+  main.querySelector(".endpoint-bridge").dispatchEvent(new Event("change"));
+  expectedStored = { url: endpointUrl, kind: "openai-compatible", model: "controlled-model", key, bridge: "local" };
   await press(server, main.querySelector(".endpoint-test"));
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(`${PREFIX}endpoint:local`)), expectedStored, "the saved record persists after the completed request");
   assert.match(main.querySelector(".endpoint-result").textContent, /controlled-model is working/, "failure node: public dashboard renders the composed Bridge answer");

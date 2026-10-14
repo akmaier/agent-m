@@ -5,12 +5,13 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 
 const root = new URL("..", import.meta.url).pathname;
+const appEnvironment = { ...process.env, NODE_PATH: [join(root, "src/bridge-build/node_modules"), process.env.NODE_PATH].filter(Boolean).join(delimiter) };
 
 // Electron's windows show on the screen unless a virtual screen holds them. These tests therefore run only on Linux, under
 // xvfb-run, as on the CI; elsewhere each is skipped with this reason, and Electron is neither installed nor started.
@@ -86,6 +87,9 @@ const diagnoseOpenboxAcquisition = () => {
   } catch (failure) { diagnosticEvidence("Linux Openbox diagnostic", { observation: "diagnostic-error", error: failure.code ?? failure.name }); }
 };
 const prepareNativeFixture = async () => {
+  const modules = spawnSync(process.execPath, ["--input-type=module", "-e", "await import('./src/desktop-shell/compose.mjs')"], { cwd: root, env: appEnvironment, encoding: "utf8", timeout: 5000 });
+  const moduleEvidence = commandEvidence("Bridge app module staging", modules);
+  assert.equal(modules.status, 0, `Bridge app modules did not load; ${JSON.stringify(moduleEvidence)}`);
   const executable = await runtime();
   electronCommand(executable, []);
   await acquireNativeFixtureLock();
@@ -178,20 +182,33 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
   const launched = electronCommand(executable, args);
-  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...process.env, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
-  let stderr = "";
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "linux", env: { ...appEnvironment, ...environment }, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "", stderr = "", spawnError = null, debugTargets = "";
+  child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
+  child.on("error", (error) => { spawnError = error; });
   const exited = new Promise((resolve) => child.once("exit", resolve));
-  const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
+  const stopped = () => { if (spawnError || child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}`); };
   try {
-    const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
+    const page = await wait(async () => {
+      try {
+        const targets = await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json();
+        debugTargets = JSON.stringify(targets.map(({ type, url }) => ({ type, url })));
+        return targets.find((candidate) => candidate.url.startsWith("agent-m://"));
+      } catch (error) { debugTargets = `${error.name}: ${error.message}`; throw error; }
+    }, stopped);
     const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
     const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
     return { browser, child, exited, folder, main, origin, page, port };
   } catch (failure) {
-    if (child.exitCode === null) child.kill();
+    const processes = process.platform === "linux" ? spawnSync("ps", ["-eo", "pid,ppid,stat,args"], { encoding: "utf8", timeout: 1000 }).stdout?.split("\n").filter((line) => /electron|Xvfb|openbox|agent-m-xvfb/.test(line)).join("\n") : "";
+    const evidence = { argv: [launched.command, ...launched.arguments_], cwd: root, pid: child.pid, exit: child.exitCode, signal: child.signalCode, error: spawnError?.code ?? null, stdout: scrub(stdout), stderr: scrub(stderr), debugTargets, processes: scrub(processes) };
+    if (child.exitCode === null) {
+      try { process.platform === "linux" ? process.kill(-child.pid, "SIGTERM") : child.kill(); } catch { child.kill(); }
+    }
     await within(exited, "Electron startup cleanup").catch(() => {});
-    throw failure;
+    child.stdout.destroy(); child.stderr.destroy(); child.unref();
+    throw new Error(`${failure.message}; Electron startup=${JSON.stringify(evidence)}`, { cause: failure });
   }
 }
 
@@ -332,7 +349,7 @@ test("TST-276005: native close behavior and a second source start restore the fi
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
     const startSecond = async () => {
       const launched = electronCommand(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`]);
-      const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "darwin", stdio: "ignore" });
+      const child = spawn(launched.command, launched.arguments_, { cwd: root, env: appEnvironment, detached: process.platform === "darwin", stdio: "ignore" });
       child.unref(); second.push(child); return { child, exited: new Promise((resolve) => child.once("exit", resolve)) };
     };
     const observeSecond = async () => await evaluate(app.main, "(() => { globalThis.__agentMSecondInstanceCount ??= 0; process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.once('second-instance', () => { globalThis.__agentMSecondInstanceCount += 1; }); return globalThis.__agentMSecondInstanceCount; })()");

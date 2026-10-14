@@ -1,7 +1,8 @@
-// Whether a job may start for a step or an item, and every reason it may not (docs/architecture/MOD-work-plans.md,
-// Interfaces: startable; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT, NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, NO
-// JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT, A JOB GOES ONLY TO A HOLDER OF ITS ROLE). Pure: the states, the workflow, the
-// role assignment, the sprint, the held items and the participants are handed in; nothing is read, written or kept.
+// The derived state of a plan step or backlog item, and whether a job may start for it (docs/architecture/MOD-work-plans.md,
+// Interfaces: itemStates, startable; STATUS IS DERIVED FROM THE RECORDS, A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT,
+// NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT, A JOB GOES ONLY TO A HOLDER
+// OF ITS ROLE). Pure: documents, jobs, pull requests, gate states, workflow, role assignment, sprint, held items and
+// participants are handed in; nothing is read, written or kept.
 //
 // Module: MOD-work-plans
 //
@@ -14,8 +15,193 @@ import { holdsRole } from "../product-process/index.mjs";
 import { selectionOf, sprintOf } from "./sprints.mjs";
 
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
+const list = (value) => (Array.isArray(value) ? value.map(text)
+  : text(value).split(",").map((part) => part.trim()).filter(Boolean));
 const listed = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const teamOf = (assignment) => text(assignment?.path).split("/").pop().replace(/\.md$/, "") || "the product";
+const fieldsOf = (document) => document?.fields ?? {};
+const idOf = (document) => text(document?.id ?? document?.fields?.id);
+const fieldList = (document, field) => list(fieldsOf(document)[field]);
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function orderedByPlan(items, order) {
+  const byId = new Map(items.map((item) => [idOf(item), item]).filter(([id]) => id));
+  const used = new Set(), entries = [];
+  for (const section of order?.sections ?? []) {
+    for (const row of section?.rows ?? []) {
+      const item = text(row?.cells?.Item) || text(row?.cells?.Step);
+      if (!item || used.has(item) || !byId.has(item)) continue;
+      used.add(item);
+      entries.push({ item: byId.get(item), phase: text(row?.cells?.Phase) });
+    }
+  }
+  for (const item of items) {
+    const id = idOf(item);
+    if (id && !used.has(id)) entries.push({ item, phase: "" });
+  }
+  return entries;
+}
+
+function orderedBacklog(items) {
+  const byId = new Map(items.map((item) => [idOf(item), item]).filter(([id]) => id));
+  const visiting = new Set(), visited = new Set(), entries = [];
+  const visit = (item) => {
+    const id = idOf(item);
+    if (!id || visited.has(id)) return;
+    if (visiting.has(id)) { entries.push({ item, phase: "" }); visited.add(id); return; }
+    visiting.add(id);
+    for (const dependency of fieldList(item, "builds_on")) if (byId.has(dependency)) visit(byId.get(dependency));
+    visiting.delete(id);
+    if (!visited.has(id)) { entries.push({ item, phase: "" }); visited.add(id); }
+  };
+  for (const item of items) visit(item);
+  return entries;
+}
+
+function orderedItems(items, order) {
+  return order ? orderedByPlan(items, order) : orderedBacklog(items);
+}
+
+function statusOf(statuses, artifact) {
+  const entries = statuses instanceof Map ? statuses.entries() : Object.entries(statuses ?? {});
+  for (const [key, value] of entries) {
+    if (key === artifact) return typeof value === "string" ? value : value?.status ?? null;
+    if (value?.id === artifact) return value.status ?? null;
+  }
+  return null;
+}
+
+function queueEntryName(queue, entry) {
+  return `${text(queue?.folder) || "queue"}#${entry?.number ?? "?"}`;
+}
+
+function queueTouches(entry, artifact) {
+  if (text(entry?.anchor) === artifact) return true;
+  if (text(entry?.file).includes(artifact)) return true;
+  return (entry?.impact ?? []).some((change) => change?.name === artifact);
+}
+
+function queueReasons(queues, artifact) {
+  const reasons = [];
+  for (const queue of queues ?? []) {
+    for (const entry of queue?.entries ?? []) {
+      if (entry?.state === "in SPEC" || !queueTouches(entry, artifact)) continue;
+      const impact = (entry?.impact ?? []).find((change) => change?.name === artifact);
+      const change = impact?.change ? ` as ${impact.change}` : "";
+      reasons.push(`${artifact} is still in ${queueEntryName(queue, entry)}${change}, state ${text(entry?.state) || "open"}`);
+    }
+  }
+  return reasons;
+}
+
+function acceptanceReasons(item, facts) {
+  const reasons = [];
+  for (const artifact of fieldList(item, "realises")) {
+    const queued = queueReasons(facts.queues, artifact);
+    if (queued.length) { reasons.push(...queued); continue; }
+    const status = statusOf(facts.statuses, artifact);
+    if (status === "accepted") continue;
+    reasons.push(status ? `${artifact} is ${status}, not accepted` : `${artifact} is not accepted`);
+  }
+  return reasons;
+}
+
+function unfinishedPrerequisites(item, states) {
+  return fieldList(item, "builds_on").filter((dependency) => states.get(dependency)?.state !== "done");
+}
+
+function gatesBefore(phase, facts) {
+  if (!phase || !facts.workflow) return [];
+  const byName = new Map((facts.gates ?? []).map((gate) => [gate?.gate, gate]));
+  return (facts.workflow.gates ?? []).filter((gate) => gate.to === phase)
+    .map((gate) => ({ gate, state: byName.get(gate.name) ?? { gate: gate.name, state: "pending" } }))
+    .filter(({ state }) => state.state !== "passed");
+}
+
+function gateReason({ gate, state }) {
+  const details = [text(state.state) || "pending", text(state.needs), text(state.difference)].filter(Boolean).join("; ");
+  return `${gate.name}, decided by ${gate.decider}${details ? ` (${details})` : ""}`;
+}
+
+function jobFor(item, jobs) {
+  const id = idOf(item);
+  return (jobs ?? []).find((row) => list(row?.record?.worksOn).includes(id)) ?? null;
+}
+
+const jobId = (job) => text(job?.record?.id) || text(job?.id) || "the job";
+
+function blockedJobReason(job) {
+  const id = jobId(job);
+  if (job?.state !== "waiting at a gate") return `job ${id} is ${text(job?.state)}`;
+  const gate = (job.record?.gates ?? []).findLast?.((entry) => entry?.resumedBy === null) ?? null;
+  if (gate) return `job ${id} waits at ${gate.gate} for ${gate.decider}`;
+  if (job.record?.question) return `job ${id} waits for a person: ${job.record.question}`;
+  return `job ${id} is waiting at a gate`;
+}
+
+function namesPullRequest(pullRequest, id) {
+  const pattern = new RegExp(`(?<![A-Za-z0-9])${escapeRegExp(id)}(?![0-9])`, "i");
+  return pattern.test(text(pullRequest?.branch)) || pattern.test(text(pullRequest?.title));
+}
+
+function pullRequestRef(pullRequest) {
+  return text(pullRequest?.number) || text(pullRequest?.url) || text(pullRequest?.branch) || "the pull request";
+}
+
+function pullRequestFor(item, pullRequests, state) {
+  const id = idOf(item);
+  return (pullRequests ?? []).find((pullRequest) => pullRequest?.state === state && namesPullRequest(pullRequest, id)) ?? null;
+}
+
+function derivedState(item, phase, states, facts) {
+  const id = idOf(item);
+  const acceptance = acceptanceReasons(item, facts);
+  if (acceptance.length) return { item: id, state: "waiting for acceptance", reason: acceptance.join("; "), job: null, pullRequest: null };
+
+  const prerequisites = unfinishedPrerequisites(item, states);
+  if (prerequisites.length) return { item: id, state: "waiting for an item it builds on",
+    reason: `${listed(prerequisites)} ${prerequisites.length === 1 ? "is" : "are"} not done`, job: null, pullRequest: null };
+
+  const gates = gatesBefore(phase, facts);
+  if (gates.length) return { item: id, state: "waiting", reason: gates.map(gateReason).join("; "), job: null, pullRequest: null };
+
+  const job = jobFor(item, facts.jobs);
+  if (["failed", "waiting at a gate"].includes(job?.state)) {
+    return { item: id, state: "blocked", reason: blockedJobReason(job), job: jobId(job), pullRequest: null };
+  }
+  if (["queued", "running", "cancelling"].includes(job?.state)) {
+    return { item: id, state: "in progress", reason: `job ${jobId(job)} is ${job.state}`, job: jobId(job), pullRequest: null };
+  }
+
+  if (facts.pullRequests === "unknown") {
+    return { item: id, state: "unknown", reason: "pull request facts are unknown", job: null, pullRequest: null };
+  }
+
+  const open = pullRequestFor(item, facts.pullRequests, "open");
+  if (open) return { item: id, state: "in progress", reason: `pull request ${pullRequestRef(open)} is open for review`,
+    job: null, pullRequest: pullRequestRef(open) };
+  const merged = pullRequestFor(item, facts.pullRequests, "merged");
+  if (merged) return { item: id, state: "done", reason: null, job: null, pullRequest: pullRequestRef(merged) };
+
+  return { item: id, state: "ready", reason: null, job: null, pullRequest: null };
+}
+
+/**
+ * itemStates(items: Document[], order: Document | null, facts: { statuses: Map<string, { id: string, kind: string,
+ * status: string }>, queues: Queue[], jobs: JobRow[], pullRequests: PullRequest[] | "unknown", gates: Array<{ gate:
+ * string, state: string }>, workflow: Workflow | null }) -> ItemState[] — every supplied step in the plan order, or every
+ * backlog item after the items it builds on, with state derived only from the supplied facts.
+ * @param {object[]} items @param {object | null} order @param {object} facts
+ * @returns {object[]}
+ */
+export function itemStates(items, order, facts = {}) {
+  const states = new Map();
+  for (const { item, phase } of orderedItems(items ?? [], order)) {
+    const state = derivedState(item, phase, states, facts);
+    states.set(state.item, state);
+  }
+  return [...states.values()];
+}
 
 // Why an item in this state cannot start; null for a ready item.
 function stateReason(item, state) {

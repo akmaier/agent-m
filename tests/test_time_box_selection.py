@@ -312,6 +312,19 @@ class TestSprintsAndALimitBothHold(unittest.TestCase):
     def test_a_selected_item_below_the_limit_starts(self):
         self.assertTrue(starts(item_state("ITM-017", "scrum-wip", sprint="open", prs=[pr(1, "ITM-014")])))
 
+    # Module (as the case stated it): MOD-work-items
+    # TST-590002 · level: unit · module: MOD-work-items
+    # guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
+    # given: the fixture backlog item ITM-014 and a merged pull request whose head branch says `codex/itm-014-work` in lower case
+    # input: itemState of ITM-014 with that pull request
+    # expect: ITM-014 is done; the pull request reason is kept
+    def test_lower_case_item_id_in_a_pull_request_branch_names_the_item(self):
+        got = item_state("ITM-014", "scrum-wip", sprint="open", prs=[
+            pr(1, "ITM-014", state="merged", head="codex/itm-014-work", title="the work")
+        ])
+        self.assertEqual(got["state"], "done")
+        self.assertEqual(kinds(got), ["pull-request"])
+
 
 
 class TestSeveralTeamsRunSprints(unittest.TestCase):

@@ -21,7 +21,7 @@ async function currentRequirements(app, target) {
   const instanceHost = connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() });
   const productHost = connect(parseAddress(T.product.address), { token: token() });
   await specificationRoute.render(target, { instance: { host: instanceHost }, product: { host: productHost } },
-    { key: "specification", ref: app.state.commit });
+    { key: "specification", ref: app.T.ref });
 }
 
 // The SPEC change queues: each with its index and its decisions — what the list needs to name every queue and entry.

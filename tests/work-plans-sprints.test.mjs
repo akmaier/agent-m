@@ -157,6 +157,40 @@ test("heldItems — an item merged into its sprint's own branch stays held until
     [work, increment(2, "sprint/team1/01", "merged", "2026-10-14T18:00:00Z")])), ["ITM-003"]);
 });
 
+// TST-469001 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
+// given: known positive first — team1's sprint 26 selecting ITM-292; #280, a pull request naming ITM-292, merged into sprint/19, whose branch is never merged on; then the same pull request with sprint/19 merged into main after it; then ITM-292 merged straight into main
+// input: heldItems(that sprint, the items including ITM-292, the architecture, the pull requests of each case)
+// expect: ITM-292 is held when its change reached only sprint/19; not held after sprint/19 reaches main; not held when the item reaches main directly
+test("heldItems — an item merged into a branch that never reached the default branch stays held", () => {
+  const selected = item("ITM-292", ["MOD-store"]);
+  const sprints = [sprint("team1", "26", { selection: ["ITM-292"], branch: "sprint/team1/26" })];
+  const intoOtherBranch = pr(280, "ITM-292", "sprint/19", "merged", "2026-10-10T10:00:00Z");
+  const otherBranchToDefault = { ...increment(281, "sprint/19", "merged", "2026-10-11T10:00:00Z"), title: "Merge sprint/19" };
+  const straightToDefault = pr(282, "ITM-292", "main", "merged", "2026-10-10T10:00:00Z");
+  const straightToTrunk = pr(283, "ITM-292", "trunk", "merged", "2026-10-10T10:00:00Z");
+
+  assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE, [intoOtherBranch])), ["ITM-292"]);
+  assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE,
+    [intoOtherBranch, otherBranchToDefault])), []);
+  assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE, [straightToDefault])), []);
+  assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE, [straightToTrunk])), ["ITM-292"]);
+  assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE, [straightToTrunk],
+    { defaultBranch: "trunk" })), []);
+});
+
+// TST-590001 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-032
+// given: team1's sprint 01 selecting ITM-001; a pull request whose lower-case head branch `codex/itm-001-work` is merged into main
+// input: heldItems(that sprint, the items, the architecture, that pull request)
+// expect: ITM-001 is not held; the lower-case branch spelling still names the uppercase backlog item
+test("heldItems — a lower-case item id in a pull-request branch names the backlog item", () => {
+  const sprints = [sprint("team1", "01", { selection: ["ITM-001"] })];
+  const lower = { ...pr(1, "ITM-001", "main", "merged", "2026-10-13T10:00:00Z"),
+    title: "the work", branch: "codex/itm-001-work" };
+  assert.deepEqual(heldIds(heldItems(sprints, ITEMS, ARCHITECTURE, [lower])), []);
+});
+
 // TST-473179 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032 6a; UC-041 step 6
 // given: team1's sprint 01 selecting ITM-001 and ITM-003, then a new start decision (## Selection) selecting ITM-001, ITM-002 and ITM-003, then its close (## Unfinished items) sending ITM-002 back to the backlog and ITM-003 into the next sprint; team1's sprint 02 selecting ITM-003

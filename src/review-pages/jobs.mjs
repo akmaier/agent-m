@@ -10,17 +10,20 @@
 // job. The job's record is written in the product's repository.
 
 import { readSetting } from "../browser-store/index.mjs";
+import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { readDocument } from "../documents/index.mjs";
+import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { newJobId, listJobs } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { prepareJob } from "../job-runner/index.mjs";
+import { prepareJob, runJob, writeResult } from "../job-runner/index.mjs";
 import { approvalStrategies, statuses } from "../approvals/index.mjs";
 import { differs, eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { permittedPlaces } from "../source-register/index.mjs";
+import { linkedVersion, permittedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
 import { el, button, link, problem, TOKEN_STEP } from "./common.mjs";
+import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
 const REGISTER = "docs/participants.md";
@@ -32,13 +35,22 @@ const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "c
 
 // The endpoints of the participants as the tab's route calls them: the configuration the page stored for each, and whether it is reached through a Bridge.
 function connectionsOf(participants, store) {
-  const endpoints = {};
+  const endpoints = {}, bridges = {};
+  const connectBridge = (name) => {
+    if (!name || bridges[name]) return;
+    const stored = readSetting(store, `bridge:${name}`);
+    if (stored) bridges[name] = bridgeAt(settingsOf({ name, ...stored }, readSetting(store, "jump-host")));
+  };
   for (const participant of participants) {
     const name = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
     const stored = name === undefined ? null : readSetting(store, `endpoint:${name}`);
-    if (stored) endpoints[name] = { config: { name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, bridge: stored.throughBridge ? "paired" : null };
+    if (stored) {
+      endpoints[name] = { config: { name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, bridge: stored.bridge ?? null };
+      connectBridge(stored.bridge);
+    }
+    connectBridge(/^bridge\s+(\S+)\s+agent\s+\S+/.exec(participant.route ?? "")?.[1]);
   }
-  return { endpoints, bridges: {} };
+  return { endpoints, bridges };
 }
 
 async function defaultSnapshot(host) {
@@ -87,6 +99,7 @@ export function participantList(drafters, product, needs, role = "participant") 
  */
 export async function showDraft(where, kind) {
   if (kind.whole) return showArchitectureDraft(where, kind);
+  if (kind.draft === "derive-requirements") return showRequirementsDraft(where, kind);
   const { target, snapshot, token, host, context } = where;
   target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, null, `All ${kind.plural}`));
   let graph, loaded;
@@ -137,9 +150,8 @@ const inputsOf = (root, className) => {
 };
 export const byClassChecked = (list, name, role = "participant") => inputsOf(list, role).some((box) => box.value === name && box.checked);
 
-// The run panel for the chosen participant and selection; Run starts the job.
-export async function panelOf(run) {
-  const { stage, context, token, host, snapshot, definition, kind, chosen, params, participants, instanceSnapshot } = run;
+async function preparedRun(run, snapshot = run.snapshot, params = run.params) {
+  const { context, token, host, definition, chosen, participants, instanceSnapshot } = run;
   const now = new Date();
   const taken = new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));
   const id = newJobId(now, taken);
@@ -147,37 +159,75 @@ export async function panelOf(run) {
   const jobContext = { kind: definition, params, product: { address: snapshot.repository?.web ?? "", snapshot, host },
     instance: { snapshot: instanceSnapshot, host: context.product ? context.instance.host : host, checkout: null }, connect: async () => host, participants,
     places: run.places ?? { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
-  let prepared;
+  let prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
+  if (run.relax) prepared = run.relax(prepared);
+  const offer = routesFor(chosen, run.product, run.needs)[0];
+  return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
+}
+
+// The run panel for the chosen participant and selection; Run starts the job.
+export async function panelOf(run) {
+  const { stage, token, kind } = run;
+  let ready;
   try {
-    prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
-    if (run.relax) prepared = run.relax(prepared);
+    ready = await preparedRun(run);
   } catch (failure) {
     stage.append(problem(failure, token));
     return;
   }
-  const offer = routesFor(chosen, run.product, run.needs)[0];
-  stage.append(explain(kind.explain.draft.panel), runPanel(prepared, { onRun: () => start({ ...run, prepared, jobContext, id, now, agentM, offer }) }));
+  const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
+  run.decoratePanel?.(panel, ready.prepared);
+  stage.append(explain(kind.explain.draft.panel), panel);
+}
+
+async function execute(run, refine) {
+  const { host, token, snapshot, prepared, id, now, agentM, offer, chosen, params, worksOn } = run;
+  if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
+  const record = { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
+    startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
+    destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
+  const { path } = await queueJob(host, record, offer.route, snapshot.commit);
+  if (offer.route.kind !== "tab") return { queued: true, record };
+  const acting = [prepared.drafter, ...prepared.reviewers].filter(Boolean);
+  const outcome = await runOnTab(prepared, run.jobContext, connectionsOf(acting, run.context.store), { host, record: { ...record, path }, refine });
+  return { queued: false, outcome, record };
 }
 
 async function start(run) {
-  const { stage, host, token, snapshot, prepared, id, now, agentM, offer, chosen, kind, params, worksOn } = run;
+  const { stage, kind, id } = run;
   const result = el("section", "job");
   stage.append(result);
   try {
-    if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
-    const start_ = { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
-      startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
-      destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
-    const { path } = await queueJob(host, start_, offer.route, snapshot.commit);
-    if (offer.route.kind !== "tab") {
-      result.append(el("p", "queued", `Job ${id} is queued on the route ${recordRoute(offer.route)}; it is not run in this tab.`), explain(kind.explain.draft.ci));
+    const executed = await execute(run);
+    if (executed.queued) {
+      result.append(el("p", "queued", `Job ${id} is queued on the route ${recordRoute(run.offer.route)}; it is not run in this tab.`), explain(kind.explain.draft.ci));
       return;
     }
-    const outcome = await runOnTab(prepared, run.jobContext, connectionsOf(run.participants, run.context.store), { host, record: { ...start_, path } });
-    await run.present(outcome, result, { ...run, record: start_ });
+    await run.present(executed.outcome, result, { ...run, record: executed.record });
   } catch (failure) {
     result.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
   }
+}
+
+/**
+ * refineOnTab(run, params, draft, handlers) — discloses a follow-up, whose Run records and executes it against `draft`.
+ */
+export async function refineOnTab(run, params, draft, { stage, onResult }) {
+  const snapshot = await defaultSnapshot(run.host);
+  const ready = await preparedRun(run, snapshot, params);
+  if (ready.offer?.route.kind !== "tab") throw Object.assign(new Error("Refine is available only for a job running in this tab."), { name: "RouteUnavailable" });
+  const panel = runPanel(ready.prepared, { onRun: async () => {
+    try {
+      const executed = await execute(ready, draft);
+      await onResult({ outcome: executed.outcome, run: { ...ready, record: executed.record } });
+    } catch (failure) {
+      stage.append(problem(failure, run.token));
+    }
+  } });
+  ready.decoratePanel?.(panel, ready.prepared);
+  panel.append(el("section", "refinement-input", el("h4", null, "Follow-up instruction"), el("pre", null, params.instruction),
+    el("h4", null, "Current draft"), el("pre", null, typeof draft === "string" ? draft : JSON.stringify(draft, null, 2))));
+  stage.replaceChildren(explain(run.kind.explain.draft.panel), panel);
 }
 
 // What a run of the drafting job came to: the rounds, what the loop left, the files written.
@@ -198,6 +248,205 @@ async function presentDraft(outcome, result, run) {
 export async function jobNotes(snapshot, id) {
   const rows = await listJobs([{ address: snapshot.repository?.web ?? "", snapshot }], new Map());
   return rows.flatMap((row) => row.record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
+}
+
+// ---------------------------------------------------------------- deriving requirements from a linked source (UC-005)
+
+const cleanCell = (value) => String(value ?? "").trim().replace(/^`|`$/g, "");
+const sourceRowsOf = (links) => links.sections.flatMap((section) => section.rows ?? []);
+const sourceTitle = (entry) => String(entry.fields?.title ?? entry.title ?? entry.id);
+function sourceExplain(topic) {
+  const found = explain(topic);
+  if (found.childNodes.length) return found;
+  return el("details", "explain", el("summary", null, "What is this?"),
+    el("p", null, "Choose the linked source version and the files of that version that the participant should receive."));
+}
+
+async function requirementSourceChoices(where) {
+  const { links, register } = await sourcesOf(where);
+  return sourceRowsOf(links).map((row) => {
+    const id = cleanCell(row.cells.Source);
+    const linked = linkedVersion(links, register, id);
+    if (!linked) return null;
+    return { id, title: sourceTitle(linked.source), part: cleanCell(row.cells.Part), version: linked.version, source: linked.source };
+  }).filter(Boolean);
+}
+
+function sourceChoiceList(choices) {
+  const list = el("ul", "sources");
+  for (const [at, choice] of choices.entries()) {
+    const radio = el("input", "source");
+    radio.type = "radio";
+    radio.name = "source";
+    radio.value = choice.id;
+    radio.checked = at === 0;
+    const files = el("ul", "source-files");
+    for (const file of choice.version.files.filter((each) => each.stored)) {
+      const box = el("input", "source-file");
+      box.type = "checkbox";
+      box.value = file.name;
+      box.checked = true;
+      files.append(el("li", null, el("label", null, box, ` ${file.name}`)));
+    }
+    const item = el("li", "source", el("label", null, radio, ` ${choice.id} - ${choice.title}`),
+      choice.part ? el("span", "part", ` part: ${choice.part}`) : "", files);
+    item.setAttribute("data-source", choice.id);
+    list.append(item);
+  }
+  return list;
+}
+
+function chosenSource(choices, list) {
+  const id = inputsOf(list, "source").find((box) => box.checked)?.value ?? choices[0]?.id;
+  const choice = choices.find((each) => each.id === id) ?? choices[0];
+  const item = [...list.childNodes].find((node) => node.nodeType === 1 && node.getAttribute("data-source") === choice.id);
+  const selected = inputsOf(item, "source-file").filter((box) => box.checked).map((box) => box.value);
+  return { choice, selected, stored: choice.version.files.filter((file) => file.stored).map((file) => file.name) };
+}
+
+async function showRequirementsDraft(where, kind) {
+  const { target, token } = where;
+  target.append(el("h2", null, "Derive requirements"), sourceExplain(kind.explain.draft.source), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  let loaded, choices;
+  try {
+    loaded = await loadStage(where, kind.draft);
+    choices = await requirementSourceChoices(where);
+  } catch (failure) {
+    target.append(problem(failure, token));
+    return;
+  }
+  const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
+  if (choices.length === 0) {
+    target.append(el("p", "problem", "The product links no source whose version can be read."));
+    return;
+  }
+  const sources = sourceChoiceList(choices);
+  target.append(el("section", "source-selection", el("h3", null, "Linked source"), sources));
+
+  const offered = participantList(drafters, product, needs);
+  target.append(el("section", "drafters", el("h3", null, "Drafting participant"), explain(kind.explain.draft.participant), offered));
+
+  const stage = el("section", "stage");
+  if (!token) {
+    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", link(TOKEN_STEP, "token-step", "Store the token")), stage);
+    return;
+  }
+  const prepare = button("btn prepare", "Show the run panel");
+  prepare.addEventListener("click", async () => {
+    stage.replaceChildren();
+    const chosen = drafters.find((participant) => byClassChecked(offered, participant.name));
+    if (!chosen) { stage.append(el("p", "problem", "Choose the participant that drafts.")); return; }
+    const picked = chosenSource(choices, sources);
+    if (!picked.selected.length) { stage.append(el("p", "problem", "Choose at least one file of the source version.")); return; }
+    const part = picked.selected.length < picked.stored.length ? picked.selected : undefined;
+    const params = { source: picked.choice.id, ...(part ? { part } : {}) };
+    const worksOn = [picked.choice.id];
+    const decoratePanel = (panel, prepared) => {
+      const count = prepared.parts.find((part_) => part_.recipe === "spec-with-queues")?.artifacts?.length ?? 0;
+      panel.append(el("p", "requirements-included", `${count} existing requirements included.`));
+    };
+    await panelOf({ ...where, definition, kind, jobKind: kind.draft, params, worksOn, present: presentRequirements, chosen, participants,
+      instanceSnapshot, product, needs, stage, decoratePanel });
+  });
+  target.append(prepare, stage);
+}
+
+function classOptions(value) {
+  const select = el("select", "class");
+  for (const name of ["new", "change", "duplicate", "conflict"]) {
+    const option = el("option", null, name);
+    option.value = name;
+    if (name === value) option.selected = true;
+    select.append(option);
+  }
+  select.value = value;
+  return select;
+}
+
+async function linkedSourceInfo(where) {
+  const { links, register } = await sourcesOf(where);
+  const byName = (name) => linkedVersion(links, register, name);
+  return { byName };
+}
+
+function candidateClass(candidate, classes) {
+  const found = classes?.find((each) => each.refs?.includes(candidate.name));
+  return found ?? { refs: [candidate.name], from: [candidate.passage].filter(Boolean), class: candidate.class, of: candidate.of ?? null };
+}
+
+function candidateItem(candidate, decided, linked) {
+  const item = el("li", "candidate");
+  item.setAttribute("data-name", candidate.name);
+  item.append(el("span", "candidate-name", candidate.name), " ", classOptions(decided.class), " of ");
+  const of = el("input", "of");
+  of.value = decided.of ?? "";
+  item.append(of, el("p", "candidate-rule", candidate.rule));
+  if (decided.of) item.append(el("p", "refers-to", `Beside ${decided.of}.`));
+  if (decided.class === "conflict" && linked?.source?.fields?.authority) {
+    item.append(el("p", "normative", `${linked.source.id} is ${linked.source.fields.authority}.`));
+  }
+  return item;
+}
+
+function classesFrom(panel, classes) {
+  return elementsOf(panel, "li", "candidate").map((item) => {
+    const name = item.getAttribute("data-name");
+    const was = classes.find((each) => each.refs?.includes(name)) ?? { refs: [name], from: [], class: "new", of: null };
+    const select = elementsOf(item, "select", "class")[0];
+    const of = elementsOf(item, "input", "of")[0];
+    return { refs: [name], from: was.from ?? [], class: select.value || was.class, of: of.value.trim() || null };
+  });
+}
+
+async function presentRequirements(outcome, result, run) {
+  const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
+  const classes = candidates.map((candidate) => candidateClass(candidate, outcome.classes));
+  const linked = await linkedSourceInfo(run);
+  const panel = el("section", "requirements-result", el("h3", null, "Requirement candidates"),
+    el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(run.kind.explain.draft.loop));
+  const left = el("ul", "left");
+  for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} - ${finding.fix}`));
+  panel.append(left);
+
+  const groups = new Map();
+  for (const candidate of candidates) {
+    const decided = candidateClass(candidate, classes);
+    if (!groups.has(decided.class)) groups.set(decided.class, []);
+    groups.get(decided.class).push({ candidate, decided });
+  }
+  for (const [name, entries] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
+    const list = el("ul", "candidates");
+    for (const { candidate, decided } of entries) list.append(candidateItem(candidate, decided, linked.byName(candidate.source ?? run.params?.source)));
+    const section = el("section", "candidate-group", el("h4", null, name), list);
+    section.setAttribute("data-class", name);
+    panel.append(section);
+  }
+
+  const unlinked = candidates.filter((candidate) => candidate.source && !linked.byName(candidate.source));
+  if (unlinked.length) {
+    panel.append(el("section", "unlinked-candidates", el("h4", null, "Link first"),
+      el("ul", null, ...unlinked.map((candidate) => el("li", null, `${candidate.name}: ${candidate.source} is not linked; link the source first.`)))));
+  }
+
+  const status = el("div", "draft-actions");
+  const write = button("btn write-proposals", "Write proposals");
+  write.addEventListener("click", async () => {
+    write.disabled = true;
+    status.replaceChildren();
+    try {
+      const info = await run.host.repositoryInfo();
+      const snapshot = await run.host.readSnapshot(info.defaultBranch);
+      const context = { ...run.jobContext, product: { ...run.jobContext.product, snapshot } };
+      const written = await writeResult(run.prepared, outcome.draft, { result: { ...outcome, classes: classesFrom(panel, classes) }, context });
+      status.append(el("p", "written", written.files?.length ? `Written: ${written.files.join(", ")}` : "Nothing changed."));
+      if (written.notes?.length) status.append(el("ul", "notes", ...written.notes.map((note) => el("li", "note", note))));
+    } catch (failure) {
+      write.disabled = false;
+      status.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
+    }
+  });
+  panel.append(el("div", "actions", write), status);
+  result.append(panel);
 }
 
 // ---------------------------------------------------------------- the architecture's derivation, up to Run (UC-022 steps 1 to 4)
@@ -309,4 +558,143 @@ async function showArchitectureDraft(where, kind) {
 // What a run of the derivation came to, here: that it ran. The draft that waits for the author is shown by the page that follows.
 async function presentDerivation(outcome, result, run) {
   result.append(el("p", "ran", `Job ${run.id} ran in this tab.`));
+  const shown = el("section", "architecture-result", el("h3", null, "Drafted architecture"));
+  const files = el("section", "draft-files");
+  const status = el("div", "draft-actions");
+  let current = outcome;
+
+  const draftFromEditors = () => {
+    const texts = new Map(elementsOf(files, "textarea", "draft-text").map((area) => [area.getAttribute("data-path"), area.value]));
+    return { ...current.draft, files: (current.draft?.files ?? []).map((file) => ({ ...file, text: texts.get(file.path) ?? file.text })) };
+  };
+  const showCurrentDraft = () => {
+    files.replaceChildren(...(current.draft?.files ?? []).map(draftFileView));
+  };
+  const setStatus = (...nodes) => status.replaceChildren(...nodes);
+
+  showCurrentDraft();
+  if (outcome.stoppedBecause === "not checked") shown.append(el("p", "not-checked", "The draft is not checked because a reviewer answer could not be read."));
+  if (outcome.rounds?.length) shown.append(roundsSection(outcome.rounds, outcome.stoppedBecause));
+  if (outcome.remaining?.length) shown.append(findingsList("left", outcome.remaining));
+  if (outcome.stepFindings?.length) shown.append(findingsList("step-findings", outcome.stepFindings));
+  shown.append(files);
+
+  const check = button("btn check-edit", "Check this edit");
+  check.addEventListener("click", async () => {
+    check.disabled = true;
+    setStatus();
+    try {
+      current = await checkDraft(run, draftFromEditors());
+      showCurrentDraft();
+      setStatus(el("p", "checked-edit", "The edited draft was checked as a whole."));
+    } catch (failure) {
+      setStatus(el("p", "result problem", `${failure.name}: ${failure.message}`));
+    } finally {
+      check.disabled = false;
+    }
+  });
+
+  const write = button("btn write-proposals", "Write proposals");
+  write.addEventListener("click", async () => {
+    write.disabled = true;
+    setStatus();
+    try {
+      const written = await writeResult(run.prepared, draftFromEditors(), { result: current, context: run.jobContext });
+      setStatus(el("p", "written", written.files?.length ? `Written: ${written.files.join(", ")}` : "Nothing changed."));
+    } catch (failure) {
+      write.disabled = false;
+      if (failure.name === "DueDiligenceMissing") {
+        setStatus(el("p", "due-diligence-missing", dueDiligenceMissingText(failure, run)));
+      } else {
+        setStatus(el("p", "result problem", `${failure.name}: ${failure.message}`));
+      }
+    }
+  });
+
+  const again = button("btn start-again", "Start again");
+  again.addEventListener("click", () => result.remove());
+  shown.append(el("div", "actions", check, write, again), status);
+  result.append(shown);
+}
+
+function elementsOf(root, localName, className) {
+  const walk = (node) => [...node.childNodes].flatMap((kid) => (kid.nodeType === 1 ? [kid, ...walk(kid)] : []));
+  return walk(root).filter((node) => node.localName === localName && node.className.split(" ").includes(className));
+}
+
+function markdownCells(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) return null;
+  return trimmed.slice(1, -1).split("|").map((cell) => cell.trim());
+}
+
+function candidateChoices(file) {
+  const { section } = splitDueDiligence(file.text);
+  if (!section) return [];
+  const out = [];
+  let header = null;
+  for (const line of section.split(/\r?\n/)) {
+    const cells = markdownCells(line);
+    if (!cells) continue;
+    if (cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
+    if (!header) { header = cells; continue; }
+    const at = header.findIndex((cell) => cell.toLowerCase() === "candidate");
+    if (at >= 0 && cells[at]) out.push(cells[at]);
+  }
+  return out;
+}
+
+function draftFileView(file) {
+  const box = el("section", "draft-file", el("h4", null, file.path));
+  box.setAttribute("data-path", file.path);
+  const area = el("textarea", "draft-text");
+  area.value = file.text;
+  area.setAttribute("data-path", file.path);
+  box.append(area);
+  const { section } = splitDueDiligence(file.text);
+  if (section !== null) box.append(dueDiligenceSection(section));
+  const choices = candidateChoices(file);
+  if (choices.length) {
+    const list = el("ul", "reuse-candidates");
+    for (const candidate of choices) {
+      const radio = el("input", "reuse-candidate");
+      radio.type = "radio";
+      radio.name = `reuse-${file.path}`;
+      radio.value = candidate;
+      list.append(el("li", null, el("label", null, radio, ` ${candidate}`)));
+    }
+    box.append(list);
+  }
+  return box;
+}
+
+function findingLine(found) {
+  return `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}`;
+}
+
+function findingsList(className, findings) {
+  const list = el("ul", className);
+  for (const found of findings) list.append(el("li", found.kind, findingLine(found)));
+  return list;
+}
+
+function directEndpointDriver(participant, store) {
+  const name = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
+  const stored = name === undefined ? null : readSetting(store, `endpoint:${name}`);
+  if (!stored) throw Object.assign(new Error(`the endpoint ${name ?? "unknown"} has no configuration`), { name: "EndpointNotConfigured" });
+  return endpointDriver({ name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, participant);
+}
+
+async function checkDraft(run, draft) {
+  const drivers = { drafter: run.prepared.drafter ? directEndpointDriver(run.prepared.drafter, run.context.store) : null,
+    reviewers: run.prepared.reviewers.map((reviewer) => directEndpointDriver(reviewer, run.context.store)) };
+  return runJob(run.prepared, drivers, { attended: true, context: run.jobContext, from: draft });
+}
+
+function dueDiligenceMissingText(failure, run) {
+  const registries = (failure.decisions ?? []).map((each) => each.registry).filter(Boolean);
+  const offered = run.participants.flatMap((participant) => routesFor(participant, run.product, run.needs)
+    .map((offer) => ({ participant, offer }))).find(({ offer }) => offer.available && offer.route.kind !== "tab");
+  const route = offered ? ` Try ${recordRoute(offered.offer.route)} with ${offered.participant.name}.` : " Try a participant that can reach the web.";
+  return `${failure.message}${registries.length ? ` Registry: ${registries.join(", ")}.` : ""}${route}`;
 }

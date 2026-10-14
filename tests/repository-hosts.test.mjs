@@ -462,6 +462,38 @@ const githubLimit = (status, limit, remaining = 0) => () => json(status, { messa
   "X-RateLimit-Limit": String(limit), "X-RateLimit-Remaining": String(remaining), "X-RateLimit-Used": String(limit - remaining),
   "X-RateLimit-Reset": String(RESET), "X-RateLimit-Resource": "core" });
 
+// TST-475207 · level: unit · module: MOD-repository-hosts
+// guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// given: the public GitHub host succeeds on the controlled 200 repository endpoint.
+// input: that endpoint then answers 401, including exhausted-limit headers.
+// expect: unchanged HostError TokenRefused/tokenName/renewal fields; neutral rejected-authentication wording naming the token and renewal, without any guessed expiry/regeneration/deletion cause.
+test("TST-475207: GitHub 401 names rejected authentication without guessing its cause", async () => {
+  const named = "My instance token";
+  const host = connect(GITHUB, { token: GH_TOKEN, tokenName: named });
+  assert.equal((await using(fakeGitHub().fetch, () => host.repositoryInfo())).defaultBranch, "main", "known positive: the same public host succeeds on 200");
+  const error = await using(fakeGitHub({ answer: githubLimit(401, 5000) }).fetch, () => failure(host.repositoryInfo()));
+  assert.ok(error instanceof HostError);
+  assert.deepEqual([error.name, error.tokenName, error.renewal], ["TokenRefused", named, GH_TOKENS], "401 remains authentication rejection even with rate-limit headers");
+  assert.equal(error.message, `GitHub rejected authentication with your ${named}. Renew it on ${GH_TOKENS}.`, "failure node: the host message reports rejection, identity and recovery, not an inferred cause");
+  assert.doesNotMatch(error.message, /expired|expiry|regenerat|delet|rotat|revok/i);
+});
+
+// TST-475208 · level: unit · module: MOD-repository-hosts
+// guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; GITLAB PRODUCTS ARE SUPPORTED
+// given: the public GitLab host succeeds on its controlled 200 project endpoint.
+// input: the same endpoint answers 401.
+// expect: unchanged TokenRefused identity/renewal fields, with rejected authentication named and no inferred expiry/rotation/revocation cause.
+test("TST-475208: GitLab 401 preserves its identity and renewal without guessing expiry", async () => {
+  const named = "My project token";
+  const host = connect(GITLAB, { token: GL_TOKEN, tokenName: named });
+  assert.equal((await using(fakeGitLab().fetch, () => host.repositoryInfo())).defaultBranch, "main", "known positive: GitLab repositoryInfo succeeds on 200");
+  const error = await using(fakeGitLab({ answer: () => json(401, { message: "401 Unauthorized" }) }).fetch, () => failure(host.repositoryInfo()));
+  assert.ok(error instanceof HostError);
+  assert.deepEqual([error.name, error.tokenName, error.renewal], ["TokenRefused", named, GL_TOKENS]);
+  assert.equal(error.message, `${GITLAB.origin.replace("https://", "")} rejected authentication with your ${named}. Renew it on ${GL_TOKENS}.`, "failure node: the GitLab host does not infer a reason for rejection");
+  assert.doesNotMatch(error.message, /expired|expiry|regenerat|delet|rotat|revok/i);
+});
+
 // A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN — Expected: GitHub's 403 or 429 with X-RateLimit-Remaining: 0 and
 // X-RateLimit-Limit: 5000 fails a read — the repository's information, a snapshot — and a write as RateLimited { limit:
 // "account" } with the reset time the server sent, never as TokenRefused or PermissionMissing, and the write writes nothing;

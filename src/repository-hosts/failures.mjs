@@ -97,8 +97,8 @@ export async function refusal(answer, context) {
   const { server, host, web, authenticated, tokenName, renewal, permission, write, what, search } = context;
   if (answer.status === 401) {
     return new HostError("TokenRefused", { tokenName, renewal }, server === "github"
-      ? `GitHub refused your ${tokenName} — it has expired, or was regenerated or deleted on GitHub. Renew it on ${renewal}.`
-      : `${host} refused your ${tokenName} — it has expired, or was rotated or revoked on GitLab. Renew it on ${renewal}.`);
+      ? `GitHub rejected authentication with your ${tokenName}. Renew it on ${renewal}.`
+      : `${host} rejected authentication with your ${tokenName}. Renew it on ${renewal}.`);
   }
   const limit = usedUpLimit(answer, server, authenticated, search);
   if (limit) {

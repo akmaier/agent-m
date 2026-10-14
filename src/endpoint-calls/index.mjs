@@ -1,5 +1,7 @@
 // MOD-endpoint-calls — direct endpoint tests, diagnoses, and model drivers for browser and Node callers.
 
+import { driverPrompt } from "../job-runner/index.mjs";
+
 /**
  * @typedef {{ name: string, kind: "openai-compatible" | "anthropic", baseUrl: string, model: string, key: string | null }} EndpointConfig
  */
@@ -81,7 +83,7 @@ function answerOf(body, kind) {
 export function endpointDriver(config, participant) {
   return { participant, async send(input, options = {}) {
     const where = typeof window === "undefined" ? "node" : "browser";
-    const { url, init } = driverRequest(config, input.prompt, options.signal);
+    const { url, init } = driverRequest(config, driverPrompt(input), options.signal);
     let response;
     try {
       response = await fetch(url, init);

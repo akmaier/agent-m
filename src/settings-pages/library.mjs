@@ -26,6 +26,7 @@ import { credentialsFor } from "./products.mjs";
 
 const { entry: ENTRY, links: LINKS } = sourceSchemas();
 const REGISTER_PATH = /^docs\/sources\/SRC-[^/]+\.md$/;
+const FETCH_WORKFLOW = "fetch-sources.yml";
 const KIND_OF = { "legal-text": "regulation", standard: "standard", documents: "document", repository: "system" };
 const ROUTES = {
   "legal-text": "An EU legal text — paste its EUR-Lex or ELI address, for example the AI Act's.",
@@ -54,11 +55,12 @@ async function readRegisterOf(host) {
     const text = await snapshot.read(path);
     if (text !== null && text !== undefined) entries.push(readDocument(ENTRY, path, text));
   }
-  return entries;
+  return { entries, branch: defaultBranch };
 }
 
 const versionsOf = (entry) => entry.sections.find((section) => section.heading === "## Versions")?.rows ?? [];
 const namesOf = (fields, id) => [id, fields.title, fields.kind === "standard" ? fields.designation : null].filter((name) => typeof name === "string" && name.trim() !== "");
+const isLegalText = (entry) => Boolean(recogniseLegalText(entry.fields.identifier));
 
 // The files of one version of an entry, each stored or not, as MOD-source-register's linkedVersion reads the entry's note.
 function filesOfVersion(entry, row) {
@@ -77,6 +79,43 @@ function entryView(entry, context) {
   const fields = Object.entries(entry.fields).map(([key, value]) => el("li", null, `${key}: ${Array.isArray(value) ? value.join(", ") : value}`));
   return el("section", "library-entry panel", el("h2", null, `${entry.fields.title} (${entry.id})`), el("ul", null, ...fields), el("h3", null, "Versions"),
     versions.length ? el("ul", null, ...versions) : el("p", null, "No version is recorded yet."), el("p", null, back));
+}
+
+async function fetchFailures(host, branch, entries) {
+  if (typeof host.listCiRuns !== "function" || typeof host.ciRunLog !== "function") return new Map();
+  let runs;
+  try { runs = await host.listCiRuns({ workflow: FETCH_WORKFLOW, branch }); } catch { return new Map(); }
+  const waiting = entries.filter((entry) => isLegalText(entry) && versionsOf(entry).length === 0);
+  const failures = new Map();
+  for (const run of runs.filter((each) => each.state === "failure")) {
+    const log = await host.ciRunLog(run.id);
+    for (const entry of waiting) {
+      if (failures.has(entry.id) || !String(log ?? "").includes(entry.id)) continue;
+      const line = String(log).split("\n").find((each) => each.includes(entry.id)) ?? String(log);
+      failures.set(entry.id, line);
+    }
+  }
+  return failures;
+}
+
+function fetchState(entry, failures, startFetch) {
+  if (!isLegalText(entry)) return null;
+  if (versionsOf(entry).length) return el("p", "library-fetch-state", "Fetched.");
+  const failed = failures.get(entry.id);
+  const state = el("p", "library-fetch-state", failed ? `Fetch failed: ${failed}` : "Waiting for fetch.");
+  const again = el("button", "library-fetch-again btn", "Fetch again");
+  again.addEventListener("click", async () => {
+    again.disabled = true;
+    state.textContent = "Starting fetch workflow.";
+    try {
+      const run = await startFetch();
+      state.textContent = run?.url ? `Fetch workflow started: ${run.url}` : "Fetch workflow started.";
+    } catch (error) {
+      again.disabled = false;
+      state.textContent = `The fetch workflow could not be started: ${error?.message ?? error}.`;
+    }
+  });
+  return el("div", "library-fetch", state, again);
 }
 
 // The commit of one repository's files: the branch's head read just before, the commit made on it.
@@ -103,8 +142,11 @@ export const route = {
   title: "Library",
   async render(target, context, params = {}) {
     const instanceRepo = context.instance.repository;
-    let entries;
-    try { entries = await readRegisterOf(context.instance.host); } catch (error) {
+    let entries, branch, failures;
+    try {
+      ({ entries, branch } = await readRegisterOf(context.instance.host));
+      failures = await fetchFailures(context.instance.host, branch, entries);
+    } catch (error) {
       target.replaceChildren(el("h2", null, "Library"), el("p", "library-unreadable", `The library could not be read: ${error?.message ?? error}.`));
       return;
     }
@@ -119,8 +161,10 @@ export const route = {
     const showList = () => list.replaceChildren(...entries.map((entry) => {
       const name = el("button", "library-source-name btn", entry.fields.title ?? entry.id);
       name.addEventListener("click", () => context.go("library", { source: entry.id }));
+      const startFetch = () => context.instance.host.startWorkflow(FETCH_WORKFLOW, branch, {});
       return el("section", "library-source panel", el("h3", null, name), el("p", null, `${entry.id} · ${entry.fields.kind} · ${entry.fields.authority}`),
-        el("p", null, versionsOf(entry).length ? `Versions: ${versionsOf(entry).map((row) => unquoted(row.cells.Version)).join(", ")}` : "No version recorded yet."));
+        el("p", null, versionsOf(entry).length ? `Versions: ${versionsOf(entry).map((row) => unquoted(row.cells.Version)).join(", ")}` : "No version recorded yet."),
+        fetchState(entry, failures, startFetch) ?? "");
     }));
     showList();
 
@@ -249,7 +293,7 @@ export const route = {
           }
           done.push(web);
         }
-        entries = await readRegisterOf(context.instance.host);
+        ({ entries } = await readRegisterOf(context.instance.host));
         showList();
         const open = el("button", "library-open-entry btn", `Open ${id}`);
         open.addEventListener("click", () => context.go("library", { source: id }));

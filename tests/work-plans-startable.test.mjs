@@ -16,9 +16,8 @@
 // endpoint that can only draft text and read the repository. A role assignment is read with MOD-product-process'
 // roleAssignmentSchema, a sprint with planSchemas.sprint, both through MOD-documents' readDocument; the held items come from
 // heldItems. The workflow is written here in MOD-product-process' Workflow form with the parts startable reads, and the
-// items' states in the form of ItemState: itemStates, which derives them, is not built yet. A reason is a sentence; each test
-// checks the facts the reason must name — the item, the sprint, the limit, the role —, not its wording. Nothing reaches the
-// network.
+// items' states in the form of ItemState, as itemStates derives them. A reason is a sentence; each test checks the facts the
+// reason must name — the item, the sprint, the limit, the role —, not its wording. Nothing reaches the network.
 
 import test from "node:test";
 import assert from "node:assert/strict";

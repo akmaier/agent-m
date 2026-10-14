@@ -214,7 +214,7 @@ export const route = {
         const settings = await pair(address.value.trim(), copiedToken);
         if (typeof settings.name === "string" && settings.name) {
           writeSetting(context.store, `bridge:${settings.name}`, { address: settings.address, token: settings.token });
-          // The single `bridge` stays the Bridge paired last: the pages that read only it (the endpoints page) keep working.
+          // Keep the legacy single `bridge` as the Bridge paired last while named Bridge callers use `bridge:<name>`.
           writeSetting(context.store, "bridge", { address: settings.address, token: settings.token });
           applyBridge(bridgeFields, settings);
           result.textContent = `The Bridge ${settings.name} is paired in this browser.`;

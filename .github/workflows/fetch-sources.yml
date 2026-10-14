@@ -1,0 +1,25 @@
+# MOD-workflow-entries onSourcesCommitted: fetches official EU legal texts whose source entries are waiting for a version.
+name: fetch sources
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/sources/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-sources
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch EU legal texts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node src/workflow-entries/main.mjs onSourcesCommitted

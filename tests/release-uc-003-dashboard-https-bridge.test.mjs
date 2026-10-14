@@ -75,8 +75,8 @@ test("TST-266002: configured HTTPS forwarding keeps jump-host login separate fro
     return nativeFetch(url.href, init);
   }] });
   const entries = {
-    [`${PREFIX}bridge`]: JSON.stringify({ address: HTTPS, token: bridge.token }),
-    [`${PREFIX}jump-host`]: JSON.stringify({ hostname: "jump.example.test", user: "ssh-user", sshPort: 22, portRange: [40100, 40199], httpsAddress: HTTPS, login: LOGIN }),
+    [`${PREFIX}bridge:local`]: JSON.stringify({ port: 40100, token: bridge.token }),
+    [`${PREFIX}jump-host`]: JSON.stringify({ hostname: "jump.example.test", user: "ssh-user", sshPort: 22, portRange: [40100, 40199], httpsAddress: "https://jump.example.test", login: LOGIN }),
   };
   const page = await openDashboard({ server, hash: "#uc", entries });
   const dom = richDocument(), main = dom.byId("main"); let mounted = [];
@@ -94,7 +94,8 @@ test("TST-266002: configured HTTPS forwarding keeps jump-host login separate fro
   main.querySelector(".endpoint-url").value = endpointUrl;
   main.querySelector(".endpoint-model").value = "release-controlled-model";
   main.querySelector(".endpoint-key").value = key;
-  main.querySelector(".endpoint-through-bridge").checked = true;
+  main.querySelector(".endpoint-bridge").value = "local";
+  main.querySelector(".endpoint-bridge").dispatchEvent(new Event("change"));
   await press(server, main.querySelector(".endpoint-test"));
   assert.match(main.querySelector(".endpoint-result").textContent, /release-controlled-model is working/, "failure node: public dashboard renders the HTTPS-forwarded Bridge success");
   assert.equal(forwarded.length, 1, "the controlled forwarding fixture received exactly one dashboard request");

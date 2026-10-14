@@ -113,7 +113,7 @@ test("UC-008 4a counter-proof: a token the server refuses (401) is named for ren
   const { srv, result } = await refusedAccept(refuseWrite(401, {}, "Bad credentials"));
   assert.deepEqual(srv.writes, []);
   const said = `${result.text} ${result.html}`;
-  assert.match(said, /GitHub refused your GitHub token/);
+  assert.match(said, /GitHub rejected authentication with your GitHub token/);
   assert.doesNotMatch(said, /cannot write|pull request/);
   assert.ok(!hrefs(result.html).some((x) => x.startsWith(NEW_PAGE)), "no GitHub page offered");
 }));

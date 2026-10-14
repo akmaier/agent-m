@@ -70,7 +70,7 @@ function resultsOf(written) {
  * ends the record as failed, with the failure's name and message as the reason, and is thrown again unchanged; a cancelled job is ended by cancelJob, not here.
  */
 export async function runOnTab(prepared, context, connections, hooks) {
-  const { host, record, onOutput, signal } = hooks;
+  const { host, record, refine, onOutput, signal } = hooks;
   const append = async (part) => {
     const { defaultBranch } = await host.repositoryInfo();
     const snapshot = await host.readSnapshot(defaultBranch);
@@ -87,7 +87,7 @@ export async function runOnTab(prepared, context, connections, hooks) {
   try {
     const drivers = { drafter: prepared.drafter ? driverOf(prepared.drafter, connections) : null,
       reviewers: prepared.reviewers.map((reviewer) => driverOf(reviewer, connections)) };
-    result = await runJob(prepared, drivers, { attended: !record.run, context, onOutput, onGate, signal });
+    result = await runJob(prepared, drivers, { attended: !record.run, context, refine, onOutput, onGate, signal });
   } catch (error) {
     if (error.name === "Cancelled") throw error;
     // The job's own failure is what the caller must see: a record that cannot be appended to does not hide it.

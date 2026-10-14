@@ -63,8 +63,14 @@ const accepted = (id, path, body) => ({ [`docs/approvals/${id}-${blobOf(body).sl
 const READY = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, [UC1_PATH]: UC1, [UC2_PATH]: UC2, ...accepted("UC-001", UC1_PATH, UC1), ...accepted("UC-002", UC2_PATH, UC2) };
 const WORKFLOW = ".github/workflows/agent-m-jobs.yml";
 const ARC_PATH = "docs/architecture/ARC-001-the-whole-system.md";
+const ARC_DRAFT_PATH = "docs/architecture/ARC-900-system.md";
+const MOD_DRAFT_PATH = "docs/architecture/MOD-lending.md";
 const QUEUE = "docs/spec-freigaben/2026-10-01_lending";
 const SECRET_LINK = text("# Requirement sources of the thesis tool", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| SRC-secret | 1 | ${"ab".repeat(32)} | |`);
+const NPM_GPL = "https://registry.npmjs.org/gpl-lib";
+const NPM_MIT = "https://registry.npmjs.org/mit-lib";
+const NPM_MISSING = "https://registry.npmjs.org/missing-lib";
+const NPM_BLOCKED = "https://registry.npmjs.org/blocked-lib";
 
 // ---------------------------------------------------------------- the hosts
 
@@ -138,6 +144,127 @@ function endpointsAnswer() {
   };
 }
 test.afterEach(() => { globalThis.fetch = realFetch; });
+
+function modelAnswer(body) {
+  return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(body) } }],
+    usage: { prompt_tokens: 10, completion_tokens: 5 } }), { status: 200, headers: { "content-type": "application/json" } });
+}
+
+function packageData(licence) {
+  return { license: licence, "dist-tags": { latest: "1.1.0" }, versions: { "1.0.0": {}, "1.1.0": {} },
+    time: { "1.0.0": "2023-01-01T00:00:00.000Z", "1.1.0": "2024-01-01T00:00:00.000Z" } };
+}
+
+const REVIEW_FINDING = { artifact: ARC_DRAFT_PATH, line: 19, kind: "warning", rule: "AN ARCHITECTURE IS CHECKED WHEN IT IS COMPLETE",
+  what: "the system boundary is unclear", fix: "state the system boundary" };
+const findingLine = (found) => `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}.`;
+
+function architectureDraft({ candidate = "gpl-lib", alternative = "missing-lib", repository = "" } = {}) {
+  return { files: [{
+    path: ARC_DRAFT_PATH,
+    class: "new",
+    text: text(
+      "---",
+      "id: ARC-900",
+      "title: System",
+      "forced_by:",
+      `  - ${RULE}`,
+      "---",
+      "# ARC-900 System",
+      "",
+      "## Context",
+      "",
+      "The library supports loans.",
+      "",
+      "## Decision",
+      "",
+      "| Candidate | Ecosystem | Repository | Role |",
+      "|---|---|---|---|",
+      `| ${candidate} | npm | ${repository} | chosen |`,
+      "",
+      "## Alternatives",
+      "",
+      "| Candidate | Ecosystem | Repository |",
+      "|---|---|---|",
+      `| ${alternative} | npm | |`,
+      "",
+      "## Consequences",
+      "",
+      "The chosen package is reused."
+    ),
+  }, {
+    path: MOD_DRAFT_PATH,
+    class: "new",
+    text: text(
+      "---",
+      "id: MOD-lending",
+      "title: Lending",
+      "folder: src/lending/",
+      "realises:",
+      `  - ${RULE}`,
+      "follows:",
+      "  - ARC-900",
+      "uses:",
+      "provides:",
+      "  - loans",
+      "---",
+      "# MOD-lending Lending",
+      "",
+      "## Responsibility",
+      "",
+      "It manages loans.",
+      "",
+      "## Parts",
+      "",
+      "- `index.mjs`",
+      "",
+      "## Data",
+      "",
+      "No data.",
+      "",
+      "## Interfaces",
+      "",
+      "- `loans`",
+      "",
+      "## Files",
+      "",
+      "It writes nothing.",
+      "",
+      "## Uses",
+      "",
+      "None."
+    ),
+  }] };
+}
+
+function endpointsAndRegistries({ drafts = [architectureDraft()], reviewerFindings = [[]], registry = {} } = {}) {
+  requests = [];
+  const calls = { ep1: 0, ep2: 0 };
+  globalThis.fetch = async (input) => {
+    const href = String(input?.url ?? input);
+    requests.push(href);
+    if (href.includes("ep1.example.test")) {
+      const at = calls.ep1++;
+      return modelAnswer({ draft: drafts[Math.min(at, drafts.length - 1)], answers: at === 0 ? [] : [
+        { finding: findingLine(REVIEW_FINDING), how: "answered", text: "the boundary is in the context" },
+      ] });
+    }
+    if (href.includes("ep2.example.test")) {
+      const at = calls.ep2++;
+      return modelAnswer({ draft: { findings: reviewerFindings[Math.min(at, reviewerFindings.length - 1)] ?? [] }, answers: [] });
+    }
+    if (Object.hasOwn(registry, href)) {
+      const answer = registry[href];
+      if (answer instanceof Error) throw answer;
+      return new Response(JSON.stringify(answer), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if ([NPM_GPL, NPM_MIT, NPM_MISSING, NPM_BLOCKED].includes(href)) {
+      return new Response(JSON.stringify({ message: "not found" }), { status: 404, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({}), { status: 404, headers: { "content-type": "application/json" } });
+  };
+  return calls;
+}
 
 // ---------------------------------------------------------------- the page
 
@@ -417,4 +544,152 @@ test("decision/draft — a job on the CI route is queued there and not run in th
   assert.deepEqual(fake.writes()[0].files.map((file) => file.path.replace(/JOB-[^.]+/, "JOB")), ["docs/jobs/JOB.md"]);
   assert.match(byClass(target, "p", "queued")[0].textContent, /JOB-\d{8}-\d{4}-[0-9a-f]{4}/);
   assert.match(fake.writes()[0].files[0].text, /^route: ci hosted$/m);
+});
+
+// ---------------------------------------------------------------- after Run
+
+// TST-443001 - level: unit - module: MOD-review-pages
+// guards: UC-022; THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE; A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON
+// given: a run returns a decision and a module; the reviewer leaves one warning that the drafter answers; the product has MIT as LICENSE; the registry knows gpl-lib and not missing-lib
+// input: Run on decision/draft
+// expect: the page shows the drafted files in order, the answered finding in the rounds, the due-diligence table with gpl-lib marked not known to be compatible and missing-lib as not found, and the reuse candidates as choices
+// TST-584004 · level: unit · module: MOD-review-pages
+// guards: UC-022; THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE; A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON
+// given: a run returns a decision and a module; the reviewer leaves one warning that the drafter answers; the product has MIT as LICENSE; the registry knows gpl-lib and not missing-lib
+// input: Run on decision/draft
+// expect: the page shows the drafted files in order, the answered finding in the rounds, the due-diligence table with gpl-lib marked not known to be compatible and missing-lib as not found, and the reuse candidates as choices
+test("decision/draft - after Run shows the architecture draft, rounds, due diligence and candidate choices", async () => {
+  endpointsAndRegistries({
+    reviewerFindings: [[REVIEW_FINDING], []],
+    registry: { [NPM_GPL]: packageData("GPL-3.0") },
+  });
+  const target = await show(fakeProduct({ ...READY, LICENSE: "MIT License\n" }));
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+
+  const result = byClass(target, "section", "architecture-result")[0];
+  assert.deepEqual(byClass(result, "section", "draft-file").map((file) => file.getAttribute("data-path")), [ARC_DRAFT_PATH, MOD_DRAFT_PATH]);
+  assert.match(byClass(result, "section", "rounds")[0].textContent, /answered: the boundary is in the context/);
+  const diligence = byClass(result, "section", "due-diligence")[0].textContent;
+  assert.match(diligence, /gpl-lib/);
+  assert.match(diligence, /not known to be compatible/);
+  assert.match(diligence, /missing-lib/);
+  assert.match(diligence, /not found/);
+  assert.ok(byClass(result, "input", "reuse-candidate").some((box) => /gpl-lib/.test(box.value)));
+});
+
+// TST-443002 - level: unit - module: MOD-review-pages
+// guards: UC-022; A PRODUCT DECLARES ITS LICENCE; A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S
+// given: a run returns a decision whose chosen package has MIT, but the product has no LICENSE
+// input: Run on decision/draft
+// expect: the due-diligence section says why compatibility was not checked and every shown candidate row says not checked
+// TST-584005 · level: unit · module: MOD-review-pages
+// guards: UC-022; A PRODUCT DECLARES ITS LICENCE; A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S
+// given: a run returns a decision whose chosen package has MIT, but the product has no LICENSE
+// input: Run on decision/draft
+// expect: the due-diligence section says why compatibility was not checked and every shown candidate row says not checked
+test("decision/draft - after Run, without LICENSE, due diligence is shown as not checked", async () => {
+  endpointsAndRegistries({
+    drafts: [architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" })],
+    registry: { [NPM_MIT]: packageData("MIT") },
+  });
+  const target = await show(fakeProduct());
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+
+  const diligence = byClass(target, "section", "due-diligence")[0].textContent;
+  assert.match(diligence, /No product LICENSE was found/);
+  assert.match(diligence, /mit-lib \(npm\) - chosen\s+MIT\s+not checked/);
+});
+
+// TST-443003 - level: unit - module: MOD-review-pages
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A GENERATED ARTIFACT IS A PROPOSAL; ONE CLICK PER DECISION
+// given: the architecture draft waits for the author after Run
+// input: the author changes the decision text and clicks Write proposals
+// expect: one non-job commit writes the changed drafted architecture file as an open proposal
+// TST-584006 · level: unit · module: MOD-review-pages
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A GENERATED ARTIFACT IS A PROPOSAL; ONE CLICK PER DECISION
+// given: the architecture draft waits for the author after Run
+// input: the author changes the decision text and clicks Write proposals
+// expect: one non-job commit writes the changed drafted architecture file as an open proposal
+test("decision/draft - Write proposals writes the draft as the author left it", async () => {
+  endpointsAndRegistries({ registry: { [NPM_GPL]: packageData("GPL-3.0") } });
+  const fake = fakeProduct({ ...READY, LICENSE: "MIT License\n" });
+  const target = await show(fake);
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+
+  const decision = byClass(target, "textarea", "draft-text").find((box) => box.getAttribute("data-path") === ARC_DRAFT_PATH);
+  decision.value = decision.value.replace("The chosen package is reused.", "The author kept the package.");
+  click(byClass(target, "button", "write-proposals")[0]);
+  await until(() => byClass(target, "p", "written").length === 1, "the write result");
+
+  const proposalWrites = fake.writes().filter((change) => change.files.some((file) => !file.path.startsWith("docs/jobs/")));
+  assert.equal(proposalWrites.length, 1);
+  assert.ok(proposalWrites[0].files.some((file) => file.path.startsWith("docs/architecture/ARC-") && file.text.includes("The author kept the package.")));
+});
+
+// TST-443004 - level: unit - module: MOD-review-pages
+// guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; ONE CLICK PER DECISION
+// given: the due-diligence step marks a blocked npm registry and the product has a CI route available
+// input: Run, then Write proposals
+// expect: nothing is written, the registry npm is named, and the page offers a route that can fetch the facts elsewhere
+// TST-584007 · level: unit · module: MOD-review-pages
+// guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; ONE CLICK PER DECISION
+// given: the due-diligence step marks a blocked npm registry and the product has a CI route available
+// input: Run, then Write proposals
+// expect: nothing is written, the registry npm is named, and the page offers a route that can fetch the facts elsewhere
+test("decision/draft - a blocked registry keeps Write proposals from writing and names another route", async () => {
+  endpointsAndRegistries({
+    drafts: [architectureDraft({ candidate: "blocked-lib", alternative: "missing-lib" })],
+    registry: { [NPM_BLOCKED]: new TypeError("Failed to fetch") },
+  });
+  const fake = fakeProduct({ ...READY, LICENSE: "MIT License\n", [WORKFLOW]: "name: Agent M jobs\n" });
+  const target = await show(fake);
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+  assert.match(byClass(target, "ul", "step-findings")[0].textContent, /registry npm/);
+
+  click(byClass(target, "button", "write-proposals")[0]);
+  await until(() => byClass(target, "p", "due-diligence-missing").length === 1, "the refusal");
+  const message = byClass(target, "p", "due-diligence-missing")[0].textContent;
+  assert.match(message, /npm/);
+  assert.match(message, /ci hosted/);
+  const proposalWrites = fake.writes().filter((change) => change.files.some((file) => !file.path.startsWith("docs/jobs/")));
+  assert.equal(proposalWrites.length, 0);
+});
+
+// TST-443005 - level: unit - module: MOD-review-pages
+// guards: AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT; UC-022
+// given: the architecture draft waits after Run and the checker's later drafter answer returns a checked draft
+// input: the author edits the decision text and clicks Check this edit
+// expect: the page runs the architecture check again from the edited draft and replaces the shown draft with the checked result
+// TST-584008 · level: unit · module: MOD-review-pages
+// guards: AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT; UC-022
+// given: the architecture draft waits after Run and the checker's later drafter answer returns a checked draft
+// input: the author edits the decision text and clicks Check this edit
+// expect: the page runs the architecture check again from the edited draft and replaces the shown draft with the checked result
+test("decision/draft - Check this edit runs the whole draft again", async () => {
+  const checked = architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" });
+  checked.files[0].text = checked.files[0].text.replace("The chosen package is reused.", "The checked draft came back.");
+  const calls = endpointsAndRegistries({
+    drafts: [architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" }), checked],
+    registry: { [NPM_MIT]: packageData("MIT") },
+  });
+  const target = await show(fakeProduct({ ...READY, LICENSE: "MIT License\n" }));
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+
+  const decision = byClass(target, "textarea", "draft-text").find((box) => box.getAttribute("data-path") === ARC_DRAFT_PATH);
+  decision.value = decision.value.replace("The chosen package is reused.", "The author changed the draft.");
+  click(byClass(target, "button", "check-edit")[0]);
+  await until(() => byClass(target, "p", "checked-edit").length === 1, "the checked edit");
+  assert.ok(calls.ep1 >= 2, "the correction loop can redraft from the edited draft when checks find work");
+  assert.ok(calls.ep2 >= 2, "the reviewer checks the edited draft");
+  assert.match(decision.value, /The checked draft came back/);
 });

@@ -7,6 +7,7 @@ import { route as endpoints } from "./endpoints.mjs";
 import { route as bridge } from "./bridge.mjs";
 import { route as mailbox } from "./mailbox.mjs";
 import { route as library } from "./library.mjs";
+import { route as participants } from "./participants.mjs";
 import { route as settings } from "./settings.mjs";
 
-export const view = { routes: [settings, addProduct, endpoints, bridge, mailbox, library], strategies: [] };
+export const view = { routes: [settings, addProduct, endpoints, participants, bridge, mailbox, library], strategies: [] };

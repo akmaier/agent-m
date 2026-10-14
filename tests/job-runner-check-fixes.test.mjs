@@ -192,6 +192,11 @@ const DECLARED = (id) => `// ${id} · level: unit · module: MOD-export
 // given: a report
 // input: the report exported
 // expect: a PDF file
+// TST-584001 · level: unit · module: MOD-job-runner
+// guards: EXPORT IS A PDF
+// given: a report
+// input: the report exported
+// expect: a PDF file
 test("${id}", () => {});
 `;
 const PLAIN = 'test("plain", () => {});\n';   // a test file that declares none

@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { view } from "../src/settings-pages/index.mjs";
 import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { jobWorkflowFiles } from "../src/runtimes/index.mjs";
 
 class Element {
   constructor(name) { this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.disabled = false; this.attributes = new Map(); this.listeners = []; }
@@ -75,6 +76,113 @@ function writableProduct(writes) {
     },
   };
 }
+
+const text = (...lines) => `${lines.join("\n")}\n`;
+const INSTANCE_COMMIT = "0123456789abcdef0123456789abcdef01234567";
+const PARTICIPANTS_WITH_CI = text("# Participants of this instance", "", "**REGISTER**", "",
+  "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |",
+  "|---|---|---|---|---|---|---|---|",
+  "| hosted-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | GitHub hosted runner | ci hosted secret HOSTED_KEY |",
+  "| gpu-ci | CI agent | gpt-5 | 200000 | — | draft text, read the repository, write to the repository, run code and tests, use tools | lab GPU runner | ci runner:gpu secret GPU_KEY |");
+
+function workflowInstanceHost(participants = PARTICIPANTS_WITH_CI) {
+  return {
+    async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
+    async readSnapshot() {
+      return {
+        commit: INSTANCE_COMMIT,
+        paths: ["docs/participants.md"],
+        blob: () => "b".repeat(40),
+        async read(path) { return path === "docs/participants.md" ? participants : null; },
+      };
+    },
+  };
+}
+
+function workflowProduct(writes, initial = {}) {
+  const files = new Map(Object.entries(initial));
+  let commit = "1".repeat(40);
+  const blob = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
+  return {
+    address: "https://github.com/fixture/product",
+    host: {
+      async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
+      async readSnapshot() {
+        const opened = new Map(files), head = commit;
+        return {
+          commit: head,
+          paths: [...opened.keys()],
+          blob(path) { return opened.has(path) ? blob(opened.get(path)) : null; },
+          async read(path) { return opened.get(path) ?? null; },
+        };
+      },
+      async commitFiles(change) {
+        writes.push(change);
+        for (const file of change.files) files.set(file.path, file.text);
+        commit = `${Number.parseInt(commit.slice(0, 8), 16) + 1}`.padStart(40, "0");
+        return { commit, url: `https://github.com/fixture/product/commit/${commit}` };
+      },
+    },
+  };
+}
+
+async function renderWithInstance(browserStore, product, instanceHost) {
+  const target = document.createElement("div");
+  await settingsRoute().render(target, { instance: { repository: "fixture/instance", host: instanceHost },
+    product, store: browserStore, go() {} }, {});
+  return target;
+}
+
+// TST-351001
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-010; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; EVERY SETTING IS REACHED FROM ONE PAGE; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
+// given: a writable chosen GitHub product, the instance at a commit with two CI participants, and a product-token setting
+// input: the person opens Repositories, reads Agent M's job workflow line, and clicks Install
+// expect: without the workflow files Install commits exactly jobWorkflowFiles' generated files in one product commit; with the same files the line says installed; with stale bytes Install is offered again; the secrets are named with a secrets-page link, no secret value field, and a folded explanation
+test("TST-351001: product Settings installs Agent M's job workflow and names only its secrets", async () => {
+  const productStore = () => {
+    const browserStore = store();
+    writeSetting(browserStore, "github-token:fixture/product", { value: "ghp_fixture" });
+    return browserStore;
+  };
+  const browserStore = productStore();
+  const expected = jobWorkflowFiles("github", { repository: "fixture/instance", commit: INSTANCE_COMMIT },
+    { token: "AGENT_M_TOKEN", keys: ["HOSTED_KEY", "GPU_KEY"] }, ["gpu"]);
+  const expectedByPath = Object.fromEntries(expected.map((file) => [file.path, file.text]));
+  const writes = [];
+  const target = repositories(await renderWithInstance(browserStore, workflowProduct(writes), workflowInstanceHost()));
+
+  const line = byClass(target, "settings-job-workflow")[0];
+  assert.ok(line, "failure node: the product settings section shows Agent M's job workflow line");
+  assert.match(line.textContent, /not installed/i);
+  assert.match(line.textContent, /AGENT_M_TOKEN/);
+  assert.match(line.textContent, /HOSTED_KEY/);
+  assert.match(line.textContent, /GPU_KEY/);
+  assert.equal(descendants(line, (node) => node.localName === "input").length, 0, "the line asks for no secret value");
+  const secrets = descendants(line, (node) => node.localName === "a" && node.textContent.includes("secrets"))[0];
+  assert.equal(secrets?.href, "https://github.com/fixture/product/settings/secrets/actions");
+  assert.equal(descendants(line, (node) => node.localName === "details" && node.textContent.includes("What is this?")).length, 1,
+    "the job workflow line has its folded explanation");
+
+  await click(byClass(line, "settings-job-workflow-install")[0], true);
+  assert.equal(writes.length, 1, "Install is one product commit");
+  assert.equal(writes[0].branch, "main");
+  assert.equal(writes[0].expectedHead, "1".repeat(40));
+  assert.deepEqual(Object.fromEntries(writes[0].files.map((file) => [file.path, file.text])), expectedByPath);
+  assert.match(writes[0].message, /Agent M job workflow/);
+
+  const installed = repositories(await renderWithInstance(productStore(), workflowProduct([], expectedByPath), workflowInstanceHost()));
+  const installedLine = byClass(installed, "settings-job-workflow")[0];
+  assert.match(installedLine.textContent, /installed/i);
+  assert.equal(byClass(installedLine, "settings-job-workflow-install").length, 0, "up-to-date files need no Install button");
+
+  const staleFiles = { ...expectedByPath, [expected[0].path]: expected[0].text.replace("AGENT_M_TOKEN", "OLD_TOKEN") };
+  const stale = repositories(await renderWithInstance(productStore(), workflowProduct([], staleFiles), workflowInstanceHost()));
+  const staleLine = byClass(stale, "settings-job-workflow")[0];
+  assert.match(staleLine.textContent, /update|stale|different/i);
+  assert.equal(byClass(staleLine, "settings-job-workflow-install").length, 1, "stale files offer Install again");
+});
 
 // TST-290116
 // level: unit

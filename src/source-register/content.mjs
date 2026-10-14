@@ -19,7 +19,7 @@ export const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, ""
 // The files of a version and their SHA-256, as the table under `### Files of <version>` in the entry's `## Versions` lists
 // them — the version written with or without backticks. A file is stored unless the Files cell of the version's row names it
 // after `not stored:`, the names of the files only hashed separated by a comma and a space (registrationCommits writes it).
-function filesOf(versions, version) {
+export function filesOf(versions, version) {
   const note = /not stored: (.*)$/.exec(String(versions.rows?.find((each) => unquoted(each.cells.Version) === version)?.cells.Files ?? ""));
   const hashedOnly = note ? note[1].split(", ") : [];
   const lines = versions.text.split("\n");

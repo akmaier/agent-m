@@ -21,8 +21,9 @@ function element(name, className, ...children) {
 }
 
 // openEditor(target: Element, text: string, options: { marks: (text: string) -> Finding[], save: (text: string) ->
-// Promise<SaveOutcome> }) -> Editor — the editor of `text`, drawn into `target`.
-export function openEditor(target, text, { marks, save }) {
+// Promise<SaveOutcome>, disabledReason?: (text: string) -> string | null }) -> Editor — the editor of `text`, drawn into
+// `target`.
+export function openEditor(target, text, { marks, save, disabledReason = () => null }) {
   const area = element("textarea");
   area.value = text;
   area.setAttribute("spellcheck", "false");
@@ -33,6 +34,7 @@ export function openEditor(target, text, { marks, save }) {
   const result = element("p", "result"), newer = element("div", "newer");
   let currentMarks = [];
   let lastSaved = area.value;
+  let saving = false;
   target.replaceChildren(element("div", "editor", element("div", "text", area, rows), preview), element("p", null, button), result,
     newer);
 
@@ -46,11 +48,21 @@ export function openEditor(target, text, { marks, save }) {
     preview.replaceChildren(renderArtifact(area.value));
     currentMarks = marks(area.value);
     showMarks(currentMarks);
+    const reason = disabledReason(area.value);
+    button.disabled = saving || Boolean(reason);
+    if (reason) result.replaceChildren(`Save is disabled: ${reason}`);
+    else if (/^Save is disabled: /.test(result.textContent)) result.replaceChildren();
   }
   area.addEventListener("input", update);
 
   button.addEventListener("click", async () => {
     const edited = area.value;
+    const disabled = disabledReason(edited);
+    if (disabled) {
+      update();
+      return;
+    }
+    saving = true;
     button.disabled = true;
     newer.replaceChildren();
     try {
@@ -73,7 +85,8 @@ export function openEditor(target, text, { marks, save }) {
         result.replaceChildren(`Nothing was saved: ${answer.reason}`);
       }
     } finally {
-      button.disabled = false;
+      saving = false;
+      update();
     }
   });
 

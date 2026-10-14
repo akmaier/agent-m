@@ -19,17 +19,17 @@ const LOCAL = {
   kind: "openai-compatible",
   model: "local-model",
   key: "local-model-key",
-  throughBridge: true,
+  bridge: "local",
 };
 
 // TST-269006 · level: component · module: MOD-settings-pages
 // guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; AN UNSUPPORTED ENDPOINT SAYS SO
-// given: the dashboard browser has no paired Bridge setting.
-// input: the author opens the actual public endpoint address, enters a valid local through-Bridge endpoint, saves and tests it, then presses its Set up the Bridge action.
-// expect: Save retains the canonical endpoint record; the missing pairing does not directly call the local model and exposes the setup action; its click selects #bridge, where the actual dashboard dispatcher renders the public Bridge setup Route.
+// given: the dashboard browser has an endpoint that names a Bridge this browser does not keep.
+// input: the author opens the actual public endpoint address, tests it, then presses its Set up the Bridge action.
+// expect: Save retains the canonical endpoint record; the missing Bridge does not directly call the local model and exposes the setup action; its click selects #bridge, where the actual dashboard dispatcher renders the public Bridge setup Route.
 test("TST-269006: the public endpoint Route hands absent Bridge setup to the public Bridge Route", async () => {
   const server = await repoServer({ files: {} });
-  const page = await openDashboard({ server, hash: "#endpoints" });
+  const page = await openDashboard({ server, hash: "#endpoints/local", entries: { [ENDPOINT_KEY]: JSON.stringify(LOCAL) } });
   const dom = richDocument();
   const main = dom.byId("main");
 
@@ -37,15 +37,10 @@ test("TST-269006: the public endpoint Route hands absent Bridge setup to the pub
   const url = main.querySelector("input.endpoint-url");
   const model = main.querySelector("input.endpoint-model");
   const key = main.querySelector("input.endpoint-key");
-  const throughBridge = main.querySelector("input.endpoint-through-bridge");
+  const bridge = main.querySelector("select.endpoint-bridge");
   const saveAndTest = main.querySelector("button.endpoint-test");
-  assert.ok(name && url && model && key && throughBridge && saveAndTest, "the actual dashboard address renders the public endpoint controls");
-
-  name.value = "local";
-  url.value = LOCAL.url;
-  model.value = LOCAL.model;
-  key.value = LOCAL.key;
-  throughBridge.checked = true;
+  assert.ok(name && url && model && key && bridge && saveAndTest, "the actual dashboard address renders the public endpoint controls");
+  assert.equal(bridge.value, "local", "the missing stored Bridge name is still selected for setup");
   await saveAndTest.fire("click");
 
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(ENDPOINT_KEY)), LOCAL, "Save retains the local endpoint before the missing-Bridge result");

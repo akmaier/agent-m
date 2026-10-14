@@ -87,10 +87,15 @@ test("documentFindings — a value required where a path condition holds is requ
 // guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY
 // given: a document with a key the schema does not list — a finding that names no rule closer than the schema's own
 // input: documentFindings at docs/plan/…, at docs/backlog/…, and at a path neither pattern holds
-// expect: one error each, naming the rule of the path the document stands at; at the path no pattern holds, the schema's own rule
+// expect: at a matching path one unknown-key error names that path's rule; at a path no pattern holds, the path error and the unknown-key error both name the schema's own rule
 test("documentFindings — a finding that names the schema's own rule names the rule of the document's path instead", () => {
   const lines = ["id: ITM-007", "modules:", "  - MOD-store", "level: module", "colour: blue"];
   assert.deepEqual(findingsAt("docs/plan/ITM-007-a-step.md", lines).map(([, rule]) => rule), [PLAN_RULE]);
   assert.deepEqual(findingsAt("docs/backlog/ITM-007-a-step.md", lines).map(([, rule]) => rule), [BACKLOG_RULE]);
-  assert.deepEqual(findingsAt("notes/ITM-007-a-step.md", lines).map(([, rule]) => rule), [BACKLOG_RULE]);
+  const path = "notes/ITM-007-a-step.md";
+  const found = documentFindings(schema, readDocument(schema, path, text(lines)));
+  assert.deepEqual(found.map(({ line, rule, what }) => [line, rule, what]), [
+    [1, BACKLOG_RULE, `the path ${path} does not match a path of the format step`],
+    [6, BACKLOG_RULE, "the key colour is not a key of the format step"],
+  ]);
 });

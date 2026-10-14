@@ -23,10 +23,10 @@
 import { loadSchema, writeDocument } from "../documents/index.mjs";
 import { finding, sha256 } from "../text-tools/index.mjs";
 import { strategiesOf } from "./strategies.mjs";
-import { failure, unquoted, versionHash, versionRecord } from "./content.mjs";
+import { failure, filesOf, unquoted, versionHash, versionRecord } from "./content.mjs";
 
 export { readContent } from "./content.mjs";
-export { recogniseLegalText } from "./legal-text.mjs";
+export { fetchLegalText, recogniseLegalText } from "./legal-text.mjs";
 
 /**
  * One version of a source, fixed by identifier and hash: its source; its official identifier or edition and date; for a
@@ -127,6 +127,97 @@ export async function registrationCommits(entry, files, instance) {
   for (const file of kept) {
     if (!plan.has(holder)) plan.set(holder, []);
     plan.get(holder).push({ path: `docs/sources/${entry.id}/${version}/${file.name}`, content: file.bytes });
+  }
+  return [...plan].map(([repository, planned]) => ({ repository, files: planned }));
+}
+
+const versionColumns = ["Version", "Date", "Edition", "Read from", "Files"];
+
+async function listedFiles(files) {
+  return Promise.all(files.map(async (file) => ({ name: file.name, sha256: await sha256(file.bytes) })));
+}
+
+function filesCell(files, listed, hash) {
+  const unstored = files.filter((file) => !file.keep).map((file) => file.name);
+  const count = listed.length === 1 ? "1 file" : `${listed.length} files`;
+  return `${count}, listed below; version hash \`${hash}\`${unstored.length ? `; not stored: ${unstored.join(", ")}` : ""}`;
+}
+
+function rowLine(cells) {
+  return `| ${versionColumns.map((column) => cells[column] ?? "-").join(" | ")} |`;
+}
+
+function filesBlock(version, listed) {
+  return [`### Files of ${version}`, "", "| File | SHA-256 |", "|---|---|",
+    ...listed.map((file) => `| \`${file.name}\` | \`${file.sha256}\` |`)];
+}
+
+function appendVersionSection(text, cells, block) {
+  const leading = String(text ?? "").startsWith("\n") ? "\n" : "";
+  const lines = String(text ?? "").replace(/^\n/, "").split("\n");
+  const table = lines.findIndex((line) => /^\|\s*Version\s*\|/.test(line.trim()));
+  if (table < 0) throw new TypeError("versionCommits: the entry's ## Versions holds no version table");
+  let insert = table + 2;
+  while (insert < lines.length && /^\|/.test(lines[insert].trim())) insert += 1;
+  lines.splice(insert, 0, rowLine(cells));
+  while (lines.length && lines.at(-1) === "") lines.pop();
+  lines.push("", ...block, "");
+  return `${leading}${lines.join("\n")}`;
+}
+
+function readFrom(version) {
+  if (version?.readFrom) return String(version.readFrom);
+  if (version?.retrieved || version?.repositoryVersion) {
+    const parts = ["publication repository"];
+    if (version.retrieved) parts.push(`retrieved ${version.retrieved}`);
+    if (version.repositoryVersion) parts.push(`version ${version.repositoryVersion}`);
+    return parts.join(", ");
+  }
+  return "-";
+}
+
+/**
+ * versionCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean }[], version: { version: string,
+ * date: string }) -> Promise<CommitPlan> — what to commit when a source receives a new version: the entry with one row
+ * appended to `## Versions`, the new version's file hashes under `### Files of <version>`, and the kept files in the
+ * repository that holds the content. `version.repository`, when supplied by the caller, names the instance repository
+ * that holds the register entry; without it the plan uses the empty string for that current instance. Throws SameBytes
+ * { version } when the file set equals an already recorded version.
+ * @param {Document} entry
+ */
+export async function versionCommits(entry, files, version) {
+  const versions = entry.sections.find((section) => section.heading === "## Versions");
+  if (!versions) throw new TypeError("versionCommits: the entry holds no ## Versions section");
+  const listed = await listedFiles(files);
+  const hash = await versionHash(listed);
+  for (const row of versions.rows ?? []) {
+    const existing = unquoted(row.cells.Version);
+    if (await versionHash(filesOf(versions, existing)) === hash) {
+      throw failure("SameBytes", `${entry.id} already records the same bytes as ${existing}`, { version: existing });
+    }
+  }
+  const kept = files.filter((file) => file.keep);
+  const instance = typeof version?.repository === "string" ? version.repository : "";
+  const holder = permittedPlaces(entry) === "any" ? instance : entry.fields.content_repository;
+  if (kept.length && !holder) {
+    throw failure("ContentRepositoryMissing", `${entry.id} is restricted, and its entry names no repository for its files`, { source: entry.id });
+  }
+  const id = String(version?.version ?? "");
+  if (!id) throw new TypeError("versionCommits: version.version is required");
+  const cells = {
+    Version: `\`${id}\``,
+    Date: String(version?.date ?? ""),
+    Edition: String(version?.edition ?? "-"),
+    "Read from": readFrom(version),
+    Files: filesCell(files, listed, hash),
+  };
+  const section = { ...versions, text: appendVersionSection(versions.text, cells, filesBlock(id, listed)),
+    rows: [...(versions.rows ?? []), { cells }] };
+  const entryFile = writeDocument(ENTRY, { ...entry, sections: entry.sections.map((each) => (each === versions ? section : each)) });
+  const plan = new Map([[instance, [{ path: entry.path, content: entryFile }]]]);
+  for (const file of kept) {
+    if (!plan.has(holder)) plan.set(holder, []);
+    plan.get(holder).push({ path: `docs/sources/${entry.id}/${id}/${file.name}`, content: file.bytes });
   }
   return [...plan].map(([repository, planned]) => ({ repository, files: planned }));
 }

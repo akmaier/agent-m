@@ -46,8 +46,8 @@ async function render(store, params = {}, options = {}) { const target = documen
 async function renderSettings(store, options = {}) { const target = document.createElement("div"); await settingsRoute().render(target, contextOf(store, options), {}); return target; }
 function scripted(responses, calls) { const remaining = [...responses]; return async (url, init = {}) => { calls.push({ url: String(url), init }); const next = remaining.shift(); if (!next) throw new Error("unexpected endpoint request"); return new Response(JSON.stringify(next.body ?? {}), { status: next.status, headers: { "content-type": "application/json" } }); }; }
 
-const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key", throughBridge: false };
-const BRIDGED = { url: "http://127.0.0.1:11434", kind: "openai-compatible", model: "local-model", throughBridge: true };
+const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key" };
+const BRIDGED = { url: "http://127.0.0.1:11434", kind: "openai-compatible", model: "local-model", bridge: "local" };
 
 function endpointsRoute() {
   const route = view.routes.find((candidate) => candidate.name === "endpoints");
@@ -123,12 +123,12 @@ test("TST-265004: Clear removes the stored endpoint and empties the form", async
 
 // TST-265005 · level: unit · module: MOD-settings-pages
 // guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
-// given: a stored throughBridge endpoint for a local model server
+// given: a stored named-Bridge endpoint for a local model server
 // input: the author opens the public endpoints Route and presses Test
 // expect: no direct request reaches its model, the setting is retained, and the missing Bridge setup is named
 test("TST-265005: a Bridge endpoint is retained and never called directly", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch; writeSetting(store, "endpoint:local", BRIDGED); globalThis.fetch = scripted([], calls);
-  try { const target = await render(store, { name: "local" }); await click(byClass(target, "endpoint-test")[0]); assert.equal(calls.length, 0); assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED); assert.match(target.textContent, /Bridge.*setup|setup.*Bridge/i); } finally { globalThis.fetch = oldFetch; }
+  try { const target = await render(store, { name: "local" }); await click(byClass(target, "endpoint-test")[0]); assert.equal(calls.length, 0); assert.deepEqual(readSetting(store, "endpoint:local"), BRIDGED); assert.match(target.textContent, /Set up the Bridge|Bridge .*does not keep/i); } finally { globalThis.fetch = oldFetch; }
 });
 
 // TST-265006 · level: unit · module: MOD-settings-pages
