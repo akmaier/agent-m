@@ -1,6 +1,6 @@
 // MOD-settings-pages' participants route (UC-017): the instance's docs/participants.md register in a form from
 // MOD-participant-list's schema, with route-specific presets before the row is saved through saveFile as the person's commit.
-// Bridge agent discovery and testing are ITM-353; changing a participant already used by products is ITM-354.
+// Bridge agent discovery/testing and product-use checks for changed participants are kept local to this route.
 //
 // Module: MOD-settings-pages
 
@@ -8,13 +8,19 @@ import { saveFile } from "../artifact-edits/index.mjs";
 import { listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { bridgeAt, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
+import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
+import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding } from "../text-tools/index.mjs";
+import { credentialsFor } from "./products.mjs";
 
 const PATH = "docs/participants.md";
+const DECLARATION = "docs/process.md";
 const SOURCE_PATH = /^docs\/sources\/SRC-[^/]+\.md$/;
+const ASSIGNMENT_FILE = /^docs\/role-assignments\/([^/]+)\.md$/;
 const COLUMNS = ["Name", "Type", "Model", "Context", "Price", "Capabilities", "Processing place", "Route"];
 const TYPES = ["person", "model endpoint", "CI agent", "CLI agent", "sandboxed agent"];
 const CAPABILITIES = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"];
@@ -37,6 +43,10 @@ const TYPE_TOPIC = {
 const BRIDGE_TYPES = new Set(["CLI agent", "sandboxed agent"]);
 
 const unquoted = (value) => String(value ?? "").trim().replace(/^`|`$/g, "");
+const text = (value) => (value === undefined || value === null || value === "—" ? "" : String(value));
+const listedValues = (value) => (Array.isArray(value) ? value.map(text).filter(Boolean)
+  : text(value).split(",").map((part) => part.trim()).filter(Boolean));
+const assignmentName = (path) => ASSIGNMENT_FILE.exec(text(path))?.[1] ?? text(path);
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -64,6 +74,14 @@ function participantText(snapshotText) {
   return typeof snapshotText === "string" && snapshotText.trim() ? snapshotText : EMPTY;
 }
 
+function participantDocument(text) {
+  return readDocument(participantSchema(), PATH, participantText(text));
+}
+
+function participantRows(text) {
+  return participantDocument(text).sections.flatMap((section) => section.rows ?? []);
+}
+
 async function openedRegister(host) {
   const { defaultBranch } = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(defaultBranch);
@@ -75,7 +93,7 @@ async function openedRegister(host) {
     const sourceText = await snapshot.read(path);
     if (sourceText) sources.push(readDocument(entry, path, sourceText));
   }
-  return { text, openedBlob, sources };
+  return { text, openedBlob, sources, snapshot };
 }
 
 function cell(value) {
@@ -88,6 +106,15 @@ function withDraftRow(text, row) {
   const line = `| ${COLUMNS.map((column) => cell(row[column])).join(" | ")} |`;
   const base = participantText(text).replace(/\s*$/, "");
   return `${base}\n${line}\n`;
+}
+
+function withChangedRow(sourceText, originalName, row) {
+  const base = participantText(sourceText).replace(/\s*$/, "");
+  const lines = base.split("\n");
+  const found = participantRows(base).find((candidate) => text(candidate.cells.Name) === originalName);
+  if (!found) return withDraftRow(base, row);
+  lines[found.line - 1] = `| ${COLUMNS.map((column) => cell(row[column])).join(" | ")} |`;
+  return `${lines.join("\n")}\n`;
 }
 
 function firstEndpoint(store) {
@@ -138,8 +165,10 @@ function rowOf(type, state, store) {
   return row;
 }
 
-function draftDocument(openedText, type, state, store) {
-  return readDocument(participantSchema(), PATH, withDraftRow(openedText, rowOf(type, state, store)));
+function draftDocument(openedText, type, state, store, originalName = null) {
+  const row = rowOf(type, state, store);
+  const text = originalName ? withChangedRow(openedText, originalName, row) : withDraftRow(openedText, row);
+  return readDocument(participantSchema(), PATH, text);
 }
 
 function sourcePlaceWarnings(sources) {
@@ -203,11 +232,106 @@ function bridgeFailureText(error) {
   return `The Bridge could not be reached: ${error?.message ?? error}.`;
 }
 
-function renderList(box, text) {
-  const participants = participantsOf(readDocument(participantSchema(), PATH, participantText(text)));
+function productHostOf(context, web) {
+  const injected = context.productHosts instanceof Map ? context.productHosts.get(web) : context.productHosts?.[web];
+  if (injected) return injected;
+  const address = parseAddress(web);
+  return connect(address, credentialsFor(context.store, address) ?? {});
+}
+
+function browserProducts(store) {
+  const products = readSetting(store, "products");
+  return Array.isArray(products) ? products.filter((product) => typeof product === "string" && product.trim()) : [];
+}
+
+function rolesNaming(assignment, participantName) {
+  return assignment.sections.flatMap((section) => section.rows ?? []).filter((row) => listedValues(row.cells.Participants).includes(participantName))
+    .map((row) => ({ assignment: assignmentName(assignment.path), path: assignment.path, role: text(row.cells.Role) }));
+}
+
+function participantsForFindings(document) {
+  return { ...document, sections: document.sections.map((section) => ({ ...section,
+    rows: (section.rows ?? []).map((row) => ({ ...row, cells: { ...row.cells, Capabilities: listedValues(row.cells.Capabilities) } })),
+  })) };
+}
+
+async function productBasisOf(context, web, instanceSnapshot, cat, specText) {
+  const host = productHostOf(context, web);
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  const declarationText = await snapshot.read(DECLARATION);
+  if (!declarationText) return null;
+  const declaration = readDocument(declarationSchema, DECLARATION, declarationText);
+  const model = cat.models.find((candidate) => candidate.path === text(declaration.fields.model_file));
+  if (!model) return null;
+  const firstWorkflow = workflowOf(declaration, model, [], specText ?? "");
+  const practices = (await Promise.all(cat.practices.filter((practice) => firstWorkflow.practices.includes(practice.name))
+    .map(async (practice) => {
+      const practiceText = await instanceSnapshot.read(practice.path);
+      return practiceText != null ? readDocument(modelSchema.practice, practice.path, practiceText) : null;
+    }))).filter(Boolean);
+  const workflow = workflowOf(declaration, model, practices, specText ?? "");
+  const assignments = await Promise.all((snapshot.paths ?? []).filter((path) => ASSIGNMENT_FILE.test(path)).sort()
+    .map(async (path) => readDocument(roleAssignmentSchema, path, await snapshot.read(path))));
+  return { web, workflow, assignments };
+}
+
+async function productUseBasis(context, opened) {
+  const products = browserProducts(context.store);
+  if (!products.length) return [];
+  const [cat, specText] = await Promise.all([catalogue(opened.snapshot), opened.snapshot.read("SPEC.md")]);
+  const basis = [];
+  for (const web of products) {
+    try {
+      const product = await productBasisOf(context, web, opened.snapshot, cat, specText);
+      if (product) basis.push(product);
+    } catch {
+      // A product that cannot currently be read cannot prove that it names this participant.
+    }
+  }
+  return basis;
+}
+
+function productUseFromBasis(product, participantName, participantsDoc) {
+  const { web, workflow, assignments } = product;
+  const roles = assignments.flatMap((assignment) => rolesNaming(assignment, participantName));
+  if (!roles.length) return null;
+  const usedPaths = new Set(roles.map((role) => role.path));
+  const findings = roleAssignmentFindings(assignments, workflow, participantsForFindings(participantsDoc), [])
+    .filter((found) => usedPaths.has(found.artifact) && text(found.what).includes(participantName));
+  return { web, roles, findings };
+}
+
+async function productUseFor(context, opened, participantName, participantsDoc, basis = null) {
+  if (!participantName) return [];
+  const products = await (basis ?? productUseBasis(context, opened));
+  return products.map((product) => productUseFromBasis(product, participantName, participantsDoc)).filter(Boolean);
+}
+
+function renderProductUse(box, uses) {
+  if (!uses.length) { box.replaceChildren(); return; }
+  const section = el("section", "participant-product-use", el("h4", null, "Products using this participant"));
+  for (const use of uses) {
+    const roles = el("ul", "participant-product-roles", ...use.roles.map((role) =>
+      el("li", null, `${role.assignment}: ${role.role} (${role.path})`)));
+    const findings = use.findings.length ? el("ul", "participant-product-findings", ...use.findings.map((found) =>
+      el("li", found.kind === "error" ? "warn" : "muted", `${found.artifact}: ${found.what} — ${found.fix}`))) : null;
+    section.append(el("div", "participant-product", el("p", null, use.web), roles, ...(findings ? [findings] : [])));
+  }
+  box.replaceChildren(section);
+}
+
+function renderList(box, text, onChange = null) {
+  const participants = participantsOf(participantDocument(text));
   box.replaceChildren(...(participants.length ? participants.map((participant) =>
     el("li", "participants-row", `${participant.name} — ${participant.type}; capabilities: ${participant.capabilities?.join(", ") ?? "none"}; `
-      + `place: ${participant.place ?? "—"}; route: ${participant.route}`)) : [el("li", null, "No participants are registered yet.")]));
+      + `place: ${participant.place ?? "—"}; route: ${participant.route}`,
+    ...(onChange ? [" ", (() => {
+      const change = el("button", "participant-change btn small", `Change ${participant.name}`);
+      change.type = "button";
+      change.addEventListener("click", () => onChange(participant.name));
+      return change;
+    })()] : []))) : [el("li", null, "No participants are registered yet.")]));
 }
 
 function control(label, input) {
@@ -225,23 +349,29 @@ export const route = {
       return;
     }
 
+    let startEdit = () => {};
     const list = el("ul", "participants-list");
-    renderList(list, opened.text);
+    renderList(list, opened.text, (name) => startEdit(name));
 
     const add = el("button", "participants-add btn primary", "+ Add participant");
     const panel = el("section", "participants-add-panel panel");
     panel.hidden = true;
+    const panelTitle = el("h3", null, "Add participant");
     const type = el("select", "participant-type", option("", "Choose type"), ...TYPES.map((name) => option(name)));
     const fieldsBox = el("div", "participant-type-fields");
     const formBox = el("div", "participants-form-box");
+    const productUseBox = el("div", "participant-product-use-box");
     const result = el("p", "participants-result");
+    let editing = null;
+    let productUseTicket = 0;
+    const productUseBase = productUseBasis(context, opened).catch(() => []);
     const state = {
       name: "", account: "", endpoint: "", endpointUrl: "", endpointKind: "openai-compatible", endpointModel: "", endpointKey: "",
       inlineEndpoint: false, model: "", context: "", price: "", place: "", workflow: "", runner: "github-hosted", secret: "",
       bridge: "", agent: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
     };
 
-    function setType(next) {
+    function setType(next, values = {}) {
       state.name = ""; state.account = ""; state.endpoint = ""; state.endpointUrl = ""; state.endpointKind = "openai-compatible";
       state.endpointModel = ""; state.endpointKey = ""; state.inlineEndpoint = false; state.model = ""; state.context = "";
       state.price = ""; state.place = ""; state.workflow = ""; state.runner = "github-hosted"; state.secret = ""; state.bridge = "";
@@ -255,12 +385,13 @@ export const route = {
       if (next === "CI agent") state.place = "GitHub hosted runner";
       if (next === "CLI agent") state.place = "this machine";
       if (next === "sandboxed agent") state.place = "sandbox";
+      Object.assign(state, values);
     }
 
     function buildForm() {
       result.textContent = "";
-      if (!type.value) { fieldsBox.replaceChildren(); formBox.replaceChildren(); return; }
-      const document = draftDocument(opened.text, type.value, state, context.store);
+      if (!type.value) { fieldsBox.replaceChildren(); formBox.replaceChildren(); productUseBox.replaceChildren(); return; }
+      const document = draftDocument(opened.text, type.value, state, context.store, editing?.name ?? null);
       const checks = (document) => [...inlineEndpointChecks(type.value, state), ...agentTestChecks(type.value, state),
         ...sourcePlaceWarnings(opened.sources)(document)];
       async function save(document) {
@@ -277,11 +408,21 @@ export const route = {
         }
         if (endpoint) writeSetting(context.store, endpoint.key, endpoint.setting);
         opened = { ...opened, text, openedBlob: saved.blob };
-        renderList(list, opened.text);
+        renderList(list, opened.text, (name) => startEdit(name));
+        editing = null;
         panel.hidden = true;
         result.textContent = "Saved.";
       }
       formBox.replaceChildren(schemaForm(participantSchema(), document, { onSave: save, extraChecks: checks }));
+      updateProductUse(document);
+    }
+
+    async function updateProductUse(document) {
+      const ticket = ++productUseTicket;
+      productUseBox.replaceChildren();
+      if (!editing) return;
+      const uses = await productUseFor(context, opened, editing.name, document, productUseBase);
+      if (ticket === productUseTicket && editing) renderProductUse(productUseBox, uses);
     }
 
     function rebuild() {
@@ -309,18 +450,19 @@ export const route = {
     const routePreview = el("code", "participant-route-preview");
 
     function capabilitiesBox() {
-      const boxes = CAPABILITIES.map((capability) => {
+      const inputs = CAPABILITIES.map((capability) => {
         const box = el("input", "participant-capability");
         box.type = "checkbox";
         box.value = capability;
         box.checked = state.capabilities.includes(capability);
         box.addEventListener("change", () => {
-          state.capabilities = CAPABILITIES.filter((name) => boxes.some((candidate) => candidate.value === name && candidate.checked));
+          state.capabilities = CAPABILITIES.filter((name) => inputs.some((candidate) => candidate.value === name && candidate.checked));
           buildForm();
         });
-        return el("label", null, box, " ", capability);
+        return box;
       });
-      return el("fieldset", "participant-capabilities", el("legend", null, "Capabilities"), ...boxes.map((box) => el("p", null, box)), explain("capabilities-and-place"));
+      return el("fieldset", "participant-capabilities", el("legend", null, "Capabilities"),
+        ...inputs.map((box) => el("p", null, el("label", null, box, " ", box.value))), explain("capabilities-and-place"));
     }
 
     function commonControls(typeName) {
@@ -479,7 +621,7 @@ export const route = {
       if (!typeName) return [];
       routePreview.textContent = routeOf(typeName, state);
       return [
-        el("h3", null, `Add ${typeName}`),
+        el("h3", null, `${editing ? "Change" : "Add"} ${typeName}`),
         explain(TYPE_TOPIC[typeName]),
         ...commonControls(typeName),
         ...(typeName === "person" ? [control("Account", textInput("participant-account", "account", "github.com/name"))] : []),
@@ -490,10 +632,51 @@ export const route = {
       ];
     }
 
-    add.addEventListener("click", () => { panel.hidden = false; });
+    function stateFromCells(cells) {
+      const route = text(cells.Route);
+      const ci = /^workflow (.*?) on (github-hosted|self-hosted) secret (.*)$/.exec(route);
+      const bridge = /^bridge (.*?) agent (.*)$/.exec(route);
+      return {
+        name: text(cells.Name),
+        model: text(cells.Model),
+        context: text(cells.Context),
+        price: text(cells.Price),
+        place: text(cells["Processing place"]),
+        capabilities: listedValues(cells.Capabilities),
+        account: route.startsWith("account ") ? route.slice("account ".length) : "",
+        endpoint: route.startsWith("endpoint ") ? route.slice("endpoint ".length) : "",
+        workflow: ci?.[1] ?? "",
+        runner: ci?.[2] ?? "github-hosted",
+        secret: ci?.[3] ?? "",
+        bridge: bridge?.[1] ?? "",
+        agent: bridge?.[2] ?? "",
+      };
+    }
+
+    function startAdd() {
+      editing = null;
+      panelTitle.textContent = "Add participant";
+      panel.hidden = false;
+      type.value = "";
+      setType("");
+      rebuild();
+    }
+
+    startEdit = (name) => {
+      const row = participantRows(opened.text).find((candidate) => text(candidate.cells.Name) === name);
+      if (!row) return;
+      editing = { name };
+      panelTitle.textContent = `Change ${name}`;
+      panel.hidden = false;
+      type.value = text(row.cells.Type);
+      setType(type.value, stateFromCells(row.cells));
+      rebuild();
+    };
+
+    add.addEventListener("click", startAdd);
     type.addEventListener("change", () => { setType(type.value); rebuild(); });
 
-    panel.append(el("h3", null, "Add participant"), control("Type", type), fieldsBox, formBox, result);
+    panel.append(panelTitle, control("Type", type), fieldsBox, formBox, productUseBox, result);
     target.replaceChildren(el("h2", null, "Participants"), el("p", null, add), panel, list);
   },
 };
