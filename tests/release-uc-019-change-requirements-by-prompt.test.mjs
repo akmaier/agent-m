@@ -1,14 +1,15 @@
 // Independent ITM-418 requirements release battery, authored by Developer terra-d.
 // Successor: Team 2 Developer itm475-integration; implemented no UC-019 production behavior.
+// Original cases: TST-418101..104 by terra-d. Added cases: TST-418105..121 and counterproofs by the successor.
 // Module: MOD-review-pages; MOD-trace-pages; MOD-spec-changes; MOD-source-register; MOD-job-runner; MOD-runtimes
 // Guards: UC-019
 // Level: release
 // Run: node --test tests/release-uc-019-change-requirements-by-prompt.test.mjs
 // All endpoint and repository traffic is controlled by app-harness; no paid service is called.
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -473,3 +474,68 @@ test("TST-418121: the run panel states included requirement and use-case counts 
   assert.match(panel.textContent, /0\s+use[ -]cases?\s+(?:included|sent)/i);
   assert.equal(s.endpointRequests.length, 0); assert.equal(s.product.writes.length, 0);
 });
+
+// Counterproofs are requested explicitly; ordinary CI still runs every behavior case. Each fault is confined to a copied
+// source tree. The same unchanged case must fail normally, then pass after byte-exact restoration, before its receipt is emitted.
+const FAULTS = [
+  { ids: ["TST-418001"], file: "src/trace-pages/flow.mjs", from: 'if (editable) detail.append(reviewLink("requirement-prompt"', to: 'if (false) detail.append(reviewLink("requirement-prompt"' },
+  { ids: ["TST-418002", "TST-418003", "TST-418110"], file: "src/spec-changes/propose.mjs", from: 'files.push({ path: proposalPath, text: change.text }', to: 'files.push({ path: change.target, text: change.text }' },
+  { ids: ["TST-418004"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (!source) {', to: 'if (false) {' },
+  { ids: ["TST-418005", "TST-418112"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (edited.classes.some((each) => each.class === "conflict"))', to: 'if (false)' },
+  { ids: ["TST-418006", "TST-418111"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (await blobSha(current) !== opened.get(section.anchor))', to: 'if (false)' },
+  { ids: ["TST-418101"], file: "src/review-pages/requirements-prompt.mjs", from: 'accountOf(loaded.instanceSnapshot)', to: 'accountOf(snapshot)' },
+  { ids: ["TST-418102"], file: "src/runtimes/tab.mjs", from: 'if (entry.bridge !== null)', to: 'if (false)' },
+  { ids: ["TST-418103"], file: "src/review-pages/requirements-prompt.mjs", from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
+  { ids: ["TST-418104"], file: "src/runtimes/tab.mjs", from: 'if (input.previous !== null && input.previous !== undefined)', to: 'if (false)' },
+  { ids: ["TST-418105"], file: "src/review-pages/jobs.mjs", from: 'drafters: eligible(participants, { capabilities: definition.needs }).eligible', to: 'drafters: participants' },
+  { ids: ["TST-418106"], file: "src/spec-changes/strategies.mjs", from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
+  { ids: ["TST-418107"], file: "src/site-frame/run-panel.mjs", from: 'if (prepared.blocking.length === 0 && prepared.notFitting.length === 0)', to: 'if (true)' },
+  { ids: ["TST-418108"], file: "src/job-runner/builtins.mjs", from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
+  { ids: ["TST-418109"], file: "src/review-pages/requirements-prompt.mjs", from: 'showDifference(held?.rule ?? "", rule.value)', to: 'renderArtifact(held?.rule ?? "")' },
+  { ids: ["TST-418113"], file: "src/runtimes/tab.mjs", from: 'if (input.findings?.length)', to: 'if (false)' },
+  { ids: ["TST-418114"], file: "src/job-runner/loop.mjs", from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
+  { ids: ["TST-418115"], file: "src/job-runner/loop.mjs", from: 'number >= prepared.limit', to: 'number >= 3' },
+  { ids: ["TST-418116"], file: "src/job-runner/loop.mjs", from: 'number > 1 && now.length && same(now, open)', to: 'false' },
+  { ids: ["TST-418117"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (outcome.stoppedBecause === "unusable")', to: 'if (false)' },
+  { ids: ["TST-418118"], file: "src/review-pages/edit.mjs", from: '...withdrawn.map((name)', to: '...[].map((name)' },
+  { ids: ["TST-418119"], file: "src/review-pages/jobs.mjs", from: 'const snapshot = await defaultSnapshot(run.host);', to: 'const snapshot = run.snapshot;' },
+  { ids: ["TST-418120"], file: "src/spec-changes/propose.mjs", from: 'files.push({ path: `${base}.md`, text: section.text }', to: 'files.push({ path: "SPEC.md", text: section.text }' },
+];
+const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+async function counterproofs() {
+  const temporary = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-418-fault-"))), copied = join(temporary, "agent-m");
+  const tests = ["tests/system-uc-019-change-requirements-by-prompt.test.mjs", "tests/release-uc-019-change-requirements-by-prompt.test.mjs"];
+  const receipts = [], receiptPath = join(tmpdir(), `agent-m-418-counterproof-${process.pid}.json`);
+  try {
+    cpSync(join(ROOT, "src"), join(copied, "src"), { recursive: true, filter: (path) => !path.split(/[\\/]/).includes("node_modules") });
+    cpSync(join(ROOT, "docs"), join(copied, "docs"), { recursive: true });
+    mkdirSync(join(copied, "tests"), { recursive: true });
+    for (const file of [...tests, "tests/app-harness.mjs"]) cpSync(join(ROOT, file), join(copied, file));
+    const testHashes = Object.fromEntries(tests.map((path) => [path, hash(readFileSync(join(copied, path)))]));
+    for (const fault of FAULTS) {
+      const path = join(copied, fault.file), original = readFileSync(path), text = original.toString();
+      assert.ok(text.includes(fault.from), `known-positive fault point: ${fault.file}: ${fault.from}`);
+      const mutated = Buffer.from(text.replace(fault.from, fault.to)); assert.notDeepEqual(mutated, original);
+      const argv = [process.execPath, "--test", "--test-reporter=tap", "--test-name-pattern", fault.ids.join("|"), ...tests.map((path) => join(copied, path))];
+      const env = { ...process.env, AGENT_M_418_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
+      const invoke = () => spawnSync(argv[0], argv.slice(1), { cwd: copied, env, encoding: "utf8", timeout: 20000, maxBuffer: 4 * 1024 * 1024 });
+      const started = new Date().toISOString(); writeFileSync(path, mutated);
+      const failed = invoke(); writeFileSync(path, original);
+      const restoredHash = hash(readFileSync(path)), passed = invoke(), ended = new Date().toISOString();
+      const nodes = Object.fromEntries(fault.ids.map((id) => [id, failed.stdout.match(new RegExp(`^not ok \\d+ - ${id}:[\\s\\S]*?(?=\\n# Subtest:|\\n1\\.\\.)`, "m"))?.[0] ?? null]));
+      const receipt = { ...fault, cwd: copied, argv, environment: { AGENT_M_418_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null },
+        sourceHashes: { original: hash(original), planted: hash(mutated), restored: restoredHash }, testHashes, started, ended,
+        red: { status: failed.status, signal: failed.signal, error: failed.error?.code ?? null, nodes, stdout: failed.stdout, stderr: failed.stderr },
+        green: { status: passed.status, signal: passed.signal, error: passed.error?.code ?? null, stdout: passed.stdout, stderr: passed.stderr } };
+      receipts.push(receipt); writeFileSync(receiptPath, JSON.stringify(receipts, null, 2));
+      assert.equal(restoredHash, hash(original), "exact source bytes are restored before the positive");
+      assert.equal(failed.status, 1, failed.stderr); assert.equal(failed.signal, null); assert.equal(failed.error, undefined);
+      for (const id of fault.ids) assert.ok(nodes[id], `${id}: an actual named failure node, not an import or launcher failure`);
+      assert.equal(passed.status, 0, passed.stdout + passed.stderr); assert.equal(passed.signal, null); assert.equal(passed.error, undefined);
+      for (const id of fault.ids) assert.match(passed.stdout, new RegExp(`^ok \\d+ - ${id}:`, "m"));
+      for (const [file, expected] of Object.entries(testHashes)) assert.equal(hash(readFileSync(join(copied, file))), expected, "test bytes stay unchanged");
+      console.log(`ITM-418-counterproof ${JSON.stringify({ ids: fault.ids, source: fault.file, sourceHashes: receipt.sourceHashes, red: 1, green: 0, receiptPath })}`);
+    }
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
+}
+if (process.env.AGENT_M_418_COUNTERPROOF === "1" && !process.env.AGENT_M_418_FAULT_CHILD) after(counterproofs);
