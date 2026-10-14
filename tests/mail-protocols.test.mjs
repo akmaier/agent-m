@@ -92,7 +92,7 @@ async function imapServer(options = {}) {
     let secure = false;
     let buffer = "";
     const write = (line) => active.write(`${line}\r\n`);
-    const capability = () => `* CAPABILITY IMAP4rev1 SPECIAL-USE${!secure && advertiseStartTls ? " STARTTLS" : " AUTH=PLAIN"}`;
+    const capability = () => `* CAPABILITY IMAP4rev1 NAMESPACE SPECIAL-USE${!secure && advertiseStartTls ? " STARTTLS" : " AUTH=PLAIN"}`;
     const attach = (stream, isSecure) => {
       active = stream;
       secure = isSecure;
@@ -137,7 +137,8 @@ async function imapServer(options = {}) {
         allowLogin && login.password === PASSWORD ? ok(tag, "AUTHENTICATE completed") : no(tag, "AUTHENTICATIONFAILED Invalid credentials");
         return;
       }
-      if (command === "ID" || command === "NAMESPACE" || command === "ENABLE" || command === "UNSELECT") { ok(tag, `${command} completed`); return; }
+      if (command === "NAMESPACE") { write('* NAMESPACE (("" "/")) NIL NIL'); ok(tag, "NAMESPACE completed"); return; }
+      if (command === "ID" || command === "ENABLE" || command === "UNSELECT") { ok(tag, `${command} completed`); return; }
       if (command === "LIST") {
         for (const [name, special] of Object.entries(specials)) write(`* LIST (${special}) "/" "${name}"`);
         for (const name of Object.keys(folders)) write(`* LIST () "/" "${name}"`);

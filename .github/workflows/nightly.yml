@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install Bridge app packages
+        run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
       - name: No test opens Agent M's own SPEC
         run: cd tests && AGENT_M_NIGHTLY=1 python3 -m unittest -v test_release_sprint_02_c
       - name: Read the level of each test file
