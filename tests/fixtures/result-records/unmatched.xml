@@ -1,0 +1,5 @@
+<testsuite name="unmatched">
+  <testcase name="TST-999999 unknown declaration"/>
+  <testcase name="ordinary case without an identifier"/>
+  <testcase name="prefix TST-900001 is not a leading identifier"/>
+</testsuite>

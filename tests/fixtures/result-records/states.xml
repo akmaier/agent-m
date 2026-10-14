@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="states" tests="4" failures="1" errors="1" skipped="1">
+  <testcase name="TST-900001 ordinary pass" classname="records"/>
+  <testcase name="TST-900002 assertion failure" classname="records">
+    <failure message="wrong value" type="AssertionError">expected ready, observed waiting</failure>
+    <system-out>failure log from the runner</system-out>
+  </testcase>
+  <testcase name="TST-900003 execution error" classname="records">
+    <error message="connection unavailable" type="Error">operation raised an error</error>
+    <system-err>error log from the runner</system-err>
+  </testcase>
+  <testcase name="TST-900004 skipped case" classname="records">
+    <skipped message="runner unavailable"/>
+  </testcase>
+</testsuite>

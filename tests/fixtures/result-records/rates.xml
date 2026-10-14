@@ -1,0 +1,9 @@
+<testsuite name="fixed model runs">
+  <testcase name="TST-900020 run 1"/>
+  <testcase name="TST-900020 run 2"><failure message="response mismatch">run 2 failed</failure></testcase>
+  <testcase name="TST-900020 run 3"/>
+  <testcase name="TST-900020 run 4"><error message="response unavailable">run 4 failed</error></testcase>
+  <testcase name="TST-900021 run 1"/>
+  <testcase name="TST-900021 run 2"/>
+  <testcase name="TST-900021 run 3"><skipped message="not executed"/></testcase>
+</testsuite>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<testsuites name="outer">
+  <testsuite name="parent">
+    <properties><property name="runner" value="fixture &amp; only"/></properties>
+    <testsuite name="child">
+      <testcase name="TST-900001 pass &amp; inspect &gt; zero"/>
+      <testcase name="TST-900002 decoded failure">
+        <failure message="observed &lt;waiting&gt; &amp; unstable"><![CDATA[expected <ready> & stable; saw <waiting>
+<testcase name="TST-900003 not a real case"/>]]></failure>
+        <system-out>output &lt;waiting&gt; &amp; &#x41;</system-out>
+      </testcase>
+      <testcase name="plain &amp; decoded &#65;"/>
+    </testsuite>
+  </testsuite>
+</testsuites>

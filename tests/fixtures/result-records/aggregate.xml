@@ -1,0 +1,14 @@
+<testsuites name="deterministic cases">
+  <testsuite name="first partition">
+    <testcase name="TST-900010 first passing case"/>
+    <testcase name="TST-900011 failing case">
+      <failure message="second partition differs">partition mismatch</failure>
+    </testcase>
+    <testcase name="TST-900012 skipped case"><skipped/></testcase>
+  </testsuite>
+  <testsuite name="second partition">
+    <testcase name="TST-900010 second passing case"/>
+    <testcase name="TST-900011 later passing case"/>
+    <testcase name="TST-900012 later passing case"/>
+  </testsuite>
+</testsuites>
