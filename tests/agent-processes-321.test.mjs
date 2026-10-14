@@ -3,13 +3,14 @@
 // Guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A CANCELLED JOB WRITES NOTHING MORE; ONE DEFINITION, THREE DRIVERS; UC-010; UC-011
 
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { after } from "node:test";
 import { agentDriver } from "../src/agent-processes/index.mjs";
+import { formatFinding } from "../src/text-tools/index.mjs";
 
 const node = process.execPath;
 const fixture = () => mkdtempSync(join(tmpdir(), "agent-m-321-"));
@@ -108,6 +109,86 @@ async function withEnvironment(values, work) {
 function driver(agent, workdir, keyVariable = null) {
   return agentDriver(agent, { workdir, keyVariable }, PARTICIPANT);
 }
+
+const CONTEXT_PART = { name: "source", text: "AGENT_RECIPE_CONTEXT", size: 0, sources: [], required: true, recipe: "fixture", artifacts: [] };
+const CONTEXT_INPUT = { ...INPUT, prompt: `Write the correction.\n\n### source\n\n${CONTEXT_PART.text}`, parts: [CONTEXT_PART] };
+const CURRENT_DRAFT = JSON.stringify({ text: "AGENT_CURRENT_DRAFT" }, null, 2);
+const CONTEXT_FINDINGS = [
+  { artifact: "UC-019", line: 7, kind: "error", rule: "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT", what: "AGENT_MISSING_CHECK", fix: "include the check" },
+  { artifact: "SPEC", line: 8, kind: "warning", rule: "ONE STATEMENT PER REQUIREMENT", what: "AGENT_TWO_STATEMENTS", fix: "split or justify the rule" },
+];
+const occurrences = (text, value) => text.split(value).length - 1;
+
+async function contextTasks(t, extra, verify) {
+  for (const [name, prefix] of [["claude", ["-p"]], ["codex", ["exec"]], ["opencode", ["run", "--format", "json"]]]) {
+    await t.test(name, async () => {
+      const folder = realpathSync(fixture()), record = join(folder, "tasks.jsonl");
+      try {
+        executable(folder, name, `
+          import { appendFileSync } from "node:fs";
+          appendFileSync(${JSON.stringify(record)}, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd() }) + "\\n");
+          process.stdout.write(${JSON.stringify(name === "opencode" ? JSON.stringify({ type: "text", part: { text: "fixture answer" } }) + "\n" : "fixture answer\n")});
+        `);
+        const agent = { ...CLAUDE, name };
+        const actualDriver = driver(agent, folder);
+        const send = async (input, expectedCalls) => {
+          assert.equal((await withPath(folder, () => actualDriver.send({ ...input, workdir: folder }))).text, "fixture answer");
+          const calls = readFileSync(record, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+          assert.equal(calls.length, expectedCalls, "one send starts one fixture task");
+          const call = calls.at(-1);
+          assert.equal(call.cwd, folder);
+          assert.deepEqual(call.argv.slice(0, -1), prefix, "the register's task arguments reach the fixture");
+          const text = call.argv.at(-1);
+          assert.equal(occurrences(text, CONTEXT_INPUT.prompt), 1, "ordinary prompt reaches the coding agent once");
+          assert.equal(occurrences(text, CONTEXT_PART.text), 1, "recipe parts already in prompt are not added again");
+          return text;
+        };
+        assert.equal(await send(CONTEXT_INPUT, 1), CONTEXT_INPUT.prompt, "known positive: ordinary DriverInput is unchanged");
+        if (extra !== null) verify(await send({ ...CONTEXT_INPUT, ...extra }, 2), name);
+      } finally {
+        rmSync(folder, { recursive: true, force: true });
+      }
+    });
+  }
+}
+
+// TST-398017
+// level: unit
+// module: MOD-agent-processes
+// guards: ONE DEFINITION, THREE DRIVERS; UC-010; UC-011; UC-019
+// given: controlled Claude, Codex and OpenCode executables on a fixture-only PATH
+// input: each public agentDriver sends ordinary DriverInput whose prompt already holds its recipe part
+// expect: each fixture records one task, the exact prompt once and the part once, in the requested workdir
+test("TST-398017: coding agents receive ordinary DriverInput exactly once", async (t) => {
+  await contextTasks(t, null);
+});
+
+// TST-398018
+// level: unit
+// module: MOD-agent-processes
+// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: each controlled supported coding agent after its known-positive ordinary task
+// input: a second public agentDriver send with the complete current draft in previous and no findings
+// expect: one additional task carries the current draft once and does not append recipe parts again
+test("TST-398018: coding agents receive previous current draft exactly once", async (t) => {
+  await contextTasks(t, { previous: CURRENT_DRAFT }, (text, name) => {
+    assert.equal(occurrences(text, CURRENT_DRAFT), 1, `${name} receives the complete previous current draft once`);
+  });
+});
+
+// TST-398019
+// level: unit
+// module: MOD-agent-processes
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: each controlled supported coding agent after its known-positive ordinary task
+// input: a second public agentDriver send with a previous draft and one error and one warning
+// expect: each full canonical formatFinding line and the complete current draft reach one additional task exactly once
+test("TST-398019: coding agents receive canonical correction findings exactly once", async (t) => {
+  await contextTasks(t, { previous: CURRENT_DRAFT, findings: CONTEXT_FINDINGS }, (text, name) => {
+    for (const finding of CONTEXT_FINDINGS) assert.equal(occurrences(text, formatFinding(finding)), 1, `${name} receives canonical ${finding.kind} once`);
+    assert.equal(occurrences(text, CURRENT_DRAFT), 1, "the findings travel with the draft they concern");
+  });
+});
 
 // TST-321001
 // level: unit

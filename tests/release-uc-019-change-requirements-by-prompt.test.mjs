@@ -570,13 +570,13 @@ const FAULTS = [
   { ids: ["TST-418101"], file: "src/review-pages/requirements-prompt.mjs", from: 'accountOf(loaded.instanceSnapshot)', to: 'accountOf(snapshot)' },
   { ids: ["TST-418102"], file: "src/runtimes/tab.mjs", from: 'if (entry.bridge !== null)', to: 'if (false)' },
   { ids: ["TST-418103"], file: "src/review-pages/requirements-prompt.mjs", from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
-  { ids: ["TST-418104"], file: "src/runtimes/tab.mjs", from: 'if (input.previous !== null && input.previous !== undefined)', to: 'if (false)' },
+  { ids: ["TST-418104", "TST-418124"], file: "src/job-runner/driver-prompt.mjs", from: 'if (input.previous !== null && input.previous !== undefined)', to: 'if (false)' },
   { ids: ["TST-418105"], file: "src/review-pages/jobs.mjs", from: 'drafters: eligible(participants, { capabilities: definition.needs }).eligible', to: 'drafters: participants' },
   { ids: ["TST-418106"], file: "src/spec-changes/strategies.mjs", from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
   { ids: ["TST-418107"], file: "src/site-frame/run-panel.mjs", from: 'if (prepared.blocking.length === 0 && prepared.notFitting.length === 0)', to: 'if (true)' },
   { ids: ["TST-418108"], file: "src/job-runner/builtins.mjs", from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
   { ids: ["TST-418109"], file: "src/review-pages/requirements-prompt.mjs", from: 'showDifference(held?.rule ?? "", rule.value)', to: 'renderArtifact(held?.rule ?? "")' },
-  { ids: ["TST-418113"], file: "src/runtimes/tab.mjs", from: 'if (input.findings?.length)', to: 'if (false)' },
+  { ids: ["TST-418113", "TST-418124"], file: "src/job-runner/driver-prompt.mjs", from: 'if (input.findings?.length)', to: 'if (false)' },
   { ids: ["TST-418114", "TST-418122"], file: "src/job-runner/loop.mjs", from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
   { ids: ["TST-418115"], file: "src/job-runner/loop.mjs", from: 'number >= prepared.limit', to: 'number >= 3' },
   { ids: ["TST-418116"], file: "src/job-runner/loop.mjs", from: 'number > 1 && now.length && same(now, open)', to: 'false' },
@@ -586,9 +586,10 @@ const FAULTS = [
   { ids: ["TST-418120"], file: "src/spec-changes/propose.mjs", from: 'files.push({ path: `${base}.md`, text: section.text }', to: 'files.push({ path: "SPEC.md", text: section.text }' },
   { ids: ["TST-418121"], file: "src/review-pages/requirements-prompt.mjs", from: 'const count = prepared.parts.find((part) => part.recipe === "spec-with-queues")?.artifacts?.length ?? 0;', to: 'const count = 0;' },
   { ids: ["TST-418104"], file: "src/review-pages/jobs.mjs", from: 'ready.decoratePanel?.(panel, ready.prepared);', to: 'void ready.decoratePanel;' },
-  { ids: ["TST-418114", "TST-418122"], file: "src/runtimes/tab.mjs", from: 'input.findings.map(formatFinding)',
+  { ids: ["TST-418114", "TST-418122", "TST-418124"], file: "src/job-runner/driver-prompt.mjs", from: 'input.findings.map(formatFinding)',
     to: 'input.findings.map((finding) => `${finding.artifact}:${finding.line}: ${finding.kind}: ${finding.what} [${finding.rule}] - ${finding.fix}`)' },
   { ids: ["TST-418123"], file: "src/review-pages/requirements-prompt.mjs", from: 'panel.append(left, roundsSection(state.outcome.rounds, state.outcome.stoppedBecause));', to: 'panel.append(left);' },
+  { ids: ["TST-418124"], file: "src/endpoint-calls/index.mjs", from: 'driverRequest(config, driverPrompt(input), options.signal)', to: 'driverRequest(config, input.prompt, options.signal)' },
 ];
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function counterproofs() {

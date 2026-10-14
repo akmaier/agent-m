@@ -24,6 +24,7 @@ import * as runtimes from "../src/runtimes/index.mjs";
 import { bridgeApi } from "../src/bridge-http/index.mjs";
 import { bridgeAt } from "../src/bridge-client/index.mjs";
 import { recordsNewestFirst, startRecord } from "../src/job-ledger/index.mjs";
+import { formatFinding } from "../src/text-tools/index.mjs";
 
 const { queueJob } = runtimes;
 const REPOSITORY = { server: "github", origin: "https://github.com", path: "alice/product", web: "https://github.com/alice/product" };
@@ -151,6 +152,81 @@ test("queueJob — the Bridge route refuses a moved head, with nothing written a
 
 const PARTICIPANT = { name: "claude-lab", type: "CLI agent", model: "agent", context: 200000, price: null, capabilities: ["draft text"], place: "this machine", route: "bridge lab-pc agent claude" };
 const INPUT = { prompt: "Write the draft.", parts: [], output: null, findings: [], previous: null, workdir: null };
+
+const CONTEXT_PART = { name: "source", text: "BRIDGE_RECIPE_CONTEXT", size: 0, sources: [], required: true, recipe: "fixture", artifacts: [] };
+const CONTEXT_INPUT = { ...INPUT, prompt: `Write the correction.\n\n### source\n\n${CONTEXT_PART.text}`, parts: [CONTEXT_PART] };
+const CURRENT_DRAFT = JSON.stringify({ text: "BRIDGE_CURRENT_DRAFT" }, null, 2);
+const CONTEXT_FINDINGS = [
+  { artifact: "UC-019", line: 7, kind: "error", rule: "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT", what: "BRIDGE_MISSING_CHECK", fix: "include the check" },
+  { artifact: "SPEC", line: 8, kind: "warning", rule: "ONE STATEMENT PER REQUIREMENT", what: "BRIDGE_TWO_STATEMENTS", fix: "split or justify the rule" },
+];
+const occurrences = (text, value) => text.split(value).length - 1;
+
+async function contextAsks(t, extra, verify) {
+  const config = { name: "fixture", kind: "openai-compatible", baseUrl: "https://fixture.example.test/v1", model: "fixture-model", key: null };
+  for (const target of [{ agent: "claude" }, { endpoint: config }]) {
+    const name = Object.keys(target)[0];
+    await t.test(name, async () => {
+      bridgesAnswer();
+      const actualDriver = runtimes.bridgeDriver(bridgeNamed("lab-pc"), target, PARTICIPANT);
+      const send = async (input, expectedCalls) => {
+        assert.equal(JSON.parse((await actualDriver.send(input)).text).draft.text, "from the Bridge");
+        const asks = requests.filter((request) => request.method === "POST" && request.path === "/v1/ask");
+        assert.equal(asks.length, expectedCalls, "one send makes one Bridge ask");
+        assert.equal(requests.length, expectedCalls * 2, "each ask has one completion poll");
+        const request = asks.at(-1);
+        assert.equal(request.origin, BRIDGE_ADDRESS);
+        assert.equal(request.token, "token-lab-pc");
+        assert.deepEqual(request.body[name], target[name]);
+        assert.deepEqual(Object.keys(request.body).sort(), [name, "input"].sort(), "the existing Bridge wire contract is unchanged");
+        const text = request.body.input;
+        assert.equal(occurrences(text, CONTEXT_INPUT.prompt), 1, "ordinary prompt reaches the Bridge once");
+        assert.equal(occurrences(text, CONTEXT_PART.text), 1, "recipe parts already in prompt are not added again");
+        return text;
+      };
+      assert.equal(await send(CONTEXT_INPUT, 1), CONTEXT_INPUT.prompt, "known positive: ordinary DriverInput is unchanged");
+      if (extra !== null) verify(await send({ ...CONTEXT_INPUT, ...extra }, 2), name);
+    });
+  }
+}
+
+// TST-398020
+// level: unit
+// module: MOD-runtimes
+// guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; UC-019
+// given: a constructed Bridge response through the real Bridge client, for both agent and endpoint targets
+// input: bridgeDriver sends ordinary DriverInput whose prompt already holds its recipe part
+// expect: each target receives one ask carrying the exact prompt and its part once in the existing wire contract
+test("TST-398020: Bridge targets receive ordinary DriverInput exactly once", async (t) => {
+  await contextAsks(t, null);
+});
+
+// TST-398021
+// level: unit
+// module: MOD-runtimes
+// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: both Bridge target kinds after a known-positive ordinary exchange
+// input: bridgeDriver sends a second DriverInput with the current draft in previous and no findings
+// expect: one additional ask contains the entire current draft once without duplicating prompt parts
+test("TST-398021: Bridge targets receive previous current draft exactly once", async (t) => {
+  await contextAsks(t, { previous: CURRENT_DRAFT }, (text, name) => {
+    assert.equal(occurrences(text, CURRENT_DRAFT), 1, `Bridge ${name} receives the complete previous current draft once`);
+  });
+});
+
+// TST-398022
+// level: unit
+// module: MOD-runtimes
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: both Bridge target kinds after a known-positive ordinary exchange
+// input: bridgeDriver sends a previous draft with one error and one warning
+// expect: each complete canonical formatFinding line and the complete draft occur exactly once in one additional ask
+test("TST-398022: Bridge targets receive canonical correction findings exactly once", async (t) => {
+  await contextAsks(t, { previous: CURRENT_DRAFT, findings: CONTEXT_FINDINGS }, (text, name) => {
+    for (const finding of CONTEXT_FINDINGS) assert.equal(occurrences(text, formatFinding(finding)), 1, `Bridge ${name} receives canonical ${finding.kind} once`);
+    assert.equal(occurrences(text, CURRENT_DRAFT), 1, "the findings travel with the draft they concern");
+  });
+});
 
 // TST-472698 · level: unit · module: MOD-runtimes
 // guards: A RUNTIME IS INTERCHANGEABLE; UC-011
