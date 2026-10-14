@@ -132,6 +132,11 @@ test("TST-295002: itemStates derives dependency, job, pull-request, done and unk
   assert.equal(stateOf(states, "ITM-295-base").state, "done");
   assert.equal(stateOf(states, "ITM-295-dependent").state, "ready");
 
+  states = itemStates([item("ITM-295-case")], null, facts({ pullRequests: [
+    { ...pull("ITM-295-case", "merged", 19), title: "the case-sensitive branch name", branch: "codex/itm-295-case" },
+  ] }));
+  assert.equal(stateOf(states, "ITM-295-case").state, "done", "a lower-case branch name still names the uppercase backlog item");
+
   states = itemStates([item("ITM-295-unknown")], null, facts({ pullRequests: "unknown" }));
   assert.deepEqual(stateOf(states, "ITM-295-unknown"), {
     item: "ITM-295-unknown", state: "unknown", reason: "pull request facts are unknown", job: null, pullRequest: null,

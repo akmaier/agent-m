@@ -68,7 +68,7 @@ export { jobCost } from "./cost.mjs";
  *   { part: "job started", at: Date, job: string, kind: string, worksOn: string[] } |
  *   { part: "limits raised", at: Date, by: string, limits: { jobsAtOnce: number, cost: number | null, rounds: number } } |
  *   { part: "end", at: Date, state: "done" | "failed" | "cancelled", results: string[], draft: unknown | null,
- *     rounds: Round[], usage: Usage | null, cost: Cost, reason: string | null, log: string | null } } RecordPart
+ *     notes?: string[], rounds: Round[], usage: Usage | null, cost: Cost, reason: string | null, log: string | null } } RecordPart
  */
 
 /**
@@ -84,7 +84,7 @@ export { jobCost } from "./cost.mjs";
  *   gates: Array<{ at: Date, gate: string, decider: string, resumedBy: string | null }>, question: string | null,
  *   jobs: Array<{ at: Date, job: string, kind: string, worksOn: string[] }>,
  *   limitsRaised: Array<{ at: Date, by: string, limits: { jobsAtOnce: number, cost: number | null, rounds: number } }>,
- *   end: { at: Date, state: "done" | "failed" | "cancelled", results: string[], draft: unknown | null, rounds: Round[],
+ *   end: { at: Date, state: "done" | "failed" | "cancelled", results: string[], notes?: string[], draft: unknown | null, rounds: Round[],
  *     usage: Usage | null, cost: Cost | null, reason: string | null, log: string | null } | null }} JobRecord
  */
 
@@ -199,6 +199,16 @@ function decodeJsonField(text) {
   }
 }
 
+function decodeJsonStringArray(text) {
+  if (!text) return undefined;
+  try {
+    const value = JSON.parse(text);
+    return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // ---------------------------------------------------------------- newJobId
 
 // newJobId(now: Date, taken: Set<string>) -> string — a new identifier of the form JOB-<yyyymmdd>-<hhmm>-<4 hex>, none of
@@ -295,6 +305,7 @@ function recordFromDocument(doc) {
   const reachedChunks = chunksOf(doc, "## Gate reached");
   const resumedChunks = chunksOf(doc, "## Resumed");
   const end = chunksOf(doc, "## End")[0] ?? null;
+  const notes = end ? decodeJsonStringArray(end.fields.notes) : undefined;
 
   const reached = reachedChunks.map((chunk, i) => ({
     at: parseTime(chunk.fields.at),
@@ -341,6 +352,7 @@ function recordFromDocument(doc) {
       at: parseTime(end.fields.at),
       state: end.fields.state,
       results: asList(end.fields.results),
+      ...(notes === undefined ? {} : { notes }),
       draft: parseFencedJson(end.text, null),
       rounds: roundsFrom(chunksOf(doc, "## Rounds")[0]?.text),
       usage: decodeJsonField(end.fields.usage),
@@ -483,6 +495,7 @@ export function appendToRecord(text, part) {
         ...(part.limits.cost === null ? {} : { cost: part.limits.cost }), rounds: part.limits.rounds });
     case "end": {
       let out = appended(text, "## End", { at, state: part.state, results: part.results,
+        ...(Array.isArray(part.notes) && part.notes.length > 0 ? { notes: JSON.stringify(part.notes) } : {}),
         ...(part.usage === null ? {} : { usage: JSON.stringify(part.usage) }), cost: JSON.stringify(part.cost),
         ...(part.reason === null ? {} : { reason: part.reason }), ...(part.log === null ? {} : { log: part.log }) });
       if (part.draft !== null) out += fenced(part.draft);

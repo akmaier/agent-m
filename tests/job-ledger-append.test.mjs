@@ -102,6 +102,29 @@ test("appendToRecord — each kind of part appended after the last section, the 
   assert.equal(jobState(await recordOf(text), null), "done");
 });
 
+// TST-472718 · level: unit · module: MOD-job-ledger
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-007
+// given: one End with two writer notes, one of them holding commas and quotes; and one End without notes
+// input: appendToRecord(QUEUED, End), then the record read back
+// expect: the End with notes reads back both notes byte for byte, without splitting at commas or losing quotes; the End without notes reads as the old End shape, with no notes field added
+test("appendToRecord — an End's writer notes keep commas and quotes, and no notes reads as before", async () => {
+  const cost = { known: false, usage: null };
+  const notes = [
+    'UC-007 realised "EXPORT, PDF", which matches no requirement; removed',
+    'UC-008 realises no requirement, "kept" by the writer',
+  ];
+  const end = { part: "end", at: at(9), state: "done", results: ["commit c0ffee"], draft: null, rounds: [],
+    usage: null, cost, reason: null, log: null };
+
+  const withNotes = await recordOf(appendToRecord(QUEUED, { ...end, notes }));
+  assert.deepEqual(withNotes.end.results, ["commit c0ffee"]);
+  assert.deepEqual(withNotes.end.notes, notes);
+
+  const withoutNotes = await recordOf(appendToRecord(QUEUED, end));
+  assert.deepEqual(withoutNotes.end, { at: at(9), state: "done", results: ["commit c0ffee"], draft: null, rounds: [],
+    usage: null, cost, reason: null, log: null });
+});
+
 // TST-472292 · level: unit · module: MOD-job-ledger
 // guards: THE ROUNDS ARE COUNTED AND SHOWN; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-019
 // given: a record taken by its route; an End failed with a reason and no result, with rounds the correction loop made — (1) two rounds: the first with two findings, one fixed and one justified with its line, the second with none, and no stoppedBecause; (2) two rounds the second of which has a finding the drafter answered, the loop stopped at its limit, and a finding a person decides; (3) two rounds whose last still shows a warning the drafter justified before, and the loop passed

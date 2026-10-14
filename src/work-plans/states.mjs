@@ -140,7 +140,7 @@ function blockedJobReason(job) {
 }
 
 function namesPullRequest(pullRequest, id) {
-  const pattern = new RegExp(`(?<![A-Za-z0-9])${escapeRegExp(id)}(?![0-9])`);
+  const pattern = new RegExp(`(?<![A-Za-z0-9])${escapeRegExp(id)}(?![0-9])`, "i");
   return pattern.test(text(pullRequest?.branch)) || pattern.test(text(pullRequest?.title));
 }
 

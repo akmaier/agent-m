@@ -157,13 +157,14 @@ function throughClone(repository, folder, rest) {
   };
 }
 
-// connect(address, credentials) -> Host — a host for one repository. credentials: { token, tokenName, clone, secrets }: the
-// token and the name the person stored it under; the values of every configured secret, which no commit may contain. The token
-// goes only into the authorisation header of requests to the API of the server that issued it, for this repository; a token
-// of the other kind of server is refused with a TypeError. No request is made yet.
+// connect(address, credentials) -> Host — a host for one repository. credentials:
+// { token, tokenName, clone, secrets, defaultBranch }: the token and the name the person stored it under; the values of every
+// configured secret, which no commit may contain; and the default branch handed on from repositoryInfo for navigation pages. The
+// token goes only into the authorisation header of requests to the API of the server that issued it, for this repository; a
+// token of the other kind of server is refused with a TypeError. No request is made yet.
 export function connect(address, credentials = {}) {
   const repository = checkedAddress(address);
-  const { token = null, tokenName = null, clone = null, secrets = [] } = credentials ?? {};
+  const { token = null, tokenName = null, clone = null, secrets = [], defaultBranch = address?.defaultBranch ?? "main" } = credentials ?? {};
   if (clone !== null && clone !== undefined) {
     if (typeof clone !== "string" || !clone.trim()) throw new TypeError("a clone is the folder of a local clone");
     if (!IN_NODE) {
@@ -178,7 +179,7 @@ export function connect(address, credentials = {}) {
       : "That is a GitHub token; a GitLab project is reached with its own project access token.");
   }
   if (!Array.isArray(secrets) || secrets.some((s) => typeof s !== "string")) throw new TypeError("the secrets are a list of texts");
-  const links = webLinks(repository);
+  const links = webLinks(repository, defaultBranch);
   const name = tokenName || (github ? "GitHub token" : `GitLab project token for ${repository.web}`);
   const rest = (github ? githubAdapter : gitlabAdapter)(repository, { token: token || null, tokenName: name }, links);
   const adapter = clone ? throughClone(repository, clone, token ? rest : null) : rest;

@@ -553,6 +553,11 @@ test("decision/draft — a job on the CI route is queued there and not run in th
 // given: a run returns a decision and a module; the reviewer leaves one warning that the drafter answers; the product has MIT as LICENSE; the registry knows gpl-lib and not missing-lib
 // input: Run on decision/draft
 // expect: the page shows the drafted files in order, the answered finding in the rounds, the due-diligence table with gpl-lib marked not known to be compatible and missing-lib as not found, and the reuse candidates as choices
+// TST-584004 · level: unit · module: MOD-review-pages
+// guards: UC-022; THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE; A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON
+// given: a run returns a decision and a module; the reviewer leaves one warning that the drafter answers; the product has MIT as LICENSE; the registry knows gpl-lib and not missing-lib
+// input: Run on decision/draft
+// expect: the page shows the drafted files in order, the answered finding in the rounds, the due-diligence table with gpl-lib marked not known to be compatible and missing-lib as not found, and the reuse candidates as choices
 test("decision/draft - after Run shows the architecture draft, rounds, due diligence and candidate choices", async () => {
   endpointsAndRegistries({
     reviewerFindings: [[REVIEW_FINDING], []],
@@ -579,6 +584,11 @@ test("decision/draft - after Run shows the architecture draft, rounds, due dilig
 // given: a run returns a decision whose chosen package has MIT, but the product has no LICENSE
 // input: Run on decision/draft
 // expect: the due-diligence section says why compatibility was not checked and every shown candidate row says not checked
+// TST-584005 · level: unit · module: MOD-review-pages
+// guards: UC-022; A PRODUCT DECLARES ITS LICENCE; A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S
+// given: a run returns a decision whose chosen package has MIT, but the product has no LICENSE
+// input: Run on decision/draft
+// expect: the due-diligence section says why compatibility was not checked and every shown candidate row says not checked
 test("decision/draft - after Run, without LICENSE, due diligence is shown as not checked", async () => {
   endpointsAndRegistries({
     drafts: [architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" })],
@@ -595,6 +605,11 @@ test("decision/draft - after Run, without LICENSE, due diligence is shown as not
 });
 
 // TST-443003 - level: unit - module: MOD-review-pages
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A GENERATED ARTIFACT IS A PROPOSAL; ONE CLICK PER DECISION
+// given: the architecture draft waits for the author after Run
+// input: the author changes the decision text and clicks Write proposals
+// expect: one non-job commit writes the changed drafted architecture file as an open proposal
+// TST-584006 · level: unit · module: MOD-review-pages
 // guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A GENERATED ARTIFACT IS A PROPOSAL; ONE CLICK PER DECISION
 // given: the architecture draft waits for the author after Run
 // input: the author changes the decision text and clicks Write proposals
@@ -622,6 +637,11 @@ test("decision/draft - Write proposals writes the draft as the author left it", 
 // given: the due-diligence step marks a blocked npm registry and the product has a CI route available
 // input: Run, then Write proposals
 // expect: nothing is written, the registry npm is named, and the page offers a route that can fetch the facts elsewhere
+// TST-584007 · level: unit · module: MOD-review-pages
+// guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; ONE CLICK PER DECISION
+// given: the due-diligence step marks a blocked npm registry and the product has a CI route available
+// input: Run, then Write proposals
+// expect: nothing is written, the registry npm is named, and the page offers a route that can fetch the facts elsewhere
 test("decision/draft - a blocked registry keeps Write proposals from writing and names another route", async () => {
   endpointsAndRegistries({
     drafts: [architectureDraft({ candidate: "blocked-lib", alternative: "missing-lib" })],
@@ -644,6 +664,11 @@ test("decision/draft - a blocked registry keeps Write proposals from writing and
 });
 
 // TST-443005 - level: unit - module: MOD-review-pages
+// guards: AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT; UC-022
+// given: the architecture draft waits after Run and the checker's later drafter answer returns a checked draft
+// input: the author edits the decision text and clicks Check this edit
+// expect: the page runs the architecture check again from the edited draft and replaces the shown draft with the checked result
+// TST-584008 · level: unit · module: MOD-review-pages
 // guards: AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT; UC-022
 // given: the architecture draft waits after Run and the checker's later drafter answer returns a checked draft
 // input: the author edits the decision text and clicks Check this edit

@@ -511,6 +511,8 @@ test("participants — Test probes the selected agent, and a failed Bridge test 
 // TST-354001 · level: unit · module: MOD-settings-pages
 // guards: UC-017; A ROLE NAMES THE CAPABILITIES IT NEEDS; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
 // given: the browser's product list holds two products whose role assignments name dev-a, and dev-a is in the instance
+// input: the author opens Change for dev-a, then removes write to the repository before saving the changed participant
+// expect: the participants page lists both products and the roles that name dev-a before Save; after the capability is removed, MOD-product-process' roleAssignmentFindings is shown for the assignment that is now invalid, naming the Developers role and the missing write to the repository capability; Save changes only docs/participants.md
 //   participant register with the capabilities a Developer needs
 // input: the author opens Change for dev-a, then removes write to the repository before saving the changed participant
 // expect: the participants page lists both products and the roles that name dev-a before Save; after the capability is

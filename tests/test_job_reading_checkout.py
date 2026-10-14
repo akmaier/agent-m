@@ -130,6 +130,11 @@ class TestJobReadingCheckout(unittest.TestCase):
     # given: Markdown fixture cases, a temporary checkout of the instance with SRC-vibe-coding's register entry and chapter files, and real MOD-source-register chapter recipes
     # input: prepareJob for every listed job kind with context.instance.checkout naming the checkout
     # expect: each SRC-vibe-coding part is the path of its chapter file in the checkout, and that file's SHA-256 equals the source register's recorded hash
+    # TST-584024 · level: release · module: MOD-source-register
+    # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; A TEST JOB RECEIVES THE CHAPTER ON TESTING; AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+    # given: Markdown fixture cases, a temporary checkout of the instance with SRC-vibe-coding's register entry and chapter files, and real MOD-source-register chapter recipes
+    # input: prepareJob for every listed job kind with context.instance.checkout naming the checkout
+    # expect: each SRC-vibe-coding part is the path of its chapter file in the checkout, and that file's SHA-256 equals the source register's recorded hash
     def test_jobs_in_a_checkout_receive_chapter_paths_with_recorded_hashes(self):
         case = next(item["case"] for item in cases() if item["case"]["expected"]["ok"])
         chapters = registered_chapters()
@@ -155,6 +160,11 @@ class TestJobReadingCheckout(unittest.TestCase):
                         self.assertEqual(by_chapter, {number: chapter["sha256"] for number, chapter in expected.items()})
 
     # TST-417101 - level: release - module: MOD-source-register
+    # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
+    # given: a temporary checkout of the instance whose chapter 13 file differs from the hash recorded in SRC-vibe-coding.md
+    # input: prepareJob for write-tests with context.instance.checkout naming that checkout
+    # expect: preparation fails before anything is sent, with HashMismatch naming 13_software-testing.md
+    # TST-584025 · level: release · module: MOD-source-register
     # guards: A JOB IN A CHECKOUT OF THE INSTANCE READS THE CHAPTERS THERE
     # given: a temporary checkout of the instance whose chapter 13 file differs from the hash recorded in SRC-vibe-coding.md
     # input: prepareJob for write-tests with context.instance.checkout naming that checkout

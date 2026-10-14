@@ -18,7 +18,8 @@ example shows.
   them a given record carries is MOD-job-ledger's to read, not this schema's to enforce — `documentFindings` does not
   check a section's fields yet (MOD-documents, checks.mjs).
 - `## End`'s `usage:` and `cost:` hold the `Usage` and `Cost` values as one line of JSON each, for a value no scalar type
-  of this language expresses (the Data table fixes no other form for them). Its round record (`roundsText`,
+  of this language expresses (the Data table fixes no other form for them). `notes:` holds the writer's notes as a JSON
+  string array, so commas and quotes stay part of the note instead of becoming list separators. Its round record (`roundsText`,
   MOD-job-runner, `rounds.schema.md`) follows it as the appended section `## Rounds`, which names no fields: MOD-job-ledger
   writes the text and reads the rounds from it (ITM-317). A job's kind handing back a draft (`draft:`, one fenced `json` block) is, like
   `## Parameters`, not a field this schema names: MOD-job-ledger reads the block from the section's raw text itself, the
@@ -88,6 +89,7 @@ example shows.
       "at": { "type": "time", "required": true },
       "state": { "type": "enum", "values": ["done", "failed", "cancelled"], "required": true },
       "results": { "type": "list", "required": false, "item": { "type": "text" } },
+      "notes": { "type": "text", "required": false },
       "usage": { "type": "text", "required": false },
       "cost": { "type": "text", "required": false },
       "reason": { "type": "text", "required": false },

@@ -8,8 +8,8 @@
 // with the parameters `filename` and `value`, and its editor https://github.com/<owner>/<name>/edit/<branch>/<path>; GitLab's
 // single-file editor as GitLab links it itself, https://<server>/<project>/-/edit/<branch>/<path> (its handbook links
 // https://gitlab.com/gitlab-com/content-sites/handbook/-/edit/main/.gitlab/CODEOWNERS, read 2026-10-11); GitLab has no new-file
-// page that takes a record (UC-008 3c). The branch is `main`, the default of the model (docs/assets/dashboard-app.mjs,
-// deriveTarget).
+// page that takes a record (UC-008 3c). The branch defaults to `main` when no caller has handed on the repository's reported
+// default branch.
 // Run: node --test tests/repository-hosts-file-pages.test.mjs
 //
 // Module: MOD-repository-hosts
@@ -58,6 +58,26 @@ test("MOD-repository-hosts webLinks — GitHub's new-file page holds the path an
   assert.equal(page.searchParams.get("filename"), RECORD_PATH, "the path");
   assert.equal(page.searchParams.get("value"), RECORD, "the record, its three lines");
   assert.deepEqual([page.hash, page.username, page.password], ["", "", ""], "no fragment, no user name, no password");
+});
+
+// TST-472541 · level: unit · module: MOD-repository-hosts
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: the GitHub repository alice/agent-m, connected without a token; the repository default branch the server reports, once `master` and once `main`; the approval record of a module file, three lines, and a path with spaces
+// input: webLinks().newFile(path, record) and webLinks().editFile(path)
+// expect: the new-file page and editor page name the reported default branch — `master` or `main` — and no request is made
+test("MOD-repository-hosts webLinks — GitHub's file pages name the repository default branch, with no request", () => {
+  const path = "docs/use-cases/UC-001 the first.md";
+  for (const branch of ["master", "main"]) {
+    const [newFile, editFile] = withoutRequests(() => {
+      const links = connect(GITHUB, { defaultBranch: branch }).webLinks();
+      return [links.newFile(RECORD_PATH, RECORD), links.editFile(path)];
+    });
+    const page = new URL(newFile);
+    assert.equal(page.origin + page.pathname, `https://github.com/alice/agent-m/new/${branch}`, `${branch}: new-file page`);
+    assert.equal(page.searchParams.get("filename"), RECORD_PATH, `${branch}: new-file path`);
+    assert.equal(page.searchParams.get("value"), RECORD, `${branch}: new-file record`);
+    assert.equal(editFile, `https://github.com/alice/agent-m/edit/${branch}/docs/use-cases/UC-001%20the%20first.md`, `${branch}: editor page`);
+  }
 });
 
 // ---------------------------------------------------------------- the editor page of a file

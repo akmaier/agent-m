@@ -58,7 +58,7 @@ function usedBy(modules, architecture) {
 
 // A pull request belongs to an item when its head branch or its title holds the item's identifier, not followed by a digit.
 const naming = (pullRequest, id) => {
-  const pattern = new RegExp(`(?<![A-Za-z0-9])${id}(?![0-9])`);
+  const pattern = new RegExp(`(?<![A-Za-z0-9])${id}(?![0-9])`, "i");
   return pattern.test(text(pullRequest?.branch)) || pattern.test(text(pullRequest?.title));
 };
 const time = (value) => Date.parse(text(value));
@@ -67,16 +67,24 @@ const time = (value) => Date.parse(text(value));
 const mergedAnywhere = (id, pullRequests) => pullRequests.some((pullRequest) => pullRequest?.state === "merged"
   && naming(pullRequest, id));
 
-// Whether an item's change is merged into the default branch: a merged pull request of the item into a branch other than its
-// sprint's own branch — without one, into the default branch —; or, with a branch of its own, the item merged into that
-// branch and that branch merged into another after the item's last merge into it.
-function inDefaultBranch(id, branch, pullRequests) {
-  const merged = pullRequests.filter((pullRequest) => pullRequest?.state === "merged" && naming(pullRequest, id));
-  if (merged.some((pullRequest) => !branch || pullRequest.base !== branch)) return true;
-  if (!merged.length) return false;
-  const last = Math.max(...merged.map((pullRequest) => time(pullRequest.merged)));
+function reachesDefaultBranch(branch, after, pullRequests, defaultBranch, seen = new Set()) {
+  if (!branch) return false;
+  if (branch === defaultBranch) return true;
+  if (seen.has(branch)) return false;
+  const nextSeen = new Set(seen);
+  nextSeen.add(branch);
   return pullRequests.some((pullRequest) => pullRequest?.state === "merged" && text(pullRequest.branch) === branch
-    && pullRequest.base !== branch && time(pullRequest.merged) >= last);
+    && time(pullRequest.merged) >= after
+    && reachesDefaultBranch(text(pullRequest.base), time(pullRequest.merged), pullRequests, defaultBranch, nextSeen));
+}
+
+// Whether an item's change is merged into the default branch: a merged pull request of the item into the default branch, or
+// into a branch whose later merged pull request reaches the default branch. A merge into another branch that never reaches
+// the default branch does not end the sprint's hold.
+function inDefaultBranch(id, pullRequests, defaultBranch) {
+  const merged = pullRequests.filter((pullRequest) => pullRequest?.state === "merged" && naming(pullRequest, id));
+  return merged.some((pullRequest) => reachesDefaultBranch(text(pullRequest.base), time(pullRequest.merged),
+    pullRequests, defaultBranch));
 }
 
 /**
@@ -94,8 +102,9 @@ function inDefaultBranch(id, branch, pullRequests) {
  * @param {object[]} sprints @param {object[]} items @param {object[]} architecture @param {object[] | "unknown"} pullRequests
  * @returns {Held[]}
  */
-export function heldItems(sprints, items, architecture, pullRequests) {
+export function heldItems(sprints, items, architecture, pullRequests, options = {}) {
   const known = pullRequests === "unknown" ? null : (pullRequests ?? []);
+  const defaultBranch = text(options?.defaultBranch).trim() || "main";
   const byId = new Map((items ?? []).map((item) => [idOf(item), item]));
   const held = [];
   for (const record of sprints ?? []) {
@@ -103,9 +112,8 @@ export function heldItems(sprints, items, architecture, pullRequests) {
     if (!of) continue;
     const gone = sentOn(record);
     const closed = closedRecord(record);
-    const branch = text(record?.fields?.branch).trim();
     for (const item of selectionOf(record)) {
-      if (gone.has(item) || (known && inDefaultBranch(item, branch, known))) continue;
+      if (gone.has(item) || (known && inDefaultBranch(item, known, defaultBranch))) continue;
       if (known && closed && !mergedAnywhere(item, known)) continue;
       const changes = modulesOf(byId.get(item));
       held.push({ item, sprint: of.name, team: of.team, changes, uses: usedBy(changes, architecture) });

@@ -57,6 +57,11 @@ class MailboxSettingsDisclosure(unittest.TestCase):
     # given: MOD-settings-pages' mailbox source, with the IMAP Store and test handler and the password notice text
     # input: the password notice gate and the first write of the mailbox setting on the IMAP path
     # expect: the notice names the owner Pages origin, reading all mail, sending mail in the mailbox name and the named Bridge; the handler returns before the mailbox write when the notice is unread or the password is empty
+    # TST-584026 · level: release · module: system
+    # guards: THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE
+    # given: MOD-settings-pages' mailbox source, with the IMAP Store and test handler and the password notice text
+    # input: the password notice gate and the first write of the mailbox setting on the IMAP path
+    # expect: the notice names the owner Pages origin, reading all mail, sending mail in the mailbox name and the named Bridge; the handler returns before the mailbox write when the notice is unread or the password is empty
     def test_mailbox_password_disclosure_stands_before_the_password_is_stored(self):
         src = mailbox_text()
         notice = re.search(r'el\("p", "notice mailbox-password-notice", `([^`]+)`\)', src, re.S)
@@ -75,6 +80,11 @@ class MailboxSettingsDisclosure(unittest.TestCase):
     # given: MOD-settings-pages' mailbox source, with Bridges that may or may not be reached through the jump host
     # input: the jump-host notice, the Bridge selection visibility rule and the first mailbox write on the IMAP path
     # expect: only a jump-host Bridge shows the notice, the notice names that the password and mails pass it and can be read by its administrator, and the handler returns before storing until that notice is read
+    # TST-584027 · level: release · module: system
+    # guards: A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE
+    # given: MOD-settings-pages' mailbox source, with Bridges that may or may not be reached through the jump host
+    # input: the jump-host notice, the Bridge selection visibility rule and the first mailbox write on the IMAP path
+    # expect: only a jump-host Bridge shows the notice, the notice names that the password and mails pass it and can be read by its administrator, and the handler returns before storing until that notice is read
     def test_mailbox_jump_host_disclosure_blocks_only_the_jump_host_route(self):
         src = mailbox_text()
         notice = re.search(r'const jumpNotice = el\("p", "notice mailbox-jump-notice", "([^"]+)"\);', src)
@@ -89,6 +99,11 @@ class MailboxSettingsDisclosure(unittest.TestCase):
         self.assertIn("jumpHostNoted: bridge.throughJumpHost", body)
 
     # TST-532007 - level: release - module: system
+    # guards: A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
+    # given: MOD-settings-pages' mailbox source and fixture processing places inside and outside the EU
+    # input: isOutsideEu for this machine, an EU data centre and a USA provider; the outside-EU notice gate and the first mailbox write
+    # expect: this machine and the EU data centre are inside the EU, the USA provider is outside it, the notice names non-compliance with GDPR and the EU AI Act, and the handler returns before storing until that notice is read
+    # TST-584028 · level: release · module: system
     # guards: A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
     # given: MOD-settings-pages' mailbox source and fixture processing places inside and outside the EU
     # input: isOutsideEu for this machine, an EU data centre and a USA provider; the outside-EU notice gate and the first mailbox write

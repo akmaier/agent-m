@@ -102,7 +102,7 @@ export function sprint(text) {
 }
 
 // A pull request names an item when its head branch or its title holds the identifier, not followed by a digit.
-const naming = (id) => new RegExp(`(?<![A-Za-z0-9])${id}(?![0-9])`);
+const naming = (id) => new RegExp(`(?<![A-Za-z0-9])${id}(?![0-9])`, "i");
 const names = (p, id) => {
   const re = naming(id);
   return re.test(String(p?.head ?? "")) || re.test(String(p?.title ?? ""));
@@ -145,7 +145,9 @@ function activity(id, pullRequests, jobs) {
 function holding(pullRequests, jobs, backlog) {
   const ids = new Set();
   for (const p of pullRequests ?? []) {
-    for (const m of `${p?.head ?? ""} ${p?.title ?? ""}`.matchAll(/(?<![A-Za-z0-9])(ITM-\d{3})(?![0-9])/g)) ids.add(m[1]);
+    for (const m of `${p?.head ?? ""} ${p?.title ?? ""}`.matchAll(/(?<![A-Za-z0-9])(ITM-\d{3})(?![0-9])/gi)) {
+      ids.add(m[1].toUpperCase());
+    }
   }
   for (const j of jobs ?? []) if (j && ITEM_ID.test(String(j.item))) ids.add(j.item);
   const known = Array.isArray(backlog) ? new Set(backlog) : null;

@@ -62,6 +62,11 @@ const COVERED_BY_RELEASE = {
 // given: UC-037's realised requirements and the evidence map in this release test
 // input: compare the realised requirements with COVERED_BY_RELEASE
 // expect: every realised requirement is covered exactly once in the map, and every evidence file exists
+// TST-584002 · level: release · module: MOD-settings-pages · MOD-mail-routes · MOD-browser-store · MOD-bridge-client · MOD-mail-protocols
+// guards: UC-037; every requirement realised by UC-037
+// given: UC-037's realised requirements and the evidence map in this release test
+// input: compare the realised requirements with COVERED_BY_RELEASE
+// expect: every realised requirement is covered exactly once in the map, and every evidence file exists
 test("TST-433101: UC-037 release coverage names every realised requirement and its executable evidence", () => {
   const realised = ucRealises();
   assert.deepEqual([...new Set(realised)].sort(), realised.toSorted(), "the use case realises each requirement once");
@@ -74,6 +79,11 @@ test("TST-433101: UC-037 release coverage names every realised requirement and i
 });
 
 // TST-433102 - level: release - module: MOD-test-document
+// guards: UC-037; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
+// given: the evidence files of UC-037
+// input: read the files' text
+// expect: every evidence file is an executable test file and at least one evidence file is at release level for the Bridge, route and disclosure checks
+// TST-584003 · level: release · module: MOD-settings-pages · MOD-mail-routes · MOD-browser-store · MOD-bridge-client · MOD-mail-protocols
 // guards: UC-037; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 // given: the evidence files of UC-037
 // input: read the files' text

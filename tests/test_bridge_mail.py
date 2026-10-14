@@ -376,12 +376,22 @@ class TestBridgeMail(unittest.TestCase):
     # given: the Markdown cases beside this file, each with local IMAP and SMTP fixture servers and MOD-desktop-shell's composed Bridge
     # input: each case posts /v1/mail/test through the Bridge pairing token
     # expect: the successful case counts folders without storing/logging the password or mutating mail; the no-TLS case refuses before login
+    # TST-584022 · level: release · module: MOD-mail-protocols; MOD-desktop-shell
+    # guards: THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST; THE MAIL SERVER IS REACHED ONLY OVER TLS; READING THE MAILBOX CHANGES NOTHING IN IT
+    # given: the Markdown cases beside this file, each with local IMAP and SMTP fixture servers and MOD-desktop-shell's composed Bridge
+    # input: each case posts /v1/mail/test through the Bridge pairing token
+    # expect: the successful case counts folders without storing/logging the password or mutating mail; the no-TLS case refuses before login
     def test_each_bridge_mail_case_matches_its_expected_trace(self):
         for loaded in cases():
             with self.subTest(case=loaded["name"]):
                 self.assertEqual(result(loaded["case"]), loaded["case"]["expected"])
 
     # TST-431002 - level: release - module: MOD-mail-protocols; MOD-desktop-shell
+    # guards: THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST; THE MAIL SERVER IS REACHED ONLY OVER TLS; READING THE MAILBOX CHANGES NOTHING IN IT
+    # given: the loaded release cases
+    # input: their case declarations
+    # expect: every case states its precondition, input and expected result, and the battery covers the three guarded rules
+    # TST-584023 · level: release · module: MOD-mail-protocols; MOD-desktop-shell
     # guards: THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST; THE MAIL SERVER IS REACHED ONLY OVER TLS; READING THE MAILBOX CHANGES NOTHING IN IT
     # given: the loaded release cases
     # input: their case declarations

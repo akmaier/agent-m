@@ -118,6 +118,11 @@ const entryAt = (f, commit = "main") => readDocument(sourceSchemas().entry, "doc
 // given: an instance checkout with one EU legal-text source entry whose ## Versions table has no row, and one non-EU source entry
 // input: onSourcesCommitted with a publication fixture returning one XHTML file, date 2024-07-16 and ETag cellar-2024-07-12
 // expect: outcome done; one commit on main changes only SRC-ai-act and its fetched file; the new version row records the repository version, retrieved date and SHA-256 file table
+// TST-584029 · level: unit · module: MOD-workflow-entries
+// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004 step 7
+// given: an instance checkout with one EU legal-text source entry whose ## Versions table has no row, and one non-EU source entry
+// input: onSourcesCommitted with a publication fixture returning one XHTML file, date 2024-07-16 and ETag cellar-2024-07-12
+// expect: outcome done; one commit on main changes only SRC-ai-act and its fetched file; the new version row records the repository version, retrieved date and SHA-256 file table
 test("onSourcesCommitted - completes one waiting EU legal text in one commit", async () => {
   await withInstance(filesWith(WAITING), async (f) => {
     await withPublication({}, async (calls) => {
@@ -147,6 +152,11 @@ test("onSourcesCommitted - completes one waiting EU legal text in one commit", a
 // given: an EU legal-text source entry that already has one version
 // input: onSourcesCommitted with a publication fixture
 // expect: outcome nothing to do; fetch is not called; no commit is made
+// TST-584030 · level: unit · module: MOD-workflow-entries
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-004 step 7
+// given: an EU legal-text source entry that already has one version
+// input: onSourcesCommitted with a publication fixture
+// expect: outcome nothing to do; fetch is not called; no commit is made
 test("onSourcesCommitted - leaves an entry with a version alone", async () => {
   await withInstance(filesWith(WITH_VERSION), async (f) => {
     await withPublication({}, async (calls) => {
@@ -160,6 +170,11 @@ test("onSourcesCommitted - leaves an entry with a version alone", async () => {
 });
 
 // TST-401003 - level: unit - module: MOD-workflow-entries
+// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004 step 7a
+// given: a waiting EU legal-text entry and a publication fetch that fails
+// input: onSourcesCommitted
+// expect: outcome failed; summary names the source and the fetch failure; nothing is written
+// TST-584031 · level: unit · module: MOD-workflow-entries
 // guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004 step 7a
 // given: a waiting EU legal-text entry and a publication fetch that fails
 // input: onSourcesCommitted
