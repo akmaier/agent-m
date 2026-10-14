@@ -361,3 +361,43 @@ test("requirement/<name>/prompt — a stale section refuses Save and keeps the d
   assert.equal(proposals(fake).length, before, "nothing proposed");
   assert.equal(byClass(candidateOf(target, CONFLICT), "textarea", "candidate-rule")[0].value, kept, "the current draft stays");
 });
+
+// TST-398007 · level: unit · module: MOD-review-pages
+// guards: UC-019 alternative flow 6c; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+// given: a known readable draft first, then a participant that repeatedly returns an invalid candidates value
+// input: Run on each fresh page
+// expect: the readable draft is editable; the unusable answer is named and folded, with no Save or proposal
+test("requirement prompt — an unusable answer is folded and offers no Save", async () => {
+  endpointAnswers(DRAFT);
+  const positive = await show(fakeProduct(), ONE);
+  await runIt(positive);
+  assert.equal(saveButtons(positive).length, 1, "known positive: the readable draft can be saved");
+
+  endpointAnswers({ candidates: "not a candidates array" });
+  const fake = fakeProduct();
+  const target = await show(fake, ONE);
+  await panelFor(target, "drafter-a", "Make the due date clearer.");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "requirements-result").length || byClass(target, "p", "unusable").length, "the job result");
+  assert.equal(byClass(target, "p", "unusable").length, 1, "the unusable result is diagnosed");
+  const raw = byClass(target, "details", "raw")[0];
+  assert.ok(raw, "the raw answer is folded");
+  assert.match(raw.textContent, /not a candidates array/);
+  assert.equal(saveButtons(target).length, 0);
+  assert.equal(proposals(fake).length, 0);
+});
+
+// TST-398008 · level: unit · module: MOD-review-pages
+// guards: UC-019 alternative flow 7a; A FINDING READS LIKE A COMPILER MESSAGE; THE ROUNDS ARE COUNTED AND SHOWN
+// given: a draft with a lower-case requirement name that remains unfixed after a correction exchange
+// input: Run and inspect the remaining finding beside the editable draft
+// expect: the finding names artifact, line, severity, rule and correction in compiler form; rounds are visible
+test("requirement prompt — a remaining finding retains its compiler fields", async () => {
+  endpointAnswers({ candidates: [candidate("lowercase requirement")] });
+  const target = await show(fakeProduct(), ONE);
+  await runIt(target);
+  const findings = byClass(target, "ul", "left")[0];
+  assert.ok(findings?.textContent, "the unfixed finding is present");
+  assert.match(findings.textContent, /[^:]+:\d+: error: .+\[[A-Z][^\]]+\] - .+/);
+  assert.match(byClass(target, "p", "rounds")[0].textContent, /Correction rounds: 2/);
+});
