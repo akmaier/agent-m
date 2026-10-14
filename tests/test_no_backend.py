@@ -707,6 +707,20 @@ class NoServer(unittest.TestCase):
         self.assertEqual(findings[0], f"src/markdown-render/mermaid.mjs:1: loading element: not {MERMAID_LIBRARY_LOADING}")
         self.assertTrue(findings[1].startswith('src/markdown-render/mermaid.mjs:2: url(): URL("https://tracker.example/mermaid.js"'))
 
+        # The report parser's W3 citations are source text, not permission to call W3 or another host.
+        parser = "src/result-records/vendor/parse-xml.mjs"
+        citation = "// @see https://www.w3.org/TR/2008/REC-xml-20081126/\n"
+        self.assertNotIn("www.w3.org", PERMITTED_HOSTS)
+        self.assertEqual(foreign_by_file({parser: citation, "src/result-records/junit.mjs": citation,
+                                          "src/other/vendor/parse-xml.mjs": citation}),
+                         {"src/result-records/junit.mjs": ["www.w3.org"],
+                          "src/other/vendor/parse-xml.mjs": ["www.w3.org"]})
+        self.assertEqual(channel_findings({parser: citation}), [])
+        for destination in ("https://www.w3.org/TR/", "https://tracker.example/x"):
+            planted = f'fetch("{destination}");\n'
+            self.assertEqual(channel_findings({parser: planted}),
+                             [f"{parser}:1: fetch: not {OWN_DATA_FILES}"])
+
     def test_counter_proof_msal_browsers_sign_in_requests_are_allowed_only_in_its_vendored_file(self):
         # MOD-mail-routes vendors @azure/msal-browser 5.24.0 in src/mail-routes/vendor/ (ARC-053). Planted text with the library's four
         # channels, each as the library's file writes it: the GET and the POST of its network client (the authority's configuration and
