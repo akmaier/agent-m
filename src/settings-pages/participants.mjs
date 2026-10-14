@@ -8,6 +8,7 @@ import { saveFile } from "../artifact-edits/index.mjs";
 import { listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { bridgeAt, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
+import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
@@ -15,6 +16,7 @@ import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding } from "../text-tools/index.mjs";
+import { recordTest } from "./endpoints.mjs";
 import { credentialsFor } from "./products.mjs";
 
 const PATH = "docs/participants.md";
@@ -196,6 +198,17 @@ function endpointSetting(state) {
   const key = state.endpointKey.trim();
   if (key) setting.key = key;
   return { key: `endpoint:${name}`, setting };
+}
+
+function endpointConfig(state) {
+  return { name: state.endpoint.trim(), kind: state.endpointKind, baseUrl: state.endpointUrl.trim(),
+    model: state.endpointModel.trim(), key: state.endpointKey.trim() || null };
+}
+
+function endpointTestResultText(result) {
+  if (result.works) return `${result.model} is working.`;
+  const routes = result.diagnosis?.routes?.length ? ` Try this job through ${result.diagnosis.routes.join(" or ")}.` : "";
+  return `${result.diagnosis?.message ?? "The endpoint refused the test request."}${routes}`;
 }
 
 function inlineEndpointChecks(type, state) {
@@ -414,6 +427,7 @@ export const route = {
         result.textContent = "Saved.";
       }
       formBox.replaceChildren(schemaForm(participantSchema(), document, { onSave: save, extraChecks: checks }));
+      if (type.value === "CI agent") formBox.append(explain("ci-ssh-alternative"));
       updateProductUse(document);
     }
 
@@ -489,9 +503,29 @@ export const route = {
         const model = textInput("participant-endpoint-model", "endpointModel", "model name");
         const key = textInput("participant-endpoint-key", "endpointKey", "optional API key");
         key.type = "password";
+        const test = el("button", "participant-endpoint-test btn", "Test endpoint");
+        test.type = "button";
+        const testResult = el("p", "participant-endpoint-test-result");
+        test.addEventListener("click", async () => {
+          const endpoint = endpointSetting(state);
+          if (!endpoint || !state.endpointUrl.trim() || !state.endpointModel.trim()) {
+            testResult.textContent = "Enter the endpoint name, URL and model first.";
+            return;
+          }
+          writeSetting(context.store, endpoint.key, endpoint.setting);
+          testResult.textContent = "Testing the endpoint...";
+          try {
+            const checked = await testEndpoint(endpointConfig(state));
+            recordTest(context.store, endpoint.key, checked);
+            testResult.textContent = endpointTestResultText(checked);
+          } catch (error) {
+            testResult.textContent = `The endpoint could not be tested: ${error?.message ?? error}.`;
+          }
+        });
         return [el("div", "participant-endpoint-inline",
           el("h4", null, "Configure a model endpoint"), control("Name", name), control("Endpoint URL", url), control("Kind", kind),
-          control("Model", model), control("API key", key), explain("endpoint-url"), explain("endpoint-model"), explain("endpoint-key"))];
+          control("Model", model), control("API key", key), el("p", null, test), testResult,
+          explain("endpoint-url"), explain("endpoint-model"), explain("endpoint-key"), explain("endpoint-test"))];
       }
       state.inlineEndpoint = false;
       return [control("Endpoint", selectInput("participant-endpoint", "endpoint", names))];
@@ -506,7 +540,7 @@ export const route = {
         : "A hosted runner runs on the forge's machines and uses a secret by name; no key is stored in the participants register.");
       return [control("Workflow", textInput("participant-workflow", "workflow", "agent-m.yml")), control("Runner", runner),
         control("Key secret name", textInput("participant-secret-name", "secret", "ACTIONS_SECRET_NAME")), explainRunner,
-        explain("ci-agent-runner"), explain("job-workflow")];
+        explain("ci-agent-runner"), explain("ci-ssh-alternative"), explain("job-workflow")];
     }
 
     function chosenBridge() {
