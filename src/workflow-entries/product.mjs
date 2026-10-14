@@ -1,6 +1,5 @@
-// product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
-// and run the queued jobs of this CI route. Resuming after a gate, the runs' next actions, onDoneCheck, onPullRequestClosed, onCheckCompleted,
-// onSchedule and onTestsFinished are other items'.
+// product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): running queued and dispatched jobs,
+// checking the Definition of Done and recording test outcomes. The check and result entries are composed in their own files.
 //
 // Module: MOD-workflow-entries
 //
@@ -16,6 +15,9 @@ import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { composeProduct } from "./compose.mjs";
+
+export { onDoneCheck } from "./done-check.mjs";
+export { onTestsFinished } from "./test-results.mjs";
 
 // The route of this CI service's jobs, as MOD-job-ledger writes a record's route, and the form of a CI agent's route in the register.
 const routeOf = (runner) => (runner === "hosted" ? "ci hosted" : `ci runner:${runner}`);

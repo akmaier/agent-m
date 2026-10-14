@@ -28,20 +28,41 @@ const path = globalThis.process?.getBuiltinModule?.("node:path");
  * CiEnvironment — { entry: string, service: "github" | "gitlab", event: { name: string | null, payload: object | null }, checkout: string,
  * repository: string, branch: string | null, agentM: { commit: string | null }, token: string | null, now: Date, job: { runner: string | null,
  * productDir: string | null, instanceDir: string | null, actor: string | null, runUrl: string | null, tokenName: string, personToken: string | null,
- * keys: Record<string, string | null> } } — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
- * the runner, the checkouts, the run's address, the name and value of the person's token and each key secret's value by its name. `token` is the workflow's own token, by its name GITHUB_TOKEN, never by value in a file; `branch` the branch the workflow runs for.
+ * keys: Record<string, string | null>, id: string | null }, pullRequest: number | null, check: { name: string | null, url: string | null },
+ * tests: { report: string | null, commit: string | null, levels: string[], occasion: string | null, participant: string | null } }
+ * — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
+ * the runner, checkouts, run address, person's token and each key secret's value by its name. GitLab supplies CI_* variables
+ * and the sibling instance checkout, as the existing runtime template does. `tests` projects AGENT_M_JUNIT_REPORT,
+ * AGENT_M_TEST_COMMIT, AGENT_M_LEVELS, AGENT_M_OCCASION and AGENT_M_PARTICIPANT; `pullRequest` is the GitHub payload's
+ * number or GitLab's CI_MERGE_REQUEST_IID; `job.id` is AGENT_M_JOB. `check` identifies this verifier by AGENT_M_CHECK_NAME
+ * and the current run's URL, or GitLab's CI_JOB_NAME and exact CI_JOB_URL. Missing or ambiguous identity waives nothing.
+ * `token` is the workflow's own GITHUB_TOKEN;
+ * `branch` is the branch the workflow runs for. No secret is read from a file.
  */
 export function ciEnvironment(entry, env, now) {
+  const gitlab = env.GITLAB_CI === "true";
   let payload = null;
   try { payload = env.GITHUB_EVENT_PATH ? JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, "utf8")) : null; } catch { payload = null; }
+  const checkout = (gitlab ? env.CI_PROJECT_DIR : env.GITHUB_WORKSPACE) ?? "";
+  const repository = gitlab ? env.CI_PROJECT_URL ?? "" : env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}` : "";
+  const productDir = env.AGENT_M_PRODUCT_DIR || (gitlab ? checkout : null);
+  const runUrl = gitlab ? env.CI_PIPELINE_URL || null : env.GITHUB_RUN_ID && repository ? `${repository}/actions/runs/${env.GITHUB_RUN_ID}` : null;
   return {
-    entry, service: "github", event: { name: env.GITHUB_EVENT_NAME ?? null, payload },
-    checkout: env.GITHUB_WORKSPACE ?? "", repository: env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}` : "",
-    branch: env.GITHUB_REF_NAME || null, agentM: { commit: env.GITHUB_SHA ?? null }, token: env.GITHUB_TOKEN || null, now,
+    entry, service: gitlab ? "gitlab" : "github", event: { name: (gitlab ? env.CI_PIPELINE_SOURCE : env.GITHUB_EVENT_NAME) ?? null, payload },
+    checkout, repository, branch: (gitlab ? env.CI_COMMIT_REF_NAME : env.GITHUB_REF_NAME) || null,
+    agentM: { commit: env.AGENT_M_COMMIT || env.GITHUB_SHA || null }, token: env.GITHUB_TOKEN || null, now,
+    pullRequest: Number(gitlab ? env.CI_MERGE_REQUEST_IID : payload?.pull_request?.number ?? payload?.number) || null,
+    check: { name: env.AGENT_M_CHECK_NAME || (gitlab ? env.CI_JOB_NAME : null) || null, url: gitlab ? env.CI_JOB_URL || null : null },
+    tests: {
+      report: env.AGENT_M_JUNIT_REPORT ? path.resolve(productDir || checkout, env.AGENT_M_JUNIT_REPORT) : null,
+      commit: env.AGENT_M_TEST_COMMIT || (gitlab ? env.CI_COMMIT_SHA : payload?.pull_request?.head?.sha ?? env.GITHUB_SHA) || null,
+      levels: String(env.AGENT_M_LEVELS ?? "").split(/\s+/).filter(Boolean),
+      occasion: env.AGENT_M_OCCASION || null, participant: env.AGENT_M_PARTICIPANT || null,
+    },
     job: {
-      runner: env.AGENT_M_RUNNER || null, productDir: env.AGENT_M_PRODUCT_DIR || null,
-      instanceDir: env.GITHUB_WORKSPACE ? path.join(env.GITHUB_WORKSPACE, "instance") : null, actor: env.GITHUB_ACTOR || null,
-      runUrl: env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}` : null,
+      id: env.AGENT_M_JOB || null, runner: env.AGENT_M_RUNNER || null, productDir,
+      instanceDir: gitlab ? (productDir ? path.resolve(productDir, "../instance") : null) : checkout ? path.join(checkout, "instance") : null,
+      actor: (gitlab ? env.GITLAB_USER_LOGIN : env.GITHUB_ACTOR) || null, runUrl,
       tokenName: env.AGENT_M_TOKEN_NAME || "AGENT_M_TOKEN", personToken: env.AGENT_M_TOKEN || null,
       keys: Object.fromEntries(String(env.AGENT_M_KEY_NAMES ?? "").split(/\s+/).filter(Boolean).map((name) => [name, env[name] || null])),
     },
@@ -61,21 +82,21 @@ export function composeInstance(env) {
 // A host for a checkout through the local clone: files are read and committed in the clone and pushed with the credentials the checkout was made
 // with, the person's token given as a secret, with every key, that no commit may hold. The clone does no server operation, so the repository's
 // information is what the workflow knows: the branch it runs for. A commit pushed through the clone leaves the clone's own branch where it was,
-// so the host remembers the newest commit it made — or the one the origin answered `Moved` with — and reads `HEAD`, or the branch, at that commit.
+// so the host remembers the newest commit per branch — or the one the origin answered `Moved` with — without changing another branch's head.
 function checkoutHost(address, dir, branch, token, secrets) {
   const host = connect(parseAddress(address), { token, clone: dir, secrets });
-  let latest = null;
-  const at = (ref) => (latest && (ref === "HEAD" || ref === branch) ? latest : ref);
+  const heads = new Map();
+  const at = (ref) => heads.get(ref === "HEAD" ? branch : ref) ?? ref;
   return { ...host,
     repositoryInfo: async () => ({ defaultBranch: branch, visibility: "private", canWrite: true, archived: false, description: "" }),
     readSnapshot: (ref) => host.readSnapshot(at(ref)),
     async commitFiles(change) {
       try {
         const made = await host.commitFiles(change);
-        latest = made.commit;
+        heads.set(change.branch, made.commit);
         return made;
       } catch (error) {
-        if (error?.name === "Moved" && error.head) latest = error.head;
+        if (error?.name === "Moved" && error.head) heads.set(change.branch, error.head);
         throw error;
       }
     } };

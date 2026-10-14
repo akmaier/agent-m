@@ -1,5 +1,5 @@
 // main.mjs — reads the entry's name from the command line and the environment, runs the entry, and ends with its status
-// (MOD-workflow-entries, Parts). ITM-364 builds it with the instance's onApprovalsCommitted, ITM-365 adds the product's onRecordsChanged and onDispatch; the other entries are other items'.
+// (MOD-workflow-entries, Parts).
 //
 // Module: MOD-workflow-entries
 //
@@ -10,9 +10,9 @@
 import { pathToFileURL } from "node:url";
 import { ciEnvironment } from "./compose.mjs";
 import { onApprovalsCommitted, onSourcesCommitted } from "./instance.mjs";
-import { onRecordsChanged, onDispatch } from "./product.mjs";
+import { onRecordsChanged, onDispatch, onDoneCheck, onTestsFinished } from "./product.mjs";
 
-const ENTRIES = { onApprovalsCommitted, onSourcesCommitted, onRecordsChanged, onDispatch };
+const ENTRIES = { onApprovalsCommitted, onSourcesCommitted, onRecordsChanged, onDispatch, onDoneCheck, onTestsFinished };
 
 /**
  * runEntry(name: string, env: Record<string, string | undefined>, options?: { now?: Date }) -> Promise<EntryStatus> — runs the entry of that
