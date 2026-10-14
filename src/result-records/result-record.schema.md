@@ -32,7 +32,7 @@ Data; `src/job-ledger/job.schema.md`).
   "sections": [
     { "heading": "## Outcomes", "required": true, "table": { "columns": [
       { "name": "Test", "value": { "type": "text", "required": true } },
-      { "name": "Level", "value": { "type": "enum", "values": ["unit", "component", "system", "release", "user"], "required": true } },
+      { "name": "Level", "value": { "type": "enum", "values": ["unit", "component", "system", "release", "user"], "requiredWhen": { "field": "Outcome", "notIn": ["undeclared"] } } },
       { "name": "Outcome", "value": { "type": "enum", "values": ["passed", "failed", "not run", "undeclared"], "required": true } },
       { "name": "Runs", "value": { "type": "text", "required": false } }
     ] } },

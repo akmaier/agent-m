@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="undeclared evidence">
+    <testcase name="ordinary assertion failure">
+      <failure message="observed &lt;waiting&gt; &amp; unstable">expected ready, got waiting</failure>
+    </testcase>
+    <testcase name="ordinary execution error">
+      <error message="connection unavailable">operation raised an error</error>
+    </testcase>
+  </testsuite>
+</testsuites>
