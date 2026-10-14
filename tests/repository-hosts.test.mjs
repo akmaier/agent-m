@@ -18,7 +18,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { parseAddress, connect, HostError } from "../src/repository-hosts/index.mjs";
-import { tokenRefusal, parseProductAddress } from "../docs/assets/git-host.mjs";
 
 // ---------------------------------------------------------------- the fake servers
 
@@ -493,28 +492,6 @@ test("TST-475208: GitLab 401 preserves its identity and renewal without guessing
   assert.deepEqual([error.name, error.tokenName, error.renewal], ["TokenRefused", named, GL_TOKENS]);
   assert.equal(error.message, `${GITLAB.origin.replace("https://", "")} rejected authentication with your ${named}. Renew it on ${GL_TOKENS}.`, "failure node: the GitLab host does not infer a reason for rejection");
   assert.doesNotMatch(error.message, /expired|expiry|regenerat|delet|rotat|revok/i);
-});
-
-// TST-475209 · level: unit · module: MOD-repository-hosts
-// guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
-// given: the dashboard's legacy composition adapter receives HTTP errors or the public HostError.
-// input: a genuine 401 for the instance, a GitHub product and a GitLab product; counter-controls: 403/429/503/Unreachable.
-// expect: each 401 names rejected authentication, the same token identity and renewal URL, without a guessed cause; noncredential errors are not token refusals.
-test("TST-475209: the legacy banner adapter keeps token identity and recovery but no invented 401 cause", () => {
-  const products = [null, parseProductAddress(GH_WEB), parseProductAddress(GL_WEB)];
-  for (const product of products) {
-    const refusal = tokenRefusal({ status: 401 }, product);
-    assert.ok(refusal, "known positive: a genuine 401 produces token recovery");
-    assert.equal(refusal.renewUrl, product?.kind === "gitlab" ? GL_TOKENS : GH_TOKENS);
-    assert.match(refusal.token, /token/);
-    if (product) assert.ok(refusal.token.includes(product.address), "the product's identity remains in its token name");
-    assert.equal(refusal.text, `${product?.kind === "gitlab" ? product.host : "GitHub"} rejected authentication with your ${refusal.token}.`, "failure node: banner wording reports observed rejection only");
-    assert.doesNotMatch(refusal.text, /expired|expiry|regenerat|delet|rotat|revok/i);
-    assert.deepEqual(tokenRefusal(new HostError("TokenRefused", { tokenName: "stored name", renewal: refusal.renewUrl }, "401"), product), refusal, "public HostError and HTTP 401 share the existing composition path");
-  }
-  for (const error of [{ status: 403 }, { status: 429 }, { status: 503 }, new HostError("Unreachable", { reason: "network" }, "network")]) {
-    assert.equal(tokenRefusal(error), null, "permission, limit and transport failures stay distinct from token rejection");
-  }
 });
 
 // A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN — Expected: GitHub's 403 or 429 with X-RateLimit-Remaining: 0 and

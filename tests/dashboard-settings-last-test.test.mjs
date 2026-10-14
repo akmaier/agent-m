@@ -207,6 +207,33 @@ test("TST-475206: an inconclusive first Test leaves absent token evidence absent
   await inconclusiveRepositoryTest(() => rateLimitResponse(5000), /account.*resets at/, { untested: true });
 });
 
+// TST-475209 · level: component · module: MOD-settings-pages
+// guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
+// given: the public Settings Test succeeds on 200, then encounters a genuine GitHub 401.
+// input: navigate to #uc and reload the actual dashboard on the same browser storage.
+// expect: refused evidence, token identity and renewal survive, but the banner reports only rejected authentication, never an inferred expiry/regeneration/deletion cause.
+test("TST-475209: a genuine 401 keeps named recovery without an invented cause on navigation and reload", async () => {
+  const world = await instanceWorld();
+  const { page, box } = await settingsPage(world, canonicalToken());
+  await repositoryControl(box, "test").fire("click");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(canonicalKey("last-test:github-token"))).outcome, "working", "known positive: actual Test succeeds on 200");
+  world.refuseGitHub = true;
+  await repositoryControl(box, "test").fire("click");
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(canonicalKey("last-test:github-token"))).outcome, "refused", "a genuine 401 still records refused evidence");
+  await page.go("#uc");
+  const assertBanner = (banner) => {
+    assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "the existing renewal URL stays reachable");
+    assert.ok(banner.includes("GitHub token"), "the rejected token stays identified");
+    assert.ok(banner.includes("<strong>GitHub rejected authentication with your GitHub token.</strong>"), "failure node: the actual banner reports rejection without asserting its cause");
+    assert.doesNotMatch(/<strong>([^]*?)<\/strong>/.exec(banner)?.[1] ?? "", /expired|expiry|regenerat|delet|rotat|revok/i);
+  };
+  assertBanner(page.el("token-banner"));
+  const again = await reload(world);
+  assertBanner(again.page.el("token-banner"));
+  await again.page.go("#uc");
+  assertBanner(again.page.el("token-banner"));
+});
+
 test("UC-042 step 1: a successful Test of the GitHub token is shown after a reload — ✓ works with the date of that test", async () => {
   const world = await instanceWorld();
   const { box } = await settingsPage(world, canonicalToken());
