@@ -24,6 +24,7 @@ import "./review-pages-use-cases.test.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { getEventListeners } from "node:events";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -299,7 +300,25 @@ function find(root, match) {
   return found;
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
-const click = (node) => node.dispatchEvent(new Event("click"));
+// Like app-harness.fire, await handler results that Node's EventTarget otherwise discards.
+async function click(node) {
+  const pending = [];
+  const listeners = getEventListeners(node, "click").map((listener) => {
+    const observe = (event) => { pending.push(listener.call(node, event)); };
+    node.removeEventListener("click", listener);
+    node.addEventListener("click", observe);
+    return { listener, observe };
+  });
+  try {
+    node.dispatchEvent(new Event("click"));
+    await Promise.all(pending);
+  } finally {
+    for (const { listener, observe } of listeners) {
+      node.removeEventListener("click", observe);
+      node.addEventListener("click", listener);
+    }
+  }
+}
 const tick = (box, checked = true) => { box.checked = checked; box.dispatchEvent(new Event("change")); };
 const buttonOf = (target, label) => find(target, (node) => node.localName === "button" && node.textContent === label)[0];
 const rowOf = (target, id) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id") === id)[0];
@@ -394,7 +413,7 @@ test("TST-371001: UC-006 main flow accepts one SPEC entry from the review page",
   assert.match(byClass(target, "section", "impact-list")[0].textContent, new RegExp(`${WRITE_RULE} - changed|${WRITE_RULE} — changed`));
   assert.equal(fake.writes().length, 0, "no write before the person's click");
 
-  click(buttonOf(target, "Accept"));
+  await click(buttonOf(target, "Accept"));
   await until(() => /Accepted in commit/.test(byClass(target, "p", "result")[0]?.textContent ?? ""), "acceptance result");
 
   assert.equal(fake.writes().length, 1);
@@ -424,7 +443,7 @@ test("TST-371002: UC-006 3a saves different wording in the entry's own queue", a
   whyOf(target).value = "The reviewer wants the exact wording to be explicit.";
   assert.equal(fake.writes().length, 0, "no write before Save");
 
-  click(buttonOf(target, "Save"));
+  await click(buttonOf(target, "Save"));
   await until(() => byClass(target, "p", "entry").length === 1, "saved entry link");
 
   assert.equal(fake.writes().length, 1);
@@ -450,7 +469,7 @@ test("TST-371003: UC-006 4d accepts ticked queue entries in queue order and name
   const refusedHost = memoryHost();
   const refused = await showProduct(refusedHost);
   tick(boxOf(refused, entryId(E06)));
-  click(buttonOf(refused, "Accept ticked (1)"));
+  await click(buttonOf(refused, "Accept ticked (1)"));
   await until(() => /entry 06/.test(byClass(refused, "p", "result")[0]?.textContent ?? ""), "refusal naming entry 06");
   assert.match(byClass(refused, "p", "result")[0].textContent, /05/);
   assert.equal(refusedHost.writes().length, 0);
@@ -459,7 +478,7 @@ test("TST-371003: UC-006 4d accepts ticked queue entries in queue order and name
   const accepted = await showProduct(acceptedHost);
   tick(boxOf(accepted, entryId(E05)));
   tick(boxOf(accepted, entryId(E06)));
-  click(buttonOf(accepted, "Accept ticked (2)"));
+  await click(buttonOf(accepted, "Accept ticked (2)"));
   await until(() => /Accepted in commit/.test(byClass(accepted, "p", "result")[0]?.textContent ?? ""), "batch acceptance result");
 
   assert.equal(acceptedHost.writes().length, 1);
@@ -480,7 +499,7 @@ test("TST-371004: UC-006 5a refuses a SPEC entry whose proposal changed after it
   const target = await showProduct(fake, { id: entryId(E07) });
   fake.land({ [proposalPath(E07)]: WRITING_NEW.replace("entirely.", "completely.") });
 
-  click(buttonOf(target, "Accept"));
+  await click(buttonOf(target, "Accept"));
   await until(() => /proposal/.test(byClass(target, "p", "result")[0]?.textContent ?? ""), "stale refusal");
 
   assert.equal(fake.writes().length, 0);
@@ -507,7 +526,7 @@ test("TST-371005: UC-006 4b offers GitHub fallback pages for the instance withou
   const editPage = await showInstance(fake, { id: entryId(E07), edit: "1" }, { token: false });
   type(editPage, WRITING_NEW.replace("entirely.", "entirely, as shown."));
   whyOf(editPage).value = "The GitHub web editor should carry the entry files.";
-  click(buttonOf(editPage, "Save"));
+  await click(buttonOf(editPage, "Save"));
   await until(() => byClass(editPage, "a", "github-page").length === 2, "GitHub edit pages");
   assert.deepEqual(byClass(editPage, "a", "github-page").map((link) => link.textContent).sort(), [
     `Open GitHub's page for ${proposalPath(E07)}`,
