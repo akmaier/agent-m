@@ -98,15 +98,17 @@ const contextOf = (gates = []) => ({ kind: null, params: {}, product: { address:
 
 // The global fetch while a test runs: the drafter's endpoint (ep1) answers the drafts given in turn (the last again), or the status given, or a text that is no
 // answer; the reviewer's endpoint (ep2) finds nothing; every request is kept.
-let requests = [];
+let requests = [], requestBodies = [];
 const realFetch = globalThis.fetch;
 function endpointAnswers(status = 200, { drafts = [DRAFT], unreadable = false } = {}) {
   requests = [];
+  requestBodies = [];
   const queue = [...drafts];
   const reply = (content) => new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }),
     { status: 200, headers: { "content-type": "application/json" } });
-  globalThis.fetch = async (url) => {
+  globalThis.fetch = async (url, init) => {
     requests.push(String(url));
+    requestBodies.push(String(init?.body ?? ""));
     if (status !== 200) return new Response(JSON.stringify({ error: { message: "refused" } }), { status });
     if (String(url).includes("ep2")) return reply(JSON.stringify({ draft: { findings: [] }, answers: [] }));
     if (unreadable) return reply("this is not JSON");
@@ -339,4 +341,24 @@ test("runOnTab — an answer that cannot be read ends the job as failed, with it
   assert.deepEqual([end.state, end.results], ["failed", []]);
   assert.match(end.reason, /could not be read/);
   assert.ok(end.rounds.length >= 1);
+});
+
+// TST-398007 · level: unit · module: MOD-runtimes
+// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
+// given: two queued attended jobs on the tab route, and an endpoint that answers each; the second call's hooks carry a current draft as `refine`
+// input: runOnTab first without `refine`, then with `refine: { text: "the current draft" }`
+// expect: the ordinary request reaches the endpoint without that draft (the counter-proof); the refined request reaches MOD-job-runner with it and carries it as `previous`
+test("runOnTab — forwards the current draft to runJob as refine", async () => {
+  endpointAnswers();
+  await runtimes.runOnTab(jobOf("person"), contextOf(), CONNECTIONS, hooksOf(await queued()));
+  assert.equal(requestBodies.length, 1, "known positive: the ordinary endpoint request was captured");
+  assert.match(requestBodies[0], /Write\./, "known positive: the request is the fixture job's prompt");
+  assert.doesNotMatch(requestBodies[0], /the current draft/, "without refine there is no previous draft");
+
+  endpointAnswers();
+  const fake = await queued();
+  await runtimes.runOnTab(jobOf("person"), contextOf(), CONNECTIONS,
+    { ...hooksOf(fake), refine: { text: "the current draft" } });
+  assert.equal(requestBodies.length, 1, "one refinement exchange");
+  assert.match(requestBodies[0], /the current draft/, "runJob receives the refinement draft as previous");
 });
