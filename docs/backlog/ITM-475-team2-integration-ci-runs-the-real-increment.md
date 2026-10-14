@@ -10,6 +10,7 @@ modules:
   - MOD-settings-pages
   - MOD-desktop-shell
   - MOD-test-schedule
+builds_on: []
 tests:
   - system
   - release

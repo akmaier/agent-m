@@ -178,10 +178,40 @@ function find(html, sel, found, prefix = "") {
 function domElement(localName) {
   const children = [], listeners = [], controls = new Map();
   const node = {
-    localName, children, controls, className: "", value: "", checked: false, disabled: false, hidden: false,
+    localName, nodeType: 1, parentNode: null, children, controls, className: "", value: "", checked: false, disabled: false, hidden: false,
     type: "", placeholder: "", autocomplete: "", spellcheck: true, href: "", target: "", rel: "", dataset: {}, style: {},
-    append(...items) { children.push(...items); },
-    replaceChildren(...items) { children.splice(0, children.length, ...items); controls.clear(); },
+    get childNodes() { return children; },
+    append(...items) {
+      for (const item of items) {
+        if (typeof item === "object" && item) {
+          item.remove?.();
+          item.parentNode = node;
+        }
+        children.push(item);
+      }
+    },
+    replaceChildren(...items) {
+      for (const child of children) if (typeof child === "object" && child) child.parentNode = null;
+      children.splice(0, children.length);
+      controls.clear();
+      node.append(...items);
+    },
+    insertBefore(item, before) {
+      item.remove?.();
+      const at = before === null ? children.length : children.indexOf(before);
+      if (at < 0) throw new Error("The reference node is not a child.");
+      item.parentNode = node;
+      children.splice(at, 0, item);
+      return item;
+    },
+    remove() {
+      if (node.parentNode) {
+        const siblings = node.parentNode.children;
+        const at = siblings.indexOf(node);
+        if (at >= 0) siblings.splice(at, 1);
+      }
+      node.parentNode = null;
+    },
     addEventListener(type, listener) { listeners.push([type, listener]); },
     fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
     dispatchEvent(ev) { return node.fire(ev.type, ev); },
