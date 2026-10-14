@@ -1,9 +1,12 @@
-# Continuous integration: every pull request runs the Python and the node suite, side by side. A push to main runs
+# Transitional CI until MOD-test-schedule generates Agent M's declared schedule:
+# "The workflow change merged with #492 stays in place until Agent M's declared schedule replaces it."
+# (docs/spec-freigaben/2026-10-13c_agent-m-declares-its-own-test-schedule/01-architecture-and-implementation.begruendung.md)
+# Continuous integration: every pull request runs the Python and the node suite in independent shards. A push to main runs
 # nothing here: code reaches main only through a pull request that ran both suites, and a document pushed to main changes
 # no code. main itself is checked every night, when both suites run once more with Agent M's own SPEC watched (nightly.yml).
 # A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES: each job stops after two minutes and the run fails. A test that would make it
 # longer goes to the nightly build, or the suite is split (tests/test_ci_budget.py keeps the limit in place).
-# WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS: on a pull request whose base is a sprint's branch (sprint/...), both jobs leave
+# The retained workflow's selection: on a pull request whose base is a sprint's branch (sprint/...), both suites leave
 # out the test files of level release; the nightly build (nightly.yml) and every pull request into the default branch run them.
 name: tests
 
@@ -17,45 +20,10 @@ jobs:
   python:
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Read the level of each test file
-        run: |
-          cat > "$RUNNER_TEMP/level.mjs" <<'JS'
-          // A test's level is read as the repository reads it: the Level: line among a file's first 20 lines (headerTags of
-          // docs/assets/artifacts/headers.mjs); a file without one, by the one level of its cases' declarations (testDeclarations
-          // of MOD-test-document). Prints the files of level release (mode "release") or all the others (mode "rest").
-          import { readFileSync } from "node:fs";
-          import { pathToFileURL } from "node:url";
-          const root = pathToFileURL(process.cwd() + "/").href;
-          const { headerTags } = await import(root + "docs/assets/artifacts/headers.mjs");
-          const { testDeclarations } = await import(root + "src/test-document/index.mjs");
-          const [mode, ...files] = process.argv.slice(2);
-          const level = (f) => {
-            const text = readFileSync(f, "utf8");
-            const own = headerTags(f, text).level;
-            if (own) return own;
-            const levels = new Set(testDeclarations(f, text).map((d) => d.level));
-            return levels.size === 1 ? [...levels][0] : null;
-          };
-          const chosen = files.filter((f) => (level(f) === "release") === (mode === "release"));
-          if (!chosen.length) { console.error("no " + mode + " test file among " + files.length); process.exit(1); }
-          console.log(chosen.join("\n"));
-          JS
-      - name: Python checks
-        run: |
-          if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then
-            files=$(node "$RUNNER_TEMP/level.mjs" rest tests/test*.py)
-            cd tests && python3 -m unittest -v $(echo "$files" | sed 's|^tests/||; s|\.py$||')
-          else
-            cd tests && python3 -m unittest -v
-          fi
-  node:
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -68,13 +36,13 @@ jobs:
           cat > "$RUNNER_TEMP/level.mjs" <<'JS'
           // A test's level is read as the repository reads it: the Level: line among a file's first 20 lines (headerTags of
           // docs/assets/artifacts/headers.mjs); a file without one, by the one level of its cases' declarations (testDeclarations
-          // of MOD-test-document). Prints the files of level release (mode "release") or all the others (mode "rest").
+          // of MOD-test-document). Selects release, rest or all, then partitions that sorted list across independent shards.
           import { readFileSync } from "node:fs";
           import { pathToFileURL } from "node:url";
           const root = pathToFileURL(process.cwd() + "/").href;
           const { headerTags } = await import(root + "docs/assets/artifacts/headers.mjs");
           const { testDeclarations } = await import(root + "src/test-document/index.mjs");
-          const [mode, ...files] = process.argv.slice(2);
+          const [mode, shard, count, ...files] = process.argv.slice(2);
           const level = (f) => {
             const text = readFileSync(f, "utf8");
             const own = headerTags(f, text).level;
@@ -82,15 +50,58 @@ jobs:
             const levels = new Set(testDeclarations(f, text).map((d) => d.level));
             return levels.size === 1 ? [...levels][0] : null;
           };
-          const chosen = files.filter((f) => (level(f) === "release") === (mode === "release"));
+          const chosen = files.filter((f) => mode === "all" || (level(f) === "release") === (mode === "release"))
+            .sort().filter((_, index) => index % Number(count) === Number(shard));
+          if (!chosen.length) { console.error("no " + mode + " test file among " + files.length); process.exit(1); }
+          console.log(chosen.join("\n"));
+          JS
+      - name: Python checks
+        run: |
+          mode=all
+          if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then mode=rest; fi
+          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 2 tests/test*.py)
+          cd tests && python3 -m unittest -v $(echo "$files" | sed 's|^tests/||; s|\.py$||')
+  node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Bridge app packages
+        run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
+      - name: Read the level of each test file
+        run: |
+          cat > "$RUNNER_TEMP/level.mjs" <<'JS'
+          // A test's level is read as the repository reads it: the Level: line among a file's first 20 lines (headerTags of
+          // docs/assets/artifacts/headers.mjs); a file without one, by the one level of its cases' declarations (testDeclarations
+          // of MOD-test-document). Selects release, rest or all, then partitions that sorted list across independent shards.
+          import { readFileSync } from "node:fs";
+          import { pathToFileURL } from "node:url";
+          const root = pathToFileURL(process.cwd() + "/").href;
+          const { headerTags } = await import(root + "docs/assets/artifacts/headers.mjs");
+          const { testDeclarations } = await import(root + "src/test-document/index.mjs");
+          const [mode, shard, count, ...files] = process.argv.slice(2);
+          const level = (f) => {
+            const text = readFileSync(f, "utf8");
+            const own = headerTags(f, text).level;
+            if (own) return own;
+            const levels = new Set(testDeclarations(f, text).map((d) => d.level));
+            return levels.size === 1 ? [...levels][0] : null;
+          };
+          const chosen = files.filter((f) => mode === "all" || (level(f) === "release") === (mode === "release"))
+            .sort().filter((_, index) => index % Number(count) === Number(shard));
           if (!chosen.length) { console.error("no " + mode + " test file among " + files.length); process.exit(1); }
           console.log(chosen.join("\n"));
           JS
       - name: Dashboard core
         run: |
-          if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then
-            files=$(node "$RUNNER_TEMP/level.mjs" rest tests/*.test.mjs)
-            node --test $files
-          else
-            node --test tests/*.test.mjs
-          fi
+          mode=all
+          if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then mode=rest; fi
+          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 8 tests/*.test.mjs)
+          node --test $files
