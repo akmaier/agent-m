@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-010-run-a-job-in-github-actions.test.mjs
 //
 // Module: MOD-workflow-entries; MOD-runtimes; MOD-job-ledger; MOD-settings-pages; MOD-repository-hosts; MOD-endpoint-calls
-// Guards: UC-010; every requirement realised by UC-010 except the explicit ITM-373 out-of-scope requirement
+// Guards: UC-010
 // Level: release
 //
 // Input: docs/use-cases/UC-010-run-a-job-in-github-actions.md, docs/backlog/ITM-373-the-system-and-release-tests-of-uc-010.md,

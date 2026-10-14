@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-013-release-version.test.mjs
 //
 // Module: MOD-test-pages · MOD-release-evidence
-// Guards: UC-013; every requirement realised by UC-013
+// Guards: UC-013
 // Level: release
 //
 // Input: docs/use-cases/UC-013-release-a-version.md and SPEC.md as committed text.

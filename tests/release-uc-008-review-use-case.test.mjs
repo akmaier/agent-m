@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-008-review-use-case.test.mjs
 //
 // Module: MOD-review-pages; MOD-approvals; MOD-artifact-edits; MOD-markdown-render
-// Guards: UC-008; every requirement realised by UC-008
+// Guards: UC-008
 // Level: release
 //
 // Input: docs/use-cases/UC-008-review-and-accept-a-use-case.md and the executable checks on this commit.

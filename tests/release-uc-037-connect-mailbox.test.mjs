@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-037-connect-mailbox.test.mjs
 //
 // Module: MOD-settings-pages · MOD-mail-routes · MOD-browser-store · MOD-bridge-client · MOD-mail-protocols
-// Guards: UC-037; every requirement realised by UC-037
+// Guards: UC-037
 // Level: release
 //
 // Input: docs/use-cases/UC-037-connect-a-mailbox.md, SPEC.md and the executable mailbox checks on this commit.

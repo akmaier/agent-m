@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-018-edit-dashboard.test.mjs
 //
 // Module: MOD-review-pages; MOD-artifact-edits; MOD-spec-changes; MOD-trace-pages; MOD-markdown-render
-// Guards: UC-018; every requirement realised by UC-018
+// Guards: UC-018
 // Level: release
 //
 // Input: docs/use-cases/UC-018-edit-a-specification-or-use-case.md and the executable checks on this commit.

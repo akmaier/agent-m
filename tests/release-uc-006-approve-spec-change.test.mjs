@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-006-approve-spec-change.test.mjs
 //
 // Module: MOD-review-pages · MOD-spec-changes · MOD-workflow-entries
-// Guards: UC-006; every requirement realised by UC-006
+// Guards: UC-006
 // Level: release
 //
 // Input: docs/use-cases/UC-006-approve-a-specification-change.md and SPEC.md as committed text.

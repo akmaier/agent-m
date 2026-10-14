@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-004-register-source.test.mjs
 //
 // Module: MOD-settings-pages; MOD-source-register; MOD-workflow-entries; MOD-site-frame; MOD-artifacts
-// Guards: UC-004; every requirement realised by UC-004
+// Guards: UC-004
 // Level: release
 //
 // Input: docs/use-cases/UC-004-register-a-requirement-source.md and the executable source-library checks on this commit.

@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-019-change-by-prompt.test.mjs
 //
 // Module: MOD-review-pages; MOD-artifact-edits; MOD-workflow-entries; MOD-runtimes
-// Guards: UC-019; every requirement realised by UC-019
+// Guards: UC-019
 // Level: release
 //
 // Input: docs/use-cases/UC-019-change-a-specification-or-use-case-by-prompt.md, SPEC.md and the executable checks on

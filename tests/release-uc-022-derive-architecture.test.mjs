@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-022-derive-architecture.test.mjs
 //
 // Module: MOD-review-pages · MOD-job-runner · MOD-reuse-facts · MOD-approvals · MOD-artifact-edits · MOD-job-catalogue
-// Guards: UC-022; every requirement realised by UC-022
+// Guards: UC-022
 // Level: release
 //
 // Input: docs/use-cases/UC-022-derive-the-architecture.md and SPEC.md as committed text.

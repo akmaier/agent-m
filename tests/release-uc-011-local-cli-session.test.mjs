@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-011-local-cli-session.test.mjs
 //
 // Module: system
-// Guards: UC-011; every requirement realised by UC-011
+// Guards: UC-011
 // Level: release
 //
 // Input: docs/use-cases/UC-011-hand-a-job-to-a-local-cli-session.md and SPEC.md as committed text.

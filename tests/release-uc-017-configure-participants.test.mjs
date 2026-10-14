@@ -3,7 +3,7 @@
 // Run: node --test tests/release-uc-017-configure-participants.test.mjs
 //
 // Module: system
-// Guards: UC-017; every requirement realised by UC-017
+// Guards: UC-017
 // Level: release
 //
 // Input: docs/use-cases/UC-017-configure-participants.md, SPEC.md, the UC-017 system test and existing evidence files.

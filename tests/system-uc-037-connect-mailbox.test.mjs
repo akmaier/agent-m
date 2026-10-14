@@ -3,7 +3,7 @@
 // Run: node --test tests/system-uc-037-connect-mailbox.test.mjs
 //
 // Module: MOD-settings-pages · MOD-mail-routes · MOD-browser-store · MOD-bridge-client · MOD-mail-protocols
-// Guards: UC-037 main flow and alternative flows
+// Guards: UC-037
 // Level: system
 //
 // Input: UC-037 as committed text and the mailbox system/component/release tests on this commit.
@@ -85,12 +85,12 @@ const FLOW_EVIDENCE = {
 };
 
 // TST-433001 - level: system - module: MOD-settings-pages; MOD-mail-routes; MOD-browser-store; MOD-bridge-client; MOD-mail-protocols
-// guards: UC-037 main flow and alternatives
+// guards: UC-037
 // given: UC-037 and the executable mailbox tests named in FLOW_EVIDENCE
 // input: compare every main-flow segment and named alternative with its executable evidence
 // expect: every UC-037 flow is present in the use case text and every evidence test file exists and contains its TST id
 // TST-584020 · level: system · module: MOD-settings-pages · MOD-mail-routes · MOD-browser-store · MOD-bridge-client · MOD-mail-protocols
-// guards: UC-037 main flow and alternatives
+// guards: UC-037
 // given: UC-037 and the executable mailbox tests named in FLOW_EVIDENCE
 // input: compare every main-flow segment and named alternative with its executable evidence
 // expect: every UC-037 flow is present in the use case text and every evidence test file exists and contains its TST id
@@ -107,12 +107,12 @@ test("TST-433001: UC-037 system coverage names the main flow and every required 
 });
 
 // TST-433002 - level: system - module: MOD-settings-pages; MOD-mail-routes; MOD-browser-store; MOD-bridge-client; MOD-mail-protocols
-// guards: UC-037 main flow
+// guards: UC-037
 // given: the evidence map above
 // input: the evidence files used for the two main routes
 // expect: the web-API path reaches Microsoft sign-in and Graph, while the IMAP path reaches the Bridge composition and mail protocols
 // TST-584021 · level: system · module: MOD-settings-pages · MOD-mail-routes · MOD-browser-store · MOD-bridge-client · MOD-mail-protocols
-// guards: UC-037 main flow
+// guards: UC-037
 // given: the evidence map above
 // input: the evidence files used for the two main routes
 // expect: the web-API path reaches Microsoft sign-in and Graph, while the IMAP path reaches the Bridge composition and mail protocols
