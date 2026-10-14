@@ -11,6 +11,7 @@
 import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { appendToRecord, jobCost, startRecord } from "../job-ledger/index.mjs";
 import { runJob } from "../job-runner/index.mjs";
+import { formatFinding } from "../text-tools/index.mjs";
 import { bridgeDriver } from "./bridge.mjs";
 import { RuntimeError } from "./ci.mjs";
 
@@ -34,8 +35,7 @@ export async function queueOnTab(host, start, head) {
 function exchangePrompt(input) {
   const sections = [input.prompt];
   if (input.previous !== null && input.previous !== undefined) sections.push(`## Current draft to change\n\n${input.previous}`);
-  if (input.findings?.length) sections.push(`## Findings to fix or answer\n\n${input.findings.map((finding) =>
-    `${finding.artifact}:${finding.line}: ${finding.kind}: ${finding.what} [${finding.rule}] - ${finding.fix}`).join("\n")}`);
+  if (input.findings?.length) sections.push(`## Findings to fix or answer\n\n${input.findings.map(formatFinding).join("\n")}`);
   return sections.join("\n\n");
 }
 

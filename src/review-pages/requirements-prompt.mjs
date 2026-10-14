@@ -10,6 +10,7 @@ import { explain } from "../site-frame/index.mjs";
 import { el, button, link, problem, TOKEN_STEP } from "./common.mjs";
 import { byClassChecked, loadStage, panelOf, participantList, refineOnTab } from "./jobs.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
+import { roundsSection } from "./sections.mjs";
 
 const SPEC = "SPEC.md";
 
@@ -135,7 +136,7 @@ async function presentRequirementsPrompt(outcome, result, initialRun) {
     const left = el("ul", "left");
     for (const finding of state.outcome.remaining) left.append(el("li", "left",
       `${finding.artifact}:${finding.line}: ${finding.kind}: ${finding.what} [${finding.rule}] - ${finding.fix}`));
-    panel.append(left);
+    panel.append(left, roundsSection(state.outcome.rounds, state.outcome.stoppedBecause));
     const list = el("ul", "candidates"), composed = el("section", "composed-sections");
     const showComposed = () => {
       try {
