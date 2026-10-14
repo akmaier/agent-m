@@ -74,6 +74,7 @@ unchanged in a browser and in Node.
 - `registry.mjs` — the strategies registered by name, for the life of the program.
 - `prepare.mjs` — preconditions, recipes, sizes, places, destinations.
 - `loop.mjs` — the correction loop.
+- `driver-prompt.mjs` — the prompt and transient correction context serialized at a driver's sending boundary.
 - `builtins.mjs` — the built-in strategies.
 - `provenance.mjs` — the provenance lines of a commit.
 - `rounds.schema.md` — the schema of the round record, in the schema language of MOD-documents.
