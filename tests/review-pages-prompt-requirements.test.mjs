@@ -362,7 +362,7 @@ test("requirement/<name>/prompt — a stale section refuses Save and keeps the d
   assert.equal(byClass(candidateOf(target, CONFLICT), "textarea", "candidate-rule")[0].value, kept, "the current draft stays");
 });
 
-// TST-398007 · level: unit · module: MOD-review-pages
+// TST-398010 · level: unit · module: MOD-review-pages
 // guards: UC-019 alternative flow 6c; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: a known readable draft first, then a participant that repeatedly returns an invalid candidates value
 // input: Run on each fresh page
