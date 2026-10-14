@@ -190,10 +190,13 @@ def _endpoint_transport_path(text: str, at: int) -> str | None:
     short_test = ("function requestFor(config)" in before
                   and "export async function testEndpoint(config)" in before
                   and "const { url, init } = requestFor(config);" in before)
+    driver_input = ("const { url, init } = driverRequest(config, input.prompt, options.signal);" in before
+                    or ('import { driverPrompt } from "../job-runner/index.mjs";' in before
+                        and "const { url, init } = driverRequest(config, driverPrompt(input), options.signal);" in before))
     driver = ("function driverRequest(config, prompt, signal)" in before
               and "return providerRequest(config, prompt," in before
               and "export function endpointDriver(config, participant)" in before
-              and "const { url, init } = driverRequest(config, input.prompt, options.signal);" in before)
+              and driver_input)
     if short_test and (direct or provider) and before.rfind("export async function testEndpoint(config)") > before.rfind("export function endpointDriver(config, participant)"):
         return "short test"
     if driver and provider:
@@ -262,7 +265,7 @@ def _msal_element(text: str, at: int) -> bool:
 
 
 OWN_DATA_FILES = "its own data files, from the address the module itself was loaded from"
-ENDPOINT_TRANSPORT = "the one EndpointConfig-derived short test request"
+ENDPOINT_TRANSPORT = "the EndpointConfig-derived short test or direct driver request"
 BRIDGE_CLIENT_TRANSPORT = "the Bridge-handle pairing or bridgeApi endpoint-test transport"
 MSAL_BROWSER_FETCH = "the network client of @azure/msal-browser 5.24.0, vendored in MOD-mail-routes: the authority's configuration and the token endpoint"
 MSAL_BROWSER_ELEMENT = "the preconnect link and the silent sign-in iframe of @azure/msal-browser 5.24.0, vendored in MOD-mail-routes"
@@ -503,6 +506,14 @@ class NoServer(unittest.TestCase):
                   "  return fetch(url, init);\n"
                   "}\n")
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": driver}), [])
+        serialized = ('import { driverPrompt } from "../job-runner/index.mjs";\n' + driver.replace(
+            "driverRequest(config, input.prompt, options.signal)", "driverRequest(config, driverPrompt(input), options.signal)"))
+        self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": serialized}), [])
+        undeclared = serialized.replace('import { driverPrompt } from "../job-runner/index.mjs";\n', "")
+        self.assertEqual(len(channel_findings({"src/endpoint-calls/index.mjs": undeclared})), 2)
+        foreign = serialized.replace("const { url, init } = driverRequest(config, driverPrompt(input), options.signal);",
+                                     "const url = telemetry; const init = {};")
+        self.assertEqual(len(channel_findings({"src/endpoint-calls/index.mjs": foreign})), 2)
         arbitrary_driver = driver.replace("const { url, init } = driverRequest(config, input.prompt, options.signal);",
                                           "const url = telemetry; const init = {};")
         self.assertEqual(channel_findings({"src/endpoint-calls/index.mjs": arbitrary_driver}),
