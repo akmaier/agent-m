@@ -14,9 +14,6 @@ import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { view as tracePages } from "../src/trace-pages/index.mjs";
 import { view as reviewPages } from "../src/review-pages/index.mjs";
-import { registerStrategies } from "../src/job-runner/index.mjs";
-
-for (const [at, strategies] of reviewPages.strategies.entries()) registerStrategies(`ITM-418-independent-${at}`, strategies);
 
 export const INSTANCE = "akmaier/agent-m", SOURCE = "SRC-author";
 export const LOAN = "A LOAN HAS A DUE DATE", SHELF = "A BOOK IS SHELVED";
@@ -131,6 +128,8 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
   const host = connect(parseAddress(`https://github.com/${repo}`), { token: "fixture-product-token" });
   const target = document.createElement("div");
   const viewContext = { page: "review", instance: { repository: INSTANCE, host: instanceHost }, product: { address: `https://github.com/${repo}`, kind: "github", host }, store, go() {} };
+  // The real composition root owns strategy registration. Module scenarios initialise it through its actual route.
+  await page.go(`#requirement/name=${encodeURIComponent(LOAN)}/prompt=1`);
   return { product, server: instance, page, target, viewContext, host, repo, endpointRequests, bridgeRequests, chapter: readOriginal(chapterPath) };
 }
 
@@ -200,7 +199,7 @@ if (process.argv.includes(fileURLToPath(import.meta.url))) {
     await press(s.server, all(root, "button", "requirement-name").find((button) => button.textContent === LOAN));
     const link = one(root, "a", "requirement-prompt");
     await s.page.go(link.getAttribute("href"));
-    assert.equal(all(root, "textarea", "instruction").length, 1, "the actual dashboard router opens the prompt form");
+    assert.equal(main.querySelectorAll("textarea.instruction").length, 1, "the actual dashboard router opens the prompt form");
   });
 
   // TST-418002
