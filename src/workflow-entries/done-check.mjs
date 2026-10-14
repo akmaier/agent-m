@@ -6,6 +6,21 @@ import { recordsNewestFirst } from "../job-ledger/index.mjs";
 import { declarationSchema, doneCheck, gateSchema, workflowOf } from "../product-process/index.mjs";
 import { composeProduct } from "./compose.mjs";
 
+// The current check cannot wait for its own success. Evaluate that prospective success only for its unique identity;
+// leave every other check, every earlier commit, and any actual failure untouched for Process to judge.
+function factsForVerifier(facts, env) {
+  const current = facts.checks.filter((check) => env.check?.name && check.name === env.check.name &&
+    (env.service === "gitlab" ? env.check.url && check.url === env.check.url
+      : env.job.runUrl && check.url.startsWith(`${env.job.runUrl}/job/`)));
+  if (current.length !== 1 || current[0].state !== "running") return facts;
+  const checks = facts.checks.map((check) => check === current[0] ? { ...check, state: "success" } : check);
+  const head = facts.commits.at(-1);
+  const onlySelfRunning = checks.every((check) => ["success", "neutral", "skipped"].includes(check.state));
+  const commits = head?.sha === facts.pullRequest.head && head.ci === "running" && onlySelfRunning
+    ? facts.commits.map((commit) => commit === head ? { ...commit, ci: "success" } : commit) : facts.commits;
+  return { ...facts, checks, commits };
+}
+
 /** onDoneCheck(env: CiEnvironment) -> Promise<EntryStatus>. Reads facts and reports findings; never merges. */
 export async function onDoneCheck(env) {
   if (!env.job.personToken) return { outcome: "not run", summary: `${env.job.tokenName} is missing. Nothing was written.`, findings: [] };
@@ -45,7 +60,7 @@ export async function onDoneCheck(env) {
     if (artifactSchemaOf(path)?.schema === "module") modules.push(readDocument(artifactSchemaOf(path), path, await snapshot.read(path)));
     else if (path.startsWith("docs/gates/") && path.endsWith(".md")) gates.push(readDocument(gateSchema, path, await snapshot.read(path)));
   }
-  const findings = await doneCheck(facts, workflow, modules, gates, { kind: job.kind, modules: [...assigned] });
+  const findings = await doneCheck(factsForVerifier(facts, env), workflow, modules, gates, { kind: job.kind, modules: [...assigned] });
   return { outcome: findings.some((each) => each.kind === "error") ? "failed" : "done",
     summary: findings.length ? `The Definition of Done has ${findings.length} finding(s).` : "The Definition of Done holds.", findings };
 }

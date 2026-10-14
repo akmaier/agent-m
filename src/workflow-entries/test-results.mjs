@@ -31,7 +31,7 @@ export async function onTestsFinished(env) {
   const { stdout } = await exec("git", ["status", "--porcelain"], { cwd: env.job.productDir, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
   const iso = env.now.toISOString();
   const date = `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
-  const stamp = iso.slice(0, 16).replace(/[-:T]/g, "").replace(/^(\d{8})(\d{4})$/, "$1-$2");
+  const stamp = `${iso.slice(0, 10).replaceAll("-", "")}-${iso.slice(11, 16).replace(":", "")}`;
   const path = `runs/${env.tests.commit}/${stamp}-${env.tests.occasion}-${randomBytes(2).toString("hex")}.md`;
   const record = readDocument(resultSchema.run, path, "");
   record.fields = { commit: env.tests.commit, levels: env.tests.levels, occasion: env.tests.occasion,

@@ -28,13 +28,15 @@ const path = globalThis.process?.getBuiltinModule?.("node:path");
  * CiEnvironment — { entry: string, service: "github" | "gitlab", event: { name: string | null, payload: object | null }, checkout: string,
  * repository: string, branch: string | null, agentM: { commit: string | null }, token: string | null, now: Date, job: { runner: string | null,
  * productDir: string | null, instanceDir: string | null, actor: string | null, runUrl: string | null, tokenName: string, personToken: string | null,
- * keys: Record<string, string | null>, id: string | null }, pullRequest: number | null,
+ * keys: Record<string, string | null>, id: string | null }, pullRequest: number | null, check: { name: string | null, url: string | null },
  * tests: { report: string | null, commit: string | null, levels: string[], occasion: string | null, participant: string | null } }
  * — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
  * the runner, checkouts, run address, person's token and each key secret's value by its name. GitLab supplies CI_* variables
  * and the sibling instance checkout, as the existing runtime template does. `tests` projects AGENT_M_JUNIT_REPORT,
  * AGENT_M_TEST_COMMIT, AGENT_M_LEVELS, AGENT_M_OCCASION and AGENT_M_PARTICIPANT; `pullRequest` is the GitHub payload's
- * number or GitLab's CI_MERGE_REQUEST_IID; `job.id` is AGENT_M_JOB. `token` is the workflow's own GITHUB_TOKEN;
+ * number or GitLab's CI_MERGE_REQUEST_IID; `job.id` is AGENT_M_JOB. `check` identifies this verifier by AGENT_M_CHECK_NAME
+ * and the current run's URL, or GitLab's CI_JOB_NAME and exact CI_JOB_URL. Missing or ambiguous identity waives nothing.
+ * `token` is the workflow's own GITHUB_TOKEN;
  * `branch` is the branch the workflow runs for. No secret is read from a file.
  */
 export function ciEnvironment(entry, env, now) {
@@ -50,6 +52,7 @@ export function ciEnvironment(entry, env, now) {
     checkout, repository, branch: (gitlab ? env.CI_COMMIT_REF_NAME : env.GITHUB_REF_NAME) || null,
     agentM: { commit: env.AGENT_M_COMMIT || env.GITHUB_SHA || null }, token: env.GITHUB_TOKEN || null, now,
     pullRequest: Number(gitlab ? env.CI_MERGE_REQUEST_IID : payload?.pull_request?.number ?? payload?.number) || null,
+    check: { name: env.AGENT_M_CHECK_NAME || (gitlab ? env.CI_JOB_NAME : null) || null, url: gitlab ? env.CI_JOB_URL || null : null },
     tests: {
       report: env.AGENT_M_JUNIT_REPORT ? path.resolve(productDir || checkout, env.AGENT_M_JUNIT_REPORT) : null,
       commit: env.AGENT_M_TEST_COMMIT || (gitlab ? env.CI_COMMIT_SHA : payload?.pull_request?.head?.sha ?? env.GITHUB_SHA) || null,
@@ -79,7 +82,7 @@ export function composeInstance(env) {
 // A host for a checkout through the local clone: files are read and committed in the clone and pushed with the credentials the checkout was made
 // with, the person's token given as a secret, with every key, that no commit may hold. The clone does no server operation, so the repository's
 // information is what the workflow knows: the branch it runs for. A commit pushed through the clone leaves the clone's own branch where it was,
-// so the host remembers the newest commit it made — or the one the origin answered `Moved` with — and reads `HEAD`, or the branch, at that commit.
+// so the host remembers the newest commit per branch — or the one the origin answered `Moved` with — without changing another branch's head.
 function checkoutHost(address, dir, branch, token, secrets) {
   const host = connect(parseAddress(address), { token, clone: dir, secrets });
   const heads = new Map();
