@@ -1076,7 +1076,7 @@ test("UC-042 1b: a token the server refused is named, with its renewal, at the t
   await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
   assert.equal(publicRepositoryControl(box, "GitHub token", "status").textContent, "Expires on " + day(90) + ". Refused.");
   assert.equal(publicRepositoryControl(box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
-  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub refused your GitHub token — it has expired, or was regenerated or deleted on GitHub. Renew it on https://github.com/settings/personal-access-tokens.");
+  assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub rejected authentication with your GitHub token. Renew it on https://github.com/settings/personal-access-tokens.");
   await page.go("#uc");
   assert.ok(page.el("token-banner").includes("<strong>GitHub rejected authentication with your GitHub token.</strong>"));
   assert.ok(page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens"'));

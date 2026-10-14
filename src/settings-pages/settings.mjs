@@ -11,7 +11,7 @@ import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs"
 import { saveFile } from "../artifact-edits/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
-import { connect, parseAddress } from "../repository-hosts/index.mjs";
+import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
@@ -505,8 +505,9 @@ function repositoryLine(target, context, info) {
       lastTest = { at: new Date().toISOString(), outcome: "working" };
       result.textContent = "✓ The repository token is working.";
     } catch (error) {
-      lastTest = { at: new Date().toISOString(), outcome: "refused" };
       result.textContent = `✗ ${error.message}`;
+      if (!(error instanceof HostError) || error.name !== "TokenRefused") return;
+      lastTest = { at: new Date().toISOString(), outcome: "refused" };
     }
     writeSetting(context.store, `last-test:${info.key}`, lastTest);
     status.textContent = repositoryStatus({ ...info, lastTest }, setting);
