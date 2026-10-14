@@ -12,6 +12,7 @@ realises:
   - A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 modules:
   - MOD-review-pages
+  - MOD-runtimes
 builds_on:
   - ITM-363
   - ITM-341
@@ -41,6 +42,10 @@ requirement beside the one it refers to with its class, which the author may cha
 only on the text the job read, with the job's provenance lines as trailers, GitHub's pages without a token (UC-019 step
 9, 9a).
 
+MOD-runtimes' existing `runOnTab` boundary passes the optional refinement draft to MOD-job-runner and includes the loop's
+current draft and findings in the prompt delivered to the actual endpoint or Bridge driver. The review page reaches this
+recording boundary rather than running an unrecorded job of its own.
+
 ## Acceptance
 
 - Unit tests that name MOD-review-pages state, before the code exists, with a fixture host and a fixture driver: a
@@ -50,4 +55,6 @@ only on the text the job read, with the job's provenance lines as trailers, GitH
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
   request.
 - The existing tests stay green, with no expected result changed.
-- Only `src/review-pages/` and the tests that name MOD-review-pages change.
+- Unit tests at MOD-runtimes' actual driver boundary prove that the current refinement draft reaches the endpoint,
+  with an ordinary request as the known positive counter-proof.
+- Only `src/review-pages/`, `src/runtimes/` and the tests that name those modules change.
