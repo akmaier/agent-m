@@ -533,7 +533,7 @@ const FAULTS = [
   { ids: ["TST-418108"], file: "src/job-runner/builtins.mjs", from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
   { ids: ["TST-418109"], file: "src/review-pages/requirements-prompt.mjs", from: 'showDifference(held?.rule ?? "", rule.value)', to: 'renderArtifact(held?.rule ?? "")' },
   { ids: ["TST-418113"], file: "src/runtimes/tab.mjs", from: 'if (input.findings?.length)', to: 'if (false)' },
-  { ids: ["TST-418114"], file: "src/job-runner/loop.mjs", from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
+  { ids: ["TST-418114", "TST-418122"], file: "src/job-runner/loop.mjs", from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
   { ids: ["TST-418115"], file: "src/job-runner/loop.mjs", from: 'number >= prepared.limit', to: 'number >= 3' },
   { ids: ["TST-418116"], file: "src/job-runner/loop.mjs", from: 'number > 1 && now.length && same(now, open)', to: 'false' },
   { ids: ["TST-418117"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (outcome.stoppedBecause === "unusable")', to: 'if (false)' },
@@ -542,6 +542,9 @@ const FAULTS = [
   { ids: ["TST-418120"], file: "src/spec-changes/propose.mjs", from: 'files.push({ path: `${base}.md`, text: section.text }', to: 'files.push({ path: "SPEC.md", text: section.text }' },
   { ids: ["TST-418121"], file: "src/review-pages/requirements-prompt.mjs", from: 'const count = prepared.parts.find((part) => part.recipe === "spec-with-queues")?.artifacts?.length ?? 0;', to: 'const count = 0;' },
   { ids: ["TST-418104"], file: "src/review-pages/jobs.mjs", from: 'ready.decoratePanel?.(panel, ready.prepared);', to: 'void ready.decoratePanel;' },
+  { ids: ["TST-418114", "TST-418122"], file: "src/runtimes/tab.mjs", from: 'input.findings.map(formatFinding)',
+    to: 'input.findings.map((finding) => `${finding.artifact}:${finding.line}: ${finding.kind}: ${finding.what} [${finding.rule}] - ${finding.fix}`)' },
+  { ids: ["TST-418123"], file: "src/review-pages/requirements-prompt.mjs", from: 'panel.append(left, roundsSection(state.outcome.rounds, state.outcome.stoppedBecause));', to: 'panel.append(left);' },
 ];
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function counterproofs() {
@@ -565,7 +568,9 @@ async function counterproofs() {
       const failed = invoke(); writeFileSync(path, original);
       const restoredHash = hash(readFileSync(path)), passed = invoke(), ended = new Date().toISOString();
       const nodes = Object.fromEntries(fault.ids.map((id) => [id, failed.stdout.match(new RegExp(`^not ok \\d+ - ${id}:[\\s\\S]*?(?=\\n# Subtest:|\\n1\\.\\.)`, "m"))?.[0] ?? null]));
-      const receipt = { ...fault, cwd: copied, argv, environment: { AGENT_M_418_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null },
+      const receipt = { ...fault, participant: "developer-terra-e", sourceCommit: git(ROOT, "rev-parse", "HEAD"),
+        testsUncommitted: git(ROOT, "diff", "HEAD", "--", ...tests) !== "", cwd: copied, argv,
+        environment: { AGENT_M_418_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null },
         sourceHashes: { original: hash(original), planted: hash(mutated), restored: restoredHash }, testHashes, started, ended,
         red: { status: failed.status, signal: failed.signal, error: failed.error?.code ?? null, nodes, stdout: failed.stdout, stderr: failed.stderr },
         green: { status: passed.status, signal: passed.signal, error: passed.error?.code ?? null, stdout: passed.stdout, stderr: passed.stderr } };
