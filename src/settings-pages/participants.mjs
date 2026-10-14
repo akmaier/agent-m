@@ -6,6 +6,7 @@
 
 import { saveFile } from "../artifact-edits/index.mjs";
 import { listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { bridgeAt, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
@@ -178,6 +179,30 @@ function inlineEndpointChecks(type, state) {
   return found;
 }
 
+function agentTestChecks(type, state) {
+  if (!BRIDGE_TYPES.has(type) || state.agentTest?.ok !== false || state.saveUntested) return [];
+  return [finding({ artifact: PATH, line: 1, kind: "error", rule: "ONE CLICK PER DECISION",
+    what: `the test of ${state.agent || "the agent"} through Bridge ${state.bridge || "the chosen Bridge"} failed`,
+    fix: "fix the Bridge or choose Save untested before saving this participant" })];
+}
+
+function bridgeSettingsOf(store, name) {
+  const entry = readSetting(store, `bridge:${name}`);
+  if (!entry || typeof entry !== "object") throw new Error(`This browser does not keep Bridge ${name}.`);
+  return settingsOf({ name, ...entry }, readSetting(store, "jump-host"));
+}
+
+function bridgeFailureText(error) {
+  if (error?.name === "TokenMissing") return "The Bridge has no pairing token.";
+  if (error?.name === "TokenRefused") return "The Bridge refused its pairing token.";
+  if (error?.name === "JumpHostMissing") return error.message;
+  if (error?.name === "JumpHostLoginRefused") return "The jump host refused its login.";
+  if (error?.name === "Timeout") return "The Bridge request timed out.";
+  if (error?.name === "NoAnswer") return `${error.message} Likely: ${error.likely?.join(", ") ?? "not running or wrong address"}.`;
+  if (error?.name === "BridgeFailed") return `The Bridge refused the request: ${error.message}`;
+  return `The Bridge could not be reached: ${error?.message ?? error}.`;
+}
+
 function renderList(box, text) {
   const participants = participantsOf(readDocument(participantSchema(), PATH, participantText(text)));
   box.replaceChildren(...(participants.length ? participants.map((participant) =>
@@ -213,14 +238,15 @@ export const route = {
     const state = {
       name: "", account: "", endpoint: "", endpointUrl: "", endpointKind: "openai-compatible", endpointModel: "", endpointKey: "",
       inlineEndpoint: false, model: "", context: "", price: "", place: "", workflow: "", runner: "github-hosted", secret: "",
-      bridge: "", agent: "", capabilities: [],
+      bridge: "", agent: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
     };
 
     function setType(next) {
       state.name = ""; state.account = ""; state.endpoint = ""; state.endpointUrl = ""; state.endpointKind = "openai-compatible";
       state.endpointModel = ""; state.endpointKey = ""; state.inlineEndpoint = false; state.model = ""; state.context = "";
       state.price = ""; state.place = ""; state.workflow = ""; state.runner = "github-hosted"; state.secret = ""; state.bridge = "";
-      state.agent = ""; state.capabilities = typePreset(next);
+      state.agent = ""; state.capabilities = typePreset(next); state.agentList = null; state.agentListText = ""; state.agentTest = null;
+      state.saveUntested = false;
       if (next === "model endpoint") {
         state.endpoint = firstEndpoint(context.store);
         state.inlineEndpoint = state.endpoint === "";
@@ -235,7 +261,8 @@ export const route = {
       result.textContent = "";
       if (!type.value) { fieldsBox.replaceChildren(); formBox.replaceChildren(); return; }
       const document = draftDocument(opened.text, type.value, state, context.store);
-      const checks = (document) => [...inlineEndpointChecks(type.value, state), ...sourcePlaceWarnings(opened.sources)(document)];
+      const checks = (document) => [...inlineEndpointChecks(type.value, state), ...agentTestChecks(type.value, state),
+        ...sourcePlaceWarnings(opened.sources)(document)];
       async function save(document) {
         const text = writeDocument(participantSchema(), document);
         const endpoint = state.inlineEndpoint ? endpointSetting(state) : null;
@@ -340,10 +367,112 @@ export const route = {
         explain("ci-agent-runner"), explain("job-workflow")];
     }
 
+    function chosenBridge() {
+      return bridgeAt(bridgeSettingsOf(context.store, state.bridge));
+    }
+
+    async function listBridgeAgents() {
+      state.agentListText = "Reading the Bridge's agents...";
+      state.agentList = null;
+      rebuild();
+      try {
+        state.agentList = await testBridge(chosenBridge());
+        state.agentListText = `Bridge ${state.agentList.bridge?.name ?? state.bridge} answered.`;
+      } catch (error) {
+        state.agentList = null;
+        state.agentListText = bridgeFailureText(error);
+      }
+      rebuild();
+    }
+
+    function addOfferedAgent(agent) {
+      const computer = state.agentList?.bridge?.name ?? state.bridge;
+      state.agent = agent.name;
+      state.model = agent.name;
+      state.place = `${computer} Bridge's computer`;
+      state.agentTest = null;
+      state.saveUntested = false;
+      rebuild();
+    }
+
+    async function testAgent() {
+      if (!state.agent.trim()) {
+        state.agentTest = { ok: false, text: "Choose an agent before testing it." };
+        state.saveUntested = false;
+        rebuild();
+        return;
+      }
+      state.agentTest = { ok: null, text: `Testing ${state.agent} through Bridge ${state.bridge}...` };
+      state.saveUntested = false;
+      rebuild();
+      try {
+        const answer = await probe(chosenBridge(), "agent", { agent: state.agent.trim() });
+        const version = answer?.version ? ` (${answer.version})` : "";
+        state.agentTest = { ok: true, text: `${state.agent} answered${version}.` };
+      } catch (error) {
+        state.agentTest = { ok: false, text: bridgeFailureText(error) };
+      }
+      rebuild();
+    }
+
+    function agentListView() {
+      const children = [];
+      if (state.agentListText) children.push(el("p", null, state.agentListText));
+      for (const agent of state.agentList?.agents ?? []) {
+        if (agent.ready) {
+          const add = el("button", "participant-agent-offer btn small", `Add ${agent.name}`);
+          add.addEventListener("click", () => addOfferedAgent(agent));
+          children.push(el("p", null, add, ` ${agent.version ?? ""}`));
+        } else {
+          children.push(el("p", "participant-agent-unready", `${agent.name} is not ready${agent.loggedIn === false ? " (not logged in)" : ""}.`));
+        }
+      }
+      for (const agent of state.agentList?.missing ?? []) {
+        children.push(el("p", "participant-agent-missing", `${agent.name} is missing.`));
+      }
+      return el("div", "participant-agent-list-result", ...children);
+    }
+
     function bridgeControls() {
       const names = bridgeNames(context.store);
-      return [control("Bridge", selectInput("participant-bridge", "bridge", names.length ? names : [""])),
-        control("Agent", textInput("participant-agent", "agent", "codex"))];
+      const bridge = el("select", "participant-bridge", ...(names.length ? names : [""]).map((name) => option(name)));
+      bridge.value = state.bridge;
+      bridge.addEventListener("change", () => {
+        state.bridge = bridge.value;
+        state.agent = "";
+        state.agentList = null;
+        state.agentListText = "";
+        state.agentTest = null;
+        state.saveUntested = false;
+        buildForm();
+        routePreview.textContent = routeOf(type.value, state);
+      });
+      const agent = el("input", "participant-agent");
+      agent.value = state.agent;
+      agent.placeholder = "codex";
+      agent.autocomplete = "off";
+      agent.spellcheck = false;
+      agent.addEventListener("input", () => {
+        state.agent = agent.value;
+        state.agentTest = null;
+        state.saveUntested = false;
+        buildForm();
+        routePreview.textContent = routeOf(type.value, state);
+      });
+      const listAgents = el("button", "participant-list-agents btn", "List agents");
+      listAgents.type = "button";
+      listAgents.addEventListener("click", listBridgeAgents);
+      const test = el("button", "participant-agent-test btn", "Test");
+      test.type = "button";
+      test.addEventListener("click", testAgent);
+      const testResult = el("p", "participant-agent-test-result", state.agentTest?.text ?? "");
+      const saveUntested = el("button", "participant-save-untested btn", "Save untested");
+      saveUntested.type = "button";
+      saveUntested.addEventListener("click", () => { state.saveUntested = true; buildForm(); });
+      const testLine = el("p", null, test);
+      if (state.agentTest?.ok === false && !state.saveUntested) testLine.append(" ", saveUntested);
+      return [control("Bridge", bridge), el("p", null, listAgents), agentListView(), control("Agent", agent),
+        testLine, testResult];
     }
 
     function fieldsFor(typeName) {
