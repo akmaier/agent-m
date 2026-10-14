@@ -377,6 +377,13 @@ async function until(condition, what) {
 const rowOf = (target, id) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id") === id)[0];
 const badgeOf = (row) => byClass(row, "span", "badge")[0]?.textContent;
 const recordTextOf = (id, path, body) => recordOf(id, path, body)[1];
+const areaOf = (target) => find(target, (node) => node.localName === "textarea")[0];
+const saveButton = (target) => find(target, (node) => node.localName === "button" && node.textContent === "Save")[0];
+const type = (target, text) => {
+  const area = areaOf(target);
+  area.value = text;
+  area.dispatchEvent(new Event("input"));
+};
 
 // ---------------------------------------------------------------- the list
 
@@ -431,6 +438,129 @@ test("MOD-review-pages use-case/<id> — one use case with its text, its diagram
   assert.notEqual(accept[0].disabled, true, "pressable");
   assert.equal(byClass(target, "section", "accepted-diff").length, 0, "no difference: the use case was never accepted");
   assert.ok(byClass(target, "details", "explain").length >= 1, "a folded What is this?");
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// ---------------------------------------------------------------- editing a use case
+
+// TST-358001 · level: unit · module: MOD-review-pages
+// guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; ONE CLICK PER DECISION
+// given: UC-041 open on the review page, with a token stored
+// input: follow Edit to use-case/id=UC-041/edit=1, change its text, and click Save
+// expect: the editor opens on the use-case text with schema marks beside it; Save writes exactly the use-case file, on the head and blob the editor opened, with no approval record; the saved link names the commit
+test("MOD-review-pages use-case/<id>/edit — Save commits the edited use case as an open reviewed file", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const one = (await show(fake, { id: "UC-041" })).target;
+  const edit = byClass(one, "a", "edit-link")[0];
+  assert.equal(edit.getAttribute("href"), "#use-case/id=UC-041/edit=1", "one Edit link to the edit route");
+
+  const read = fake.head();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  assert.equal(areaOf(target).value, UC41, "the editor holds the use case byte for byte");
+  assert.ok(byClass(target, "ol", "marks")[0].textContent.includes("A USE CASE HAS ACTOR"), "schema marks are shown");
+  assert.equal(saveButton(target).disabled, false, "Save is offered while marks remain");
+  const edited = UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt.");
+  type(target, edited);
+  click(saveButton(target));
+  await until(() => fake.writes().length === 1, "the edit commit");
+  const [{ change }] = fake.writes();
+  assert.equal(change.branch, "main");
+  assert.equal(change.expectedHead, read, "on the head the editor opened");
+  assert.deepEqual(change.files, [{ path: P41, text: edited }], "only the use case is written");
+  assert.ok(!change.files.some((file) => file.path.startsWith("docs/approvals/")), "no approval record");
+  await until(() => byClass(target, "p", "result")[0].textContent.includes("Saved"), "the saved result");
+  assert.ok(byClass(target, "p", "result")[0].textContent.includes(fake.head()), "the commit is linked");
+});
+
+// TST-358002 · level: unit · module: MOD-review-pages
+// guards: AN EDITED FILE KEEPS ITS IDENTIFIER
+// given: the editor opened for UC-041
+// input: change the front-matter id to UC-099
+// expect: Save is disabled and the page names the identifier to keep; no commit is attempted
+test("MOD-review-pages use-case/<id>/edit — a changed id disables Save and names the reason", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  type(target, UC41.replace("id: UC-041", "id: UC-099"));
+  assert.equal(saveButton(target).disabled, true, "Save disabled");
+  assert.match(byClass(target, "p", "result")[0].textContent, /identifier changed from UC-041 to UC-099/i);
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-358003 · level: unit · module: MOD-review-pages
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// given: UC-041 opened in the editor, then another writer changes it on main
+// input: click Save
+// expect: no commit is attempted; the edit stays and the newer text is shown beside it
+test("MOD-review-pages use-case/<id>/edit — a changed file refuses Save and keeps the edit beside the newer text", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  const edited = UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt.");
+  type(target, edited);
+  fake.land({ [P41]: UC41.replace("borrows a book at the desk.", "borrows one book.") });
+  click(saveButton(target));
+  await until(() => byClass(target, "div", "newer").length && byClass(target, "div", "newer")[0].textContent.includes("borrows one book"), "the newer text");
+  assert.equal(areaOf(target).value, edited, "the edit stays");
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+});
+
+// TST-358004 · level: unit · module: MOD-review-pages
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
+// given: a GitHub product without a token, and UC-041 opened in the editor
+// input: edit and Save
+// expect: no commit from the dashboard; GitHub's editor page is offered with only the path in the URL, while the edited text is shown for the clipboard
+test("MOD-review-pages use-case/<id>/edit — without a token on GitHub, Save offers GitHub's editor without text in the URL", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" }, { token: false });
+  const edited = UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt.");
+  type(target, edited);
+  click(saveButton(target));
+  await until(() => byClass(target, "a", "github-page").length === 1, "GitHub's editor page");
+  const page = new URL(byClass(target, "a", "github-page")[0].getAttribute("href"));
+  assert.equal(page.origin + page.pathname, "https://github.com/alice/thesis-tool/edit/main/" + P41);
+  assert.equal([...page.searchParams.keys()].length, 0, "no text-bearing query");
+  assert.ok(!decodeURIComponent(byClass(target, "a", "github-page")[0].getAttribute("href")).includes("with a receipt"), "the URL holds no edited text");
+  assert.equal(byClass(target, "pre", "clipboard-text")[0].textContent, edited, "the text is shown for the clipboard");
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-358005 · level: unit · module: MOD-review-pages
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// given: a token stored that may not write to the repository, and UC-041 opened in the editor
+// input: edit and Save
+// expect: the refusal is shown, GitHub's editor page is offered, no dashboard commit lands
+test("MOD-review-pages use-case/<id>/edit — PermissionMissing offers GitHub's editor for the edit", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const refusal = failure("PermissionMissing", "Your token may not write to https://github.com/alice/thesis-tool: it lacks Contents.", { permission: "Contents" });
+  const fake = fakeHost({ refuse: refusal });
+  const before = fake.head();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  const edited = UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt.");
+  type(target, edited);
+  click(saveButton(target));
+  await until(() => byClass(target, "a", "github-page").length === 1, "GitHub's editor page");
+  assert.match(byClass(target, "p", "result")[0].textContent, /lacks Contents/, "the refusal is shown");
+  const page = new URL(byClass(target, "a", "github-page")[0].getAttribute("href"));
+  assert.equal(page.origin + page.pathname, "https://github.com/alice/thesis-tool/edit/main/" + P41);
+  assert.equal(fake.head(), before, "no dashboard commit lands");
+});
+
+// TST-358006 · level: unit · module: MOD-review-pages
+// guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
+// given: a GitLab product without a token
+// input: the edit route of UC-041
+// expect: the use case is shown, no editor and no Save are opened, and the token step is linked
+test("MOD-review-pages use-case/<id>/edit — on GitLab without a token there is no Save", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost({ repository: ON_GITLAB });
+  const { target } = await show(fake, { id: "UC-041", edit: "1" }, { token: false, gitlab: true, instanceToken: true });
+  assert.match(target.textContent, /The member borrows a book at the desk\./, "the use case is shown");
+  assert.equal(find(target, (node) => node.localName === "textarea").length, 0, "no editor");
+  assert.equal(saveButton(target), undefined, "no Save");
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length, 1, "the token's step");
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 

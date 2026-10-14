@@ -16,6 +16,7 @@ import { explain } from "../site-frame/index.mjs";
 import { el, link, button, storedToken, problem, parseServer, TOKEN_STEP } from "./common.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
+import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
 import { showPrompt } from "./prompt.mjs";
 import { queueService } from "./spec-entries.mjs";
@@ -112,6 +113,11 @@ export function reviewRoute(kind) {
     }
     const where = { host, token, snapshot, context, target };
     if (kind.edit) await showEdit(where, kind, params);
+    else if (params.edit && params.id && kind.save === "file") {
+      const file = files(snapshot).find((candidate) => candidate.id === params.id);
+      if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      else await showFileEdit(where, kind, file);
+    }
     else if (params.edit && params.id && kind.save === "entry") await showEntryEdit(where, kind, params.id);
     else if (params.prompt && params.id && kind.prompt) await showPrompt(where, kind, params.id);
     else if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
@@ -320,6 +326,9 @@ export function reviewRoute(kind) {
       target.append(diff);
     }
     target.append(renderArtifact(shortBody(body)));
+    if (kind.save === "file" && (token || parseServer(where.context) !== "gitlab")) {
+      target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
+    }
     if (kind.prompt) target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/prompt=1`, "prompt-link", "Change by prompt"));
     if (kind.draft && file.status !== "accepted") {
       const notes = await jobNotes(snapshot, file.id);
@@ -364,4 +373,3 @@ export function reviewRoute(kind) {
 
   return { name: kind.route, entry: kind.entry, title: kind.title, render };
 }
-

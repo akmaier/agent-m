@@ -7,14 +7,15 @@
 // file; `route` the first part of the address's fragment; `entry` the menu entry; `record` the identifier-and-title heading of
 // a file, from its text; `explain` the topics of the folded "What is this?".
 const heading = (body) => /^# (.+)$/m.exec(body)?.[1] ?? "";
-const explain = { list: "accepting", all: "accepting", one: "accepting", changed: "edit-after-acceptance", fallback: "github-page-without-token" };
+const explain = { list: "accepting", all: "accepting", one: "accepting", changed: "edit-after-acceptance", edit: "edit-after-acceptance",
+  fallback: "github-page-without-token" };
 
 // `whole` marks the kind whose Review all is the review page of the whole architecture: the kinds of the files it shows together.
 // `restsOn` marks a kind whose file names what it rests on (a decision its forces, a module what it realises): its page shows the
 // section of what is not accepted yet, and offers no Accept while there is any.
 export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-cases", title: "Use cases", plural: "use cases", noun: "use case",
   heading, explain: { ...explain, draft: { requirements: "requirements-to-cover", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop",
-    written: "drafted-use-cases", ci: "ci-agent-draft" }, instruction: "change-instruction" }, draft: "derive-use-cases", prompt: "change-use-case" };
+    written: "drafted-use-cases", ci: "ci-agent-draft" }, instruction: "change-instruction" }, draft: "derive-use-cases", prompt: "change-use-case", save: "file" };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
   plural: "architecture decisions", noun: "architecture decision", heading, restsOn: true, whole: ["architecture-decision", "module"], draft: "derive-architecture",
   explain: { ...explain, draft: { whole: "what-is-an-architecture", participant: "drafting-participant", reviewer: "architecture-reviewer", panel: "run-panel", ci: "ci-agent-draft" } } };
