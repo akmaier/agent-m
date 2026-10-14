@@ -184,7 +184,7 @@ function domElement(localName) {
     append(...items) {
       for (const item of items) {
         if (typeof item === "object" && item) {
-          item.remove?.();
+          if (item.parentNode?.children?.includes(item)) item.remove?.();
           item.parentNode = node;
         }
         children.push(item);
