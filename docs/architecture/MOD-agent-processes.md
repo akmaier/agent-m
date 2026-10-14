@@ -8,6 +8,7 @@ follows:
 uses:
   - MOD-job-runner.Driver
   - MOD-job-runner.DriverInput
+  - MOD-job-runner.driverPrompt
   - MOD-job-runner.Usage
   - MOD-participant-list.Participant
   - MOD-documents.loadSchema
@@ -64,7 +65,7 @@ The exact commands and options are data in this register, not code, so a changed
   agent's own login step is named — this module never asks for a password (UC-044). Starts only the commands of the
   register's Version and Login check columns; changes nothing.
 - `agentDriver(agent: Agent, options: { workdir: string, keyVariable: string | null }, participant: Participant) ->
-  Driver` — a driver whose `send` starts the agent with the input as its task in the working folder, streams its output
+  Driver` — a driver whose `send` starts the agent with `driverPrompt(input)` as its task in the working folder, streams its output
   through `onOutput`, and returns its final answer and the usage it reported, or `null` usage. For a job that works in the
   folder — implementing, fixing, generating tests —, the agent commits, pushes and opens its pull request itself with the
   git credentials of its machine — the computer's own login on a Bridge, the person's token from a CI secret in CI
@@ -86,5 +87,6 @@ product's branch, which on a Bridge lies in the agent's own working folder besid
 
 - `MOD-job-runner.Driver`, `MOD-job-runner.DriverInput`, `MOD-job-runner.Usage` — the driver type it implements, its
   input, and the usage it returns.
+- `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent as one task.
 - `MOD-participant-list.Participant` — the participant the driver stands for.
 - `MOD-documents.loadSchema`, `MOD-documents.readRegister` — the register of supported agents.
