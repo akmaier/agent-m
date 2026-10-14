@@ -1,4 +1,4 @@
-// MOD-settings-pages — the participants route (ITM-352).
+// MOD-settings-pages — the participants route (ITM-352, ITM-353).
 // Run: node --test tests/settings-pages-participants.test.mjs
 //
 // Module: MOD-settings-pages
@@ -61,6 +61,12 @@ const put = async (node, value, type = "input") => { node.value = value; await f
 const saveOf = (root) => byTag(root, "button").filter((button) => button.textContent === "Save").at(-1);
 const rowTextOf = (root) => byTag(one(root, "participants-form-box"), "textarea")[0].value;
 const folded = (root) => byTag(root, "details");
+const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+function withFetch(t, implementation) {
+  const prior = globalThis.fetch;
+  globalThis.fetch = implementation;
+  t.after(() => { globalThis.fetch = prior; });
+}
 
 function route() {
   const found = view.routes.find((candidate) => candidate.name === "participants");
@@ -250,4 +256,107 @@ test("participants — self-hosted runners are explained, and source place restr
   assert.ok(explanations.length >= 4, "the route folds its explanations");
   assert.ok(explanations.every((details) => !details.hasAttribute("open")));
   assert.ok(explanations.every((details) => byTag(details, "summary")[0]?.textContent === "What is this?"));
+});
+
+// TST-353001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
+// given: this browser keeps one direct Bridge and one Bridge reached through the jump host, and each Bridge reports its offered agents
+// input: the author chooses each Bridge on a CLI participant and asks for its agents, then clicks a ready offered agent
+// expect: the route calls testBridge for the chosen Bridge only; ready agents are offered as one-click additions; the clicked
+//   agent fills Agent, Model, Route and the Bridge computer as Processing place; missing or not-ready agents are not added
+test("participants — offered Bridge agents are listed, and a ready one is added in one click", async (t) => {
+  const calls = [];
+  withFetch(t, async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    if (String(url) === "http://127.0.0.1:4711/v1/pair") return json({ bridge: { name: "laptop", version: "1", platform: "darwin" } });
+    if (String(url) === "http://127.0.0.1:4711/v1/agents") return json({ agents: [
+      { name: "codex", version: "1.2.3", ready: true, loggedIn: true },
+      { name: "claude", version: "2.0.0", ready: false, loggedIn: false },
+    ], missing: [{ name: "opencode" }] });
+    if (String(url) === "https://jump.example.test/bridge/gpu/v1/pair") return json({ bridge: { name: "gpu", version: "1", platform: "linux" } });
+    if (String(url) === "https://jump.example.test/bridge/gpu/v1/agents") return json({ agents: [
+      { name: "opencode", version: "0.9.0", ready: true, loggedIn: true },
+    ], missing: [] });
+    throw new Error(`unexpected request ${url}`);
+  });
+  const b = browser(t, { settings: {
+    "bridge:laptop": { address: "http://127.0.0.1:4711", token: "laptop-token" },
+    "jump-host": { hostname: "jump.example.test", user: "bridge-user", sshPort: 2222, portRange: [40100, 40103],
+      httpsAddress: "https://jump.example.test", login: { user: "alice", password: "proxy-password" } },
+    "bridge:gpu": { port: 40100, token: "gpu-token" },
+  } });
+  const page = await b.page();
+  await addParticipant(page, "CLI agent");
+  await put(one(page, "participant-name"), "codex-local");
+  await put(one(page, "participant-bridge"), "laptop", "change");
+  await click(one(page, "participant-list-agents"));
+  assert.deepEqual(calls.map((call) => [call.url, call.init.method, call.init.headers["x-agent-m-bridge-token"]]), [
+    ["http://127.0.0.1:4711/v1/pair", "GET", "laptop-token"],
+    ["http://127.0.0.1:4711/v1/agents", "GET", "laptop-token"],
+  ]);
+  assert.deepEqual(byClass(page, "participant-agent-offer").map((button) => button.textContent), ["Add codex"]);
+  assert.match(one(page, "participant-agent-list-result").textContent, /claude.*not ready|opencode.*missing/s);
+  await click(one(page, "participant-agent-offer"));
+  assert.equal(one(page, "participant-agent").value, "codex");
+  assert.equal(one(page, "participant-model").value, "codex");
+  assert.equal(one(page, "participant-place").value, "laptop Bridge's computer");
+  assert.match(rowTextOf(page), /bridge laptop agent codex/);
+
+  await put(one(page, "participant-bridge"), "gpu", "change");
+  await click(one(page, "participant-list-agents"));
+  assert.deepEqual(calls.slice(2).map((call) => [call.url, call.init.method, call.init.headers["x-agent-m-bridge-token"], call.init.headers.Authorization]), [
+    ["https://jump.example.test/bridge/gpu/v1/pair", "GET", "gpu-token", `Basic ${Buffer.from("alice:proxy-password").toString("base64")}`],
+    ["https://jump.example.test/bridge/gpu/v1/agents", "GET", "gpu-token", `Basic ${Buffer.from("alice:proxy-password").toString("base64")}`],
+  ]);
+  assert.deepEqual(byClass(page, "participant-agent-offer").map((button) => button.textContent), ["Add opencode"]);
+  await click(one(page, "participant-agent-offer"));
+  assert.equal(one(page, "participant-agent").value, "opencode");
+  assert.equal(one(page, "participant-place").value, "gpu Bridge's computer");
+});
+
+// TST-353002 · level: unit · module: MOD-settings-pages
+// guards: UC-017; ONE CLICK PER DECISION; THE BRIDGE FINDS THE INSTALLED AGENTS; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: a CLI participant row naming a stored Bridge and agent
+// input: Test succeeds once; then, on another page, Test cannot reach the Bridge and the author chooses Save untested
+// expect: probe is called with kind agent and the selected agent; the successful answer is shown; the failure reason is shown,
+//   Save is withheld while the failed test stands, and Save becomes available only after Save untested is clicked
+test("participants — Test probes the selected agent, and a failed Bridge test withholds Save until save untested", async (t) => {
+  const calls = [];
+  withFetch(t, async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    if (calls.length === 1) return json({ answer: { answered: true, version: "1.2.3" } });
+    throw new TypeError("blocked by browser");
+  });
+  const settings = { "bridge:laptop": { address: "http://127.0.0.1:4711", token: "laptop-token" } };
+  const ok = browser(t, { settings });
+  let page = await ok.page();
+  await addParticipant(page, "CLI agent");
+  await put(one(page, "participant-name"), "codex-local");
+  await put(one(page, "participant-model"), "codex");
+  await put(one(page, "participant-bridge"), "laptop", "change");
+  await put(one(page, "participant-agent"), "codex");
+  await put(one(page, "participant-place"), "this machine");
+  await click(one(page, "participant-agent-test"));
+  assert.equal(calls[0].url, "http://127.0.0.1:4711/v1/probes/agent");
+  assert.equal(calls[0].init.method, "POST");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { args: { agent: "codex" } });
+  assert.match(one(page, "participant-agent-test-result").textContent, /answered|1\.2\.3/);
+  await save(page);
+  assert.equal(ok.commits.length, 1);
+
+  const failed = browser(t, { settings });
+  page = await failed.page();
+  await addParticipant(page, "CLI agent");
+  await put(one(page, "participant-name"), "codex-local");
+  await put(one(page, "participant-model"), "codex");
+  await put(one(page, "participant-bridge"), "laptop", "change");
+  await put(one(page, "participant-agent"), "codex");
+  await put(one(page, "participant-place"), "this machine");
+  await click(one(page, "participant-agent-test"));
+  assert.match(one(page, "participant-agent-test-result").textContent, /blocked by browser|gave no answer/i);
+  assert.equal(saveOf(one(page, "participants-form-box")).disabled, true);
+  await click(one(page, "participant-save-untested"));
+  assert.equal(saveOf(one(page, "participants-form-box")).disabled, false);
+  await save(page);
+  assert.equal(failed.commits.length, 1);
 });
