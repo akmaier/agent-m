@@ -36,8 +36,8 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    dashboard renders these files, and an image or frame in them would be fetched from its host. Code spans and fenced
    blocks are rendered as text and are not read.
 
-The vendored libraries are docs/assets/vendor/ and MOD-markdown-render's src/markdown-render/vendor/, whose module file
-states that it reads them; check 1 does not count them as the site's own code.
+VENDOR lists the third-party library folders; check 1 does not count them as the site's own code. Check 2 still scans
+every vendored library for request channels.
 
 The check of the own code's addresses moved here from tests/test_pages_layout.py (ITM-050). Only tracked files are
 read, so a scratch file in a working tree changes nothing. Counter-proofs:
@@ -50,7 +50,8 @@ from pathlib import Path
 from test_artifact_format import outside_code
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/", "src/mail-routes/vendor/")
+VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/", "src/mail-routes/vendor/",
+          "src/result-records/vendor/")
 CODE = (".html", ".css", ".mjs", ".js")
 
 PERMITTED_HOSTS = {
@@ -706,6 +707,20 @@ class NoServer(unittest.TestCase):
         self.assertEqual(len(findings), 2)
         self.assertEqual(findings[0], f"src/markdown-render/mermaid.mjs:1: loading element: not {MERMAID_LIBRARY_LOADING}")
         self.assertTrue(findings[1].startswith('src/markdown-render/mermaid.mjs:2: url(): URL("https://tracker.example/mermaid.js"'))
+
+        # The report parser's W3 citations are source text, not permission to call W3 or another host.
+        parser = "src/result-records/vendor/parse-xml.mjs"
+        citation = "// @see https://www.w3.org/TR/2008/REC-xml-20081126/\n"
+        self.assertNotIn("www.w3.org", PERMITTED_HOSTS)
+        self.assertEqual(foreign_by_file({parser: citation, "src/result-records/junit.mjs": citation,
+                                          "src/other/vendor/parse-xml.mjs": citation}),
+                         {"src/result-records/junit.mjs": ["www.w3.org"],
+                          "src/other/vendor/parse-xml.mjs": ["www.w3.org"]})
+        self.assertEqual(channel_findings({parser: citation}), [])
+        for destination in ("https://www.w3.org/TR/", "https://tracker.example/x"):
+            planted = f'fetch("{destination}");\n'
+            self.assertEqual(channel_findings({parser: planted}),
+                             [f"{parser}:1: fetch: not {OWN_DATA_FILES}"])
 
     def test_counter_proof_msal_browsers_sign_in_requests_are_allowed_only_in_its_vendored_file(self):
         # MOD-mail-routes vendors @azure/msal-browser 5.24.0 in src/mail-routes/vendor/ (ARC-053). Planted text with the library's four
