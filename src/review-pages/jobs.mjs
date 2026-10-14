@@ -224,6 +224,7 @@ export async function refineOnTab(run, params, draft, { stage, onResult }) {
       stage.append(problem(failure, run.token));
     }
   } });
+  ready.decoratePanel?.(panel, ready.prepared);
   panel.append(el("section", "refinement-input", el("h4", null, "Follow-up instruction"), el("pre", null, params.instruction),
     el("h4", null, "Current draft"), el("pre", null, typeof draft === "string" ? draft : JSON.stringify(draft, null, 2))));
   stage.replaceChildren(explain(run.kind.explain.draft.panel), panel);

@@ -274,8 +274,13 @@ export async function showRequirementsPrompt(where, kind, params) {
     const chosen = drafters.find((participant) => byClassChecked(offered, participant.name));
     if (!said) { stage.append(el("p", "problem", "Write what should change.")); return; }
     if (!chosen) { stage.append(el("p", "problem", "Choose the participant that drafts.")); return; }
+    const decoratePanel = (panel, prepared) => {
+      const count = prepared.parts.find((part) => part.recipe === "spec-with-queues")?.artifacts?.length ?? 0;
+      panel.append(el("p", "requirements-included", `${count} existing requirements included.`),
+        el("p", "use-cases-included", "0 use cases included."));
+    };
     await panelOf({ ...where, definition, kind, jobKind: kind.prompt, params: { requirements: names, source, instruction: said }, worksOn: names,
-      present: presentRequirementsPrompt, chosen, participants, instanceSnapshot, product, needs, stage });
+      present: presentRequirementsPrompt, chosen, participants, instanceSnapshot, product, needs, stage, decoratePanel });
   });
   target.append(prepare, stage);
 }
