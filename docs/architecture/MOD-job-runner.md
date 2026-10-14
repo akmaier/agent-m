@@ -41,6 +41,7 @@ provides:
   - Strategies
   - Driver
   - DriverInput
+  - driverPrompt
   - Usage
   - JobContext
   - Part
@@ -163,6 +164,12 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   parts; the output schema the answer must follow; the findings of the last round with the draft they concern — or, in
   the first exchange of a job given `refine`, no finding and the draft to change —; and for an agent that works in a
   folder, that folder.
+- `driverPrompt(input: DriverInput) -> string` — the text a driver sends: the prepared `prompt` unchanged, followed by
+  the current draft when `previous` is not null and the findings when any are present, each in MOD-text-tools'
+  `formatFinding` form. It adds neither the recipe parts nor the output schema again: those already stand in the
+  prepared prompt. Endpoint, agent and Bridge drivers call this once at their sending boundary; callers pass the
+  structured input without pre-rendering that context. With no previous draft and no findings, it returns the prompt
+  unchanged. It performs no I/O and changes no input.
 - `Usage` — `{ inputTokens: number | null, outputTokens: number | null, minutes: number | null, cost: { amount: number,
   currency: string } | null }`: exactly what a runtime reported; nothing is estimated.
 - `JobContext` — `{ kind: KindDefinition, params: Record<string, unknown>, product: { address: string, snapshot: Snapshot,

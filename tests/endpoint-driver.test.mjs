@@ -14,12 +14,13 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { endpointDriver } from "../src/endpoint-calls/index.mjs";
+import { formatFinding } from "../src/text-tools/index.mjs";
 
 const FAULTS = {
   "TST-316-001": ["src/endpoint-calls/index.mjs", "maxTokens === null ?", "false ?"],
   "TST-316-002": ["src/endpoint-calls/index.mjs", 'config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null', 'false ? DRIVER_MAX_TOKENS : null'],
   "TST-316-003": ["src/endpoint-calls/index.mjs", "throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message }, config, where));", "return {};"],
-  "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, input.prompt, options.signal)", "driverRequest(config, input.prompt)"],
+  "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, driverPrompt(input), options.signal)", "driverRequest(config, driverPrompt(input))"],
 };
 
 const OPENAI = { name: "example", kind: "openai-compatible", baseUrl: "https://models.example.test/v1", model: "tiny-model", key: "secret-key" };
@@ -40,6 +41,112 @@ function withFetch(t, implementation) {
 function endpointFailure(reason) {
   return (error) => error?.name === "EndpointFailed" && error.diagnosis?.reason === reason;
 }
+
+const CONTEXT_PART = { ...INPUT.parts[0], text: "ENDPOINT_RECIPE_CONTEXT" };
+const CONTEXT_INPUT = { ...INPUT, prompt: `Write the correction.\n\n### source\n\n${CONTEXT_PART.text}`, parts: [CONTEXT_PART] };
+const CURRENT_DRAFT = JSON.stringify({ text: "ENDPOINT_CURRENT_DRAFT" }, null, 2);
+const CONTEXT_FINDINGS = [
+  { artifact: "UC-019", line: 7, kind: "error", rule: "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT", what: "ENDPOINT_MISSING_CHECK", fix: "include the check" },
+  { artifact: "SPEC", line: 8, kind: "warning", rule: "ONE STATEMENT PER REQUIREMENT", what: "ENDPOINT_TWO_STATEMENTS", fix: "split or justify the rule" },
+];
+const occurrences = (text, value) => text.split(value).length - 1;
+
+async function contextRequests(t, config, extra = null) {
+  const calls = [];
+  withFetch(t, async (url, init) => {
+    calls.push({ url, body: JSON.parse(init.body) });
+    return reply(200, config.kind === "anthropic"
+      ? { content: [{ type: "text", text: "fixture answer" }] }
+      : { choices: [{ message: { content: "fixture answer" } }] });
+  });
+  const driver = endpointDriver(config, PARTICIPANT);
+  const send = async (input) => {
+    const before = calls.length;
+    assert.equal((await driver.send(input)).text, "fixture answer");
+    assert.equal(calls.length, before + 1, "one send makes one provider request");
+    const request = calls.at(-1);
+    assert.equal(request.url, `${config.baseUrl}/${config.kind === "anthropic" ? "messages" : "chat/completions"}`);
+    assert.equal(request.body.messages.length, 1);
+    const text = request.body.messages[0].content;
+    assert.equal(occurrences(text, CONTEXT_INPUT.prompt), 1, "ordinary prompt reaches the provider once");
+    assert.equal(occurrences(text, CONTEXT_PART.text), 1, "recipe parts already in prompt are not added again");
+    return text;
+  };
+  assert.equal(await send(CONTEXT_INPUT), CONTEXT_INPUT.prompt, "known positive: ordinary DriverInput is unchanged");
+  return extra === null ? CONTEXT_INPUT.prompt : send({ ...CONTEXT_INPUT, ...extra });
+}
+
+// TST-398011
+// level: unit
+// module: MOD-endpoint-calls
+// guards: ONE DEFINITION, THREE DRIVERS; UC-019
+// given: an OpenAI-compatible driver and a constructed reply, with a recipe part already in the prompt
+// input: send ordinary DriverInput with no previous draft or findings
+// expect: one captured chat request contains the exact prompt and its recipe part once
+test("TST-398011: OpenAI ordinary DriverInput reaches the transport exactly once", async (t) => {
+  await contextRequests(t, OPENAI);
+});
+
+// TST-398012
+// level: unit
+// module: MOD-endpoint-calls
+// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: the same OpenAI driver after its known-positive ordinary exchange
+// input: send DriverInput with the current draft in previous and no findings
+// expect: the second request carries the entire current draft exactly once without duplicating prompt parts
+test("TST-398012: OpenAI previous current draft reaches the transport exactly once", async (t) => {
+  const text = await contextRequests(t, OPENAI, { previous: CURRENT_DRAFT });
+  assert.equal(occurrences(text, CURRENT_DRAFT), 1, "OpenAI receives the complete previous current draft once");
+});
+
+// TST-398013
+// level: unit
+// module: MOD-endpoint-calls
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: the same OpenAI driver after its known-positive ordinary exchange
+// input: send DriverInput with a previous draft and one error and one warning
+// expect: each complete canonical formatFinding line and the current draft occur once in the second chat request
+test("TST-398013: OpenAI canonical correction findings reach the transport exactly once", async (t) => {
+  const text = await contextRequests(t, OPENAI, { previous: CURRENT_DRAFT, findings: CONTEXT_FINDINGS });
+  for (const finding of CONTEXT_FINDINGS) assert.equal(occurrences(text, formatFinding(finding)), 1, `OpenAI receives canonical ${finding.kind} once`);
+  assert.equal(occurrences(text, CURRENT_DRAFT), 1, "the findings travel with the draft they concern");
+});
+
+// TST-398014
+// level: unit
+// module: MOD-endpoint-calls
+// guards: ONE DEFINITION, THREE DRIVERS; UC-019
+// given: an Anthropic driver and a constructed reply, with a recipe part already in the prompt
+// input: send ordinary DriverInput with no previous draft or findings
+// expect: one captured Messages request contains the exact prompt and its recipe part once
+test("TST-398014: Anthropic ordinary DriverInput reaches the transport exactly once", async (t) => {
+  await contextRequests(t, ANTHROPIC);
+});
+
+// TST-398015
+// level: unit
+// module: MOD-endpoint-calls
+// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: the same Anthropic driver after its known-positive ordinary exchange
+// input: send DriverInput with the current draft in previous and no findings
+// expect: the second request carries the entire current draft exactly once without duplicating prompt parts
+test("TST-398015: Anthropic previous current draft reaches the transport exactly once", async (t) => {
+  const text = await contextRequests(t, ANTHROPIC, { previous: CURRENT_DRAFT });
+  assert.equal(occurrences(text, CURRENT_DRAFT), 1, "Anthropic receives the complete previous current draft once");
+});
+
+// TST-398016
+// level: unit
+// module: MOD-endpoint-calls
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: the same Anthropic driver after its known-positive ordinary exchange
+// input: send DriverInput with a previous draft and one error and one warning
+// expect: each complete canonical formatFinding line and the current draft occur once in the second Messages request
+test("TST-398016: Anthropic canonical correction findings reach the transport exactly once", async (t) => {
+  const text = await contextRequests(t, ANTHROPIC, { previous: CURRENT_DRAFT, findings: CONTEXT_FINDINGS });
+  for (const finding of CONTEXT_FINDINGS) assert.equal(occurrences(text, formatFinding(finding)), 1, `Anthropic receives canonical ${finding.kind} once`);
+  assert.equal(occurrences(text, CURRENT_DRAFT), 1, "the findings travel with the draft they concern");
+});
 
 // TST-316-001
 // TST-472223 · level: unit · module: MOD-endpoint-calls
