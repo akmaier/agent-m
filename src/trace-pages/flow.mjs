@@ -19,20 +19,22 @@ function el(name, className, ...children) {
 
 const sectionTitle = (heading) => String(heading ?? "").replace(/^##[ \t]*/, "");
 
-function requirementDetail(requirement) {
+function requirementDetail(requirement, editable) {
   const detail = el("section", "requirement-detail", el("h3", null, requirement.name));
   for (const [label, text] of [["Source", requirement.source], ["Rule", requirement.rule], ["Check", requirement.check]]) {
     const field = el("section", "requirement-field", el("h4", null, label));
     field.append(renderArtifact(text ?? ""));
     detail.append(field);
   }
+  if (editable) detail.append(reviewLink("requirement-prompt", "Change by prompt", "requirement", { name: requirement.name, prompt: 1 }));
   return detail;
 }
 
 // An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded.
-function reviewLink(className, text, route, key, value) {
+function reviewLink(className, text, route, params) {
   const anchor = el("a", `${className} btn small`, text);
-  anchor.setAttribute("href", `#${route}/${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  const parts = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  anchor.setAttribute("href", `#${route}/${parts.join("/")}`);
   return anchor;
 }
 
@@ -40,7 +42,7 @@ function requirementRows(requirement, editable) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
   const cell = el("td", null, button);
-  if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", "name", requirement.name));
+  if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }));
   const row = el("tr", null, cell);
   const opened = el("tr", "requirement-opened");
   button.addEventListener("click", () => {
@@ -48,7 +50,7 @@ function requirementRows(requirement, editable) {
       opened.replaceChildren();
       return;
     }
-    const cell = el("td", "panel", requirementDetail(requirement));
+    const cell = el("td", "panel", requirementDetail(requirement, editable));
     cell.setAttribute("colspan", "1");
     opened.replaceChildren(cell);
   });
@@ -72,16 +74,22 @@ function overview(spec, editable) {
     const table = requirementsTable(requirements, editable);
     table.setAttribute("hidden", "hidden");
     const toggle = el("button", "spec-section-toggle btn", sectionTitle(section.heading));
+    const prompt = editable
+      ? reviewLink("requirement-group-prompt", "Change by prompt", "requirements", { requirements: JSON.stringify(requirements.map(({ name }) => name)), prompt: 1 })
+      : null;
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", "false");
     toggle.addEventListener("click", () => {
       const collapsed = table.getAttribute("hidden") !== null;
-      if (collapsed) table.removeAttribute("hidden");
+      if (collapsed) {
+        table.removeAttribute("hidden");
+        if (prompt && !prompt.parentNode) group.insertBefore(prompt, table);
+      }
       else table.setAttribute("hidden", "hidden");
       toggle.setAttribute("aria-expanded", String(collapsed));
     });
     const group = el("section", "spec-section", el("h3", null, toggle), table);
-    if (editable) group.insertBefore(reviewLink("requirement-new", "+ Requirement", "requirements", "section", section.heading), table);
+    if (editable) group.insertBefore(reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading }), table);
     page.append(group);
   }
   if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
