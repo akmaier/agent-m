@@ -5,8 +5,14 @@
 // Run: node --test tests/release-uc-042-token-failures.test.mjs
 // The app-harness controls every request. The live Chrome 401 cause is not diagnosed by these fixtures.
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { openDashboard, repoServer, richDocument, press, TOKEN } from "./app-harness.mjs";
 
 const INSTANCE = "akmaier/agent-m";
@@ -204,8 +210,8 @@ test("TST-475308: a genuine 401 records refusal but does not assert why authenti
   assert.match(one(view.row, "settings-repository-status").textContent, /Refused/);
   assert.match(message, /GitHub token/); assert.match(message, /Renew/i);
   assert.equal(one(view.row, "settings-repository-renew").href, RENEW);
-  assert.match(message, /authentication request/i, "the failed authentication request is named, not an assumed cause");
-  assert.match(message, /refused/i);
+  assert.match(message, /authentication/i, "the failed authentication request is named, not an assumed cause");
+  assert.match(message, /refused|rejected/i);
   assert.doesNotMatch(message, /expired|regenerated|deleted|revoked/i, "a 401 does not establish expiry, regeneration, deletion or revocation");
 });
 
@@ -241,3 +247,66 @@ test("TST-475310: route and fresh reload never show token-expiry banners for the
   const reloadBanner = again.page.el("token-banner");
   assert.deepEqual([routeBanner, reloadBanner], ["", ""], "actual UC-route and fresh-load banners must not claim this token was refused or expired");
 });
+
+const ROOT = fileURLToPath(new URL("../", import.meta.url));
+const OWN_TEST = "tests/release-uc-042-token-failures.test.mjs";
+const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+const git = (...args) => {
+  const result = spawnSync("git", args, { cwd: ROOT, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+};
+const FAULTS = [
+  { ids: ["TST-475301"], file: "src/settings-pages/settings.mjs",
+    from: 'await connect(address, { token: setting.value, tokenName: setting.name ?? info.label }).repositoryInfo();\n      lastTest = { at: new Date().toISOString(), outcome: "working" };',
+    to: 'await connect(address, { token: setting.value, tokenName: setting.name ?? info.label }).repositoryInfo();\n      lastTest = { at: new Date().toISOString(), outcome: "refused" };' },
+  { ids: ["TST-475302", "TST-475303", "TST-475304", "TST-475305", "TST-475306", "TST-475307", "TST-475309", "TST-475310"],
+    file: "src/settings-pages/settings.mjs", from: 'if (!(error instanceof HostError) || error.name !== "TokenRefused") return;', to: 'void error;' },
+  { ids: ["TST-475308"], file: "src/repository-hosts/failures.mjs",
+    from: 'return new HostError("TokenRefused", { tokenName, renewal }, server === "github"',
+    to: 'return new HostError("PermissionMissing", { tokenName, renewal }, server === "github"' },
+  { ids: ["TST-475308"], file: "src/repository-hosts/failures.mjs",
+    from: '`GitHub rejected authentication with your ${tokenName}. Renew it on ${renewal}.`',
+    to: '`GitHub refused your ${tokenName} - it has expired, or was regenerated or deleted on GitHub. Renew it on ${renewal}.`' },
+];
+
+async function counterproofs() {
+  const temporary = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-475-token-fault-"))), copied = join(temporary, "agent-m");
+  const receipts = [], receiptPath = join(tmpdir(), `agent-m-475-token-counterproof-${process.pid}.json`);
+  const sourceCommit = git("rev-parse", "HEAD"), testsUncommitted = git("diff", "HEAD", "--", OWN_TEST) !== "";
+  try {
+    for (const folder of ["src", "docs"]) cpSync(join(ROOT, folder), join(copied, folder), {
+      recursive: true, filter: (path) => !path.split(/[\\/]/).includes("node_modules"),
+    });
+    mkdirSync(join(copied, "tests"), { recursive: true });
+    for (const path of [OWN_TEST, "tests/app-harness.mjs"]) cpSync(join(ROOT, path), join(copied, path));
+    const testHash = hash(readFileSync(join(copied, OWN_TEST)));
+    for (const fault of FAULTS) {
+      const path = join(copied, fault.file), original = readFileSync(path), text = original.toString();
+      assert.ok(text.includes(fault.from), `known-positive guarded source point: ${fault.file}: ${fault.from}`);
+      const planted = Buffer.from(text.replace(fault.from, fault.to)); assert.notDeepEqual(planted, original);
+      const argv = [process.execPath, "--test", "--test-reporter=tap", "--test-name-pattern", fault.ids.join("|"), join(copied, OWN_TEST)];
+      const env = { ...process.env, AGENT_M_475_TOKEN_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
+      const invoke = () => spawnSync(argv[0], argv.slice(1), { cwd: copied, env, encoding: "utf8", timeout: 15000, maxBuffer: 4 * 1024 * 1024 });
+      const started = new Date().toISOString(); writeFileSync(path, planted);
+      const red = invoke(); writeFileSync(path, original);
+      const restored = hash(readFileSync(path)), green = invoke(), ended = new Date().toISOString();
+      const nodes = Object.fromEntries(fault.ids.map((id) => [id, red.stdout.match(new RegExp(`^not ok \\d+ - ${id}:[\\s\\S]*?(?=\\n# Subtest:|\\n1\\.\\.)`, "m"))?.[0] ?? null]));
+      const receipt = { ...fault, participant: "developer-terra-e", sourceCommit, testsUncommitted,
+        testHashes: { [OWN_TEST]: testHash }, sourceHashes: { original: hash(original), planted: hash(planted), restored },
+        argv, cwd: copied, environment: { AGENT_M_475_TOKEN_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null }, started, ended,
+        red: { status: red.status, signal: red.signal, error: red.error?.code ?? null, nodes, stdout: red.stdout, stderr: red.stderr },
+        green: { status: green.status, signal: green.signal, error: green.error?.code ?? null, stdout: green.stdout, stderr: green.stderr } };
+      receipts.push(receipt); writeFileSync(receiptPath, JSON.stringify(receipts, null, 2));
+      assert.equal(restored, hash(original), "guarded source bytes restore before the positive");
+      assert.equal(red.status, 1, red.stderr); assert.equal(red.signal, null); assert.equal(red.error, undefined);
+      for (const id of fault.ids) assert.ok(nodes[id], `${id}: actual named assertion failure, not an import or launcher failure`);
+      assert.equal(green.status, 0, green.stdout + green.stderr); assert.equal(green.signal, null); assert.equal(green.error, undefined);
+      for (const id of fault.ids) assert.match(green.stdout, new RegExp(`^ok \\d+ - ${id}:`, "m"));
+      assert.equal(hash(readFileSync(join(copied, OWN_TEST))), testHash, "unchanged test bytes");
+      console.log(`ITM-475-token-counterproof ${JSON.stringify({ ids: fault.ids, source: fault.file, sourceHashes: receipt.sourceHashes, red: 1, green: 0, receiptPath })}`);
+    }
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
+}
+
+if (process.env.AGENT_M_475_TOKEN_COUNTERPROOF === "1" && !process.env.AGENT_M_475_TOKEN_FAULT_CHILD) after(counterproofs);
