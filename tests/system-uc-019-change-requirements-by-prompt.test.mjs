@@ -1,4 +1,5 @@
 // Independent ITM-418 system scenarios, authored by Developer terra-d (neither ITM-398 nor ITM-399's implementer).
+// Successor: Team 2 Developer itm475-integration; implemented no UC-019 production behavior.
 // Module: MOD-trace-pages; MOD-review-pages; MOD-spec-changes; MOD-source-register; MOD-runtimes; MOD-job-runner
 // Guards: UC-019
 // Level: system
