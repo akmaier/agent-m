@@ -20,7 +20,7 @@ const FAULTS = {
   "TST-316-001": ["src/endpoint-calls/index.mjs", "maxTokens === null ?", "false ?"],
   "TST-316-002": ["src/endpoint-calls/index.mjs", 'config.kind === "anthropic" ? DRIVER_MAX_TOKENS : null', 'false ? DRIVER_MAX_TOKENS : null'],
   "TST-316-003": ["src/endpoint-calls/index.mjs", "throw new EndpointFailed(diagnoseEndpoint({ status: response.status, message }, config, where));", "return {};"],
-  "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, input.prompt, options.signal)", "driverRequest(config, input.prompt)"],
+  "TST-316-004": ["src/endpoint-calls/index.mjs", "driverRequest(config, driverPrompt(input), options.signal)", "driverRequest(config, driverPrompt(input))"],
 };
 
 const OPENAI = { name: "example", kind: "openai-compatible", baseUrl: "https://models.example.test/v1", model: "tiny-model", key: "secret-key" };
