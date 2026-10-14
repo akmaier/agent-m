@@ -58,7 +58,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 15));
 const fire = async (node, type) => { node.dispatchEvent(new Event(type)); await settle(); };
 const click = (node) => fire(node, "click");
 const put = async (node, value, type = "input") => { node.value = value; await fire(node, type); };
-const saveOf = (root) => byTag(root, "button").find((button) => button.textContent === "Save");
+const saveOf = (root) => byTag(root, "button").filter((button) => button.textContent === "Save").at(-1);
 const rowTextOf = (root) => byTag(one(root, "participants-form-box"), "textarea")[0].value;
 const folded = (root) => byTag(root, "details");
 
