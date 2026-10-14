@@ -104,6 +104,8 @@ test("TST-418104: Refine repeats disclosure and the send decision before another
   assert.equal(s.endpointRequests.length, 1, "the new panel precedes the next sending decision");
   const panels = all(s.target, "section", "run-panel");
   assert.ok(panels.some((panel) => panel.textContent.includes("Make the display final.") && panel.textContent.includes("current draft")), "the renewed panel discloses the follow-up and current draft");
+  assert.match(panels.at(-1).textContent, /2 existing requirements included\./);
+  assert.match(panels.at(-1).textContent, /0 use cases included\./);
   const go = all(s.target, "button").find((button) => button.textContent === "Run" && !button.disabled);
   assert.ok(go, "the renewed panel offers its Run decision");
   await press(s.server, go);
@@ -500,6 +502,8 @@ const FAULTS = [
   { ids: ["TST-418118"], file: "src/review-pages/edit.mjs", from: '...withdrawn.map((name)', to: '...[].map((name)' },
   { ids: ["TST-418119"], file: "src/review-pages/jobs.mjs", from: 'const snapshot = await defaultSnapshot(run.host);', to: 'const snapshot = run.snapshot;' },
   { ids: ["TST-418120"], file: "src/spec-changes/propose.mjs", from: 'files.push({ path: `${base}.md`, text: section.text }', to: 'files.push({ path: "SPEC.md", text: section.text }' },
+  { ids: ["TST-418121"], file: "src/review-pages/requirements-prompt.mjs", from: 'const count = prepared.parts.find((part) => part.recipe === "spec-with-queues")?.artifacts?.length ?? 0;', to: 'const count = 0;' },
+  { ids: ["TST-418104"], file: "src/review-pages/jobs.mjs", from: 'ready.decoratePanel?.(panel, ready.prepared);', to: 'void ready.decoratePanel;' },
 ];
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function counterproofs() {
