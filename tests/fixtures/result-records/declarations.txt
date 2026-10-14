@@ -1,0 +1,83 @@
+// TST-900001
+// level: unit
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: a successful deterministic case
+// input: the report's passing case
+// expect: the ready value
+
+// TST-900002
+// level: component
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: a deterministic assertion failure
+// input: the report's failing case
+// expect: expected <ready> & stable
+
+// TST-900003
+// level: unit
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: a deterministic execution error
+// input: the report's error case
+// expect: the operation completes
+
+// TST-900004
+// level: component
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: a skipped deterministic case
+// input: the report's skipped case
+// expect: the operation runs
+
+// TST-900005
+// level: unit
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: a declared test absent from the report
+// input: no case
+// expect: the operation runs
+
+// TST-900010
+// level: unit
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: two passing cases of one deterministic test
+// input: both cases
+// expect: both pass
+
+// TST-900011
+// level: unit
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: a passing and failing case of one deterministic test
+// input: both cases
+// expect: both pass
+
+// TST-900012
+// level: component
+// module: MOD-result-records
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD
+// given: a passing and skipped case of one deterministic test
+// input: both cases
+// expect: both run and pass
+
+// TST-900020
+// level: system
+// module: system
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// given: four recorded responses, no paid call
+// input: four responses fixed before the first run
+// expect: a measured success rate
+// runs: 4
+// phrasings: 2
+
+// TST-900021
+// level: system
+// module: system
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// given: fewer than four executed responses
+// input: two responses and one skipped response
+// expect: incomplete, not run
+// runs: 4
+// phrasings: 2
