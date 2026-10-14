@@ -3,6 +3,7 @@
 // Original cases: TST-418101..104 by terra-d. Added cases: TST-418105..121 and counterproofs by the successor.
 // TST-418122..123 retain terra-d (Harvey)'s original TST-418127/130 assertions; transferred by developer-terra-e,
 // who implemented no UC-019 production behavior. Original assertion checkpoint: b0ce6dc86108c3ccf73b2d7b1ea94e48961cfdda.
+// TST-418124: independent actual-CI correction regression by developer-terra-e; no production implementation.
 // Module: MOD-review-pages; MOD-trace-pages; MOD-spec-changes; MOD-source-register; MOD-job-runner; MOD-runtimes
 // Guards: UC-019
 // Level: release
@@ -419,17 +420,7 @@ function workflowRepository(root, name, files) {
   return { origin, checkout, commit: git(checkout, "rev-parse", "HEAD") };
 }
 
-// TST-418120
-// level: release
-// module: MOD-review-pages; MOD-workflow-entries; MOD-spec-changes; MOD-job-runner
-// guards: UC-019; A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: the public CI selection and a local workflow workspace with the endpoint-bearing record contract used by the existing working CI runner
-// input: click Run to queue, then invoke the real onRecordsChanged entry on a fresh queued CI record
-// expect: the tab neither contacts the endpoint nor offers an editor; the actual workflow writes an undecided queue to main with provenance, never SPEC or an acceptance
-test("TST-418120: the actual CI entry commits requirements only as an open proposal", async () => {
-  const s = await scenario(); await prepare(s, { participant: "ci-drafter" }); await runPrepared(s);
-  assert.equal(s.endpointRequests.length, 0); assert.equal(all(s.target, "section", "requirements-result").length, 0);
-  assert.equal(all(s.target, "p", "queued").length, 1); assert.equal(proposalWrites(s).length, 0);
+async function withWorkflow(s, answers, verify) {
   const root = mkdtempSync(join(tmpdir(), "agent-m-418-ci-"));
   try {
     mkdirSync(join(root, "ws"));
@@ -447,12 +438,28 @@ test("TST-418120: the actual CI entry commits requirements only as an open propo
       AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN", AGENT_M_KEY_NAMES: "CI_KEY", AGENT_M_TOKEN: "fixture-person-token", CI_KEY: "fixture-model-key" };
     // CI owns a fresh registry in its own process, not the dashboard's already-registered strategies.
     const script = `import {runEntry} from ${JSON.stringify(new URL("../src/workflow-entries/main.mjs", import.meta.url).href)};
-      const requests=[]; globalThis.fetch=async(url,init={})=>{if(!String(url).startsWith("https://fixture-endpoint.example.test/"))throw Error("uncontrolled request: "+url);requests.push(JSON.parse(init.body));return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({draft:${JSON.stringify(draft())},answers:[]})}}]}),{status:200})};
+      const answers=${JSON.stringify(answers)},requests=[]; globalThis.fetch=async(url,init={})=>{if(!String(url).startsWith("https://fixture-endpoint.example.test/"))throw Error("uncontrolled request: "+url);requests.push(JSON.parse(init.body));return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({draft:answers[Math.min(requests.length-1,answers.length-1)],answers:[]})}}]}),{status:200})};
       const status=await runEntry("onRecordsChanged",${JSON.stringify(environment)},{now:new Date("2026-10-14T09:01:00Z")});console.log(JSON.stringify({status,requests}));`;
     const env = { ...process.env }; delete env.NODE_TEST_CONTEXT;
     const invoked = spawnSync(process.execPath, ["--input-type=module", "-e", script], { cwd: ROOT, env, encoding: "utf8", timeout: 15000 });
     assert.equal(invoked.status, 0, invoked.stderr);
     const { status, requests } = JSON.parse(invoked.stdout);
+    await verify({ status, requests, agentM, record, product });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+}
+
+// TST-418120
+// level: release
+// module: MOD-review-pages; MOD-workflow-entries; MOD-spec-changes; MOD-job-runner
+// guards: UC-019; A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// given: the public CI selection and a local workflow workspace with the endpoint-bearing record contract used by the existing working CI runner
+// input: click Run to queue, then invoke the real onRecordsChanged entry on a fresh queued CI record
+// expect: the tab neither contacts the endpoint nor offers an editor; the actual workflow writes an undecided queue to main with provenance, never SPEC or an acceptance
+test("TST-418120: the actual CI entry commits requirements only as an open proposal", async () => {
+  const s = await scenario(); await prepare(s, { participant: "ci-drafter" }); await runPrepared(s);
+  assert.equal(s.endpointRequests.length, 0); assert.equal(all(s.target, "section", "requirements-result").length, 0);
+  assert.equal(all(s.target, "p", "queued").length, 1); assert.equal(proposalWrites(s).length, 0);
+  await withWorkflow(s, [draft()], async ({ status, requests, agentM, product }) => {
     assert.equal(status.outcome, "done", status.summary); assert.equal(requests.length, 1);
     assert.ok(requests[0].messages[0].content.includes(INSTRUCTION)); assert.ok(requests[0].messages[0].content.includes(SHELF));
     assert.equal(git(product.origin, "show", "main:SPEC.md"), SPEC);
@@ -463,7 +470,7 @@ test("TST-418120: the actual CI entry commits requirements only as an open propo
     assert.doesNotMatch(git(product.origin, "show", `main:${decisions}`), /akzeptiert|accepted/i);
     const messages = git(product.origin, "log", "--format=%B", "main");
     for (const line of [`Agent-M-Version: ${agentM.version}`, "Agent-M-Participant: ci-drafter", "Agent-M-Model: ci-model", "Agent-M-Rounds: 1", `Agent-M-Instruction: ${INSTRUCTION}`]) assert.ok(messages.includes(line), line);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  });
 });
 
 // TST-418121
@@ -513,6 +520,43 @@ test("TST-418123: the page and record show the correction rounds and their findi
   assert.match(one(s.target, "p", "rounds").textContent, /2/);
   assert.match(one(s.target, "section", "requirements-result").textContent, /no check/, "the first round's finding is shown with the corrected draft");
   const record = recordTexts(s)[0]; assert.match(record, /Round 1/); assert.match(record, /Round 2/); assert.match(record, /no check/);
+});
+
+// TST-418124
+// level: release
+// module: MOD-workflow-entries; MOD-endpoint-calls; MOD-job-runner; MOD-spec-changes
+// guards: UC-019; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// given: the established local-origin CI fixture; a first candidate has an empty check and the second corrects it
+// input: queue through the public CI flow, then invoke actual onRecordsChanged in a fresh process with controlled endpoint answers
+// expect: two actual model requests; the second contains the exact rejected draft and canonical finding; the corrected proposal stays open, SPEC unchanged, with two-round provenance
+test("TST-418124: the actual CI correction request carries its rejected draft and canonical finding", async () => {
+  const s = await scenario(); await prepare(s, { participant: "ci-drafter" }); await runPrepared(s);
+  assert.equal(s.endpointRequests.length, 0); assert.equal(proposalWrites(s).length, 0);
+  const invalid = draft(candidate({ check: "" }));
+  await withWorkflow(s, [invalid, draft()], async ({ status, requests, agentM, record, product }) => {
+    assert.equal(status.outcome, "done", status.summary);
+    assert.equal(requests.length, 2, "the actual CI entry makes two model exchanges");
+    const correction = requests[1].messages.map((message) => message.content).join("\n");
+    assert.ok(correction.includes(JSON.stringify(invalid, null, 2)), "the second actual CI request contains the exact rejected draft");
+    const job = git(product.origin, "show", `main:${record.path}`);
+    const finding = job.split("\n").find((line) => line.startsWith(`- ${CHANGED}:`) && line.includes(": error: no check [A REQUIREMENT HAS FOUR FIELDS]"));
+    assert.ok(finding, "the actual CI job record retains the first-round finding");
+    const canonical = finding.slice(2);
+    assert.match(canonical, /^A DUE DATE IS VISIBLE:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\] \u2014 add a line \*Check:\* that names the test guarding the rule, or says: no automatic check; at review\.$/);
+    assert.ok(correction.includes(canonical), "the second actual CI request contains the recorded canonical finding verbatim");
+    assert.match(job, /Round 1.*no check.*Round 2.*stopped because: passed/s);
+    assert.equal(git(product.origin, "show", "main:SPEC.md"), SPEC);
+    const paths = git(product.origin, "ls-tree", "-r", "--name-only", "main").split("\n");
+    assert.ok(!paths.some((path) => path.startsWith("docs/approvals/")));
+    const decisions = paths.find((path) => path.endsWith("/entscheidungen.md")); assert.ok(decisions);
+    assert.doesNotMatch(git(product.origin, "show", `main:${decisions}`), /akzeptiert|accepted/i);
+    const proposals = paths.filter((path) => /\/\d\d-[^/]+\.md$/.test(path) && !path.endsWith(".begruendung.md"));
+    assert.equal(proposals.length, 1, "the actual workflow writes one corrected proposal");
+    const proposal = git(product.origin, "show", `main:${proposals[0]}`);
+    assert.ok(proposal.includes(candidate().rule)); assert.ok(proposal.includes(candidate().check));
+    const messages = git(product.origin, "log", "--format=%B", "main");
+    for (const line of [`Agent-M-Version: ${agentM.version}`, "Agent-M-Participant: ci-drafter", "Agent-M-Model: ci-model", "Agent-M-Rounds: 2", `Agent-M-Instruction: ${INSTRUCTION}`]) assert.ok(messages.includes(line), line);
+  });
 });
 
 // Counterproofs are requested explicitly; ordinary CI still runs every behavior case. Each fault is confined to a copied
