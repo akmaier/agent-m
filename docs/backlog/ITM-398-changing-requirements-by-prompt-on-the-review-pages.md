@@ -13,6 +13,9 @@ realises:
 modules:
   - MOD-review-pages
   - MOD-runtimes
+  - MOD-job-runner
+  - MOD-endpoint-calls
+  - MOD-agent-processes
 builds_on:
   - ITM-363
   - ITM-341
@@ -46,6 +49,9 @@ MOD-runtimes' existing `runOnTab` boundary passes the optional refinement draft 
 current draft and findings in the prompt delivered to the actual endpoint or Bridge driver. The review page reaches this
 recording boundary rather than running an unrecorded job of its own.
 
+Every actual driver carries the current draft and canonical findings from DriverInput into its one exchange, in both
+the tab and CI. The transient context is serialized once; no tab-only compensation duplicates it.
+
 ## Acceptance
 
 - Unit tests that name MOD-review-pages state, before the code exists, with a fixture host and a fixture driver: a
@@ -57,4 +63,6 @@ recording boundary rather than running an unrecorded job of its own.
 - The existing tests stay green, with no expected result changed.
 - Unit tests at MOD-runtimes' actual driver boundary prove that the current refinement draft reaches the endpoint,
   with an ordinary request as the known positive counter-proof.
-- Only `src/review-pages/`, `src/runtimes/` and the tests that name those modules change.
+- Direct driver and actual CI-entry tests prove that correction findings and the current draft reach their recipient,
+  with the ordinary request as the known positive and with no duplicated recipe parts or transient context.
+- Only the assigned modules' folders and the tests that name them change.
