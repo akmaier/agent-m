@@ -498,7 +498,7 @@ export const route = {
       if (!names.length) {
         state.inlineEndpoint = true;
         const name = textInput("participant-endpoint-name", "endpoint", "endpoint name");
-        const url = textInput("participant-endpoint-url", "endpointUrl", "https://...");
+        const url = textInput("participant-endpoint-url", "endpointUrl", "http://localhost:11434/v1");
         const kind = selectInput("participant-endpoint-kind", "endpointKind", ["openai-compatible", "anthropic"]);
         const model = textInput("participant-endpoint-model", "endpointModel", "model name");
         const key = textInput("participant-endpoint-key", "endpointKey", "optional API key");
