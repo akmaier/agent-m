@@ -1,6 +1,7 @@
 // MOD-agent-processes — process-backed Driver construction (ITM-321).
 
 import { spawn } from "node:child_process";
+import { driverPrompt } from "../job-runner/index.mjs";
 
 function failure(name, message, details = {}) {
   return Object.assign(new Error(message), { name, ...details });
@@ -88,7 +89,8 @@ export function processDriver(agent, { workdir, keyVariable }, participant, help
       if (!agent.loggedIn && !hasCiKey(keyVariable)) throw failure("AgentNotLoggedIn", "the selected agent is not logged in");
       const row = helpers.configuration(agent.name);
       if (!row) throw failure("AgentMissing", "the selected agent is not supported");
-      const result = await started(row.command, row.task.args.map((arg) => arg === "{prompt}" ? input.prompt : arg),
+      const prompt = driverPrompt(input);
+      const result = await started(row.command, row.task.args.map((arg) => arg === "{prompt}" ? prompt : arg),
         input.workdir ?? workdir, keyVariable, options, helpers.ownLoginEnvironment);
       if (result.stopError) {
         throw failure("AgentFailed", "the agent process could not be stopped", {

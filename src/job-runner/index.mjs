@@ -3,7 +3,7 @@
 // `document-schema`, `requirement-form`, `test-declarations`, `candidate-classes`, `group-rules` and `graph-checks`
 // (builtins.mjs); prepareJob (prepare.mjs), what a run panel shows before the person's click; runJob with the correction
 // loop, and writeResult (loop.mjs); provenanceLines and roundsText (provenance.mjs), with the round record's schema
-// rounds.schema.md.
+// rounds.schema.md; driverPrompt (driver-prompt.mjs), the sending boundary's canonical input text.
 //
 // Module: MOD-job-runner
 //
@@ -20,6 +20,7 @@ import { registerStrategies } from "./registry.mjs";
 export { registerStrategies } from "./registry.mjs";
 export { prepareJob } from "./prepare.mjs";
 export { runJob, writeResult } from "./loop.mjs";
+export { driverPrompt } from "./driver-prompt.mjs";
 export { provenanceLines, roundsText } from "./provenance.mjs";
 
 /**
