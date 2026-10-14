@@ -306,7 +306,7 @@ test("TST-476306: a result that cannot be persisted fails the CI entry", async (
 }));
 
 // Recorded REST facts, using the route shapes already exercised by repository-hosts-pull-requests.test.mjs.
-function factsServer(w, service, { broken = false, refused = false } = {}) {
+function factsServer(w, service, { broken = false, refused = false, extraChecks = [] } = {}) {
   const calls = [], head = w.head, firstFiles = [TEST], changed = [TEST, SOURCE];
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
   const contents = { [TEST]: DECLARATIONS, [SOURCE]: "export const widget = 1;\n" };
@@ -327,7 +327,12 @@ function factsServer(w, service, { broken = false, refused = false } = {}) {
       if (path === "/pulls/7/commits") return json([FIRST, head].map((sha, i) => ({ sha, parents: [{ sha: i ? FIRST : BASE }], commit: { message: i ? "implementation" : "tests first", committer: { date: NOW.toISOString() } } })));
       if (path === "/pulls/7/files") return json(changed.map((filename) => ({ filename, status: "added" })));
       if (path === "/pulls/7/reviews") return json([]);
-      if (/^\/commits\/[^/]+\/check-runs$/.test(path)) return json({ total_count: 1, check_runs: [{ name: "widget-ci", status: "completed", conclusion: broken && path.includes(head) ? "failure" : checked(path.split("/")[2]), html_url: runUrl(service) }] });
+      if (/^\/commits\/[^/]+\/check-runs$/.test(path)) {
+        const checks = [{ name: "widget-ci", status: "completed", conclusion: broken && path.includes(head) ? "failure" : checked(path.split("/")[2]), html_url: runUrl(service) }];
+        if (path.includes(head)) checks.push(...extraChecks.map((check) => ({ name: check.name, html_url: check.url,
+          status: check.state === "running" ? "in_progress" : "completed", conclusion: check.state === "running" ? null : check.state })));
+        return json({ total_count: checks.length, check_runs: checks });
+      }
       if (path.endsWith("/statuses")) return json([]);
       if (path.startsWith("/commits/")) return json({ files: (path.endsWith(FIRST) ? firstFiles : changed).map((filename) => ({ filename, status: "added" })) });
       if (path.startsWith("/contents/")) return new Response(contents[decodeURIComponent(path.slice(10))] ?? "", { status: 200 });
@@ -336,8 +341,11 @@ function factsServer(w, service, { broken = false, refused = false } = {}) {
       if (path === "/merge_requests/7/commits") return json([FIRST, head].map((id, i) => ({ id, parent_ids: [i ? FIRST : BASE], message: i ? "implementation" : "tests first", committed_date: NOW.toISOString() })));
       if (path === "/merge_requests/7/diffs") return json(changed.map((new_path) => ({ new_path, old_path: new_path, new_file: true })));
       if (path === "/merge_requests/7/approvals") return json({ approved_by: [] });
-      if (path === "/pipelines") return json([{ id: url.searchParams.get("sha") === FIRST ? 60 : 61, status: url.searchParams.get("sha") === FIRST || broken ? "failed" : "success" }]);
-      if (path === "/pipelines/61/jobs") return json([{ id: 1, name: "widget-ci", status: broken ? "failed" : "success", web_url: runUrl(service) }]);
+      if (path === "/pipelines") return json([{ id: url.searchParams.get("sha") === FIRST ? 60 : 61,
+        status: url.searchParams.get("sha") === FIRST || broken || extraChecks.some((c) => c.state === "failure") ? "failed"
+          : extraChecks.some((c) => c.state === "running") ? "running" : "success" }]);
+      if (path === "/pipelines/61/jobs") return json([{ id: 1, name: "widget-ci", status: broken ? "failed" : "success", web_url: runUrl(service) },
+        ...extraChecks.map((check, index) => ({ id: index + 2, name: check.name, status: check.state === "failure" ? "failed" : check.state, web_url: check.url }))]);
       if (/^\/repository\/commits\/[^/]+\/diff$/.test(path)) return json((path.includes(FIRST) ? firstFiles : changed).map((new_path) => ({ new_path, old_path: new_path, new_file: true })));
       if (path.startsWith("/repository/files/")) return new Response(contents[decodeURIComponent(path.slice(18, -4))] ?? "", { status: 200 });
     }
@@ -482,6 +490,67 @@ test("TST-476311: the actual CLI dispatches test completion and persists both se
     assert.match(failure.Observed, /zero/);
     assert.match(failure.Log, /expected two, got zero/);
     assert.ok(!text.includes(TOKEN));
+    unchanged(w);
+  });
+});
+
+const selfCheck = (service) => ({ name: "agent-m done", state: "running",
+  url: service === "github" ? `${runUrl(service)}/job/999` : `${addressOf(service)}/-/jobs/999` });
+const verifierEnvironment = (w, service) => ({ ...event(w, service), AGENT_M_CHECK_NAME: "agent-m done",
+  ...(service === "gitlab" ? { CI_JOB_NAME: "agent-m done", CI_JOB_URL: selfCheck(service).url } : {}) });
+
+// TST-476312
+// level: component
+// module: MOD-workflow-entries
+// guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; ONE DEFINITION, THREE DRIVERS
+// given: all other checks passed; the exact current agent-m done check is still running, so public Host facts and Process reject the circular predicate
+// input: onDoneCheck with its check name plus current run URL (GitHub) or exact CI_JOB_URL (GitLab)
+// expect: done after evaluating this verifier's prospective success through Process; the original public control confirms the self-running predicate really blocks
+test("TST-476312: the current running verifier does not make its own success circular", async () => {
+  for (const service of ["github", "gitlab"]) await workspace(async (w) => {
+    const fake = factsServer(w, service, { extraChecks: [selfCheck(service)] });
+    await serving(fake, async () => {
+      const expected = await expectedDone(w, service, fake);
+      assert.ok(expected.some((f) => /head commit.*running/.test(f.what)), "known positive: real Host aggregate is running");
+      assert.ok(expected.some((f) => /agent-m done.*running/.test(f.what)), "known positive: Process sees the actual current verifier");
+      const status = await run("onDoneCheck", w, service, verifierEnvironment(w, service));
+      assert.equal(status.outcome, "done", `${service}: ${status.summary}: ${JSON.stringify(status.findings)}`);
+      assert.deepEqual(status.findings, []);
+      unchanged(w);
+    });
+  });
+});
+
+// TST-476313
+// level: component
+// module: MOD-workflow-entries
+// guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
+// given: the current running verifier beside another running or failed check, a same-named check of another run, or ambiguous current check identity
+// input: onDoneCheck for both services, preserving every other check and commit's facts
+// expect: every other running/failing check still blocks; same-name foreign checks are not waived; ambiguous/missing identity fails closed
+test("TST-476313: only the identified current verifier is projected, never another check", async () => {
+  for (const service of ["github", "gitlab"]) await workspace(async (w) => {
+    const self = selfCheck(service);
+    for (const state of ["running", "failure"]) {
+      const other = { name: "lint-guard", state, url: service === "github" ? `${runUrl(service)}/job/123` : `${addressOf(service)}/-/jobs/123` };
+      const fake = factsServer(w, service, { extraChecks: [self, other] });
+      await serving(fake, async () => {
+        const status = await run("onDoneCheck", w, service, verifierEnvironment(w, service));
+        assert.equal(status.outcome, "failed");
+        assert.ok(status.findings.some((f) => f.what.includes(`lint-guard is ${state}`)), `${service}: the other check remains blocking`);
+        assert.ok(!status.findings.some((f) => /the check agent-m done/.test(f.what)), "only the current check's circular finding is removed");
+      });
+    }
+    const foreign = { ...self, url: service === "github" ? `${addressOf(service)}/actions/runs/9999/job/1` : `${addressOf(service)}/-/jobs/888` };
+    for (const [checks, env] of [[ [self, foreign], verifierEnvironment(w, service) ],
+      [ [self, { ...self }], verifierEnvironment(w, service) ], [ [self], { ...event(w, service) } ]]) {
+      const fake = factsServer(w, service, { extraChecks: checks });
+      await serving(fake, async () => {
+        const status = await run("onDoneCheck", w, service, env);
+        assert.equal(status.outcome, "failed");
+        assert.ok(status.findings.some((f) => /agent-m done.*running/.test(f.what)), `${service}: no broad name-based waiver`);
+      });
+    }
     unchanged(w);
   });
 });
