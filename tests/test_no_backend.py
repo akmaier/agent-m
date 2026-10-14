@@ -36,8 +36,8 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    dashboard renders these files, and an image or frame in them would be fetched from its host. Code spans and fenced
    blocks are rendered as text and are not read.
 
-The vendored libraries are docs/assets/vendor/ and MOD-markdown-render's src/markdown-render/vendor/, whose module file
-states that it reads them; check 1 does not count them as the site's own code.
+VENDOR lists the third-party library folders; check 1 does not count them as the site's own code. Check 2 still scans
+every vendored library for request channels.
 
 The check of the own code's addresses moved here from tests/test_pages_layout.py (ITM-050). Only tracked files are
 read, so a scratch file in a working tree changes nothing. Counter-proofs:
@@ -50,7 +50,8 @@ from pathlib import Path
 from test_artifact_format import outside_code
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/", "src/mail-routes/vendor/")
+VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/", "src/mail-routes/vendor/",
+          "src/result-records/vendor/")
 CODE = (".html", ".css", ".mjs", ".js")
 
 PERMITTED_HOSTS = {
