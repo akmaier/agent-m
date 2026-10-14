@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 
-const require = createRequire(import.meta.url);
+const require = createRequire(new URL("../bridge-build/package.json", import.meta.url));
 const { Client, utils } = require("ssh2");
 const active = new Map();
 

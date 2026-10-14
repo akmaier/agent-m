@@ -182,20 +182,33 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
   const launched = electronCommand(executable, args);
-  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: false, env: { ...appEnvironment, ...environment }, stdio: ["ignore", "ignore", "pipe"] });
-  let stderr = "";
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, detached: process.platform === "linux", env: { ...appEnvironment, ...environment }, stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "", stderr = "", spawnError = null, debugTargets = "";
+  child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
+  child.on("error", (error) => { spawnError = error; });
   const exited = new Promise((resolve) => child.once("exit", resolve));
-  const stopped = () => { if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; stderr=${scrub(stderr)}`); };
+  const stopped = () => { if (spawnError || child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}`); };
   try {
-    const page = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((candidate) => candidate.url.startsWith("agent-m://")), stopped);
+    const page = await wait(async () => {
+      try {
+        const targets = await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json();
+        debugTargets = JSON.stringify(targets.map(({ type, url }) => ({ type, url })));
+        return targets.find((candidate) => candidate.url.startsWith("agent-m://"));
+      } catch (error) { debugTargets = `${error.name}: ${error.message}`; throw error; }
+    }, stopped);
     const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
     const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
     return { browser, child, exited, folder, main, origin, page, port };
   } catch (failure) {
-    if (child.exitCode === null) child.kill();
+    const processes = process.platform === "linux" ? spawnSync("ps", ["-eo", "pid,ppid,stat,args"], { encoding: "utf8", timeout: 1000 }).stdout?.split("\n").filter((line) => /electron|Xvfb|openbox|agent-m-xvfb/.test(line)).join("\n") : "";
+    const evidence = { argv: [launched.command, ...launched.arguments_], cwd: root, pid: child.pid, exit: child.exitCode, signal: child.signalCode, error: spawnError?.code ?? null, stdout: scrub(stdout), stderr: scrub(stderr), debugTargets, processes: scrub(processes) };
+    if (child.exitCode === null) {
+      try { process.platform === "linux" ? process.kill(-child.pid, "SIGTERM") : child.kill(); } catch { child.kill(); }
+    }
     await within(exited, "Electron startup cleanup").catch(() => {});
-    throw new Error(`${failure.message}; Electron startup stderr=${scrub(stderr)}`, { cause: failure });
+    child.stdout.destroy(); child.stderr.destroy(); child.unref();
+    throw new Error(`${failure.message}; Electron startup=${JSON.stringify(evidence)}`, { cause: failure });
   }
 }
 
