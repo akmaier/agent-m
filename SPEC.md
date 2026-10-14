@@ -1421,14 +1421,12 @@ whose header names no module of the architecture — is changed by no implementa
 pull request of its own that only makes old code call a module in place of its own code and its texts describe what the
 module does, removes what a module now provides together with the tests of what it removes, names in a test's header the module that now holds what the test
 tests, lets a check of the whole repository allow a module what the module's file states that it uses, lets a test
-helper reach the modules' files, moves the tests of level `release` out of the run on a pull request into a sprint's
-branch, into the nightly run and the run on a pull request into the default branch, or adds or changes a workflow file that
-only runs an entry that a module's file names.
+helper reach the modules' files, or adds or changes a workflow file that only runs an entry that a module's file names.
 *Check:* `tests/test_implementation_job.py` — checks pull requests of a fixture product that change a file no module
 owns, from an implementation job and between jobs. It checks that the implementation job's pull request is refused, that
 a pull request between jobs is refused when it changes such a file in a way the rule does not name, and that one passes
-that replaces code of such a file by a call into a module, that moves the tests of level `release` out of the run on a
-pull request into a sprint's branch, or that adds a workflow file that only runs an entry that a module's file names.
+that replaces code of such a file by a call into a module, or that adds a workflow file that only runs an entry that a
+module's file names.
 
 **MODULE GAPS ARE REPORTED, NOT FORBIDDEN** *(PO A. Maier)*
 A module that realises no requirement, a requirement that no module realises, a module that no test
@@ -1467,7 +1465,7 @@ implemented the behaviour it tests.
 participant of its guarded use case fails.
 
 **THE TEST SCHEDULE IS DECLARED PER PRODUCT** *(PO A. Maier)*
-Each product declares, in a data file of its own repository, which test levels run on every commit,
+Agent M and every managed product declare, in a data file of their own repository, which test levels run on every commit,
 on a pull request, nightly, on a release candidate, and on demand.
 *Check:* `tests/test_ci_schedule.py`
 
@@ -1488,8 +1486,8 @@ Every job that the CI of Agent M's own repository runs on a pull request finishe
 GitHub stops it and the run fails; counter-proof: a job without that limit, or with a longer one, fails.
 
 **THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE** *(PO A. Maier)*
-A product's CI configuration — a GitHub Actions workflow on GitHub, a GitLab CI pipeline on a GitLab
-server — is generated from its declared test schedule.
+The CI configuration of Agent M and of every managed product — a GitHub Actions workflow on GitHub, a GitLab CI pipeline
+on a GitLab server — is generated from its declared test schedule.
 *Check:* `tests/test_ci_schedule.py` — the generated configuration triggers exactly the levels the
 schedule names for each event.
 
