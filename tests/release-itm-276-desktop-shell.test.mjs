@@ -9,13 +9,14 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 import test, { after, before } from "node:test";
 
 const root = new URL("..", import.meta.url).pathname;
+const appEnvironment = { ...process.env, NODE_PATH: [join(root, "src/bridge-build/node_modules"), process.env.NODE_PATH].filter(Boolean).join(delimiter) };
 
 // Electron's windows show on the screen unless a virtual screen holds them. These tests therefore run only on Linux, under
 // xvfb-run, as on the CI; elsewhere each is skipped with this reason, and Electron is neither installed nor started.
@@ -91,6 +92,9 @@ const diagnoseOpenboxAcquisition = () => {
   } catch (failure) { diagnosticEvidence("Linux Openbox diagnostic", { observation: "diagnostic-error", error: failure.code ?? failure.name }); }
 };
 const prepareNativeFixture = async () => {
+  const modules = spawnSync(process.execPath, ["--input-type=module", "-e", "await import('./src/desktop-shell/compose.mjs')"], { cwd: root, env: appEnvironment, encoding: "utf8", timeout: 5000 });
+  const moduleEvidence = commandEvidence("Bridge app module staging", modules);
+  assert.equal(modules.status, 0, `Bridge app modules did not load; ${JSON.stringify(moduleEvidence)}`);
   const executable = await runtime();
   electronCommand(executable, []);
   await acquireNativeFixtureLock();
@@ -186,7 +190,7 @@ async function launch() {
   const executable = await runtime();
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspectPort}`, `--remote-debugging-port=${debugPort}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${apiPort}`, `--data-folder=${dataFolder}`];
   const launched = electronCommand(executable, args);
-  const child = spawn(launched.command, launched.arguments_, { cwd: root, stdio: ["ignore", "ignore", "pipe"] });
+  const child = spawn(launched.command, launched.arguments_, { cwd: root, env: appEnvironment, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-2000); });
   const exited = new Promise((resolve) => child.once("exit", resolve));
@@ -198,7 +202,7 @@ async function launch() {
   } catch (failure) {
     if (child.exitCode === null) child.kill();
     await within(exited, "Electron startup cleanup").catch(() => {});
-    throw failure;
+    throw new Error(`${failure.message}; Electron startup stderr=${scrub(stderr)}`, { cause: failure });
   }
 }
 async function stop(app) {
@@ -228,7 +232,7 @@ test("TST-276901: actual forked Electron source keeps its renderer private and p
     await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge pairing')"));
     assert.equal(app.page.url, "agent-m://release-fork.github.io/paired-bridge/desktop-shell/window.html");
     assert.deepEqual(await evaluate(app.page.webSocketDebuggerUrl, "({ calls: Object.keys(window.bridge).sort(), node: [typeof window.process, typeof window.require], address: [...document.querySelectorAll('code')][0].textContent })"), {
-      calls: ["copy", "pairAnew", "pause", "quit", "resume", "retryPort", "state"], node: ["undefined", "undefined"], address: expectedAddress,
+      calls: ["chooseFolder", "copy", "pairAnew", "pause", "quit", "resume", "retryPort", "state"], node: ["undefined", "undefined"], address: expectedAddress,
     }, "failure node: the only renderer privilege is the fixed preload API");
     const pair = (origin) => fetch(`${expectedAddress}/v1/pair`, { headers: { origin, "x-agent-m-bridge-token": pairingToken } });
     assert.equal((await pair(app.origin)).status, 200, "known positive: the configured page origin pairs with the real loopback server");
