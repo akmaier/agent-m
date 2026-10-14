@@ -28,6 +28,7 @@ import assert from "node:assert/strict";
 import * as runtimes from "../src/runtimes/index.mjs";
 import { recordsNewestFirst, startRecord } from "../src/job-ledger/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { formatFinding } from "../src/text-tools/index.mjs";
 
 const { queueJob } = runtimes;
 const REPOSITORY = { server: "github", origin: "https://github.com", path: "alice/product", web: "https://github.com/alice/product" };
@@ -361,4 +362,31 @@ test("runOnTab — forwards the current draft to runJob as refine", async () => 
     { ...hooksOf(fake), refine: { text: "the current draft" } });
   assert.equal(requestBodies.length, 1, "one refinement exchange");
   assert.match(requestBodies[0], /the current draft/, "runJob receives the refinement draft as previous");
+});
+
+// TST-398023
+// level: unit
+// module: MOD-runtimes
+// guards: UC-019 step 8; ONE DEFINITION, THREE DRIVERS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// given: an attended tab job with a recipe part, an edited draft and a check rejecting the first returned draft
+// input: runOnTab with refine; the endpoint returns first, then second
+// expect: two exchanges each contain the recipe part once; the first carries the edited draft once, the second the current draft and canonical finding once, with no stale edited draft
+test("TST-398023: tab refinement and correction context are serialized exactly once", async () => {
+  const part = { name: "source", text: "TAB_RECIPE_CONTEXT", size: 0, sources: [], required: true, recipe: "fixture", artifacts: [] };
+  const job = jobOf("person", [], { checked: true });
+  job.kind = { ...job.kind, prompt: "Write.\n\n{{fixture}}", recipes: [{ name: "fixture" }] };
+  job.parts = [part];
+  const edited = { text: "TAB_EDITED_DRAFT" };
+  const occurrences = (text, value) => text.split(value).length - 1;
+  endpointAnswers(200, { drafts: [{ text: "first" }, { text: "second" }] });
+  const fake = await queued();
+  const result = await runtimes.runOnTab(job, contextOf(), CONNECTIONS, { ...hooksOf(fake), refine: edited });
+  assert.equal(requestBodies.length, 2, "one refinement exchange and one correction exchange");
+  const messages = requestBodies.map((body) => JSON.parse(body).messages[0].content);
+  for (const text of messages) assert.equal(occurrences(text, part.text), 1, "the prepared recipe part occurs once");
+  assert.equal(occurrences(messages[0], JSON.stringify(edited, null, 2)), 1, "the edited draft reaches the refinement once");
+  assert.equal(occurrences(messages[1], JSON.stringify({ text: "first" }, null, 2)), 1, "the current returned draft reaches correction once");
+  assert.equal(occurrences(messages[1], formatFinding(FLAW)), 1, "the canonical finding reaches correction once");
+  assert.equal(occurrences(messages[1], edited.text), 0, "the earlier edited draft is not sent as the current draft");
+  assert.deepEqual([result.draft, result.stoppedBecause], [{ text: "second" }, "passed"]);
 });
