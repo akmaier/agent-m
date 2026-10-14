@@ -196,7 +196,15 @@ test("fetchLegalText - names NotFound and Unreachable, and guesses no text", asy
 test("versionCommits - appends a new version with file hashes while earlier versions stay unchanged", async () => {
   assert.equal(typeof versionCommits, "function", "the module provides versionCommits");
   const entry = existingEntry();
-  const before = entry.sections[0].text.slice(entry.sections[0].text.indexOf("| `2024-06-01`"), entry.sections[0].text.indexOf("\n## Parts"));
+  const oldRow = "| `2024-06-01` | 2024-06-01 | first publication | publication repository | 1 file, listed below; version hash `"
+    + versionHashOf([{ name: "old.xhtml", bytes: encode("old text\n") }]) + "` |";
+  const oldFiles = [
+    "### Files of 2024-06-01",
+    "",
+    "| File | SHA-256 |",
+    "|---|---|",
+    "| `old.xhtml` | `" + hex(encode("old text\n")) + "` |",
+  ].join("\n");
   const plan = await versionCommits(entry, FILES, {
     version: "2024-07-12",
     date: "2024-07-12",
@@ -211,7 +219,8 @@ test("versionCommits - appends a new version with file hashes while earlier vers
     "docs/sources/SRC-ai-act/2024-07-12/annex.txt",
   ]);
   const { entry: written, text } = writtenEntry(plan);
-  assert.ok(text.includes(before), "the earlier version block is byte for byte still present");
+  assert.ok(text.includes(oldRow), "the earlier version row is byte for byte still present");
+  assert.ok(text.includes(oldFiles), "the earlier version's file block is byte for byte still present");
   const appended = written.sections[0].rows.at(-1);
   assert.deepEqual(appended.cells, {
     Version: "`2024-07-12`",

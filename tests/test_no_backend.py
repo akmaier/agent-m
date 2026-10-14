@@ -27,7 +27,8 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process,
    MOD-site-frame (its explanations.md), MOD-personal-data, MOD-resource-list and MOD-reuse-facts,
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
-   file builds resolved from a path beginning with `./` against the module's own address. Every other fetch, XMLHttpRequest,
+   file builds resolved from a path beginning with `./` against the module's own address; and MOD-source-register's
+   official EU publication repository fetch for legal texts, to publications.europa.eu. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
    unless it is listed below with the reason it calls no other origin — a file's entry exactly as often as listed, a
    module folder's at most as often.
@@ -61,6 +62,8 @@ PERMITTED_HOSTS = {
     "localhost", "127.0.0.1", "[::1]",
     # Navigation only, never called: the Pattern Recognition Lab and the book, linked from the main page's footer.
     "lme.tf.fau.de", "link.springer.com",
+    # The EU publication repository MOD-source-register fetches legal texts from.
+    "publications.europa.eu",
 }
 
 # Pages a module's code names and only links to, never calls: the module's folder -> the hosts, besides PERMITTED_HOSTS, that may stand in
@@ -158,6 +161,19 @@ def _own_data_file(text: str, at: int) -> bool:
         return False
     own = re.findall(r"new URL\(([\"'`])\./[^\"'`]*\1, import\.meta\.url\)", text)
     return bool(own) and len(own) == len(re.findall(r"new URL\(", text))
+
+
+def _source_register_request(text: str, at: int) -> bool:
+    """MOD-source-register either reads its own data files or fetches a legal text from the official EU publication
+    repository address its module file states."""
+    if _own_data_file(text, at):
+        return True
+    return (text[at:].startswith("fetch(request.url,")
+            and 'const PUBLICATIONS = "https://publications.europa.eu";' in text
+            and "function requestOf(identifier)" in text
+            and 'new URL(`/resource/celex/${encodeURIComponent(identifier.celex)}`, PUBLICATIONS)' in text
+            and 'new URL(`/resource${eli.pathname.replace(/\\/$/, "")}`, PUBLICATIONS)' in text
+            and 'url.searchParams.set("language", "eng");' in text)
 
 
 def _endpoint_transport_path(text: str, at: int) -> str | None:
@@ -271,7 +287,8 @@ PERMITTED_CHANNELS = {
     ("src/documents/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/model-catalogue/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/participant-list/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
-    ("src/source-register/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/source-register/", "fetch"): (2, "its own data files, and the official EU publication repository for legal texts",
+                                        _source_register_request),
     ("src/product-process/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/personal-data/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
