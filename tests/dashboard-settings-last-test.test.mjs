@@ -4,8 +4,8 @@
 // storage. The kept date and outcome are browser settings like the rest: shown on the settings page, removed by Clear and by Clear
 // everything, carried by an export. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
-// Guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
+// Module: MOD-settings-pages
+// Guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-042
 // Level: component
 //
 // The counter-proof of every test here (a planted fault and its red result): docs/measurements/2026-10-01_settings-last-test.md.
@@ -39,9 +39,10 @@ const agentEntries = () => {
 // stored token with 401, as it does a token that expired or was regenerated; a GitLab server answers its project's API — Test's
 // request with the project token — with 401 while `world.refuseGitLab` is set; and localhost answers on the session ports in
 // `world.up`.
-async function instanceWorld() {
+async function instanceWorld(handlers = []) {
   const world = { refuseGitHub: false, refuseGitLab: false, up: new Set() };
   world.srv = await repoServer({ files: { "SPEC.md": "# S\n", "docs/use-cases/README.md": "# Use cases\n" }, handlers: [
+    ...handlers,
     (url, init) => (world.refuseGitHub && url.origin === API && init.headers?.Authorization === `Bearer ${TOKEN}`
       ? json({ message: "Bad credentials" }, 401) : undefined),
     (url) => {
@@ -101,6 +102,110 @@ const gitlabRow = (box) => publicControls(box(), "settings-repository").find((ro
 const gitlabControl = (box, name) => publicControls(gitlabRow(box), `settings-repository-${name}`)[0];
 
 // ---------------------------------------------------------------- the GitHub token
+
+const RESET_SECONDS = "1792022400";
+const RESET_AT = new Date(Number(RESET_SECONDS) * 1000).toISOString();
+const rateLimitResponse = (limit) => new Response(JSON.stringify({ message: "API rate limit exceeded" }), {
+  status: 403,
+  headers: { "Content-Type": "application/json", "X-RateLimit-Remaining": "0", "X-RateLimit-Limit": String(limit), "X-RateLimit-Reset": RESET_SECONDS },
+});
+
+// The real row sends its ordinary repositoryInfo request. Only that endpoint changes after the controlled 200 Test;
+// navigation and reload use the same browser storage, with the server answering normally again.
+async function inconclusiveRepositoryTest(answer, expected, { untested = false } = {}) {
+  let failing = false, failures = 0;
+  const world = await instanceWorld([(url, init) => {
+    if (!failing || url.origin !== API || url.pathname !== "/repos/akmaier/agent-m" || init.method !== "GET") return undefined;
+    failures += 1;
+    return answer();
+  }]);
+  const { page, box } = await settingsPage(world, canonicalToken());
+  const tokenKey = canonicalKey("github-token"), lastTestKey = canonicalKey("last-test:github-token");
+  const secretBefore = globalThis.localStorage.getItem(tokenKey);
+  if (!untested) {
+    await repositoryControl(box, "test").fire("click");
+    assert.match(repositoryControl(box, "result").textContent, /repository token is working/, "known positive: the actual Test succeeds on the controlled 200 endpoint");
+    assert.equal(JSON.parse(globalThis.localStorage.getItem(lastTestKey)).outcome, "working");
+  }
+  const previous = globalThis.localStorage.getItem(lastTestKey);
+  if (untested) assert.equal(previous, null, "known precondition: no prior test record exists");
+  const statusBefore = repositoryControl(box, "status").textContent;
+  const from = world.srv.requests.length;
+  failing = true;
+  await repositoryControl(box, "test").fire("click");
+  assert.equal(failures, 1, "the actual Test reaches the controlled failure endpoint exactly once");
+  assert.deepEqual(world.srv.requests.slice(from).map((request) => request.replace(/^(handler|other) /, "")), ["GET https://api.github.com/repos/akmaier/agent-m"], "Test adds no other API call, including when fetch throws before the harness labels a response");
+  const result = repositoryControl(box, "result").textContent;
+  assert.match(result, expected, "the current error is shown separately at the public Test result");
+  assert.doesNotMatch(result, /expired|regenerated|deleted|refused your/i, "this response does not diagnose a refused credential");
+  assert.equal(globalThis.localStorage.getItem(tokenKey), secretBefore, "Test leaves the stored secret unchanged");
+  assert.equal(globalThis.localStorage.getItem(lastTestKey), previous, "failure node: a noncredential failure preserves the exact prior record, or its absence");
+  assert.equal(repositoryControl(box, "status").textContent, statusBefore, "the last conclusive status and successful timestamp are unchanged");
+  failing = false;
+  await page.go("#uc");
+  assert.equal(page.el("token-banner"), "", "the actual next use-cases page shows no false token-expiry banner");
+  const again = await reload(world);
+  assert.equal(again.page.el("token-banner"), "", "a fresh app load on the same storage shows no false token-expiry banner");
+  assert.equal(repositoryControl(again.box, "status").textContent, statusBefore, "the exact prior status survives reload");
+  assert.equal(globalThis.localStorage.getItem(lastTestKey), previous, "reload does not rewrite prior evidence or create a pending/reason record");
+  assert.equal(globalThis.localStorage.getItem(tokenKey), secretBefore, "reload leaves the stored secret unchanged");
+  await again.page.go("#uc");
+  assert.equal(again.page.el("token-banner"), "", "the reloaded app's use-cases page also shows no false expiry");
+}
+
+// TST-475201 · level: component · module: MOD-settings-pages
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-042
+// given: the actual Test has succeeded with 200 and persisted its successful timestamp.
+// input: the same GET /repos endpoint answers 403 with remaining 0, limit 5000 and a reset time.
+// expect: the account limit and reset appear in the current result, prior evidence and secret stay verbatim, and #uc/reload show no refusal banner.
+test("TST-475201: an account limit preserves the last successful token test and never creates an expiry banner", async () => {
+  await inconclusiveRepositoryTest(() => rateLimitResponse(5000), new RegExp(`account.*resets at ${RESET_AT.replaceAll(".", "\\.")}`));
+});
+
+// TST-475202 · level: component · module: MOD-settings-pages
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-042
+// given: a controlled 200 Test established working evidence; the server identifies its exhausted network limit by limit 60.
+// input: Test receives the 403, remaining 0 and reset headers through the real repository host adapter.
+// expect: the network limit and reset are named, with no credential diagnosis, changed timestamp, changed secret or false banner after #uc/reload.
+test("TST-475202: a server-reported network limit preserves token evidence and names its reset", async () => {
+  await inconclusiveRepositoryTest(() => rateLimitResponse(60), new RegExp(`this network.*resets at ${RESET_AT.replaceAll(".", "\\.")}`));
+});
+
+// TST-475203 · level: component · module: MOD-settings-pages
+// guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
+// given: the token's controlled 200 Test has persisted a working result.
+// input: GET /repos answers 403 without exhausted-limit headers.
+// expect: PermissionMissing names Metadata, but does not replace working evidence or its timestamp, alter the secret or create a refusal banner after #uc/reload.
+test("TST-475203: a nonlimit 403 reports missing permission without marking the token expired", async () => {
+  await inconclusiveRepositoryTest(() => json({ message: "Resource not accessible by personal access token" }, 403), /lacks Metadata/);
+});
+
+// TST-475204 · level: component · module: MOD-settings-pages
+// guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
+// given: a successful controlled Test has persisted working evidence.
+// input: GET /repos answers 503.
+// expect: the current result names 503, while prior evidence, timestamp and secret survive unchanged and #uc/reload have no false expiry banner.
+test("TST-475204: a 503 is shown separately without overwriting the last good token test", async () => {
+  await inconclusiveRepositoryTest(() => json({ message: "Service unavailable" }, 503), /answered 503/);
+});
+
+// TST-475205 · level: component · module: MOD-settings-pages
+// guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-042
+// given: the real Test has succeeded and stored its working timestamp.
+// input: fetch of GET /repos throws a controlled network error.
+// expect: Unreachable is shown as the current result, not persisted refusal; prior timestamp and secret survive, with no banner after #uc/reload.
+test("TST-475205: a network failure preserves the prior successful test and secret", async () => {
+  await inconclusiveRepositoryTest(() => { throw new TypeError("Controlled repository network failure"); }, /could not be reached: Controlled repository network failure/);
+});
+
+// TST-475206 · level: component · module: MOD-settings-pages
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-042
+// given: a stored token has no prior last-test record.
+// input: its first Test receives an account-limit 403 and reset headers.
+// expect: the current limit is shown, no last-test record is created, the secret stays unchanged and #uc/reload show no false expiry banner.
+test("TST-475206: an inconclusive first Test leaves absent token evidence absent", async () => {
+  await inconclusiveRepositoryTest(() => rateLimitResponse(5000), /account.*resets at/, { untested: true });
+});
 
 test("UC-042 step 1: a successful Test of the GitHub token is shown after a reload — ✓ works with the date of that test", async () => {
   const world = await instanceWorld();
@@ -216,6 +321,7 @@ test("UC-042 step 1: a GitLab project token's last test — works, then refused 
   assert.match(gitlabControl(again.box, "status").textContent, /Last successful test:/, "works, after the reload");
   world.refuseGitLab = true;
   await gitlabControl(again.box, "test").fire("click");
+  assert.equal(gitlabControl(again.box, "result").textContent, "✗ gitlab.example.org rejected authentication with your GitLab token: gitlab.example.org/grp/sub/proj. Renew it on https://gitlab.example.org/grp/sub/proj/-/settings/access_tokens.");
   again = await settingsPage(world, agentEntries());
   assert.match(gitlabControl(again.box, "status").textContent, /Refused/, "refused, after the reload");
 });
