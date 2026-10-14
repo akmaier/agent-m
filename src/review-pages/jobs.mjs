@@ -140,9 +140,8 @@ const inputsOf = (root, className) => {
 };
 export const byClassChecked = (list, name, role = "participant") => inputsOf(list, role).some((box) => box.value === name && box.checked);
 
-// The run panel for the chosen participant and selection; Run starts the job.
-export async function panelOf(run) {
-  const { stage, context, token, host, snapshot, definition, kind, chosen, params, participants, instanceSnapshot } = run;
+async function preparedRun(run, snapshot = run.snapshot, params = run.params) {
+  const { context, token, host, definition, chosen, participants, instanceSnapshot } = run;
   const now = new Date();
   const taken = new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));
   const id = newJobId(now, taken);
@@ -150,39 +149,64 @@ export async function panelOf(run) {
   const jobContext = { kind: definition, params, product: { address: snapshot.repository?.web ?? "", snapshot, host },
     instance: { snapshot: instanceSnapshot, host: context.product ? context.instance.host : host, checkout: null }, connect: async () => host, participants,
     places: run.places ?? { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
-  let prepared;
+  let prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
+  if (run.relax) prepared = run.relax(prepared);
+  const offer = routesFor(chosen, run.product, run.needs)[0];
+  return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
+}
+
+// The run panel for the chosen participant and selection; Run starts the job.
+export async function panelOf(run) {
+  const { stage, token, kind } = run;
+  let ready;
   try {
-    prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
-    if (run.relax) prepared = run.relax(prepared);
+    ready = await preparedRun(run);
   } catch (failure) {
     stage.append(problem(failure, token));
     return;
   }
-  const offer = routesFor(chosen, run.product, run.needs)[0];
-  const panel = runPanel(prepared, { onRun: () => start({ ...run, prepared, jobContext, id, now, agentM, offer }) });
-  run.decoratePanel?.(panel, prepared);
+  const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
+  run.decoratePanel?.(panel, ready.prepared);
   stage.append(explain(kind.explain.draft.panel), panel);
 }
 
+async function execute(run, refine) {
+  const { host, token, snapshot, prepared, id, now, agentM, offer, chosen, params, worksOn } = run;
+  if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
+  const record = { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
+    startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
+    destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
+  const { path } = await queueJob(host, record, offer.route, snapshot.commit);
+  if (offer.route.kind !== "tab") return { queued: true, record };
+  const outcome = await runOnTab(prepared, run.jobContext, connectionsOf(run.participants, run.context.store), { host, record: { ...record, path }, refine });
+  return { queued: false, outcome, record };
+}
+
 async function start(run) {
-  const { stage, host, token, snapshot, prepared, id, now, agentM, offer, chosen, kind, params, worksOn } = run;
+  const { stage, kind, id } = run;
   const result = el("section", "job");
   stage.append(result);
   try {
-    if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
-    const start_ = { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
-      startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
-      destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
-    const { path } = await queueJob(host, start_, offer.route, snapshot.commit);
-    if (offer.route.kind !== "tab") {
-      result.append(el("p", "queued", `Job ${id} is queued on the route ${recordRoute(offer.route)}; it is not run in this tab.`), explain(kind.explain.draft.ci));
+    const executed = await execute(run);
+    if (executed.queued) {
+      result.append(el("p", "queued", `Job ${id} is queued on the route ${recordRoute(run.offer.route)}; it is not run in this tab.`), explain(kind.explain.draft.ci));
       return;
     }
-    const outcome = await runOnTab(prepared, run.jobContext, connectionsOf(run.participants, run.context.store), { host, record: { ...start_, path } });
-    await run.present(outcome, result, { ...run, record: start_ });
+    await run.present(executed.outcome, result, { ...run, record: executed.record });
   } catch (failure) {
     result.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
   }
+}
+
+/**
+ * refineOnTab(run, params, draft) — records and runs one follow-up of an attended tab job against `draft`.
+ */
+export async function refineOnTab(run, params, draft) {
+  const snapshot = await defaultSnapshot(run.host);
+  const ready = await preparedRun(run, snapshot, params);
+  if (ready.offer?.route.kind !== "tab") throw Object.assign(new Error("Refine is available only for a job running in this tab."), { name: "RouteUnavailable" });
+  const executed = await execute(ready, draft);
+  return { outcome: executed.outcome, run: { ...ready, record: executed.record } };
 }
 
 // What a run of the drafting job came to: the rounds, what the loop left, the files written.

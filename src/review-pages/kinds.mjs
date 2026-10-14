@@ -32,6 +32,8 @@ export const SPEC_ENTRIES = { kind: "spec-entry", route: "spec-entry", entry: "r
 
 // The descriptors of editing a requirement (ITM-359): a requirement is a section of the SPEC, not a reviewed file; `edit` names the editing of its section, saved as an entry of
 // the person's open queue of the day. REQUIREMENT_NEW is the same with the four fields empty, in the section handed in.
+const requirementExplain = { edit: "spec-edit-waits-for-approval", instruction: "change-instruction",
+  draft: { participant: "drafting-participant", panel: "run-panel", loop: "correction-loop", ci: "ci-agent-draft" } };
 export const REQUIREMENT = { kind: "requirement", route: "requirement", entry: "requirements", title: "Requirement", plural: "requirements", noun: "requirement",
-  explain: { edit: "spec-edit-waits-for-approval" }, edit: "section", fresh: false };
+  explain: requirementExplain, edit: "section", prompt: "change-requirements", fresh: false };
 export const REQUIREMENT_NEW = { ...REQUIREMENT, route: "requirements", title: "New requirement", fresh: true };

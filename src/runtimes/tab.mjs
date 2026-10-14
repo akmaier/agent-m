@@ -29,6 +29,20 @@ export async function queueOnTab(host, start, head) {
   return { path, commit };
 }
 
+// The transient correction context is part of the prepared prompt every tab driver receives. The drivers themselves keep
+// their one-exchange interface and therefore behave alike for a direct endpoint, an endpoint on a Bridge and an agent.
+function exchangePrompt(input) {
+  const sections = [input.prompt];
+  if (input.previous !== null && input.previous !== undefined) sections.push(`## Current draft to change\n\n${input.previous}`);
+  if (input.findings?.length) sections.push(`## Findings to fix or answer\n\n${input.findings.map((finding) =>
+    `${finding.artifact}:${finding.line}: ${finding.kind}: ${finding.what} [${finding.rule}] - ${finding.fix}`).join("\n")}`);
+  return sections.join("\n\n");
+}
+
+const withExchangePrompt = (driver) => ({ ...driver, async send(input, options) {
+  return driver.send({ ...input, prompt: exchangePrompt(input) }, options);
+} });
+
 // The driver of a participant, from its route: an endpoint it names, from its configuration — `endpointDriver` where the endpoint is called from this tab, `bridgeDriver` with the endpoint
 // on the Bridge its `bridge` names —, or an agent on the Bridge its route names. Each Bridge is found by its name among `connections.bridges`.
 function driverOf(participant, connections) {
@@ -38,12 +52,12 @@ function driverOf(participant, connections) {
     return bridge;
   };
   const agent = /^bridge\s+(\S+)\s+agent\s+(\S+)/.exec(participant.route ?? "");
-  if (agent) return bridgeDriver(bridgeOf(agent[1]), { agent: agent[2] }, participant);
+  if (agent) return withExchangePrompt(bridgeDriver(bridgeOf(agent[1]), { agent: agent[2] }, participant));
   const endpoint = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
   const entry = endpoint === undefined ? undefined : connections.endpoints[endpoint];
   if (!entry) throw new RuntimeError("EndpointNotConfigured", { endpoint }, `the endpoint ${endpoint} has no configuration`);
-  if (entry.bridge !== null) return bridgeDriver(bridgeOf(entry.bridge), { endpoint: entry.config }, participant);
-  return endpointDriver(entry.config, participant);
+  if (entry.bridge !== null) return withExchangePrompt(bridgeDriver(bridgeOf(entry.bridge), { endpoint: entry.config }, participant));
+  return withExchangePrompt(endpointDriver(entry.config, participant));
 }
 
 // The usage of a job: the tokens its exchanges reported, summed; null while none reported any.
@@ -70,7 +84,7 @@ function resultsOf(written) {
  * ends the record as failed, with the failure's name and message as the reason, and is thrown again unchanged; a cancelled job is ended by cancelJob, not here.
  */
 export async function runOnTab(prepared, context, connections, hooks) {
-  const { host, record, onOutput, signal } = hooks;
+  const { host, record, refine, onOutput, signal } = hooks;
   const append = async (part) => {
     const { defaultBranch } = await host.repositoryInfo();
     const snapshot = await host.readSnapshot(defaultBranch);
@@ -87,7 +101,7 @@ export async function runOnTab(prepared, context, connections, hooks) {
   try {
     const drivers = { drafter: prepared.drafter ? driverOf(prepared.drafter, connections) : null,
       reviewers: prepared.reviewers.map((reviewer) => driverOf(reviewer, connections)) };
-    result = await runJob(prepared, drivers, { attended: !record.run, context, onOutput, onGate, signal });
+    result = await runJob(prepared, drivers, { attended: !record.run, context, refine, onOutput, onGate, signal });
   } catch (error) {
     if (error.name === "Cancelled") throw error;
     // The job's own failure is what the caller must see: a record that cannot be appended to does not hide it.

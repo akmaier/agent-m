@@ -19,6 +19,7 @@ import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
 import { showPrompt } from "./prompt.mjs";
+import { showRequirementsPrompt } from "./requirements-prompt.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
 
@@ -112,7 +113,8 @@ export function reviewRoute(kind) {
       return;
     }
     const where = { host, token, snapshot, context, target };
-    if (kind.edit) await showEdit(where, kind, params);
+    if (params.prompt && kind.kind === "requirement" && kind.prompt) await showRequirementsPrompt(where, kind, params);
+    else if (kind.edit) await showEdit(where, kind, params);
     else if (params.edit && params.id && kind.save === "file") {
       const file = files(snapshot).find((candidate) => candidate.id === params.id);
       if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
