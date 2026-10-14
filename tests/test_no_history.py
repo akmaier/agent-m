@@ -154,7 +154,9 @@ def scan_findings(files: dict[str, str]) -> list[dict]:
 
 
 def repository_paths() -> list[str]:
-    return [path for path in tracked() if included_path(path)]
+    # This partial scan is not the whole-repository scan allowed to open the own SPEC.
+    # The Markdown fixture exercises MOD-spec-document without reading that file.
+    return [path for path in tracked() if path != "SPEC.md" and included_path(path)]
 
 
 def repository_findings(paths: list[str]) -> list[dict]:
@@ -162,19 +164,20 @@ def repository_findings(paths: list[str]) -> list[dict]:
     return js(JS_CHECK
               + "const { readFileSync } = await import('node:fs');"
                 "const paths = JSON.parse(Buffer.from(%s, 'hex').toString('utf8'));"
-                "return paths.flatMap((path) => noHistoryFindings(path, readFileSync(path, 'utf8')));"
-              % json.dumps(encoded))
+                "const root = %s;"
+                "return paths.flatMap((path) => noHistoryFindings(path, readFileSync(new URL(path, root), 'utf8')));"
+              % (json.dumps(encoded), json.dumps(ROOT.as_uri() + "/")))
 
 
 class TestNoHistory(unittest.TestCase):
     # TST-412100 - level: release - module: system
     # guards: A DOCUMENT HOLDS NO HISTORY
-    # given: the tracked SPEC, use cases, architecture decisions, module files, backlog items and settings files
+    # given: the tracked use cases, architecture decisions, module files, backlog items and settings files
     # input: each included file read through its product document interface and checked for marks from MOD-text-tools
     # expect: the repository findings equal the named current disagreements in the Markdown data
     def test_current_repository_history_findings_are_named(self):
         paths = repository_paths()
-        self.assertIn("SPEC.md", paths)
+        self.assertNotIn("SPEC.md", paths)
         self.assertTrue(any(path.startswith("docs/use-cases/") for path in paths))
         self.assertEqual(repository_findings(paths), repository_case()["expected"])
 
