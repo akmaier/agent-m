@@ -9,6 +9,7 @@ import { participantSchema } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
+import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
@@ -673,6 +674,84 @@ function remoteSessionLine(target, context, info) {
   );
 }
 
+function ciRoute(text) {
+  const route = String(text ?? "").trim();
+  const current = /^ci\s+(hosted|runner:(\S+))\s+secret\s+(\S+)$/.exec(route);
+  if (current) return { runner: current[2] ?? null, secret: current[3] };
+  const legacy = /^workflow\s+\S+\s+on\s+(github-hosted|self-hosted)\s+secret\s+(\S+)$/.exec(route);
+  if (legacy) return { runner: legacy[1] === "github-hosted" ? null : legacy[1], secret: legacy[2] };
+  return null;
+}
+
+async function jobWorkflowInput(context) {
+  if (!context.instance?.host) throw new Error("The instance repository is not connected.");
+  const { defaultBranch } = await context.instance.host.repositoryInfo();
+  const snapshot = await context.instance.host.readSnapshot(defaultBranch);
+  const participants = await snapshot.read("docs/participants.md");
+  const rows = participants ? readRegister(participantSchema(), "docs/participants.md", participants).rows : [];
+  const ci = rows.map(({ cells }) => ciRoute(cells.Route)).filter(Boolean);
+  const keys = [...new Set(ci.map((route) => route.secret))];
+  const runners = [...new Set(ci.map((route) => route.runner).filter(Boolean))];
+  return {
+    instance: { repository: context.instance.repository, commit: snapshot.commit },
+    secrets: { token: "AGENT_M_TOKEN", keys },
+    runners,
+  };
+}
+
+async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canWrite }) {
+  const status = el("p", "settings-job-workflow-status");
+  const result = el("p", "settings-job-workflow-result");
+  const secretList = el("p", "settings-job-workflow-secrets");
+  const secretsPage = el("a", "settings-job-workflow-secrets-link", "Open the repository's secrets page");
+  secretsPage.href = connect(address, {}).webLinks().secrets;
+  const install = el("button", "settings-job-workflow-install btn primary", "Install");
+  let offerInstall = false;
+  let files = [], expectedHead = snapshot.commit;
+  try {
+    const input = await jobWorkflowInput(context);
+    files = jobWorkflowFiles(address.server, input.instance, input.secrets, input.runners);
+    const current = await Promise.all(files.map(async (file) => [file.path, await snapshot.read(file.path)]));
+    const missing = current.filter(([, text]) => text === null || text === undefined).map(([path]) => path);
+    const different = current.filter(([, text], index) => text !== null && text !== undefined && text !== files[index].text).map(([path]) => path);
+    const installed = missing.length === 0 && different.length === 0;
+    status.textContent = installed ? "Installed for this instance commit."
+      : missing.length === files.length ? "Not installed."
+        : `Workflow files are different from this instance commit: ${[...missing, ...different].join(", ")}.`;
+    secretList.textContent = `Secrets named: ${[input.secrets.token, ...input.secrets.keys].join(", ") || input.secrets.token}. `;
+    offerInstall = !installed && canWrite;
+  } catch (error) {
+    status.textContent = `The workflow state cannot be read: ${error.message}`;
+    secretList.textContent = "Secrets named: AGENT_M_TOKEN.";
+  }
+  install.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
+    try {
+      const { commit } = await context.product.host.commitFiles({
+        branch: defaultBranch,
+        expectedHead,
+        files,
+        message: "Install Agent M job workflow",
+      });
+      status.textContent = "Installed for this instance commit.";
+      install.hidden = true;
+      install.disabled = true;
+      result.textContent = commit ? `Committed ${commit}.` : "Committed.";
+    } catch (error) {
+      result.textContent = error.message;
+    }
+  });
+  return el("section", "settings-job-workflow panel",
+    el("h4", null, "Agent M's job workflow"),
+    status,
+    secretList,
+    el("p", null, secretsPage),
+    whatIsThis("The product repository keeps Agent M's job workflow. The files name this instance commit and the CI secrets by name only: AGENT_M_TOKEN for the person's repository token and one key secret for each CI participant. The secret values are entered on the repository server's secrets page, not in Agent M."),
+    ...(offerInstall ? [el("p", null, install)] : []),
+    result,
+  );
+}
+
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
@@ -691,6 +770,7 @@ async function productControls(context) {
   const credential = credentialsFor(context.store, address);
   const canWrite = Boolean(credential?.token && repository.canWrite === true);
   const snapshot = await context.product.host.readSnapshot(defaultBranch);
+  const workflow = await jobWorkflowLine(context, { address, defaultBranch, snapshot, canWrite });
   const settingsText = await snapshot.read(settings.path);
   const collaboratorsText = await snapshot.read(collaborators.path);
   const legacyOff = (text) => /(^|\n)- pseudonymisation: off(?:\n|$)/.test(text ?? "");
@@ -717,6 +797,7 @@ async function productControls(context) {
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
       state,
+      workflow,
       whatIsThis("This product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser only reads them to show their current state."),
       el("h4", null, "Collaborators"),
       el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))));
@@ -792,6 +873,7 @@ async function productControls(context) {
   return el("section", "settings-product panel",
     el("h3", null, `Product · ${context.product.address}`), state,
     whatIsThis("This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click."),
+    workflow,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
     el("p", "notice", "With pseudonymisation on, report data is rewritten without persons while keeping its technical content."),
     el("p", "notice", `With pseudonymisation off, report data from mails — the names, addresses and other details of the people who write — enters the issues and the repository of ${address.path} unchanged. This is advisable only on a protected, non-public data space. Issue texts themselves stay neutral either way. ${publication} Data already written remains in history; removing that data requires a history rewrite.`),
