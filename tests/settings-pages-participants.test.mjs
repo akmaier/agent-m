@@ -24,11 +24,75 @@ const { participantSchema } = await import("../src/participant-list/index.mjs");
 
 const INSTANCE = "fixture/agent-m";
 const PARTICIPANTS = "docs/participants.md";
+const VERSION = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
+const MODEL_PATH = "docs/process-models/team-scrum.md";
+const PRODUCT_ALPHA = "https://github.com/acme/product-alpha";
+const PRODUCT_BETA = "https://github.com/acme/product-beta";
 const EMPTY_PARTICIPANTS = `# Participants of this instance
 
 | Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
 |---|---|---|---|---|---|---|---|
 `;
+const USED_PARTICIPANTS = `# Participants of this instance
+
+| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
+|---|---|---|---|---|---|---|---|
+| alice | person | — | — | — | read the repository, write to the repository | — | account github.com/alice |
+| dev-a | CLI agent | codex | 200000 | — | read the repository, write to the repository, run code and tests | this machine | bridge laptop agent codex |
+| dev-b | CLI agent | codex | 200000 | — | read the repository, write to the repository, run code and tests | this machine | bridge laptop agent codex |
+`;
+
+const INSTANCE_SPEC = "# Fixture instance\n\n## Process\n\nNo process requirement.\n";
+const MODEL_TEXT = [
+  "---",
+  "name: team-scrum",
+  "kind: pulled",
+  "adapted_from: scrum",
+  "measure: remaining items per time box",
+  "---",
+  "# Scrum with a person as Product Owner",
+  "",
+  "## Phases",
+  "",
+  "| Name | Role | Produces |",
+  "|---|---|---|",
+  "| Sprint Planning | Product Owner | ITM |",
+  "| Development | Developers | MOD, TST |",
+  "| Sprint Review | Product Owner | sprint record |",
+  "| Sprint Retrospective | Scrum Master | sprint record |",
+  "",
+  "## Transitions",
+  "",
+  "| From | To | Kind |",
+  "|---|---|---|",
+  "| Sprint Planning | Development | sequence |",
+  "| Development | Sprint Review | sequence |",
+  "| Sprint Review | Sprint Retrospective | sequence |",
+  "| Sprint Retrospective | Sprint Planning | back |",
+  "",
+  "## Verification pairs",
+  "",
+  "| Phase | Checked by |",
+  "|---|---|",
+  "| Development | Sprint Review |",
+  "",
+  "## Roles",
+  "",
+  "| Name | Filled by | How many | Capabilities |",
+  "|---|---|---|---|",
+  "| Product Owner | person | one | read the repository, write to the repository |",
+  "| Scrum Master | either | one | read the repository |",
+  "| Developers | agent | several | read the repository, write to the repository, run code and tests |",
+  "",
+  "## Flow control",
+  "",
+  "| Kind | Value |",
+  "|---|---|",
+  "| WIP limit | — |",
+  "| Time box | 1 week |",
+  "| Sprints | yes |",
+  "",
+].join("\n");
 
 class Storage {
   constructor() { this.values = new Map(); }
@@ -88,12 +152,90 @@ function sourceText({ id, title, licence, places }) {
     "| fixture | 2026-10-13 | — | fixture | listed below |", ""].join("\n");
 }
 
-function browser(t, { files = {}, settings = {}, visibility = "private" } = {}) {
+function processText() {
+  return [
+    "---",
+    "model: team-scrum",
+    `model_file: ${MODEL_PATH}`,
+    `model_version: ${VERSION}`,
+    "---",
+    "# How the fixture product is developed",
+    "",
+    "## Practices",
+    "",
+    "- none",
+    "",
+    "## Branches",
+    "",
+    "| Phase or time box | Branch |",
+    "|---|---|",
+    "",
+    "## Definition of Done",
+    "",
+    "The job rules hold for every pull request; no condition is added.",
+    "",
+  ].join("\n");
+}
+
+function assignmentText(title, rows) {
+  return [`# ${title}`, "", "## Roles", "", "| Role | Participants |", "|---|---|",
+    ...rows.map(([role, names]) => `| ${role} | ${names.join(", ")} |`), ""].join("\n");
+}
+
+function productFiles(assignments) {
+  return {
+    "docs/process.md": processText(),
+    ...Object.fromEntries(Object.entries(assignments).map(([name, rows]) =>
+      [`docs/role-assignments/${name}.md`, assignmentText(name, rows)])),
+  };
+}
+
+function productHost(files, commits) {
+  const current = { ...files };
+  return {
+    repositoryInfo: async () => ({ defaultBranch: "main", visibility: "private", canWrite: true }),
+    readSnapshot: async () => ({ commit: "p".repeat(40), paths: Object.keys(current).sort(),
+      read: async (path) => current[path] ?? null,
+      blob: (path) => current[path] === undefined || current[path] === null ? null : blobSha(current[path]) }),
+    commitFiles: async (change) => {
+      commits.push(change);
+      for (const file of change.files) current[file.path] = file.text;
+      return { commit: `${commits.length}`.repeat(40).slice(0, 40) };
+    },
+    webLinks: () => ({}),
+  };
+}
+
+function fixtureProductHosts() {
+  return {
+    [PRODUCT_ALPHA]: productFiles({ "team-one": [
+      ["Product Owner", ["alice"]],
+      ["Scrum Master", ["alice"]],
+      ["Developers", ["dev-a"]],
+    ] }),
+    [PRODUCT_BETA]: productFiles({ "team-web": [
+      ["Product Owner", ["alice"]],
+      ["Scrum Master", ["dev-a"]],
+      ["Developers", ["alice"]],
+    ] }),
+  };
+}
+
+function instanceProcessFiles() {
+  return { "SPEC.md": INSTANCE_SPEC, [MODEL_PATH]: MODEL_TEXT };
+}
+
+function browser(t, { files = {}, settings = {}, visibility = "private", products = {} } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   const store = openStore(INSTANCE);
   for (const [key, value] of Object.entries(settings)) writeSetting(store, key, value);
   const current = { [PARTICIPANTS]: EMPTY_PARTICIPANTS, ...files };
   const commits = [];
+  const productCommits = {};
+  const productHosts = Object.fromEntries(Object.entries(products).map(([web, productFiles]) => {
+    productCommits[web] = [];
+    return [web, productHost(productFiles, productCommits[web])];
+  }));
   const host = {
     repositoryInfo: async () => ({ defaultBranch: "main", visibility, canWrite: true }),
     readSnapshot: async () => ({ commit: "h".repeat(40), paths: Object.keys(current).sort(),
@@ -107,8 +249,8 @@ function browser(t, { files = {}, settings = {}, visibility = "private" } = {}) 
     webLinks: () => ({}),
   };
   t.after(() => { document.body.replaceChildren(); });
-  const context = { page: "review", instance: { repository: INSTANCE, host }, product: null, store, go() {} };
-  return { store, commits, files: current, context,
+  const context = { page: "review", instance: { repository: INSTANCE, host }, product: null, store, productHosts, go() {} };
+  return { store, commits, files: current, context, productCommits,
     async page() { const target = document.createElement("div"); document.body.append(target); await route().render(target, context, {}); await settle(); return target; } };
 }
 
@@ -130,6 +272,11 @@ function rowsOf(text) {
   return readDocument(participantSchema(), PARTICIPANTS, text).sections[0].rows.map((row) => row.cells);
 }
 const committedRows = (b) => rowsOf(b.commits.at(-1).files.find((file) => file.path === PARTICIPANTS).text);
+const changeButton = (root, name) => {
+  const button = byClass(root, "participant-change").find((candidate) => candidate.textContent.includes(name));
+  assert.ok(button, `change button for ${name}`);
+  return button;
+};
 
 // TST-352001 · level: unit · module: MOD-settings-pages
 // guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
@@ -359,4 +506,70 @@ test("participants — Test probes the selected agent, and a failed Bridge test 
   assert.equal(saveOf(one(page, "participants-form-box")).disabled, false);
   await save(page);
   assert.equal(failed.commits.length, 1);
+});
+
+// TST-354001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; A ROLE NAMES THE CAPABILITIES IT NEEDS; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: the browser's product list holds two products whose role assignments name dev-a, and dev-a is in the instance
+//   participant register with the capabilities a Developer needs
+// input: the author opens Change for dev-a, then removes write to the repository before saving the changed participant
+// expect: the participants page lists both products and the roles that name dev-a before Save; after the capability is
+//   removed, MOD-product-process' roleAssignmentFindings is shown for the assignment that is now invalid, naming the
+//   Developers role and the missing write to the repository capability; Save changes only docs/participants.md
+test("participants — changing a used participant lists product roles and invalid assignments before save", async (t) => {
+  const products = fixtureProductHosts();
+  const b = browser(t, { files: { [PARTICIPANTS]: USED_PARTICIPANTS, ...instanceProcessFiles() },
+    settings: { products: [PRODUCT_ALPHA, PRODUCT_BETA] }, products });
+  const page = await b.page();
+  await click(changeButton(page, "dev-a"));
+
+  let use = one(page, "participant-product-use");
+  assert.match(use.textContent, /product-alpha/);
+  assert.match(use.textContent, /team-one/);
+  assert.match(use.textContent, /Developers/);
+  assert.match(use.textContent, /product-beta/);
+  assert.match(use.textContent, /team-web/);
+  assert.match(use.textContent, /Scrum Master/);
+
+  const write = byClass(page, "participant-capability").find((box) => box.value === "write to the repository");
+  assert.ok(write, "write capability checkbox");
+  write.checked = false;
+  await fire(write, "change");
+
+  use = one(page, "participant-product-use");
+  assert.match(use.textContent, /docs\/role-assignments\/team-one\.md/);
+  assert.match(use.textContent, /holder dev-a of the role Developers lacks the capability write to the repository/);
+  assert.doesNotMatch(use.textContent, /team-web.*lacks the capability write to the repository/s);
+
+  await save(page);
+  assert.equal(b.commits.length, 1);
+  assert.deepEqual(b.commits[0].files.map((file) => file.path), [PARTICIPANTS]);
+  assert.deepEqual(Object.values(b.productCommits), [[], []]);
+  const rows = committedRows(b);
+  assert.equal(rows.length, 3);
+  const dev = rows.find((row) => row.Name === "dev-a");
+  assert.ok(dev);
+  assert.deepEqual(dev.Capabilities, ["read the repository", "run code and tests"]);
+});
+
+// TST-354002 · level: unit · module: MOD-settings-pages
+// guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: the browser's product list holds two products, but none of their role assignments names dev-b
+// input: the author opens Change for dev-b and saves the changed participant
+// expect: no product-use list is shown for dev-b, and Save still changes docs/participants.md once
+test("participants — a participant no product uses saves without the product-use list", async (t) => {
+  const products = fixtureProductHosts();
+  const b = browser(t, { files: { [PARTICIPANTS]: USED_PARTICIPANTS, ...instanceProcessFiles() },
+    settings: { products: [PRODUCT_ALPHA, PRODUCT_BETA] }, products });
+  const page = await b.page();
+  await click(changeButton(page, "dev-b"));
+  assert.equal(byClass(page, "participant-product-use").length, 0);
+  await put(one(page, "participant-place"), "lab machine");
+  assert.equal(byClass(page, "participant-product-use").length, 0);
+
+  await save(page);
+  assert.equal(b.commits.length, 1);
+  const dev = committedRows(b).find((row) => row.Name === "dev-b");
+  assert.ok(dev);
+  assert.equal(dev["Processing place"], "lab machine");
 });
