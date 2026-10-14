@@ -3,7 +3,7 @@
 import { formatFinding } from "../text-tools/index.mjs";
 
 /**
- * @param {import("./index.mjs").DriverInput} input
+ * @param {DriverInput} input
  * @returns {string} The prepared prompt and transient correction context, without repeating parts or schema.
  */
 export function driverPrompt(input) {
