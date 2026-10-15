@@ -17,3 +17,12 @@
 @media (prefers-color-scheme: dark) {
   :root { --panel: #0d213d; --heading: #f4f7fb; --muted: #9db0c5; --line: #20395c; }
 }
+
+/* The menu's step badges and the soon pill: a background and a text of each colour scheme's own, and a line height
+   that centres the digit. These rules follow the page's own style sheets and override their badge rules. */
+:root { --step-bg: #e2e7eb; --step-fg: #041e42; --pill-fg: #5b6b7d; }
+.menu > :nth-child(-n+6)::before { background: var(--step-bg); color: var(--step-fg); line-height: 1; }
+.menu > .soon::after { background: var(--step-bg); color: var(--pill-fg); line-height: 1.2; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --step-bg: #1d3557; --step-fg: #f4f7fb; --pill-fg: #c3d0df; }
+}

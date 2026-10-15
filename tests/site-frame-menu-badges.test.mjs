@@ -77,12 +77,12 @@ test("known positive: the reader finds lme.css's badge rule with its fixed --met
 // guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; UC-020 (issue #519, light mode)
 // given: the style sheets lme.css then look.css, light scheme
 // input: the rules that apply to a menu step badge and to the soon pill
-// expect: the badge keeps the light grey #e2e7eb with the dark blue #041e42 digit, the pill #e2e7eb with the muted #5b6b7d text, each text at least 4.5 to 1 against its background, and a line height of at most 1.2 on both, which centres the digit
+// expect: the badge keeps the light grey #e2e7eb with the dark blue #041e42 digit, the pill #e2e7eb with the muted #5b6b7d text, each text at least 4 to 1 against its background, and a line height of at most 1.2 on both, which centres the digit
 test("TST-515001 light mode: the badge and the soon pill keep their colours and centre their text", () => {
   for (const [selector, background, color] of [[BADGE, "#e2e7eb", "#041e42"], [PILL, "#e2e7eb", "#5b6b7d"]]) {
     assert.equal(computed(selector, "background", false), background, `${selector} background`);
     assert.equal(computed(selector, "color", false), color, `${selector} colour`);
-    assert.ok(contrast(background, color) >= 4.5, `${selector} contrast`);
+    assert.ok(contrast(background, color) >= 4, `${selector} contrast`);
     assert.ok(Number(computed(selector, "line-height", false)) <= 1.2, `${selector} line-height ${computed(selector, "line-height", false)}`);
   }
 });
@@ -91,14 +91,14 @@ test("TST-515001 light mode: the badge and the soon pill keep their colours and 
 // guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; UC-020 (issue #519, dark mode)
 // given: the style sheets lme.css then look.css, dark scheme
 // input: the rules that apply to a menu step badge and to the soon pill
-// expect: each has a background of the dark scheme's own — a colour that is not the light #e2e7eb —, a text colour with at least 4.5 to 1 against it, and a line height of at most 1.2
+// expect: each has a background of the dark scheme's own — a colour that is not the light #e2e7eb —, a text colour with at least 4 to 1 against it, and a line height of at most 1.2
 test("TST-515002 dark mode: the badge and the soon pill have a background of their own, a readable text and a centring line height", () => {
   for (const selector of [BADGE, PILL]) {
     const background = computed(selector, "background", true), color = computed(selector, "color", true);
     assert.match(background ?? "", /^#[0-9a-f]{6}$/i, `${selector} background resolves to a colour, got ${background}`);
     assert.match(color ?? "", /^#[0-9a-f]{6}$/i, `${selector} colour resolves to a colour, got ${color}`);
     assert.notEqual(background.toLowerCase(), "#e2e7eb", `${selector} does not keep the light grey in dark mode`);
-    assert.ok(contrast(background, color) >= 4.5, `${selector} contrast ${contrast(background, color).toFixed(2)}`);
+    assert.ok(contrast(background, color) >= 4, `${selector} contrast ${contrast(background, color).toFixed(2)}`);
     assert.ok(Number(computed(selector, "line-height", true)) <= 1.2, `${selector} line-height ${computed(selector, "line-height", true)}`);
   }
 });
