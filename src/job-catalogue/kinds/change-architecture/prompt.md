@@ -10,6 +10,10 @@ new or replaced library is a decision naming the candidate and its alternatives 
 
 {{instruction}}
 
+## The conversation so far
+
+{{conversation}}
+
 ## The whole SPEC
 
 {{whole-spec}}

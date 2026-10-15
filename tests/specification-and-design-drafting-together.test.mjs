@@ -17,7 +17,7 @@
 // this repository's disk, and whose register also holds the author's own source. The participant is a fixture driver that answers from a list and keeps every input it was sent.
 // Nothing reaches the network. Readings the texts leave open, taken here and named in the pull request:
 //   - The default scope of `chosen-requirements` (no choice) is the requirements no use case realises; the tests pass `requirements` where UC-007 step 1 lets the author choose.
-//   - The provenance lines are the six or seven `Agent-M-…` trailers of MOD-job-runner's provenanceLines, written out here from the module file, `Agent-M-Instruction` where the kind has one.
+//   - The provenance lines are the six `Agent-M-…` trailers of MOD-job-runner's provenanceLines, written out here, none naming the person's instruction.
 //   - A new use case gets one more than the highest number the head and the history hold (nextIdentifier), its path `docs/use-cases/UC-<nnn>-<slug of the drafted path>.md`.
 //   - A person's click on a kind they review is `writeResult(prepared, draft, { result, context })`; a CI agent's draft (UC-019 6b) is a run that is not attended.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
@@ -150,8 +150,8 @@ async function prepare(name, fake, params, limit) {
   return { context, job: await prepareJob(name, context, { drafter: DRAFTER, reviewers: [], limit }) };
 }
 const trailers = (message) => message.split("\n").filter((line) => line.startsWith("Agent-M-"));
-const provenance = (kind, rounds, instruction) => [`Agent-M-Version: ${AGENT_M.version}, commit ${AGENT_M.commit}`, `Agent-M-Job: ${JOB}`, `Agent-M-Kind: ${kind}`, "Agent-M-Participant: drafter-a",
-  "Agent-M-Model: example-model", `Agent-M-Rounds: ${rounds}`, ...(instruction ? [`Agent-M-Instruction: ${instruction}`] : [])];
+const provenance = (kind, rounds) => [`Agent-M-Version: ${AGENT_M.version}, commit ${AGENT_M.commit}`, `Agent-M-Job: ${JOB}`, `Agent-M-Kind: ${kind}`, "Agent-M-Participant: drafter-a",
+  "Agent-M-Model: example-model", `Agent-M-Rounds: ${rounds}`];
 const answer = (draft, answers = []) => ({ draft, answers });
 const lineOf = (f) => `${f.artifact}:${f.line}: ${f.kind}: ${f.what} [${f.rule}] — ${f.fix}`;
 const unrecorded = (fake) => Object.keys(fake.files()).filter((path) => path.startsWith("docs/approvals/")).length;
@@ -205,7 +205,7 @@ test("derive-use-cases — the parts of its recipes, a finding sent back and fix
   assert.equal(fake.files()[path], second.files[0].text.replaceAll("UC-900", "UC-010"));
   assert.equal(fake.files()["SPEC.md"], SPEC);
   assert.equal(unrecorded(fake), 1, "no approval record added: UC-007's stays the only one");
-  assert.deepEqual(trailers(fake.writes[0].message), provenance("derive-use-cases", 2, null));
+  assert.deepEqual(trailers(fake.writes[0].message), provenance("derive-use-cases", 2));
   assert.deepEqual(result.written.files, [path]);
 });
 
@@ -269,7 +269,7 @@ const WITH_ERRORS = useCase({ id: "UC-007", title: "Export a report", realises: 
 // guards: UC-019 4, 5, 7, 8, 9; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN EDITED FILE KEEPS ITS IDENTIFIER; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // given: UC-007 accepted on its text; the instruction "add error handling to UC-007"; a drafter that first returns the use case with the identifier UC-043, then with UC-007 and the alternative flow
 // input: prepareJob of change-use-case for UC-007; runJob attended; then writeResult with the draft as the person left it
-// expect: parts: the instruction, UC-007 and the requirement it realises with its text from the SPEC, then every other use case, chapter 8; the first draft gets the finding that the identifier changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] with the fix keep UC-007, sent back; the loop passes in two rounds and, attended, writes nothing; the click writes one commit holding UC-007's file with the drafted text, an open (changed) file whose last accepted text is still the accepted one; the message ends with the provenance lines with the instruction
+// expect: parts: the instruction, UC-007 and the requirement it realises with its text from the SPEC, then every other use case, chapter 8; the first draft gets the finding that the identifier changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] with the fix keep UC-007, sent back; the loop passes in two rounds and, attended, writes nothing; the click writes one commit holding UC-007's file with the drafted text, an open (changed) file whose last accepted text is still the accepted one; the message ends with the six provenance lines, none naming the instruction
 test("change-use-case — a changed identifier is sent back, nothing is written until the click, then one open file with the provenance lines", async () => {
   const fake = product(PRODUCT);
   const { job, context } = await prepare("change-use-case", fake, { useCase: "UC-007", instruction: INSTRUCTION });
@@ -302,7 +302,7 @@ test("change-use-case — a changed identifier is sent back, nothing is written 
   assert.equal(fake.writes.length, 1, "one commit, on the click");
   assert.deepEqual(fake.writes[0].files, [{ path: UC7_PATH, text: WITH_ERRORS }]);
   assert.deepEqual(written.files, [UC7_PATH]);
-  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-use-case", 2, INSTRUCTION));
+  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-use-case", 2));
   assert.equal(approvals.statuses(await fake.host.readSnapshot("trunk")).get(UC7_PATH).status, "changed");
   assert.deepEqual(await approvals.lastAcceptedText("UC-007", fake.host), { text: UC7, blob: gitBlob(UC7), path: UC7_PATH });
 });
@@ -343,7 +343,7 @@ test("change-use-case — a CI agent's draft is committed at once as an open fil
   assert.equal(result.stoppedBecause, "passed");
   assert.equal(fake.writes.length, 1);
   assert.deepEqual(fake.writes[0].files, [{ path: UC7_PATH, text: WITH_ERRORS }]);
-  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-use-case", 1, INSTRUCTION));
+  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-use-case", 1));
   assert.equal(unrecorded(fake), 1);
 });
 
@@ -401,7 +401,7 @@ test("change-requirements — a restated requirement classed new is sent back, t
   assert.ok(proposal.startsWith("## 3. Export\n"));
   assert.ok(/\*\*EXPORT IS A PDF\*\* \*\(Product Owner[^)]*SRC-alice[^)]*\)\*/.test(proposal), `the source SRC-alice added to EXPORT IS A PDF:\n${proposal}`);
   assert.equal(proposal.replace(/\*\*EXPORT IS A PDF\*\* \*\([^)]*\)\*/, `**${EXPORT}** *(Product Owner)*`), SECTION, "every other byte of the section as it was");
-  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 2, REQUIREMENTS_INSTRUCTION));
+  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 2));
 });
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
@@ -445,5 +445,5 @@ test("change-requirements — a CI agent's draft enters as a queue, and a candid
   assert.equal(fake.files()["SPEC.md"], SPEC);
   assert.ok(fake.writes[0].files.every((file) => !file.text.includes("A REPORT HAS A FOOTER")), "the stranger is not written");
   assert.ok(result.written.notes.some((note) => note.includes("A REPORT HAS A FOOTER") && note.includes("SRC-unlinked")), result.written.notes.join("|"));
-  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 1, REQUIREMENTS_INSTRUCTION));
+  assert.deepEqual(trailers(fake.writes[0].message), provenance("change-requirements", 1));
 });

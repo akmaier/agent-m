@@ -2,6 +2,7 @@
 name: change-architecture
 serves:
   - UC-023
+  - UC-049
 participant: one
 needs:
   - draft text
@@ -10,6 +11,7 @@ preconditions:
   - rests-on-accepted
 recipes:
   - instruction
+  - conversation
   - whole-spec
   - use-cases
   - whole-architecture
