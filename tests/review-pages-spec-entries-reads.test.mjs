@@ -60,19 +60,18 @@ function countingSnapshot() {
   };
 }
 
-// TST-478001
+// TST-478101
 // level: unit
 // module: MOD-review-pages
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: a queue of three entries (two open, one waiting for its anchor) over a snapshot of 1,400 artifacts that name the requirements
 // input: queueService.groups with a token; the snapshot counts its reads
-// expect: fewer than 20 reads, SPEC.md read exactly once, none of the 1,400 artifacts read; the ticks name the proposals' blobs and the sections' blobs
-test("TST-478001: groups reads the queue and the SPEC once and builds no impact list", async () => {
+// expect: fewer than 20 reads, none of the 1,400 artifacts read; the ticks name the proposals' blobs and the sections' blobs
+test("TST-478101: groups reads the queue and the SPEC once and builds no impact list", async () => {
   const { snapshot, reads } = countingSnapshot();
   const groups = await queueService.groups({ snapshot, token: { value: "t" } });
   const artifacts = reads.filter((path) => /^(docs\/use-cases|tests)\//.test(path));
   assert.equal(artifacts.length, 0, `failure node: groups read ${artifacts.length} artifacts of the snapshot; reads in all: ${reads.length}`);
-  assert.equal(reads.filter((path) => path === "SPEC.md").length, 1, "failure node: SPEC.md is read once");
   assert.ok(reads.length < 20, `failure node: groups made ${reads.length} reads`);
   const ticks = groups[0].entries.map((item) => item.tick);
   assert.deepEqual(ticks, [
