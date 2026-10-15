@@ -56,6 +56,7 @@ export { jobCost } from "./cost.mjs";
  * @typedef {{ id: string, kind: string, worksOn: string[], participant: string | null, model: string | null,
  *   route: string, run: string | null, retries: string | null, startedBy: string, start: Date,
  *   agentM: { version: string, commit: string }, inputs: string[], limit: number,
+ *   task?: "in parameters" | "with the hand-over", conversation?: string | null,
  *   destinations: Array<{ participant: string, place: string, parts: string[] }>, params: Record<string, unknown> }}
  *   JobStart
  */
@@ -79,6 +80,7 @@ export { jobCost } from "./cost.mjs";
  * @typedef {{ id: string, kind: string, worksOn: string[], participant: string | null, model: string | null,
  *   route: string | null, run: string | null, retries: string | null, startedBy: string | null, start: Date | null,
  *   agentM: { version: string, commit: string } | null, inputs: string[], limit: number | null,
+ *   task: "in parameters" | "with the hand-over", conversation: string | null,
  *   destinations: Array<{ participant: string, place: string, parts: string[] }>, params: Record<string, unknown>,
  *   path: string, taken: { at: Date, by: string } | null,
  *   gates: Array<{ at: Date, gate: string, decider: string, resumedBy: string | null }>, question: string | null,
@@ -250,6 +252,8 @@ export function startRecord(job) {
       agent_m: renderAgentM(job.agentM),
       inputs: job.inputs ?? [],
       limit: job.limit,
+      task: job.task ?? "in parameters",
+      conversation: job.conversation ?? "",
     },
     sections: [
       { heading: "## Destinations", text: renderDestinations(job.destinations ?? []) },
@@ -332,6 +336,8 @@ function recordFromDocument(doc) {
     agentM: parseAgentM(f.agent_m),
     inputs: asList(f.inputs),
     limit: f.limit,
+    task: f.task || "in parameters",
+    conversation: f.conversation || null,
     destinations: parseDestinations(destinations?.text),
     params: parseFencedJson(parameters?.text, {}),
     path: doc.path,
@@ -369,7 +375,7 @@ function unreadableRecord(path) {
   const id = /([^/]+)\.md$/.exec(path)?.[1] ?? path;
   return {
     id, kind: null, worksOn: [], participant: null, model: null, route: null, run: null, retries: null, startedBy: null,
-    start: null, agentM: null, inputs: [], limit: null, destinations: [], params: {}, path, taken: null, gates: [],
+    start: null, agentM: null, inputs: [], limit: null, task: "in parameters", conversation: null, destinations: [], params: {}, path, taken: null, gates: [],
     question: null, jobs: [], limitsRaised: [], end: null,
   };
 }
