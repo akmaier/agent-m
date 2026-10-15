@@ -1446,6 +1446,13 @@ Every test case names its input, its precondition and its expected result in a f
 read without running it.
 *Check:* `tests/test_test_battery.py`
 
+**A TEST DOES NOT TAKE ITS EXPECTED RESULT FROM A DOCUMENT** *(PO A. Maier)*
+A test that checks code never reads its expected result from the SPEC, a use case or an architecture file when it runs.
+*Check:* `tests/test_expected_results_stated.py` — lists every test that names a module and reads `SPEC.md`, a file under
+`docs/use-cases/` or a file under `docs/architecture/` when it runs, for review; the decision stays human. Counter-proof: a
+fixture test that compares a function's result with a value read from a module file is listed; the same test stating
+that value in its own text is not.
+
 **TEST GENERATION SEES THE EXISTING TESTS** *(PO A. Maier)*
 When tests are generated, every existing test of the product that guards the same requirements,
 use cases or modules is part of the input the generating participant receives.
