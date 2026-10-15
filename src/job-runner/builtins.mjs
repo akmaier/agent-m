@@ -1,5 +1,5 @@
 // The built-in strategies the runner registers itself (MOD-job-runner, Data: Built-in strategies): the recipes
-// `instruction` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form`,
+// `instruction`, `conversation`, `page` and `draft`, the writer `return-draft` and the checks `document-schema`, `requirement-form`,
 // `test-declarations`, `candidate-classes`, `group-rules` and `graph-checks`, what a built-in check needs of a job's context,
 // and the classes `candidate-classes` finds.
 //
@@ -130,6 +130,11 @@ export const builtins = {
     // The person's words, from the job's parameters, as one part.
     instruction: async (context, params) => (typeof params.instruction === "string" && params.instruction.trim()
       ? [part("instruction", params.instruction)] : []),
+    // The conversation so far, from the job's parameters, each message with who wrote it, as one part; none for the first message.
+    conversation: async (context, params) => (Array.isArray(params.conversation) && params.conversation.length
+      ? [part("conversation", params.conversation.map((message) => `${message.who}: ${message.text}`).join("\n\n"))] : []),
+    // The page the person sees, as its route's subject gives it in the job's parameters, as one part.
+    page: async (context, params) => (typeof params.page === "string" && params.page.trim() ? [part("page", params.page)] : []),
     // The draft the job is handed: the draft under review, for a reviewing kind; the cases as the person left them, for
     // write-tests. None while the job has no draft yet.
     draft: async (context, params) => (params.draft === undefined ? []

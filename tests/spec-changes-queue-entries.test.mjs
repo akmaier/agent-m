@@ -282,7 +282,7 @@ test("queue-entries — the queue of the day takes the next letter", async () =>
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-019 6b
 // given: a job of change-requirements whose parameters carry the person's own source and their instruction
 // input: the writer
-// expect: the requirement names that source with the passage; the rationale's origin names the instruction; the commit's message ends with the provenance lines, the instruction among them
+// expect: the requirement names that source with the passage; the rationale's origin names the instruction; the commit's message ends with the six provenance lines and no line names the instruction
 test("queue-entries — a change by prompt names the person's source and records the instruction", async () => {
   const f = fixture();
   f.context.kind = { name: "change-requirements" };
@@ -294,10 +294,10 @@ test("queue-entries — a change by prompt names the person's source and records
   assert.match(folder, /_change-requirements-job-20261012-0900-ab12$/);
   assert.ok(written[`${folder}/01-reading.md`].includes("*(Product Owner; SRC-fixture-book, ch. 8)*"));
   assert.ok(written[`${folder}/01-reading.begruendung.md`].includes("Instruction: Make the reader say why a file cannot be read. Keep the rest."));
-  const trailers = provenanceLines({ agentM: { version: "unreleased", commit: "c".repeat(40) }, jobId: "JOB-20261012-0900-ab12", kind: "change-requirements", participant: DRAFTER, rounds: 2,
-    instruction: "Make the reader say why a file cannot be read.\nKeep the rest." });
-  assert.ok(trailers.some((line) => line.startsWith("Agent-M-Instruction: ")));
-  assert.ok(commit.message.endsWith(trailers.join("\n")));
+  const trailers = ["Agent-M-Version: unreleased, commit " + "c".repeat(40), "Agent-M-Job: JOB-20261012-0900-ab12", "Agent-M-Kind: change-requirements",
+    "Agent-M-Participant: drafter-a", "Agent-M-Model: example-model", "Agent-M-Rounds: 2"];
+  assert.ok(commit.message.endsWith(trailers.join("\n")), commit.message);
+  assert.ok(!commit.message.split("\n").some((line) => line.startsWith("Agent-M-Instruction")), "no line names the instruction");
 });
 
 // TST-473004 · level: unit · module: MOD-spec-changes
