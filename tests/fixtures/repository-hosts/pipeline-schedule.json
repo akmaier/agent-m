@@ -1,0 +1,34 @@
+{
+  "request": {
+    "description": "Agent M nightly",
+    "cron": "17 3 * * *",
+    "timezone": "UTC",
+    "ref": "integration/ci",
+    "active": true,
+    "variables": { "ROWS": "system,paid", "OCCASION": "nightly" }
+  },
+  "changed": {
+    "description": "Agent M nightly",
+    "cron": "45 23 * * *",
+    "timezone": "Europe/Berlin",
+    "ref": "release/ci",
+    "active": false,
+    "variables": { "ROWS": "paid", "REPORT": "reports/nightly.xml" }
+  },
+  "existing": {
+    "id": 731,
+    "description": "Agent M nightly",
+    "cron": "0 1 * * *",
+    "cron_timezone": "UTC",
+    "ref": "main",
+    "active": true,
+    "variables": [{ "key": "ROWS", "value": "system", "variable_type": "env_var" }]
+  },
+  "repository": {
+    "default_branch": "integration/ci",
+    "visibility": "private",
+    "archived": false,
+    "description": "Schedule fixture",
+    "permissions": { "project_access": { "access_level": 40 } }
+  }
+}
