@@ -30,9 +30,15 @@ carries as `tools` and `toolLimit`: `converse` all five with a `tool_limit` of 3
 `change-use-case` and `change-architecture` the three reading tools and `hand-over`, as the module file says. The kind
 `converse` itself, and the recipe `conversation` of the change kinds, are ITM-485's.
 
+No existing test's expected result changes, release tests included: TST-472283 (`tests/job-catalogue.test.mjs`) compares
+only the fields it states, the release and system tests of UC-022 read single fields of `kindOf`, and
+`tests/job-runner-left-out.test.mjs` changes one line of a shipped definition.
+
 ## Acceptance
 
 - `toolsOf` gives the named tools in the order named and throws `UnknownTool` for a name `tools.md` lacks.
 - `kindOf` gives each kind's `tools` and `toolLimit` as the module file says, and an empty list for a kind that names
   none.
 - No tool's description or schema stands in code.
+- Each test states its expected values in its own text (`A TEST DOES NOT TAKE ITS EXPECTED RESULT FROM A DOCUMENT`); an
+  existing test that the change turns red is not changed here: the Developer stops and names it.
