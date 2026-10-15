@@ -6,7 +6,7 @@
 //
 // Module: MOD-repository-hosts
 //
-// WebLinks' other pages — pipeline schedules, Pages settings and the fork — are added by the items whose use cases open them.
+// WebLinks' other pages — Pages settings and the fork — are added by the items whose use cases open them.
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: the permissions of the one fine-grained token, as the parameters and access levels of
 // GitHub's prefilled token page ("Pre-filling fine-grained personal access token details using URL parameters", table
@@ -52,6 +52,7 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
       // no secret and carries no value (A CREDENTIAL IS NEVER PLACED IN A URL) —, its workflow runs, and one run.
       secrets: `${address.web}/settings/secrets/actions`,
       actions: `${address.web}/actions`,
+      pipelineSchedules: null,
       run: (id) => `${address.web}/actions/runs/${encodeURIComponent(id)}`,
     });
   }
@@ -69,6 +70,7 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
     // UC-010: the project's Settings > CI/CD, where its Variables are, its pipelines, and one pipeline.
     secrets: `${address.web}/-/settings/ci_cd`,
     actions: `${address.web}/-/pipelines`,
+    pipelineSchedules: `${address.web}/-/pipeline_schedules`,
     run: (id) => `${address.web}/-/pipelines/${encodeURIComponent(id)}`,
   });
 }
