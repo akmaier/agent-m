@@ -10,7 +10,7 @@
 // instance's prefix and throws StoreError. Every other file of this folder is private to it.
 
 import { isKnownKey } from "./catalogue.mjs";
-import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError } from "./store.mjs";
+import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError, tabStorage } from "./store.mjs";
 import { removeSignIn, signInOf, viewOfStorage } from "./sign-in.mjs";
 export { exportSettings, importSettings, readExport } from "./export.mjs";
 
@@ -37,6 +37,27 @@ export function readSetting(store, key) {
 export function writeSetting(store, key, value) {
   if (!isKnownKey(key)) throw new StoreError("UnknownSetting", { key }, `${key} is not a setting MOD-browser-store keeps.`);
   setRaw(store, key, JSON.stringify(value));
+}
+
+// readTabValue(store, key) -> the value this browser tab keeps under `key` for the instance, or null. No other tab reads
+// it. Throws StorageUnavailable.
+export function readTabValue(store, key) {
+  const raw = tabStorage().getItem(store.prefix + key);
+  if (raw === null || raw === undefined) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+// writeTabValue(store, key, value) -> void — keeps `value` in this tab's sessionStorage under the instance's prefix, or
+// removes it for null. A tab value is no setting: it is neither listed, exported nor imported. Throws
+// StorageUnavailable.
+export function writeTabValue(store, key, value) {
+  const storage = tabStorage();
+  if (value === null) { storage.removeItem(store.prefix + key); return; }
+  try {
+    storage.setItem(store.prefix + key, JSON.stringify(value));
+  } catch {
+    throw new StoreError("StorageUnavailable", {}, "sessionStorage refused to store this value.");
+  }
 }
 
 // clearSetting(store, key) -> void — removes the entry from localStorage itself, not only from a form (A CLEAR IS A
