@@ -22,7 +22,10 @@
     "cron_timezone": "UTC",
     "ref": "main",
     "active": true,
-    "variables": [{ "key": "ROWS", "value": "system", "variable_type": "env_var" }]
+    "variables": [
+      { "key": "ROWS", "value": "system", "variable_type": "env_var" },
+      { "key": "KEEP", "value": "unrelated-variable", "variable_type": "env_var" }
+    ]
   },
   "repository": {
     "default_branch": "integration/ci",

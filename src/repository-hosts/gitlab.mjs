@@ -240,6 +240,34 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         started: p.started_at ?? null, ended: p.finished_at ?? null };
     },
 
+    // Upsert by description across every page. A schedule's detail holds its variables; change only the supplied keys.
+    async setPipelineSchedule({ description, cron, timezone, ref, active, variables }) {
+      const url = `${api}/pipeline_schedules`;
+      const existing = (await everyPage(url, {}, (s) => s.id)).find((s) => s.description === description);
+      const body = { description, cron, cron_timezone: timezone, ref, active };
+      let schedule;
+      if (existing) {
+        schedule = await read(`${url}/${existing.id}`);
+        await call("PUT", `${url}/${existing.id}`, { body });
+      } else {
+        schedule = await json(await call("POST", url, { body }), address.origin);
+      }
+      const known = new Set((schedule.variables ?? []).map((v) => v.key));
+      for (const [key, value] of Object.entries(variables)) {
+        await call(known.has(key) ? "PUT" : "POST", `${url}/${schedule.id}/variables${known.has(key) ? `/${encodeURIComponent(key)}` : ""}`, {
+          body: known.has(key) ? { value } : { key, value },
+        });
+      }
+      return { id: String(schedule.id), url: `${address.web}/-/pipeline_schedules` };
+    },
+
+    // GitLab marks a draft with its documented title prefix; creation returns the same fields as list/get.
+    async openPullRequest({ branch, base, title, body, draft }) {
+      return pullOf(await json(await call("POST", `${api}/merge_requests`, {
+        body: { source_branch: branch, target_branch: base, title: draft ? `Draft: ${title}` : title, description: body },
+      }), address.origin));
+    },
+
     // The merge requests ("List project merge requests": state opened, closed, merged or all, source_branch, 100 to a page, read page by page).
     async listPullRequests({ state = "all", branch } = {}) {
       const ask = state === "open" ? "opened" : state;

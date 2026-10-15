@@ -135,6 +135,8 @@ test("TST-476402: GitLab finds later-page descriptions and updates idempotently"
   assertSchedule(fake.records[100], data.changed);
   assert.equal(fake.writes.filter((r) => r.method === "POST" && r.suffix === "").length, 0);
   assert.equal(fake.records[100].variables.filter((entry) => entry.key === "REPORT").length, 1);
+  assert.deepEqual(fake.records[100].variables.find((entry) => entry.key === "KEEP"),
+    data.existing.variables.find((entry) => entry.key === "KEEP"), "an unmentioned variable survives both updates");
 });
 
 // TST-476403
