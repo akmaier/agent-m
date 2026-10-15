@@ -28,7 +28,10 @@ answers an exchange with `endpointExchange`, and the tab's loop through it are I
 The existing tests whose expected result the accepted module files change, each named here:
 
 - TST-323001 (`tests/bridge-http-323.test.mjs`): the request of `POST /v1/ask` and the answer of `GET /v1/ask/{ask}`;
-- TST-324003 (`tests/bridge-client-324.test.mjs`): `ask` returns `calls` beside `text` and `usage`.
+- TST-324003 (`tests/bridge-client-324.test.mjs`): `ask` returns `calls` beside `text` and `usage`;
+- TST-324902 (`tests/bridge-release-21.test.mjs`), a release test: `ask` returns `calls` beside `text` and `usage`;
+  changed by developer-sonnet-e, who implemented none of the Bridge client's behaviour, never by this item's
+  implementer (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`).
 
 ## Acceptance
 
