@@ -64,7 +64,7 @@ async function using(fetchFn, run) {
 
 // SPEC.md and 1,331 backlog items: 1,332 files, every one of them an artifact the graph reads.
 function repositoryOf1332Files() {
-  const held = { "SPEC.md": "# Spec\n\n**A THING IS DONE**\n\nIt is done.\n" };
+  const held = { "SPEC.md": "# Spec\n\n**A THING IS DONE** *(Product Owner)*\n\nIt is done.\n" };
   for (let i = 0; i < 1331; i++) {
     const id = `ITM-${String(i + 1).padStart(4, "0")}`;
     held[`docs/backlog/${id}-item.md`] = `---\nid: ${id}\ntitle: Item ${i}\nlevel: system\n---\n# ${id} Item ${i}\n`;
@@ -117,7 +117,7 @@ test("traceGraph on a server that serves no GraphQL reads each file on its own",
 // expect: the log starts with one call readMany(["SPEC.md", "docs/use-cases/UC-001-a.md", "docs/backlog/ITM-001-a.md"]) — the three artifacts the graph reads, in the order of source.paths — and all reads come after it; README.md and src/a.mjs are not named
 test("traceGraph tells readMany every path it will read, once, before the first read", async () => {
   const held = {
-    "SPEC.md": "# Spec\n\n**A THING IS DONE**\n\nIt is done.\n",
+    "SPEC.md": "# Spec\n\n**A THING IS DONE** *(Product Owner)*\n\nIt is done.\n",
     "docs/use-cases/UC-001-a.md": "---\nid: UC-001\ntitle: A\nrealises:\n  - A THING IS DONE\n---\n# UC-001 A\n",
     "docs/backlog/ITM-001-a.md": "---\nid: ITM-001\ntitle: A\nlevel: system\n---\n# ITM-001 A\n",
     "README.md": "# readme\n",

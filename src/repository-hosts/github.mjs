@@ -9,10 +9,14 @@
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
-const API = "https://api.github.com", RAW = "https://raw.githubusercontent.com";
+const API = "https://api.github.com", GRAPHQL = `${API}/graphql`, RAW = "https://raw.githubusercontent.com";
 // GitHub's search of issues and pull requests: an address of the API outside the repository's own, which the token reaches too.
 const SEARCH = `${API}/search/issues`;
 const PAGE = 100, MAX_PAGES = 1000;
+// Files one GraphQL query names. GitHub's documentation ("Rate limits and node limits for the GraphQL API") gives no number of
+// aliased fields; it limits a call to 500,000 nodes and 10 seconds, and counts a call without connections as 1 point. 100 is
+// the largest first/last the same page allows, and a query of 101 files was answered whole at a cost of 1 (ITM-479's pull request).
+export const BATCH = 100;
 const JSON_ACCEPT = "application/vnd.github+json", RAW_ACCEPT = "application/vnd.github.raw+json";
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
 
@@ -55,7 +59,7 @@ function base64(bytes) {
 // under; links: the host's WebLinks, whose list of tokens is where a refused token is renewed and a repository added to it.
 export function githubAdapter(address, { token, tokenName }, links) {
   const repo = `${API}/repos/${address.path}`;
-  const gate = { allowed: [repo, SEARCH, `${RAW}/${address.path}`], tokenAt: [repo, SEARCH], header: "Authorization",
+  const gate = { allowed: [repo, SEARCH, GRAPHQL, `${RAW}/${address.path}`], tokenAt: [repo, SEARCH, GRAPHQL], header: "Authorization",
     value: token ? `Bearer ${token}` : null, token };
   const context = { server: "github", host: "GitHub", web: address.web, authenticated: Boolean(token), tokenName,
     renewal: links.tokens, permission: "Contents", what: address.web };
@@ -211,6 +215,31 @@ export function githubAdapter(address, { token, tokenName }, links) {
       const answer = await call("GET", url, { accept: RAW_ACCEPT, what: `${path} at ${commit}`, on: { 404: () => null } });
       return answer === null ? null : answer.text();
     },
+
+    // Many files' texts at a commit in one request of GitHub's GraphQL API ("repository.object(expression: "<commit>:<path>")" on a
+    // Blob; one aliased field for each path, a call without connections costing 1 point): the token alone reaches it, so only with
+    // one. -> Map(path -> text) of the files the answer gave whole; a file that is absent, binary (its text is null) or
+    // truncated (isTruncated) is left out, and its own readFile reads it. At most BATCH paths. A used-up limit is told by the
+    // headers of the answer, which GraphQL gives also on its 200 with the error type RATE_LIMITED.
+    readFiles: token ? async (commit, paths) => {
+      const query = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){${paths.map((p, i) =>
+        `f${i}:object(expression:${JSON.stringify(`${commit}:${p}`)}){...on Blob{text isTruncated}}`).join(" ")}}}`;
+      const [owner, name] = address.path.split("/");
+      const answer = await call("POST", GRAPHQL, { body: { query, variables: { owner, name } }, write: false, permission: "Contents", what: address.web });
+      const said = await json(answer, API);
+      if ((said?.errors ?? []).some((e) => e?.type === "RATE_LIMITED")) {
+        throw await refusal(new Response(null, { status: 403, headers: { ...Object.fromEntries(answer.headers), "x-ratelimit-remaining": "0" } }),
+          { ...context, write: false });
+      }
+      const found = said?.data?.repository;
+      const texts = new Map();
+      if (!found) return texts;
+      paths.forEach((p, i) => {
+        const blob = found[`f${i}`];
+        if (blob && typeof blob.text === "string" && !blob.isTruncated) texts.set(p, blob.text);
+      });
+      return texts;
+    } : undefined,
 
     // One commit of all the files on the head that was read: the branch is checked to stand at expectedHead, the tree is built
     // on that commit's tree, the commit's only parent is expectedHead, and the branch is moved to it only as a fast-forward —
