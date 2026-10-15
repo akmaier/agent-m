@@ -7,10 +7,10 @@
 // Guards: ONE DEFINITION, THREE DRIVERS; THE CATALOGUE IS DATA; THE CORRECTION LOOP HAS A FIXED LIMIT
 // Level: component
 //
-// The expected kinds are read from the module file: its table of kinds — name, the use cases it serves, what its participant
-// needs, its preconditions, recipes, checks, reviewers, steps, review and writer —, and the sentences under it that name the
-// kinds with product resources, with gate points, and with the rule a person decides. Every kind has the limit of rounds
-// UC-019 states as the default, 5, which the module file's example definition also gives.
+// The expected kinds are stated in this file: the table of kinds — name, the use cases it serves, what its participant
+// needs, its preconditions, recipes, checks, reviewers, steps, review and writer —, and the lists of the kinds with product
+// resources, with gate points, and with the rule a person decides. Every kind has the limit of rounds UC-019 states as the
+// default, 5.
 //
 // The catalogue is read as every caller reads it, through its index.mjs. Where a test needs a definition the catalogue does
 // not ship, the module is loaded anew with a disk that gives that text for one file and the real text for every other, as
@@ -24,27 +24,51 @@ import { readFileSync, readdirSync } from "node:fs";
 import { kindNames, kindOf } from "../src/job-catalogue/index.mjs";
 
 const MODULE = new URL("../src/job-catalogue/index.mjs", import.meta.url);
-const MODULE_FILE = new URL("../docs/architecture/MOD-job-catalogue.md", import.meta.url);
 const KINDS = new URL("../src/job-catalogue/kinds/", import.meta.url);
 const ONE_DEFINITION = "ONE DEFINITION, THREE DRIVERS";
 
-// ---------------------------------------------------------------- the module file
+// ---------------------------------------------------------------- the expected kinds, stated here
 
-const moduleText = readFileSync(MODULE_FILE, "utf8");
+// The accepted table of kinds, one row per kind, stated in this test's own text. Row cells: kind | serves | participant
+// needs | preconditions | recipes (a name ending in ? may be left out) | checks | reviewers | steps | review · writer |
+// the draft it expects. A ~ stands where the module file writes a backtick.
+const TABLE_TEXT = `
+| ~derive-requirements~ | UC-005 | draft text | | ~source-excerpt~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
+| ~change-requirements~ | UC-019, UC-012, UC-049 | draft text | | ~instruction~, ~conversation~, ~named-requirements~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | the same |
+| ~derive-use-cases~ | UC-007 | draft text | ~rests-on-accepted~ | ~chosen-requirements~, ~use-cases~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | | | ~none~ · ~open-files~ | files |
+| ~change-use-case~ | UC-019, UC-049 | draft text | | ~instruction~, ~conversation~, ~use-case-with-neighbours~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~identifier-kept~ | | | ~person~ · ~open-files~ | files |
+| ~derive-architecture~ | UC-022 | draft text | ~architecture-ready~ | ~whole-spec~, ~accepted-use-cases~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
+| ~change-architecture~ | UC-023, UC-049 | draft text | ~rests-on-accepted~ | ~instruction~, ~conversation~, ~whole-spec~, ~use-cases~, ~whole-architecture~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~identifier-kept~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
+| ~review-architecture~ | UC-022, UC-023 | draft text | | ~whole-spec~, ~accepted-use-cases~, ~draft~, ~chapters-for-architecture~ | | | | ~none~ · ~return-draft~ | findings, each a warning |
+| ~propose-groups~ | UC-021 | draft text | | ~items-of-kind~ | ~group-rules~ | | | ~none~ · ~return-draft~ | moves, each a ~GroupMove~ of MOD-group-document |
+| ~draft-plan~ | UC-045 | draft text | ~rests-on-accepted~ | ~architecture-and-model~ | ~plan-checks~ | | | ~person~ · ~plan-steps~ | steps |
+| ~propose-items~ | UC-032 | draft text | ~rests-on-accepted~ | ~backlog-inputs~ | ~backlog-checks~, ~candidate-classes~ | | | ~person~ · ~backlog-items~ | items |
+| ~close-sprint~ | UC-041 | draft text, read the repository, write to the repository | | ~sprint-facts~ | ~sprint-record-checks~ | | | ~none~ · ~sprint-record~ | the review, the retrospective, the proposed changes |
+| ~implement~ | UC-024, UC-034, UC-043 | write to the repository, run code and tests | ~rests-on-accepted~ | ~implementation-inputs~, ~chapters-for-implementation~ | | | | ~none~ · ~branch-and-pull-request~ | the agent's report: branch, commits, pull request |
+| ~refactor~ | UC-024 | write to the repository, run code and tests | ~rests-on-accepted~ | ~implementation-inputs~ | | | | ~none~ · ~branch-and-pull-request~ | the same |
+| ~decide-gate~ | UC-034, UC-036 | read the repository | | ~gate-inputs~ | | | | ~none~ · ~gate-record~ | the decision and its reasoning |
+| ~set-up-ci~ | UC-043, UC-027 | — | | | | | | ~none~ · ~ci-configuration~ | — |
+| ~propose-tests~ | UC-026, UC-043 | read the repository, write to the repository, run code and tests | ~rests-on-accepted~ | ~test-selection~, ~chapters-for-tests~ | ~test-proposals~, ~candidate-classes~ | | | ~person~ · ~return-draft~ | test cases: identifier, level, what each guards, precondition, input, expected result, class |
+| ~write-tests~ | UC-026, UC-043 | read the repository, write to the repository, run code and tests | ~rests-on-accepted~ | ~draft~, ~test-selection~, ~chapters-for-tests~ | ~test-declarations~, ~test-proposals~ | | | ~none~ · ~branch-and-pull-request~ | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
+| ~run-tests~ | UC-028, UC-013 | run code and tests | | ~commit-and-levels~ | | | | ~none~ · ~result-record~ | the outcomes |
+| ~analyse-issue~ | UC-012 | draft text | | ~issue-context~ | | | | ~none~ · ~return-draft~ | the class and its reasoning |
+| ~fix-bug~ | UC-012 | write to the repository, run code and tests | | ~fix-inputs~, ~chapters-for-tests~ | | | | ~none~ · ~branch-and-pull-request~ | the agent's report |
+| ~propose-issues~ | UC-038 | draft text | | ~mail-batch~ | ~people-search~ | | | ~none~ · ~return-draft~ | one proposal per mail |
+| ~rewrite-without-persons~ | UC-038 | draft text | | ~report-data~ | ~people-search~ | ~check-for-persons~ × 3 | | ~none~ · ~return-draft~ | the rewritten text |
+| ~check-for-persons~ | UC-038 | draft text | | ~draft~ | | | | ~none~ · ~return-draft~ | findings |
+| ~draft-replies~ | UC-039 | draft text | | ~reply-inputs~ | | | | ~none~ · ~mail-drafts~ | one reply per mail |
+| ~check-resource~ | UC-040 | run code and tests | | ~resource-check~ | | | | ~none~ · ~return-draft~ | what answered |
+| ~converse~ | UC-049 | draft text | | ~page~, ~conversation~, ~instruction~, ~chapters-for-page?~ | ~document-schema~, ~graph-checks~ | | | ~person~ · ~return-draft~ | the answer, and the edits the participant proposed |
+`;
 
-// The names a cell lists: the text of each `…` in it, or, without any, its comma-separated words; none for "—" or blank.
+// The names a cell lists: the text of each ~…~ in it, or, without any, its comma-separated words; none for "—" or blank.
 const named = (cell) => {
-  const quoted = [...cell.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+  const quoted = [...cell.matchAll(/~([^~]+)~/g)].map((m) => m[1]);
   if (quoted.length) return quoted;
   return cell.trim() === "—" || cell.trim() === "" ? [] : cell.split(",").map((part) => part.trim());
 };
 
-// The table of kinds — the rows under its header `| Kind | Serves | …` —, one object per row, as the module file writes it.
-const lines = moduleText.split("\n");
-const header = lines.findIndex((line) => line.startsWith("| Kind | Serves |"));
-const tableRows = [];
-for (let at = header + 2; header >= 0 && at < lines.length && lines[at].startsWith("|"); at += 1) tableRows.push(lines[at]);
-const TABLE = tableRows.map((line) => {
+const TABLE = TABLE_TEXT.trim().split("\n").map((line) => {
   const cells = line.split("|").slice(1, -1);
   const [kind, serves, needs, preconditions, recipes, checks, reviewers, steps, reviewWriter] = cells;
   const [review, writer] = named(reviewWriter);
@@ -53,19 +77,12 @@ const TABLE = tableRows.map((line) => {
     recipes: named(recipes), checks: named(checks), reviewer, steps: named(steps), review, writer };
 });
 
-// The sentence of the module file that holds `marker`, its white space made single.
-const sentence = (marker) => moduleText.replace(/\s+/g, " ").split(/(?<=\.) /).find((text) => text.includes(marker)) ?? "";
-// "`implement`, `refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`."
-const PRODUCT_RESOURCES = named(sentence("have `resources: product`").split(" have ")[0]);
-// "For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, …; for `write-tests`,
-// `before-merge`."
-const gatePoints = sentence("`gate_points` names `before-merge` and `question`");
-const MERGE_AND_QUESTION = named(gatePoints.split(", `gate_points`")[0]);
-const MERGE_ONLY = named(gatePoints.split("; for ")[1]?.split(", `before-merge`")[0] ?? "");
-// "For `derive-requirements`, `change-requirements` and the architecture kinds, `person_decides` names …": the
-// architecture kinds are the two that draft architecture files, derive-architecture and change-architecture.
-const PERSON_DECIDES = [...named(sentence("`person_decides` names").split(" and the architecture kinds")[0]),
-  "derive-architecture", "change-architecture"];
+// The kinds with `resources: product`; with the gate points before-merge and question; with before-merge alone; and those
+// whose findings of A CONFLICT IS DECIDED BY A PERSON go to a person.
+const PRODUCT_RESOURCES = ["implement", "refactor", "fix-bug", "write-tests", "run-tests"];
+const MERGE_AND_QUESTION = ["implement", "refactor", "fix-bug"];
+const MERGE_ONLY = ["write-tests"];
+const PERSON_DECIDES = ["derive-requirements", "change-requirements", "derive-architecture", "change-architecture"];
 
 const promptPlaces = (prompt) => [...new Set([...prompt.matchAll(/\{\{([a-z-]+)\}\}/g)].map((m) => m[1]))].sort();
 
@@ -112,13 +129,11 @@ const diskWith = (ending, changed) => (reads) => ({
 
 // TST-472282 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE CATALOGUE IS DATA
-// given: the catalogue as shipped; the module file's table of kinds; the folders under src/job-catalogue/kinds/
+// given: the catalogue as shipped; the table of kinds stated in this file; the folders under src/job-catalogue/kinds/
 // input: kindNames()
 // expect: the names of the table's rows, in the table's order, and exactly one folder for each name
-test("kindNames — every kind of the module file's table, in its order, each with a folder of its own", async () => {
-  assert.ok(TABLE.length > 20 && TABLE.every((row) => row.writer), "known positive: the module file's table is read");
-  assert.deepEqual([PRODUCT_RESOURCES.length, MERGE_AND_QUESTION.length, MERGE_ONLY, PERSON_DECIDES.length],
-    [5, 3, ["write-tests"], 4], "known positive: the sentences under the table are read");
+test("kindNames — every kind of the stated table, in its order, each with a folder of its own", async () => {
+  assert.equal(TABLE.length, 26, "known positive: the stated table holds the 26 kinds");
   const names = await kindNames();
   assert.deepEqual(names, TABLE.map((row) => row.name));
   const folders = readdirSync(KINDS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name);
@@ -129,10 +144,10 @@ test("kindNames — every kind of the module file's table, in its order, each wi
 
 // TST-472283 · level: component · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS; THE CATALOGUE IS DATA; THE CORRECTION LOOP HAS A FIXED LIMIT
-// given: each kind of the catalogue; the row of the module file's table with its name
+// given: each kind of the catalogue; the row of the stated table with its name
 // input: kindOf(name)
-// expect: a definition read without an error, whose name is its folder's; the use cases it serves, what its participant needs — and `participant: none` exactly where the table names nothing —, its preconditions, recipes — one that may be left out only where the row writes its name with a ? —, checks, reviewer kind and number of reviewers, steps, review and writer as the row gives them; `resources: product` and the gate points before-merge and question exactly for the kinds the module file names, before-merge alone for write-tests; A CONFLICT IS DECIDED BY A PERSON exactly for the requirement and architecture kinds; the limit 5; a purpose in a paragraph
-test("kindOf — every shipped definition is read without an error and says what the module file's table says", async () => {
+// expect: a definition read without an error, whose name is its folder's; the use cases it serves, what its participant needs — and `participant: none` exactly where the table names nothing —, its preconditions, recipes — one that may be left out only where the row writes its name with a ? —, checks, reviewer kind and number of reviewers, steps, review and writer as the row gives them; `resources: product` and the gate points before-merge and question exactly for the kinds this file names, before-merge alone for write-tests; A CONFLICT IS DECIDED BY A PERSON exactly for the requirement and architecture kinds; the limit 5; a purpose in a paragraph
+test("kindOf — every shipped definition is read without an error and says what the stated table says", async () => {
   for (const row of TABLE) {
     const kind = await kindOf(row.name);
     const expected = {

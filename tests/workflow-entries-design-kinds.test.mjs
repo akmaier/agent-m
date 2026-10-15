@@ -161,7 +161,7 @@ function fakeWorld(draft, w) {
 const run = (w, extra) => { assert.ok(runEntry, `runEntry: ${entries.error?.message}`); return runEntry("onRecordsChanged", environment(w, extra), { now: NOW }); };
 const trailer = (message) => message.split("\n").filter((line) => line.startsWith("Agent-M-"));
 const expectedProvenance = (w, id, kind, rounds) => [`Agent-M-Version: ${w.agentM.version}, commit ${w.agentM.commit}`, `Agent-M-Job: ${id}`, `Agent-M-Kind: ${kind}`,
-  "Agent-M-Participant: ci-bot", "Agent-M-Model: fixture-llm", `Agent-M-Rounds: ${rounds}`, `Agent-M-Instruction: ${INSTRUCTION}`];
+  "Agent-M-Participant: ci-bot", "Agent-M-Model: fixture-llm", `Agent-M-Rounds: ${rounds}`];
 
 // ---------------------------------------------------------------- a change of a use case
 
@@ -169,7 +169,7 @@ const expectedProvenance = (w, id, kind, rounds) => [`Agent-M-Version: ${w.agent
 // guards: A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: a product holding the use case UC-001, its requirement and a queued job of `change-use-case` that asks for a change of UC-001 with an instruction; an instance with the participant, the book's chapter and a source the product links; a fixture endpoint that answers the changed use case, classed a change of UC-001
 // input: onRecordsChanged
-// expect: outcome `done`; one commit by the writer on the product's main that changes UC-001's file to the drafted text and nothing else — an open file: no approval record —, its message ending with the provenance lines of the job (the version and commit of Agent M, the job, the kind, the participant, the model, the rounds and the instruction); the file itself naming none of them; the job's End appended
+// expect: outcome `done`; one commit by the writer on the product's main that changes UC-001's file to the drafted text and nothing else — an open file: no approval record —, its message ending with the provenance lines of the job (the version and commit of Agent M, the job, the kind, the participant, the model and the rounds — six lines, none naming the instruction); the file itself naming none of them; the job's End appended
 test("onRecordsChanged — a queued change-use-case job ends in one commit of an open file", async () => {
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(USE_CASE_JOB, "change-use-case", { useCase: "UC-001", instruction: INSTRUCTION }, agentM))],
     extra: { "SPEC.md": SPEC, "docs/sources.md": LINKS, [UC_PATH]: UC_BEFORE } }, async (w) => {
@@ -182,7 +182,8 @@ test("onRecordsChanged — a queued change-use-case job ends in one commit of an
     assert.equal(fileAt(w, UC_PATH), UC_AFTER);
     const message = git(w.product, "log", "-1", "--format=%B", writer[0]);
     const lines = trailer(message);
-    assert.equal(lines.length, 7);
+    assert.equal(lines.length, 6);
+    assert.ok(lines.every((line) => !line.startsWith("Agent-M-Instruction") && !line.includes(INSTRUCTION)), "no line names the instruction");
     assert.deepEqual(lines.filter((line) => !line.startsWith("Agent-M-Rounds")), expectedProvenance(w, USE_CASE_JOB, "change-use-case", 0).filter((line) => !line.startsWith("Agent-M-Rounds")));
     assert.match(lines.find((line) => line.startsWith("Agent-M-Rounds")), /^Agent-M-Rounds: \d+$/);
     for (const mention of ["Agent-M", w.agentM.version, w.agentM.commit, "ci-bot", "fixture-llm", USE_CASE_JOB]) assert.ok(!fileAt(w, UC_PATH).includes(mention), `the file does not name ${mention}`);
