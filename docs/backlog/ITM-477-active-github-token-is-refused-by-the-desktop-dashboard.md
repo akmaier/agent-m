@@ -117,3 +117,14 @@ request, the exact constructed fixture token in Authorization, credentials omit 
 selected existing repository-host tests for token routing, 401 classification and repositoryInfo also pass. These
 checks verify the caller's construction, not the live signed-out transport. The failing request's response body and
 the signed-in/signed-out request comparison remain unobserved; the reported condition is retained for that diagnostic.
+
+## Current Disposition
+
+On 2026-10-15 the human reports signing out of GitHub and finding that the token still works. The incident cannot be
+reproduced, and the human directs Team 2 back to its sprint work. Browser login is therefore not an established
+requirement or demonstrated cause. The earlier measurements and hypotheses remain above with their limitations.
+
+No authentication implementation job starts, no code fix is claimed, and no token rotation or login change is needed
+to resume the sprint. Further live credential and native Network-panel inspection are not pursued under the pending
+diagnostic request. This unselected item is retained as evidence of a currently non-reproducible incident; it is not
+counted as an implemented increment or as a blocker for ITM-476.
