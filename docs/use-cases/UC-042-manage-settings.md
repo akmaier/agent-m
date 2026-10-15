@@ -29,6 +29,8 @@ realises:
   - AN EXPORT STATES THAT IT CONTAINS SECRETS
   - AN EXPORT CAN BE LOCKED WITH A PASSPHRASE
   - THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
+  - A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+  - SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
 ---
 # UC-042 Manage settings in one place
 
@@ -39,7 +41,7 @@ changes it, or removes it, without hunting through the use cases in which it was
 | Kept in | Settings | First set up in |
 |---|---|---|
 | **this browser** | the instance's GitHub token; a token per product — a fine-grained token on GitHub, a project access token on GitLab; model endpoints with their keys and, for one the browser cannot call, the Bridge that reaches it; each Bridge paired with this browser — its name, its address or its port on the jump host, and its token (UC-044); mailbox connection — route, app client ID and sign-in token, or servers, password and its Bridge — with its folders and allowed processing places; mails marked *not an issue* (identifiers only); the jump host — hostname, SSH user, port range, HTTPS address and web-server login; list of products; notifications of what waits for acceptance — on or off, and what was notified | UC-014, UC-001, UC-003, UC-011, UC-037, UC-038, UC-044, UC-047 |
-| **the instance repository** | participants; source library; process models; the instance's resources | UC-017, UC-004, UC-031, UC-040 |
+| **the instance repository** | participants; source library; process models; the instance's resources; **recording conversations** of the prompt bar in git — on or off | UC-017, UC-004, UC-031, UC-040, this use case |
 | **each product's repository** | process model; role assignment, one per team in a model with sprints; Definition of Done; test schedule; linked sources; resources; **pseudonymisation**; **collaborators** who agreed to be named | UC-002, UC-048, UC-027, UC-015, UC-040, this use case |
 
 Browser settings belong to this person on this computer; repository settings bind everyone who works
@@ -75,6 +77,13 @@ on the instance or product, so they are changed by a commit.
 3. **Instance** and **product** sections show each setting as a short summary with **Edit**, which
    opens the owning use case's form in place. Saving is one click and commits to that repository under
    the person's account.
+
+   **Recording conversations** (instance) — every conversation of the prompt bar (UC-049) recorded in git — shows *off*
+   — the default — or *on*. Switching it on shows, before saving: every message, the person's and the participant's,
+   will be committed to the repository of the page the conversation is held on, under `docs/conversations/`; it stays in
+   that repository's history; and, for each repository the server reports as public, that the conversations held on its
+   pages will be published. The person ticks *I have read this* and presses **Save**; the setting is committed to the
+   instance repository's settings.
 4. **Pseudonymisation** (per product) — report data from mails rewritten without persons (UC-038) —
    shows *on* — the default — or *off*. Switching it off shows, before
    saving: report data from mails will then enter this product's issues and repository unchanged; this
@@ -130,6 +139,8 @@ sequenceDiagram
   step 4.
 - **2b. The person clears the mailbox connection.** As UC-037, 8a; issues and their mail identifiers are
   not touched.
+- **3b. The person switches recording conversations off.** Saved without a notice. Conversations from then on stay in
+  the browser tab; records already written stay in the repositories' history, and the page says so.
 - **4a. The person switches pseudonymisation back on.** Saved without a notice. Data already written
   while it was off stays in the repository's history; the page says so, and that removing it needs a
   rewrite of that history.

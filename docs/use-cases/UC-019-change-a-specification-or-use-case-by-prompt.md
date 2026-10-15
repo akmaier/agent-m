@@ -26,7 +26,8 @@ realises:
   - AN EDITED FILE KEEPS ITS IDENTIFIER
   - A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED
   - A GENERATED ARTIFACT IS A PROPOSAL
-  - THE PAGE STATES WHAT IT SENDS WHERE
+  - THE PAGE NAMES WHERE IT SENDS
+  - A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
   - AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
   - ONE DEFINITION, THREE DRIVERS
   - A PARTICIPANT DECLARES ITS CAPABILITIES
@@ -44,8 +45,8 @@ realises:
 ---
 # UC-019 Change a specification or a use case by prompt
 
-**Goal.** The author says in one sentence what should change — "split this requirement", "add error
-handling to UC-007" — and a participant of their choice drafts the change. The author sees the draft
+**Goal.** With a requirement or a use case open, the author says in the prompt bar (UC-049) what should change — "split
+this requirement", "add error handling to UC-007" — and the participant the bar talks to drafts the change. The author sees the draft
 as a difference against the current text, corrects it in the editor of UC-018, and saves: a use case
 is committed as open, a requirement becomes a proposal for UC-006. The book's advice to pair text
 with models "for agents" (Vibe Coding, ch. 9 §1) is what makes this work: the participant reads the
@@ -54,8 +55,8 @@ same Markdown the author does.
 ## Actors
 
 - **Author** — writes the instruction and decides on the result.
-- **Drafting participant** — a model endpoint, CI agent, CLI agent or sandboxed agent from the
-  instance's list (UC-017) that can *draft text*.
+- **Drafting participant** — the model endpoint, CLI agent or sandboxed agent the prompt bar talks to (UC-049), from the
+  instance's list (UC-017), that can *draft text*.
 - **GitHub** — hosts the product repository (a GitLab server for a GitLab product).
 
 ## Precondition
@@ -67,12 +68,12 @@ same Markdown the author does.
 
 ## Main flow
 
-1. On a requirement in the specification browser (UC-020), on a group of requirements, or on a use
-   case, the author presses **Change by prompt**.
-2. The author writes the instruction. A folded **What is this?** gives examples: split a requirement,
-   make a rule checkable, add an alternative flow, align a use case with a changed requirement.
-3. The author chooses the participant. Agent M offers only participants that can draft text, and
-   shows for each where it processes data.
+1. With a requirement open in the specification browser (UC-020), a group of requirements, or a use case, the author
+   writes the instruction in the prompt bar (UC-049). The bar's folded **What is this?** gives examples: split a
+   requirement, make a rule checkable, add an alternative flow, align a use case with a changed requirement.
+2. The participant is the one named above the prompt bar, with the place where it processes data (UC-049, step 1); for a
+   change, Agent M offers there only participants that can draft text.
+3. The open requirement, group or use case is the target of the change; the author does not name it.
 4. Agent M assembles what the participant must see:
    - **requirements:** the requirements to change, and every requirement of the product — in its
      SPEC and in its open queues;
@@ -81,8 +82,7 @@ same Markdown the author does.
    - **for both:** chapter 8 of the book *Vibe Coding*.
 
    It checks that the instruction and all of this fit into the participant's context.
-5. The run panel shows the destination, what exactly is sent and how many requirements and use cases
-   are included. The author presses **Run** — that click is the decision to send.
+5. The author presses **Send** — that click is the decision to send.
 6. Agent M sends the instruction and the context with the change prompt from the repository's single
    definition. The participant returns the changed text; for requirements, each resulting requirement
    is classified as new, a change to a named requirement, a duplicate of one, or a conflict with one,
@@ -90,7 +90,7 @@ same Markdown the author does.
    which the product links (UC-004, UC-015).
 7. **The correction loop.** Before showing anything, Agent M checks the draft without a model and
    sends every finding back to the participant, which returns a corrected draft; this repeats until the
-   draft passes, or until the limit of rounds stated in the run panel (default 5), or until a round
+   draft passes, or until the limit of rounds fixed before the first round and named in the conversation (default 5), or until a round
    changes nothing. Each finding reads like a compiler message — artifact and line, *error* or
    *warning*, the rule by name, the correction expected:
 
@@ -106,12 +106,13 @@ same Markdown the author does.
    which Agent M itself proposes as withdrawal plus new requirement.
 8. The dashboard opens the editor of UC-018 with the draft, showing the difference against the
    current text line by line; for requirements, each one carries its class and stands beside the
-   existing requirement it refers to. The author edits freely, or presses **Refine** with a
-   follow-up instruction, which repeats steps 5–7 on the current draft.
+   existing requirement it refers to. The author edits freely, or writes a follow-up instruction in the prompt bar,
+   which repeats steps 5–7 on the current draft.
 9. The author presses **Save** — one click — and UC-018 continues at step 5: the use case is
    committed as open, or a queue entry is written and the SPEC stays unchanged. The commit, or the
-   queue entry, records the instruction, the participant, the model, the Agent M version, the date,
-   and how many correction rounds the draft needed.
+   queue entry, records the participant, the model, the Agent M version, the date, and how many
+   correction rounds the draft needed — never the instruction, which is a message of the conversation and is kept only
+   in its conversation record when the instance records conversations (UC-049, 6c).
 
 ```mermaid
 sequenceDiagram
@@ -119,15 +120,13 @@ sequenceDiagram
     participant D as Dashboard
     participant P as Drafting participant
     participant G as Product repository
-    A->>D: Change by prompt, instruction, participant
+    A->>D: instruction in the prompt bar, Send
     D->>G: read target, related requirements and use cases
-    D-->>A: destination, what is sent, counts
-    A->>D: Run
     D->>P: instruction, context, change prompt
     P-->>D: changed text, classes for requirements
     D->>D: exact duplicates, identifiers, realised names
     D-->>A: difference against current text in the editor
-    A->>D: edit or Refine, then Save
+    A->>D: edit or follow-up instruction, then Save
     alt use case
         D->>G: commit file (open)
     else requirement
@@ -144,13 +143,13 @@ sequenceDiagram
 - **4b. A change of requirements, and the author has no source of their own that the product links.**
   Nothing is sent. Agent M says so and links registering the author as a source (UC-004) and linking
   it to the product (UC-015).
-- **5a. The author does not press Run.** Nothing is sent.
+- **5a. The author does not press Send.** Nothing is sent.
 - **6a. The participant is a CLI or sandboxed agent** (UC-011). The request goes through the local
   bridge; the agent returns the draft to the dashboard and the flow continues at step 7.
-- **6b. The participant is a CI agent** (UC-010). The workflow runs the correction loop of step 7 from
+- **6b. The work is handed to GitHub Actions** (UC-049, 4a). The workflow runs the correction loop of step 7 from
   the same definition, then commits the draft to the default branch — a use case as open, a change to
   requirements as an entry of a new queue under `docs/spec-freigaben/`; `SPEC.md` is not touched. The
-  commit records what step 9 records. Instead of step 8, the author reviews it on the dashboard: a use
+  commit records what step 9 records, and its job record names no message of the conversation. Instead of step 8, the author reviews it on the dashboard: a use
   case in UC-008, shown against its last accepted text (UC-008, 2a); a queue entry in UC-006, beside the
   current SPEC section, where a conflict with an existing requirement is decided. Nothing counts before
   it is accepted.
@@ -160,7 +159,7 @@ sequenceDiagram
   nothing.
 - **7a. The loop ends with findings left** — the limit is reached, or a round changed nothing. The
   editor of step 8 opens with the draft and, beside it, the remaining findings in the same compiler
-  form and the number of rounds; the author fixes them by hand, presses **Refine**, or discards the
+  form and the number of rounds; the author fixes them by hand, writes a follow-up instruction, or discards the
   draft. A changed `id` is restored by Agent M before the editor opens; a use case that should become two
   is split by keeping this one and adding another.
 - **7b. The participant dropped a name from `realises`.** The difference highlights it — a dropped name
@@ -182,4 +181,4 @@ sequenceDiagram
   was written: a use case as open, or a queue entry beside the current SPEC section; the SPEC itself is
   unchanged.
 - No requirement was duplicated: a restated rule became a duplicate, a changed rule kept its name.
-- The record of the change names the instruction and the participant that drafted it.
+- The record of the change names the participant and the model that drafted it, and no message of the conversation.

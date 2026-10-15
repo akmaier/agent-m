@@ -33,7 +33,7 @@ them to roles (UC-048).
 | **Person** | a colleague's GitHub or GitLab account | the dashboard | all, and decisions |
 | **Model endpoint** | NHR hub, an OpenAI or Anthropic endpoint; a local model server such as Ollama | the browser (UC-003) — directly, or through the Bridge its configuration names (UC-011) | draft text |
 | **CI agent** | an agent run inside a GitHub Actions or GitLab CI job — on GitHub's machines, or on a **self-hosted runner** on the person's own machine or VM | a workflow (UC-010) | read, write, run code and tests |
-| **CLI agent** | Claude Code or Codex on a computer of the author's | the Bridge on that computer (UC-011) | read, write, run code and tests, tools |
+| **CLI agent** | Claude Code or Codex on a computer of the author's | the Bridge on that computer (UC-011), or, for a subagent, the CLI agent that starts it | read, write, run code and tests, tools |
 | **Sandboxed agent** | a CLI agent inside a VM or container | the Bridge in it, through a tunnel (UC-011) | as CLI agent, isolated |
 
 ## Actors
@@ -69,7 +69,9 @@ them to roles (UC-048).
      names — on this computer, at a forwarded address, for a sandbox the tunnel's local address, or through the jump
      host for a machine behind NAT (UC-011, 1a and 1c) —; the agent, chosen from those that Bridge offers (UC-044); and
      the **model** the agent is configured to use, for example `claude-opus-5-5`. Several participants may name the
-     same Bridge and agent: each job starts its own process there (UC-011, 1d).
+     same Bridge and agent: each job starts its own process there (UC-011, 1d). A **subagent** — an agent that another
+     CLI agent starts, such as a Claude Code subagent — names, instead of a Bridge, the participant that starts it: it is
+     reached only through that participant, and the prompt bar does not offer it (UC-049, 1b).
 
    Every participant that works with a language model names its model; Agent M compares these names when
    it picks three checkers that differ from the rewriting participant (UC-038, step 6). A person names none.
@@ -78,7 +80,8 @@ them to roles (UC-048).
    output tokens, so that the usage a runtime reports can be priced (`NO COST IS GUESSED`). Left empty, a job is
    not sent to it, and its costs are shown as usage with *price unknown*.
 4. Agent M presets the capabilities typical for the type — draft text, read the repository, write to
-   the repository, run code and tests, use tools, reach the web — and the author adjusts them.
+   the repository, run code and tests, use tools, reach the web — and the author adjusts them. For a model endpoint,
+   *use tools* is preset from the endpoint's test (UC-003, step 5).
 5. The author states where the participant processes data. Agent M presets it where it can tell
    (*this machine* for a CLI agent) and asks otherwise, with examples.
 6. For a CLI or sandboxed agent, the author presses **Test**; Agent M sends a harmless request through
@@ -122,4 +125,6 @@ sequenceDiagram
 
 - The instance lists the participant with type, capabilities and processing place; no key is in the
   repository.
+- A model endpoint, CLI agent or sandboxed agent that this browser reaches directly is offered in the prompt bar
+  (UC-049); a subagent is not.
 - A product's role assignment can give it roles that need no more than its capabilities (UC-048).

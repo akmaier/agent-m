@@ -34,8 +34,10 @@ directly, or through the Bridge that reaches it.
 1. The author opens the configuration screen.
 2. The author enters endpoint URL, model name and API key.
 3. Agent M stores them in the browser's `localStorage` of the Agent M site; it sets no cookie.
-4. Agent M sends one short test request to the endpoint.
-5. The endpoint answers; Agent M shows the configuration as working.
+4. Agent M sends one short test request to the endpoint, which offers the model one tool and asks it to call it.
+5. The endpoint answers; Agent M shows the configuration as working, and whether the model called the tool — *can use
+   tools* or *text only*. A participant on this endpoint is preset accordingly (UC-017, step 4), and a model that can use
+   tools works in the prompt bar's loop (UC-049, step 4).
 
 ```mermaid
 sequenceDiagram
@@ -45,9 +47,9 @@ sequenceDiagram
     participant E as Model endpoint
     A->>M: endpoint, model, key
     M->>L: store configuration
-    M->>E: test request
-    E-->>M: answer
-    M-->>A: configuration works
+    M->>E: test request offering one tool
+    E-->>M: answer, with or without the tool call
+    M-->>A: configuration works, can use tools or text only
 ```
 
 ## Alternative flows
@@ -64,6 +66,8 @@ sequenceDiagram
   HTTPS address (UC-044, 6a 5). Step 4's test request goes through that Bridge, and so do the requests of the jobs that
   use the endpoint. A server in the LAN that the browser can call — over HTTPS with a certificate the browser trusts,
   allowing the instance's address — needs no Bridge.
+- **5a. The endpoint answers but rejects the tool, or answers without calling it.** The configuration is shown as
+  working, *text only*; the endpoint's message, if it gave one, is shown folded.
 - **4b. The key is wrong.** Agent M shows the endpoint's error message; the key stays stored until
   the author changes or clears it.
 - **2b. The author clears the configuration.** Agent M removes the entries from `localStorage`,
