@@ -47,6 +47,7 @@ provides:
   - listReleaseAssets
   - publishRelease
   - setPipelineSchedule
+  - containsCommit
   - issueCounts
   - webLinks
 ---
@@ -190,6 +191,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   `NotSupported`.
 - `listPullRequests(filter: { state?: "open" | "merged" | "closed" | "all", branch?: string }) -> Promise<PullRequest[]>` —
   crosses the network; fails as `readSnapshot`.
+- `containsCommit(branch: string, commit: string) -> Promise<boolean>` — whether the branch's history holds the commit:
+  on GitHub and GitLab through the server's comparison of the two, in a clone with `git merge-base --is-ancestor`. A
+  commit the server does not know is not contained. Crosses the network; fails as `readSnapshot`.
 - `pullRequestFacts(number: number) -> Promise<PullRequestFacts>` — the commits of a pull request in order, the files each
   changed, the CI result of each commit, and the texts of changed files on both sides. Crosses the network; fails as
   `readSnapshot`.

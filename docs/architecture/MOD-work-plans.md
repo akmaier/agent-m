@@ -53,6 +53,7 @@ provides:
   - itemStates
   - startable
   - heldItems
+  - undecidedHeads
   - conflicts
   - planFindings
   - backlogFindings
@@ -139,10 +140,16 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   work-in-progress limit reached by the items in progress under `assignment`, the item's role assignment, naming them and
   those waiting for review; the gate before its phase not recorded, naming it and its decider; no holder of the
   implementing role in `assignment` with what the role needs.
-- `heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown") ->
-  Held[]` — every item a team's sprint holds, from the sprint records and the pull requests, with the modules it changes
-  and the modules whose interfaces they use (`A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH`); with the pull
-  requests unknown, a selected item counts as held.
+- `heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown",
+  onDefault?: Set<string>) -> Held[]` — every item a team's sprint holds, from the sprint records and the pull requests,
+  with the modules it changes and the modules whose interfaces they use (`A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE
+  DEFAULT BRANCH`); with the pull requests unknown, a selected item counts as held. An item's hold ends when a merged pull
+  request naming it reaches the default branch through the pull requests that merge its base on, or when that pull
+  request's head commit is in `onDefault` — the head commits a caller found on the default branch with the host's
+  `containsCommit`, for a change that reached it another way. Without `onDefault`, only the pull requests decide.
+- `undecidedHeads(sprints: Document[], pullRequests: PullRequest[]) -> string[]` — the head commits of the merged pull
+  requests that name an item a sprint holds and whose chain of pull requests reaches no default branch: the only commits a
+  caller needs to ask `containsCommit` about before calling `heldItems`. Pure; no request.
 - `conflicts(item: Document, team: string, held: Held[], architecture: Document[]) -> Array<{ sprint: string, team:
   string, item: string, module: string }>` — what keeps an item from the team's selection: each item another team's sprint
   holds that is the item itself, changes a module the item changes or uses, or uses a module the item changes, with that

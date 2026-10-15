@@ -10,6 +10,7 @@ uses:
   - MOD-work-plans.Held
   - MOD-work-plans.itemStates
   - MOD-work-plans.heldItems
+  - MOD-work-plans.undecidedHeads
   - MOD-work-plans.planSchemas
   - MOD-product-process.Workflow
   - MOD-product-process.declarationSchema
@@ -46,6 +47,7 @@ uses:
   - MOD-documents.Document
   - MOD-documents.readDocument
   - MOD-documents.readRegister
+  - MOD-repository-hosts.containsCommit
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.RepositoryInfo
@@ -141,7 +143,8 @@ The six stages of the main page, each a share between 0 and 1:
   instance's participants, the plan or the backlog
   and the sprints, the gate records, the job records and the live state of every job that has not ended — from the CI
   service, from the Bridges given in `bridges` and from this tab, through MOD-runtimes' `liveState` —, the pull
-  requests, the CI runs of the head, the tags, the branch `test-results`, the test declarations and the resource list.
+  requests — and, for the head commits MOD-work-plans' `undecidedHeads` names, whether the default branch contains them,
+  through the host's `containsCommit`, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations and the resource list.
   Considers:
   - `instance` is the instance as the caller reads it, for its participants, process models and `SPEC.md`: on a page
     its default branch; in CI the checkout of the instance at the commit of Agent M that runs (MOD-workflow-entries).
@@ -240,7 +243,7 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 
 ## Uses
 
-- MOD-work-plans.ItemState, Held, itemStates, heldItems, planSchemas — the steps and items, their order, the sprints,
+- MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, planSchemas — the steps and items, their order, the sprints,
   what they hold, and each one's state.
 - MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates — the declared process, its gates
   and their states. The workflow is read with the instance's SPEC, where the process requirements stand.
