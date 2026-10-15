@@ -2,6 +2,7 @@
 name: change-use-case
 serves:
   - UC-019
+  - UC-049
 participant: one
 needs:
   - draft text
@@ -9,6 +10,7 @@ resources: none
 preconditions:
 recipes:
   - instruction
+  - conversation
   - use-case-with-neighbours
   - chapters-for-requirements
 checks:

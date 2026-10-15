@@ -9,6 +9,10 @@ Where the instruction would make it restate another use case, say so in the text
 
 {{instruction}}
 
+## The conversation so far
+
+{{conversation}}
+
 ## The use case, the requirements it realises, and every other use case
 
 {{use-case-with-neighbours}}
