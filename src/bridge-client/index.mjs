@@ -142,7 +142,7 @@ export async function testBridge(bridge) {
 
 export async function handOver(bridge, job) {
   const route = apiRoute("POST", "/v1/jobs");
-  return call(bridge, route.path, { method: route.method, body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit }) });
+  return call(bridge, route.path, { method: route.method, body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit, ...(job.task === undefined ? {} : { task: job.task }) }) });
 }
 
 export async function ask(bridge, target, input) {
