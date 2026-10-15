@@ -6,22 +6,21 @@
 import { formatFinding } from "../text-tools/index.mjs";
 
 /**
- * provenanceLines(job: { agentM: { version: string, commit: string }, jobId: string, kind: string, participant:
- * Participant, rounds: number, instruction: string | null }) -> string[] — the git trailers every commit a job makes
- * carries at the end of its message: the Agent M version and commit, the job, the kind, the participant and its model,
- * the number of correction rounds, and, where the kind has one, the person's instruction on one line.
+ * provenanceLines(job: { agentM: { version: string, commit: string }, jobId: string | null, kind: string, participant:
+ * Participant, rounds: number }) -> string[] — the git trailers every commit a job makes carries at the end of its
+ * message: the Agent M version and commit, the job — none for a job without a record, such as a conversation held in
+ * the tab —, the kind, the participant and its model, and the number of correction rounds. No line names the person's
+ * instruction or any other message of a conversation.
  */
-export function provenanceLines({ agentM, jobId, kind, participant, rounds, instruction }) {
-  const lines = [
+export function provenanceLines({ agentM, jobId, kind, participant, rounds }) {
+  return [
     `Agent-M-Version: ${agentM.version}, commit ${agentM.commit}`,
-    `Agent-M-Job: ${jobId}`,
+    ...(jobId === null ? [] : [`Agent-M-Job: ${jobId}`]),
     `Agent-M-Kind: ${kind}`,
     `Agent-M-Participant: ${participant.name}`,
     `Agent-M-Model: ${participant.model ?? "none"}`,
     `Agent-M-Rounds: ${rounds}`,
   ];
-  if (instruction) lines.push(`Agent-M-Instruction: ${instruction.replace(/\s*\n\s*/g, " ").trim()}`);
-  return lines;
 }
 
 const count = (n) => (n === 0 ? "no finding" : n === 1 ? "1 finding" : `${n} findings`);

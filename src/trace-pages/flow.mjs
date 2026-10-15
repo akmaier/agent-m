@@ -89,7 +89,11 @@ function overview(spec, editable) {
       toggle.setAttribute("aria-expanded", String(collapsed));
     });
     const group = el("section", "spec-section", el("h3", null, toggle), table);
-    if (editable) group.insertBefore(reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading }), table);
+    if (editable) {
+      const added = reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading });
+      added.setAttribute("style", "display: inline-block; margin: 0 0 12px;");
+      group.insertBefore(added, table);
+    }
     page.append(group);
   }
   if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));

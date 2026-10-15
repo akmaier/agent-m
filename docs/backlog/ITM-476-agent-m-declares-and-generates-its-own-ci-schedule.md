@@ -1,7 +1,7 @@
 ---
 id: ITM-476
 title: Agent M declares and generates its own CI schedule
-level: component
+level: system
 realises:
   - UC-027
   - THE TEST SCHEDULE IS DECLARED PER PRODUCT

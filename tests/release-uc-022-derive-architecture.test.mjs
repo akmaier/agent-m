@@ -72,7 +72,7 @@ const COVERED_BY_RELEASE = {
   "ONE REVIEW LAYOUT FOR EVERY PRODUCT": ["tests/test_pages_layout.py"],
   "AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT": ["tests/artifact-edits-open-files.test.mjs", "tests/system-uc-022-derive-architecture.test.mjs"],
   "A DOCUMENT HOLDS NO HISTORY": ["tests/test_no_history.py"],
-  "THE PAGE STATES WHAT IT SENDS WHERE": ["tests/test_destination_disclosure.py", "tests/system-uc-022-derive-architecture.test.mjs"],
+  "THE PAGE NAMES WHERE IT SENDS": ["tests/site-frame-run-panel.test.mjs", "tests/system-uc-022-derive-architecture.test.mjs"],
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": ["tests/review-core.test.mjs", "tests/system-uc-022-derive-architecture.test.mjs"],
   "EVERY STEP EXPLAINS ITSELF": ["tests/test_step_explanations.py"],
   "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT": ["tests/test_correction_loop.py", "tests/system-uc-022-derive-architecture.test.mjs"],

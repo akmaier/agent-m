@@ -61,6 +61,17 @@ export function setRaw(store, key, raw) {
   }
 }
 
+// tabStorage() -> the tab's sessionStorage, which a value of the tab lives in (MOD-browser-store, Interfaces:
+// readTabValue, writeTabValue). Throws StorageUnavailable where the browser has none.
+export function tabStorage() {
+  let storage;
+  try { storage = globalThis.sessionStorage; } catch { storage = null; }
+  if (!storage || typeof storage.setItem !== "function") {
+    throw new StoreError("StorageUnavailable", {}, "sessionStorage is not available in this browser.");
+  }
+  return storage;
+}
+
 // removeRaw(store, key) -> void — removes the entry from localStorage itself (A CLEAR IS A REAL CLEAR).
 export function removeRaw(store, key) {
   store.storage.removeItem(store.prefix + key);

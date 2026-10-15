@@ -8,7 +8,7 @@
 //         COMPILER MESSAGE
 // Level: unit
 //
-// Every expected value is read from the module file's Data: the seven trailer lines and their order, and the round record's
+// The expected trailer lines are stated in the test itself; the round record's expected text is read from the module file's Data: its
 // example — a round with two findings, one fixed and one justified, a round with no finding, and the line naming what is
 // left, why the loop stopped and its limit. Each test states its input and its expected result before it runs.
 
@@ -31,11 +31,11 @@ const EXAMPLE = MODULE_FILE.slice(MODULE_FILE.indexOf("```markdown\n## Rounds") 
 // ---------------------------------------------------------------- provenanceLines
 
 // TST-472342 · level: unit · module: MOD-job-runner
-// guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: a job of the kind change-use-case by drafter-a with example-model, two rounds, Agent M unreleased at a commit, and a person's instruction over two lines; then the same without an instruction
+// guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: a job of the kind change-use-case by drafter-a with example-model, two rounds, Agent M unreleased at a commit, and a person's instruction over two lines passed with it; then the same job with `jobId: null`
 // input: provenanceLines of each
-// expect: the seven trailers in the module file's order, the instruction on one line; without an instruction, the six others
-test("provenanceLines — the trailers every commit of a job carries, in the module file's order, the instruction on one line", () => {
+// expect: exactly the six lines Agent-M-Version, Agent-M-Job, Agent-M-Kind, Agent-M-Participant, Agent-M-Model and Agent-M-Rounds in this order, none naming the instruction or any word of it; for `jobId: null` the same without the Agent-M-Job line
+test("provenanceLines — six trailers in order, none naming the person's instruction, no job line without a job", () => {
   const job = { agentM: { version: "unreleased", commit: "a".repeat(40) }, jobId: "JOB-20261011-0800-abcd",
     kind: "change-use-case", participant: PARTICIPANT, rounds: 2, instruction: "Add an alternative flow\nfor a refused token." };
   const lines = provenanceLines(job);
@@ -46,11 +46,9 @@ test("provenanceLines — the trailers every commit of a job carries, in the mod
     "Agent-M-Participant: drafter-a",
     "Agent-M-Model: example-model",
     "Agent-M-Rounds: 2",
-    "Agent-M-Instruction: Add an alternative flow for a refused token.",
   ]);
-  const keys = [...MODULE_FILE.matchAll(/^(Agent-M-[A-Za-z]+):/gm)].map((m) => m[1]);
-  assert.deepEqual(lines.map((line) => line.split(":")[0]), keys, "the module file's trailers, in its order");
-  assert.deepEqual(provenanceLines({ ...job, instruction: null }), lines.slice(0, 6));
+  assert.ok(lines.every((line) => !line.startsWith("Agent-M-Instruction") && !/refused token/.test(line)), "no line names the instruction");
+  assert.deepEqual(provenanceLines({ ...job, jobId: null }), [lines[0], ...lines.slice(2)], "without a job, no Agent-M-Job line");
 });
 
 // ---------------------------------------------------------------- roundsText

@@ -126,7 +126,9 @@ uses; the key itself stays on its computer.
   `accepted` is the job's identifier. Crosses the network; fails with every `BridgeError` but `AskFailed`, among them
   `BridgeFailed` with `paused` while the Bridge is paused.
 - `ask(bridge: Bridge, target: { agent: string } | { endpoint: bridgeApi's endpoint configuration }, input: unknown) ->
-  Promise<{ text: string, usage: unknown | null }>` — `POST /v1/ask` with `{ agent, input }` or `{ endpoint, input }`,
+  Promise<{ text: string, calls: { id: string, name: string, args: object }[], usage: unknown | null }>` — `POST /v1/ask`
+  with `{ agent, input }`, `{ endpoint, input }`, or `{ endpoint, exchange }` for one request of a tool loop the page runs,
+  whose answer's `calls` carry the endpoint's tool calls back to the page (empty otherwise),
   then `GET /v1/ask/{ask}` until the answer's state is `done` or `failed`: the draft of an agent the Bridge offers, or the
   answer of a model endpoint the Bridge calls, and the usage reported. The endpoint's configuration and key travel only in
   that request's body. MOD-runtimes makes a participant driver of it. Crosses the network; fails with every

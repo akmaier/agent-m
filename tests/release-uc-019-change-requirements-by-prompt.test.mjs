@@ -234,7 +234,8 @@ test("TST-418110: explicit Run and one Save preserve proposal state and complete
   assert.equal(proposalWrites(s).length, 0);
   await save(s); assertProposal(s);
   const write = proposalWrites(s)[0];
-  for (const trailer of ["Agent-M-Version:", "Agent-M-Job:", "Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter", "Agent-M-Model: fixture-model", "Agent-M-Rounds: 1", `Agent-M-Instruction: ${INSTRUCTION}`]) assert.ok(write.message.includes(trailer), trailer);
+  for (const trailer of ["Agent-M-Version:", "Agent-M-Job:", "Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter", "Agent-M-Model: fixture-model", "Agent-M-Rounds: 1"]) assert.ok(write.message.includes(trailer), trailer);
+  assert.ok(!write.message.split("\n").some((line) => line.includes("Agent-M-Instruction") || line.includes(INSTRUCTION)), "no line names the instruction");
   const decisions = Object.entries(write.files).find(([path]) => path.endsWith("/entscheidungen.md"));
   assert.ok(decisions); assert.doesNotMatch(decisions[1], /akzeptiert|accepted/i);
   assert.match(recordTexts(s)[0], /start: \d{4}-\d{2}-\d{2}/);
@@ -469,7 +470,8 @@ test("TST-418120: the actual CI entry commits requirements only as an open propo
     const decisions = paths.find((path) => path.endsWith("/entscheidungen.md")); assert.ok(decisions);
     assert.doesNotMatch(git(product.origin, "show", `main:${decisions}`), /akzeptiert|accepted/i);
     const messages = git(product.origin, "log", "--format=%B", "main");
-    for (const line of [`Agent-M-Version: ${agentM.version}`, "Agent-M-Participant: ci-drafter", "Agent-M-Model: ci-model", "Agent-M-Rounds: 1", `Agent-M-Instruction: ${INSTRUCTION}`]) assert.ok(messages.includes(line), line);
+    for (const line of [`Agent-M-Version: ${agentM.version}`, "Agent-M-Participant: ci-drafter", "Agent-M-Model: ci-model", "Agent-M-Rounds: 1"]) assert.ok(messages.includes(line), line);
+    assert.ok(!messages.split("\n").some((l) => l.includes("Agent-M-Instruction") || l.includes(INSTRUCTION)), "no line names the instruction");
   });
 });
 
@@ -555,7 +557,8 @@ test("TST-418124: the actual CI correction request carries its rejected draft an
     const proposal = git(product.origin, "show", `main:${proposals[0]}`);
     assert.ok(proposal.includes(candidate().rule)); assert.ok(proposal.includes(candidate().check));
     const messages = git(product.origin, "log", "--format=%B", "main");
-    for (const line of [`Agent-M-Version: ${agentM.version}`, "Agent-M-Participant: ci-drafter", "Agent-M-Model: ci-model", "Agent-M-Rounds: 2", `Agent-M-Instruction: ${INSTRUCTION}`]) assert.ok(messages.includes(line), line);
+    for (const line of [`Agent-M-Version: ${agentM.version}`, "Agent-M-Participant: ci-drafter", "Agent-M-Model: ci-model", "Agent-M-Rounds: 2"]) assert.ok(messages.includes(line), line);
+    assert.ok(!messages.split("\n").some((l) => l.includes("Agent-M-Instruction") || l.includes(INSTRUCTION)), "no line names the instruction");
   });
 });
 
