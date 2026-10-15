@@ -16,17 +16,17 @@ const { queueService } = await import("../src/review-pages/spec-entries.mjs");
 
 const text = (...lines) => `${lines.join("\n")}\n`;
 const blobOf = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
-const READING = text("## 1. Reading", "", "**A SAMPLE RULE** *(Fixture PO)*", "A reader reads a file whole.", "*Check:* `tests/sample.test.mjs`");
+const READING = text("## 1. Reading", "", "**A SAMPLE RULE** *(Fixture PO)*", "A reader reads a file whole.", "*Check:* `tests/sample.test.mjs`", "");
 const READING_NEW = READING.replace("whole.", "whole, or says why not.");
-const ADDED = text("## 1a. Added", "", "**AN ADDED RULE** *(Fixture PO)*", "A reader sees what was added.", "*Check:* no automatic check; at review");
+const ADDED = text("## 1a. Added", "", "**AN ADDED RULE** *(Fixture PO)*", "A reader sees what was added.", "*Check:* no automatic check; at review", "");
 const ADDED_NEW = ADDED.replace("what was added.", "what was added, and when.");
-const WRITING = text("## 2. Writing", "", "**A WRITE RULE** *(Fixture PO)*", "A writer writes a file whole.", "*Check:* no automatic check; at review");
+const WRITING = text("## 2. Writing", "", "**A WRITE RULE** *(Fixture PO)*", "A writer writes a file whole.", "*Check:* no automatic check; at review", "");
 const WRITING_NEW = WRITING.replace("whole.", "entirely.");
-const SPEC = text("# Fixture product — Specification", "") + READING + "\n" + WRITING;
+const SPEC = text("# Fixture product — Specification", "") + READING + WRITING;
 
 const QUEUE = "docs/spec-freigaben/2026-03-01_sample";
 const entries = [
-  { nr: "05", anchor: "## 1. Reading", proposal: READING_NEW + "\n" + ADDED },
+  { nr: "05", anchor: "## 1. Reading", proposal: READING_NEW + ADDED },
   { nr: "06", anchor: "## 1a. Added", proposal: ADDED_NEW },
   { nr: "07", anchor: "## 2. Writing", proposal: WRITING_NEW },
 ];
