@@ -14,7 +14,9 @@ file states under Data. Its front matter holds, in this order:
 - `reviewer` and `reviewers` — the kind its reviewing participants run, and how many;
 - `gate_points` — `before-write`, `before-merge`, `question`;
 - `review` — `person` or `none`; `writer` — the strategy that writes the result; `limit` — the default number of
-  correction rounds.
+  correction rounds;
+- `tools` and `tool_limit` — the tools of `tools.md` its drafter may be offered, and the most tool calls of one exchange;
+  both left out for a kind that offers none.
 
 Its body is one section, `## Purpose`, saying in a paragraph what the kind does.
 
@@ -42,7 +44,9 @@ Its body is one section, `## Purpose`, saying in a paragraph what the kind does.
     "gate_points": { "type": "list", "item": { "type": "enum", "values": ["before-write", "before-merge", "question"] } },
     "review": { "type": "enum", "values": ["person", "none"], "required": true },
     "writer": { "type": "text", "required": true },
-    "limit": { "type": "number", "required": true }
+    "limit": { "type": "number", "required": true },
+    "tools": { "type": "list", "item": { "type": "text" } },
+    "tool_limit": { "type": "number" }
   },
   "sections": [
     { "heading": "## Purpose", "required": true }

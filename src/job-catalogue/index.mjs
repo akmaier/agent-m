@@ -1,11 +1,12 @@
 // MOD-job-catalogue — every kind of job, as data (docs/architecture/MOD-job-catalogue.md): its interface — KindDefinition,
-// kindNames and kindOf.
+// ToolDefinition, kindNames, kindOf and toolsOf.
 //
 // Module: MOD-job-catalogue
 //
 // It belongs to Participants and jobs (ARC-046). It runs unchanged in a browser and in Node, and reads only its own data
-// files: the schema of a definition, definition.schema.md, and the schema of its index, kinds.schema.md, each once, when the
-// module is loaded; the index kinds.md, once, at the first call that needs it; and each kind's three files — kind.md,
+// files: the schema of a definition, definition.schema.md, the schema of its index, kinds.schema.md, and the schema of the
+// register of tools, tools.schema.md, each once, when the module is loaded; the index kinds.md and the register tools.md, each
+// once, at the first call that needs it; and each kind's three files — kind.md,
 // prompt.md, answer.schema.json —, once, at the first kindOf of that kind. Each is read from the disk in Node and from the
 // module's own address in a browser. A schema that cannot be read, or that breaks the language, stops the module's load, as
 // MOD-documents' file says of a broken schema. It writes nothing. It uses MOD-documents and MOD-text-tools only through
@@ -21,13 +22,19 @@ import { finding } from "../text-tools/index.mjs";
  * @typedef {{ name: string, serves: string[], participant: "one" | "none", needs: Capability[], resources: "none" |
  *   "product", preconditions: string[], recipes: Array<{ name: string, optional: boolean }>, checks: string[],
  *   personDecides: string[], reviewer: string | null, reviewers: number, steps: string[], gatePoints: Array<"before-write" |
- *   "before-merge" | "question">, review: "person" | "none", writer: string, limit: number, purpose: string,
+ *   "before-merge" | "question">, review: "person" | "none", writer: string, limit: number, tools: string[], toolLimit: number, purpose: string,
  *   prompt: string, answer: object | null }} KindDefinition
+ */
+
+/**
+ * One row of tools.md, its argument schema read from its JSON.
+ * @typedef {{ name: string, needs: Capability, description: string, input: object }} ToolDefinition
  */
 
 const OWNER = "MOD-job-catalogue";
 const RULE = "ONE DEFINITION, THREE DRIVERS";
 const INDEX_PATH = "src/job-catalogue/kinds.md";
+const TOOLS_PATH = "src/job-catalogue/tools.md";
 // The platform's ways to read, as the module is loaded: the disk in Node, fetch in a browser.
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 const web = disk ? null : globalThis.fetch;
@@ -53,6 +60,7 @@ const failure = (name, message, fields) => Object.assign(new Error(message), { n
 // The schemas of a definition and of the index, each loaded once, as the module is loaded.
 const DEFINITION = loadSchema(await own("./definition.schema.md"), OWNER);
 const INDEX = loadSchema(await own("./kinds.schema.md"), OWNER);
+const TOOLS = loadSchema(await own("./tools.schema.md"), OWNER);
 
 let index = null;
 const kinds = new Map();
@@ -61,6 +69,14 @@ const kinds = new Map();
 const indexOf = () => (index ??= (async () => {
   const { rows } = readRegister(INDEX, INDEX_PATH, await own("./kinds.md"));
   return new Map(rows.map(({ cells }) => [String(cells.Kind), String(cells.Folder)]));
+})());
+
+// The register of tools: each tool by its name, in the register's order, read once.
+let tools = null;
+const toolTable = () => (tools ??= (async () => {
+  const { rows } = readRegister(TOOLS, TOOLS_PATH, await own("./tools.md"));
+  return new Map(rows.map(({ cells }) => [String(cells.Tool), { name: String(cells.Tool), needs: String(cells.Needs),
+    description: String(cells.Description), input: JSON.parse(String(cells.Input)) }]));
 })());
 
 const list = (value) => (Array.isArray(value) ? value.map(String) : []);
@@ -91,7 +107,8 @@ async function read(name, folder) {
     reviewer: typeof fields.reviewer === "string" ? fields.reviewer : null,
     reviewers: typeof fields.reviewers === "number" ? fields.reviewers : 0,
     steps: list(fields.steps), gatePoints: list(fields.gate_points), review: fields.review, writer: fields.writer,
-    limit: fields.limit, purpose,
+    limit: fields.limit, tools: list(fields.tools), toolLimit: typeof fields.tool_limit === "number" ? fields.tool_limit : 0,
+    purpose,
     prompt: participant === "one" ? await own(`./${folder}/prompt.md`) : "",
     answer: participant === "one" ? JSON.parse(await own(`./${folder}/answer.schema.json`)) : null,
   };
@@ -121,4 +138,18 @@ export function kindOf(name) {
     }));
   }
   return kinds.get(name);
+}
+
+/**
+ * toolsOf(names: string[]) -> Promise<ToolDefinition[]> — the named tools, in the order named. Throws UnknownTool { tool } for
+ * a name tools.md does not hold.
+ * @param {string[]} names
+ * @returns {Promise<ToolDefinition[]>}
+ */
+export async function toolsOf(names) {
+  const table = await toolTable();
+  return names.map((name) => {
+    if (!table.has(name)) throw failure("UnknownTool", `the catalogue holds no tool ${name}`, { tool: name });
+    return table.get(name);
+  });
 }

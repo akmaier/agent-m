@@ -160,6 +160,9 @@ function changesOf(section, composed, spec) {
 
 const describeChange = (change) => (change.kind === "new" ? `adds ${change.name}` : change.kind === "change" ? `changes ${change.name}` : `adds a source to ${change.name}`);
 
+// The origin a prompt names: a conversation in the prompt bar on its page, never a message of it.
+const conversationOf = (page) => `a conversation in the prompt bar${page ? ` on ${page}` : ""}`;
+
 // The text of one rationale, in the schema queue-rationale.
 function rationaleOf(section, changes, graph, job) {
   const impact = changes.map((change) => {
@@ -171,9 +174,9 @@ function rationaleOf(section, changes, graph, job) {
   const candidates = changes.map((change) => `${change.name}: ${change.candidate.rule}`);
   return [`# ${headingText(section.anchor)}: ${changes.map(describeChange).join("; ")}`, "",
     `**The change.** ${changes.map(describeChange).join("; ")}. The rest of the section is carried over byte for byte.`, "",
-    `**Why.** Drafted from ${job.source}${job.instruction ? " on the person's instruction" : ""}: ${candidates.join(" · ")}`, "",
+    `**Why.** Drafted from ${job.source}${job.prompted ? " on the person's instruction" : ""}: ${candidates.join(" · ")}`, "",
     "**Impact list.**", ...impact, "",
-    `**Origin.** Source ${job.source}${passages.length ? `, passages: ${passages.join("; ")}` : ""}.${job.instruction ? ` Instruction: ${String(job.instruction).replace(/\s*\n\s*/g, " ").trim()}` : ""}`, "",
+    `**Origin.** Source ${job.source}${passages.length ? `, passages: ${passages.join("; ")}` : ""}.${job.prompted ? ` Asked in ${conversationOf(job.page)}.` : ""}`, "",
     `**Provenance.** Agent M ${job.agentM.version}, commit ${job.agentM.commit}; participant ${job.participant.name}; model ${job.participant.model ?? "none"}; ${job.date}; correction rounds: ${job.rounds}.`, ""].join("\n");
 }
 
@@ -194,7 +197,8 @@ export async function queueEntries(result, context) {
   const drafted = Array.isArray(result?.draft?.candidates) ? result.draft.candidates : [];
   const classes = Array.isArray(result?.classes) ? result.classes : [];
   const source = String(context.params?.source ?? "");
-  const instruction = typeof context.params?.instruction === "string" ? context.params.instruction : null;
+  const prompted = typeof context.params?.instruction === "string";
+  const page = typeof context.params?.page === "string" && context.params.page.trim() ? context.params.page.trim() : null;
   const notes = [];
 
   // The sources the product links.
@@ -221,7 +225,7 @@ export async function queueEntries(result, context) {
 
   const outcome = { commits: [], files: [], pullRequest: null, shown: null, notes };
   const date = context.now.toISOString().slice(0, 10);
-  const job = { source, instruction, agentM: context.agentM, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds?.length ?? 0, date };
+  const job = { source, prompted, page, agentM: context.agentM, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds?.length ?? 0, date };
   const slug = slugOf([context.kind?.name, context.jobId].filter(Boolean).join("-")) || "candidates";
   const targets = [
     { where: context.product, mine: writable.filter((candidate) => candidate.constrains !== "process"), decide: false },
@@ -279,13 +283,13 @@ export async function queueEntries(result, context) {
       }
     });
     const index = [`# SPEC approvals — queue ${day} · ${title}`, "",
-      `**Decision:** drafted by ${job.participant.name} (${job.participant.model ?? "none"}) from ${source}${instruction ? ` on the instruction: ${instruction.replace(/\s*\n\s*/g, " ").trim()}` : ""}; it enters open and waits for a person's acceptance.`, "",
+      `**Decision:** drafted by ${job.participant.name} (${job.participant.model ?? "none"}) from ${source}${prompted ? ` on the person's instruction in ${conversationOf(page)}` : ""}; it enters open and waits for a person's acceptance.`, "",
       `**Size:** ${sections.length} ${sections.length === 1 ? "entry" : "entries"}, one for each section the candidates touch; every other byte of a section is carried over.`, "",
       "**Impact analysis** (names this queue adds, changes or adds a source to, and who references them):", "", "| Name | Change | Referenced by |", "|---|---|---|", ...analysis, "",
       "**Zieldatei aller Einträge:** `SPEC.md`", "", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|",
       ...sections.map((section, at) => `| ${pad2(at + 1)} | \`SPEC.md\` | ${section.anchor} | — | — |`), ""].join("\n");
     const decisions = `# Decisions — queue ${day} ${title}\n\nAppend-only.\n`;
-    const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId ?? "none", kind: context.kind?.name ?? "none", participant: job.participant, rounds: job.rounds, instruction });
+    const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId ?? "none", kind: context.kind?.name ?? "none", participant: job.participant, rounds: job.rounds });
     const { defaultBranch } = await host.repositoryInfo();
     const planned = [{ path: `${folder}/index.md`, text: index }, ...files, { path: `${folder}/entscheidungen.md`, text: decisions }];
     const committed = await host.commitFiles({ branch: defaultBranch, expectedHead: where.snapshot.commit ?? null, files: planned,
