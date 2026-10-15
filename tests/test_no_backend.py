@@ -25,7 +25,7 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    from; MOD-endpoint-calls' configured endpoint short test and direct job-driver transports; and the own data files — schemas, models, practices —
    of the modules whose files state that they read them when
    they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process,
-   MOD-site-frame (its explanations.md), MOD-personal-data, MOD-resource-list and MOD-reuse-facts,
+   MOD-site-frame (its explanations.md), MOD-personal-data, MOD-resource-list, MOD-reuse-facts and MOD-prompt-bar,
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
    file builds resolved from a path beginning with `./` against the module's own address; and MOD-source-register's
    official EU publication repository fetch for legal texts, to publications.europa.eu. Every other fetch, XMLHttpRequest,
@@ -309,6 +309,7 @@ PERMITTED_CHANNELS = {
     ("src/test-schedule/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/result-records/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/job-ledger/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    ("src/prompt-bar/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("docs/assets/bridge-tunnel.mjs", "fetch"): (1, "the probe of a remote session's forward, on localhost",
                                                   lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("docs/assets/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
@@ -667,6 +668,24 @@ class NoServer(unittest.TestCase):
                           f"src/resource-list/: fetch found 2 times, permitted at most 1 ({OWN_DATA_FILES})"])
         elsewhere = own + "const OTHER = new URL(name, location.href);\n"
         self.assertEqual(channel_findings({"src/resource-list/index.mjs": elsewhere}), [f"src/resource-list/index.mjs:3: fetch: not {OWN_DATA_FILES}"])
+
+    def test_counter_proof_the_prompt_bars_own_schema_files(self):
+        # MOD-prompt-bar's Parts name conversation.schema.md and recording.schema.md as its own data files: read through the one
+        # ownFile(url), from addresses resolved against the module's own.
+        own = ('const schemaFrom = (name) => ownFile(new URL(`./${name}`, import.meta.url));\n'
+               "async function ownFile(url) {\n  const answer = await fetch(url);\n  return answer.text();\n}\n")
+        self.assertEqual(channel_findings({"src/prompt-bar/record.mjs": own}), [])
+        # Elsewhere the same text is found.
+        self.assertEqual(channel_findings({"src/text-tools/record.mjs": own}), ["src/text-tools/record.mjs:3: fetch: fetch(url);"])
+        # An address that is not the module's own, a second fetch in the folder, and a fetch of anything but ownFile's url.
+        elsewhere = own + "const OTHER = new URL(name, location.href);\n"
+        self.assertEqual(channel_findings({"src/prompt-bar/record.mjs": elsewhere}), [f"src/prompt-bar/record.mjs:3: fetch: not {OWN_DATA_FILES}"])
+        twice = {"src/prompt-bar/record.mjs": own, "src/prompt-bar/send.mjs": "export const send = (url) => fetch(url);\n"}
+        self.assertEqual(channel_findings(twice),
+                         [f"src/prompt-bar/send.mjs:1: fetch: not {OWN_DATA_FILES}",
+                          f"src/prompt-bar/: fetch found 2 times, permitted at most 1 ({OWN_DATA_FILES})"])
+        foreign = own.replace("fetch(url)", 'fetch("https://tracker.example/x")')
+        self.assertEqual(len(channel_findings({"src/prompt-bar/record.mjs": foreign})), 1)
 
     def test_counter_proof_only_the_site_frames_own_static_header_assets_load(self):
         path = "src/site-frame/index.mjs"
