@@ -131,14 +131,14 @@ test("kindNames — every kind of the module file's table, in its order, each wi
 // guards: ONE DEFINITION, THREE DRIVERS; THE CATALOGUE IS DATA; THE CORRECTION LOOP HAS A FIXED LIMIT
 // given: each kind of the catalogue; the row of the module file's table with its name
 // input: kindOf(name)
-// expect: a definition read without an error, whose name is its folder's; the use cases it serves, what its participant needs — and `participant: none` exactly where the table names nothing —, its preconditions, recipes — none of them one that may be left out —, checks, reviewer kind and number of reviewers, steps, review and writer as the row gives them; `resources: product` and the gate points before-merge and question exactly for the kinds the module file names, before-merge alone for write-tests; A CONFLICT IS DECIDED BY A PERSON exactly for the requirement and architecture kinds; the limit 5; a purpose in a paragraph
+// expect: a definition read without an error, whose name is its folder's; the use cases it serves, what its participant needs — and `participant: none` exactly where the table names nothing —, its preconditions, recipes — one that may be left out only where the row writes its name with a ? —, checks, reviewer kind and number of reviewers, steps, review and writer as the row gives them; `resources: product` and the gate points before-merge and question exactly for the kinds the module file names, before-merge alone for write-tests; A CONFLICT IS DECIDED BY A PERSON exactly for the requirement and architecture kinds; the limit 5; a purpose in a paragraph
 test("kindOf — every shipped definition is read without an error and says what the module file's table says", async () => {
   for (const row of TABLE) {
     const kind = await kindOf(row.name);
     const expected = {
       name: row.name, serves: row.serves, participant: row.needs.length ? "one" : "none", needs: row.needs,
       resources: PRODUCT_RESOURCES.includes(row.name) ? "product" : "none", preconditions: row.preconditions,
-      recipes: row.recipes.map((name) => ({ name, optional: false })), checks: row.checks, personDecides: PERSON_DECIDES.includes(row.name) ? ["A CONFLICT IS DECIDED BY A PERSON"] : [],
+      recipes: row.recipes.map((name) => ({ name: name.replace(/\?$/, ""), optional: name.endsWith("?") })), checks: row.checks, personDecides: PERSON_DECIDES.includes(row.name) ? ["A CONFLICT IS DECIDED BY A PERSON"] : [],
       reviewer: row.reviewer?.kind ?? null, reviewers: row.reviewer?.count ?? 0, steps: row.steps,
       gatePoints: MERGE_AND_QUESTION.includes(row.name) ? ["before-merge", "question"]
         : MERGE_ONLY.includes(row.name) ? ["before-merge"] : [],
