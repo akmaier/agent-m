@@ -1,0 +1,11 @@
+# Product-owned configuration: every original line must survive.
+include:
+  - local: .gitlab/product-build.yml
+  - project: example/shared
+    ref: stable
+    file: /jobs.yml
+variables:
+  PRODUCT_SETTING: keep-me
+product-build:
+  script:
+    - printf 'product build\n'
