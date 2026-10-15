@@ -691,9 +691,12 @@ instance and the products it manages.
 *Check:* `tests/test_token_scope_documented.py` — the configuration screen states the minimum
 scope and why each part is needed.
 
-**THE PAGE STATES WHAT IT SENDS WHERE** *(PO A. Maier)*
-Before a run, Agent M names every destination it will contact and what it will send there.
-*Check:* `tests/test_destination_disclosure.py`
+**THE PAGE NAMES WHERE IT SENDS** *(PO A. Maier)*
+Before Agent M sends anything, it names every destination it will contact — a participant with the place where that
+participant processes data.
+*Check:* `tests/test_destination_disclosure.py` — before a run and before a message of a conversation is sent, the page
+names each destination, a participant with its processing place; counter-proof: a participant shown without its place
+fails.
 
 **A CLEAR IS A REAL CLEAR** *(PO A. Maier)*
 Clearing the configuration removes the stored credentials from the browser, not only from the
@@ -794,8 +797,8 @@ Everything Agent M generates counts as a proposal until a person accepts it.
 is shown as open.
 
 **A RECORD IS EVIDENCE, NOT A PROPOSAL** *(PO A. Maier)*
-Approval records, gate records, job records and test result records are written once as evidence of
-what happened and are never shown for acceptance.
+Approval records, gate records, job records, test result records and conversation records are written once as evidence
+of what happened and are never shown for acceptance.
 *Check:* `tests/review-core.test.mjs` — a job record without approval is not listed as open;
 counter-proof: a use case without approval is.
 
@@ -1713,10 +1716,32 @@ A gate's decision recorded by the participant that did the work the gate checks 
 counter-proof: a second agent holding the deciding role passes it.
 
 **A JOB IS RECORDED IN ITS PRODUCT REPOSITORY** *(PO A. Maier)*
-Every job has a record `docs/jobs/JOB-<id>.md` in the repository of the product it works on — the
-instance's own repository for a job of the instance — naming its inputs, participant, runtime and
-start, and, once it has ended, its end state and results.
-*Check:* `tests/test_job_record.py`
+Every job other than a conversation held in a browser tab has a record `docs/jobs/JOB-<id>.md` in the repository of the
+product it works on — the instance's own repository for a job of the instance — naming its inputs, participant, runtime
+and start, and, once it has ended, its end state and results.
+*Check:* `tests/test_job_record.py` — a job in the tab, in CI and on a Bridge each leaves its record; counter-proof: a
+conversation held in the tab leaves none.
+
+**A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON** *(PO A. Maier)*
+No message of a conversation between a person and a participant on the dashboard is written to a repository unless the
+instance repository's settings switch on recording conversations.
+*Check:* `tests/test_conversation_not_recorded.py` — with recording off, a fixture conversation in which the participant
+reads files, proposes an edit that the person saves, and hands its task to CI leaves no message's text in any commit,
+commit message or job record; counter-proof: a message planted in the job record of the handover is found.
+
+**A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD** *(PO A. Maier)*
+While recording conversations is switched on, every message of a conversation is recorded under `docs/conversations/`
+of the repository of the product whose page the conversation is held on — the instance's own repository for a page of the
+instance.
+*Check:* `tests/test_conversation_not_recorded.py` — with recording on, each message of a fixture conversation on a
+product's page is found in a conversation record of that product, and one on an instance page in the instance's;
+counter-proof: a message missing from the record fails.
+
+**SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS** *(PO A. Maier)*
+Before recording conversations is switched on, the dashboard states that every message will be committed to the
+repository of the page it is held on, naming each such repository its server reports as public.
+*Check:* `tests/test_settings_disclosure.py` — the switch stores nothing before the notice is acknowledged, and the
+notice names a fixture public product; counter-proof: a private product is not named as public.
 
 **A JOB IDENTIFIER IS NEVER REUSED** *(PO A. Maier)*
 No two jobs of a product share an identifier, a retried job included.

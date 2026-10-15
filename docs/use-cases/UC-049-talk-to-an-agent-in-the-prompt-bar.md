@@ -1,0 +1,175 @@
+---
+id: UC-049
+title: Talk to an agent in the prompt bar
+area: evolution
+actors:
+  - Author
+  - Participant
+  - GitHub
+realises:
+  - THE PAGE NAMES WHERE IT SENDS
+  - A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+  - A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD
+  - A RECORD IS EVIDENCE, NOT A PROPOSAL
+  - NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY
+  - A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
+  - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+  - A PARTICIPANT DECLARES ITS CAPABILITIES
+  - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+  - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+  - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
+  - A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
+  - A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+  - NO SECRET IN THE REPOSITORY
+  - NO SERVER
+  - ONE DEFINITION, THREE DRIVERS
+  - A GENERATED ARTIFACT IS A PROPOSAL
+  - THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+  - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
+  - A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+  - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+  - AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+  - A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING
+  - A TEST JOB RECEIVES THE CHAPTER ON TESTING
+  - AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION
+  - AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
+  - A CANCELLED JOB WRITES NOTHING MORE
+  - NO COST IS GUESSED
+  - AN UNSUPPORTED ENDPOINT SAYS SO
+  - ONE CLICK PER DECISION
+  - EVERY STEP EXPLAINS ITSELF
+---
+# UC-049 Talk to an agent in the prompt bar
+
+**Goal.** The author controls Agent M by talking to an agent about what they see. One prompt bar, attached to the bottom
+of every page of the dashboard, is the only place where the author writes to a participant; Agent M gives the participant
+the page the author sees, so the author never has to describe it. The conversation stays in the browser tab — unless the
+instance records conversations in git (UC-042) —; what comes of it — a changed artifact, a commit, a pull request — enters
+the repository the way every proposal does.
+
+## Actors
+
+- **Author** — writes to the participant and decides on what comes back.
+- **Participant** — a model endpoint, a CLI agent or a sandboxed agent of the instance's list (UC-017) that this browser
+  reaches directly.
+- **GitHub** — hosts the product repository and runs GitHub Actions (a GitLab server for a GitLab product).
+
+## Precondition
+
+- At least one participant is offered: a model endpoint whose endpoint is configured in this browser (UC-003), or a CLI or
+  sandboxed agent on a Bridge paired with this browser (UC-044), that is not reached only through another participant
+  (UC-017).
+- To save what comes back, a token that can write to the product repository is stored in this browser (otherwise UC-018
+  4a, 4b apply at saving).
+
+## Main flow
+
+1. On every page of the dashboard, the prompt bar is attached to the bottom of the window. Right above it, a small
+   selector names the participant the bar talks to, with the place where it processes data — `po-opus — Anthropic, USA`.
+   With one participant offered, it is chosen and the selector only names it; with several, the author picks one. The
+   selector is the statement of where the conversation's messages go. A folded **What is this?** explains the bar, what
+   it sends with a message, and why a subagent is not offered.
+2. The author writes, about what they see, what they want — "split this requirement", "why is this step red?", "plan the
+   next sprint" — and presses **Send**. That click is the decision to send.
+3. Agent M gives the participant, with the message, the page as context: the view, the product, the version shown and the
+   artifact open on it — a requirement or a group of them, a use case, an architecture file, a backlog item, a test, a job
+   — with its current text; on a page without an open artifact, the view and what it lists. It adds the system prompt from
+   the repository's single definition: that context, Agent M's rules for what the participant drafts — everything is a
+   proposal; a change of the SPEC is saved as a queue entry —, the chapters of the book *Vibe Coding* for the kind of work
+   the page belongs to, and the tools the participant may use (step 4). It checks that all of this fits into the
+   participant's context.
+4. The participant works with the tools its declared capabilities allow, and with no other:
+
+   | Capability | Tool | Where it works |
+   |---|---|---|
+   | *read the repository* | list, read and search the files of the product at the commit the page shows | the tab, CI, a Bridge |
+   | *draft text*, *write to the repository* | propose an edit of a file, which is held for the author and written only on **Save** | the tab, CI, a Bridge |
+   | *run code and tests* | run a command | CI, a Bridge |
+   | *reach the web* | fetch a web page | CI, a Bridge |
+   | always | give the answer | everywhere |
+   | always, in the tab | hand the task to GitHub Actions (4a) | the tab |
+
+   - **A model endpoint that can use tools** works in a loop that runs in this tab: it asks for a tool, Agent M carries
+     the call out and returns its result, until the endpoint gives its answer. The tab reads the product through the
+     repository server's API with the author's token, and writes nothing.
+   - **A model endpoint without the capability *use tools*** answers once: with text, or with a draft of the open artifact.
+   - **A CLI or sandboxed agent** receives the message through its Bridge and works with its own tools in its working
+     folder (UC-011, step 3).
+5. The answer appears in the conversation. An edit the participant proposed opens in the editor of UC-018 as its
+   difference against the current text; a change of requirements or of a use case is checked and shown as UC-019 describes.
+6. The author answers — the participant receives the conversation so far — or presses **Save**, one click, and UC-018
+   continues at step 5: a use case or an architecture file is committed as open, a change of the SPEC becomes a queue
+   entry. The commit names the Agent M version, the participant and the model; it names no message of the conversation.
+7. Nothing of the conversation is written to a repository — unless recording is on (6c).
+
+```mermaid
+sequenceDiagram
+    actor A as Author
+    participant D as Dashboard (tab)
+    participant P as Participant
+    participant G as Product repository
+    A->>D: message in the prompt bar, Send
+    D->>P: message, page as context, system prompt, tools
+    loop until the answer
+        P->>D: tool call
+        D->>G: read files (author's token)
+        D-->>P: result
+    end
+    P-->>D: answer, proposed edits
+    D-->>A: answer, edits against the current text
+    A->>D: answer again, or Save
+    D->>G: commit as open, or queue entry (no conversation)
+```
+
+## Alternative flows
+
+- **1a. No participant is offered.** The prompt bar is not shown. The participants page and the endpoint configuration
+  say that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this
+  browser.
+- **1b. A participant is reached only through another one** — a subagent that a CLI agent starts (UC-017). It is not
+  offered; the author talks to the agent that starts it, which hands the work on.
+- **2a. The page shows a released version.** The participant is given that version as context and answers about it; a
+  change is drafted only against the current text (UC-020, 1a).
+- **3a. The context does not fit into the participant.** Nothing is sent. Agent M says what does not fit and offers a
+  participant with a larger context; it leaves nothing out silently.
+- **3b. The page shows mail** (UC-038, UC-039). The text of a mail is given only to a participant whose processing place
+  the mailbox allows and that does not declare *write to the repository*; any other participant is given the mail's
+  `MAIL-` identifier only.
+- **3c. The page shows settings.** The context names the settings and whether each is stored; it never carries a stored
+  token, key or password.
+- **4a. The work needs what the tab cannot do** — run code or tests, change code, reach the web. The participant hands its
+  task to GitHub Actions:
+  1. Agent M commits the record of a job in the product repository that names the participant, the page and the commit it
+     read, and none of the conversation's messages; it starts the product's job workflow (UC-010) with the task as the
+     workflow's input. The agent in the workflow reaches the endpoint with the key from a CI secret, and writes with the
+     author's token from a CI secret.
+  2. The prompt bar says *waiting for GitHub Actions* with the run's address and its state, until the run has ended.
+  3. The run's answer appears in the conversation, with the commits it made: artifacts committed as open, a change of code
+     as a pull request. In most cases that ends the conversation.
+- **4b. The tab is closed or loses its connection** while the participant works. The conversation is gone. A run in
+  GitHub Actions, or an agent on a Bridge, ends with what it has committed; the job's record shows it (UC-036).
+- **4c. The product has no job workflow or no CI secrets yet.** Nothing is handed over; the conversation says what is
+  missing and links setting it up (UC-010).
+- **4d. GitHub's runners cannot reach the endpoint** — a model server in the author's network, or one that refuses them.
+  The run fails and names the reason and the routes that would work: a self-hosted runner, or a Bridge (UC-011).
+- **4e. The participant asks for content it may not have** — a source whose licence does not allow its processing place.
+  The tool refuses and says why; the participant continues without it.
+- **5a. The author presses Stop.** The loop in the tab ends and nothing is written; a run in GitHub Actions is cancelled
+  and commits nothing more (UC-036).
+- **6a. The author discards a proposed edit.** Nothing is written.
+- **6b. The file changed while the participant worked.** UC-018 5a: nothing is written, the edit stays in the editor beside
+  the newer version.
+- **6c. The instance records conversations** (UC-042, step 3). The prompt bar says so above the selector. Every message
+  of the conversation — the author's and the participant's, with the participant, its model and the page it was held on —
+  is appended, as it is sent or received, to a conversation record under `docs/conversations/` of the repository of the
+  product whose page it is held on, or of the instance for a page of the instance, as a commit under the author's account.
+  The record is evidence and is never shown for acceptance. A message holding a stored token, key or password, or on a page
+  of mail a name, address, phone number or account found in that mail, is not recorded; the record says that a message
+  was withheld, and why. A job handed to CI (4a) names the conversation record it came from.
+
+## Postcondition
+
+- With recording off, no message of the conversation was written to a repository; with it on, every message the SPEC
+  allows to be written is in the conversation record of the repository of its page. Beyond that, only what the author
+  saved, or what a handed-over run committed, was written — as open artifacts, queue entries or pull requests.
+- Every message went only to the participant named above the prompt bar, with the processing place shown there.

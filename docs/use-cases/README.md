@@ -111,6 +111,7 @@ nine **steps** of the cycle are the areas below.
 | [UC-012](UC-012-turn-an-issue-into-a-specification-change.md) | Handle an issue — bug fix or specification change |
 | [UC-018](UC-018-edit-a-specification-or-use-case.md) | Edit a specification or a use case in the dashboard |
 | [UC-019](UC-019-change-a-specification-or-use-case-by-prompt.md) | Change a specification or a use case by prompt |
+| [UC-049](UC-049-talk-to-an-agent-in-the-prompt-bar.md) | Talk to an agent in the prompt bar — with the page as context |
 | [UC-033](UC-033-move-an-issue-into-the-backlog.md) | Move an issue into the backlog |
 | [UC-038](UC-038-turn-mails-into-issues.md) | Turn mails into issues |
 | [UC-039](UC-039-close-or-defer-an-issue-and-reply.md) | Reply to the mails of an issue |
@@ -136,7 +137,7 @@ flowchart LR
     T --> REL[Release and audit<br/>UC-013 UC-030]
     REL --> E[Evolution<br/>UC-012 UC-033 UC-038 UC-039]
     E --> R
-    ED[Editing and browsing<br/>UC-018 UC-019 UC-020 UC-021] -.-> R & U & A & T
+    ED[Editing and browsing<br/>UC-018 UC-019 UC-020 UC-021 UC-049] -.-> R & U & A & T
     J[Jobs<br/>UC-010 UC-011 UC-035 UC-036] -.-> R & U & I & T
     RES -.-> I & T
 ```
