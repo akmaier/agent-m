@@ -3,11 +3,11 @@
 **REGISTER**
 
 What every holder of the role Developers (`docs/process.md`, Roles) follows when the Scrum Master gives it one backlog
-item. The task names the item, the participant, the sprint, the folder of the participant's clone, the path of the
-process's `CLAUDE.md` and the lines that end each commit.
+item. The task names the item, the participant, the sprint, the folder of the participant's clone and the lines that
+end each commit.
 
 ## Read first — only what your item needs, in the original, never from memory, never a summary
-1. The process's `CLAUDE.md` — the working rules every agent follows (SPEC-first; §6a: read the existing caller first, a
+1. `AGENTS.md` of the repository — the working rules every agent follows (SPEC-first; §6a: read the existing caller first, a
    negative result counts only after a known positive, no unrequested checks).
 2. Your item `docs/backlog/ITM-<nnn>-*.md` as it stands on `origin/main`, and in the sprint's record
    `docs/backlog/sprints/<team>/<nn>.md` only what the Product Owner's start decision says of your item.
@@ -29,7 +29,7 @@ blob (`git show <blob sha>`) and say so in your report.
   your task names, `git fetch origin`, then `git worktree add <folder> -b item/ITM-<nnn>-<slug> origin/sprint/<team>/<nn>`,
   and work only inside that folder.
 - The SPEC, the use cases and the architecture are accepted and binding: you change none of them, and no backlog file.
-- Build only what the item names (YOU AREN'T GONNA NEED IT, KEEP IT SIMPLE; `SOFTWARE_MAINTENANCE.md` §0 Nr. 13): no
+- Build only what the item names (YOU AREN'T GONNA NEED IT, KEEP IT SIMPLE; `AGENTS.md` §2): no
   extra function, option, check or case, however useful it looks.
 - Write only the tests the item's Acceptance names.
 - Use another module only through its `index.mjs`, never through a private file of it (`DEVELOP AGAINST INTERFACES`).
@@ -57,7 +57,8 @@ blob (`git show <blob sha>`) and say so in your report.
    functions your item needs. Where code under `docs/assets/` does this today, take it as the model; the old file stays
    exactly as it is. Making the dashboard call the modules is a separate change between jobs. Push; CI must be green.
 3. **Only your scope changes:** your modules' folders and the test files that name your modules — new tests, and an
-   existing test that names your module only where how it prepares its fixture must change, never an expected result —;
+   existing test that names your module only where how it prepares its fixture must change, or where your item names
+   the test and the accepted module file changes the behaviour it asserts, then also its expected result —;
    no test helper, no file under `docs/` (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`). Every other existing test
    stays green unchanged, unless your item names an expected result it changes.
 4. **Counter-proofs.** For every new test, plant a fault in the code it guards, run the test, see it fail, remove the
