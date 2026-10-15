@@ -357,7 +357,7 @@ test("use-case/<id>/prompt — Discard removes the draft and writes nothing", as
 // guards: UC-019 (8b, 9); AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; ONE CLICK PER DECISION; A DRAFTED CHANGE IS A PROPOSAL
 // given: two drafts, UC-007 and UC-008, the second edited by the person in its editor
 // input: a click on Save
-// expect: one commit holding both use cases — the drafts, the second as edited, byte for byte, no trailer in a file —, whose message ends with the job's provenance lines: the kind, the participant and its model, the rounds and the instruction; the page links the commit
+// expect: one commit holding both use cases — the drafts, the second as edited, byte for byte, no trailer in a file —, whose message ends with the job's provenance lines: the kind, the participant and its model and the rounds, no line naming the instruction; the page links the commit
 test("use-case/<id>/prompt — Save writes the use cases in one commit with the provenance lines", async () => {
   endpointAnswers(draftOf(draft7(), draft8()));
   const fake = fakeProduct();
@@ -374,9 +374,10 @@ test("use-case/<id>/prompt — Save writes the use cases in one commit with the 
   assert.deepEqual(change.files.map((file) => [file.path, file.text]), [[UC7_PATH, draft7().text], [UC8_PATH, edited]]);
   assert.ok(change.files.every((file) => !file.text.includes("Agent-M-")), "no trailer in a file");
   const lines = change.message.split("\n");
-  for (const wanted of ["Agent-M-Kind: change-use-case", "Agent-M-Participant: drafter-a", "Agent-M-Model: example-model", "Agent-M-Rounds: 1", `Agent-M-Instruction: ${ALIGN}`]) {
+  for (const wanted of ["Agent-M-Kind: change-use-case", "Agent-M-Participant: drafter-a", "Agent-M-Model: example-model", "Agent-M-Rounds: 1"]) {
     assert.ok(lines.includes(wanted), `${wanted} in ${change.message}`);
   }
+  assert.ok(lines.every((line) => !line.startsWith("Agent-M-Instruction") && !line.includes(ALIGN)), `no line names the instruction in ${change.message}`);
   assert.ok(find(byClass(target, "p", "saved")[0], (node) => node.localName === "a").some((node) => node.getAttribute("href").includes(`/commit/${fake.head()}`)));
 });
 

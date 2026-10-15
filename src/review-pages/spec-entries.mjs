@@ -9,6 +9,8 @@
 // its approval record.
 
 import { queues, entryView, acceptEntries } from "../spec-changes/index.mjs";
+import { sectionText } from "../spec-document/index.mjs";
+import { blobSha } from "../text-tools/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
@@ -25,6 +27,12 @@ const acceptable = (item) => item.state === "open" || item.state === "stale";
 // An entry a person may tick: also one that waits for its anchor, which goes with the entry that creates it.
 const tickable = (item) => acceptable(item) || item.state === "waiting for its anchor";
 const shownOf = (queue, item, view) => ({ queue: queue.folder, entry: item.number, proposalBlob: view.proposal.blob, sectionBlob: view.current?.blob ?? "" });
+// The tick of the list: the proposal's blob from the queue's tree, the section that holds now from its target read once (no impact list).
+const tickOf = async (queue, item, readOnce) => {
+  const targetText = await readOnce(item.file);
+  const heldNow = typeof targetText === "string" ? sectionText(targetText, item.anchor) : null;
+  return { queue: queue.folder, entry: item.number, proposalBlob: item.proposal.blob, sectionBlob: heldNow === null ? "" : await blobSha(heldNow) };
+};
 
 // The product's links and the instance's register, which acceptEntries checks every requirement's source against.
 export async function sourcesOf({ snapshot, context }) {
@@ -48,12 +56,13 @@ export const queueService = {
 
   // The queues, newest first, each as a group of its entries.
   async groups({ snapshot, token }) {
-    const groups = [];
+    const groups = [], texts = new Map();
+    const readOnce = (path) => { if (!texts.has(path)) texts.set(path, snapshot.read(path)); return texts.get(path); };
     for (const queue of await queues(snapshot)) {
       const entries = [];
       for (const item of queue.entries) {
         let tick = null;
-        if (token && tickable(item)) tick = shownOf(queue, item, await entryView(queue.folder, item.number, snapshot));
+        if (token && tickable(item)) tick = await tickOf(queue, item, readOnce);
         entries.push({ id: idOf(queue, item.number), name: pad2(item.number), title: item.anchor, status: item.state.replaceAll(" ", "-"), label: item.state, tick });
       }
       groups.push({ key: shortOf(queue.folder), title: queue.title || shortOf(queue.folder), entries });

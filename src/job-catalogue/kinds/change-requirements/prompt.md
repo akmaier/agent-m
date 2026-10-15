@@ -11,6 +11,10 @@ Change nothing the instruction does not ask for.
 
 {{instruction}}
 
+## The conversation so far
+
+{{conversation}}
+
 ## The requirements to change, each with its whole section
 
 {{named-requirements}}
