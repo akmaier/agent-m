@@ -49,6 +49,20 @@ an existing composition caller is added to the assigned scope only if the data-f
 
 ## Intake Decision
 
-Independent Product Owner po-sol permits registration only. The item is unselected and unstarted while Sprint 61
-remains open. A proposed temporary clipboard comparison awaits specific human approval after auto-review denied that
-credential transfer; no alternative extraction is authorized by that denial.
+Independent Product Owner po-sol permits registration only. The item remains unselected and has no implementation
+job. The human expressly approves the specific one-request clipboard comparison after the earlier denial. This does
+not authorize another credential transfer, token replacement or a request to another destination.
+
+## Authorized Diagnostic Measurement
+
+At 2026-10-15T17:46:57.434Z, one GET to https://api.github.com/repos/akmaier/agent-m through Agent M's existing public
+connect/parseAddress/repositoryInfo interface in Node returns HTTP 401 and HostError TokenRefused. Request ID:
+FF95:2B36EB:1FC3B53:2FB66B2:6AD11191. The probe uses the desktop field's stored value unchanged and permits only that
+single request, with redirects refused. No rate-limit headers are present. No token is printed, saved or put in a URL;
+the field is concealed and the originally empty clipboard is restored and verified empty after the request.
+
+Data flow: settings.mjs:447-449 binds stored.value to the field -> public Host connect -> github.mjs:58 constructs
+Bearer authorization -> github.mjs:141 repositoryInfo -> failures.mjs:45 fetch -> failures.mjs:98 maps 401 to
+TokenRefused. The earlier controlled 200 comparison of the old and current callers verifies the harness's positive
+path, not this credential's live validity. Chrome is not the sole location of the rejection. Expiry, equality with the
+iPhone value and the actual cause remain unproved; no successful live intended-credential control or fix is claimed.
