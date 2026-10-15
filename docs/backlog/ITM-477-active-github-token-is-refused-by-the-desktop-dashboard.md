@@ -66,3 +66,30 @@ Bearer authorization -> github.mjs:141 repositoryInfo -> failures.mjs:45 fetch -
 TokenRefused. The earlier controlled 200 comparison of the old and current callers verifies the harness's positive
 path, not this credential's live validity. Chrome is not the sole location of the rejection. Expiry, equality with the
 iPhone value and the actual cause remain unproved; no successful live intended-credential control or fix is claimed.
+
+## Transport Audit And Controlled Reproduction
+
+At 2026-10-15 18:02 UTC, the requested follow-up diagnostic discovers that the current Chrome extension's session
+clipboard and the system clipboard are different: the session contains the 93-character field value in the expected
+token format, while the system clipboard contains 32 characters, whitespace and no expected token prefix. The Node
+probe refuses that input before any network request. The session clipboard is restored. No value is printed or saved.
+
+The earlier 17:46 measurement checked the system value's prefix but did not compare its full identity with the browser
+field. Its HTTP 401 remains the observed result, but its assertion that the exact browser value was tested outside
+Chrome is not established by the saved evidence. It must not be used to exclude a browser-path problem. The current
+clipboard mismatch does not establish what either clipboard contained during the earlier request.
+
+The public Host's 200 positive control and 401 mapping pass in the same diagnostic process. A direct attempt there
+returns Unreachable without an HTTP response. A private local handoff to a network-enabled Node probe is refused before
+credential transfer; that process is stopped and its unused socket removed. No GitHub response body is obtained by
+these attempts. Native Chrome Network-panel inspection is blocked by auto-review pending specific human approval;
+that approval is requested, with authentication-header exposure identified as the risk. No native-inspection
+alternative is used after the denial.
+
+The existing dashboard-product-store-migration test file passes all seven tests. An additional in-memory probe uses
+the existing public createStore and productStore callers, not real credentials. Its legacy-only positive control gives
+the same value to both callers and removes the migrated duplicate. With deliberately different legacy and populated
+canonical entries, createStore.getToken selects the legacy value, while productStore.getToken selects the canonical
+value and leaves the conflicting legacy entry in place. The path is product-store-adapter.mjs:74 -> copyToken:45-47
+(do not overwrite a populated canonical entry) -> getToken:115 (read the canonical entry). This reproduces a possible
+version-dependent selection, not the state of the live browser or iPhone. No production fix or live cause is claimed.
