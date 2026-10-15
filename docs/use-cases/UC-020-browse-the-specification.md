@@ -68,7 +68,8 @@ looks for before reading details (Vibe Coding, ch. 9 §1), applied to the specif
    All lists are computed from the artifacts of the chosen version; nothing is read from a stored
    matrix.
 6. The reader follows a link — to a use case, a proposal, a source, another requirement — or, on the
-   current version, presses **Edit** (UC-018) or **Change by prompt** (UC-019).
+   current version, presses **Edit** (UC-018) or writes in the prompt bar what should change (UC-049, UC-019), which
+   is given the open requirement as its context.
 7. **Coverage.** The tab **Gaps** shows, for the chosen version, the traceability matrix computed from
    its artifacts — every requirement against every use case, architecture decision, module and test
    that names it — and lists:
@@ -95,7 +96,7 @@ sequenceDiagram
     R->>D: open a requirement
     D->>G: read approval records and history of its section
     D-->>R: four fields, sources, use cases, ARC, MOD, TST, proposals, history
-    R->>D: follow a link, or Edit / Change by prompt
+    R->>D: follow a link, Edit, or write in the prompt bar
     R->>D: Gaps
     D-->>R: unrealised requirements, use cases without requirement, unknown names
 ```
@@ -103,8 +104,8 @@ sequenceDiagram
 ## Alternative flows
 
 - **1a. The reader chooses a released version.** The browser is read-only and says *as of
-  vYYYY.MINOR.PATCH*; open proposals, *Edit* and *Change by prompt* are hidden, because they concern
-  the current text only.
+  vYYYY.MINOR.PATCH*; open proposals and *Edit* are hidden, because they concern the current text only. A message in
+  the prompt bar is answered about the version shown; a change is drafted only against the current text (UC-049, 2a).
 - **1b. The reader compares two versions.** The reader picks a second version; the tree marks
   requirements added, changed and removed between them, and a changed one opens with the difference.
   On **Gaps**, it marks what became covered and what lost its coverage in between.
