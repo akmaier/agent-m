@@ -17,7 +17,7 @@ function withFetch(t, fn) { const prior = globalThis.fetch; globalThis.fetch = f
 const FAULTS = {
   "TST-324001": ['const agents = await call(bridge, route.path, { method: route.method });', 'const agents = { agents: [], missing: [] };'],
   "TST-324002": ['commit: job.commit, ...(job.task', 'commit: "fault", ...(job.task'],
-  "TST-324003": ['return { text: answer.text, usage: answer.usage ?? null };', 'return { text: answer.text, usage: null };'],
+  "TST-324003": ['calls: answer.calls ?? [], usage: answer.usage ?? null };', 'calls: [], usage: answer.usage ?? null };'],
   "TST-324004": ['["endpoint-test", "agent"].includes(kind)', '["endpoint-test"].includes(kind)'],
   "TST-324005": ['if (answer.status === 401)', 'if (answer.status === 402)'],
 };

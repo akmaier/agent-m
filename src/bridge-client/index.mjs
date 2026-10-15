@@ -151,7 +151,7 @@ export async function ask(bridge, target, input) {
   const follow = apiRoute("GET", "/v1/ask/{ask}");
   for (;;) {
     const answer = await call(bridge, follow.path.replace("{ask}", id), { method: follow.method });
-    if (answer.state === "done") return { text: answer.text, usage: answer.usage ?? null };
+    if (answer.state === "done") return { text: answer.text, calls: answer.calls ?? [], usage: answer.usage ?? null };
     if (answer.state === "failed") throw new BridgeError("AskFailed", {}, answer.error ?? "The Bridge ask failed.");
   }
 }
