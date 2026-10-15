@@ -66,6 +66,7 @@ uses:
   - MOD-runtimes.runOnTab
   - MOD-runtimes.liveState
   - MOD-runtimes.routeStrategies
+  - MOD-prompt-bar.Subject
 provides:
   - view
 ---
@@ -79,7 +80,7 @@ backlog —; mail read into issues; and the replies to the mails of an issue, wi
 mail contains stays in the mailbox and on this page; what is written to an issue passes Issues and mail's search for the
 mail's people first, and every outgoing mail is sent only on the person's click on the complete mail shown.
 
-It serves UC-012, UC-033, UC-038 and UC-039.
+It serves UC-012, UC-033, UC-038 and UC-039, and gives the prompt bar the subject of its pages (UC-049).
 
 It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
@@ -120,6 +121,15 @@ person reviews it. Its formats are those of the modules it uses.
     the reporter* and *Send and wait*; removing the label `waiting-for-reporter`; *Reopen* and *Leave closed* for a mail
     that arrived in a closed issue's thread; *Close and reply*.
 
+  Each route gives the prompt bar its subject, of the kind `converse` (UC-049 3b): on a route that shows mail, the
+  page a participant is given holds the text of a mail, its sender and its attachments only for a participant whose
+  processing place the mailbox allows and that does not declare *write to the repository* (`THE PLACES A MAILBOX'S MAIL
+  MAY GO ARE CONFIGURED`, `A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL`), and only the mail's `MAIL-`
+  identifier for any other; its `refuses` names `propose-edit` and `hand-over`, so that nothing of a mail reaches a file
+  or a participant that writes; and its `withhold` names, for a message to be recorded, each name, mail address, phone
+  number or account of that mail's people found in it, with `personHits`, and a passage of the mail's own text (`NO
+  PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY`, `MAIL STAYS IN THE MAILBOX`). The issues' routes give the issue as the page.
+
 ## Files
 
 It writes nothing in a repository itself: every decision is one call of Issues and mail, of the writer of a kind
@@ -133,6 +143,7 @@ instance's participants.
   MOD-site-frame.runPanel, MOD-site-frame.confirmDecision, MOD-site-frame.schemaForm — the frame's parts, the run panels,
   the dialog of every send, and the form of a backlog item.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
+- MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
 - MOD-browser-store.readSetting — the mailbox connection, the endpoints' configurations and the Bridges' settings;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — the hosts of the instance's products, whose issues a

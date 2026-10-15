@@ -18,7 +18,9 @@ forced_by:
   - A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
   - A LOCAL AGENT USES THE PERSON'S OWN LOGIN
   - THE BRIDGE FINDS THE INSTALLED AGENTS
-  - THE PAGE STATES WHAT IT SENDS WHERE
+  - THE PAGE NAMES WHERE IT SENDS
+  - A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+  - CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
   - NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
   - NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
   - NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY
@@ -79,6 +81,7 @@ forced_by:
   - UC-036
   - UC-038
   - UC-047
+  - UC-049
 designs:
   - MOD-participant-list
   - MOD-endpoint-calls
@@ -126,6 +129,22 @@ every subsystem and both programs, that interprets every kind of job from data**
   (MOD-endpoint-calls), a coding-agent process on the machine (MOD-agent-processes, in CI and in the Bridge), or an
   agent on a Bridge (MOD-runtimes, over Access's Bridge client). These are the strategies of one driver interface. A
   person is no driver; a person decides on the pages.
+- **Tools are data, their calls are carried out by the runner.** A kind names the tools its drafter may be offered —
+  reading the product's files, proposing an edit of a document, handing work over —, each described once in the catalogue
+  with the schema of its arguments. The runner offers a drafter only the tools its declared capabilities allow, and only
+  where it calls the participant's model itself: a model endpoint the tab calls works in the execution loop of the book
+  (Vibe Coding, ch. 11), proposing calls that the runner carries out and answers — an endpoint behind a Bridge too, each
+  request of its loop through the Bridge —; a coding agent works with its own tools. A proposed edit and a proposed
+  hand-over are held for a person; nothing a tool does writes to a repository, and a hand-over is queued only on the
+  person's click, where Process's start rules let it start (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`).
+- **A conversation is a job without a record.** A message of the prompt bar (UC-049) runs as a job in the tab — of the
+  kind its page names, with every rule on jobs — and leaves no job record (`A JOB IS RECORDED IN ITS PRODUCT
+  REPOSITORY`). Work it cannot do in the tab — running code or tests, changing code, reaching the web — is proposed
+  through the tool `hand-over` as a job of an existing kind, and queued on the person's click, prepared with that kind's
+  preconditions and checked by Process's start rules, on the participant's route to CI or a Bridge. That job is recorded; its task travels with the hand-over — as an input of the
+  job workflow's start, or in the request to the Bridge — and stands in no file (`A CONVERSATION IS WRITTEN TO A
+  REPOSITORY ONLY WHEN RECORDING IS ON`). In CI, a model endpoint's handed-over work is done by opencode working with that
+  endpoint, with the endpoint's key from a CI secret, rather than by a loop of Agent M's own.
 - **A job is queued** by committing its start record to the repository of the product it works on; the route it names
   takes it by a commit made only on the head it read, so two drivers never take the same job. A job that reaches a gate
   appends that it waits there and stops; it is resumed when the gate's record exists. Its end record closes it. Its
@@ -141,25 +160,25 @@ job has, across every product.
 
 | Module | Functions other subsystems use |
 |---|---|
-| MOD-participant-list | `Participant`, `participantSchema`, `eligible`, `differs` |
+| MOD-participant-list | `Participant`, `participantSchema`, `eligible`, `differs`, `reachedThrough` |
 | MOD-endpoint-calls | `endpointDriver`, `testEndpoint`, `diagnoseEndpoint` |
 | MOD-agent-processes | `Agent`, `installedAgents`, `agentDriver`, `testAgent` |
-| MOD-job-runner | `Strategies`, `JobContext`, `Part`, `Prepared`, `JobResult`, `registerStrategies`, `prepareJob`, `runJob`, `writeResult`, `provenanceLines` |
-| MOD-job-catalogue | `kindOf` |
+| MOD-job-runner | `Strategies`, `JobContext`, `Part`, `Prepared`, `JobResult`, `ToolUse`, `registerStrategies`, `prepareJob`, `runJob`, `writeResult`, `provenanceLines` |
+| MOD-job-catalogue | `kindOf`, `toolsOf` |
 | MOD-job-ledger | `RecordPart`, `JobRecord`, `JobRow`, `newJobId`, `startRecord`, `appendToRecord`, `takeJob`, `jobState`, `listJobs`, `recordsNewestFirst`, `jobCost` |
-| MOD-runtimes | `ResourceNeed`, `routesFor`, `queueJob`, `runOnTab`, `liveState`, `jobLog`, `cancelJob`, `retryJob`, `jobWorkflowFiles`, `routeStrategies` |
+| MOD-runtimes | `ResourceNeed`, `routesFor`, `queueJob`, `tabContext`, `runOnTab`, `liveState`, `jobLog`, `cancelJob`, `retryJob`, `jobWorkflowFiles`, `routeStrategies` |
 
 ### Its modules
 
 | Module | Folder | Responsibility |
 |---|---|---|
-| MOD-participant-list | `src/participant-list/` | the schema of the instance's `docs/participants.md`: the five types, model, context size and price, capabilities, processing place, route; which participants may do a job — capabilities, places a source or a mailbox permits —, and that a reviewer or checker differs from the drafter in participant and model |
-| MOD-endpoint-calls | `src/endpoint-calls/` | the driver for OpenAI-compatible and Anthropic endpoints, in a browser or in Node; the test request; the reason a browser cannot call an endpoint, with the routes that would work |
-| MOD-agent-processes | `src/agent-processes/` | in Node only: the coding-agent CLIs installed on the machine, and the driver that runs one with a task in a working folder — with the machine's own login, or in CI with its key from a secret — streaming its output and stopping it on cancel |
-| MOD-job-runner | `src/job-runner/` | the interpreter of a job's definition: preconditions, recipes, fitting the parts to the participant's context, every destination and what goes there, the correction loop with checks and reviewing participants, the gates, the writer; the registry of strategies; the provenance lines of its commits |
-| MOD-job-catalogue | `src/job-catalogue/` | every job kind as data, one folder each, with its definition, prompt and output schema; the schema of a definition |
-| MOD-job-ledger | `src/job-ledger/` | the job record under `docs/jobs/`: identifiers never reused, a start, then appended parts — taken, gate reached, resumed, end —, never rewritten; taking a job; the seven states; the list across products; the records newest first, read only as far as a caller needs; the cost, never guessed |
-| MOD-runtimes | `src/runtimes/` | the three routes — this tab, CI, a Bridge — behind one interface: which routes a participant has, queueing, running on the tab with the driver of an endpoint or of an agent on a Bridge, resuming, live state, log, cancel, retry; the job workflow a product needs on GitHub or GitLab; the writer that checks and records a coding participant's branch and pull request |
+| MOD-participant-list | `src/participant-list/` | the schema of the instance's `docs/participants.md`: the five types, model, context size and price, capabilities, processing place, route — a subagent's through the agent that starts it —; which participants may do a job — capabilities, places a source or a mailbox permits —, and that a reviewer or checker differs from the drafter in participant and model |
+| MOD-endpoint-calls | `src/endpoint-calls/` | the driver for OpenAI-compatible and Anthropic endpoints, in a browser or in Node, with the endpoint's own tool calling where tools are offered; the test request, with whether the model calls a tool; the reason a browser cannot call an endpoint, with the routes that would work |
+| MOD-agent-processes | `src/agent-processes/` | in Node only: the coding-agent CLIs installed on the machine, and the driver that runs one with a task in a working folder — with the machine's own login, or in CI with its key from a secret, opencode also with a model endpoint — streaming its output and stopping it on cancel |
+| MOD-job-runner | `src/job-runner/` | the interpreter of a job's definition: preconditions, recipes, fitting the parts to the participant's context, every destination and what goes there, the tools offered and their calls carried out, the correction loop with checks and reviewing participants, the gates, the writer; the registry of strategies; the provenance lines of its commits |
+| MOD-job-catalogue | `src/job-catalogue/` | every job kind as data, one folder each, with its definition, prompt and output schema; the tools a kind may offer, each with its description and the schema of its arguments; the schema of a definition |
+| MOD-job-ledger | `src/job-ledger/` | the job record under `docs/jobs/`: identifiers never reused, a start, then appended parts — taken, gate reached, resumed, end —, never rewritten; taking a job; the seven states; a handed-over job's record without its task; the list across products; the records newest first, read only as far as a caller needs; the cost, never guessed |
+| MOD-runtimes | `src/runtimes/` | the three routes — this tab, CI, a Bridge — behind one interface: which routes a participant has, queueing, a tab job's context, running on the tab with the driver of an endpoint or of an agent on a Bridge — a conversation without a record —, handing a conversation's work over, resuming, live state, log, cancel, retry; the job workflow a product needs on GitHub or GitLab; the writer that checks and records a coding participant's branch and pull request |
 
 ```mermaid
 flowchart BT
@@ -200,6 +219,21 @@ schemas are read by MOD-documents (ARC-048).
 
 ## Alternatives
 
+- **A loop of Agent M's own for a model endpoint in CI, with tools to run commands.** Rejected: opencode, a supported
+  agent already, works with an OpenAI-compatible or Anthropic endpoint and runs commands with its own tools; a second
+  loop would repeat it (`DON'T REPEAT YOURSELF`, `KEEP IT SIMPLE`). Agent M's loop serves only the tab, where no agent
+  can run.
+- **Tools as code in the runner, or each tool's description in the kinds that use it.** Rejected: a tool's description
+  and argument schema are what the model reads, as a prompt is, and are kept once as data (`ONE DEFINITION, THREE
+  DRIVERS`); what a tool does is a strategy of the module that owns it.
+- **A conversation recorded as jobs, one record per message.** Rejected: a conversation is written to a repository only
+  where the instance records it, and then as a conversation record (MOD-prompt-bar), not as job records.
+- **A handed-over job whose record holds its task.** Rejected for the same reason; the task travels with the hand-over,
+  the record names the participant, the page and the commit read.
+- **Free-form work handed over without a kind.** Rejected: a change of code would then bypass the backlog, the
+  acceptance and the work-in-progress rules every implementation job meets; the hand-over names a kind, and the kind's
+  preconditions decide.
+
 - **A module per kind of job, or per kind of drafted artifact.** Rejected: they would repeat the same pipeline with other
   data; the differences between kinds are data and a few strategies, so they are kept as such (`DON'T REPEAT YOURSELF`).
 - **Kinds as code in the services that own their artifacts.** Rejected: the prompts and schemas would be spread over many
@@ -213,6 +247,9 @@ schemas are read by MOD-documents (ARC-048).
 
 ## Consequences
 
+- A tool is a row of the catalogue and a strategy; a kind offers it by naming it.
+- An endpoint whose model cannot call tools still talks: it answers once, with text or a draft of what its page shows.
+- A conversation in a tab is not seen from another browser while it runs; what it hands over is, by its record.
 - A new kind of work is a folder of data, plus a strategy only where a step needs knowledge no module offers yet.
 - A job taken by CI runs with the person's token and the agent's key from CI secrets; one taken by a Bridge runs with the
   computer's own logins; nothing of the browser's store reaches them.

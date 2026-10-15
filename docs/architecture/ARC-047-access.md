@@ -42,6 +42,7 @@ forced_by:
   - UC-042
   - UC-044
   - UC-010
+  - UC-049
 designs:
   - MOD-repository-hosts
   - MOD-browser-store
@@ -83,7 +84,7 @@ needs to set this up.
 | Module | Functions other subsystems use |
 |---|---|
 | MOD-repository-hosts | `Host`, `Snapshot`, `PullRequest`, `PullRequestFacts`, `CiRun`, `Issue`, `RepositoryInfo`, `parseAddress`, `connect`, `readSnapshot`, `readHistory`, `listTags`, `repositoryInfo`, `createBranch`, `commitFiles`, `openPullRequest`, `listPullRequests`, `pullRequestFacts`, `mergePullRequest`, `listCiRuns`, `startWorkflow`, `cancelCiRun`, `ciRunLog`, `listIssues`, `createIssue`, `commentOnIssue`, `setIssueLabels`, `setIssueState`, `createTag`, `listReleaseAssets`, `publishRelease`, `setPipelineSchedule`, `issueCounts`, `webLinks` |
-| MOD-browser-store | `openStore`, `readSetting`, `writeSetting`, `clearSetting`, `clearEverything`, `listSettings`, `exportSettings`, `importSettings`, `readExport`, `expiringSoon`, `secretValues` |
+| MOD-browser-store | `openStore`, `readSetting`, `writeSetting`, `clearSetting`, `clearEverything`, `listSettings`, `exportSettings`, `importSettings`, `readExport`, `expiringSoon`, `secretValues`, `readTabValue`, `writeTabValue` |
 | MOD-bridge-client | `Bridge`, `BridgeEntry`, `JumpHost`, `TunnelPlan`, `settingsOf`, `bridgeAt`, `pair`, `testBridge`, `handOver`, `ask`, `bridgeJobs`, `bridgeJobLog`, `cancelOnBridge`, `mailCall`, `probe`, `allocatePort`, `tunnelCommands`, `proxyConfiguration` |
 
 Every function that crosses the network says so in its module file, and names its failures: a token refused (with the
@@ -95,9 +96,9 @@ gives or the Bridge reports).
 
 | Module | Folder | Responsibility |
 |---|---|---|
-| MOD-repository-hosts | `src/repository-hosts/` | one host interface with three adapters as plug-ins — GitHub's REST API, GitLab's REST API, a local clone through `git` (Node only) —: snapshots, history, commits on an expected head, branches, pull or merge requests, CI runs, issues, tags, and the addresses of the server's own pages — token pages prefilled, secrets, new-file pages for the fallback without a token. It refuses a commit that would write a configured secret. |
-| MOD-browser-store | `src/browser-store/` | the person's configuration in `localStorage`, under the instance's key: tokens with their expiry, products, endpoints and keys, each Bridge under its name with its address or its port on the jump host and its token, the mailbox connection, the jump host, the mails marked *not an issue*; a clear that removes the entry; export with every secret, optionally locked with a passphrase, and import; the export file's format, which the Bridge reads too |
-| MOD-bridge-client | `src/bridge-client/` | the page's client of the Bridge API, directly on loopback or through the jump host's HTTPS address with its web-server login, each Bridge by its name; jobs handed over, and requests to an agent or a model endpoint on a Bridge; the address of each stored Bridge and the allocation of the ports of those reached through the jump host; the tunnel commands for computers without a Bridge and the configuration of the jump host's web server |
+| MOD-repository-hosts | `src/repository-hosts/` | one host interface with three adapters as plug-ins — GitHub's REST API, GitLab's REST API, a local clone through `git` (Node only) —: snapshots, read file by file or in batches where the server allows it, history, commits on an expected head, branches, pull or merge requests, CI runs, issues, tags, and the addresses of the server's own pages — token pages prefilled, secrets, new-file pages for the fallback without a token. It refuses a commit that would write a configured secret. |
+| MOD-browser-store | `src/browser-store/` | the person's configuration in `localStorage`, under the instance's key: tokens with their expiry, products, endpoints and keys, each Bridge under its name with its address or its port on the jump host and its token, the mailbox connection, the jump host, the mails marked *not an issue*; a clear that removes the entry; export with every secret, optionally locked with a passphrase, and import; the export file's format, which the Bridge reads too; apart from the settings, what one browser tab keeps — the prompt bar's conversation —, in that tab's `sessionStorage`, never listed or exported |
+| MOD-bridge-client | `src/bridge-client/` | the page's client of the Bridge API, directly on loopback or through the jump host's HTTPS address with its web-server login, each Bridge by its name; jobs handed over — with the task of a conversation's hand-over in the request alone —, and requests to an agent or a model endpoint on a Bridge; the address of each stored Bridge and the allocation of the ports of those reached through the jump host; the tunnel commands for computers without a Bridge and the configuration of the jump host's web server |
 
 ```mermaid
 flowchart LR

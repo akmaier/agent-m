@@ -98,8 +98,10 @@ identifier, and which register entry an item names is MOD-source-register's to s
 
 ## Interfaces
 
-- `TextSource` — `{ paths: string[], read(path: string) -> Promise<string | null> }`: the files of one repository at one
-  commit, as the caller hands them; a snapshot of Access fits it.
+- `TextSource` — `{ paths: string[], read(path: string) -> Promise<string | null>, readMany?: (paths: string[]) ->
+  Promise<void> }`: the files of one repository at one commit, as the caller hands them; a snapshot of Access fits it.
+  `readMany`, where the source offers it, is told every path the graph will read before the first `read`, so that a
+  source on a server reads them in batches.
 - `Graph` — `{ commit: string | null, nodes: Map<string, { id: string, kind: IdentifierKind | "code" | "group", path:
   string, line: number, title: string | null, blob: string | null, folder: string | null, provides: string[] | null,
   level: string | null, tests: string[] | null, sources: string[] | null }>, edges: { from: string, to: string, via:
@@ -126,7 +128,8 @@ identifier, and which register entry an item names is MOD-source-register's to s
   `moduleRows` lists.
 - `Comparison` — `{ requirements: { added: string[], changed: string[], removed: string[] }, coverage: { gained: { name:
   string, by: string }[], lost: { name: string, by: string }[] } }`.
-- `traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph>` — reads the repository's artifacts and
+- `traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph>` — names to the source's `readMany`,
+  where it has one, every file it will read, then reads the repository's artifacts and
   code files as listed under Data and builds the graph, keeping the facts listed there. A file that cannot be read, or not
   read as its format, is listed
   in `unread` with the reason, never left out silently; the findings of a single document's format are MOD-documents' and

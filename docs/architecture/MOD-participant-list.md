@@ -18,6 +18,7 @@ provides:
   - participantsOf
   - eligible
   - differs
+  - reachedThrough
 ---
 # MOD-participant-list The participants of an instance and who may do a job
 
@@ -52,7 +53,7 @@ table with one row per participant. No key, token or password ever stands in it 
 | Price | `<input> / <output> <currency> per million tokens`, or `—` | no | how reported usage is priced; without it a cost is shown as usage, price unknown (`NO COST IS GUESSED`) |
 | Capabilities | a comma-separated list from `draft text`, `read the repository`, `write to the repository`, `run code and tests`, `use tools`, `reach the web` | always | `A PARTICIPANT DECLARES ITS CAPABILITIES` |
 | Processing place | where the data given to it is processed, in words, for example `this machine` or `NHR@FAU, Erlangen` | for every type but `person`, which has `—` | `A PARTICIPANT DECLARES WHERE IT PROCESSES DATA` |
-| Route | how Agent M reaches it, by type: `account <server>/<account>` for a person; `endpoint <name>` for a model endpoint configured in a browser — whose configuration names the Bridge that calls it, where the browser cannot; `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>` for a CI agent, naming the CI secret that holds its key; `bridge <bridge> agent <claude, codex or opencode>` for a CLI agent or a sandboxed agent, `<bridge>` the name the Bridge carries in its settings and in a browser's store | always | where a job for it is sent; the secret by name only |
+| Route | how Agent M reaches it, by type: `account <server>/<account>` for a person; `endpoint <name>` for a model endpoint configured in a browser — whose configuration names the Bridge that calls it, where the browser cannot; `ci hosted secret <NAME>` or `ci runner:<label> secret <NAME>` for a CI agent, naming the CI secret that holds its key; `bridge <bridge> agent <claude, codex or opencode>` for a CLI agent or a sandboxed agent, `<bridge>` the name the Bridge carries in its settings and in a browser's store; `through <participant>` for a subagent, a CLI or sandboxed agent that another CLI agent of the register starts, naming that agent; a model endpoint's route may add ` secret <NAME>`, the CI secret of its key, for work handed to CI | always | where a job for it is sent; the secret by name only |
 
 The schema states which column is required for which type, so that MOD-documents rejects a CLI-agent row without a model
 and accepts a person's row without one. An example row:
@@ -92,6 +93,10 @@ and accepts a person's row without one. An example row:
   person holds roles and decides, but is no driver of a job, so a caller choosing who receives a job asks among the other
   four types. The caller must give the places of every restricted source whose content is part of the job; a source it
   leaves out is treated as allowing no place.
+- `reachedThrough(participant: Participant) -> string | null` — the name of the participant a subagent is reached
+  through, from a route `through <participant>`, or `null` for every other route. A job for a subagent goes to that
+  participant's routes (MOD-runtimes' `routesFor`), and the prompt bar does not offer it (UC-017 step 3, UC-049 1b). A
+  subagent whose `through` names no CLI agent of the register, or itself, is left out by `eligible`, with that reason.
 - `differs(a: Participant, b: Participant) -> boolean` — true when the two are different participants and name different
   models; false when either names no model. A reviewer must differ from the drafter, and each of three checkers from the
   rewriter and from each other.

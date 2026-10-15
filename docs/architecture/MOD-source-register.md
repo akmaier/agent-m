@@ -112,7 +112,7 @@ Version, Hash (the version's hash), Part (free text, or empty) (`A LINK NAMES TH
 
 **The book's chapters for a kind of work.** Every instance holds the register entry `SRC-vibe-coding`, being a fork of
 Agent M (UC-014), with the chapters of the book as the files of each version. The chapters a job receives for its kind
-of work are given once, by four recipes:
+of work are given once, by four recipes, and for a conversation by a fifth that picks one of their rows:
 
 | Recipe | Kind of work | Chapters |
 |---|---|---|
@@ -120,6 +120,7 @@ of work are given once, by four recipes:
 | `chapters-for-tests` | writing or changing tests | 13 |
 | `chapters-for-architecture` | writing, changing or reviewing the architecture | 9, 10, 11, 12 |
 | `chapters-for-implementation` | implementing | 9, 11, 12, 13 |
+| `chapters-for-page` | a conversation in the prompt bar, by the menu entry of the page it is held on (UC-049 step 3) | the row of requirements for Requirements and Use cases, of architecture for Architecture, of implementation for Implementation, of tests for Tests and Releases; none for any other page, which leaves its part out |
 
 A chapter is the file of the version whose name begins with the chapter's number in two digits and `_`, such as
 `08_requirements-engineering.md`.
@@ -185,8 +186,9 @@ names no source.
   version, the files sent and the part the product's link names. A smaller part is fewer files, and a version of one file
   has none (UC-005 2a). Throws as `readContent` throws, `NotLinked { source }` for a source the product does not link,
   and `NotInVersion { files }` for a part that names a file the version does not hold.
-  And the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`,
-  `chapters-for-architecture` and `chapters-for-implementation`: each reads the instance's register entry
+  And the five recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`,
+  `chapters-for-architecture`, `chapters-for-implementation` and `chapters-for-page`, which takes the row of the menu
+  entry the job's `page` parameter names: each reads the instance's register entry
   `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through
   `readContent`, and returns one part per chapter of its row above, in the order of their numbers: the whole file,
   naming `SRC-vibe-coding` as its source and, in the part's name, the file, the version and the version's hash as its

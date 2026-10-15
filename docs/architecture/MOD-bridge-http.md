@@ -52,11 +52,11 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 |---|---|---|---|
 | `GET /v1/pair` | — | `{ bridge: { name, version, platform }, origin }` | the server itself |
 | `GET /v1/agents` | — | `{ agents: [{ name, version, ready, loggedIn }], missing: [{ name }] }` — the agents the Bridge offers, and the supported agents missing on its computer | jobs |
-| `POST /v1/jobs` | `{ product, record, commit }` — a job handed over: the product's address, the path of its start record and the commit that holds it | `{ accepted }` — the job's identifier | jobs |
+| `POST /v1/jobs` | `{ product, record, commit, task? }` — a job handed over: the product's address, the path of its start record and the commit that holds it, and, for a job whose task travels with the hand-over, that task | `{ accepted }` — the job's identifier | jobs |
 | `GET /v1/jobs` | — | `{ jobs: [{ id, product, kind, agent, state, started, usage }] }` | jobs |
 | `GET /v1/jobs/{id}/log?from={line}` | — | `{ lines, next, ended }` — the log from that line on | jobs |
 | `POST /v1/jobs/{id}/cancel` | — | `{ confirmed }` — `true` once the agent's process has ended | jobs |
-| `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent the Bridge offers — or `{ endpoint, input }` — a request to a model endpoint, `endpoint` in the endpoint configuration's format | `{ ask }` | jobs |
+| `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent the Bridge offers — or `{ endpoint, input }` — a request to a model endpoint, `endpoint` in the endpoint configuration's format — or `{ endpoint, exchange }` — one request of a tool loop the page runs, the messages so far and the tools offered | `{ ask }` | jobs |
 | `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, usage, error }` | jobs |
 | `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` takes the endpoint configuration | `{ answer }`; for `endpoint-test`, the endpoint-test answer | jobs |
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |

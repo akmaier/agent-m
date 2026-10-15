@@ -76,11 +76,14 @@ Its start: the front matter, the destinations and the parameters.
 | `agent_m` | the Agent M version and the commit of the instance it runs |
 | `inputs` | each input with its pin: a file with its blob SHA, a source version with its hash, a commit, a resource's pin |
 | `limit` | the number of correction rounds fixed before the first |
+| `task` | `in parameters`, or `with the hand-over` for a job a conversation of the prompt bar handed over, whose task travels to its route with the hand-over and stands nowhere in the record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`) |
+| `conversation` | the path of the conversation record the hand-over came from, where the instance records conversations; empty otherwise |
 
 A section `## Destinations` follows, stating every participant that receives something, its place and what it receives,
 as the run panel stated it; then a section `## Parameters`, holding as one fenced JSON block the parameters the kind's
 recipes read — the person's instruction, the selection and the levels, a draft a person left for the job to go on with,
-such as the cases of `write-tests` —, so that every route runs the job from its record alone. Then, appended as they
+such as the cases of `write-tests` —, so that every route runs the job from its record alone; for a job whose task travels
+with the hand-over, its route has the task from the hand-over and the record holds no message of the conversation. Then, appended as they
 happen, each with `at:` and its own lines:
 
 | Section | Lines |
@@ -90,7 +93,8 @@ happen, each with `at:` and its own lines:
 | `## Resumed` | `gate record:` the record whose decision resumed it |
 | `## Job started` | in a run's record: `job:` the identifier of a job the run started, `kind:`, `works on:` — one part per job, committed together with that job's start record |
 | `## Limits raised` | in a run's record: `by:` the person, and `jobs at once:`, `cost:`, `rounds:` — the limits in force from then on; the start's limits and every earlier part stay as they were |
-| `## End` | `state:` `done`, `failed` or `cancelled`; `results:` commits, files, pull request, issues — or `waits for a person` for a draft its kind leaves to a person's click, whose commit names this job in its provenance lines; `draft:` for a job whose kind hands its draft back and that ran away from the page — on CI, on a Bridge that runs it, in a run —, that draft as one fenced JSON block, from which the page shows it and a run starts the job that follows, such as `write-tests` with the cases of `propose-tests`; the round record of MOD-job-runner; `usage:` as reported; `cost:`; `reason:` for a failed or cancelled job; `log:` the runtime's address of its log, where it keeps one |
+| `## End` | `state:` `done`, `failed` or `cancelled`; `results:` commits, files, pull request, issues — or `waits for a person` for a draft its kind leaves to a person's click, whose commit names this job in its provenance lines; `draft:` for a job whose kind hands its draft back and that ran away from the page — on CI, on a Bridge that runs it, in a run —, that draft as one fenced JSON block, from which the page shows it and a run starts the job that follows, such as `write-tests` with the cases of `propose-tests`; the round record of MOD-job-runner — a job whose task travels with the hand-over holds no `draft:`, since its answer is a
+message of the conversation —; `usage:` as reported; `cost:`; `reason:` for a failed or cancelled job; `log:` the runtime's address of its log, where it keeps one |
 
 No part of a record holds a mail's text, sender, reply address or attachment (`MAIL STAYS IN THE MAILBOX`).
 
@@ -135,8 +139,8 @@ by: tab
 
 - `JobStart` — `{ id: string, kind: string, worksOn: string[], participant: string | null, model: string | null, route:
   string, run: string | null, retries: string | null, startedBy: string, start: Date, agentM: { version: string, commit:
-  string }, inputs: string[], limit: number, destinations: { participant: string, place: string, parts: string[] }[],
-  params: Record<string, unknown> }`.
+  string }, inputs: string[], limit: number, task: "in parameters" | "with the hand-over", conversation: string | null,
+  destinations: { participant: string, place: string, parts: string[] }[], params: Record<string, unknown> }`.
 - `RecordPart` — `{ part: "taken", at: Date, by: string } | { part: "gate reached", at: Date, gate: string, decider:
   string } | { part: "question", at: Date, question: string } | { part: "resumed", at: Date, gateRecord: string } | {
   part: "job started", at: Date, job: string, kind: string, worksOn: string[] } | { part: "limits raised", at: Date, by:

@@ -82,6 +82,9 @@ uses:
   - MOD-notifications.switchOn
   - MOD-notifications.testNotification
   - MOD-notifications.switchOff
+  - MOD-prompt-bar.recordingSchema
+  - MOD-prompt-bar.recordingOf
+  - MOD-prompt-bar.Subject
 provides:
   - view
 ---
@@ -115,7 +118,9 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
 
 ## Interfaces
 
-- `view: View` — its routes, and the strategies of `resourceStrategies`:
+- `view: View` — its routes, and the strategies of `resourceStrategies`. Each route gives the prompt bar its subject, of
+  the kind `converse` (UC-049 3c): the page names each setting and whether it is stored, works or has expired, never a
+  value, so that a secret shown on *Show* is never part of what a participant is given:
   - `settings` — three sections — this browser, the instance, each product —, one line per setting with its state:
     works, with the date of the last successful test; expires on, from fourteen days before a token's recorded expiry;
     refused; not set. A browser setting has *Test*, *Change* and *Clear*, a secret hidden until *Show*; each Bridge is a
@@ -130,7 +135,14 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     repository setting has a summary and *Edit*, opening its form here or the page where it is kept — the product's
     process on the implementation pages, its schedule on the test pages. A product's section holds its pseudonymisation —
     switching it off states first what follows —, its collaborators who agreed to be named, and whether Agent M's job
-    workflow is installed, with *Install*. At the bottom *Export settings*, after the statement of every secret it holds
+    workflow is installed, with *Install*. The instance's section holds *Recording conversations* (UC-042 step 3),
+    *off* unless switched on: switching it on states first that every message of a conversation in the prompt bar, the
+    person's and the participant's, will be committed under `docs/conversations/` of the repository of the page it is
+    held on and stay in its history, and names each of the instance's and the products' repositories that its server
+    reports as public, whose conversations would be published (`SWITCHING CONVERSATION RECORDING ON STATES WHAT
+    FOLLOWS`); the person ticks *I have read this* and saves, which commits the instance's
+    `docs/conversation-recording.md`; switching it off is saved without a notice, and the page says that records already
+    written stay in the history (UC-042 3b). At the bottom *Export settings*, after the statement of every secret it holds
     and what each grants, optionally locked with a passphrase; *Import settings*, which keeps what this browser has and
     adds the rest, listing both; *Clear everything in this browser*. Each section and line has its folded explanation,
     among them that every Pages site of the same owner can read this browser's store, and, for *Notifications*, what is
@@ -143,11 +155,16 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     in, or the GitLab project access token; *Check*; *Add product*, which writes the missing review layout and adds the
     address to this browser's list; each step with its explanation.
   - `endpoints` — address, model and key of a model endpoint, and, for one the browser cannot call, the Bridge that
-    reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, and the
+    reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
+    whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
     reason and the routes that would work when a browser may not call it; *Clear*.
   - `participants` — the instance's participants in a form from the participant schema: type, model, context and price,
     capabilities, processing place, route; for a CLI or sandboxed agent, the Bridge it runs on, chosen among this
-    browser's Bridges, the agents that Bridge offers, and *Test* through it; for a self-hosted runner, the explanation
+    browser's Bridges, the agents that Bridge offers, and *Test* through it — or, for a subagent, the CLI agent that
+    starts it, which it is reached through and which the prompt bar talks to instead (UC-017 step 3); for a model
+    endpoint, *use tools* preset from its endpoint's last test, and the CI secret of its key where work in the prompt bar
+    may be handed to GitHub Actions; a folded explanation that the prompt bar appears once a model endpoint, CLI agent or
+    sandboxed agent this browser reaches is listed (UC-049 1a); for a self-hosted runner, the explanation
     that it serves private repositories only and is refused when a public product's job would run on it (`routesFor`); a
     change to a participant that products use, with those products and roles named.
   - `library`, `library/<source>`, `sources` — the instance's register of sources and a source's versions; *+ Register
@@ -180,8 +197,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
 ## Files
 
 It writes, on a person's click and as that person's commit: the instance's `docs/participants.md` and
-`docs/resources.md`, and a product's `docs/sources.md`, `docs/resources.md`, `docs/settings.md` and
-`docs/collaborators.md`, with `saveFile`; the source register's entries and content under `docs/sources/` of the instance,
+`docs/resources.md` and `docs/conversation-recording.md`, and a product's `docs/sources.md`, `docs/resources.md`,
+`docs/settings.md` and `docs/collaborators.md`, with `saveFile`; the source register's entries and content under `docs/sources/` of the instance,
 and restricted content in the repository the person names, as the commit plans of MOD-source-register say; a product's
 review layout when it is added; Agent M's job workflow files of a product; a resource's check job's start record through
 MOD-runtimes. It writes this browser's settings through MOD-browser-store, the switch of the notifications through
@@ -228,6 +245,8 @@ reaches.
   product's pseudonymisation and collaborators, and the files that still name a collaborator who withdrew.
 - MOD-job-runner.prepareJob, MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob — a resource's check
   job on its runner; MOD-runtimes.jobWorkflowFiles — the job workflow a product needs.
+- MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
+  MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
   the person's click, *Test* and *Switch off*.

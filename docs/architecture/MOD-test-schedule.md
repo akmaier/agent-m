@@ -98,7 +98,8 @@ where it is missing, with the `include:` key where the file has none, and the fi
 every other line stays as it is. MOD-runtimes' job workflow `.gitlab/agent-m-jobs.yml` is included the same way, by that
 module. The file holds:
 - one job per row and occasion the schedule ticks; a push to the default branch that changes only files under
-  `docs/jobs/` starts nothing;
+  `docs/jobs/` or `docs/conversations/` starts nothing — job records (`A JOB RECORD STARTS NO CI RUN`), and the
+  conversation records of the prompt bar, of which every message adds one commit;
 - the nightly occasion as a schedule at the declared time on GitHub, and on GitLab as the project's pipeline schedule,
   which is a setting of the project rather than a line of the file;
 - the release candidate occasion on a pushed tag `v*-rc.*`, running every row;
