@@ -14,8 +14,10 @@ uses:
   - MOD-participant-list.Capability
 provides:
   - KindDefinition
+  - ToolDefinition
   - kindNames
   - kindOf
+  - toolsOf
 ---
 # MOD-job-catalogue Every kind of job, as data
 
@@ -37,6 +39,8 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 - `kinds/<name>/prompt.md` — its prompt, in English, data only; a kind without a participant, such as `set-up-ci`, has
   none.
 - `kinds/<name>/answer.schema.json` — the shape of the draft it expects back; none for a kind without a participant.
+- `tools.md` — the tools a kind may offer its drafter, as a register: one row per tool.
+- `tools.schema.md` — the schema of that register, in the schema language of MOD-documents.
 
 ## Data
 
@@ -60,6 +64,8 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 | `review` | `person` or `none` | `person`: where a person attends the job, its result waits for them — the page shows the draft, they may change it, and only their click lets it go on; `none`: the writer runs as soon as the loop and the steps have ended. Where nobody attends — on CI, on a Bridge that runs the job, in a run — every result is written at once |
 | `writer` | a strategy name | what writes the result |
 | `limit` | a number | the default number of correction rounds, fixed before the first round |
+| `tools` | tool names of `tools.md` | the tools its drafter may be offered, each only where the drafter declares its capability (MOD-job-runner's `ToolUse`) |
+| `tool_limit` | a number | the most tool calls of one exchange with the drafter |
 
 Its body is one section, `## Purpose`, saying in a paragraph what the kind does. The prompt is data: plain text with
 named places for the parts, never code. The answer's schema is a small JSON description — `type`, `properties`,
@@ -74,11 +80,11 @@ built into MOD-job-runner.
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
 | `derive-requirements` | UC-005 | draft text | | `source-excerpt`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
-| `change-requirements` | UC-019, UC-012 | draft text | | `instruction`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
+| `change-requirements` | UC-019, UC-012, UC-049 | draft text | | `instruction`, `conversation`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
-| `change-use-case` | UC-019 | draft text | | `instruction`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
+| `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
-| `change-architecture` | UC-023 | draft text | `rests-on-accepted` | `instruction`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
+| `change-architecture` | UC-023, UC-049 | draft text | `rests-on-accepted` | `instruction`, `conversation`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `review-architecture` | UC-022, UC-023 | draft text | | `whole-spec`, `accepted-use-cases`, `draft`, `chapters-for-architecture` | | | | `none` · `return-draft` | findings, each a warning |
 | `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves, each a `GroupMove` of MOD-group-document |
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
@@ -98,11 +104,29 @@ built into MOD-job-runner.
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
 | `draft-replies` | UC-039 | draft text | | `reply-inputs` | | | | `none` · `mail-drafts` | one reply per mail |
 | `check-resource` | UC-040 | run code and tests | | `resource-check` | | | | `none` · `return-draft` | what answered |
+| `converse` | UC-049 | draft text | | `page`, `conversation`, `instruction`, `chapters-for-page?` | `document-schema`, `graph-checks` | | | `person` · `return-draft` | the answer, and the edits the participant proposed |
+
+**The tools**, `tools.md`, a register read with MOD-documents. A tool's description and the schema of its arguments are
+data, kept here once like a kind's prompt; the module that owns what a tool does offers its strategy (MOD-job-runner's
+`Strategies`).
+
+| Tool | Needs | What its drafter may do with it | Strategy offered by |
+|---|---|---|---|
+| `list-files` | read the repository | name the files under a folder of the product, at the commit the job read | MOD-job-runner |
+| `read-file` | read the repository | read one file of the product | MOD-job-runner |
+| `search-files` | read the repository | find the lines of the product's files that hold a text | MOD-job-runner |
+| `propose-edit` | draft text | propose the new text of one document below `docs/`, held for a person | MOD-job-runner |
+| `hand-over` | draft text | propose to hand work the tab cannot do — running code or tests, changing code, reaching the web — to a job of a kind with a participant, on the drafter's route to CI or a Bridge, with the task in its words; the person's click lets it go on | MOD-job-runner |
+
+Each row also holds the description the drafter reads and the JSON schema of its arguments. `converse` names all five,
+with a `tool_limit` of 30; `change-requirements`, `change-use-case` and `change-architecture` name the three that read
+and `hand-over`, since their draft is their answer and a change of them may still be handed to CI (UC-019 6b). A tool's capability is besides *use tools*, which a drafter must declare to be offered
+any tool at all.
 
 For a kind of `review: person`, the click that lets the result go on is the one its use case names: *Write proposals*
 (UC-005, UC-022), *Save* (UC-023), *Save plan* (UC-045), *Add to backlog* (UC-032) — each through MOD-job-runner's
-`writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, *Save* of a change by
-prompt (UC-019), which saves the draft as UC-018 saves an edit, so that the kind's writer writes a change by prompt only
+`writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, *Save* of a draft of the
+conversation (UC-019, UC-049), which saves the draft as UC-018 saves an edit, so that the kind's writer writes a change by prompt only
 where nobody attends (UC-019 6b), and *Write tests*
 (UC-026), which starts a job of `write-tests` whose parameters carry the cases as the person left them, for its recipe
 `draft`. Test generation is two kinds because the person decides on the cases between proposing and writing them. Inside
@@ -168,9 +192,13 @@ decisions, the module files, the further decisions.
 - `KindDefinition` — `{ name: string, serves: string[], participant: "one" | "none", needs: Capability[], resources: "none"
   | "product", preconditions: string[], recipes: { name: string, optional: boolean }[], checks: string[], personDecides:
   string[], reviewer: string | null, reviewers: number, steps: string[], gatePoints: ("before-write" | "before-merge" |
-  "question")[], review: "person" | "none", writer: string, limit: number, purpose: string, prompt: string, answer: object
-  | null }`: a definition as read, its prompt and the schema of its draft loaded with it; for a kind without a
+  "question")[], review: "person" | "none", writer: string, limit: number, tools: string[], toolLimit: number, purpose:
+  string, prompt: string, answer: object | null }`: a definition as read, its prompt and the schema of its draft loaded with it; for a kind without a
   participant, which has neither, `prompt` is `""` and `answer` is `null`.
+- `ToolDefinition` — `{ name: string, needs: Capability, description: string, input: object }`: one row of `tools.md`,
+  its argument schema read from its JSON.
+- `toolsOf(names: string[]) -> Promise<ToolDefinition[]>` — the named tools, in the order named. Throws `UnknownTool {
+  tool }` for a name `tools.md` does not hold.
 - `kindNames() -> Promise<string[]>` — the names of every kind in the index, in its order.
 - `kindOf(name: string) -> Promise<KindDefinition>` — the kind's definition, prompt and answer schema, read once per
   program and kept. Throws `UnknownKind { kind }` for a name the index does not hold, and `InvalidKind { kind, findings }`
@@ -180,7 +208,7 @@ decisions, the module files, the further decisions.
 
 ## Files
 
-It reads its own data files: `kinds.md`, `kinds.schema.md`, `definition.schema.md` and the files of each kind — its
+It reads its own data files: `kinds.md`, `kinds.schema.md`, `definition.schema.md`, `tools.md`, `tools.schema.md` and the files of each kind — its
 definition, and, for a kind with a participant, its prompt and the schema of its draft. It writes nothing.
 
 ## Uses

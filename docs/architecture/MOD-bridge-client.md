@@ -118,9 +118,11 @@ uses; the key itself stays on its computer.
   instance's Pages origin it answers —, and `GET /v1/agents`, the coding agents it offers, each ready or not and logged
   in or not, and the supported agents missing on its computer (UC-044, UC-017). Crosses the network; fails with
   every `BridgeError` but `AskFailed`.
-- `handOver(bridge: Bridge, job: { product: string, record: string, commit: string }) -> Promise<{ accepted: string }>` —
-  `POST /v1/jobs`: hands over a job whose start record is committed — the product's address, the path of its start
-  record, and the commit that holds it. The Bridge runs the job from that record, so nothing else travels with it;
+- `handOver(bridge: Bridge, job: { product: string, record: string, commit: string, task?: string }) -> Promise<{
+  accepted: string }>` — `POST /v1/jobs`: hands over a job whose start record is committed — the product's address, the
+  path of its start record, and the commit that holds it. The Bridge runs the job from that record, so nothing else
+  travels with it — but `task`, for a job a conversation of the prompt bar handed over, whose record says that its task
+  travels with the hand-over (UC-049 4a);
   `accepted` is the job's identifier. Crosses the network; fails with every `BridgeError` but `AskFailed`, among them
   `BridgeFailed` with `paused` while the Bridge is paused.
 - `ask(bridge: Bridge, target: { agent: string } | { endpoint: bridgeApi's endpoint configuration }, input: unknown) ->

@@ -33,6 +33,8 @@ uses:
   - MOD-runtimes.jobLog
   - MOD-runtimes.cancelJob
   - MOD-runtimes.retryJob
+  - MOD-prompt-bar.currentJob
+  - MOD-source-register.sourceStrategies
 provides:
   - view
 ---
@@ -46,8 +48,9 @@ product, the build as it happens, what waits for a person — and every job of e
 decisions a person takes on a job. It serves UC-046 and UC-036.
 
 It shows only what the services derive; it computes no share and no state of its own (`PROGRESS AND JOB STATE ARE
-DERIVED, NOT STORED`). It runs no job in the tab, so it hands the frame no strategies: retrying a job that ran in a tab
-opens the view that runs its kind, with the job's inputs.
+DERIVED, NOT STORED`). Its own routes run no job in the tab; the prompt bar on this page does, so it hands the frame the
+strategies a conversation's kinds need beyond the runner's own — `sourceStrategies`, for the book's chapters of the page.
+Retrying a job that ran in a tab opens the view that runs its kind, with the job's inputs.
 
 It runs in a browser, loaded by `index.html` through MOD-site-frame.
 
@@ -66,14 +69,16 @@ an interval the repository servers' rate limits allow, so the build stays curren
 
 ## Interfaces
 
-- `view: View` — the routes of the main page, `{ routes, strategies: [] }`:
+- `view: View` — the routes of the main page, `{ routes, strategies: [sourceStrategies] }`, each route with the frame's
+  default subject for the prompt bar:
   - `home` — the greeting with its folded explanation; one card per product this browser keeps, each with its name, its
     process model, its bar of six stages each filled by its share, the stage it is in marked, a click on a stage leading
     to that stage's page under `docs/` for the product, and its build — the steps or items in progress, each with the job
     working on it, its participant, state and elapsed time; without a product, Agent M's own card from the instance
     repository and *+ Add product*; a card whose repository cannot be read says which and links the token's setting;
     below the cards, what waits for a person across the instance, each item linked to the page where it is decided.
-  - `jobs` — every job of every product and of the instance in one list, waiting at a gate first, filtered by product,
+  - `jobs` — every job of every product and of the instance in one list — the job of this tab's conversation in the
+    prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
     runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason.
   - `job` (`params.id`) — one job: its inputs, its commits and pull request, its CI runs, its log while it runs, its
@@ -110,6 +115,7 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
   MOD-product-process.recordGateDecision — the decision.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
+  MOD-prompt-bar.currentJob — the job of this tab's conversation;
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
   MOD-runtimes.liveState, MOD-runtimes.jobLog,
   MOD-runtimes.cancelJob, MOD-runtimes.retryJob — live states, logs, cancel and retry at each job's route, the Bridges

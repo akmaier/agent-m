@@ -11,6 +11,7 @@ uses:
   - MOD-endpoint-calls.EndpointConfig
   - MOD-endpoint-calls.testEndpoint
   - MOD-endpoint-calls.endpointDriver
+  - MOD-endpoint-calls.endpointExchange
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.readSnapshot
   - MOD-documents.readDocument
@@ -84,15 +85,21 @@ settings (MOD-desktop-shell).
     the supported agents missing on this computer (`THE BRIDGE FINDS THE INSTALLED AGENTS`).
   - `POST /v1/jobs` — a job the page handed over: its start record is already committed by the person's click; the
     Bridge takes it and runs it as a queued job, from its record; the hand-over only spares it the wait for its next
-    reading. Errors: `invalid-request` for an agent this Bridge does not offer, or whose working folder is not set;
-    `paused`.
+    reading. A job whose record says that its task travels with the hand-over is run with the request's `task` as its
+    instruction, which the Bridge keeps only in memory while the job runs and writes to no file, log line, commit message
+    or record; such a job's end names its commits, files and pull request and no draft, and the agent's answer stays in
+    the job's log, from which the page reads it. Such a job is never taken from the repository by the Bridge's own
+    reading, since only its hand-over carries its task. Errors: `invalid-request` for an agent this Bridge does not
+    offer, for one whose working folder is not set, and for a job whose task travels with the hand-over handed over
+    without a task; `paused`.
   - `GET /v1/jobs`, `GET /v1/jobs/{id}/log` — the jobs it runs with their live states, and their logs as they grow.
   - `POST /v1/jobs/{id}/cancel` — stops the agent's process and confirms once it has ended; the job then commits nothing
     more (`A CANCELLED JOB WRITES NOTHING MORE`), and the person's page appends the record of the cancel.
   - `POST /v1/ask`, `GET /v1/ask/{ask}` — a request of the page's job runner: to one agent it offers, answered with its
     draft and the usage it reported; or to a model endpoint, whose configuration the request carries, sent with
-    MOD-endpoint-calls' `endpointDriver` in Node and answered the same way (`A RUNTIME IS INTERCHANGEABLE`). The
-    correction loop stays in the page.
+    MOD-endpoint-calls' `endpointDriver` in Node and answered the same way (`A RUNTIME IS INTERCHANGEABLE`) — or, where
+    the request carries one exchange of a tool loop, with `endpointExchange`, answered with the endpoint's text, its tool
+    calls and the usage. The correction loop and the tool loop stay in the page, which carries every tool call out.
   - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` lists the
     models an endpoint on this computer serves; `endpoint-test` receives the valid endpoint configuration of an endpoint
     whose configuration in the page names this Bridge, maps its fields to MOD-endpoint-calls' `EndpointConfig`,

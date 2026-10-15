@@ -24,6 +24,8 @@ uses:
   - MOD-text-tools.Finding
   - MOD-identifiers.instanceOfPagesAddress
   - MOD-notifications.watchForAcceptance
+  - MOD-prompt-bar.startPromptBar
+  - MOD-prompt-bar.Subject
 provides:
   - View
   - Route
@@ -48,7 +50,8 @@ It belongs to the Site (ARC-038). Its one responsibility is what every page of t
 header with the lab's logo and the menu in the order of the process, the look of the Pattern Recognition Lab, the
 product selector, the notices, the routing of views by the address's fragment, the instance derived from the Pages
 address, the folded explanations, the run panel, the dialog of a decision, the form built from a schema, and the start of
-the checks of what waits for the person's acceptance, which MOD-notifications runs on the main and the review pages. It is
+the checks of what waits for the person's acceptance, which MOD-notifications runs on the main and the review pages, and
+the start of the prompt bar, which MOD-prompt-bar draws on the same pages, with the subject of the route shown. It is
 the plug-in manager of the Site's views: an entry page names the view modules it carries, and the frame loads them through
 the `View` interface it defines, registers the strategies they hand it with the job runner, and routes to them. It never
 names a view itself.
@@ -65,6 +68,7 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `routing.mjs` — views by the address's fragment, and the address of a route for a repository.
 - `notices.mjs`, `run-panel.mjs`, `decision.mjs`, `forms.mjs` — notices, the run panel, the dialog of a decision, the
   form built from a schema.
+- `subject.mjs` — the subject of the route shown, its own or the frame's default.
 - `look.css` — colours, fonts and the header, footer and menu of the lab's look: FAU blue `#04316a`, dark blue `#041e42`,
   metallic `#8c9fb1`, and their tints, for light and dark mode.
 - `brand/` — the logo files of the Pattern Recognition Lab, lettered and as a sign, for light and dark backgrounds, the
@@ -96,8 +100,14 @@ It keeps nothing but what is on the screen. It owns these formats:
   `Strategies`).
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, title: string, render(target: Element, context: ViewContext,
-  params: Record<string, string>) -> Promise<void> }`. `name` is the first part of the address's fragment, the rest are
-  its `params`; a route's `entry` puts it under that entry of the menu, `null` keeps it out of the menu.
+  params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
+  Subject }`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
+  under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
+  the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
+  names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
+  A route that gives none has the frame's default: the kind `converse`, the route's title, and as the page the route's
+  title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
+  secret is shown only in a hidden field (`A STORED SECRET IS HIDDEN UNTIL SHOWN`).
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
   host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
   — `Host` and `Store` as
@@ -110,7 +120,10 @@ It keeps nothing but what is on the screen. It owns these formats:
   the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
   `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of the address of a
   route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
-  `chosenProduct` read back. Called by `start.mjs`, and by the Bridge's window with its own routes.
+  `chosenProduct` read back. On the same pages it starts MOD-prompt-bar's `startPromptBar` in the page's foot, handing it
+  the store, the instance, the chosen product, the subject of the route shown at each moment, its own `explain` and its
+  navigation, so that the prompt bar uses neither the frame nor a view. Called by `start.mjs`, and by the Bridge's
+  window with its own routes, where no prompt bar is drawn.
 - `embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void>` — renders a route of
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
   without using it. Error: `RouteNotLoaded` — the route is not on this page; the frame then puts a link to it in
@@ -132,7 +145,7 @@ It keeps nothing but what is on the screen. It owns these formats:
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
   topic the file does not hold it returns an empty element, and the frame's own check reports the missing topic.
 - `runPanel(prepared: Prepared, handlers: { onRun: () -> Promise<void>, onCancel?: () -> void }) -> Element` — the panel
-  before a job runs (`THE PAGE STATES WHAT IT SENDS WHERE`): every destination — the participant, its part as drafter,
+  before a job runs (`THE PAGE NAMES WHERE IT SENDS`): every destination — the participant, its part as drafter,
   reviewer or checker, its model, where it processes data — and what goes there, part by part with its size against the
   participant's context and the requirement sources whose content it carries; what does not fit, and why; a part left
   out, with its reason; the findings that keep the job from starting; the limit of correction rounds fixed for it. *Run*
@@ -175,3 +188,5 @@ It writes nothing.
 - MOD-identifiers.instanceOfPagesAddress — the instance that the Pages address names.
 - MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, started on the main and the review
   pages.
+- MOD-prompt-bar.startPromptBar, MOD-prompt-bar.Subject — the prompt bar, started on the main and the review pages, and
+  the type of a route's subject.

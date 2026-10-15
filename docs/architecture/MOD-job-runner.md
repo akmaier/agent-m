@@ -8,6 +8,8 @@ follows:
 uses:
   - MOD-job-catalogue.kindOf
   - MOD-job-catalogue.KindDefinition
+  - MOD-job-catalogue.toolsOf
+  - MOD-job-catalogue.ToolDefinition
   - MOD-participant-list.eligible
   - MOD-participant-list.differs
   - MOD-participant-list.Participant
@@ -41,6 +43,7 @@ provides:
   - Strategies
   - Driver
   - DriverInput
+  - ToolUse
   - driverPrompt
   - Usage
   - JobContext
@@ -65,7 +68,10 @@ It belongs to Participants and jobs (ARC-046). It is the one runner shared by ev
 interprets a job kind's definition from MOD-job-catalogue — preconditions, recipes, the fit of the input to the
 participant's context, the destinations, the correction loop with its checks and reviewing participants, the steps, the
 gates, the writer —, keeps the registry of the strategies the kinds name, offers the strategies built on the artifact
-model, and gives every commit a job makes its provenance lines. It knows no kind and no service by name. It runs
+model, and gives every commit a job makes its provenance lines. Where a kind names tools, it offers the drafter those its
+capabilities allow and carries out each call, so that a model endpoint works in the execution loop of the book (Vibe
+Coding, ch. 11) — the model proposes a call, the runner carries it out deterministically and returns the result —, and
+it holds the edits a participant proposes until a person saves them. It knows no kind and no service by name. It runs
 unchanged in a browser and in Node.
 
 ## Parts
@@ -76,6 +82,7 @@ unchanged in a browser and in Node.
 - `loop.mjs` — the correction loop.
 - `driver-prompt.mjs` — the prompt and transient correction context serialized at a driver's sending boundary.
 - `builtins.mjs` — the built-in strategies.
+- `tools.mjs` — offering a kind's tools to a drafter and carrying out their calls; the built-in tools.
 - `provenance.mjs` — the provenance lines of a commit.
 - `rounds.schema.md` — the schema of the round record, in the schema language of MOD-documents.
 
@@ -89,6 +96,11 @@ It keeps the registry of strategies of the program it runs in, in memory, filled
 | Name | Kind of strategy | What it does |
 |---|---|---|
 | `instruction` | recipe | the person's words, from the job's parameters, as one part |
+| `conversation` | recipe | the conversation so far, from the job's parameters, each message with who wrote it, as one part; none for the first message |
+| `page` | recipe | the page the person sees, as its route's subject gives it in the job's parameters (MOD-prompt-bar), as one part |
+| `list-files`, `read-file`, `search-files` | tool | the product's files at the commit the job read: the paths under a folder, one file's text, the lines that match a text; a path the context's `places.contents` names for a restricted source is refused unless that source allows the drafter's processing place (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`), and the refusal says why (UC-049 4e) |
+| `propose-edit` | tool | holds a new text for one document below `docs/` — added to the draft's `edits` — and writes nothing (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`). It refuses, naming where the document is changed: `SPEC.md`, a use case, an architecture decision and a module file, which their pages change with their neighbours (`A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES`, `A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS`, `THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT`); every record — approval, gate, job, conversation and test result records, counter-proofs — (`A RECORD IS EVIDENCE, NOT A PROPOSAL`); every change queue under `docs/spec-freigaben/`; every test declaration, which test generation writes (`A TEST JOB RECEIVES THE CHAPTER ON TESTING`); a settings file whose change states a notice first — `docs/settings.md`, `docs/collaborators.md`, `docs/conversation-recording.md` (`SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS`, `SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS`); and every file outside `docs/`, since code, tests and workflows reach the default branch only by a pull request (`CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI`), through `hand-over` |
+| `hand-over` | tool | holds a proposed hand-over — a kind of the catalogue with a participant, what it works on, and the task in the drafter's words — in the draft's `handOver`, and queues nothing: the prompt bar shows it, and the person's click *Hand over* lets it go on (MOD-runtimes' `handOverJob`) |
 | `draft` | recipe | the draft the job is handed: the draft under review, for a reviewing kind; the cases as the person left them, for `write-tests` |
 | `return-draft` | writer | writes nothing; hands the result to the caller |
 | `document-schema` | check | MOD-documents' `documentFindings` on every drafted document, read with the schema `artifactSchemaOf` names for its path; a path no schema's pattern matches is not judged here |
@@ -136,13 +148,15 @@ artifacts it writes name none of them (`AN ARTIFACT RECORDS THE VERSION THAT PRO
 
 ```text
 Agent-M-Version: <calendar version, or "unreleased">, commit <instance commit>
-Agent-M-Job: JOB-<yyyymmdd>-<hhmm>-<4 hex>
+Agent-M-Job: JOB-<yyyymmdd>-<hhmm>-<4 hex>, for a job with a record
 Agent-M-Kind: <kind>
 Agent-M-Participant: <participant's name>
 Agent-M-Model: <model>
 Agent-M-Rounds: <number of correction rounds>
-Agent-M-Instruction: <the person's instruction, on one line, where the kind has one>
 ```
+
+No line names the person's instruction or any other message of a conversation (`A CONVERSATION IS WRITTEN TO A REPOSITORY
+ONLY WHEN RECORDING IS ON`).
 
 ## Interfaces
 
@@ -150,7 +164,9 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   checks: Record<string, (draft: unknown, context: JobContext) => Finding[] | Promise<Finding[]>>, preconditions:
   Record<string, (context: JobContext) => Promise<Finding | null>>, steps: Record<string, (draft: unknown, context:
   JobContext) => Promise<{ draft: unknown, findings: Finding[] }>>, writers: Record<string, (result: JobResult, context:
-  JobContext) => Promise<WriteOutcome>> }`: the plug-in contract. A strategy throws only for a failure of its own input or
+  JobContext) => Promise<WriteOutcome>>, tools: Record<string, (args: Record<string, unknown>, context: JobContext) =>
+  Promise<string>> }`: the plug-in contract. A tool's description and the schema of its arguments are data in
+  MOD-job-catalogue; its strategy only carries a call out and returns what the participant reads, a refusal included. A strategy throws only for a failure of its own input or
   output — a hash that does not match, a repository that refuses — and names it; a finding is returned, never thrown. A
   writer whose every file already stands on the head byte for byte as it would write it commits nothing and returns an
   outcome without a commit (UC-010 4a).
@@ -163,8 +179,16 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   workdir: string | null }`: the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
   and `(none)` where a recipe gave no part — a driver sends this prompt as it is and does not add the parts again —; the
   parts; the output schema the answer must follow; the findings of the last round with the draft they concern — or, in
-  the first exchange of a job given `refine`, no finding and the draft to change —; and for an agent that works in a
-  folder, that folder.
+  the first exchange of a job given `refine`, no finding and the draft to change —; for an agent that works in a
+  folder, that folder; and `tools`, a `ToolUse` or `null`.
+- `ToolUse` — `{ definitions: { name: string, description: string, input: object }[], call(name: string, args:
+  Record<string, unknown>) -> Promise<string>, limit: number }`: the tools offered to the drafter of this exchange, read
+  from MOD-job-catalogue's tools; `call` carries one call out through the tool's strategy, and answers a tool that is not
+  offered, or arguments its schema refuses, with a refusal the participant reads; `limit` the most calls of one exchange,
+  the kind's `tool_limit`. The runner gives it only to a drafter that declares *use tools* and is a model endpoint —
+  called directly, or through the Bridge its configuration names, the loop running in the program either way —, offering
+  only the tools whose capability the drafter declares and that the page's subject does not refuse; a coding agent gets
+  `null` and works with its own tools.
 - `driverPrompt(input: DriverInput) -> string` — the text a driver sends: the prepared `prompt` unchanged, followed by
   the current draft when `previous` is not null and the findings when any are present, each in MOD-text-tools'
   `formatFinding` form. It adds neither the recipe parts nor the output schema again: those already stand in the
@@ -175,7 +199,8 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   currency: string } | null }`: exactly what a runtime reported; nothing is estimated.
 - `JobContext` — `{ kind: KindDefinition, params: Record<string, unknown>, product: { address: string, snapshot: Snapshot,
   host: Host | null }, instance: { snapshot: Snapshot, host: Host | null }, connect: (address: string) => Promise<Host>,
-  participants: Participant[], places: { sources: Record<string, string[]>, mailbox: string[] | null }, gates: { name:
+  participants: Participant[], places: { sources: Record<string, string[]>, mailbox: string[] | null, contents: {
+  source: string, paths: string[] }[] }, gates: { name:
   string, point: string, passed: boolean }[], person: string | null, now: Date, agentM: { version: string, commit: string
   }, jobId: string | null }`, its `instance` also holding `checkout: string | null`: everything a strategy may read.
   `instance.checkout` is the folder of a checkout of the instance in which the participant works and reads files itself
@@ -183,7 +208,7 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   CI the job workflow's checkout of the instance —, from which the instance's `snapshot` is then read; it is `null` in a
   browser. `connect` opens another repository with the credentials of
   the program — the token in a browser, the CI secret in CI, the computer's login on a Bridge; `places` gives, for every
-  restricted source and for the mailbox, the places they allow; `gates` the gates of the product's workflow at this job's
+  restricted source and for the mailbox, the places they allow, and the paths of the product that hold a restricted source's content; `gates` the gates of the product's workflow at this job's
   points, with whether their decisions are recorded.
 - `Part` — `{ name: string, text: string, size: number, sources: string[], required: boolean, recipe: string, artifacts:
   { id: string, keys: string[] }[] }`: one piece
@@ -201,7 +226,7 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
 - `Prepared` — `{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers:
   Participant[], parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
   number, context: number | null }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
-  what a run panel shows before the person's click (`THE PAGE STATES WHAT IT SENDS WHERE`); `parts` holds the parts of
+  what a run panel or the prompt bar shows before the person's click (`THE PAGE NAMES WHERE IT SENDS`); `parts` holds the parts of
   the drafter's and the reviewers' recipes, each once; `leftOut` the parts a recipe whose part may be left out could not
   give, each with the failure's words as its reason; `blocking` the findings of preconditions, of eligibility, and of a
   check that needs what the context lacks — `test-declarations` without the product's host —, which keep the job from
@@ -239,7 +264,10 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   void, onGate?: (gate: string) => Promise<void>, signal?: AbortSignal }) -> Promise<JobResult>` — refuses to start while
   `prepared.blocking` or `prepared.notFitting` is not empty (`NotStartable`). With `refine`, the drafter's first exchange
   carries that draft as `previous`, beside the job's parts with the person's follow-up instruction among them, and the
-  drafter changes it as the instruction says (UC-019 step 8, *Refine*). It sends the input to the drafter — or, with
+  drafter changes it as the instruction says — the follow-up message of a conversation on a draft (UC-019 step 8). Where
+  the kind names tools, each exchange with the drafter carries the `ToolUse` the drafter may have; the edits it proposes
+  through `propose-edit` become the draft's `edits` and are checked in the round as every drafted document is. It sends
+  the input to the drafter — or, with
   `from`, begins with that draft, one a person changed and wants checked again as a whole (UC-022, UC-023), and without a
   drafter only checks it once and returns the findings on it, stopped `passed` when nothing is found, `limit` when a
   finding is left, and `not checked` when a reviewer's answer cannot be read —, reads the answer by the output schema —
@@ -280,8 +308,9 @@ Agent-M-Instruction: <the person's instruction, on one line, where the kind has 
   head. Throws what the writer throws by name — `DueDiligenceMissing` from `open-files`, which then writes nothing, while
   a reuse decision carries the mark of a registry that could not be read (UC-022); a refused commit because the branch
   moved.
-- `provenanceLines(job: { agentM: { version: string, commit: string }, jobId: string, kind: string, participant:
-  Participant, rounds: number, instruction: string | null }) -> string[]` — the trailer lines defined under Data.
+- `provenanceLines(job: { agentM: { version: string, commit: string }, jobId: string | null, kind: string, participant:
+  Participant, rounds: number }) -> string[]` — the trailer lines defined under Data; a job without a record — a
+  conversation held in the tab — has no `Agent-M-Job` line.
 - `roundsText(rounds: Round[], left: Finding[], forPerson: Finding[], stoppedBecause: string, limit: number) -> string` —
   the round record's text form defined under Data, for the job's record.
 
@@ -294,7 +323,9 @@ appends to the job's record.
 
 ## Uses
 
-- `MOD-job-catalogue.kindOf`, `MOD-job-catalogue.KindDefinition` — the definition it interprets.
+- `MOD-job-catalogue.kindOf`, `MOD-job-catalogue.KindDefinition` — the definition it interprets;
+  `MOD-job-catalogue.toolsOf`, `MOD-job-catalogue.ToolDefinition` — the descriptions and argument schemas of the tools a
+  kind names.
 - `MOD-participant-list.eligible`, `MOD-participant-list.differs`, `MOD-participant-list.Participant` — who may receive
   what, and that reviewers and checkers differ.
 - `MOD-documents.documentFindings`, `MOD-documents.readDocument`, `MOD-documents.artifactSchemas`,

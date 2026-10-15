@@ -18,6 +18,7 @@ uses:
   - MOD-test-document.testDeclarations
   - MOD-participant-list.participantSchema
   - MOD-endpoint-calls.endpointDriver
+  - MOD-endpoint-calls.diagnoseEndpoint
   - MOD-agent-processes.agentDriver
   - MOD-job-runner.JobContext
   - MOD-job-runner.registerStrategies
@@ -127,7 +128,8 @@ jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
   repository and the signing secrets of a release; for `onTestsFinished`, the path of the run's JUnit XML report. A
   secret that is missing ends the entry at once with a status that names it, before anything is written (UC-010).
 - `onRecordsChanged(env: CiEnvironment) -> Promise<EntryStatus>` — on a push to `docs/jobs/` or `docs/gates/` of a
-  product: takes each queued job whose route is this CI service and runs it from its record alone — its kind, the
+  product: takes each queued job whose route is this CI service, except one whose task travels with its hand-over, which
+  `onDispatch` takes, and runs it from its record alone — its kind, the
   parameters of its `## Parameters` and its pinned inputs —, with the driver of its participant, a coding-agent process or
   a model endpoint, the participant's key from its secret, appending its records. No person attends a job in CI: its
   kind's writer writes at once (`A CI AGENT'S DRAFT ENTERS AS OPEN`), and a kind that hands its draft back leaves it in
@@ -154,7 +156,14 @@ jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
   SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`).
 - `onDispatch(env: CiEnvironment) -> Promise<EntryStatus>` — on a run started from the CI service's own page with the
   inputs the dashboard named (UC-024): writes the job's start record, those inputs its parameters, and runs it as
-  `onRecordsChanged` runs a job.
+  `onRecordsChanged` runs a job. On a run a hand-over started (UC-049 4a), whose input `job` names a queued record whose
+  task travels with the hand-over: takes that job and runs it with the input `task` as its instruction — for a model
+  endpoint, with opencode working with the endpoint the input `endpoint` names and the key from the participant's secret
+  (MOD-agent-processes) —; it writes the task to no file, and a branch whose commit messages or pull request text hold the
+  task's words is refused by name, the job then ending failed with nothing merged; it appends the job's end with its
+  commits, files and pull request, and leaves the participant's answer in the run's summary and log, where the prompt bar
+  reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the reason that MOD-endpoint-calls'
+  `diagnoseEndpoint` gives and the routes that would work — a self-hosted runner, or a Bridge (UC-049 4d).
 - `onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, the step after the tests of every run of
   MOD-test-schedule's configuration: the run's result record — the commit, the levels run, the occasion, who ran it, the
   date, the run's address, `uncommitted` when the working tree held changes not in the commit, and each test's outcome
@@ -206,7 +215,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-text-tools.Finding` — the findings an entry reports.
 - `MOD-test-document.TestDeclaration`, `testDeclarations` — the declarations of the product's tests, to which a report's
   outcomes are matched.
-- `MOD-endpoint-calls.endpointDriver`, `MOD-agent-processes.agentDriver` — the drivers of CI participants.
+- `MOD-endpoint-calls.endpointDriver`, `MOD-agent-processes.agentDriver` — the drivers of CI participants;
+  `MOD-endpoint-calls.diagnoseEndpoint` — why a handed-over run could not reach its endpoint.
 - `MOD-job-runner.JobContext`, `registerStrategies`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of
   any kind from its record, unattended.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `newJobId`, `startRecord`, `takeJob`, `appendToRecord`, `jobState` — the

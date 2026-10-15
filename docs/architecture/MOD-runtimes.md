@@ -22,14 +22,19 @@ uses:
   - MOD-job-ledger.JobRecord
   - MOD-job-ledger.LiveState
   - MOD-endpoint-calls.endpointDriver
+  - MOD-endpoint-calls.endpointExchange
   - MOD-endpoint-calls.EndpointConfig
   - MOD-participant-list.Participant
+  - MOD-participant-list.reachedThrough
+  - MOD-job-catalogue.KindDefinition
+  - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.listCiRuns
   - MOD-repository-hosts.cancelCiRun
   - MOD-repository-hosts.ciRunLog
+  - MOD-repository-hosts.startWorkflow
   - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.listPullRequests
   - MOD-bridge-client.Bridge
@@ -45,6 +50,8 @@ provides:
   - ResourceNeed
   - routesFor
   - queueJob
+  - handOverJob
+  - tabContext
   - runOnTab
   - bridgeDriver
   - resumeJob
@@ -63,7 +70,10 @@ It belongs to Participants and jobs (ARC-046). It puts the three routes a job ca
 — behind one interface (`A RUNTIME IS INTERCHANGEABLE`): which routes a participant has; queueing a job by its start
 record; running it in the tab, with the driver of an endpoint — called directly or through the Bridge its configuration
 names — or of an agent on a Bridge; resuming it after its gate;
-asking its runtime for its live state and log; cancelling and retrying it. It also gives a product the files of Agent M's
+asking its runtime for its live state and log; cancelling and retrying it. A conversation of the prompt bar runs in the
+tab as a job without a record (`A JOB IS RECORDED IN ITS PRODUCT REPOSITORY`); the work it hands over is queued here as a
+job of its own, whose record names its inputs and whose task travels with the hand-over, never in the record (`A
+CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`). It also gives a product the files of Agent M's
 job workflow, and offers the writer that checks and records a coding participant's branch and pull request. The page uses
 it in a browser; its writer and its workflow files are used in Node as well.
 
@@ -76,6 +86,7 @@ it in a browser; its writer and its workflow files are used in Node as well.
 - `bridge.mjs` — the Bridge route through the Bridge client, and the driver of an agent or an endpoint on a Bridge.
 - `workflow/github.yml`, `workflow/gitlab.yml` — the templates of the job workflow.
 - `pull-request.mjs` — the writer `branch-and-pull-request`.
+- `hand-over.mjs` — a conversation's work handed over.
 
 ## Data
 
@@ -91,9 +102,12 @@ record then shows it as ended without record (UC-036).
 | a pull or merge request closed or merged | `onPullRequestClosed` |
 | a CI check completed | `onCheckCompleted` |
 | a schedule, once a day | `onSchedule` |
-| a start from the server's own page, with a job's identifier (UC-010, UC-024) | `onDispatch` |
+| a start from the server's own page, with a job's identifier (UC-010, UC-024), or from a hand-over, with the identifier of the job it queued and the task (UC-049 4a) | `onDispatch` |
 
-It has one job for each route of the product's CI agents — the server's own runners, and each self-hosted runner by its
+Its start from a page or a hand-over takes the inputs `job`, the job's identifier, and, for a hand-over, `task`, the
+task in the participant's words, and `endpoint`, the address and model of a model endpoint; the task is given to the job
+and written to no file, and the run's answer is left in the run's own log and summary, never in the job's record. It has
+one job for each route of the product's CI agents — the server's own runners, and each self-hosted runner by its
 label — and each checks out the product with the person's Agent M token, checks out the instance repository at the
 commit the file names, and runs the entry with Node. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
 an agent's key from the secret the participant's route names; the dashboard names both and opens the server's page for
@@ -113,8 +127,11 @@ a person's decision.
   product's facts carry them (MOD-progress-measures).
 - `routesFor(participant: Participant, product: { visibility: "public" | "private" | "internal", jobWorkflow: boolean },
   needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route in the register: a model endpoint in the
-  tab, called directly or through the Bridge its configuration names; a CI agent in CI, on the server's runners or on its
-  runner; a CLI or sandboxed agent through the Bridge its route names. A self-hosted runner is offered only for a repository whose server reports
+  tab, called directly or through the Bridge its configuration names, and, where its route names the CI secret of its
+  key, on the server's runners too, where opencode works with that endpoint (MOD-agent-processes); a CI agent in CI, on
+  the server's runners or on its runner; a CLI or sandboxed agent through the Bridge its route names; a subagent — whose
+  route `reachedThrough` names another participant — the routes of that participant, its job's input naming the subagent
+  for that participant to start. A self-hosted runner is offered only for a repository whose server reports
   it private, and refused with the reason otherwise (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE
   REPOSITORY`). A job that needs no resource reached only by a Bridge or a runner is offered on the server's own runners
   whenever a CI agent can take it (`AGENT M WORKS WITHOUT A LOCAL INSTALLATION`); one that needs such a resource is offered
@@ -131,18 +148,28 @@ a person's decision.
   through the host, and to the Bridge; fails with what the host names — the branch moved, a refused token, a used-up rate
   limit —, with what the Bridge client names, and with `WorkflowMissing` for the CI route of a product without the job
   workflow.
+- `tabContext(inputs: { kind: KindDefinition, params: Record<string, unknown>, product: { address: string, snapshot:
+  Snapshot, host: Host }, instance: { snapshot: Snapshot, host: Host }, participants: Participant[], places: JobContext's
+  places, gates: JobContext's gates, person: string, agentM: { version: string, commit: string }, jobId: string | null })
+  -> JobContext` — the context of a job that runs in this tab, from what its caller has read: `connect` opens a repository
+  with the browser's tokens, `now` is the moment of the call, and `instance.checkout` is `null`. It makes no request; the
+  review pages and the prompt bar build every tab job's context with it.
 - `runOnTab(prepared: Prepared, context: JobContext, connections: { endpoints: Record<string, { config: EndpointConfig,
-  bridge: string | null }>, bridges: Record<string, Bridge> }, hooks: { host: Host, record: JobRecord, onOutput?: (chunk:
-  string) => void, signal?: AbortSignal }) -> Promise<JobResult>` — runs the prepared job in this tab with MOD-job-runner,
-  attended unless its record names a run: builds the drafter's and the reviewers' drivers from their routes — an
+  bridge: string | null }>, bridges: Record<string, Bridge> }, hooks: { host: Host, record: JobRecord | null, onOutput?:
+  (chunk: string) => void, signal?: AbortSignal }) -> Promise<JobResult>` — runs the prepared job in this tab with
+  MOD-job-runner, attended unless its record names a run; a conversation of the prompt bar passes no record, and then
+  nothing is appended anywhere: builds the drafter's and the reviewers' drivers from their routes — an
   endpoint's driver from its configuration, `endpointDriver` where its `bridge` is `null` and `bridgeDriver` with the
   endpoint on the Bridge its `bridge` names, and an agent on a Bridge through `bridgeDriver`, each Bridge by its name among
-  `bridges` —, appends a gate reached and the end to the job's record through the host, and returns the result for the
-  page to show. Fails as the
+  `bridges` —, appends a gate reached and the end to the job's record through the host, where it has one, and returns the
+  result for the page to show. Only the driver of an endpoint the tab calls itself is given the kind's tools (MOD-job-runner's
+  `ToolUse`) — called directly, or through the Bridge its configuration names, where `bridgeDriver` carries each request of
+  the loop as one `ask`. Fails as the
   drivers fail, by name.
 - `bridgeDriver(bridge: Bridge, target: { agent: string } | { endpoint: EndpointConfig }, participant: Participant) ->
   Driver` — a driver whose `send` hands `driverPrompt(input)` to the named agent on the Bridge, or to the endpoint the Bridge calls,
-  through Access's `ask`, across the network to the Bridge, and returns its answer and the usage reported. Fails with what
+  through Access's `ask` — for an endpoint given `tools`, the loop of MOD-endpoint-calls runs here in the tab, each of its
+  requests one `ask` of one exchange (`endpointExchange`), and each tool call carried out here —, across the network to the Bridge, and returns its answer and the usage reported. Fails with what
   the Bridge client names: not running, wrong address, token missing or refused, blocked by the browser, certificate not
   trusted; and, for an endpoint, with the endpoint's own failure, which the Bridge passes on.
 - `resumeJob(record: JobRecord, gateRecord: string, route: Route, host: Host, head: string, bridge?: Bridge) ->
@@ -167,11 +194,28 @@ a person's decision.
   `commitFiles` — `Moved` when the record changed meanwhile, in which case the caller reads the record again.
 - `retryJob(record: JobRecord, choice: { participant: Participant, route: Route }, host: Host, head: string) -> Promise<{
   path: string, commit: string }>` — queues a new job with a new identifier and the same inputs and parameters, which names the one it
-  retries; the participant is the same or another holder of the role.
+  retries; the participant is the same or another holder of the role. A job whose task travelled with its hand-over is
+  not retried here, since its record holds no task: the list offers to hand it over again from the prompt bar, where the
+  person writes the task anew. Fails with `TaskNotInRecord` for such a job.
 - `jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string,
   keys: string[] }, runners: string[]) -> { path: string, text: string }[]` — the files of the job workflow described under
   Data, for the caller to commit on a person's click.
-- `routeStrategies` — `Partial<Strategies>` with the writer `branch-and-pull-request`: reads the branch named after the job
+- `handOverJob(prepared: Prepared, route: Route, start: JobStart, host: Host, head: string, task: string, target: {
+  endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null }) -> Promise<{ path: string,
+  commit: string }>` — queues the work a conversation of the prompt bar handed over, on the person's click *Hand over*
+  (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`): commits `start` as the person's commit on the head that was read —
+  the record naming the participant, the page and the commit it read, the conversation record where the instance records
+  conversations, and that its task travels with the hand-over, without the task's words —, then, on the CI route, starts
+  the product's job workflow with `startWorkflow` and the inputs `job`, `task` and, for a model endpoint, `endpoint`, or,
+  on a Bridge, hands it over with `handOver` and the task. `prepared` is the job of the kind the participant named, with
+  the task as its instruction, prepared by the caller with MOD-job-runner's `prepareJob`; a job it reports as blocking or
+  not fitting is refused with its findings. A kind with the gate point `before-write` is refused, since such a job would
+  wait for its task at the gate; at `before-merge` the work is written, and its resumption needs no task. Fails with
+  `WorkflowMissing` for the CI route of a product without the job workflow, with what the host names, and with what the
+  Bridge client names; nothing is queued when the record's commit fails, and a start that the server refuses after the
+  commit ends the job's record as failed with the server's reason. A secret the run lacks ends it `not run`, naming the
+  secret (MOD-workflow-entries), and the prompt bar shows that (UC-049 4c).
+- `routeStrategies` — `Partial<Strategies>` with the writer `branch-and-pull-request`.  reads the branch named after the job
   and its commits. With a host of a server's API, it opens the pull request if the coding participant has not, gives it
   a description that names the job, the plan step or backlog item, its modules, the requirements its new tests guard —
   read with MOD-test-document's `testDeclarations` — and the provenance lines, and returns its address. With a local host
@@ -195,11 +239,14 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
 - `MOD-job-ledger.startRecord`, `MOD-job-ledger.appendToRecord`, `MOD-job-ledger.newJobId`, `MOD-job-ledger.JobStart`,
   `MOD-job-ledger.JobRecord`, `MOD-job-ledger.LiveState` — the records it writes and the live state it reports.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-endpoint-calls.EndpointConfig` — the driver of an endpoint the browser calls,
-  and the configuration a Bridge receives for one it calls.
+  and the configuration a Bridge receives for one it calls; `MOD-endpoint-calls.endpointExchange` — one request of the
+  tool loop of an endpoint the Bridge calls.
 - `MOD-participant-list.Participant` — a participant's route.
 - `MOD-repository-hosts.Host`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.commitFiles`,
   `MOD-repository-hosts.listCiRuns`, `MOD-repository-hosts.cancelCiRun`, `MOD-repository-hosts.ciRunLog`,
-  `MOD-repository-hosts.openPullRequest`, `MOD-repository-hosts.listPullRequests` — the CI route and the pull request.
+  `MOD-repository-hosts.openPullRequest`, `MOD-repository-hosts.listPullRequests` — the CI route and the pull request;
+  `MOD-repository-hosts.startWorkflow` — the start of a handed-over job, with its task.
+- `MOD-participant-list.reachedThrough` — a subagent's route through the participant that starts it.
 - `MOD-bridge-client.Bridge`, `MOD-bridge-client.ask`, `MOD-bridge-client.handOver`, `MOD-bridge-client.bridgeJobs`,
   `MOD-bridge-client.bridgeJobLog`, `MOD-bridge-client.cancelOnBridge` — the Bridge route, on the Bridges its callers
   hand in.

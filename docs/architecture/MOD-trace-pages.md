@@ -48,6 +48,8 @@ uses:
   - MOD-model-catalogue.catalogue
   - MOD-release-evidence.auditDocument
   - MOD-artifact-edits.saveFile
+  - MOD-source-register.personSource
+  - MOD-prompt-bar.Subject
 provides:
   - view
 ---
@@ -63,8 +65,8 @@ history; the coverage gaps; the modules view with its component diagram; the tes
 with its export. Everything is derived when it is shown, from the artifacts of the chosen version; nothing is read from a
 stored matrix (`THE TRACEABILITY MATRIX IS DERIVED`).
 
-It serves UC-020, UC-025, UC-029 and UC-030. Editing, changing by prompt and arranging are the review pages' routes,
-which its links lead to.
+It serves UC-020, UC-025, UC-029 and UC-030, and gives the prompt bar the subject of what it shows (UC-049). Editing,
+the draft of a change asked for in the prompt bar, and arranging are the review pages' routes, which its links lead to.
 
 It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
@@ -97,7 +99,7 @@ TraceView = {
 
 | View | Versions | Shape and rows | Opening a row | Extras |
 |---|---|---|---|---|
-| specification | branch and tags | tree of `docs/groups/requirements.md`, every requirement once with its status — in SPEC, change proposed, removal proposed, proposed —, each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* and *Change by prompt* on a requirement, *Change by prompt* on a group with the names it holds (UC-019 step 1), *+ Requirement* in each section, which opens `requirements/new` for that section (UC-018 3d), and *Arrange* |
+| specification | branch and tags | tree of `docs/groups/requirements.md`, every requirement once with its status — in SPEC, change proposed, removal proposed, proposed —, each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* in each section, which opens `requirements/new` for that section (UC-018 3d), and *Arrange*. Its subject for the prompt bar, on the default branch, is the open requirement, or the group with the names it holds, with the kind `change-requirements`, the person's own source and the review pages' `draft` as its draft route (UC-019 step 1); at a released version, the requirement as it read there, with the kind `converse` (UC-020 1a, UC-049 2a) |
 | gaps | branch and tags | table of requirements realised by no use case and named by no module or test, use cases realising none, names matching nothing | the artifact as it read in that version | what became covered and what lost its coverage between two versions |
 | modules | branch | table of modules: subsystem, the requirements its tests guard with their statuses, its file, code, tests; and every gap | the module's file and folder | component diagram: one box per module in its subsystem's box, one arrow per use, gaps marked, a missing provider as a box marked *missing*; *Change the architecture* and *Implement* |
 | tests | branch and tags | tree by level, file and case, or by requirement, use case or module, each test with its outcome on the latest commit | its declaration, its schedule, its counter-proof, its code, its history across commits and releases | comparing two releases |
@@ -106,7 +108,9 @@ TraceView = {
 ## Interfaces
 
 - `view: View` — the routes of the five trace views, `trace/<key>`, each with its version and filters in its `params`,
-  and `trace/<key>/<row>` for an opened row; its strategies are none, since it runs no job.
+  and `trace/<key>/<row>` for an opened row, each with its subject for the prompt bar: the specification view's as its
+  descriptor says, every other view's the frame's default with the version shown among its page; its strategies are
+  none, since it starts no job itself.
 
 ## Files
 
@@ -133,7 +137,9 @@ instance's host that the frame gives every route, it also reads the instance's p
   MOD-trace-graph.moduleRows, MOD-trace-graph.graphFindings — the rows, gaps, unknown names and comparisons.
 - MOD-approvals.statuses — the review status of use cases and architecture files.
 - MOD-spec-changes.queues, MOD-spec-changes.requirementHistory — open proposals and a requirement's history.
-- MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — a requirement's sources with version and part.
+- MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — a requirement's sources with version and part;
+  MOD-source-register.personSource — the person's own source, which the subject of a requirement carries.
+- MOD-prompt-bar.Subject — the subject each route gives the prompt bar.
 - MOD-test-schedule.occasionsOf — when the schedule runs a test.
 - MOD-result-records.resultsAt, MOD-result-records.flakyTests, MOD-result-records.rateComparison,
   MOD-result-records.testHistory — outcomes, flaky tests, rates and history.

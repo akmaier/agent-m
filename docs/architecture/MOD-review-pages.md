@@ -77,6 +77,10 @@ uses:
   - MOD-runtimes.queueJob
   - MOD-runtimes.runOnTab
   - MOD-runtimes.liveState
+  - MOD-runtimes.tabContext
+  - MOD-prompt-bar.Subject
+  - MOD-prompt-bar.latestDraft
+  - MOD-prompt-bar.ConversationDraft
 provides:
   - view
 ---
@@ -86,12 +90,13 @@ provides:
 
 It belongs to the Site (ARC-038). Its one responsibility is the review flow of every reviewed kind of artifact, written
 once as a template method: a list with statuses; one file with its difference to its last accepted text; accepting one,
-the ticked ones or all shown; editing; changing by prompt; drafting; and arranging groups. A kind takes part through its
+the ticked ones or all shown; editing; the draft of a change asked for in the prompt bar; drafting; and arranging groups.
+A kind takes part through its
 **descriptor** — data —, and the flow calls the service the descriptor names for each decision, once. The kinds are use
 cases, architecture decisions, module files, SPEC change entries and release test reports; arranging groups covers every
 kind of `EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN`, requirements and tests included.
 
-It serves UC-005, UC-006, UC-007, UC-008, UC-018, UC-019, UC-021, UC-022 and UC-023, and the acceptance of an open
+It serves UC-005, UC-006, UC-007, UC-008, UC-018, UC-019, UC-021, UC-022, UC-023 and UC-049, and the acceptance of an open
 release test report of UC-030. It derives no status of its own: every status comes from MOD-approvals (`STATUS IS
 DERIVED FROM THE RECORDS`).
 
@@ -100,7 +105,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 ## Parts
 
 - `index.mjs` — the interface: `view`.
-- `flow.mjs` — the template method: list, file, review all, accept, edit, change by prompt, draft, arrange.
+- `flow.mjs` — the template method: list, file, review all, accept, edit, the draft of a conversation, drafting, arrange;
+  and the subject each of its routes gives the prompt bar.
 - `kinds.mjs` — the five descriptors.
 - `jobs.mjs` — preparing, starting and following the drafting jobs of a kind, and letting a result that waits for the
   person go on.
@@ -121,7 +127,7 @@ ReviewKind = {
   schema: "useCase" | "decision" | "module" | null,                     // its schema among MOD-documents' artifactSchemas; null for a SPEC entry and a report
   marks: (text, context) -> Finding[],                                  // the editor's marks, from the artifact model
   draftKinds: string[],                                                 // kinds of MOD-job-catalogue that draft it
-  changeKinds: string[],                                                // kinds that change it by prompt
+  changeKinds: string[],                                                // the kind a message in the prompt bar runs on one of its files
   save: "file" | "entry" | null,                                        // MOD-artifact-edits.saveFile, MOD-spec-changes.saveEntry, or never edited
   accept: "records" | "queue" | "release",                              // MOD-approvals.acceptShown, MOD-spec-changes.acceptEntries, MOD-release-evidence.acceptAndRelease
   groupKind: string | null,                                             // its group file, for arranging
@@ -143,14 +149,19 @@ ReviewKind = {
   `approvalStrategies`, `editStrategies`, `sourceStrategies`, `reuseStrategies`. Its routes, for each kind `<k>`, the key
   of its descriptor, are also the addresses by which other pages and the browser's notifications lead to a kind's list
   and to a file (MOD-main-page, MOD-notifications):
-  - `<k>` — the files of the kind with their status — open, accepted, changed since acceptance —, each with a tick.
+  - `<k>` — the files of the kind with their status — open, accepted, changed since acceptance —, each with a tick. A
+    SPEC entry's tick names the blob of its proposal, from the tree, and the blob of the section that holds now, from the
+    SPEC read once with `sectionText` and `blobSha`; the list builds no impact list, which is built for an entry only
+    when it is opened.
   - `<k>/<id>` — one file, `<id>` the identifier an approval record names it by (MOD-approvals): `UC-<nnn>`,
     `ARC-<nnn>`, `MOD-<slug>`, `spec-<queue>-<NN>` for an entry of a change queue, `release-v<version>` for a release
     test report — one part of the address's fragment, since none of them holds a `/`. The file rendered, with its
     diagram; changed since acceptance, its difference to the text the most recent approval record of its identifier
     names (`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT`); its extra sections; beside an open file a job
     wrote, the notes of that job's end record — a realised name it removed, a use case that realises none (UC-007 4a,
-    4b); *Accept*, *Edit*, *Change by prompt*. Without a token for GitHub, *Accept* and *Edit* open GitHub's prefilled pages, the text never in the
+    4b); *Accept*, *Edit*. Its subject for the prompt bar names the descriptor's change kind and the file as its target —
+    the use case, or the architecture file —, with `draft` as its draft route. Without a token for GitHub, *Accept* and
+    *Edit* open GitHub's prefilled pages, the text never in the
     address (`NO TEXT TRAVELS IN A URL`); for a GitLab product without a token, neither is offered, and the token's step
     is linked.
   - `<k>/all` — *Review all*: every open or changed file of the kind in sequence, a changed one as its difference, a new
@@ -159,24 +170,30 @@ ReviewKind = {
     ONE CLICK`, `ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`). For the architecture, this is the review page of the whole
     architecture: the decision that states the system first, then the subsystems' decisions, the module files, the
     further decisions with their due diligence, and the rounds of the job that drafted them.
-  - `<k>/<id>/edit`, and `requirement/<name>/edit` and `requirements/new` for a requirement — the editor with live
+  - `<k>/<id>/edit`, and `requirement/<name>/edit` and `requirements/new` for a requirement — whose subject for the
+    prompt bar is the file, or the requirement with `change-requirements`, as on the file's route — the editor with live
     preview and the descriptor's marks; for a requirement, its SPEC section, a *Why* field and its impact list, saved as
     an entry of the person's open queue of the day (`A SPEC EDIT IS SAVED AS A PROPOSAL`); `requirements/new` with the four
     fields empty, for the SPEC section the specification browser hands it (UC-018 3d); an open SPEC entry saved in
     place, in its own queue (UC-006 3a, UC-018 1a); every save only on the blob the file or section was opened on. Before saving an edit of the architecture, *Check this edit* runs the kind
     `review-architecture` on the edited files as its draft, and its findings stand beside them for the author to weigh.
-  - `<k>/<id>/prompt`, `requirement/<name>/prompt`, and `requirements/prompt` for a group of requirements, whose names
-    the specification browser hands it — *Change by prompt*: the instruction, the participant, the run panel, the draft
-    in the editor as its difference against the current text — a use case with a changed identifier the loop left
+  - `draft` — the draft of the conversation (UC-019 step 8, UC-049 step 5): MOD-prompt-bar's `latestDraft` for the subject
+    the person came from, shown against the current text before anything can be saved (`A DRAFTED CHANGE IS SHOWN AGAINST
+    THE CURRENT TEXT`) — files each in the editor as their difference, a use case with a changed identifier the loop left
     restored first with `keptIdentifier` (UC-019 7a); requirements as the sections `entrySections` composes from the
-    draft and its classes as the author leaves them, each requirement beside the one it refers to with its class —,
-    *Refine*, which runs the kind once more with the follow-up instruction on the draft as it stands (MOD-job-runner's
-    `refine`), and *Save*, which saves the draft as an edit of UC-018 is saved — the use cases with one `saveFile`, in one
-    commit (UC-019 8b), each section with `proposeSection` as an entry of the person's open queue of the day —, only on the text the job read, with
-    GitHub's pages without a token, and with the job's provenance lines (UC-019 step 9, 9a). For a change
-    of requirements, the job's `source` is the person's own source, which `personSource` names among the product's
-    linked sources; without one nothing is sent, and the page says so and links registering a source and linking it
-    (UC-004, UC-015). A CI agent's draft arrives as an open file or a queue entry instead.
+    draft and its classes as the author leaves them, each requirement beside the one it refers to with its class, a
+    conflict undecided kept out of what is saved (UC-019 8a); an architecture file with its rounds, the due diligence and
+    the impact list of a change, as the descriptor's sections show them —, with the rounds and the findings the loop
+    left. *Save* saves the draft as an edit of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b),
+    each section with `proposeSection` as an entry of the person's open queue of the day —, only on the text the job
+    read, with GitHub's pages without a token, and with the job's provenance lines, which name no message of the
+    conversation (UC-019 step 9, 9a); *Discard* drops the draft. A further change is asked for in the prompt bar, which
+    sends the draft as it stands with the follow-up, and this route then shows the newer draft. For a change of
+    requirements, the subject's parameters carry the person's own source, which `personSource` names among the product's
+    linked sources; without one, the prompt bar sends nothing and names the step that is missing (UC-004, UC-015,
+    UC-019 4b). A draft of the kind `converse` — documents the participant proposed — is shown and saved the same way,
+    each file with `saveFile` after its owner's schema found no error. A draft handed to CI or a Bridge arrives as an
+    open file, a queue entry or a pull request instead.
   - `<k>/draft` — drafting: for use cases, the requirements to cover — by default those no use case realises —; for
     requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a); for the
     architecture, what the derivation covers, its preconditions,
@@ -228,7 +245,7 @@ and `docs/participants.md` of the instance.
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses and acceptance.
 - MOD-spec-changes.queues, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection, MOD-spec-changes.saveEntry,
   MOD-spec-changes.entrySections, MOD-spec-changes.entryView, MOD-spec-changes.acceptEntries — SPEC edits, an open entry
-  saved in place, the sections a change by prompt drafts, SPEC entries and their acceptance in the queue's order, with the product's links and
+  saved in place, the sections a draft of the conversation holds, SPEC entries and their acceptance in the queue's order, with the product's links and
   the instance's register, so that an entry whose requirement names no linked source is named and not accepted.
 - MOD-artifact-edits.saveFile, MOD-artifact-edits.saveGroupFile, MOD-artifact-edits.fallbackEditLinks — saves;
   MOD-artifact-edits.keptIdentifier — a drafted change's identifier restored before the editor opens.
@@ -241,8 +258,11 @@ and `docs/participants.md` of the instance.
   who may review, a reviewer differing from the drafter in participant and model.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob —
   the run panel; MOD-job-runner.writeResult — a result that waited for the person, written on their click;
-  MOD-job-runner.provenanceLines — the trailers of a change by prompt the person saves.
+  MOD-job-runner.provenanceLines — the trailers of a draft of the conversation the person saves.
+- MOD-prompt-bar.Subject — the subject each route gives the prompt bar; MOD-prompt-bar.latestDraft,
+  MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows.
 - MOD-job-ledger.newJobId — the identifier of a job started here; MOD-job-ledger.listJobs — the record of the job that
   drafted a file, with its rounds.
-- MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.runOnTab, MOD-runtimes.liveState — the route of a
-  participant, the start record, a job run in this tab attended, and a job followed on its route.
+- MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.tabContext, MOD-runtimes.runOnTab,
+  MOD-runtimes.liveState — the route of a participant, the start record, a drafting job's context and its run in this
+  tab attended, and a job followed on its route.

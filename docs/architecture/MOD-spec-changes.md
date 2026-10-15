@@ -89,7 +89,8 @@ the letter (`b`, `c`, …) distinguishing several queues of one day, absent for 
 |---|---|---|
 | `index.md` | `queue-index` | the title line `# SPEC approvals — queue <folder date> · <title>`; free text: the decision taken and the impact analysis as a table of the names it changes or withdraws and what references them; the line `**Zieldatei aller Einträge:** ` with the target in backticks; and the entry table |
 | `NN-<slug>.md` | — | an entry: the complete section as proposed, from its heading line to its end, nothing else; `NN` two digits |
-| `NN-<slug>.begruendung.md` | `queue-rationale` | the title line `# <section>: <what changes>`, the paragraphs **The change.** and **Why.**, the impact list, and the origin — the source passage and version, the instruction, or the issue —; for a drafted entry also the Agent M version, the participant, the model, the date and the correction rounds |
+| `NN-<slug>.begruendung.md` | `queue-rationale` | the title line `# <section>: <what changes>`, the paragraphs **The change.** and **Why.**, the impact list, and the origin — the source passage and version, a conversation in the prompt bar on the page it names, never a message
+of it (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`), or the issue —; for a drafted entry also the Agent M version, the participant, the model, the date and the correction rounds |
 | `entscheidungen.md` | `queue-decisions` | the title line `# Decisions — queue <folder> <title>`, the line `Append-only.`, then one row per decision, appended, never changed |
 
 The entry table of `index.md`, a register with exactly these columns:

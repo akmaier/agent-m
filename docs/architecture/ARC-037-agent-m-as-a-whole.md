@@ -75,6 +75,7 @@ forced_by:
   - UC-046
   - UC-047
   - UC-048
+  - UC-049
 ---
 # ARC-037 Agent M as a whole
 
@@ -159,7 +160,7 @@ differ only in data, the data is kept as data and one module interprets it (desi
 | Repository | structuring | The Git repositories of the instance and its products are the one store every part shares: artifacts, records, registers and settings, all as Markdown. The parts never call each other except through these files, the browser's store and the Bridge's API. | `NO SERVER` leaves no other store. Acceptance is a commit (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON`), status is derived from the records (`STATUS IS DERIVED FROM THE RECORDS`), and the product repository stays complete without Agent M (`THE PRODUCT REPOSITORY IS SELF-SUFFICIENT`). Git supplies the history, the authorship and the atomic commit. |
 | Layers | structuring | The code: the drivers — Site, Workflows, Bridge — above the services — Specification and design, Process, Tests and releases, Issues and mail, Sources and resources —, above Participants and jobs, above the Artifact model and Access. A layer uses only the layers below it. | Everything below the drivers is the same set of modules in all three drivers (`ONE DEFINITION, THREE DRIVERS`). The Artifact model at the bottom is pure, and can be tested without any server (`DESIGN TO TEST`). |
 | Pipe-and-filter | structuring | Every job: its input assembled and checked to fit, sent to a participant, the draft passed through checkers — deterministic ones, and reviewing participants — whose findings go back to the participant in the correction loop, then written. Mail runs the same way into issues: read, identified, matched, proposed, searched for people, rewritten, checked, decided. | Each check is a filter of its own and is added for a job kind without touching the others (`A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT`, `AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT`, `A REWRITTEN TEXT IS CHECKED BY THREE LLMS`). |
-| Plug-in | adaptable | Job kinds; repository hosts (GitHub, GitLab); participant drivers (a model endpoint, a coding-agent process, a Bridge); mail routes (Microsoft Graph, IMAP through the Bridge); process models and practices, which are data. Each extension point is an interface its plug-ins implement. | `THE CATALOGUE IS DATA`, `GITLAB PRODUCTS ARE SUPPORTED`, `A RUNTIME IS INTERCHANGEABLE`, `OPEN FOR EXTENSION, CLOSED FOR CHANGE`. |
+| Plug-in | adaptable | Job kinds and the tools they offer a model; repository hosts (GitHub, GitLab); participant drivers (a model endpoint, a coding-agent process, a Bridge); the subjects the Site's routes give the prompt bar; mail routes (Microsoft Graph, IMAP through the Bridge); process models and practices, which are data. Each extension point is an interface its plug-ins implement. | `THE CATALOGUE IS DATA`, `GITLAB PRODUCTS ARE SUPPORTED`, `A RUNTIME IS INTERCHANGEABLE`, `OPEN FOR EXTENSION, CLOSED FOR CHANGE`. |
 | Client-server | distributed | The Site is a fat client: it derives and checks everything itself, and uses the repository servers' APIs, the model endpoints and Microsoft Graph as its servers. The Bridge is a server for the page, on its computer's loopback. | `NO SERVER`: the only servers are services the person already uses. The work they do not do — deriving, checking, composing commits — runs in the client. |
 | Broker | distributed | The Bridge stands between the page or a workflow and what only a computer can do: coding-agent CLIs with their own login, IMAP and SMTP, local model servers and compute. It knows what is installed on its computer and is reached directly or, through tunnels, via a jump host. | A browser can neither open IMAP or SSH connections nor start processes, and local logins stay on their computer (`A LOCAL AGENT USES THE PERSON'S OWN LOGIN`, `THE BRIDGE FINDS THE INSTALLED AGENTS`, `A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL`). |
 
@@ -268,6 +269,8 @@ classDiagram
   class Finding
   class Mail
   class Issue
+  class Conversation
+  class ConversationRecord
   Snapshot o-- Artifact
   Snapshot o-- Record
   Snapshot o-- Register
@@ -295,6 +298,10 @@ classDiagram
   JobRecord --> Job : records
   Job --> Finding : corrected by
   Issue --> Mail : lists the identifier of
+  Conversation --> Job : sends each message as
+  Conversation --> Participant : talks to
+  Record <|-- ConversationRecord
+  ConversationRecord --> Conversation : records, where switched on
 ```
 
 | Abstraction | What it is | Defined in |
@@ -302,14 +309,16 @@ classDiagram
 | Snapshot | the files of one repository at one commit, read lazily | MOD-repository-hosts |
 | Artifact | a requirement, use case, decision, module, test or item: a text with an identifier, proposed until accepted | MOD-spec-document, MOD-test-document, and the schemas of MOD-documents |
 | Schema | the definition of one document format — file name, front matter keys and their types, sections, or a register's columns —, kept in the folder of the module that owns the format | MOD-documents |
-| Record | an approval, gate, job or test result record: evidence, written once or only appended to, never shown for acceptance | the schemas of MOD-approvals, MOD-product-process, MOD-job-ledger, MOD-result-records |
+| Record | an approval, gate, job, test result or conversation record: evidence, written once or only appended to, never shown for acceptance | the schemas of MOD-approvals, MOD-product-process, MOD-job-ledger, MOD-result-records, MOD-prompt-bar |
 | Register | a list kept in a repository: participants, sources, resources, process models, a product's declaration, schedule and settings | the schema of the module that owns each |
 | Finding | one problem with a draft, in the one form of a compiler message | MOD-text-tools |
 | Job kind | a kind of work defined once as data: what its participant needs, its preconditions, recipes, prompt, output schema, checks, reviewers, gates and writer | MOD-job-catalogue |
 | Strategy | a named step a job kind uses — a recipe, a check, a writer —, offered by the module that owns its knowledge | MOD-job-runner, and the module offering it |
-| Job, Run | one execution of a kind, with a record; a job that names its jobs | MOD-job-ledger, MOD-run-planner |
+| Job, Run | one execution of a kind, with a record — but a conversation's, held in a browser tab; a job that names its jobs | MOD-job-ledger, MOD-run-planner |
 | Participant | a person or an agent from the instance's list, reached through a driver | MOD-participant-list |
 | Mail, Issue | a mail named only by its pseudonymous identifier; an issue that lists those identifiers | MOD-mail-records |
+| Conversation | a person's messages to one participant in the prompt bar and its answers, held in the browser tab; each message a job without a record, with the page as its context | MOD-prompt-bar |
+| Conversation record | the messages of a conversation, appended in the repository of its page where the instance switches recording on; evidence, never a proposal | MOD-prompt-bar |
 
 ### Process view
 
@@ -358,8 +367,8 @@ sequenceDiagram
 
 **A job.** The person's click commits the job's start record; the route the job names takes it and runs it. In the
 browser tab the click and the taking are one step; in CI the push of the start record starts the job workflow; a Bridge
-takes the jobs of its participants when it reads the repository. The run panel has named every destination and what is
-sent there before the click (`THE PAGE STATES WHAT IT SENDS WHERE`).
+takes the jobs of its participants when it reads the repository. The run panel has named every destination, with where it
+processes data, before the click (`THE PAGE NAMES WHERE IT SENDS`).
 
 ```mermaid
 sequenceDiagram
@@ -381,6 +390,38 @@ sequenceDiagram
   end
   J->>R: the results, open, the commit naming version, participant and model
   J->>R: the end record
+```
+
+**A conversation.** A message in the prompt bar runs in the tab as a job of the kind the page's subject names, with the
+page as its context and no record; a model endpoint the tab calls uses the tools its capabilities allow, each call
+carried out by the runner; work the tab cannot do is handed over as a recorded job whose task travels with the
+hand-over; a draft is saved only on the person's click.
+
+```mermaid
+sequenceDiagram
+  actor P as Person
+  participant B as Site: prompt bar
+  participant J as Participants and jobs
+  participant X as Participant
+  participant R as Repository server
+  P->>B: message about the page, Send, to the participant named with its place
+  B->>J: prepare the page's kind, it fits or what does not fit is named
+  J->>X: message, page, conversation, tools
+  loop until the answer
+    X->>J: a tool call
+    J->>R: read a file of the product
+    J-->>X: its result
+  end
+  X-->>J: answer, proposed edits
+  opt the work needs CI or a Bridge
+    J->>R: start record, as the person's commit, without the task
+    J->>R: start the job workflow with the task, or hand it to the Bridge
+  end
+  J-->>B: answer, draft
+  B-->>P: answer; the draft on the review page, saved on a click
+  opt the instance records conversations
+    B->>R: append the message to the conversation record
+  end
 ```
 
 **A run and a gate.** A run is a job that names its jobs. Whenever a record changes — a job ended, a gate was recorded, a
@@ -448,7 +489,7 @@ browser.
 
 | Subsystem | Module folders under `src/` |
 |---|---|
-| Site | `site-frame`, `markdown-render`, `main-page`, `review-pages`, `trace-pages`, `implementation-pages`, `test-pages`, `maintenance-pages`, `settings-pages`, `notifications` |
+| Site | `site-frame`, `markdown-render`, `main-page`, `review-pages`, `trace-pages`, `implementation-pages`, `test-pages`, `maintenance-pages`, `settings-pages`, `notifications`, `prompt-bar` |
 | Workflows | `workflow-entries` |
 | Bridge | `bridge-http`, `bridge-jobs`, `mail-protocols`, `tunnels`, `desktop-shell`, `bridge-build` |
 | Specification and design | `approvals`, `spec-changes`, `artifact-edits` |
@@ -551,7 +592,7 @@ the strategies it uses are named with the subsystem that offers them.
 |---|---|
 | UC-001 | Site guides the steps with the token links Access names; Access reads the product repository with the stored token; Specification and design writes the missing review layout as one commit through Access; Access adds the product's address to the browser's store. |
 | UC-002 | Site's form, built from Process's declaration schema, shows the catalogue and the declaration; Process validates the model, derives the workflow with the gates the process requirements add — requirements of the instance's SPEC, read through the Artifact model — and checks every assignment with Participants and jobs, against the places Sources and resources permit; the declaration is one commit through Access. |
-| UC-003 | Site stores the endpoint through Access; Participants and jobs sends the test request directly, or through the Bridge client to a model server on a computer, and names why a browser cannot call an endpoint. |
+| UC-003 | Site stores the endpoint through Access; Participants and jobs sends the test request directly, or through the Bridge client to a model server on a computer, with one tool offered to tell whether the model calls tools, and names why a browser cannot call an endpoint. |
 | UC-004 | Site's form collects the entry; Sources and resources computes the hashes with the Artifact model and writes the register entry and its content where its licence allows through Access; for an EU legal text, the Workflows' entry fetches the text with Sources and resources and completes the entry. |
 | UC-005 | The runner prepares the derivation kind with the excerpt of the linked, hash-checked source version (Sources and resources) and the SPEC with its open queues (Specification and design); Site's run panel states what goes where; the runner sends it on the participant's route and corrects the draft with the Artifact model's checks and classes of candidates; Specification and design's writer turns the classified candidates into a change queue of the product's SPEC, and those that constrain the development process into one of the instance's SPEC. |
 | UC-006 | Site's review page shows the current section beside the proposal; Specification and design checks the blob SHAs and, with Sources and resources' links, that every requirement names a linked source, accepts the entries in their queue's order and writes record, section and decision in one commit through Access; without a token, Access opens GitHub's page, and the Workflows' entry applies the committed approval with the same functions. |
@@ -564,10 +605,10 @@ the strategies it uses are named with the subsystem that offers them.
 | UC-014 | Site guides the fork, Pages and Actions through the links Access names, states the shared origin, stores the token in the browser's store and checks it against the instance repository through Access. |
 | UC-015 | Site's form, from Sources and resources' links schema, lists the register; the links file is committed through Access. |
 | UC-016 | Sources and resources records the new version, finds the products on older versions and, with the Artifact model, the requirements from that source and the passages that changed; moving a product is one commit through Access. |
-| UC-017 | Site's form, from Participants and jobs' participant schema, keeps the entry; an agent is tested through the Bridge client; a self-hosted runner of a repository Access reports as public is refused; the entry is committed through Access. |
+| UC-017 | Site's form, from Participants and jobs' participant schema, keeps the entry — a subagent's route naming the agent that starts it —; an agent is tested through the Bridge client; a self-hosted runner of a repository Access reports as public is refused; the entry is committed through Access. |
 | UC-018 | Site's review page opens the editor with marks from the Artifact model's checks and the impact list from its trace graph; Specification and design saves a use case as an edit and a requirement as an entry of the person's open queue of the day, each only if the text is unchanged since it was opened. |
-| UC-019 | The runner runs the change kind with the target and its neighbours (Specification and design's recipes) and corrects it; Site's review page shows the draft against the current text, and saving continues as in UC-018; a CI agent's draft arrives through the Workflows as an open file or a queue entry. |
-| UC-020 | Site's trace page reads, through Access, the snapshot at the chosen tag or default branch and its history; the Artifact model builds the tree from the group file and derives traces and gaps; Specification and design adds open proposals, statuses and each requirement's history. |
+| UC-019 | Site's prompt bar sends the message on a requirement, a group or a use case as the change kind the route's subject names; the runner runs it with the target and its neighbours (Specification and design's recipes) and corrects it; Site's review page shows the draft against the current text, and saving continues as in UC-018; work handed to CI arrives through the Workflows as an open file or a queue entry. |
+| UC-020 | Site's trace page reads, through Access, the snapshot at the chosen tag or default branch and its history, and gives the prompt bar the open requirement as its subject; the Artifact model builds the tree from the group file and derives traces and gaps; Specification and design adds open proposals, statuses and each requirement's history. |
 | UC-021 | Site's review page arranges; the Artifact model applies the moves and keeps one place per item; Specification and design saves only the group file; proposing groups is a kind the runner runs. |
 | UC-022 | Specification and design's precondition checks that every use case is accepted and no architecture exists; the runner runs the derivation kind with the whole SPEC and every accepted use case, the draft checked by the Artifact model and, once complete, by the review kind on a participant of another model whose findings the drafter weighs; Sources and resources' due-diligence step reads each reuse candidate's facts; Specification and design's writer commits every file open; acceptance is UC-008's on the review page. |
 | UC-023 | Specification and design saves an edit, or the runner runs the change kind with the same review; the impact list comes from the Artifact model's trace graph — modules, interfaces that break, code files in module folders, tests, requirements, plan steps and backlog items. |
@@ -589,13 +630,14 @@ the strategies it uses are named with the subsystem that offers them.
 | UC-039 | Issues and mail derives the replies due from the issues and the mailbox; the runner runs the kind that drafts replies; Issues and mail stores them in the mailbox's Drafts folder, sends each only with the person's confirmation, and notes it in the issue through Access. |
 | UC-040 | Site's form, from Sources and resources' resource schema, keeps the entry; pins and facts are read through Access and the Hugging Face Hub; a resource is checked through the Bridge client, or by a check kind on a runner; the entry is committed through Access. |
 | UC-041 | Process derives the sprint's increment and numbers and records the review and the retrospective; an agent's close is a kind that the Workflows or a Bridge start when the sprint ends; merging the sprint branch is a pull request through Access. |
-| UC-042 | Site lists every setting: Access's browser store tests, clears, exports and imports the browser's; each repository setting is edited in a form from its owner's schema and committed through Access. |
+| UC-042 | Site lists every setting: Access's browser store tests, clears, exports and imports the browser's; each repository setting is edited in a form from its owner's schema and committed through Access — the instance's switch of recording conversations after its notice names the public repositories Access reports. |
 | UC-043 | Process's run planner turns the selection into a run and its next actions — CI first, then the steps in the order of the interfaces, then the tests, then the validation —; Participants and jobs starts them; the Workflows and the Bridge keep the run going while no tab is open. |
 | UC-044 | Site offers the signed file of the Bridge's release and pairs it through Access; the Bridge's window, drawn with the Site's frame, lists the agents Participants and jobs finds, shows its token and opens its own tunnels. |
 | UC-045 | The runner runs the planning kind with Process's recipe of the architecture and the model; Process checks the draft against the module order the Artifact model derives; the plan is committed through Access. |
 | UC-046 | Site's main page reads the instance's or each product's snapshot through Access; Process derives the stage shares, the build in progress and what waits for a person, with the job states of Participants and jobs. |
 | UC-047 | Site's settings page asks the browser's permission on the person's click and keeps the switch in the browser's store through Access; while a page is open, the Site reads every five minutes the instance's and each product's snapshot through Access, each with its own token; Process derives from each what waits for acceptance, from its files, records and tags — the release test reports with Tests and releases —; the Site compares it with what the browser's store keeps as notified, shows what has come to wait through its service worker, and the worker opens the page where it is accepted on a click. |
 | UC-048 | Site's implementation pages show the model's roles and the instance's participants; Process checks the role assignments against both; each role assignment is committed through Access as the author's input. |
+| UC-049 | Site's prompt bar offers the participants Participants and jobs lists that this browser's store reaches, and sends each message as the kind the route's subject names, prepared and run in the tab by Participants and jobs without a record; an endpoint the tab calls works with the tools its capabilities allow, which the runner carries out over Access's snapshot; work the tab cannot do is queued by Participants and jobs and started through Access in the Workflows or handed to a Bridge, its task outside every file; Site's review page shows a draft against the current text; Issues and mail's search for a mail's people decides what of a mail page is given and recorded; with the instance's switch on, the bar appends each message to a conversation record through Access. |
 
 ### Testing
 
@@ -633,7 +675,10 @@ test (`AN ARCHITECTURE IS CHECKED BY REVIEW, NOT BY TESTS`).
 - A new kind of job, document format, reviewed artifact or trace view is data — a catalogue folder, a schema, a
   descriptor —, plus a strategy only where a step needs knowledge no module offers yet.
 - Every read is a request to a repository server and counts against its rate limit; a page reads one snapshot and each
-  blob once, and a used-up limit is named, never blamed on the token.
+  blob once, many blobs in one request where the server allows it, and a used-up limit is named, never blamed
+  on the token.
+- A conversation lives as long as its browser tab; only the work it hands over, and its record where the instance
+  records conversations, outlast it.
 - Concurrent writers are safe because every commit is made only on the head that was read; the loser is refused and
   shown the newer state.
 - Everything is recomputed when it is shown; for the size of a product's repository that is cheaper than keeping a

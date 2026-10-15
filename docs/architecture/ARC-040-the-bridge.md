@@ -44,6 +44,7 @@ forced_by:
   - UC-039
   - UC-040
   - UC-044
+  - UC-049
 designs:
   - MOD-bridge-http
   - MOD-bridge-jobs
@@ -107,7 +108,7 @@ the web server checks first.
 | Module | Folder | Responsibility |
 |---|---|---|
 | MOD-bridge-http | `src/bridge-http/` | the API's protocol and the server: binding to `127.0.0.1`, `::1` or `localhost` only; the token on every request; the pairing token kept across restarts in a file outside every repository that only its user can read, renewed by *pair anew*; cross-origin answers for the instance's Pages origin only; routes dispatched to the handlers the app hands it; no request body ever logged |
-| MOD-bridge-jobs | `src/bridge-jobs/` | the Bridge as a route: jobs handed over by the page, and queued jobs of the agents it offers that it takes itself from the product repositories through Access's local clone with the computer's own git login; running them with the job runner and the agent processes, each in its agent's working folder with the clones of the instance and the products; their records; advancing the runs it serves from the run planner's next actions; starting an agent's sprint close when the sprint ends; the asks of an agent or a model endpoint; the probes; the test of the computer's git login |
+| MOD-bridge-jobs | `src/bridge-jobs/` | the Bridge as a route: jobs handed over by the page — a conversation's with its task, held in memory only —, and queued jobs of the agents it offers that it takes itself from the product repositories through Access's local clone with the computer's own git login; running them with the job runner and the agent processes, each in its agent's working folder with the clones of the instance and the products; their records; advancing the runs it serves from the run planner's next actions; starting an agent's sprint close when the sprint ends; the asks of an agent or a model endpoint; the probes; the test of the computer's git login |
 | MOD-mail-protocols | `src/mail-protocols/` | IMAP and SMTP for the mail routes: a login only over implicit TLS or STARTTLS; folders opened read-only, no flag changed; finding a mail by the identifier of its `Message-ID`; Drafts and Sent by their markings; storing a draft; sending only with a valid single-use confirmation of the mail's hash, and a copy to Sent; the password held only for the request |
 | MOD-tunnels | `src/tunnels/` | the Bridge's own SSH key pair, made on first use, its private key readable only by its owner and never exported; the reverse tunnel bound to the jump host's loopback, or the forward on the person's computer, opened from the tunnel plan in the Bridge's settings, kept open and reopened after sleep or network changes; their state |
 | MOD-desktop-shell | `src/desktop-shell/` | the app: icon in the menu bar or tray, or its window open where there is no tray; the window, rendered with the site's frame and renderer — agents with versions, how to install a missing one and *Check again*, the agents it offers with their working folders and *Test access*, the pairing token with *Copy* and *Pair anew*, the jump host and the public key, tunnel state, importing the dashboard's settings export —; pause and quit; offering a newer release and installing it only after the click, only with a valid signature; composing the other modules |

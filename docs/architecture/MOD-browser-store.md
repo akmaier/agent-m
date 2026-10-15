@@ -24,6 +24,8 @@ provides:
   - readExport
   - expiringSoon
   - secretValues
+  - readTabValue
+  - writeTabValue
 ---
 # MOD-browser-store One person's configuration in their browser
 
@@ -36,7 +38,9 @@ notified — in that browser's `localStorage` and nowhere else
 (`CONFIGURATION LIVES IN THE BROWSER`, `CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE`); it knows every key it
 writes, so that each can be shown, tested and cleared on one page (`EVERY SETTING IS REACHED FROM ONE PAGE`); and it
 exports all of it, secrets included, into one file that may be locked with a passphrase, and imports it again
-(`SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS`, `AN EXPORT CAN BE LOCKED WITH A PASSPHRASE`). It runs in a
+(`SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS`, `AN EXPORT CAN BE LOCKED WITH A PASSPHRASE`). Apart from the
+settings, it keeps what lives only as long as one browser tab — the conversation of the prompt bar (MOD-prompt-bar) — in
+that tab's `sessionStorage`, which is no setting: it is neither listed, exported nor imported. It runs in a
 browser; reading an export runs in Node as well, so that the Bridge can take over its part.
 
 ## Parts
@@ -44,7 +48,7 @@ browser; reading an export runs in Node as well, so that the Bridge can take ove
 - `index.mjs` — the interface.
 - `catalogue.mjs` — every setting it keeps: its key, label, whether it is a secret, what it grants, and the use case that
   sets it up.
-- `store.mjs` — reading, writing and clearing in `localStorage`.
+- `store.mjs` — reading, writing and clearing in `localStorage`, and the tab's values in `sessionStorage`.
 - `export.mjs` — the export file, plain or locked, and its import.
 - `sign-in.mjs` — the keys Microsoft's sign-in library writes for one mailbox connection (`mailbox-sign-in`), found,
   cleared and carried in an export under the library's own names.
@@ -124,13 +128,20 @@ it the file cannot be read, and the passphrase cannot be recovered.
   expiry is within fourteen days of `now`, or past (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`).
 - `secretValues(store: Store) -> string[]` — the values of every stored secret, for the refusal of a commit that would
   write one (`NO SECRET IN THE REPOSITORY`); a caller passes them on and never shows or logs them.
+- `readTabValue(store: Store, key: string) -> unknown | null` — a value this browser tab keeps for the instance, or
+  `null`; what one tab keeps no other tab reads.
+- `writeTabValue(store: Store, key: string, value: unknown | null) -> void` — keeps a value in this tab's
+  `sessionStorage` under the instance's prefix, or removes it for `null`; the browser drops it when the tab closes. A tab
+  value is no setting: `listSettings`, `exportSettings` and `importSettings` never carry it, and it holds nothing that a
+  setting holds. Throws `StorageUnavailable`.
 
 ## Files
 
 It reads and writes `localStorage` of the instance's Pages origin, under its prefix, and the sign-in library's keys of the
-mailbox connection. It writes no file; the export is offered to the person as a download, and an import reads the file
+mailbox connection; and the tab's values in `sessionStorage` of the same origin, under the same prefix. It writes no file; the export is offered to the person as a download, and an import reads the file
 the person picks.
 
 ## Uses
 
-It uses no other module. It uses the browser's `localStorage` and the WebCrypto interface of browsers and Node.
+It uses no other module. It uses the browser's `localStorage` and `sessionStorage` and the WebCrypto interface of browsers
+and Node.

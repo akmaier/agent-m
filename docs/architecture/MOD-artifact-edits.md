@@ -83,8 +83,8 @@ The review layout it writes into a product, skipping whatever exists:
   commit is made with the token the host was connected with, so it is under the person's account; its message names no
   one, and ends with `trailers` — a job's provenance lines when a person saves the draft of a change by prompt (UC-019
   step 9), none for the person's own edit. It serves every such file: a reviewed file — a use case, an architecture
-  decision, a module file, a test file —; a group file; the instance's `docs/participants.md`, `docs/resources.md` and
-  process models under `docs/process-models/`; a product's `docs/sources.md`, `docs/resources.md`, `docs/settings.md`,
+  decision, a module file, a test file —; a group file; the instance's `docs/participants.md`, `docs/resources.md`,
+  `docs/conversation-recording.md` and process models under `docs/process-models/`; a product's `docs/sources.md`, `docs/resources.md`, `docs/settings.md`,
   `docs/collaborators.md` and `docs/process.md`; and the audit export under `docs/audits/`. On refusal it writes nothing
   and returns the newer text, so that the caller keeps the edit beside it (`A REFUSED SAVE KEEPS THE EDIT`); a file
   whose identifier differs from the one it was opened with is refused (`AN EDITED FILE KEEPS ITS IDENTIFIER`); a group
