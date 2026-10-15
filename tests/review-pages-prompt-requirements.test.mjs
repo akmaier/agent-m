@@ -265,7 +265,7 @@ test("requirement/<name>/prompt — without the person's linked source nothing i
 // guards: UC-019 steps 7 to 9 and alternative flow 8a; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A SPEC EDIT IS SAVED AS A PROPOSAL; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: a draft with a new renewal requirement and a conflict with A LOAN HAS A DUE DATE
 // input: Run; class the renewal as a duplicate of A BOOK IS SHELVED; resolve the conflict as a change of A LOAN HAS A DUE DATE; Save
-// expect: one proposal section carries both decisions and SRC-alice, SPEC.md is untouched, and the commit ends in the job's provenance trailers
+// expect: one proposal section carries both decisions and SRC-alice, SPEC.md is untouched, and the commit ends in the job's provenance trailers, none of which names the instruction
 test("requirement/<name>/prompt — changed classes and a resolved conflict reach the saved entry with provenance", async () => {
   endpointAnswers(DRAFT);
   const fake = fakeProduct();
@@ -293,9 +293,10 @@ test("requirement/<name>/prompt — changed classes and a resolved conflict reac
   assert.match(proposal.text, /SRC-alice, renewal/);
   assert.doesNotMatch(proposal.text, new RegExp(`\\*\\*${RENEW}\\*\\*`), "the candidate classed duplicate was not added");
   for (const line of ["Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter-a", "Agent-M-Model: example-model",
-    "Agent-M-Rounds: 1", "Agent-M-Instruction: Make the due date clearer."]) {
+    "Agent-M-Rounds: 1"]) {
     assert.ok(change.message.split("\n").includes(line), `${line} in ${change.message}`);
   }
+  assert.ok(!change.message.split("\n").some((line) => line.startsWith("Agent-M-Instruction") || line.includes("Make the due date clearer.")), "no line names the instruction");
 });
 
 // TST-398005 · level: unit · module: MOD-review-pages

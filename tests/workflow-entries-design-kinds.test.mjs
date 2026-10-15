@@ -3,8 +3,7 @@
 // MOD-approvals' `approvalStrategies`, MOD-spec-changes' `specStrategies` and MOD-artifact-edits' `editStrategies` among them —, so that
 // `onRecordsChanged` takes each queued job and runs it "from its record alone … No person attends a job in CI: its kind's writer writes at
 // once (A CI AGENT'S DRAFT ENTERS AS OPEN)": a job of `change-use-case` writes its use case as an open file, a job of `change-requirements`
-// its requirements as an entry of a new queue, SPEC.md untouched, "the commit naming the instruction, the participant, the model, the version
-// and the rounds" (AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT). For UC-019 6b and UC-007.
+// its requirements as an entry of a new queue, SPEC.md untouched, "the commit naming the Agent M version, the participant and the model" (AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT). For UC-019 6b and UC-007.
 // Run: node --test tests/workflow-entries-design-kinds.test.mjs
 //
 // Module: MOD-workflow-entries
@@ -20,7 +19,7 @@
 // one it takes, and the pull request names it:
 //   - The environment, the routes, the record's parameters `endpoint` and the End are those the tests of ITM-365 state.
 //   - The provenance lines are MOD-job-runner's provenanceLines of the job: the version and commit the record names, the job, the kind, the
-//     participant and its model, the number of rounds the result made and, where the job has one, the instruction on one line.
+//     participant and its model and the number of rounds the result made; none names the person's instruction.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
