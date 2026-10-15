@@ -42,14 +42,27 @@ wrote it, none for the first message — and `page` — the page as the route's 
 message of a conversation. The tools are ITM-484's.
 
 The tests whose expected result the accepted module files change, each named here: TST-472282, TST-472283 and
-TST-472342; and, since they assert `Agent-M-Instruction` in the commits their modules write, TST-472646
-(`tests/review-pages-prompt-use-case.test.mjs`), TST-473198 (`tests/workflow-entries-design-kinds.test.mjs`) and
-TST-476059 (`tests/specification-and-design-drafting-together.test.mjs`), which akmaier's decision puts in this item's
-scope although their headers name other modules.
+TST-472342; and, since they assert `Agent-M-Instruction` in the commits their modules write — a line the accepted
+MOD-job-runner file says is never written —, these of other modules, which akmaier's decision puts in this item's
+scope although their headers name other modules:
+
+- `tests/review-pages-prompt-use-case.test.mjs`: TST-472646;
+- `tests/review-pages-prompt-requirements.test.mjs`: TST-398004;
+- `tests/spec-changes-queue-entries.test.mjs`: TST-473003;
+- `tests/workflow-entries-design-kinds.test.mjs`: TST-473198, TST-473199, TST-473200;
+- `tests/specification-and-design-drafting-together.test.mjs`: TST-476056, TST-476059, TST-476061, TST-476062,
+  TST-476064;
+- `tests/release-uc-019-change-requirements-by-prompt.test.mjs`, a release test: TST-418110, TST-418120, TST-418124 —
+  changed by developer-sonnet-e, who implemented none of UC-019's behaviour, never by this item's implementer
+  (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`).
+
+The callers in MOD-spec-changes, MOD-review-pages and MOD-workflow-entries may still hand `instruction` to
+`provenanceLines`, which ignores it; their own items (ITM-498, ITM-502, ITM-507) remove it.
 
 ## Acceptance
 
-- The six named tests pass; each states its expected values in its own text and reads no module file, the SPEC or a use
+- No test asserts `Agent-M-Instruction` as a line that is written.
+- The named tests pass; each states its expected values in its own text and reads no module file, the SPEC or a use
   case when it runs (`A TEST DOES NOT TAKE ITS EXPECTED RESULT FROM A DOCUMENT`); the pull request names, for each, the
   passage of the accepted module file or use case that changes what it asserts — among them TST-472283's, that no recipe
   may be left out, which the row of `converse` with its optional `chapters-for-page` changes.
