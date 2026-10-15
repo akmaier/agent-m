@@ -11,7 +11,7 @@
 // refuses a clone with NotSupported.
 
 import { HostError } from "./failures.mjs";
-import { githubAdapter } from "./github.mjs";
+import { githubAdapter, BATCH } from "./github.mjs";
 import { gitlabAdapter } from "./gitlab.mjs";
 import { webLinks } from "./web-links.mjs";
 import { localAdapter } from "./local-git.mjs";
@@ -130,6 +130,9 @@ function oldestFirst(commits) {
   return out;
 }
 
+// The failures readSnapshot itself knows and readMany passes on; any other failure of a batch request reads nothing ahead.
+const KNOWN_FAILURES = new Set(["TokenRefused", "PermissionMissing", "RateLimited", "Unreachable"]);
+
 // A clone is worked in by the git command, which only Node runs: connect refuses a clone elsewhere, and the adapter, which
 // touches Node's modules only when it runs a command, is never used there.
 const IN_NODE = typeof process !== "undefined" && Boolean(process.versions?.node);
@@ -192,7 +195,7 @@ export function connect(address, credentials = {}) {
     // fails with NotFound, TokenRefused, PermissionMissing, RateLimited, Unreachable.
     repositoryInfo: () => adapter.repositoryInfo(),
 
-    // readSnapshot(ref) -> Snapshot { repository, ref, commit, paths, read(path), blob(path) } — the repository at one commit.
+    // readSnapshot(ref) -> Snapshot { repository, ref, commit, paths, read(path), readMany(paths), blob(path) } — the repository at one commit.
     // Crosses the network, and so does read(path); fail with NotFound, TokenRefused, PermissionMissing, RateLimited, Unreachable.
     async readSnapshot(ref) {
       if (typeof ref !== "string" || !ref.trim()) throw new TypeError("readSnapshot names a branch, a tag or a commit");
@@ -200,6 +203,26 @@ export function connect(address, credentials = {}) {
       return Object.freeze({
         repository, ref, commit, paths: Object.freeze([...blobs.keys()]),
         blob: (path) => blobs.get(path) ?? null,
+        // Fetches many files' texts ahead of their reads where the adapter has a batch request (GitHub, with a token); otherwise
+        // nothing. A failure readSnapshot knows is passed on; any other failure of a batch leaves its files to their own reads.
+        async readMany(paths) {
+          if (!adapter.readFiles || commit === null) return;
+          const wanted = new Map();
+          for (const path of paths) {
+            const sha = blobs.get(path);
+            if (sha && !texts.has(sha) && !wanted.has(sha)) wanted.set(sha, path);
+          }
+          const list = [...wanted];
+          for (let at = 0; at < list.length; at += BATCH) {
+            const batch = list.slice(at, at + BATCH);
+            let got;
+            try { got = await adapter.readFiles(commit, batch.map(([, path]) => path)); } catch (e) {
+              if (e instanceof HostError && KNOWN_FAILURES.has(e.name)) throw e;
+              return;
+            }
+            for (const [sha, path] of batch) if (got.has(path) && !texts.has(sha)) texts.set(sha, Promise.resolve(got.get(path)));
+          }
+        },
         read(path) {
           const sha = blobs.get(path);
           if (!sha) return Promise.resolve(null);
