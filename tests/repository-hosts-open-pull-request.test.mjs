@@ -152,3 +152,32 @@ test("TST-476414: pull-request creation preserves the documented Host failures",
     }
   }
 });
+
+// TST-476415
+// level: unit
+// module: MOD-repository-hosts
+// guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: each server's public Host, also through a token-bearing clone, with configured credentials
+// input: openPullRequest with a configured secret or the host token in each request text field
+// expect: SecretRefused before any request, naming no credential in its message or fields
+test("TST-476415: PR and MR request text refuses configured credentials before any request", async () => {
+  const secret = "configured-PR-secret-0123456789";
+  for (const server of servers) {
+    for (const clone of [null, "/tmp/unused-pull-request-fixture"]) {
+      const host = connect(parseAddress(server.web), { token: server.token, secrets: [secret], clone });
+      for (const field of ["branch", "base", "title", "body"]) {
+        for (const value of [secret, server.token]) {
+          const { requests } = await serving(answer(server), async () => {
+            const error = await host.openPullRequest({ ...data.request, [field]: `prefix-${value}-suffix` })
+              .then(() => null, (failure) => failure);
+            assert.ok(error instanceof HostError);
+            assert.equal(error.name, "SecretRefused", `${server.kind}: ${field}`);
+            assert.equal(String(error).includes(value), false);
+            assert.equal(JSON.stringify(error).includes(value), false);
+          });
+          assert.equal(requests.length, 0, "no credential-bearing request or URL is sent");
+        }
+      }
+    }
+  }
+});
