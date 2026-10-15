@@ -25,6 +25,12 @@ gate_points:
 review: person
 writer: queue-entries
 limit: 5
+tools:
+  - list-files
+  - read-file
+  - search-files
+  - hand-over
+tool_limit: 30
 ---
 ## Purpose
 
