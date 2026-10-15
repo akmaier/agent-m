@@ -15,6 +15,9 @@ uses:
   - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
   - MOD-resource-list.resourceSchema
+  - MOD-test-document.TestDeclaration
+  - MOD-test-document.testDeclarations
+  - MOD-test-document.isTestFile
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.PullRequest
@@ -170,6 +173,8 @@ module. The file holds:
 - MOD-participant-list.participantSchema, participantsOf, eligible — the instance's register, its participants and which
   may run a row on a self-hosted runner.
 - MOD-resource-list.resourceSchema — the services the tests call and the names of their secrets.
+- MOD-test-document.TestDeclaration, testDeclarations, isTestFile — the product's test files and their declarations,
+  including identifiers, levels and paid-service names.
 - MOD-repository-hosts.Host, Snapshot, PullRequest, readSnapshot, createBranch, commitFiles, openPullRequest,
   setPipelineSchedule — the product's `.gitlab-ci.yml` at the head, the pull request of a schedule, and the pipeline
   schedule on GitLab.
