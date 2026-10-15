@@ -57,7 +57,7 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 | `GET /v1/jobs/{id}/log?from={line}` | — | `{ lines, next, ended }` — the log from that line on | jobs |
 | `POST /v1/jobs/{id}/cancel` | — | `{ confirmed }` — `true` once the agent's process has ended | jobs |
 | `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent the Bridge offers — or `{ endpoint, input }` — a request to a model endpoint, `endpoint` in the endpoint configuration's format — or `{ endpoint, exchange }` — one request of a tool loop the page runs, the messages so far and the tools offered | `{ ask }` | jobs |
-| `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, usage, error }` | jobs |
+| `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, calls, usage, error }` — `calls` the tool calls an endpoint made in the one exchange of a tool loop the request carried, each `{ id, name, args }`; empty for any other request | jobs |
 | `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` takes the endpoint configuration | `{ answer }`; for `endpoint-test`, the endpoint-test answer | jobs |
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |

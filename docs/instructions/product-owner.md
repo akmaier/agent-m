@@ -3,15 +3,15 @@
 **REGISTER**
 
 What the holder of the role Product Owner (`docs/process.md`, Roles) follows. The Scrum Master defines the procedure and
-drives the sprint; its task names the sprint, the folder of the Product Owner's clone, the path of the process's
-`CLAUDE.md` and the lines that end each commit.
+drives the sprint; its task names the sprint, the folder of the Product Owner's clone and the lines that end each
+commit.
 
 ## Read first — in the original, never a summary
-The process's `CLAUDE.md`; `docs/process.md` in full; `docs/process-models/scrum-wip.md`; your team's role assignment
+`AGENTS.md` of the repository, its working rules; `docs/process.md` in full; `docs/process-models/scrum-wip.md`; your team's role assignment
 under `docs/role-assignments/`; the record of your team's last sprint under `docs/backlog/sprints/<team>/` for the form
 of a record; each item your task concerns; and of
-`SPEC.md` the requirements those items name, each in full (find them by name with `grep -n`). `SOFTWARE_MAINTENANCE.md`
-§0 Nr. 13 binds you: YAGNI and KISS, and the sprint is driven to a quick finish.
+`SPEC.md` the requirements those items name, each in full (find them by name with `grep -n`). `AGENTS.md` §2 binds you:
+YAGNI and KISS, and the sprint is driven to a quick finish.
 
 ## No discussion during the sprint
 You ask nobody anything during the sprint. A question to akmaier is allowed only when the SPEC and the use cases cannot be
@@ -45,8 +45,10 @@ For an item, check:
    adds no behaviour.
 2. CI is green on the last commit.
 3. Only the item's scope changed: the folders `src/<slug>/` of its modules, new test files whose header names one of
-   them, and an existing test whose header names one of them where only how it prepares its fixture changed, never an
-   expected result — for an item of release or system tests, only test files. List every changed file and why it is in
+   them, and an existing test whose header names one of them where only how it prepares its fixture changed — or where
+   its expected result changed, only if the item names that test and the accepted module file changes the behaviour it
+   asserts (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`; for a refactoring item never, `A REFACTORING JOB CHANGES NO
+   EXPECTED RESULT`) — for an item of release or system tests, only test files. List every changed file and why it is in
    scope.
 4. Every new test names the requirement it guards and the module it exercises, and has a recorded counter-proof.
 5. The item's Acceptance holds, as far as reading the change and its tests shows.
