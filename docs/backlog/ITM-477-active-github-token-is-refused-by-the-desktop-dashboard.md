@@ -93,3 +93,27 @@ canonical entries, createStore.getToken selects the legacy value, while productS
 value and leaves the conflicting legacy entry in place. The path is product-store-adapter.mjs:74 -> copyToken:45-47
 (do not overwrite a populated canonical entry) -> getToken:115 (read the canonical entry). This reproduces a possible
 version-dependent selection, not the state of the live browser or iPhone. No production fix or live cause is claimed.
+
+## Reported Login Dependency And Live Positive
+
+The human reports that the token is accepted while logged into github.com in the browser and rejected otherwise.
+This is the human's reproduction condition, not a measured comparison of identical outgoing requests. It does not
+establish that GitHub's token API requires a browser session, or that a conflicting stored credential is present.
+
+At 2026-10-15T18:20:20.232Z the agent runs the deployed dashboard's existing Settings -> Repositories -> Test once.
+The page reports "The repository token is working" and records a successful test at that time; the repository line
+shows main at 13a09de77095 and the product metadata loads. The token remains concealed, its displayed expiry remains
+2027-01-12, and the agent changes neither credentials nor GitHub login state. The token's exact bytes before and after
+the human's sign-in are not compared. This is a live positive through the normal caller, not a fix or a completed
+signed-out/signed-in comparison.
+
+The caller path is settings.mjs:497 (read the saved setting) -> settings.mjs:504 (public repositoryInfo) ->
+github.mjs:58 (Bearer authorization) -> failures.mjs:36-37 (authorization and credentials omit) -> failures.mjs:45
+(fetch) -> settings.mjs:505-506 (record and show working). The old caller also sets credentials omit at
+docs/assets/git-host.mjs:74. The implementations do not intentionally depend on GitHub's browser cookies.
+
+A controlled public repositoryInfo probe succeeds with a document.cookie getter that would throw on access: one
+request, the exact constructed fixture token in Authorization, credentials omit and zero cookie reads. The four
+selected existing repository-host tests for token routing, 401 classification and repositoryInfo also pass. These
+checks verify the caller's construction, not the live signed-out transport. The failing request's response body and
+the signed-in/signed-out request comparison remain unobserved; the reported condition is retained for that diagnostic.
