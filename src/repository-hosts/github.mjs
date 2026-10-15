@@ -270,6 +270,13 @@ export function githubAdapter(address, { token, tokenName }, links) {
       return { id: String(run.workflow_run_id), workflow, commit: "", event: "workflow_dispatch", state: "queued", url: run.html_url, started: null, ended: null };
     },
 
+    // Creation returns the same fields as list/get, including the server's head and draft flag.
+    async openPullRequest({ branch, base, title, body, draft }) {
+      return pullOf(await json(await call("POST", `${repo}/pulls`, {
+        body: { head: branch, base, title, body, draft }, permission: "Pull requests",
+      }), API));
+    },
+
     // The pull requests ("List pull requests": state open, closed or all — a merged one is a closed one with a merged_at —, head `<owner>:<branch>`, 100 to a page, read page by page).
     async listPullRequests({ state = "all", branch } = {}) {
       const ask = state === "open" ? "open" : state === "all" ? "all" : "closed";

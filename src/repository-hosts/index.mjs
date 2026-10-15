@@ -149,6 +149,8 @@ function throughClone(repository, folder, rest) {
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
+    setPipelineSchedule: rest ? (...a) => rest.setPipelineSchedule(...a) : without("a pipeline schedule"),
+    openPullRequest: rest ? (...a) => rest.openPullRequest(...a) : without("opening a pull request"),
     listPullRequests: rest ? (...a) => rest.listPullRequests(...a) : without("the pull requests"),
     pullRequestFacts: rest ? (...a) => rest.pullRequestFacts(...a) : without("the facts of a pull request"),
     snapshot: (ref) => clone.snapshot(ref),
@@ -314,11 +316,43 @@ export function connect(address, credentials = {}) {
       });
     },
 
-    // openPullRequest(request) -> PullRequest — a pull request is the server's: through a clone NotSupported. Its adapter for GitHub
-    // and GitLab is not built yet, and until it is, nor is it offered.
-    async openPullRequest() {
-      throw new HostError("NotSupported", { what: clone ? "a pull request through a local clone" : "a pull request" },
-        clone ? "A pull request is opened on the server, not in a clone." : "Opening a pull request is not built yet.");
+    // openPullRequest({ branch, base, title, body, draft }) -> PullRequest — through REST, also for a clone with a token.
+    // Crosses the network; fails with TokenRefused, PermissionMissing, RateLimited, Unreachable, NotSupported without a
+    // token, and SecretRefused before any request where the request text holds a configured credential.
+    async openPullRequest(request) {
+      const { branch, base, title, body, draft = false } = request ?? {};
+      const fields = { branch, base, title, body };
+      if (Object.entries(fields).some(([key, value]) => typeof value !== "string" || (key !== "body" && !value.trim())) || typeof draft !== "boolean") {
+        throw new TypeError("a pull request names its branch, base and title, with a text body and optional draft flag");
+      }
+      refuseSecrets(Object.entries(fields).map(([key, text]) => ({ path: `request.${key}`, text })), refused);
+      if (!token) {
+        throw new HostError("NotSupported", { what: "opening a pull request without a token" }, "A pull request is opened with a token that may write to the repository; store one first.");
+      }
+      return adapter.openPullRequest({ ...fields, draft });
+    },
+
+    // setPipelineSchedule(schedule) -> { id, url } — GitLab creates or updates the schedule with this description; GitHub's
+    // schedules belong to workflow files, so NotSupported. Crosses the network; fails with TokenRefused, PermissionMissing,
+    // RateLimited, Unreachable, NotSupported without a token, and SecretRefused before any request holding a credential.
+    async setPipelineSchedule(schedule) {
+      if (github) {
+        throw new HostError("NotSupported", { what: "a GitHub pipeline schedule" }, "GitHub schedules are written in the workflow file, not through a pipeline schedule API.");
+      }
+      const { description, cron, timezone, ref, active, variables = {} } = schedule ?? {};
+      const fields = { description, cron, timezone, ref };
+      if (Object.values(fields).some((value) => typeof value !== "string" || !value.trim()) || typeof active !== "boolean" ||
+          !variables || typeof variables !== "object" || Array.isArray(variables) || Object.values(variables).some((value) => typeof value !== "string")) {
+        throw new TypeError("a pipeline schedule names its description, cron, timezone and ref, with an active flag and text variables");
+      }
+      refuseSecrets([
+        ...Object.entries(fields).map(([key, text]) => ({ path: `schedule.${key}`, text })),
+        ...Object.entries(variables).flatMap(([key, value]) => [{ path: "schedule.variables", text: key }, { path: "schedule.variables", text: value }]),
+      ], refused);
+      if (!token) {
+        throw new HostError("NotSupported", { what: "a pipeline schedule without a token" }, "A pipeline schedule is saved with the project's token; store one first.");
+      }
+      return adapter.setPipelineSchedule({ ...fields, active, variables });
     },
 
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.
