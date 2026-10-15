@@ -12,6 +12,7 @@ uses:
   - MOD-documents.readDocument
   - MOD-documents.readRegister
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
   - MOD-resource-list.resourceSchema
   - MOD-repository-hosts.Host
@@ -118,7 +119,7 @@ module. The file holds:
   commit or a pull request (`COMMIT TESTS CALL NO PAID SERVICE`); `runs on` naming a participant without *run code and
   tests* or without a runner route. Each finding names the row and column.
 - `ciConfiguration(schedule: Document, target: { server: "github" | "gitlab", instance: string, instanceCommit: string
-  }, resources: Document) -> { files: Record<string, string>, include: { file: ".gitlab-ci.yml", entry: string } | null,
+  }, resources: Document, participants: Document) -> { files: Record<string, string>, include: { file: ".gitlab-ci.yml", entry: string } | null,
   pipelineSchedule: { cron: string, rows: string[] } | null }` — the configuration generated from the schedule; on
   GitLab also the include entry the product's `.gitlab-ci.yml` must hold, and the pipeline schedule to set after the
   configuration is merged. Considers: the schedule must have no error finding; `instanceCommit` pins the Agent M whose
@@ -166,7 +167,8 @@ module. The file holds:
 
 - MOD-documents.Schema, Document, loadSchema, readDocument, readRegister — the schedule, the participants and the resources by their
   schemas.
-- MOD-participant-list.participantSchema, eligible — which participants may run a row on a self-hosted runner.
+- MOD-participant-list.participantSchema, participantsOf, eligible — the instance's register, its participants and which
+  may run a row on a self-hosted runner.
 - MOD-resource-list.resourceSchema — the services the tests call and the names of their secrets.
 - MOD-repository-hosts.Host, Snapshot, PullRequest, readSnapshot, createBranch, commitFiles, openPullRequest,
   setPipelineSchedule — the product's `.gitlab-ci.yml` at the head, the pull request of a schedule, and the pipeline
