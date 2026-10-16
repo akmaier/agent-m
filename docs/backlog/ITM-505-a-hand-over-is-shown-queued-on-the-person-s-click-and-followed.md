@@ -16,6 +16,7 @@ builds_on:
   - ITM-504
   - ITM-535
   - ITM-536
+  - ITM-545
 tests:
   - unit
   - component

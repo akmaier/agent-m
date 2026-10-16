@@ -41,11 +41,10 @@ a job: `takeJob(…, job.runUrl …)` in `src/workflow-entries/product.mjs`, wit
     `cancelled` and returns `cancelled`; otherwise it returns `cancelling` and appends nothing.
   - A run not found is `{ reachable: true, known: false, … }`.
   - A failure of the host gives `reachable: false` and its reason, never an error.
-- **A job taken on a Bridge.** `taken.by` is the Bridge's name, among `bridges`.
-  - `liveState` comes from `bridgeJobs` by the job's id.
-  - `jobLog` streams `bridgeJobLog`.
-  - `cancelJob` asks `cancelOnBridge`, and appends the end once it is confirmed.
-  - A Bridge missing from `bridges`, or one that does not answer, gives `reachable: false` and the reason.
+- **A job taken on a Bridge.** It is ITM-545's, cut off at sprint 45. MOD-bridge-client's `bridgeJobs`, `bridgeJobLog`
+  and `cancelOnBridge`, which it needs, are not built yet (ITM-544). Here such a job's `liveState` is `{ reachable: false,
+  reason: "the Bridge's jobs are not read yet", known: false, … }`, and its `jobLog` and `cancelJob` give the same reason
+  as a `RuntimeError` named `NotSupported`.
 - **A job taken by this tab.** `runOnTab` keeps the abort of each job it runs with a record, by the record's id, until
   the job ends.
   - `liveState` is `running` while the tab holds the job, and `known: false` for a job this tab does not run.
