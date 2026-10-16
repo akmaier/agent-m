@@ -22,7 +22,7 @@ import { linkedVersion, permittedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
-import { el, button, link, problem, TOKEN_STEP } from "./common.mjs";
+import { defaultSnapshot, el, button, link, problem, TOKEN_STEP } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -51,11 +51,6 @@ function connectionsOf(participants, store) {
     connectBridge(/^bridge\s+(\S+)\s+agent\s+\S+/.exec(participant.route ?? "")?.[1]);
   }
   return { endpoints, bridges };
-}
-
-async function defaultSnapshot(host) {
-  const { defaultBranch } = await host.repositoryInfo();
-  return host.readSnapshot(defaultBranch);
 }
 
 /**
