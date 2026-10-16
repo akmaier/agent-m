@@ -16,6 +16,10 @@ export const failure = (name, message, fields) => Object.assign(new Error(messag
 
 export const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, "");
 
+// The row of a product's links file that links a register entry, or undefined when the product links none of it.
+export const linkOf = (links, entry) => links.sections.flatMap((section) => section.rows ?? [])
+  .find((row) => unquoted(row.cells.Source) === entry.id);
+
 // The files of a version and their SHA-256, as the table under `### Files of <version>` in the entry's `## Versions` lists
 // them — the version written with or without backticks. A file is stored unless the Files cell of the version's row names it
 // after `not stored:`, the names of the files only hashed separated by a comma and a space (registrationCommits writes it).
