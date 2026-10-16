@@ -694,7 +694,7 @@ scope and why each part is needed.
 **THE PAGE NAMES WHERE IT SENDS** *(PO A. Maier)*
 Before Agent M sends anything, it names every destination it will contact — a participant with the place where that
 participant processes data.
-*Check:* `tests/test_destination_disclosure.py` — before a run and before a message of a conversation is sent, the page
+*Check:* `tests/site-frame-run-panel.test.mjs` and `tests/prompt-bar.test.mjs` — before a run and before a message of a conversation is sent, the page
 names each destination, a participant with its processing place; counter-proof: a participant shown without its place
 fails.
 
