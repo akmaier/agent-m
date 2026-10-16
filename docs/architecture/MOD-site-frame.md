@@ -26,6 +26,7 @@ uses:
   - MOD-notifications.watchForAcceptance
   - MOD-prompt-bar.startPromptBar
   - MOD-prompt-bar.Subject
+  - MOD-prompt-bar.handOverStrategies
 provides:
   - View
   - Route
@@ -53,8 +54,8 @@ address, the folded explanations, the run panel, the dialog of a decision, the f
 the checks of what waits for the person's acceptance, which MOD-notifications runs on the main and the review pages, and
 the start of the prompt bar, which MOD-prompt-bar draws on the same pages, with the subject of the route shown. It is
 the plug-in manager of the Site's views: an entry page names the view modules it carries, and the frame loads them through
-the `View` interface it defines, registers the strategies they hand it with the job runner, and routes to them. It never
-names a view itself.
+the `View` interface it defines and routes to them. It registers with the job runner the strategies that the views and
+the prompt bar hand it, each set once however many hand it. It never names a view itself.
 
 It runs in a browser — the instance's pages, and the Bridge's window, which is drawn with it (ARC-040).
 
@@ -62,8 +63,8 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 
 - `index.mjs` — the interface.
 - `start.mjs` — the script both entry pages load: it reads the page's setup from its own script tag, loads the named
-  view modules from their folders, registers their strategies and calls `startPage`. This is where the entry pages
-  register strategies (ARC-038).
+  view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies`, each set once,
+  and calls `startPage`. This is where the entry pages register strategies (ARC-038).
 - `menu.mjs` — the eight entries of the menu and the links they lead to.
 - `routing.mjs` — views by the address's fragment, and the address of a route for a repository.
 - `notices.mjs`, `run-panel.mjs`, `decision.mjs`, `forms.mjs` — notices, the run panel, the dialog of a decision, the
@@ -180,7 +181,7 @@ It writes nothing.
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
   each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token.
-- MOD-job-runner.registerStrategies — the strategies the loaded views hand it; MOD-job-runner.Strategies,
+- MOD-job-runner.registerStrategies — the strategies the loaded views and the prompt bar hand it; MOD-job-runner.Strategies,
   MOD-job-runner.Prepared — the types of `View` and of the run panel.
 - MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema.
 - MOD-text-tools.Finding — the findings shown beside a form's fields.
@@ -188,4 +189,5 @@ It writes nothing.
 - MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, started on the main and the review
   pages.
 - MOD-prompt-bar.startPromptBar, MOD-prompt-bar.Subject — the prompt bar, started on the main and the review pages, and
-  the type of a route's subject.
+  the type of a route's subject; MOD-prompt-bar.handOverStrategies — the strategies a hand-over of the bar is prepared
+  with.

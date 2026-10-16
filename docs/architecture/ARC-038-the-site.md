@@ -160,8 +160,8 @@ plain ECMAScript modules, with the repeated page shapes written once as template
   accepted in a new window or tab.
 
 The views compose the services, Participants and jobs, Access and the artifact model; they keep no state of their own
-beyond what is on the screen. The entry pages register the strategies of the modules the views include with the job
-runner, which makes the Site one of the three drivers (ARC-046).
+beyond what is on the screen. The entry pages register with the job runner the strategies that the views and the prompt
+bar hand them, each set once however many hand it, which makes the Site one of the three drivers (ARC-046).
 
 ### Responsibility within the system
 

@@ -27,6 +27,20 @@ uses:
   - MOD-job-runner.prepareJob
   - MOD-job-runner.Prepared
   - MOD-job-runner.JobResult
+  - MOD-job-runner.Strategies
+  - MOD-approvals.approvalStrategies
+  - MOD-spec-changes.specStrategies
+  - MOD-artifact-edits.editStrategies
+  - MOD-source-register.sourceStrategies
+  - MOD-reuse-facts.reuseStrategies
+  - MOD-resource-list.resourceStrategies
+  - MOD-work-plans.workStrategies
+  - MOD-run-planner.runStrategies
+  - MOD-product-process.processStrategies
+  - MOD-test-schedule.scheduleStrategies
+  - MOD-result-records.resultStrategies
+  - MOD-issue-handling.issueStrategies
+  - MOD-runtimes.routeStrategies
   - MOD-job-ledger.listJobs
   - MOD-job-ledger.JobRecord
   - MOD-job-ledger.newJobId
@@ -57,6 +71,7 @@ provides:
   - currentJob
   - recordingSchema
   - recordingOf
+  - handOverStrategies
 ---
 # MOD-prompt-bar The prompt bar, where a person talks to an agent about the page
 
@@ -194,6 +209,9 @@ IN THE REPOSITORY`).
   page's form.
 - `recordingOf(instance: Snapshot) -> Promise<boolean>` — whether the instance records conversations; `false` for a missing
   file or key.
+- `handOverStrategies: Strategies[]` — the strategy sets a hand-over of the bar is prepared with in the tab, which it
+  hands to the frame as a view hands the strategies of its kinds. These are the sets the job workflow registers in CI
+  (MOD-workflow-entries, Uses), since a handed-over job runs on CI or on a Bridge.
 
 `Store` is MOD-browser-store's; `Host` and `Snapshot` are MOD-repository-hosts'; `Schema` is MOD-documents'.
 
@@ -214,7 +232,12 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
 - MOD-participant-list.Participant, MOD-participant-list.participantSchema, MOD-participant-list.participantsOf,
   MOD-participant-list.reachedThrough — the participants, and those reached only through another.
 - MOD-job-runner.prepareJob, MOD-job-runner.Prepared, MOD-job-runner.JobResult — a message prepared and checked to fit,
-  and its result.
+  and its result; MOD-job-runner.Strategies — the type of `handOverStrategies`.
+- MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
+  MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies, MOD-resource-list.resourceStrategies,
+  MOD-work-plans.workStrategies, MOD-run-planner.runStrategies, MOD-product-process.processStrategies,
+  MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-issue-handling.issueStrategies,
+  MOD-runtimes.routeStrategies — the sets of `handOverStrategies`.
 - MOD-runtimes.tabContext, MOD-runtimes.runOnTab — the job's context and its run in this tab without a record;
   MOD-runtimes.routesFor, MOD-runtimes.handOverJob — the route of a hand-over, and its job queued and started;
   MOD-work-plans.startable, MOD-work-plans.itemStates, MOD-progress-measures.productFacts, MOD-product-process.holdsRole —

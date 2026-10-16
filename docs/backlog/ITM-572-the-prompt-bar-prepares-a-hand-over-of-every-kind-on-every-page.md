@@ -6,6 +6,7 @@ realises:
   - UC-049
 modules:
   - MOD-site-frame
+  - MOD-prompt-bar
 builds_on:
   - ITM-505
   - ITM-568
@@ -31,11 +32,21 @@ Two facts bind the design:
 - MOD-job-runner refuses a strategy registered twice (`DuplicateStrategy`, `src/job-runner/registry.mjs:18`).
 - MOD-implementation-pages' view is to hand `runStrategies` too.
 
-**Not ready for a sprint yet. It needs a draft for akmaier**, since no text says who registers the strategies of the
-kinds the bar may hand over. A design is derived from AGENTS.md §2's principles before it is drafted:
-- one responsibility: the frame registers what the pages need;
-- nothing twice: each strategy set registered once per tab, however many views or the bar need it;
-- no special first case.
+**Not ready for a sprint yet.** It waits for akmaier's acceptance of the draft committed on `main` with sprint
+team1/53. The draft changes ARC-038, MOD-site-frame and MOD-prompt-bar, and each decision names the principle it rests on:
+- **One responsibility.** The frame registers every strategy set in the tab, in `start.mjs`, as ARC-038 has the entry
+  pages do. A view or the bar only names the sets its kinds need.
+- **No special first case.** The bar names its sets the way a view does: MOD-prompt-bar's new `handOverStrategies`. These
+  are the sets the job workflow registers in CI, since a handed-over job runs on CI or on a Bridge.
+- **Nothing twice.** Each set is registered once per tab, however many views or the bar hand it. The accepted texts
+  already have several views on the review page hand the same set (`approvalStrategies` from MOD-review-pages,
+  MOD-implementation-pages and MOD-test-pages). Registered once per view, that throws `DuplicateStrategy`
+  (`src/job-runner/registry.mjs:18`).
+- **Adding one of a kind changes nothing of another kind.** A new view, or a new set a view hands, changes neither the
+  frame nor the bar.
+
+The lists of CI (MOD-workflow-entries) and of the Bridge (MOD-desktop-shell) name the same thirteen sets that
+`handOverStrategies` names. Making them one list is not part of this draft.
 
 ## Acceptance
 
