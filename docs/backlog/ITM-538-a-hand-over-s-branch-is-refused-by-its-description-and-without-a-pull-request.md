@@ -30,6 +30,12 @@ says "pull request text". Two cases are not yet checked:
 Once both drafts are accepted, the entry checks the description too, and reads the commit messages of the run's branch
 with `readHistory` when no pull request was opened.
 
+**What ITM-537 already brought.** `refusedBranch` (`src/workflow-entries/product.mjs:88–95`) searches
+`Object.values(facts.pullRequest)`. Since ITM-537 gave `PullRequest` its `body`, a description that holds the task's
+words is already refused as "the pull request's text". This item therefore adds a test that holds that case, and the
+branch of a run whose writer returned no pull request. Which commits of that branch are read, and against which base, is
+settled before its start.
+
 ## Acceptance
 
 - A description holding the task's words refuses the branch by name.
