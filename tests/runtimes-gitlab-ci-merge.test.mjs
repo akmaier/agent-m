@@ -158,3 +158,22 @@ test("jobWorkflowFiles — with no .gitlab-ci.yml it gives the whole file", () =
   assert.equal(jobWorkflowFiles("gitlab", INSTANCE, SECRETS, []).find((file) => file.path === ".gitlab-ci.yml").text, whole);
   assert.equal(merged(whole), whole);
 });
+
+// TST-548009 · level: unit · module: MOD-runtimes
+// guards: UC-010; UC-027
+// given: a product's .gitlab-ci.yml whose spec: header writes `inputs: {}` inline, and one whose include: entry for .gitlab/agent-m-jobs.yml writes `inputs: { job: x }` inline
+// input: jobWorkflowFiles("gitlab", …, each text)
+// expect: each throws a RuntimeError named GitlabCiNotList whose message begins `.gitlab-ci.yml: the inputs: of the spec: header is not written as a block.` for the header and
+// `.gitlab-ci.yml: the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.` for the entry; no file is returned
+test("jobWorkflowFiles — an inline inputs: in the header or in the entry is refused as GitlabCiNotList, naming the part", () => {
+  const forms = {
+    header: ['spec:\n  inputs: {}\n---\nbuild:\n  script: make\n', ".gitlab-ci.yml: the inputs: of the spec: header is not written as a block."],
+    entry: ['include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs: { job: x }\nbuild:\n  script: make\n', ".gitlab-ci.yml: the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block."],
+  };
+  for (const [part, [own, message]] of Object.entries(forms)) {
+    let result = null;
+    assert.throws(() => { result = merged(own); },
+      (error) => error instanceof RuntimeError && error.name === "GitlabCiNotList" && error.message.startsWith(message), part);
+    assert.equal(result, null, `${part}: nothing is returned`);
+  }
+});
