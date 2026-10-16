@@ -18,14 +18,14 @@
 //     (its identifier); for requirements, `requirements` (the names the SPEC holds), `source` and, for a new requirement, `section`; for a SPEC change entry `target` (its
 //     identifier), the `requirements` of its proposal that the SPEC holds, and `source`. All carry `version`: the blob of the file, or of the SPEC section the named requirements stand in, as the
 //     page read it, which is the text the job reads.
-//   - A page that names no file — a list, Review all, a drafting page, an identifier the product does not hold, the old prompt pages — has a subject of the kind `converse`
+//   - A page that names no file — a list, Review all, a drafting page, an identifier the product does not hold — has a subject of the kind `converse`
 //     that is the frame's default: its key the route's fragment, its title the route's title, no draft route, the page it has drawn.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ARC1, ENTRY_ID, GITHUB, HEADING, LENDING, LOAN, MOD_READER, NO_LINKS, PRODUCT, PRODUCT_FILES, SHELF, SOURCE, UC7, blobOf,
-  contextOf, draw, fakeProduct, fetched, routeNamed } from "./review-pages-draft-world.mjs";
+  byClass, contextOf, draw, fakeProduct, fetched, find, routeNamed } from "./review-pages-draft-world.mjs";
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 const participant = { name: "drafter-a", model: "example-model" };
@@ -164,14 +164,14 @@ test("use-case/<id> — the same route on the instance and on a product are two 
 });
 
 // TST-507008 · level: unit · module: MOD-review-pages
-// guards: UC-049 (step 3); UC-019 (the old prompt pages stay)
+// guards: UC-049 (step 3)
 // given: a product page of the route `use-case`
-// input: the subject of the list (no part), of Review all (id=all), of the drafting page (id=draft), of an identifier the product does not hold (UC-999), and of the old prompt page of UC-007 (prompt=1)
+// input: the subject of the list (no part), of Review all (id=all), of the drafting page (id=draft) and of an identifier the product does not hold (UC-999)
 // expect: each is the frame's default — kind converse, title "Use cases", no draft route, no withhold, refuses [], entry use-cases — with the key the route's fragment ("use-case", "use-case/id=all", …, each with
 //   "/product=<address>" after it), and as its page the title, the product's address and what the route has drawn — for the list the row "UC-007"
 test("the other routes of a kind keep the frame's default subject", async () => {
   const fake = fakeProduct();
-  const cases = [[{}, "use-case"], [{ id: "all" }, "use-case/id=all"], [{ id: "draft" }, "use-case/id=draft"], [{ id: "UC-999" }, "use-case/id=UC-999"], [{ id: "UC-007", prompt: "1" }, "use-case/id=UC-007/prompt=1"]];
+  const cases = [[{}, "use-case"], [{ id: "all" }, "use-case/id=all"], [{ id: "draft" }, "use-case/id=draft"], [{ id: "UC-999" }, "use-case/id=UC-999"]];
   for (const [params, fragment] of cases) {
     const page = await draw(fake, "use-case", params);
     const subject = page.subject();
@@ -192,14 +192,35 @@ test("the other routes of a kind keep the frame's default subject", async () => 
 });
 
 // TST-507009 · level: unit · module: MOD-review-pages
-// guards: UC-049 (step 3); UC-019 (the old prompt pages stay)
-// given: the view the module offers
-// input: the old routes of changing by prompt, drawn: `use-case/id=UC-007/prompt=1` and `requirement/name=A LOAN HAS A DUE DATE/prompt=1`
-// expect: both still draw their prompt page — a field "What should change" (textarea.instruction) —, so that ITM-514 can move UC-019's tests and ITM-551 remove the routes
-test("the old prompt routes stay", async () => {
+// guards: UC-049 (step 3); UC-019 (step 1)
+// given: the view the module offers, a product with the use case UC-007 and the requirement A LOAN HAS A DUE DATE
+// input: the former routes of changing by prompt, drawn: `use-case/id=UC-007/prompt=1`, `requirement/name=A LOAN HAS A DUE DATE/prompt=1` and `requirements/requirements=["A LOAN HAS A DUE DATE"]/prompt=1`;
+//   known positives: the same routes without `prompt`
+// expect: none draws a prompt page — no heading "Change UC-007 by prompt" or "Change requirements by prompt", nor any heading containing "by prompt", no field "What should change" (textarea.instruction), no participant list —;
+//   the use case's route draws the page of UC-007 (heading "UC-007 Derive use cases"), the requirement's route the editor of the requirement (heading "Edit A LOAN HAS A DUE DATE", a field
+//   Why), as the same routes draw them without the part prompt
+test("the old prompt routes are gone", async () => {
   const fake = fakeProduct();
-  assert.equal((await draw(fake, "use-case", { id: "UC-007", prompt: "1" })).target.textContent.includes("Change UC-007 by prompt"), true);
-  assert.equal((await draw(fake, "requirement", { name: LOAN, prompt: "1" })).target.textContent.includes("Change requirements by prompt"), true);
+  const headings = (page) => find(page.target, (node) => node.localName === "h2" || node.localName === "h3").map((node) => node.textContent);
+  const first = (page) => headings(page)[0];
+  const prompted = (page) => find(page.target, (node) => node.localName === "textarea" && node.className.split(" ").includes("instruction")).length + byClass(page.target, "ul", "participants").length;
+  const names = JSON.stringify([LOAN]);
+  const useCase = await draw(fake, "use-case", { id: "UC-007" });
+  const requirement = await draw(fake, "requirement", { name: LOAN });
+  assert.equal(first(useCase), "UC-007 Derive use cases", "known positive: the page of the use case");
+  assert.equal(first(requirement), `Edit ${LOAN}`, "known positive: the editor of the requirement");
+
+  const useCasePrompt = await draw(fake, "use-case", { id: "UC-007", prompt: "1" });
+  assert.equal(first(useCasePrompt), "UC-007 Derive use cases");
+  assert.equal(headings(useCasePrompt).some((heading) => /by prompt/.test(heading)), false);
+  assert.equal(prompted(useCasePrompt), 0);
+  const requirementPrompt = await draw(fake, "requirement", { name: LOAN, prompt: "1" });
+  assert.equal(first(requirementPrompt), `Edit ${LOAN}`);
+  assert.equal(headings(requirementPrompt).some((heading) => /by prompt/.test(heading)), false);
+  assert.equal(prompted(requirementPrompt), 0);
+  const groupPrompt = await draw(fake, "requirements", { requirements: names, prompt: "1" });
+  assert.equal(headings(groupPrompt).some((heading) => /by prompt/.test(heading)), false);
+  assert.equal(prompted(groupPrompt), 0);
 });
 
 // TST-507010 · level: unit · module: MOD-review-pages
