@@ -169,6 +169,7 @@ async function world({ records = [], agent = "ok", probe = refuse }, run) {
 run) printf 'RUN %s\\n' "$*" >> ${calls}
 printf 'CONFIG %s\\n' "$OPENCODE_CONFIG_CONTENT" >> ${calls}
 ${agent === "ok" ? `printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}'`
+  : agent === "quoting" ? `printf 'agent started with: %s\\nagent stopped: internal error 17 while asking: %s\\n' "$*" '${TASK}' >&2; exit 1`
   : agent === "failed" ? `printf 'agent started with: %s\\nagent stopped: internal error 17\\n' "$*" >&2; exit 1`
   : `printf 'agent started with: %s\\nfetch failed: connect ECONNREFUSED 10.0.0.5:8080 while asking: %s\\n' "$*" '${TASK}' >&2; exit 1`};; esac`);
   const instance = repository(root, "instance", { "README.md": "# Instance\n", "docs/participants.md": PARTICIPANTS }, join(workspace, "instance"));
@@ -456,20 +457,22 @@ test("TST-539003: an endpoint nothing answers is named as not reachable in the w
 
 // TST-539004 · level: component · module: MOD-workflow-entries
 // guards: UC-049; AN UNSUPPORTED ENDPOINT SAYS SO
-// given: as TST-539001, but the endpoint answers the request of testEndpoint as a working OpenAI-compatible endpoint does, with a message "ok"
+// given: as TST-539001, but the fixture agent's last line is "agent stopped: internal error 17 while asking: <the task>" and it ends with 1; the endpoint answers the request of testEndpoint as a working OpenAI-compatible endpoint does, with a message "ok"
 // input: onDispatch with the task and the endpoint
-// expect: outcome `failed`; the summary and the record's End hold the agent's last output "agent stopped: internal error 17" and neither `key refused` nor `model unknown`; the record ends `state: failed`; one request reached the endpoint; no zebra-498 in the summary, the record, any commit or anything the entry printed
-test("TST-539004: where the endpoint works, the failure is the agent's and its last output is reported", async () => {
-  await world({ records: [HAND_OVER], agent: "failed", probe: answer(200, { choices: [{ message: { content: "ok" } }] }) }, async (w) => {
+// expect: outcome `failed`; the summary and the record's End name the exit code 1 ("exit code 1") and the agent's last output with the task hidden ("agent stopped: internal error 17 while asking: [the task]"), and hold none of: `not reachable`, `key refused`, `model unknown`, "self-hosted runner", "Bridge", "routes"; the record ends `state: failed`; one request reached the endpoint; no zebra-498 in the summary, the record, any commit or anything the entry printed (known positive: the agent's own error output and its calls file hold the task)
+test("TST-539004: where the endpoint works, the failure is the agent's: its exit code and last output, no diagnosis, no routes", async () => {
+  await world({ records: [HAND_OVER], agent: "quoting", probe: answer(200, { choices: [{ message: { content: "ok" } }] }) }, async (w) => {
     const status = await w.dispatch(INPUTS);
     assert.equal(status.outcome, "failed");
     const end = w.originText(`docs/jobs/${JOB}.md`).split(/^## End$/m)[1];
     for (const said of [status.summary, end]) {
-      assert.ok(said.includes("agent stopped: internal error 17"), said);
-      assert.doesNotMatch(said, /key refused|model unknown/);
+      assert.match(said, /exit code 1/);
+      assert.ok(said.includes("agent stopped: internal error 17 while asking: [the task]"), said);
+      assert.doesNotMatch(said, /not reachable|key refused|model unknown|self-hosted runner|Bridge|routes/);
     }
     assert.match(end, /state: failed/);
     assert.equal(w.probes.length, 1, "the endpoint was asked once");
+    assert.ok(holdsTask(w.calls()), "known positive: the agent was started with the task");
     assert.equal(holdsTask(status.summary + w.lines() + w.everything()), false, "the task reaches no summary, record, commit or output");
   });
 });
