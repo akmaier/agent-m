@@ -260,7 +260,7 @@ export async function showRequirementsPrompt(where, kind, params) {
   }
   const instruction = el("textarea", "instruction");
   instruction.setAttribute("aria-label", "What should change");
-  const offered = participantList(drafters, product, needs);
+  const offered = participantList(drafters, participants, product, needs);
   target.append(el("h3", null, "What should change"), instruction,
     el("section", "drafters", el("h3", null, "Drafting participant"), explain(kind.explain.draft.participant), offered));
   const stage = el("section", "stage");

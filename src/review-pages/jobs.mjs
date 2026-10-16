@@ -74,8 +74,8 @@ export async function loadStage(where, jobKind) {
   return { definition, participants, instanceSnapshot, product, needs, drafters: eligible(participants, { capabilities: definition.needs }).eligible };
 }
 
-/** participantList(drafters, product, needs, role) -> Element — each participant that can draft with where it processes data and its routes, a radio to choose it; `role` is "participant", or "reviewer" for the reviewing participant of a derivation. */
-export function participantList(drafters, product, needs, role = "participant") {
+/** participantList(drafters, participants, product, needs, role) -> Element — each of the drafters (of the instance's participants) that can draft with where it processes data and its routes, a radio to choose it; `role` is "participant", or "reviewer" for the reviewing participant of a derivation. */
+export function participantList(drafters, participants, product, needs, role = "participant") {
   const offered = el("ul", `${role}s`);
   for (const participant of drafters) {
     const box = el("input", role);
@@ -83,7 +83,7 @@ export function participantList(drafters, product, needs, role = "participant") 
     box.name = role;
     box.value = participant.name;
     const route = el("span", "route");
-    const offers = routesFor(participant, product, needs);
+    const offers = routesFor(participant, participants, product, needs);
     route.append(offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job");
     const item = el("li", role, el("label", null, box, ` ${participant.name} `), el("span", "place", participant.place ?? "no processing place declared"), " ", route);
     for (const offer of offers) if (!offer.available) item.append(" ", el("span", "reason", offer.reason));
@@ -123,7 +123,7 @@ export async function showDraft(where, kind) {
   }
   target.append(el("section", "to-cover", el("h3", null, "Requirements to cover"), list));
 
-  const offered = participantList(drafters, product, needs);
+  const offered = participantList(drafters, participants, product, needs);
   target.append(el("section", "drafters", el("h3", null, "Drafting participant"), explain(kind.explain.draft.participant), offered));
 
   const stage = el("section", "stage");
@@ -161,7 +161,7 @@ async function preparedRun(run, snapshot = run.snapshot, params = run.params) {
     places: run.places ?? { sources: {}, mailbox: null }, gates: [], person: token.name, now, agentM, jobId: id };
   let prepared = await prepareJob(run.jobKind, jobContext, { drafter: chosen, reviewers: run.reviewers ?? [] });
   if (run.relax) prepared = run.relax(prepared);
-  const offer = routesFor(chosen, run.product, run.needs)[0];
+  const offer = routesFor(chosen, run.participants, run.product, run.needs)[0];
   return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
 }
 
@@ -323,7 +323,7 @@ async function showRequirementsDraft(where, kind) {
   const sources = sourceChoiceList(choices);
   target.append(el("section", "source-selection", el("h3", null, "Linked source"), sources));
 
-  const offered = participantList(drafters, product, needs);
+  const offered = participantList(drafters, participants, product, needs);
   target.append(el("section", "drafters", el("h3", null, "Drafting participant"), explain(kind.explain.draft.participant), offered));
 
   const stage = el("section", "stage");
@@ -517,7 +517,7 @@ async function showArchitectureDraft(where, kind) {
   const placed = Object.entries(places.sources).map(([from, allowed]) => ({ from, allowed }));
   const drafters = eligible(participants, { capabilities: definition.needs, places: placed }).eligible;
   const reviewable = eligible(participants, { capabilities: reviewing.needs, places: placed }).eligible;
-  const offered = participantList(drafters, product, needs);
+  const offered = participantList(drafters, participants, product, needs);
   const reviewers = el("div", "reviewer-choice");
   const reviewersFor = (drafter) => (drafter ? reviewable.filter((each) => differs(drafter, each)) : []);
   const drafterChosen = () => drafters.find((each) => byClassChecked(offered, each.name));
@@ -526,7 +526,7 @@ async function showArchitectureDraft(where, kind) {
     reviewers.replaceChildren();
     if (!drafter) reviewers.append(el("p", "none", "Choose the drafting participant first; the reviewer must use another model."));
     else if (reviewersFor(drafter).length === 0) reviewers.append(el("p", "no-reviewer", noReviewer(drafter, participants, reviewing.needs, places)));
-    else reviewers.append(participantList(reviewersFor(drafter), product, needs, "reviewer"));
+    else reviewers.append(participantList(reviewersFor(drafter), participants, product, needs, "reviewer"));
   }
   for (const box of inputsOf(offered, "participant")) box.addEventListener("change", showReviewers);
   showReviewers();
@@ -693,7 +693,7 @@ async function checkDraft(run, draft) {
 
 function dueDiligenceMissingText(failure, run) {
   const registries = (failure.decisions ?? []).map((each) => each.registry).filter(Boolean);
-  const offered = run.participants.flatMap((participant) => routesFor(participant, run.product, run.needs)
+  const offered = run.participants.flatMap((participant) => routesFor(participant, run.participants, run.product, run.needs)
     .map((offer) => ({ participant, offer }))).find(({ offer }) => offer.available && offer.route.kind !== "tab");
   const route = offered ? ` Try ${recordRoute(offered.offer.route)} with ${offered.participant.name}.` : " Try a participant that can reach the web.";
   return `${failure.message}${registries.length ? ` Registry: ${registries.join(", ")}.` : ""}${route}`;
