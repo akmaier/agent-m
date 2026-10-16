@@ -403,7 +403,7 @@ if (process.argv.includes(fileURLToPath(import.meta.url))) {
   // given: A LOAN HAS A DUE DATE open in the specification browser, a draft returned for it
   // input: press Review the draft in the bar
   // expect: the route draft shows the candidates of that draft, as it does from the page of the requirement
-  test("TST-418007: Review the draft from the specification browser shows the draft", { todo: "FINDING UC019-S7 - the subject of the specification browser names the draft route `draft` without `subject=<key>` (src/trace-pages/subject.mjs DRAFT_ROUTE), the bar goes to `#draft/product=...`, and the route reads `params.subject ?? null` (src/review-pages/conversation-draft.mjs, show): it says \"There is no draft of the conversation for this page.\" The draft is kept in the tab and shows when the address carries the subject (TST-418003)" }, async () => {
+  test("TST-418007: Review the draft from the specification browser shows the draft", async () => {
     const s = await scenario();
     await fromTrace(s);
     await send(s);
@@ -418,7 +418,7 @@ if (process.argv.includes(fileURLToPath(import.meta.url))) {
   // given: the author's source is not linked by the product, and A LOAN HAS A DUE DATE is open in the specification browser
   // input: an instruction in the bar and Send
   // expect: nothing is sent, as from the page of the requirement (TST-418004)
-  test("TST-418008: a missing personal source stops a send from the specification browser", { todo: "FINDING UC019-S8 - the subject of the specification browser gives `source: null` (src/trace-pages/subject.mjs changing(), paramsFor) instead of refusing as the review pages' subject does (src/review-pages/subjects.mjs missingSource); the bar sends the message with no source" }, async () => {
+  test("TST-418008: a missing personal source stops a send from the specification browser", async () => {
     const s = await scenario({ linked: false });
     await fromTrace(s);
     await send(s);
