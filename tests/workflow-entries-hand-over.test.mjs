@@ -445,7 +445,7 @@ test("TST-539003: an endpoint nothing answers is named as not reachable in the w
     const end = w.originText(`docs/jobs/${JOB}.md`).split(/^## End$/m)[1];
     for (const said of [status.summary, end]) {
       assert.match(said, /not reachable/);
-      assert.match(said, /connect ECONNREFUSED 10\.0\.9\.9:9/);
+      assert.match(said, /connect ECONNREFUSED 10\.0\.0\.9:9/);
       assert.match(said, /a self-hosted runner/);
       assert.match(said, /a Bridge/);
     }
