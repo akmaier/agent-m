@@ -50,12 +50,13 @@ test("src/review-pages — prompt.mjs and requirements-prompt.mjs are removed", 
 // TST-551003 · level: unit · module: MOD-review-pages
 // guards: UC-019; UC-049
 // given: every .mjs file of src/review-pages/ and src/trace-pages/
-// input: the files scanned for the texts "Change by prompt", "prompt=1" and "/prompt"
-// expect: no file holds any of them; the same scan finds the text "export" in every file as the known positive
+// input: the files scanned for the texts "Change by prompt" and "prompt=1", and for "/prompt" not followed by "-bar" (the folder of MOD-prompt-bar is imported as ../prompt-bar/)
+// expect: no file holds any of them; the same scan finds the text "export" in every file, and the text "../prompt-bar/" in conversation-draft.mjs, as the known positives
 test("src/review-pages and src/trace-pages — no text names Change by prompt or a prompt route", () => {
   const files = ["src/review-pages/", "src/trace-pages/"].flatMap((folder) => readdirSync(new URL(folder, ROOT)).filter((name) => name.endsWith(".mjs")).map((name) => `${folder}${name}`));
-  const holding = (needle) => files.filter((path) => readFileSync(new URL(path, ROOT), "utf8").includes(needle));
+  const holding = (needle) => files.filter((path) => (needle instanceof RegExp ? needle.test(readFileSync(new URL(path, ROOT), "utf8")) : readFileSync(new URL(path, ROOT), "utf8").includes(needle)));
   assert.ok(files.length >= 15, "known positive: the folders hold their files");
   assert.equal(holding("export").length, files.length, "known positive: the scan finds a text every file holds");
-  for (const needle of ["Change by prompt", "prompt=1", "/prompt"]) assert.deepEqual(holding(needle), [], needle);
+  assert.deepEqual(holding("../prompt-bar/"), ["src/review-pages/conversation-draft.mjs"], "known positive: the scan finds a text that begins with /prompt");
+  for (const needle of ["Change by prompt", "prompt=1", /\/prompt(?!-bar)/]) assert.deepEqual(holding(needle), [], String(needle));
 });
