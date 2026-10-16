@@ -66,7 +66,9 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
   "key refused" | "model unknown" | "too long" | "rate limited" | "endpoint error", message: string, routes: ("ci" |
   "bridge")[] }`: why a call failed, in the endpoint's or the browser's own words where there are any, and the routes on
   which the same job would work — GitHub Actions (UC-010) or the Bridge (UC-011) — where the browser was the obstacle.
-- `endpointDriver(config: EndpointConfig, participant: Participant) -> Driver` — a driver whose `send` turns the
+- `endpointDriver(config: EndpointConfig, participant: Participant, exchange?: (config: EndpointConfig, exchange: {
+  messages: object[], tools: object[] }) -> Promise<{ text: string, calls: object[], usage: Usage | null }>) -> Driver` — a
+  driver whose `send` turns the
   `DriverInput` into a chat request to the endpoint, using `driverPrompt` once for its message text, crosses the network
   to it, and returns the answer's text and the
   usage the endpoint reported, or `null` usage where it reports none; it estimates nothing. Where the input carries
@@ -75,7 +77,9 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
   returns its result to the endpoint, and goes on until the endpoint answers without a call; that answer is the text it
   returns, and the usage is the sum of what each request reported. It makes at most `tools.limit` calls; at the limit it
   asks the endpoint once more for its answer without offering tools. The driver decides nothing about a call: what a
-  tool may do, and what it refuses, is the runner's. Each request of the loop is one `endpointExchange`.
+  tool may do, and what it refuses, is the runner's. Each request of the loop is one `endpointExchange` — or one call of `exchange` where the caller gives it: MOD-runtimes'
+  `bridgeDriver` gives the Bridge's `ask` of one exchange, so that the loop of an endpoint a Bridge calls is this same
+  loop, run in the tab.
 - `endpointExchange(config: EndpointConfig, exchange: { messages: { role: "user" | "assistant" | "tool", text: string,
   calls?: { id: string, name: string, args: object }[], callId?: string }[], tools: { name: string, description: string,
   input: object }[] }) -> Promise<{ text: string, calls: { id: string, name: string, args: object }[], usage: Usage | null
