@@ -1,52 +1,84 @@
-// System coverage for UC-019 Change a specification or a use case by prompt. This guard ties each flow of the accepted
-// use case either to executable evidence or to a pending finding, across the review page, job runner, runtime routes and
-// artifact edits.
+// System coverage for UC-019 Change a specification or a use case by prompt. This guard ties each flow of the accepted use case to
+// executable evidence through the prompt bar and the review pages' route `draft` (the tests of ITM-507 and ITM-508 and the flows below),
+// or to a finding that names what the code does instead, across the specification browser, the review pages, the prompt bar, the job
+// runner, runtime routes and artifact edits.
 // Run: node --test tests/system-uc-019-change-by-prompt.test.mjs
 //
 // Module: MOD-review-pages; MOD-artifact-edits; MOD-runtimes
 // Guards: UC-019
 // Level: system
 //
-// Input: UC-019 as committed text and the executable evidence files named below.
-// Precondition: ITM-363, ITM-369, ITM-366, ITM-325 and ITM-367 are present on main.
-// Expected result: step 4 and the difference of step 8, the correction loop (7), and the alternatives 3a, 6a, 6c, 7a, 7b,
-// 8b (each file with its difference), 8c and 9a are covered by executable evidence that asserts nothing the accepted
-// UC-019 replaced. The flows the accepted text changed and that have no such evidence yet - the instruction written in
-// the prompt bar (steps 1 to 3), Send (5, 5a), a context that does not fit (4a), a follow-up instruction in the prompt
-// bar (8), the work handed to GitHub Actions (6b) and Save with the record of step 9 - are pending findings, each a todo
-// test below that names what is missing.
+// Authored by developer-sonnet-e (ITM-514), who implemented none of ITM-507, ITM-508 or ITM-551.
+// Input: UC-019 as committed text, the executable evidence files named below, and the open page of a use case with the prompt bar.
+// Precondition: ITM-504, ITM-506, ITM-507 and ITM-508 are merged.
+// Expected result: every flow below is covered by executable evidence that asserts nothing the accepted UC-019 replaced, or is a finding
+// - a todo test below, or in the release file named - that fails now and names what the code does instead. The findings: the
+// specification browser's draft route and its missing source (UC019-S7, UC019-S8, in tests/system-uc-019-change-requirements-by-prompt.test.mjs),
+// the participants offered (UC019-S9), the count of requirements and use cases when a context is too small (UC019-S10), the follow-up
+// instruction (UC019-S11), and the work handed to GitHub Actions (UC019-S12).
+//
+// The page, the servers and the person's actions are the harness of tests/system-uc-019-change-requirements-by-prompt.test.mjs: the real
+// MOD-site-frame, MOD-prompt-bar and MOD-review-pages over GitHub and a drafting endpoint served in memory; no request leaves the process.
+// Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an
+// architecture file. The flow map (TST-377001) takes the use case as its input and holds the expected passages itself.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { lineDiff } from "../src/text-tools/index.mjs";
+import { LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, goTo, keptDraft, messageLines, namedButton, onUseCase, one, press, recordTexts, rest, review, scenario,
+  send, sentText, statusOf, useCaseSection, useCases } from "./system-uc-019-change-requirements-by-prompt.test.mjs";
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
 const exists = (path) => existsSync(new URL(path, ROOT));
 const UC = "docs/use-cases/UC-019-change-a-specification-or-use-case-by-prompt.md";
 const SELF = "tests/system-uc-019-change-by-prompt.test.mjs";
+const REQUIREMENTS = "tests/system-uc-019-change-requirements-by-prompt.test.mjs";
+const RELEASE_REQUIREMENTS = "tests/release-uc-019-change-requirements-by-prompt.test.mjs";
+const DRAFT = "tests/review-pages-conversation-draft.test.mjs";
+const SUBJECT = "tests/trace-pages-subject.test.mjs";
 
 const FLOW_EVIDENCE = {
+  "main-1-3-instruction-in-the-prompt-bar": {
+    uc: "writes the instruction in the prompt bar (UC-049)",
+    evidence: [[SELF, "TST-377004"], [REQUIREMENTS, "TST-418001"], [SUBJECT, "TST-600150"], [SUBJECT, "TST-600151"]],
+  },
   "main-4-complete-context": {
     uc: "the use case, every requirement it realises, and every other use case",
-    evidence: [["tests/approvals-strategies.test.mjs", "TST-472023"]],
+    evidence: [["tests/approvals-strategies.test.mjs", "TST-472023"], [SELF, "TST-377004"]],
+  },
+  "main-5-send": {
+    uc: "The author presses **Send**",
+    evidence: [[SELF, "TST-377005"]],
+  },
+  "5a-send-not-pressed": {
+    uc: "The author does not press Send",
+    evidence: [[SELF, "TST-377005"]],
   },
   "main-6-endpoint-participant-returns-draft": {
     uc: "The participant returns the changed text",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472641"]],
+    evidence: [[DRAFT, "TST-507020"], [SELF, "TST-377004"]],
   },
   "main-7-correction-loop": {
     uc: "The correction loop",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472643"], ["tests/specification-and-design-drafting-together.test.mjs", "TST-476060"]],
+    evidence: [[DRAFT, "TST-507021"], ["tests/specification-and-design-drafting-together.test.mjs", "TST-476060"]],
   },
   "main-8-editor-and-difference": {
     uc: "current text line by line",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472641"], ["tests/markdown-render-release-20.test.mjs", "TST-343005"]],
+    evidence: [[DRAFT, "TST-507020"], ["tests/markdown-render-release-20.test.mjs", "TST-343005"]],
+  },
+  "main-9-save-records-the-version-not-the-instruction": {
+    uc: "never the instruction",
+    evidence: [[DRAFT, "TST-507022"], [SELF, "TST-377009"]],
   },
   "3a-no-participant": {
     uc: "No participant can draft text",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472639"]],
+    evidence: [[SELF, "TST-377014"]],
+  },
+  "4a-context-too-small": {
+    uc: "The context does not fit into the chosen participant",
+    evidence: [[SELF, "TST-377006"]],
   },
   "6a-bridge-agent-returns-draft": {
     uc: "The participant is a CLI or sandboxed agent",
@@ -54,50 +86,61 @@ const FLOW_EVIDENCE = {
   },
   "6c-unusable-answer": {
     uc: "The participant returns nothing usable",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472644"]],
+    evidence: [[SELF, "TST-377015"]],
   },
   "7a-findings-left-identifier-restored": {
     uc: "The loop ends with findings left",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472643"], ["tests/specification-and-design-drafting-together.test.mjs", "TST-476060"]],
+    evidence: [[DRAFT, "TST-507021"], ["tests/specification-and-design-drafting-together.test.mjs", "TST-476060"]],
   },
   "7b-dropped-realises-name-shown-as-diff": {
     uc: "The participant dropped a name from `realises`",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472641"], ["tests/markdown-render-release-20.test.mjs", "TST-342009"]],
+    evidence: [[SELF, "TST-377003"], ["tests/markdown-render-release-20.test.mjs", "TST-342009"]],
+  },
+  "8-follow-up-instruction-in-the-prompt-bar": {
+    uc: "writes a follow-up instruction in the prompt bar",
+    evidence: [[SELF, "TST-377007"]],
   },
   "8b-several-use-cases-each-with-its-difference": {
     uc: "Each file is shown with its own difference",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472642"]],
+    evidence: [[DRAFT, "TST-507022"]],
   },
   "8c-discard": {
     uc: "The author discards the draft",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472645"]],
+    evidence: [[DRAFT, "TST-507026"]],
   },
   "9a-target-changed": {
     uc: "The target changed while the participant was drafting",
-    evidence: [["tests/review-pages-prompt-use-case.test.mjs", "TST-472647"]],
+    evidence: [[DRAFT, "TST-507023"], [DRAFT, "TST-507024"]],
+  },
+  "6b-work-handed-to-github-actions": {
+    uc: "The work is handed to GitHub Actions",
+    evidence: [[SELF, "TST-377008"]],
   },
 };
 
-// Each flow the accepted UC-019 changed and that has no executable evidence yet; its todo test stands below.
-const FLOW_PENDING = {
-  "main-1-3-instruction-in-the-prompt-bar": { uc: "writes the instruction in the prompt bar (UC-049)", finding: "UC019-S1", test: "TST-377004" },
-  "main-5-send": { uc: "The author presses **Send**", finding: "UC019-S2", test: "TST-377005" },
-  "5a-send-not-pressed": { uc: "The author does not press Send", finding: "UC019-S2", test: "TST-377005" },
-  "4a-context-too-small": { uc: "The context does not fit into the chosen participant", finding: "UC019-S3", test: "TST-377006" },
-  "8-follow-up-instruction-in-the-prompt-bar": { uc: "writes a follow-up instruction in the prompt bar", finding: "UC019-S4", test: "TST-377007" },
-  "6b-work-handed-to-github-actions": { uc: "The work is handed to GitHub Actions", finding: "UC019-S5", test: "TST-377008" },
-  "9-save-records-the-version-not-the-instruction": { uc: "never the instruction", finding: "UC019-S6", test: "TST-377009" },
+// The parts of a flow the code does otherwise, each a todo test that fails now and names what the code does instead.
+const FLOW_FINDINGS = {
+  "main-2-offers-only-participants-that-can-draft": { uc: "Agent M offers there only participants that can draft text", finding: "UC019-S9", file: SELF, test: "TST-377010" },
+  "3a-links-uc-017": { uc: "Agent M says so and links to UC-017", finding: "UC019-S9", file: SELF, test: "TST-377010" },
+  "4a-counts-of-requirements-and-use-cases": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: SELF, test: "TST-377011" },
+  "8-follow-up-repeats-5-to-7-on-the-draft": { uc: "which repeats steps 5–7 on the current draft", finding: "UC019-S11", file: SELF, test: "TST-377012" },
+  "6b-hand-over-from-the-bar": { uc: "The work is handed to GitHub Actions", finding: "UC019-S12", file: SELF, test: "TST-377013" },
+  "1-specification-browser-draft-route": { uc: "With a requirement open in the specification browser (UC-020)", finding: "UC019-S7", file: REQUIREMENTS, test: "TST-418007" },
+  "4b-specification-browser-source": { uc: "the author has no source of their own that the product links", finding: "UC019-S8", file: REQUIREMENTS, test: "TST-418008" },
+  "4a-counts-in-the-bar": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
+  "7-limit-named-before-the-first-round": { uc: "named in the conversation (default 5)", finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
+  "7a-findings-left-in-compiler-form": { uc: "the remaining findings in the same compiler form", finding: "UC019-S14", file: RELEASE_REQUIREMENTS, test: "TST-418126" },
 };
 
 // TST-377001
 // level: system
 // module: MOD-review-pages; MOD-artifact-edits; MOD-runtimes
 // guards: UC-019
-// given: UC-019, the executable tests named in FLOW_EVIDENCE and the pending flows named in FLOW_PENDING
-// input: compare every main-flow segment and named alternative with its executable evidence or its pending finding
-// expect: every named passage stands in UC-019; every evidence file exists and contains its TST id; every pending flow's finding is the todo of its test in this file
+// given: UC-019 as committed text, the executable tests named in FLOW_EVIDENCE and the findings named in FLOW_FINDINGS
+// input: compare every main-flow segment and named alternative with its executable evidence or its finding
+// expect: every named passage stands in UC-019; every evidence file exists and contains its TST id; every finding's test stands in its file with the todo naming the finding
 test("TST-377001: UC-019 system coverage names the main flow and each required alternative", () => {
-  const uc = read(UC);
+  const uc = read(UC).replace(/\s+/g, " ");
   for (const [flow, { uc: needle, evidence }] of Object.entries(FLOW_EVIDENCE)) {
     assert.ok(uc.includes(needle), `${flow}: UC-019 contains ${needle}`);
     assert.ok(evidence.length > 0, `${flow}: evidence is named`);
@@ -106,11 +149,10 @@ test("TST-377001: UC-019 system coverage names the main flow and each required a
       assert.ok(read(file).includes(id), `${flow}: ${file} contains ${id}`);
     }
   }
-  const self = read(SELF);
-  for (const [flow, { uc: needle, finding, test: id }] of Object.entries(FLOW_PENDING)) {
+  for (const [flow, { uc: needle, finding, file, test: id }] of Object.entries(FLOW_FINDINGS)) {
     assert.ok(uc.includes(needle), `${flow}: UC-019 contains ${needle}`);
-    assert.ok(self.includes(`// ${id}\n`), `${flow}: ${id} stands in this file`);
-    assert.ok(self.includes(`todo: "FINDING ${finding} `), `${flow}: the todo of ${id} names FINDING ${finding}`);
+    assert.ok(read(file).includes(`// ${id}\n`), `${flow}: ${id} stands in ${file}`);
+    assert.ok(read(file).includes(`todo: "FINDING ${finding} `), `${flow}: the todo of ${id} names FINDING ${finding}`);
   }
 });
 
@@ -118,13 +160,14 @@ test("TST-377001: UC-019 system coverage names the main flow and each required a
 // level: system
 // module: MOD-review-pages; MOD-runtimes
 // guards: UC-019
-// given: the Bridge and endpoint evidence files named for UC-019
+// given: the harness of the system tests and the Bridge evidence file named for UC-019
 // input: inspect their fixture boundaries
-// expect: the endpoint is a fixture fetch and the Bridge path returns a draft from the Bridge
+// expect: the endpoint participant is a fixture behind a replaced fetch that refuses every other origin, and the Bridge path returns a draft from the Bridge
 test("TST-377002: UC-019 system evidence includes the fixture endpoint and Bridge routes", () => {
-  const review = read("tests/review-pages-prompt-use-case.test.mjs");
-  assert.ok(review.includes("globalThis.fetch"), "the endpoint participant is a fixture fetch");
-  assert.ok(review.includes("endpointAnswers"), "the fixture endpoint returns the draft");
+  const harness = read(REQUIREMENTS);
+  assert.ok(harness.includes("globalThis.fetch = "), "the fetch is replaced");
+  assert.ok(harness.includes("https://fixture-endpoint.example.test"), "the endpoint participant is a fixture");
+  assert.ok(harness.includes("outside.push"), "a request to any other origin is recorded and refused");
 
   const bridge = read("tests/runtimes-bridge.test.mjs");
   assert.ok(bridge.includes("from the Bridge"), "the Bridge fixture returns the draft");
@@ -147,70 +190,239 @@ test("TST-377003: UC-019 7b makes a dropped realised name visible in the differe
   assert.ok(!diff.some((line) => line.op === "added" && line.text.includes("A FINE HAS A REASON")), "the drop is not transformed into a new added name");
 });
 
-// ---------------------------------------------------------------- pending findings: the prompt bar's flows (ITM-503 to ITM-507)
+// ---------------------------------------------------------------- the flows through the prompt bar
+
+const ALIGN = "align UC-007 and UC-008 with the new rule";
+const filesDraft = (...files) => ({ files });
 
 // TST-377004
 // level: system
-// module: MOD-review-pages
-// guards: UC-019 (steps 1 to 3)
-// given: a requirement, a group of requirements or a use case open, and a participant able to draft text
-// input: the author writes an instruction in the prompt bar
-// expect: the bar names the participant with the place where it processes data, offers only participants that can draft text, and takes the open artifact as the target without the author naming it
-test("TST-377004: UC-019 1-3 the instruction is written in the prompt bar", { todo: "FINDING UC019-S1 — no prompt bar exists on the review pages; the only executable evidence drives the replaced Change by prompt route (a link, an instruction field and a list of participants beside it)" }, () => {
-  assert.fail("no test reaches the prompt bar of UC-049 from an open requirement or use case");
+// module: MOD-review-pages; MOD-site-frame; MOD-prompt-bar
+// guards: UC-019 (steps 1 to 3, 4); THE PAGE NAMES WHERE IT SENDS; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
+// given: the page of UC-007 with UC-007 and UC-008 in the product, and the register offering drafter (this machine) and observer (Anthropic, USA)
+// input: the author writes "align UC-007 and UC-008 with the new rule" in the bar without naming a target, chooses drafter and presses Send
+// expect: before Send the bar names both participants with their places and nothing has been sent; the one request holds the instruction, the file of UC-007 as the target, the requirement A LOAN HAS A DUE DATE it realises and UC-008 as another use case; the bar names "drafter — this machine" as the destination
+test("TST-377004: UC-019 1-3 the instruction is written in the prompt bar and the open use case is the target", async () => {
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
+  await onUseCase(s);
+  assert.deepEqual(all(barOf(s), "option").map((option) => option.textContent), ["drafter — this machine", "observer — Anthropic, USA"]);
+  assert.equal(s.endpointRequests.length, 0);
+  await send(s, ALIGN, { participant: "drafter" });
+  assert.equal(s.endpointRequests.length, 1);
+  assert.ok(sentText(s).includes(ALIGN));
+  const section = useCaseSection(s);
+  assert.ok(section.indexOf(`### ${UC7_PATH}`) >= 0 && section.indexOf(`### ${UC8_PATH}`) > section.indexOf(`### ${UC7_PATH}`), "UC-007 is the target, UC-008 another use case");
+  assert.ok(section.includes(`### ${LOAN}`), "the requirement UC-007 realises");
+  assert.match(statusOf(s).textContent, /^Sent to:drafter — this machine/);
+  assert.equal(s.product.writes.length, 0);
 });
 
 // TST-377005
 // level: system
-// module: MOD-review-pages
-// guards: UC-019 (steps 5, 5a)
-// given: an instruction in the prompt bar and the context assembled
-// input: the author presses Send; in the other case the author does not
-// expect: on Send the instruction and the context go to the participant; without Send nothing is sent
-test("TST-377005: UC-019 5 and 5a Send is the decision to send", { todo: "FINDING UC019-S2 — no test presses Send; the evidence there presses the run panel's Run (TST-472645, TST-472650), which UC-019 replaced" }, () => {
-  assert.fail("no test presses Send in the prompt bar or shows that nothing is sent without it");
+// module: MOD-prompt-bar; MOD-review-pages
+// guards: UC-019 (5, 5a); ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the page of UC-007 and an instruction written in the bar
+// input: wait without pressing Send; then press Send once
+// expect: without Send no request goes to the endpoint and nothing is written; Send makes exactly one request, and still writes nothing
+test("TST-377005: UC-019 5 and 5a Send is the decision to send", async () => {
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7))] });
+  await onUseCase(s);
+  one(barOf(s), "textarea", "instruction").value = "add error handling to UC-007";
+  await rest(s);
+  assert.equal(s.endpointRequests.length, 0, "without Send nothing is sent");
+  assert.equal(s.product.writes.length, 0);
+  await send(s, "add error handling to UC-007");
+  assert.equal(s.endpointRequests.length, 1, "Send makes one request");
+  assert.equal(s.product.writes.length, 0);
 });
 
 // TST-377006
 // level: system
-// module: MOD-review-pages
-// guards: UC-019 (4a)
-// given: a participant whose context cannot hold the instruction and the context of step 4
-// input: the author presses Send
-// expect: nothing is sent; the page says how many requirements or use cases there are and how much fits, and offers a participant with a larger context
-test("TST-377006: UC-019 4a a context that does not fit sends nothing", { todo: "FINDING UC019-S3 — the only test of a context that does not fit (TST-472640) asserts the run panel's destination, parts and Run button; none reaches Send" }, () => {
-  assert.fail("no test shows a context that does not fit the participant on the path of Send");
+// module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
+// guards: UC-019 (4a); NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
+// given: the page of UC-007, the participant drafter whose context holds 1 token, and observer, whose context holds 200000
+// input: the author writes an instruction, chooses drafter and presses Send
+// expect: nothing is sent and nothing is written; the bar says "Nothing was sent." and "drafter does not hold this message: its context holds 1 tokens", and offers observer, "whose context is larger"
+test("TST-377006: UC-019 4a a context that does not fit sends nothing and offers a larger participant", async () => {
+  const s = await scenario({ extraFiles: useCases, context: 1 });
+  await onUseCase(s);
+  await send(s, ALIGN, { participant: "drafter" });
+  const said = statusOf(s).textContent;
+  assert.match(said, /^Nothing was sent\./);
+  assert.match(said, /drafter does not hold this message: its context holds 1 tokens, the job needs about \d+\./);
+  assert.match(said, /Choose observer, whose context is larger\./);
+  assert.equal(s.endpointRequests.length, 0);
+  assert.equal(s.product.writes.length, 0);
 });
 
 // TST-377007
 // level: system
-// module: MOD-review-pages
+// module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
 // guards: UC-019 (step 8)
-// given: a draft in the editor of UC-018
-// input: the author writes a follow-up instruction in the prompt bar and presses Send
-// expect: steps 5 to 7 repeat on the current draft
-test("TST-377007: UC-019 8 a follow-up instruction in the prompt bar repeats steps 5 to 7", { todo: "FINDING UC019-S4 — no follow-up instruction exists; the evidence there presses Refine (TST-472345, TST-472348), which UC-019 replaced" }, () => {
-  assert.fail("no test writes a follow-up instruction in the prompt bar on a draft");
+// given: the draft of UC-007 and UC-008 on the route draft, with the added alternative flow 2b
+// input: the author writes the follow-up "make 2b say what is logged" in the bar and presses Send
+// expect: nothing is written before the author's Save; the follow-up goes to the endpoint on the author's Send only, and the draft as it stands - its added line "2b. The service fails." - is among what the participant is given
+test("TST-377007: UC-019 8 a follow-up instruction in the prompt bar goes with the draft as it stands", async () => {
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8)), { answer: "Noted." }] });
+  await onUseCase(s);
+  await send(s, ALIGN);
+  await review(s);
+  assert.equal(all(s.target, "div", "draft").length, 2, "the draft is on the page");
+  const asked = s.endpointRequests.length;
+  one(barOf(s), "textarea", "instruction").value = "make 2b say what is logged";
+  await rest(s);
+  assert.equal(s.endpointRequests.length, asked, "the follow-up is not sent before Send");
+  await send(s, "make 2b say what is logged");
+  assert.equal(s.endpointRequests.length, asked + 1);
+  assert.ok(sentText(s, asked).includes("make 2b say what is logged"));
+  assert.ok(sentText(s, asked).includes("2b. The service fails."), "the draft as it stands is given with the follow-up");
+  assert.equal(s.product.writes.length, 0);
 });
 
 // TST-377008
 // level: system
-// module: MOD-workflow-entries; MOD-review-pages
-// guards: UC-019 (6b)
-// given: a handover to GitHub Actions from the prompt bar (UC-049, 4a)
-// input: the workflow runs the correction loop and commits the draft to the default branch
-// expect: a use case is committed as open and a change to requirements as a queue entry, SPEC.md untouched; the commit records what step 9 records; the job record names no message of the conversation; the author reviews it on the dashboard
-test("TST-377008: UC-019 6b the work is handed to GitHub Actions", { todo: "FINDING UC019-S5 — no test hands work to GitHub Actions from the prompt bar; the evidence there is a CI agent chosen as the participant of the run panel (TST-472649) and a job record carrying the instruction (TST-473198), which UC-019 replaced" }, () => {
-  assert.fail("no test reaches the workflow from the prompt bar or checks that the job record names no message");
+// module: MOD-prompt-bar; MOD-review-pages; MOD-runtimes
+// guards: UC-019 (6b); UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the page of a use case, and a participant whose answer proposes handing a task on
+// input: the author presses Send
+// expect: the bar shows the proposal with its kind, what it works on and its task; it offers no button *Hand over*, and nothing is queued or written - no job record, no commit
+test("TST-377008: UC-019 6b a proposed hand-over is shown and nothing is queued", async () => {
+  const proposal = { answer: "This needs a run of the tests.", handOver: { kind: "implement-item", works_on: ["ITM-001"], task: "Run the tests of UC-007." } };
+  const s = await scenario({ extraFiles: useCases, answers: [proposal] });
+  await goTo(s, `#use-case/product=${encodeURIComponent(s.address)}`);
+  await send(s, "run the tests");
+  const hand = one(barOf(s), "section", "hand-over");
+  assert.match(hand.textContent, /Kind: implement-item/);
+  assert.match(hand.textContent, /Works on: ITM-001/);
+  assert.match(hand.textContent, /Task: Run the tests of UC-007\./);
+  assert.equal(all(barOf(s), "button").filter((button) => /Hand over/.test(button.textContent)).length, 0, "the bar offers no Hand over");
+  assert.equal(s.product.writes.length, 0);
+  assert.equal(recordTexts(s).length, 0);
 });
 
 // TST-377009
 // level: system
-// module: MOD-review-pages; MOD-artifact-edits
-// guards: UC-019 (steps 8b, 9)
-// given: drafts of one or several use cases in their editors
-// input: the author presses Save
-// expect: one commit records the participant, the model, the Agent M version, the date and the correction rounds, and no instruction
-test("TST-377009: UC-019 9 Save records the participant, model, version, date and rounds, never the instruction", { todo: "FINDING UC019-S6 — every test of Save's commit (TST-472646, TST-473198, TST-476059) asserts an Agent-M-Instruction line among the provenance lines, which UC-019 says is never recorded" }, () => {
-  assert.fail("no test shows a commit of a saved draft without the instruction");
+// module: MOD-review-pages; MOD-artifact-edits; MOD-prompt-bar
+// guards: UC-019 (steps 8b, 9); AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: the draft of UC-007 and UC-008 for the instruction "align UC-007 and UC-008 with the new rule", recording off
+// input: Review the draft, then press Save
+// expect: one commit holds both files as drafted; its message holds Agent-M-Kind: change-use-case, Agent-M-Participant: drafter, Agent-M-Model: fixture-model and Agent-M-Rounds: 1, an Agent-M-Version line, and no line that holds the instruction; no file names the instruction; no job record and no conversation record is written
+test("TST-377009: UC-019 9 Save records the participant, model, version and rounds, never the instruction", async () => {
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
+  await onUseCase(s);
+  await send(s, ALIGN);
+  await review(s);
+  assert.equal(s.product.writes.length, 0, "a draft alone writes nothing");
+  await press(s, namedButton(all(s.target, "div", "draft")[0], "Save"));
+  assert.equal(s.product.writes.length, 1, "one commit");
+  const [write] = s.product.writes;
+  assert.deepEqual(Object.keys(write.files), [UC7_PATH, UC8_PATH]);
+  const lines = messageLines(write);
+  for (const wanted of ["Agent-M-Kind: change-use-case", "Agent-M-Participant: drafter", "Agent-M-Model: fixture-model", "Agent-M-Rounds: 1"]) assert.ok(lines.includes(wanted), `${wanted} in ${write.message}`);
+  assert.ok(lines.some((line) => line.startsWith("Agent-M-Version: ")), `a version line in ${write.message}`);
+  assert.ok(lines.every((line) => !line.includes(ALIGN) && !line.startsWith("Agent-M-Instruction")), "no line names the instruction");
+  assert.ok(Object.values(write.files).every((body) => !body.includes(ALIGN) && !body.includes("Agent-M-")), "no file names the instruction or a trailer");
+  assert.equal(recordTexts(s).length, 0);
+  assert.equal(conversationRecords(s).length, 0, "recording is off: nothing of the conversation is written");
+});
+
+// TST-377014
+// level: system
+// module: MOD-prompt-bar; MOD-job-runner; MOD-participant-list
+// guards: UC-019 (3a); A PARTICIPANT DECLARES ITS CAPABILITIES
+// given: the page of UC-007, and a participant, observer, that declares only the capability "read repository"
+// input: the author chooses observer and presses Send
+// expect: nothing is sent and nothing is written; the bar says "Nothing was sent." and that observer "lacks the capability \"draft text\""
+test("TST-377014: UC-019 3a a participant that cannot draft text is refused at Send and nothing is sent", async () => {
+  const s = await scenario({ extraFiles: useCases });
+  await onUseCase(s);
+  await send(s, ALIGN, { participant: "observer" });
+  const said = statusOf(s).textContent;
+  assert.match(said, /^Nothing was sent\./);
+  assert.match(said, /observer, the drafter of this job of change-use-case, lacks the capability "draft text"/);
+  assert.equal(s.endpointRequests.length, 0);
+  assert.equal(s.product.writes.length, 0);
+});
+
+// TST-377015
+// level: system
+// module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
+// guards: UC-019 (6c); A GENERATED ARTIFACT IS A PROPOSAL
+// given: the page of UC-007 and a participant that returns "not an artifact: retained verbatim" at every exchange
+// input: the author presses Send
+// expect: two exchanges (the answer and its correction); the bar says "The participant's answer could not be read. Nothing was changed." and shows the raw answer folded, exactly "not an artifact: retained verbatim"; it offers no Review the draft; nothing is written
+test("TST-377015: UC-019 6c an unusable answer is named, its raw text folded, and nothing is written", async () => {
+  const raw = "not an artifact: retained verbatim";
+  const s = await scenario({ extraFiles: useCases, answers: [raw] });
+  await onUseCase(s);
+  await send(s, ALIGN);
+  assert.equal(s.endpointRequests.length, 2);
+  assert.match(statusOf(s).textContent, /The participant's answer could not be read\. Nothing was changed\./);
+  const folded = one(statusOf(s), "details", "raw");
+  assert.ok(!folded.open, "the raw answer is folded");
+  assert.equal(one(folded, "pre").textContent, raw);
+  assert.equal(all(barOf(s), "button", "review").length, 0);
+  assert.equal(s.product.writes.length, 0);
+  assert.equal(keptDraft(s), null);
+});
+
+// ---------------------------------------------------------------- findings: what the code does instead
+
+// TST-377010
+// level: system
+// module: MOD-prompt-bar; MOD-participant-list
+// guards: UC-019 (steps 2, 3a)
+// given: the register of an instance with one participant that can draft text (drafter) and one that cannot (observer), and the page of UC-007
+// input: read what the bar offers; then, in an instance whose only participant is observer, read what the page says
+// expect: the bar offers drafter only; with no participant able to draft, the page says so and links to UC-017's page
+test("TST-377010: UC-019 2 and 3a the bar offers only participants that can draft text", { todo: "FINDING UC019-S9 - the bar offers every participant of an offered type whose route the browser reaches (offeredAmong in MOD-prompt-bar's offer.mjs): observer, which declares only \"read repository\", is in the selector, and Send refuses it with the capability finding (TST-377014); no link to UC-017's page is offered" }, async () => {
+  const s = await scenario({ extraFiles: useCases });
+  await onUseCase(s);
+  assert.deepEqual(all(barOf(s), "option").map((option) => option.textContent), ["drafter — this machine"]);
+});
+
+// TST-377011
+// level: system
+// module: MOD-prompt-bar; MOD-job-runner
+// guards: UC-019 (4a); NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
+// given: the page of UC-007 with UC-007 and UC-008 in the product, and a participant whose context holds 1 token
+// input: Send
+// expect: the bar says how many use cases and requirements there are and how much fits
+test("TST-377011: UC-019 4a the bar says how many requirements and use cases there are", { todo: "FINDING UC019-S10 - the bar says only \"<participant> does not hold this message: its context holds <n> tokens, the job needs about <m>\" and the participant to choose (whyNot in MOD-prompt-bar's send.mjs); it does not say how many requirements or use cases the message holds" }, async () => {
+  const s = await scenario({ extraFiles: useCases, context: 1 });
+  await onUseCase(s);
+  await send(s, ALIGN, { participant: "drafter" });
+  assert.match(statusOf(s).textContent, /2 use cases/);
+});
+
+// TST-377012
+// level: system
+// module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
+// guards: UC-019 (step 8)
+// given: the draft of UC-007 on the route draft, and a participant that answers a further change as a draft of the same kind
+// input: the author writes a follow-up instruction in the bar and presses Send
+// expect: the follow-up is a change of the use case again (steps 5 to 7 repeat), and the bar offers *Review the draft* for the newer draft
+test("TST-377012: UC-019 8 a follow-up instruction repeats steps 5 to 7 and gives a newer draft", { todo: "FINDING UC019-S11 - while the route draft is shown, the frame's subject for it is the default (kind converse, draft route null: src/site-frame/subject.mjs subjectOf), so the follow-up is sent as a conversation about the page text, its answer is read as text (\"the answer.draft has no answer\" for a draft), and no Review the draft is offered" }, async () => {
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7))] });
+  await onUseCase(s);
+  await send(s, "add error handling to UC-007");
+  await review(s);
+  await send(s, "make 2b say what is logged");
+  assert.equal(all(barOf(s), "button", "review").length, 1, statusOf(s).textContent);
+});
+
+// TST-377013
+// level: system
+// module: MOD-prompt-bar; MOD-runtimes
+// guards: UC-019 (6b); UC-049 (4a)
+// given: the page of a use case, and a participant whose answer proposes handing a task on to GitHub Actions
+// input: the author presses Send, then Hand over
+// expect: the job is queued in the product's repository and the product's workflow is started with the task, the record naming no message of the conversation
+test("TST-377013: UC-019 6b the author hands the work to GitHub Actions from the bar", { todo: "FINDING UC019-S12 - the bar shows the proposed hand-over without a button *Hand over* (MOD-prompt-bar's bar.mjs: \"the hand-over a participant proposes is shown without Hand over\"); MOD-prompt-bar's queueing waits for ITM-505 (MOD-progress-measures' productFacts). TST-377008 shows what the bar does now; the workflow's own entry is exercised from a written record in tests/release-uc-019-change-requirements-by-prompt.test.mjs" }, async () => {
+  const proposal = { answer: "This needs a run of the tests.", handOver: { kind: "implement-item", works_on: ["ITM-001"], task: "Run the tests of UC-007." } };
+  const s = await scenario({ extraFiles: useCases, answers: [proposal] });
+  await goTo(s, `#use-case/product=${encodeURIComponent(s.address)}`);
+  await send(s, "run the tests");
+  await press(s, namedButton(barOf(s), "Hand over"));
+  assert.equal(recordTexts(s).length, 1);
 });
