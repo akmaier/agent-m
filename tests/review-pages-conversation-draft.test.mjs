@@ -23,6 +23,8 @@
 //     file — the editor of MOD-markdown-render opened on the current text with the draft shown against it, which saves all the files together —, <button class="discard">, and
 //     <div class="saved"> with <p class="saved"> linking the commit. The answer of a `converse` draft is <div class="answer">. An architecture draft adds <section class="rounds"> (the
 //     rounds of its job) and <section class="due-diligence"> for a decision with such a section.
+//   - Each <li class="left"> is one finding in the one fixed text form `<artifact>:<line>: <kind>: <what> [<rule>] — <fix>.` (ITM-559; `A FINDING READS LIKE A COMPILER MESSAGE`), for a draft of
+//     files and of requirements alike.
 //   - Requirements are shown as the old requirement prompt page showed them: <ul class="candidates"> with <li class="candidate" data-name> for each candidate — <select class="class">, <input
 //     class="of">, <textarea class="candidate-rule">, <section class="current-requirement"> and <section class="candidate-difference"> —, <section class="composed-sections"> with a
 //     <section class="composed-section"> for each section that would be saved, <button class="save"> and <button class="discard">; a refused section is <div class="newer">, a saved one
@@ -97,6 +99,37 @@ test("draft — a changed identifier the loop left is restored before the editor
   assert.match(byClass(target, "ul", "left")[0].textContent, /AN EDITED FILE KEEPS ITS IDENTIFIER/);
   assert.equal(byClass(target, "p", "rounds")[0].textContent, "Correction rounds: 2");
   assert.equal(areaIn(draftBoxes(target)[0]).value, wrong.text.replace("id: UC-043", "id: UC-007"));
+});
+
+// TST-507043 · level: component · module: MOD-review-pages
+// guards: UC-019 (7a); A FINDING READS LIKE A COMPILER MESSAGE
+// given: the draft of UC-007 with two findings left by the loop: the error "UC-007:2: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]" with the fix "keep UC-007", and the warning "UC-007:12:
+//   realises \"EXPORT AS PDF\" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS]" with the fix "use an existing name or remove the line"
+// input: the route draft
+// expect: the list of the findings left holds two items, in this order and each exactly one line of the one fixed text form, the artifact and the line first, then the kind, the finding, the rule in brackets and the fix:
+//   `UC-007:2: error: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] — keep UC-007.` and
+//   `UC-007:12: warning: realises "EXPORT AS PDF" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.`
+test("draft — each finding left is shown in the one fixed text form of a compiler message", async () => {
+  const error = finding({ artifact: "UC-007", line: 2, kind: "error", rule: "AN EDITED FILE KEEPS ITS IDENTIFIER", what: "id changed from UC-007 to UC-043", fix: "keep UC-007" });
+  const warning = finding({ artifact: "UC-007", line: 12, kind: "warning", rule: "A USE CASE REALISES NAMED REQUIREMENTS", what: "realises \"EXPORT AS PDF\" matches no requirement", fix: "use an existing name or remove the line" });
+  const fake = fakeProduct();
+  const { target } = await showDraft(fake, { kind: "change-use-case", params: useCaseParams, result: resultOf({ files: [draft7()] }, { rounds: [ROUND_ONE], remaining: [error, warning] }) });
+  assert.deepEqual(byClass(target, "li", "left").map((item) => item.textContent), [
+    "UC-007:2: error: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] — keep UC-007.",
+    "UC-007:12: warning: realises \"EXPORT AS PDF\" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.",
+  ]);
+});
+
+// TST-507044 · level: component · module: MOD-review-pages
+// guards: UC-019 (7a); A FINDING READS LIKE A COMPILER MESSAGE
+// given: the draft of a change of A LOAN HAS A DUE DATE with one finding left by the loop: the error "A LOAN HAS A DUE DATE:4: no check [A REQUIREMENT HAS FOUR FIELDS]" with the fix "add a line `Check:`"
+// input: the route draft
+// expect: the list of the findings left holds one item, exactly `A LOAN HAS A DUE DATE:4: error: no check [A REQUIREMENT HAS FOUR FIELDS] — add a line `Check:`.`
+test("draft — a draft of requirements shows each finding left in the same text form", async () => {
+  const left = finding({ artifact: LOAN, line: 4, kind: "error", rule: "A REQUIREMENT HAS FOUR FIELDS", what: "no check", fix: "add a line `Check:`" });
+  const fake = fakeProduct();
+  const { target } = await showRequirements(fake, { result: resultOf(REQUIREMENTS, { rounds: [ROUND_ONE], remaining: [left] }) });
+  assert.deepEqual(byClass(target, "li", "left").map((item) => item.textContent), ["A LOAN HAS A DUE DATE:4: error: no check [A REQUIREMENT HAS FOUR FIELDS] — add a line `Check:`."]);
 });
 
 // TST-507022 · level: component · module: MOD-review-pages

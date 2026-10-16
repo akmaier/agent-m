@@ -14,6 +14,7 @@ import { statuses } from "../approvals/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
 import { dropDraft, latestDraft } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { formatFinding } from "../text-tools/index.mjs";
 import { el, link, problem, readPlace } from "./common.mjs";
 import { fileDrafts } from "./file-drafts.mjs";
 import { loadStage } from "./jobs.mjs";
@@ -32,10 +33,10 @@ function ownerError(path, text) {
   return error ? `${path}: ${error.what}` : null;
 }
 
-// The rounds, and the findings the loop left, as the draft shows them.
+// The rounds, and the findings the loop left, as the draft shows them: each finding in its one fixed text form (`A FINDING READS LIKE A COMPILER MESSAGE`).
 function roundsAndLeft(result) {
   const left = el("ul", "left");
-  for (const found of result.remaining) left.append(el("li", "left", `${found.rule}: ${found.what} — ${found.fix}`));
+  for (const found of result.remaining) left.append(el("li", "left", formatFinding(found)));
   return [el("p", "rounds", `Correction rounds: ${result.rounds.length}`), explain("correction-loop"), left];
 }
 
@@ -98,4 +99,23 @@ async function render(target, context, params) {
   }
 }
 
-export const draftRoute = { name: "draft", entry: null, title: "The draft of the conversation", render };
+// The name of what a draft changes: the use case or the file it names, else the requirements it names, else nothing.
+function changedBy(params) {
+  const file = params.useCase ?? params.target;
+  if (typeof file === "string") return file;
+  return Array.isArray(params.requirements) && params.requirements.length ? params.requirements.join(", ") : null;
+}
+
+// The subject of this page (MOD-prompt-bar, Subject): the draft's own, so that a follow-up in the bar is a change of the same kind on the same target and its answer is a newer draft that this route
+// shows. `key` is the subject the draft was drafted on, and `draftRoute` the address of this route for it, the key percent-encoded as subjects.mjs writes it. Its parameters are the draft's own plus
+// `draft`, the conversation's draft as it stands (its `result`; an edit open in an editor and not saved is the page's), which the change kinds hand over with their recipe `draft?`. Without a draft for
+// the subject the address names, null: the frame's default stands.
+function subject(params, context) {
+  const key = params.subject ?? null;
+  const draft = key === null ? null : latestDraft(context.store, key);
+  if (draft === null) return null;
+  return { key, title: changedBy(draft.params) ?? draftRoute.title, kind: draft.kind, entry: null, paramsFor: () => ({ ...draft.params, draft: draft.result }),
+    draftRoute: `draft/subject=${encodeURIComponent(key)}`, withhold: null, refuses: [] };
+}
+
+export const draftRoute = { name: "draft", entry: null, title: "The draft of the conversation", render, subject };

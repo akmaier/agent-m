@@ -20,13 +20,18 @@
 //     page read it, which is the text the job reads.
 //   - A page that names no file — a list, Review all, a drafting page, an identifier the product does not hold — has no subject of its own: the route's subject gives `null`, and the
 //     frame's default stands (MOD-site-frame's Route.subject): the kind `converse`, its key the route's fragment, its title the route's title, no draft route, the page it has drawn.
+//   - The route `draft` (ITM-559) gives, while the conversation's draft for the subject its address names is kept in the tab, that draft's own subject: its `key`, its `kind`, its
+//     `draftRoute` `draft/subject=<the key, percent-encoded>`, no `withhold`, no `refuses`, and as its title the name of what it changes - the draft's `useCase` or `target`, else its
+//     `requirements` joined by ", ", else the route's title (the draft keeps no heading, and a subject reads nothing). Its parameters for a participant are the draft's parameters
+//     plus `draft`, the kept draft as it stands: the `result` of the ConversationDraft, as it was kept - not an edit open in an editor and not saved. Without such a draft the
+//     route gives null, so that the frame's default stands.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { subjectOf as frameSubjectOf } from "../src/site-frame/subject.mjs";
-import { ARC1, ENTRY_ID, GITHUB, HEADING, LENDING, LOAN, MOD_READER, NO_LINKS, PRODUCT, PRODUCT_FILES, SHELF, SOURCE, UC7, blobOf,
-  byClass, contextOf, draw, fakeProduct, fetched, find, routeNamed } from "./review-pages-draft-world.mjs";
+import { ARC1, ENTRY_ID, GITHUB, HEADING, LENDING, LOAN, MOD_READER, NO_LINKS, PRODUCT, PRODUCT_FILES, SHELF, SOURCE, UC7, UC7_PATH, blobOf,
+  byClass, changedUseCase, contextOf, draw, fakeProduct, fetched, find, keepDraft, resultOf, routeNamed, routeOfFragment } from "./review-pages-draft-world.mjs";
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 const participant = { name: "drafter-a", model: "example-model" };
@@ -245,4 +250,122 @@ test("MOD-review-pages view — the route draft is outside the menu", async () =
   assert.equal(typeof route.render, "function");
   await draw(fake, "decision", { id: "ARC-001" });
   assert.deepEqual(fake.files(), PRODUCT_FILES);
+});
+
+// ---------------------------------------------------------------- the route draft (ITM-559, S11)
+
+const DRAFT_TITLE = "The draft of the conversation";
+const UC7_KEY = `use-case/id=UC-007/product=${PRODUCT}`;
+const useCaseParams = { useCase: "UC-007", version: blobOf(UC7) };
+const unusedFiles = () => resultOf({ files: [changedUseCase("UC-007", UC7_PATH, UC7)] });
+// Keeps a draft for `key` in a fresh context and draws the route draft for `shown` in it.
+async function draftSubject(fake, { key = UC7_KEY, kind = "change-use-case", params = useCaseParams, shown = key, result = unusedFiles() }) {
+  const context = contextOf(fake);
+  keepDraft(context, { subject: key, kind, params, result });
+  return draw(fake, "draft", shown === null ? {} : { subject: shown }, { context });
+}
+
+// TST-507038 · level: unit · module: MOD-review-pages
+// guards: UC-019 (step 8); UC-049 (step 5)
+// given: the conversation's draft for the page of UC-007, kind change-use-case, prepared with {useCase: "UC-007", version: the blob of UC-007, instruction: "change it", conversation: []}, whose result holds one file
+// input: the subject of the route draft with the part subject=<that key>
+// expect: key "use-case/id=UC-007/product=<address>"; kind change-use-case; title "UC-007"; draftRoute "draft/subject=<that key, percent-encoded>"; withhold null; refuses [];
+//   its parameters for a participant exactly the draft's {useCase: "UC-007", version: the blob of UC-007, instruction: "change it", conversation: []} plus draft: the result as it was kept
+test("draft — the subject is the draft's: its key, kind and title, its own draft route, and the draft as it stands in its parameters", async () => {
+  const fake = fakeProduct();
+  const result = unusedFiles();
+  const subject = (await draftSubject(fake, { result })).subject();
+  assert.equal(subject.key, UC7_KEY);
+  assert.equal(subject.kind, "change-use-case");
+  assert.equal(subject.title, "UC-007");
+  assert.equal(subject.draftRoute, draftRouteOf(UC7_KEY));
+  assert.equal(subject.withhold, null);
+  assert.deepEqual(subject.refuses, []);
+  assert.deepEqual(subject.paramsFor(participant), { useCase: "UC-007", version: blobOf(UC7), instruction: "change it", conversation: [], draft: result });
+});
+
+// TST-507039 · level: unit · module: MOD-review-pages
+// guards: UC-019 (step 8); THE PERSON WHO PROMPTS IS A SOURCE
+// given: the conversation's draft for each of: the page of ARC-001 (change-architecture, prepared with target ARC-001 and its blob); the requirement A LOAN HAS A DUE DATE (change-requirements, prepared with
+//   requirements [LOAN], source SRC-alice and the blob of its section); a group of two requirements (change-requirements, requirements [LOAN, A BOOK IS SHELVED]); a document edit (converse, prepared with a page)
+// input: the subject of the route draft for each key
+// expect: the draft's own kind, key and draftRoute "draft/subject=<key, encoded>" for each; titles "ARC-001", "A LOAN HAS A DUE DATE", "A LOAN HAS A DUE DATE, A BOOK IS SHELVED" and, the draft naming nothing it changes,
+//   "The draft of the conversation"; its parameters the draft's own plus draft - the person's own source stays among those of the requirements
+test("draft — the subject of an architecture, a requirements and a conversation draft keeps its kind, its target and its source", async () => {
+  const fake = fakeProduct();
+  const cases = [
+    [`decision/id=ARC-001/product=${PRODUCT}`, "change-architecture", { target: "ARC-001", version: blobOf(ARC1) }, "ARC-001"],
+    [`requirement/name=${encodeURIComponent(LOAN)}/product=${PRODUCT}`, "change-requirements", { requirements: [LOAN], source: SOURCE, version: blobOf(LENDING) }, LOAN],
+    [`requirements/product=${PRODUCT}`, "change-requirements", { requirements: [LOAN, SHELF], source: SOURCE, version: blobOf(LENDING) }, `${LOAN}, ${SHELF}`],
+    [`list/product=${PRODUCT}`, "converse", { page: "The list of use cases" }, DRAFT_TITLE],
+  ];
+  for (const [key, kind, params, title] of cases) {
+    const result = resultOf({ files: [] });
+    const subject = (await draftSubject(fake, { key, kind, params, result })).subject();
+    assert.equal(subject.key, key);
+    assert.equal(subject.kind, kind);
+    assert.equal(subject.title, title, key);
+    assert.equal(subject.draftRoute, draftRouteOf(key));
+    assert.deepEqual(subject.paramsFor(participant), { ...params, instruction: "change it", conversation: [], draft: result }, key);
+  }
+});
+
+// TST-507040 · level: unit · module: MOD-review-pages
+// guards: UC-019 (step 8); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// given: the page of UC-007 drawn, whose subject writes its draft route; the conversation keeps a draft for that subject; and a draft for the instance's own page of UC-007 (key "use-case/id=UC-007")
+// input: the subject of the route draft shown with the parameters the frame reads from the first subject's draft route; the same for the instance's key
+// expect: the draft route of the route draft is the string the page's subject wrote - "draft/subject=" and the key percent-encoded, which holds the product's address encoded twice - and for the instance
+//   "draft/subject=use-case%2Fid%3DUC-007"; each read back as {name: "draft", params: {subject: <the key>}}; the route draft drawn with it shows one editor, data-path "docs/use-cases/UC-007-derive-use-cases.md"
+test("draft — its draft route is the form the subject that wrote it used, and is read back as the key", async () => {
+  const fake = fakeProduct();
+  const page = await draw(fake, "use-case", { id: "UC-007" });
+  const written = page.subject().draftRoute;
+  assert.equal(written, `draft/subject=${encodeURIComponent(UC7_KEY)}`);
+  keepDraft(page.context, { subject: UC7_KEY, kind: "change-use-case", params: useCaseParams, result: unusedFiles() });
+  const address = routeOfFragment(written);
+  const again = await draw(fake, address.name, address.params, { context: page.context });
+  assert.equal(again.subject().draftRoute, written);
+  assert.deepEqual(routeOfFragment(again.subject().draftRoute), { name: "draft", params: { subject: UC7_KEY } });
+  assert.deepEqual(byClass(again.target, "div", "draft").map((box) => box.getAttribute("data-path")), [UC7_PATH]);
+  const instanceKey = "use-case/id=UC-007";
+  const own = await draftSubject(fake, { key: instanceKey });
+  assert.equal(own.subject().draftRoute, "draft/subject=use-case%2Fid%3DUC-007");
+  assert.deepEqual(routeOfFragment(own.subject().draftRoute), { name: "draft", params: { subject: instanceKey } });
+});
+
+// TST-507041 · level: unit · module: MOD-review-pages · MOD-site-frame
+// guards: UC-049 (step 3)
+// given: a draft kept for the page of UC-007
+// input: the subject of the route draft shown with the key of another page, shown with no part subject, and, in the context of the draft, shown with the key of the draft after the draft was replaced by one for another page
+// expect: null in all three, and the frame takes its default for the route draft then - kind converse, no draft route, entry null - so that a draft is offered for review only on the subject it was drafted on
+test("draft — without a draft for the subject its address names, the route gives none and the frame's default stands", async () => {
+  const fake = fakeProduct();
+  const other = `use-case/id=UC-008/product=${PRODUCT}`;
+  const elsewhere = await draftSubject(fake, { shown: other });
+  assert.equal(elsewhere.subject(), null);
+  const frame = frameSubjectOf({ route: elsewhere.route, params: { subject: other }, context: elsewhere.context, drawn: () => "" });
+  assert.equal(frame.kind, "converse");
+  assert.equal(frame.draftRoute, null);
+  assert.equal(frame.entry, null);
+  assert.equal((await draftSubject(fake, { shown: null })).subject(), null);
+  const replaced = await draftSubject(fake, {});
+  keepDraft(replaced.context, { subject: other, kind: "change-use-case", params: useCaseParams, result: unusedFiles() });
+  assert.equal(replaced.route.subject({ subject: UC7_KEY }, replaced.context), null);
+});
+
+// TST-507042 · level: unit · module: MOD-review-pages
+// guards: UC-019 (step 8)
+// given: the conversation's draft for the page of UC-007 drawn on the route draft, its editor open on the text of UC-007's draft
+// input: the person types a line into the editor without saving; the subject of the route draft is asked for its parameters
+// expect: their `draft` is the result as the conversation kept it, deep equal to it - the draft's file text without the typed line; the typed line is in no part of them
+test("draft — the draft in the parameters is the conversation's, not an edit open in an editor", async () => {
+  const fake = fakeProduct();
+  const result = unusedFiles();
+  const page = await draftSubject(fake, { result });
+  const area = find(page.target, (node) => node.localName === "textarea")[0];
+  area.value = `${area.value}\nA line typed and not saved.\n`;
+  area.dispatchEvent(new Event("input"));
+  const params = page.subject().paramsFor(participant);
+  assert.deepEqual(params.draft, result);
+  assert.ok(!JSON.stringify(params).includes("A line typed and not saved."));
 });
