@@ -55,7 +55,7 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, agents = [] } = {
       if (![body?.product, body?.record, body?.commit].every((value) => typeof value === "string" && value)) {
         throw failure("invalid-request", "A job is handed over with its product, its record and its commit.");
       }
-      return { accepted: await handOver({ product: body.product, record: body.record, commit: body.commit }) };
+      return { accepted: await handOver({ product: body.product, record: body.record, commit: body.commit, task: body.task }) };
     },
     "POST /v1/probes/agent": async ({ body }) => {
       const wanted = offered(body?.args?.agent);

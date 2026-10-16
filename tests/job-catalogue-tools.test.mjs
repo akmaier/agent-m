@@ -24,7 +24,7 @@ const FIVE = [
   { name: "read-file", needs: "read the repository", required: ["path"] },
   { name: "search-files", needs: "read the repository", required: ["text"] },
   { name: "propose-edit", needs: "draft text", required: ["path", "text"] },
-  { name: "hand-over", needs: "draft text", required: ["kind", "task"] },
+  { name: "hand-over", needs: "draft text", required: ["kind", "works_on", "task"] },
 ];
 const NAMES = FIVE.map((tool) => tool.name);
 const READING = ["list-files", "read-file", "search-files"];
@@ -115,4 +115,32 @@ test("no tool's description or schema stands in code", async () => {
     assert.ok(!code.includes(`"${tool.name}"`) && !code.includes(`'${tool.name}'`), `${tool.name}: name`);
   }
   for (const argument of ["folder", "task"]) assert.ok(!code.includes(`"${argument}"`), argument);
+});
+
+// TST-524001 · level: unit · module: MOD-job-catalogue
+// guards: ONE DEFINITION, THREE DRIVERS
+// given: the catalogue as shipped
+// input: toolsOf(["hand-over"])
+// expect: an input schema with the properties kind, works_on and task, kind and task of type string, works_on an array whose items are of type string, and all three required
+test("hand-over — its arguments name what the job works on, as a required list of texts", async () => {
+  const [tool] = await catalogue.toolsOf(["hand-over"]);
+  const { properties, required } = tool.input;
+  assert.deepEqual(Object.keys(properties).sort(), ["kind", "task", "works_on"]);
+  assert.equal(properties.kind.type, "string");
+  assert.equal(properties.task.type, "string");
+  assert.equal(properties.works_on.type, "array");
+  assert.equal(properties.works_on.items.type, "string");
+  assert.deepEqual([...required].sort(), ["kind", "task", "works_on"]);
+});
+
+// TST-524002 · level: unit · module: MOD-job-catalogue
+// guards: ONE DEFINITION, THREE DRIVERS
+// given: the catalogue as shipped; known positive: the description of list-files is a text that does not mention works_on
+// input: the description of hand-over, and that of list-files
+// expect: the description of hand-over names works_on and says that it names the requirements, use cases or items the job works on; that of list-files does not name works_on
+test("hand-over — its description tells the drafter what works_on names", async () => {
+  const [handOver, listFiles] = await catalogue.toolsOf(["hand-over", "list-files"]);
+  assert.ok(!listFiles.description.includes("works_on"), "known positive: another description does not name it");
+  assert.ok(handOver.description.includes("works_on"), "names works_on");
+  assert.match(handOver.description, /requirements, use cases or items the job works on/);
 });
