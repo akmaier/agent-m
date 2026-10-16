@@ -86,8 +86,10 @@ const LIST_ITEM = /^\s*-(\s|$)/;
 // A line that names the job file, as a `local:` value or as a plain string item.
 const NAMES_JOB_FILE = /^\s*(-\s+)?(local:\s*)?["']?\/?\.gitlab\/agent-m-jobs\.yml["']?\s*(#.*)?$/;
 
-const notAList = (why) => new RuntimeError("GitlabCiNotList", { file: ".gitlab-ci.yml" },
-  `.gitlab-ci.yml: ${why} Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.`);
+// The sentence that ends a GitlabCiNotList message is the one of its own case: an include:, or an inline inputs:.
+const INCLUDE_ENDING = "Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.";
+const INPUTS_ENDING = "Agent M adds its inputs only to an inputs: written as a block, and rewrites no line of the product's own — write it as a block, then install again.";
+const notAList = (why, ending = INCLUDE_ENDING) => new RuntimeError("GitlabCiNotList", { file: ".gitlab-ci.yml" }, `.gitlab-ci.yml: ${why} ${ending}`);
 
 // appendToBlock(lines, keyAt, limit, names, render) -> boolean — under the key at lines[keyAt], whose block ends before `limit`, adds render(name, pad) for each
 // of `names` the block lacks, after the block's last line that holds anything; true where it added. `pad` is the indentation of the block's own entries.
@@ -119,7 +121,7 @@ function mergeGitlabCi(text, names) {
   const specAt = lines.findIndex((line) => /^spec:\s*$/.test(line));
   if (specAt !== -1 && dashAt > specAt && lines.slice(0, specAt).every(isBlank)) {
     const inputsAt = lines.findIndex((line, at) => at > specAt && at < dashAt && /^\s+inputs:/.test(line));
-    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the spec: header is not written as a block.");
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the spec: header is not written as a block.", INPUTS_ENDING);
     if (inputsAt === -1) {
       lines.splice(dashAt, 0, "  inputs:", ...names.flatMap((name) => defaults(name, "    ")));
       changed = true;
@@ -160,7 +162,7 @@ function mergeGitlabCi(text, names) {
       throw notAList("the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.");
     }
     const inputsAt = lines.findIndex((line, at) => at > start && at < stop && /^\s+inputs:/.test(line));
-    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.");
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.", INPUTS_ENDING);
     if (inputsAt === -1) {
       let last = stop - 1;
       while (isBlank(lines[last])) last -= 1;
