@@ -32,6 +32,11 @@ parts, addresses also by their local part, phone numbers by their digits whateve
 - **Addresses.** Each address is matched whole, and so is its local part, the text before `@`.
 - **Phone numbers.** In the text, a run of digits that may start with `+` and be separated by blanks, hyphens, slashes,
   dots or parentheses is a hit where its digits equal the digits of one of `people.phones`.
+  - **Any stretch of the run counts.** A run may hold more than one number, such as a ticket number written before a
+    phone number. So a stretch of whole digit groups within it is a hit where its digits equal the phone's digits. Such
+    a stretch begins at the run's start or after a separator, and ends at the run's end or before a separator.
+  - The item's text does not say "the longest run". Reading it so would add that word, and the phone number after other
+    digits would go unfound (`A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE`).
 - **Accounts.** Each account is matched as given, with or without a leading `@`.
 - **A hit.**
   - `kind` is the kind of what was found, and `value` the text as it stands in `text`.
