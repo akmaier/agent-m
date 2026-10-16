@@ -8,12 +8,13 @@ import * as specChanges from "../spec-changes/index.mjs";
 import * as artifactEdits from "../artifact-edits/index.mjs";
 import * as sourceRegister from "../source-register/index.mjs";
 import * as runPlanner from "../run-planner/index.mjs";
+import * as runtimes from "../runtimes/index.mjs";
 import { closeTunnels, ensureKey, openTunnels, tunnelHandlers } from "../tunnels/index.mjs";
 import { loadSettings } from "./settings.mjs";
 
 const STRATEGIES = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
   ["MOD-artifact-edits", artifactEdits, "editStrategies"], ["MOD-source-register", sourceRegister, "sourceStrategies"],
-  ["MOD-run-planner", runPlanner, "runStrategies"]];
+  ["MOD-run-planner", runPlanner, "runStrategies"], ["MOD-runtimes", runtimes, "routeStrategies"]];
 let strategiesRegistered = false;
 
 export function composeJobHandlers(settings) {
