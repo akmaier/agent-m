@@ -29,6 +29,12 @@ For an endpoint the Bridge calls, `bridgeDriver` runs the tool loop in the tab, 
 that MOD-bridge-jobs answers with `endpointExchange` — the endpoint's text, its tool calls and the usage —, each call
 carried out in the tab. The wire of the exchange and its calls is ITM-520's.
 
+It waits for akmaier's acceptance of the draft of MOD-endpoint-calls' file committed with sprint team1/44's start.
+- **The gap.** MOD-runtimes' `bridgeDriver` is to run "the loop of MOD-endpoint-calls" in the tab, each request one `ask`.
+  But MOD-endpoint-calls' interface keeps that loop inside `endpointDriver`, whose every request is an `endpointExchange`
+  over the network. Building a second loop in MOD-runtimes would keep two copies of one loop.
+- **The draft.** `endpointDriver` takes an optional `exchange`, with which `bridgeDriver` passes the Bridge's `ask`.
+
 ## Acceptance
 
 - A fixture Bridge answers each exchange; the calls are carried out in the tab and the answer ends the loop.
