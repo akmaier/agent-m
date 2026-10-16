@@ -19,7 +19,7 @@ import { queueOnBridge } from "./bridge.mjs";
 
 export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
-export { runOnTab } from "./tab.mjs";
+export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
 
 export { RuntimeError } from "./ci.mjs";
