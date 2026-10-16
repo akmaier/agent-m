@@ -20,8 +20,10 @@
 //
 // Readings the module file leaves open, which the tests state (the pull request names them):
 //   - The bar stands in a <footer class="site-frame-prompt-bar"> after the route's <main>, on the main and the review pages only.
-//   - The default subject's `key` is the route's name with its parameters as the fragment writes them, without the leading `#`
-//     and without the `product` parameter, which the fragment writes for the product and no route is given.
+//   - The default subject's `key` is the route's fragment — its name with its parameters as the fragment writes them, without the
+//     leading `#` — with the chosen product's address as the fragment writes it (`/product=<address>`), none for the instance:
+//     MOD-prompt-bar's Subject says a key names the subject "so that a draft is shown only for the subject it was drafted on", and
+//     the default page holds the product, so the same route on another product is another subject.
 //   - The default subject's `page` is its lines joined by a line feed: the route's title, the menu entry's label (no line for a
 //     route out of the menu), the chosen product's web address or the instance's web address, the route's textContent.
 //   - The bar is drawn as a <section class="prompt-bar" data-page="..."> into the footer once the participants are read.
@@ -54,6 +56,7 @@ const REGISTER = `# Participants of this instance\n\n${COLUMNS}\n| drafter-a | m
 const FILES = {
   "acme/instance": { "docs/participants.md": REGISTER },
   "acme/widget": { "README.md": "# Widget\n" },
+  "acme/gadget": { "README.md": "# Gadget\n" },
 };
 const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
@@ -105,7 +108,8 @@ async function start({ page = "review", fragment = "", views } = {}) {
   const store = openStore("acme/instance");
   writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
   writeSetting(store, "github-token", { value: "github_pat_INSTANCE", name: "alice", expires: "2030-01-01" });
-  writeSetting(store, "products", [WIDGET]);
+  writeSetting(store, "products", [WIDGET, "https://github.com/acme/gadget"]);
+  writeSetting(store, "github-token:acme/gadget", { value: "github_pat_GADGET", name: "alice", expires: "2030-01-01" });
   writeSetting(store, "github-token:acme/widget", { value: "github_pat_WIDGET", name: "alice", expires: "2030-01-01" });
   await startPage({ page, views: [{ routes: views, strategies: [] }], menuViews: [] });
   const body = fixture.document.body;
@@ -204,7 +208,8 @@ test("TST-506002 the subject is the shown route's own, read at each Send, and it
 // expect: the first message is given the page "Title of alpha\nRequirements\nhttps://github.com/acme/instance\nalpha {"id":"7"}",
 //   entry "requirements" and refuses []; the second the page "Title of beta\nTests\nhttps://github.com/acme/instance\nbeta
 //   {"q":"a b","z":"1"}" and entry "tests"; the third the page "Title of alpha\nRequirements\nhttps://github.com/acme/widget\nalpha
-//   {"id":"7"}"; the subjects kept with the tab's messages are "alpha/id=7" twice, "beta/q=a%20b/z=1" twice and "alpha/id=7" twice
+//   {"id":"7"}"; the subjects kept with the tab's messages are "alpha/id=7" twice, "beta/q=a%20b/z=1" twice and
+//   "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget" twice
 test("TST-506003 a route that gives no subject has the default: its key, its title, the menu entry, the product or the instance, and the text the route drew", async () => {
   const views = [route("alpha", "requirements"), route("beta", "tests")];
   const page = await start({ fragment: "#alpha/id=7", views });
@@ -222,7 +227,31 @@ test("TST-506003 a route that gives no subject has the default: its key, its tit
     { page: 'Title of beta\nTests\nhttps://github.com/acme/instance\nbeta {"q":"a b","z":"1"}', entry: "tests" });
   assert.equal(seen[2].page, 'Title of alpha\nRequirements\nhttps://github.com/acme/widget\nalpha {"id":"7"}');
   assert.deepEqual(conversationOf().map((message) => message.subject),
-    ["alpha/id=7", "alpha/id=7", "beta/q=a%20b/z=1", "beta/q=a%20b/z=1", "alpha/id=7", "alpha/id=7"]);
+    ["alpha/id=7", "alpha/id=7", "beta/q=a%20b/z=1", "beta/q=a%20b/z=1", ...Array(2).fill("alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget")]);
+});
+
+// TST-506007 · level: unit · module: MOD-site-frame
+// guards: UC-049
+// given: a browser that keeps the products https://github.com/acme/widget and https://github.com/acme/gadget; the route alpha (entry
+//   requirements) that gives no subject
+// input: Send on #alpha/id=7 (the instance); Send on #alpha/id=7/product=<the widget>; Send on #alpha/id=7/product=<the gadget>
+// expect: the subjects kept with the tab's messages are "alpha/id=7" twice (the instance), "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget"
+//   twice and "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fgadget" twice: the same route on two products gives two keys, and
+//   on the instance a third
+test("TST-506007 the same route on two products and on the instance is three subjects, so a draft is shown only on the page it was drafted on", async () => {
+  const page = await start({ fragment: "#alpha/id=7", views: [route("alpha", "requirements")] });
+  await drawn(page);
+  await sends(page, "on the instance");
+  changeFragment(page, `#alpha/id=7/product=${encoded(WIDGET)}`);
+  await settle();
+  await sends(page, "on the widget");
+  changeFragment(page, `#alpha/id=7/product=${encoded("https://github.com/acme/gadget")}`);
+  await settle();
+  await sends(page, "on the gadget");
+  assert.deepEqual(conversationOf().map((message) => message.subject), [
+    "alpha/id=7", "alpha/id=7",
+    "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget", "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget",
+    "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fgadget", "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fgadget"]);
 });
 
 // TST-506004 · level: unit · module: MOD-site-frame

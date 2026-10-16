@@ -14,7 +14,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { all, changeFragment, installPage } from "./site-frame-start.d/dom.mjs";
+import { all, changeFragment, installPage, offline, outside } from "./site-frame-start.d/dom.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 
 const VIEW_A = "../tests/site-frame-start.d/view-a";
@@ -24,6 +24,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
 // The page: a fixture whose only script tag is the one that loads start.mjs, with the given setup in its attributes.
 function pageWithScript(attributes, fragment = "") {
   const page = installPage({ hostname: "acme.github.io", pathname: "/instance/docs/index.html", hash: fragment });
+  offline();
   page.document.baseURI = new URL("./page.html", import.meta.url).href;
   const script = page.document.createElement("script");
   script.setAttribute("type", "module");
@@ -76,4 +77,17 @@ test("TST-531013 start.mjs starts the main page when its script tag says data-pa
   assert.equal(menu.children.length, 8);
   assert.deepEqual(menu.children.map((entry) => entry.getAttribute("href")), [null, null, null, null, "docs/index.html#tests", null, null, null]);
   assert.equal(all(page.document.body, "main")[0].textContent, "This page is not built yet.");
+});
+
+// TST-506009 · level: unit · module: MOD-site-frame
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: the two pages started by the tests above (the review page and the main page), each with the prompt bar, which reads the
+//   instance when it is drawn, and each given an offline fetch; the fetch that stands for the network records what reaches it
+// input: the requests the pages made, as the offline fetch and as the network recorded them
+// expect: the pages did ask the instance's API (every request to https://api.github.com/repos/acme/instance, none to another
+//   address), and no request reached the network: none left the fixture
+test("TST-506009 the pages started by start.mjs ask only the offline fetch, and no request leaves the fixture", () => {
+  assert.ok(outside.seen.length > 0, "the bar did read the instance, so the offline fetch saw it");
+  assert.deepEqual([...new Set(outside.seen)], ["https://api.github.com/repos/acme/instance"]);
+  assert.deepEqual(outside.reached, []);
 });
