@@ -16,7 +16,7 @@
 //     page of a file and its editor are one subject. Its `draftRoute` is `draft/subject=<the key, percent-encoded>`: the route `draft` reads the subject from its address.
 //   - The job's parameters are, for a use case, `useCase` (the identifier the recipe `use-case-with-neighbours` reads); for an architecture decision or module file, `target`
 //     (its identifier); for requirements, `requirements` (the names the SPEC holds), `source` and, for a new requirement, `section`; for a SPEC change entry `target` (its
-//     identifier), the `requirements` of its proposal that the SPEC holds, and `source`. All carry `version`: the blob of the file, of the SPEC section or of the proposal as the
+//     identifier), the `requirements` of its proposal that the SPEC holds, and `source`. All carry `version`: the blob of the file, or of the SPEC section the named requirements stand in, as the
 //     page read it, which is the text the job reads.
 //   - A page that names no file — a list, Review all, a drafting page, an identifier the product does not hold, the old prompt pages — has a subject of the kind `converse`
 //     that is the frame's default: its key the route's fragment, its title the route's title, no draft route, the page it has drawn.
@@ -24,7 +24,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ARC1, ENTRY_ID, GITHUB, HEADING, LENDING, LENDING_NEW, LOAN, MOD_READER, NO_LINKS, PRODUCT, PRODUCT_FILES, SHELF, SOURCE, UC7, blobOf,
+import { ARC1, ENTRY_ID, GITHUB, HEADING, LENDING, LOAN, MOD_READER, NO_LINKS, PRODUCT, PRODUCT_FILES, SHELF, SOURCE, UC7, blobOf,
   contextOf, draw, fakeProduct, fetched, routeNamed } from "./review-pages-draft-world.mjs";
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
@@ -116,7 +116,7 @@ test("requirements/new — the subject is the new requirement in its section, wi
 // given: the SPEC change entry 01 of a queue, which proposes the section "## 1. Lending" with both of its requirements
 // input: the subject of the route `spec-entry` with the id spec-2026-03-01_sample-01
 // expect: kind change-requirements, entry requirements, title "spec-2026-03-01_sample-01", key "spec-entry/id=spec-2026-03-01_sample-01/product=<address>", draftRoute "draft/subject=<key, encoded>";
-//   the parameters {target: "spec-2026-03-01_sample-01", requirements: ["A LOAN HAS A DUE DATE", "A BOOK IS SHELVED"], source: "SRC-alice", version: the blob of the proposal}
+//   the parameters {target: "spec-2026-03-01_sample-01", requirements: ["A LOAN HAS A DUE DATE", "A BOOK IS SHELVED"], source: "SRC-alice", version: the blob of the SPEC section "## 1. Lending", which the job reads}
 test("spec-entry/<id> — the subject is the entry, with the requirements of its proposal", async () => {
   const fake = fakeProduct();
   const subject = (await draw(fake, "spec-entry", { id: ENTRY_ID })).subject();
@@ -126,7 +126,7 @@ test("spec-entry/<id> — the subject is the entry, with the requirements of its
   assert.equal(subject.title, ENTRY_ID);
   assert.equal(subject.key, key);
   assert.equal(subject.draftRoute, draftRouteOf(key));
-  assert.deepEqual(subject.paramsFor(participant), { target: ENTRY_ID, requirements: [LOAN, SHELF], source: SOURCE, version: blobOf(LENDING_NEW) });
+  assert.deepEqual(subject.paramsFor(participant), { target: ENTRY_ID, requirements: [LOAN, SHELF], source: SOURCE, version: blobOf(LENDING) });
 });
 
 // TST-507006 · level: unit · module: MOD-review-pages
