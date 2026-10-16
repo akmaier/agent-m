@@ -5,7 +5,7 @@
 // linkedVersion, and sourceStrategies with the recipe source-excerpt and the four recipes of the book's chapters
 // (strategies.mjs) come with the job runner. ITM-315 adds sourceFindings, the requirements that name no source the product
 // links. ITM-313 adds recogniseLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names. ITM-383 adds
-// personSource, the source of the person who gives an instruction. ITM-314 adds registrationCommits, the commit plan of a
+// personSource, the source of the person who gives an instruction. ITM-552 adds personAccount, the account personSource takes. ITM-314 adds registrationCommits, the commit plan of a
 // registration. Fetching a source's content, a new version and the module's other functions are not built yet.
 //
 // Module: MOD-source-register
@@ -283,6 +283,22 @@ export function personSource(links, register, account) {
   const entry = register.find((each) => each.fields.kind === "person" && each.fields.identifier === account
     && linkOf(links, each) !== undefined);
   return entry ? entry.id : null;
+}
+
+/**
+ * personAccount(instance: Snapshot) -> string | null — the account `<server>/<account>` of the person who gives an instruction, which
+ * personSource takes: the owner of the instance's repository — the first segment of its path — on the host of its origin, `github.com`
+ * on GitHub where the address names no origin. Null where the snapshot names no owner, and for a server whose host it does not name.
+ * No request is made.
+ * @param {{ repository?: { server?: string, origin?: string, path?: string } }} instance — a MOD-repository-hosts Snapshot
+ * @returns {string | null}
+ */
+export function personAccount(instance) {
+  const owner = String(instance.repository?.path ?? "").split("/")[0];
+  if (!owner) return null;
+  let server = instance.repository?.server === "github" ? "github.com" : null;
+  try { server = new URL(instance.repository?.origin).host || server; } catch { /* use the canonical GitHub host above */ }
+  return server ? `${server}/${owner}` : null;
 }
 
 const REGISTERED_SOURCE = "A REQUIREMENT HAS A REGISTERED SOURCE";
