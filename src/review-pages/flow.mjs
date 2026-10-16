@@ -19,8 +19,6 @@ import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
-import { showPrompt } from "./prompt.mjs";
-import { showRequirementsPrompt } from "./requirements-prompt.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
 
@@ -115,15 +113,13 @@ export function reviewRoute(kind) {
 
   async function view(where, params) {
     const { target, snapshot } = where;
-    if (params.prompt && kind.kind === "requirement" && kind.prompt) await showRequirementsPrompt(where, kind, params);
-    else if (kind.edit) await showEdit(where, kind, params);
+    if (kind.edit) await showEdit(where, kind, params);
     else if (params.edit && params.id && kind.save === "file") {
       const file = files(snapshot).find((candidate) => candidate.id === params.id);
       if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
       else await showFileEdit(where, kind, file);
     }
     else if (params.edit && params.id && kind.save === "entry") await showEntryEdit(where, kind, params.id);
-    else if (params.prompt && params.id && kind.prompt) await showPrompt(where, kind, params.id);
     else if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
     else if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
     else if (params.id && service.view) await showEntry(where, params.id);
@@ -333,7 +329,6 @@ export function reviewRoute(kind) {
     if (kind.save === "file" && (token || parseServer(where.context) !== "gitlab")) {
       target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
     }
-    if (kind.prompt) target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/prompt=1`, "prompt-link", "Change by prompt"));
     if (kind.draft && file.status !== "accepted") {
       const notes = await jobNotes(snapshot, file.id);
       if (notes.length) {

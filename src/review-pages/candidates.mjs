@@ -1,6 +1,5 @@
 // candidates.mjs — the candidates of a draft of requirements, as the author reviews them (MOD-review-pages, Parts): each candidate with its class, the requirement it refers to beside it, and its
-// rule and check, which the author may change; and the draft and the classes as the author left them. Used by the page of a draft of the conversation (requirements-draft.mjs) and by the page that
-// changes requirements by prompt (requirements-prompt.mjs).
+// rule and check, which the author may change; and the draft and the classes as the author left them. Used by the page of a draft of the conversation (requirements-draft.mjs).
 //
 // Module: MOD-review-pages
 //

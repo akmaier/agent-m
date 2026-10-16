@@ -72,7 +72,7 @@ async function entryFacts({ snapshot }, kind, id) {
 }
 
 async function factsOf(where, kind, params) {
-  if (!kind.change || params.prompt) return null;
+  if (!kind.change) return null;
   if (kind.edit) return requirementFacts(where, kind, params);
   if (!params.id || params.id === "all" || params.id === "draft") return null;
   return kind.accept === "queue" ? entryFacts(where, kind, params.id) : fileFacts(where, kind, params.id);

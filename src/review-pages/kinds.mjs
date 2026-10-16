@@ -16,7 +16,7 @@ const explain = { list: "accepting", all: "accepting", one: "accepting", changed
 // section of what is not accepted yet, and offers no Accept while there is any.
 export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-cases", title: "Use cases", plural: "use cases", noun: "use case",
   heading, explain: { ...explain, draft: { requirements: "requirements-to-cover", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop",
-    written: "drafted-use-cases", ci: "ci-agent-draft" }, instruction: "change-instruction" }, draft: "derive-use-cases", prompt: "change-use-case", save: "file",
+    written: "drafted-use-cases", ci: "ci-agent-draft" } }, draft: "derive-use-cases", save: "file",
   change: { kind: "change-use-case", parameter: "useCase" } };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
   plural: "architecture decisions", noun: "architecture decision", heading, restsOn: true, whole: ["architecture-decision", "module"], draft: "derive-architecture",
@@ -35,8 +35,8 @@ export const SPEC_ENTRIES = { kind: "spec-entry", route: "spec-entry", entry: "r
 
 // The descriptors of editing a requirement (ITM-359): a requirement is a section of the SPEC, not a reviewed file; `edit` names the editing of its section, saved as an entry of
 // the person's open queue of the day. REQUIREMENT_NEW is the same with the four fields empty, in the section handed in.
-const requirementExplain = { edit: "spec-edit-waits-for-approval", instruction: "change-instruction",
+const requirementExplain = { edit: "spec-edit-waits-for-approval",
   draft: { participant: "drafting-participant", panel: "run-panel", loop: "correction-loop", ci: "ci-agent-draft" } };
 export const REQUIREMENT = { kind: "requirement", route: "requirement", entry: "requirements", title: "Requirement", plural: "requirements", noun: "requirement",
-  explain: requirementExplain, edit: "section", prompt: "change-requirements", fresh: false, change: { kind: "change-requirements" } };
+  explain: requirementExplain, edit: "section", fresh: false, change: { kind: "change-requirements" } };
 export const REQUIREMENT_NEW = { ...REQUIREMENT, route: "requirements", title: "New requirement", fresh: true };

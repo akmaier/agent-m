@@ -1,6 +1,6 @@
 // file-drafts.mjs — drafted files in editors, saved together (MOD-review-pages, Parts): each drafted file in the editor of MOD-markdown-render as its difference against the current text, a
 // use case with a changed identifier restored first, and one Save that saves all the files with one saveFile, in one commit, each only on the text it was opened on. Used by the page
-// of a draft of the conversation (conversation-draft.mjs) and by the page that changes a use case by prompt (prompt.mjs).
+// of a draft of the conversation (conversation-draft.mjs).
 //
 // Module: MOD-review-pages
 //
