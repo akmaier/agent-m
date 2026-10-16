@@ -35,7 +35,13 @@ origin:
 ITM-514's todo tests TST-377012 and TST-418126 then pass, and are turned into plain tests by a developer who implements
 none of this item.
 
-**Cut at sprint team1/48's start.** S11 is built there. S14 stays here and waits for the draft of `formatFinding`'s use.
+**Returned from sprint team1/48 before its implementation.** Its tests-only pull request #609 was red, as it should be.
+- **What the developer found.** With the draft's subject, a follow-up runs the change kind, whose recipes hold no
+  `draft`, so the draft as it stands is not sent. That breaks TST-377007 and TST-418104, which hold MOD-review-pages'
+  "sends the draft as it stands with the follow-up".
+- **What S11 waits for.** ITM-564, which gives the change kinds `draft?`, and the draft of MOD-job-catalogue
+  (`draft?`). The route's subject then gives `draft` in its `paramsFor`, and both tests keep their expected results.
+- **S14** waits for the draft of `formatFinding`'s use.
 - **The address.** The route's own draft route is `draft/subject=<key>`, with the key encoded by `encodeURIComponent`,
   as `src/review-pages/subjects.mjs:122` writes it. `src/review-pages/conversation-draft.mjs:68` reads it back as
   `params.subject`.
