@@ -3,12 +3,13 @@
 // in a few sentences, five things UC-049 and MOD-prompt-bar state of the bar: it lets a person talk with a participant about the
 // page shown; a message goes only to the participant named, at the processing place named before it is sent; the conversation is
 // written to a repository only while recording conversations is switched on in the instance's settings; a draft or an edit the
-// participant proposes changes nothing until the person saves it; work the tab cannot do is handed over only on the person's click.
+// participant proposes changes nothing until the person saves it; work the tab cannot do is handed over only on the person's click;
+// and, from UC-019 step 1, four examples of an instruction, which stand in this topic and in no other (ITM-562).
 // Run: node --test tests/site-frame-prompt-bar-explanations.test.mjs
 //
 // Module: MOD-site-frame
 // Guards: EVERY STEP EXPLAINS ITSELF; THE PAGE NAMES WHERE IT SENDS; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON;
-//   UC-049
+//   UC-049; UC-019
 // Level: unit
 //
 // This imports the module's existing browser harness unchanged, as tests/site-frame-participant-explanations.test.mjs does, then
@@ -130,4 +131,32 @@ test("explain — a topic of the bar that the file does not hold gives none", ()
   const nothing = explain("prompt-bar-nothing");
   assert.equal(nothing.nodeType, 1, "an element");
   assert.equal(nothing.childNodes.length, 0, "without any child");
+});
+
+// TST-530108 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; UC-019 (step 1: the bar's folded What is this? gives examples)
+// given: the topic prompt-bar
+// input: explain("prompt-bar")
+// expect: text giving the four examples UC-019 step 1 names: split a requirement; make a rule checkable; add an alternative flow to a use case; align a use case with a requirement that has changed
+test("explain — prompt-bar: it gives UC-019's four examples of an instruction", () => {
+  assertClaims("prompt-bar", [
+    [/split a requirement/, "example: split a requirement"],
+    [/make a rule checkable/, "example: make a rule checkable"],
+    [/add an alternative flow to a use case/, "example: add an alternative flow to a use case"],
+    [/align a use case with a requirement that has changed/, "example: align a use case with a requirement that has changed"],
+  ]);
+});
+
+// TST-530109 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; UC-019 (step 1: the examples stand in one place only)
+// given: every topic of explanations.md; known positive — the same search finds an example in the topic prompt-bar
+// input: for each topic other than prompt-bar, whether its text holds any of the four examples "split a requirement", "make a rule checkable", "add an alternative flow", "align a use case"
+// expect: none does
+test("explain — the examples of an instruction stand in the topic prompt-bar only", () => {
+  const examples = ["split a requirement", "make a rule checkable", "add an alternative flow", "align a use case"];
+  const holds = (text) => examples.some((example) => text.replace(/\s+/g, " ").includes(example));
+  assert.ok(holds(topicText("prompt-bar") ?? ""), "known positive: the search finds an example in the topic prompt-bar");
+  const topics = EXPLANATIONS.split(/^## /m).slice(1).map((part) => part.split("\n")[0]);
+  assert.ok(topics.length > 10, "known positive: the file holds its topics");
+  assert.deepEqual(topics.filter((topic) => topic !== "prompt-bar" && holds(topicText(topic))), []);
 });

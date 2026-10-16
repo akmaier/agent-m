@@ -10,7 +10,7 @@
 // Level: unit
 //
 // This imports the module's existing browser harness unchanged, as tests/site-frame-review-explanations.test.mjs does, then exercises the
-// public explain interface; the topics are this file's only subject. The nine topics are those the item's Outcome lists, each under a
+// public explain interface; the topics are this file's only subject. The eight topics are those the item's Outcome lists, each under a
 // slug of its own that the pages will name. What a test pins of a topic is what UC-007, UC-019 and UC-008 say of the step — each claim a
 // sentence of the topic makes — and nothing a topic merely happens to word. The topics point to no chapter of the book: none is claimed
 // for them. Each test states its input and its expected result before it runs (given / input / expect); where a test asserts that
@@ -30,7 +30,7 @@ const topicText = (topic) => EXPLANATIONS.split(/^## /m).slice(1).find((part) =>
 // The folded body's rendered text, as a person reads it: runs of whitespace collapsed to one space.
 const bodyText = (topic) => (explain(topic).children[1]?.textContent ?? "").replace(/\s+/g, " ");
 
-const TOPICS = ["requirements-to-cover", "drafting-participant", "run-panel", "correction-loop", "drafted-use-cases", "change-instruction",
+const TOPICS = ["requirements-to-cover", "drafting-participant", "run-panel", "correction-loop", "drafted-use-cases",
   "draft-difference", "save-use-case", "ci-agent-draft"];
 
 // The claims a topic's rendered text must make: each a pattern and what it says.
@@ -42,7 +42,7 @@ function assertClaims(topic, claims) {
 
 // TST-472806 · level: unit · module: MOD-site-frame
 // guards: EVERY STEP EXPLAINS ITSELF; UC-007; UC-019
-// given: explanations.md, and the nine topics of drafting and changing by prompt
+// given: explanations.md, and the eight topics of drafting and changing by prompt
 // input: explain(topic) for each
 // expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
 test("explain — each topic of drafting and changing by prompt is a folded What is this? with its text", () => {
@@ -150,20 +150,15 @@ test("explain — drafted-use-cases: written open, accepted one by one (UC-007, 
 });
 
 // TST-472812 · level: unit · module: MOD-site-frame
-// guards: UC-019 (steps 2 and 4)
-// given: the topic change-instruction
-// input: explain("change-instruction")
-// expect: text saying the instruction is one sentence saying what should change, from which the participant drafts with the related use case or requirement in front of it; the four examples of UC-019 step 2; and that what is not asked for stays unchanged
-test("explain — change-instruction: one sentence, with UC-019's examples (UC-019)", () => {
-  assertClaims("change-instruction", [
-    [/one sentence that says what should change/, "the instruction is one sentence that says what should change"],
-    [/participant drafts the change from it/, "the participant drafts the change from it"],
-    [/split a requirement/, "example: split a requirement"],
-    [/make a rule checkable/, "example: make a rule checkable"],
-    [/add an alternative flow to a use case/, "example: add an alternative flow"],
-    [/align a use case with a requirement that has changed/, "example: align a use case with a changed requirement"],
-    [/does not ask for should come back unchanged/, "what the instruction does not ask for comes back unchanged"],
-  ]);
+// guards: EVERY STEP EXPLAINS ITSELF; UC-019 (step 1: the examples of an instruction stand in the topic prompt-bar)
+// given: explanations.md; known positive — the topic prompt-bar is held and explain("prompt-bar") has two children —; the topic change-instruction, which belonged to the removed prompt pages
+// input: the topic's text in explanations.md, and explain("change-instruction")
+// expect: the file holds no line `## change-instruction`; explain gives an element without any child
+test("explain — change-instruction: the topic is gone, UC-019's examples stand in prompt-bar", () => {
+  assert.ok(topicText("prompt-bar")?.trim(), "known positive: explanations.md holds the topic prompt-bar");
+  assert.equal(explain("prompt-bar").children.length, 2, "known positive: a held topic gives a summary and a body");
+  assert.equal(topicText("change-instruction"), undefined, "explanations.md holds no topic change-instruction");
+  assert.equal(explain("change-instruction").childNodes.length, 0, "explain of it gives an element without any child");
 });
 
 // TST-472813 · level: unit · module: MOD-site-frame
