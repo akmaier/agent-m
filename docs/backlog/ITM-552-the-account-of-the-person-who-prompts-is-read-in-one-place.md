@@ -33,6 +33,12 @@ uses of MOD-trace-pages and MOD-review-pages.
 
 No existing test's expected result changes: the account is the same.
 
+**A third copy, found at ITM-555's gate.** `src/trace-pages/subject.mjs:72`'s `subjectOf` builds its own default for the
+views that are neither the open requirement nor a released one. Since ITM-555, a route's `subject` may give `null` and
+get the frame's default. So the trace pages give `null` there too, and their copy goes, as the review pages' copy went in
+ITM-555. Its tests' expected pages then carry the menu label, as TST-507008's did. They are named before this item's
+start, by grepping `tests/trace-pages-subject*.test.mjs` for the default's fields.
+
 **The second copy.** Since ITM-558, the message of the error `NoPersonSource` stands word for word in
 `src/review-pages/subjects.mjs` and `src/trace-pages/subject.mjs`. Before this item is selected, its readings settle
 whether MOD-source-register also gives that refusal, beside `personAccount`, so that one place holds it. That would be a
