@@ -29,7 +29,17 @@ time:
 
 One of the same kind, in `tests/prompt-bar-hand-over.test.mjs`, failed under CI's load at sprint 50's end gate.
 
-**Not ready for a sprint yet.** Its readings are settled before it is selected:
+**Settled at sprint team1/52's start:**
+- **One helper.** `tests/prompt-bar.d/until.mjs` exports `tick` and `until(condition, what, limitMs = 10000)`. Its header
+  names `Module: MOD-prompt-bar; MOD-site-frame`, as other tests name several modules. It waits by `Date.now()` and
+  `setImmediate`, which none of the five files fakes: only `tests/prompt-bar-hand-over.test.mjs:225` enables mock
+  timers, for `setTimeout` alone. At the limit it fails "never: <what>", as today.
+- **All five files import it**, `tests/prompt-bar-hand-over.test.mjs` included, whose own `until` was bounded by time in
+  sprint 50. Their own copies go (AGENTS.md §2, "Nothing twice"). `settle` stays where a file has it, since it waits for
+  no condition.
+- **No expected value changes.** ITM-018 is run after the headers change.
+
+The questions that were settled:
 - whether the four become one helper that both modules' tests import (AGENTS.md §2, "Nothing twice"), and under which
   module's header a helper shared by two modules' tests stands;
 - the bound, 10 seconds of clock as ITM-527 set it, failing with what it waited for;

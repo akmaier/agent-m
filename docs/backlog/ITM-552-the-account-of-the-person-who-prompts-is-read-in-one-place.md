@@ -33,16 +33,18 @@ uses of MOD-trace-pages and MOD-review-pages.
 
 No existing test's expected result changes: the account is the same.
 
-**A third copy, found at ITM-555's gate.** `src/trace-pages/subject.mjs:72`'s `subjectOf` builds its own default for the
-views that are neither the open requirement nor a released one. Since ITM-555, a route's `subject` may give `null` and
-get the frame's default. So the trace pages give `null` there too, and their copy goes, as the review pages' copy went in
-ITM-555. Its tests' expected pages then carry the menu label, as TST-507008's did. They are named before this item's
-start, by grepping `tests/trace-pages-subject*.test.mjs` for the default's fields.
-
-**The second copy.** Since ITM-558, the message of the error `NoPersonSource` stands word for word in
-`src/review-pages/subjects.mjs` and `src/trace-pages/subject.mjs`. Before this item is selected, its readings settle
-whether MOD-source-register also gives that refusal, beside `personAccount`, so that one place holds it. That would be a
-further line of the draft.
+**Settled at sprint team1/52's start.** `personAccount` was accepted with `220b55d0`
+(`docs/approvals/MOD-source-register-b00a6cc1f259.md`).
+- **The two copies of `accountOf`** stand at `src/review-pages/common.mjs:82` and `src/trace-pages/subject.mjs:30`. Both
+  callers use `personAccount` in their place, and both copies go.
+- **The trace pages' own default subject** (`frames()`, `src/trace-pages/subject.mjs:78`) is not a copy of the frame's
+  default. It adds the version shown to the page, which MOD-trace-pages asks for ("every other trace view the frame's
+  default with the version shown"). The version is chosen in a field, whose value the frame's default, built from the
+  drawn text, does not hold. So it stays, and this item does not change it.
+- **The message of `NoPersonSource`** stands word for word in both modules. No accepted text gives MOD-source-register
+  that refusal, so it stays in both until a draft does. It is left out of this item.
+- **Existing tests.** None changes, since the account is the same. `accountOf` is private in both modules, and no test
+  names it.
 
 ## Acceptance
 
