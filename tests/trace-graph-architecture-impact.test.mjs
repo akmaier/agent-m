@@ -288,3 +288,29 @@ test("TST-554009 one impact list includes every file in the supplied changes arr
     named: { added: ["RULE TWO", "UC-002"], removed: [] }, items: ["ITM-101", "ITM-107"],
   });
 });
+
+// TST-554010
+// level: unit
+// module: MOD-trace-graph
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
+// given: Graph.files lists reader code under ordinary, third_party, third-party and .git folder names, plus vendor/node_modules,
+// given: a test file and a Markdown file; these are in-memory TextSource paths, not real repository writes
+// input: architectureImpact for a reader prose change, after confirming ordinary reader code is included
+// expect: the five literal programming-language paths below, including the three nonexcluded folder names; no vendor/node_modules,
+// expect: test or Markdown paths, per the accepted code-file Data description rather than the legacy caller's extra exclusions
+test("TST-554010 code files follow the accepted folder exclusions without legacy-only omissions", async () => {
+  const after = READER_BEFORE.replace("One concern.", "Reads each file whole.");
+  const { graph } = await fixture({ [READER]: after,
+    "src/reader/third_party/adapt.mjs": "export const adapt = 1;\n",
+    "src/reader/third-party/adapt.py": "adapt = 1\n",
+    "src/reader/.git/local.js": "export const local = 1;\n",
+    "src/reader/vendor/skip.mjs": "export const skip = 1;\n",
+    "src/reader/node_modules/skip.css": "p {}\n",
+    "src/reader/local.test.mjs": "// No test declaration.\n",
+    "src/reader/README.md": "# Reader\n",
+  });
+  const actual = trace.architectureImpact(graph, [{ path: READER, before: READER_BEFORE, after }]).codeFiles;
+  assert.ok(actual.includes("src/reader/read.mjs"), "positive control: ordinary code in the affected folder is included");
+  assert.deepEqual([...actual].sort(), ["src/reader/.git/local.js", "src/reader/nested/types.ts", "src/reader/read.mjs",
+    "src/reader/third-party/adapt.py", "src/reader/third_party/adapt.mjs"]);
+});

@@ -70,7 +70,7 @@ const CODE_EXTENSIONS = new Set(["js", "mjs", "cjs", "ts", "tsx", "jsx", "mts", 
   "html", "vue", "svelte", "dart", "ex", "exs", "erl", "hs", "ml", "fs", "clj"]);
 function codePath(path) {
   const parts = path.split("/");
-  return !path.startsWith("docs/") && !isTestFile(path) && !parts.some((part) => ["vendor", "node_modules", "third_party", "third-party", ".git"].includes(part))
+  return !path.startsWith("docs/") && !isTestFile(path) && !parts.some((part) => ["vendor", "node_modules"].includes(part))
     && CODE_EXTENSIONS.has(/\.([A-Za-z0-9]+)$/.exec(path)?.[1].toLowerCase());
 }
 
