@@ -65,6 +65,7 @@ const COVERED_BY_RELEASE = {
   "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT": [
     ev(DRAFT, "TST-507020"),
     ev(RELEASE_REQUIREMENTS, "TST-418109"),
+    ev(SYSTEM_REQUIREMENTS, "TST-418007"),
     ev("tests/markdown-render-release-20.test.mjs", "TST-342009"),
   ],
   "A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT": [
@@ -78,6 +79,7 @@ const COVERED_BY_RELEASE = {
   "THE PERSON WHO PROMPTS IS A SOURCE": [
     ev("tests/test_prompted_source.py", "TST-416100"),
     ev(RELEASE_REQUIREMENTS, "TST-418101"),
+    ev(SYSTEM_REQUIREMENTS, "TST-418008"),
     ev("tests/trace-pages-subject.test.mjs", "TST-600155"),
   ],
   "A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS": [
@@ -217,6 +219,7 @@ const COVERED_BY_RELEASE = {
   ],
   "EVERY STEP EXPLAINS ITSELF": [
     ev(SELF, "TST-377109"),
+    ev(SELF, "TST-377116"),
     ev(RELEASE_REQUIREMENTS, "TST-418105"),
   ],
 };
@@ -226,12 +229,9 @@ const FINDINGS = {
   "A CI AGENT'S DRAFT ENTERS AS OPEN": { finding: "UC019-S12", file: SYSTEM, test: "TST-377013" },
   "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY": { finding: "UC019-S10", file: SYSTEM, test: "TST-377011" },
   "THE PAGE NAMES WHERE IT SENDS": { finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
-  "THE PERSON WHO PROMPTS IS A SOURCE": { finding: "UC019-S8", file: SYSTEM_REQUIREMENTS, test: "TST-418008" },
-  "A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT": { finding: "UC019-S7", file: SYSTEM_REQUIREMENTS, test: "TST-418007" },
   "A FINDING READS LIKE A COMPILER MESSAGE": { finding: "UC019-S14", file: RELEASE_REQUIREMENTS, test: "TST-418126" },
   "THE CORRECTION LOOP HAS A FIXED LIMIT": { finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
   "A PARTICIPANT DECLARES ITS CAPABILITIES": { finding: "UC019-S9", file: SYSTEM, test: "TST-377010" },
-  "EVERY STEP EXPLAINS ITSELF": { finding: "UC019-S15", file: SELF, test: "TST-377116" },
 };
 
 // TST-377101
@@ -418,7 +418,7 @@ test("TST-377109: UC-019 EVERY STEP EXPLAINS ITSELF", async () => {
 // given: the page of UC-007 with the prompt bar
 // input: read the bar's folded "What is this?"
 // expect: it gives the examples UC-019 step 1 names: "split a requirement", "make a rule checkable", "add an alternative flow", "align a use case with a changed requirement"
-test("TST-377116: UC-019 1 the bar's explanation gives examples of what to ask", { todo: "FINDING UC019-S15 - the bar's explanation is the topic `prompt-bar` of src/site-frame/explanations.md, which says what the bar sends and where, and gives no example; the examples stand in the topic `change-instruction`, which the bar does not use" }, async () => {
+test("TST-377116: UC-019 1 the bar's explanation gives examples of what to ask", async () => {
   const s = await scenario({ extraFiles: useCases });
   await onUseCase(s);
   const explanation = one(barOf(s), "details", "explain").textContent;
