@@ -46,7 +46,7 @@ What the module file leaves unstated, and what is built:
     whose capability the drafter does not declare and every tool `refuses` names. A missing `refuses` names none.
   - Its `limit` is the kind's `toolLimit`.
 - **A call's arguments.** They are checked against the tool's argument schema with the validator the runner already
-  reads a draft by. A tool not offered is answered `refused: <name> is not offered here`, and arguments the schema refuses
+  reads a draft by (`misfit`, `src/job-runner/loop.mjs`). A tool not offered is answered `refused: <name> is not offered here`, and arguments the schema refuses
   are answered `refused: <what the validator names>`.
 - **`list-files`.** The paths of the product's snapshot under `folder`, one per line, in order.
 - **`read-file`.** The file's text, or `refused: no file <path>`.
