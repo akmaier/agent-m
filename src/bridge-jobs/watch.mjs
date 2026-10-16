@@ -17,6 +17,7 @@ import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, 
 
 const PARTICIPANTS = "docs/participants.md";
 const QUIT = "the Bridge was quit";
+const WITH_HAND_OVER = "with the hand-over";
 const failure = (code, message) => Object.assign(new Error(message), { code });
 
 // The Bridge and agent a participant's route names: `bridge <bridge> agent <agent>`, or null for any other route.
@@ -51,6 +52,8 @@ function createWatcher(config) {
   const offered = config.agents.filter((agent) => agent.folder);
   const running = new Map();
   const busy = new Set();
+  // The task of each handed-over job whose record says it travels with the hand-over: in memory only, until the job ends.
+  const tasks = new Map();
   let timer = null, stopped = false, chain = Promise.resolve();
   const skip = (product, reason) => onSkipped?.({ product, reason });
   const serially = (work) => (chain = chain.then(work, work));
@@ -76,7 +79,10 @@ function createWatcher(config) {
     const { commit } = await defaultHead(folder);
     const snapshot = await host.readSnapshot(commit);
     const queued = [];
-    for await (const record of recordsNewestFirst(snapshot)) if (!record.taken && !record.end) queued.unshift(record);
+    // A record whose task travels with the hand-over is taken only once its hand-over has brought the task.
+    for await (const record of recordsNewestFirst(snapshot)) {
+      if (!record.taken && !record.end && (record.task !== WITH_HAND_OVER || tasks.has(record.id))) queued.unshift(record);
+    }
     const found = [];
     for (const record of queued) {
       const participants = await participantsAt(agent, record.agentM.commit, cache);
@@ -109,7 +115,8 @@ function createWatcher(config) {
         const instanceFolder = await checkoutAt(await cloneOrFetch(instance, folders.instance), record.agentM.commit);
         const instanceHost = await hostOf(instance, instanceFolder);
         const context = {
-          kind: await kindOf(record.kind), params: record.params,
+          kind: await kindOf(record.kind),
+          params: tasks.has(record.id) ? { ...record.params, instruction: tasks.get(record.id) } : record.params,
           product: { address: product, snapshot: head, host },
           instance: { snapshot: await instanceHost.readSnapshot(record.agentM.commit), host: instanceHost, checkout: instanceFolder },
           connect: async (address) => hostOf(address, await cloneOrFetch(address, foldersOf(agent.folder).product(address))),
@@ -126,6 +133,7 @@ function createWatcher(config) {
       await removeClone(working);
       await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
     } finally {
+      tasks.delete(record.id);
       running.delete(record.id);
     }
   }
@@ -135,7 +143,7 @@ function createWatcher(config) {
     const cancelled = quit || failed?.name === "Cancelled";
     const usage = result ? totalUsage(result.usage) : null;
     const written = result?.written;
-    const part = { part: "end", at: new Date(), draft: written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage, participant), log: null };
+    const part = { part: "end", at: new Date(), draft: tasks.has(record.id) ? null : written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage, participant), log: null };
     if (failed || result?.stoppedBecause === "unusable") {
       Object.assign(part, { state: cancelled ? "cancelled" : "failed", results: [],
         reason: quit ? QUIT : cancelled ? "the job was cancelled" : failed ? reasonOf(failed) : "the answer could not be read" });
@@ -198,7 +206,7 @@ function createWatcher(config) {
       if (reason === "quit") await Promise.allSettled([...jobs]);
     },
     // A job the page handed over: which agent runs it, or the refusal.
-    async accept(product, path, commit) {
+    async accept(product, path, commit, task) {
       if (!products.some((each) => each.address === product)) return null;
       const any = offered[0];
       if (!any) throw failure("invalid-request", "No agent of this Bridge has a working folder set.");
@@ -212,6 +220,10 @@ function createWatcher(config) {
       const route = bridgeRoute(participant?.route);
       const agent = route && route.bridge === bridgeName ? config.agents.find((each) => each.name === route.agent) : null;
       if (!agent || !agent.folder) throw failure("invalid-request", `This Bridge does not offer the agent of ${record.participant} with a working folder.`);
+      if (record.task === WITH_HAND_OVER) {
+        if (typeof task !== "string" || !task) throw failure("invalid-request", `${record.id} carries its task with the hand-over, and none was handed over.`);
+        tasks.set(record.id, task);
+      }
       tick();
       return record.id;
     },
@@ -239,10 +251,13 @@ export async function stopWatching(reason) {
   await Promise.all(stopping.map((watcher) => watcher.stop(reason)));
 }
 
-/** handOver({ product, record, commit }) -> Promise<string> — the id of the job a page handed over, run before the next interval; invalid-request for one no watcher offers. */
-export async function handOver({ product, record, commit }) {
+/**
+ * handOver({ product, record, commit, task? }) -> Promise<string> — the id of the job a page handed over, run before the next interval;
+ * invalid-request for one no watcher offers, and for a job whose record says its task travels with the hand-over, handed over without one.
+ */
+export async function handOver({ product, record, commit, task }) {
   for (const watcher of watchers) {
-    const id = await watcher.accept(product, record, commit);
+    const id = await watcher.accept(product, record, commit, task);
     if (id) return id;
   }
   throw failure("invalid-request", "This Bridge serves no such product, or is not watching.");
