@@ -188,7 +188,8 @@ ReviewKind = {
     further decisions with their due diligence, and the rounds of the job that drafted them.
   - `<k>/<id>/edit`, and `requirement/<name>/edit` and `requirements/new` for a requirement — whose subject for the
     prompt bar is the file, or the requirement with `change-requirements`, as on the file's route — the editor with live
-    preview and the descriptor's marks; for a requirement, its SPEC section, a *Why* field and its impact list, saved as
+    preview and the descriptor's marks, whose unsaved changes the route's `leave` keeps by the editor's `close` (UC-018
+    7a); for a requirement, its SPEC section, a *Why* field and its impact list, saved as
     an entry of the person's open queue of the day (`A SPEC EDIT IS SAVED AS A PROPOSAL`); `requirements/new` with the four
     fields empty, for the SPEC section the specification browser hands it (UC-018 3d); an open SPEC entry saved in
     place, in its own queue (UC-006 3a, UC-018 1a); every save only on the blob the file or section was opened on. Before saving an edit of the architecture, *Check this edit* runs the kind
