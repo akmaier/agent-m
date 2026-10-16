@@ -11,6 +11,7 @@ modules:
   - MOD-workflow-entries
   - MOD-desktop-shell
 builds_on:
+  - ITM-573
 tests:
   - unit
 origin:
@@ -49,8 +50,8 @@ code that registers strategies:
     `refines` no other, as the review pages tell it (`src/review-pages/flow.mjs:50`);
   - `SPEC.md`;
   - for each module its `uses` names, that module file's `## Interfaces` section alone, not its code;
-  - the code under its `folder`, and the tests that name it: those with a `module` edge to it in MOD-trace-graph's
-    `traceGraph`, which reads each test header's `Module:` line, as ITM-018's graph does.
+  - the code under its `folder`, and the tests that name it: those with an `exercises` edge to it in MOD-trace-graph's
+    `traceGraph`, which ITM-573 builds from each test declaration's `module:`.
 - **A subsystem's integration and the system.** A step that names a subsystem's decision and no module gives that
   decision and the files, code and tests of its modules. A step that names the decision that states the system gives
   it, the subsystems' decisions and the use cases.
@@ -67,7 +68,13 @@ code that registers strategies:
 - **In the tab** it is not registered by this item. A hand-over of `implement` from the prompt bar is prepared in the
   tab, and the page's views do not hand it. That is a gap of the texts, ITM-572.
 
-**Existing tests.** No expected result names `runStrategies`. Three tests register their own stand-in under the name
+**Existing test whose expected result changes:** TST-367002 (`tests/mod-desktop-shell-jobs-composition.test.mjs:79–84`),
+which deep-equals `bridgeStrategyRegistrations()` as four registrations. It gains `MOD-run-planner.runStrategies` as the
+fifth, and its header's line changes with it. Its header names MOD-desktop-shell, a module of this item. The developer
+found it by grepping for `bridgeStrategyRegistrations`, the output this item changes. No test asserts the CI `OFFERED`
+list.
+
+**Other tests.** No expected result names `runStrategies`. Three tests register their own stand-in under the name
 `implementation-inputs`, which a real registration in the same process would meet as `DuplicateStrategy`:
 - `tests/job-catalogue-instruction.test.mjs:21`;
 - `tests/job-runner-run.test.mjs:71`;
