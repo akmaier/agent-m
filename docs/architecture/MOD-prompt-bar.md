@@ -29,6 +29,8 @@ uses:
   - MOD-job-runner.JobResult
   - MOD-job-ledger.listJobs
   - MOD-job-ledger.JobRecord
+  - MOD-job-ledger.newJobId
+  - MOD-job-ledger.JobStart
   - MOD-runtimes.tabContext
   - MOD-runtimes.runOnTab
   - MOD-runtimes.routesFor
@@ -80,6 +82,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 - `bar.mjs` — the bar: the selector, the input, *Send* and *Stop*, the conversation, the waiting for a handed-over job.
 - `offer.mjs` — the participants offered and the place each is named with.
 - `send.mjs` — preparing and running a message as a job in this tab.
+- `hand-over.mjs` — a proposed hand-over assessed against the start rules, and queued on the person's click.
+- `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
 - `record.mjs` — the conversation record and the recording switch.
 - `conversation.schema.md`, `recording.schema.md` — the schemas of the two files it owns, in the schema language of
   MOD-documents.
@@ -216,7 +220,8 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   MOD-work-plans.startable, MOD-work-plans.itemStates, MOD-progress-measures.productFacts, MOD-product-process.holdsRole —
   whether a hand-over of a kind of the product's workflow may start, by the same rules as every implementation job;
   MOD-runtimes.liveState, MOD-runtimes.jobLog, MOD-runtimes.cancelJob, MOD-job-ledger.listJobs,
-  MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*.
+  MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*; MOD-job-ledger.newJobId,
+  MOD-job-ledger.JobStart — the identifier and the start of the job a hand-over queues.
 - MOD-bridge-client.Bridge, MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt — the Bridges handed to the
   runtimes, each from its stored entry and the stored jump host.
 - MOD-markdown-render.renderArtifact — the answers, rendered safely.
