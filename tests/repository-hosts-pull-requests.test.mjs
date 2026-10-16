@@ -1,11 +1,11 @@
 // MOD-repository-hosts' listPullRequests and pullRequestFacts (ITM-296), as the accepted text of docs/architecture/MOD-repository-hosts.md states them: "listPullRequests(filter:
 // { state?: "open" | "merged" | "closed" | "all", branch?: string }) -> Promise<PullRequest[]> — crosses the network; fails as `readSnapshot`"; "pullRequestFacts(number) ->
 // Promise<PullRequestFacts> — the commits of a pull request in order, the files each changed, the CI result of each commit, and the texts of changed files on both sides", with
-// PullRequest { number, title, branch, base, head, state, draft, url, opened, merged, closed } and PullRequestFacts { pullRequest, commits: { sha, message, files, ci }[], files:
+// PullRequest { number, title, branch, base, head, state, draft, url, opened, merged, closed, body } and PullRequestFacts { pullRequest, commits: { sha, message, files, ci }[], files:
 // { path, change }[], reviews: { reviewer, verdict, commit, date }[], checks: { name, state, url }[], read(path, side) } (UC-002, UC-032). Deterministic, no network: the servers
 // are fakes of `fetch` that answer as the real APIs document, from their own pages, read 2026-10-13:
 //   GitHub — docs.github.com/en/rest/pulls/pulls: "List pull requests" (GET /repos/{owner}/{repo}/pulls; state open | closed | all, head `user:ref-name`, base, per_page up to 100, page;
-//     number, title, state, draft, html_url, created_at, merged_at, closed_at, head.ref, head.sha, base.ref, base.sha; 200, 304, 422), "Get a pull request" (…/pulls/{n}; 200, 304, 404, 406,
+//     number, title, body, state, draft, html_url, created_at, merged_at, closed_at, head.ref, head.sha, base.ref, base.sha; 200, 304, 422), "Get a pull request" (…/pulls/{n}; 200, 304, 404, 406,
 //     422, 500, 503), "List pull requests files" (…/files; filename, status — added, removed, modified, renamed, copied, changed, unchanged —, previous_filename; at most 3000), "List commits
 //     on a pull request" (…/commits; sha, commit.message, parents; at most 250; the page states no order); docs.github.com/en/rest/pulls/reviews: "List reviews for a pull request"
 //     (…/reviews; user.login, state, commit_id, submitted_at — "Pending reviews don't include it"; the page gives no values of `state`); docs.github.com/en/graphql/reference/pulls: the enum
@@ -14,7 +14,7 @@
 //     neutral, cancelled, skipped, timed_out, action_required, null —, html_url); docs.github.com/en/rest/commits/statuses: "List commit statuses for a reference" (…/commits/{ref}/statuses;
 //     context, state, target_url; "reverse chronological order, so the first item is the latest status"; the states of the combined status are error, failure, pending, success).
 //   GitLab — docs.gitlab.com/api/merge_requests/: "List project merge requests" (GET /projects/:id/merge_requests; state opened | closed | locked | merged | all, source_branch,
-//     target_branch, order_by, sort; iid, title, state, draft, web_url, created_at, merged_at, closed_at, source_branch, target_branch, sha — "Diff head SHA"), the single merge request
+//     target_branch, order_by, sort; iid, title, description, state, draft, web_url, created_at, merged_at, closed_at, source_branch, target_branch, sha — "Diff head SHA"), the single merge request
 //     (diff_refs.base_sha — "the merge base commit where the source and target branches diverged"), "Retrieve merge request commits" (…/commits; id, message, created_at identical to
 //     committed_date, parent_ids; no order stated), "List merge request diffs" (…/diffs; new_path, old_path, new_file, renamed_file, deleted_file; page, per_page);
 //     docs.gitlab.com/api/merge_request_approvals/: …/approvals (approved_by[] with approved_at and user — no commit per approval); docs.gitlab.com/api/pipelines/: "List project pipelines"
@@ -27,7 +27,7 @@
 // Level: unit
 //
 // Where the accepted text leaves a reading open, the test states the one it takes, and the pull request names it:
-//   - PullRequest: `branch` is the source branch's name, `base` the target branch's name, `head` the head commit's SHA; `url` is html_url / web_url; `opened`, `merged`, `closed` are the
+//   - PullRequest: `body` is the description as written — GitHub's body, GitLab's description —, "" where the server gives none (null, empty or absent). `branch` is the source branch's name, `base` the target branch's name, `head` the head commit's SHA; `url` is html_url / web_url; `opened`, `merged`, `closed` are the
 //     server's created_at, merged_at, closed_at as given, null where the server gives none. GitHub's `merged` state is a closed pull request with a merged_at; GitLab's `locked` is open.
 //     The branch filter is the source branch: GitHub's `head=<owner>:<branch>` with the repository's own owner, GitLab's source_branch.
 //   - The commits come oldest first, ordered by their parents (GitHub `parents`, GitLab `parent_ids`) and, where those leave the order open, by their dates, because neither page states
@@ -82,7 +82,7 @@ const pages = (all) => (q) => { const per = Number(q.get("per_page") ?? 30), pag
 // ---------------------------------------------------------------- GitHub fixtures
 
 const ghPull = (n, more = {}) => ({ number: n, title: `Pull ${n}`, state: "open", draft: false, html_url: `https://github.com/carol/sprint-tool/pull/${n}`, created_at: "2026-10-10T08:00:00Z",
-  merged_at: null, closed_at: null, head: { ref: `feature-${n}`, sha: C2 }, base: { ref: "main", sha: BASE }, user: { login: "carol" }, ...more });
+  body: `Description of pull ${n}`, merged_at: null, closed_at: null, head: { ref: `feature-${n}`, sha: C2 }, base: { ref: "main", sha: BASE }, user: { login: "carol" }, ...more });
 const ghCommit = (sha, message, parents, date) => ({ sha, commit: { message, committer: { date } }, parents: parents.map((p) => ({ sha: p })) });
 const run = (name, status, conclusion = null) => ({ name, status, conclusion, html_url: `https://github.com/carol/sprint-tool/actions/runs/${name}` });
 const GH_REVIEWS = [
@@ -116,7 +116,7 @@ function github({ pulls = [ghPull(7)], contents = { [`${BASE}:README.md`]: "base
 // guards: STATUS IS DERIVED FROM THE RECORDS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-032
 // given: a GitHub repository with 130 pull requests, 100 on the first page and 30 on the second, of which 3 are merged and 4 closed unmerged, one a draft
 // input: listPullRequests({}) and listPullRequests({ state: "all" })
-// expect: every pull request, across both pages — two requests of 100 to /pulls with state=all and the page named —, each as the PullRequest: number, title, branch, base, head, state, draft, url and the dates; the token only as a Bearer header to api.github.com, in no address
+// expect: every pull request, across both pages — two requests of 100 to /pulls with state=all and the page named —, each as the PullRequest: number, title, branch, base, head, state, draft, url, the dates and body ("Description of pull 1" for pull request 1, the description the fixture gives it); the token only as a Bearer header to api.github.com, in no address
 test("listPullRequests on GitHub — every page, each record in the one shape", async () => {
   const all = Array.from({ length: 130 }, (_, i) => ghPull(i + 1, i < 3 ? { state: "closed", merged_at: "2026-10-12T08:00:00Z", closed_at: "2026-10-12T08:00:00Z" }
     : i < 7 ? { state: "closed", closed_at: "2026-10-11T08:00:00Z" } : i === 7 ? { draft: true } : {}));
@@ -127,7 +127,7 @@ test("listPullRequests on GitHub — every page, each record in the one shape", 
     assert.deepEqual(requests.map((r) => [r.method, r.path, r.query.get("state"), r.query.get("per_page"), r.query.get("page")]), [["GET", `${GH}/pulls`, "all", "100", "1"], ["GET", `${GH}/pulls`, "all", "100", "2"]]);
     assert.ok(requests.every((r) => r.host === "api.github.com" && r.headers.authorization === `Bearer ${GH_TOKEN}` && !r.href.includes(GH_TOKEN)));
     assert.deepEqual(result[0], { number: 1, title: "Pull 1", branch: "feature-1", base: "main", head: C2, state: "merged", draft: false, url: "https://github.com/carol/sprint-tool/pull/1",
-      opened: "2026-10-10T08:00:00Z", merged: "2026-10-12T08:00:00Z", closed: "2026-10-12T08:00:00Z" });
+      opened: "2026-10-10T08:00:00Z", merged: "2026-10-12T08:00:00Z", closed: "2026-10-12T08:00:00Z", body: "Description of pull 1" });
     assert.deepEqual(result.slice(0, 10).map((p) => [p.state, p.draft]), [["merged", false], ["merged", false], ["merged", false], ["closed", false], ["closed", false], ["closed", false], ["closed", false], ["open", true], ["open", false], ["open", false]]);
     assert.deepEqual([result[3].merged, result[3].closed, result[8].closed], [null, "2026-10-11T08:00:00Z", null]);
   }
@@ -166,12 +166,12 @@ test("listPullRequests on GitHub — the state and branch filters", async () => 
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-002; UC-032
 // given: pull request 7, whose commits the server lists newest first, with check runs and statuses, reviews on both commits, three changed files, and contents at the base and head commits
 // input: pullRequestFacts(7)
-// expect: the pull request; its commits oldest first — first, second — each with its message, the paths it changed (a rename by its new path) and its ci (the first success; the second failure, since a check failed); the files of the request with their change (added, renamed, deleted); the reviews in the order given — pending left out — with reviewer, verdict, commit, date; the head's checks: the check runs in order, then the latest status of each context, with state and url; all requests to api.github.com with the token as a Bearer header only
+// expect: the pull request, with body "Description of pull 7"; its commits oldest first — first, second — each with its message, the paths it changed (a rename by its new path) and its ci (the first success; the second failure, since a check failed); the files of the request with their change (added, renamed, deleted); the reviews in the order given — pending left out — with reviewer, verdict, commit, date; the head's checks: the check runs in order, then the latest status of each context, with state and url; all requests to api.github.com with the token as a Bearer header only
 test("pullRequestFacts on GitHub — commits in order with their files and ci, files, reviews and head checks", async () => {
   const host = connect(GITHUB, { token: GH_TOKEN });
   const { result: facts, requests } = await serving(github(), () => host.pullRequestFacts(7));
   assert.deepEqual(facts.pullRequest, { number: 7, title: "Pull 7", branch: "feature-7", base: "main", head: C2, state: "open", draft: false, url: "https://github.com/carol/sprint-tool/pull/7",
-    opened: "2026-10-10T08:00:00Z", merged: null, closed: null });
+    opened: "2026-10-10T08:00:00Z", merged: null, closed: null, body: "Description of pull 7" });
   assert.deepEqual(facts.commits, [
     { sha: C1, message: "first\n", files: ["a.md"], ci: "success" },
     { sha: C2, message: "second\n", files: ["a.md", "docs/b.md"], ci: "failure" }]);
@@ -209,7 +209,7 @@ test("pullRequestFacts on GitHub — read(path, side) reads the exact commit of 
 // ---------------------------------------------------------------- GitLab fixtures
 
 const glMr = (iid, more = {}) => ({ iid, title: `Merge ${iid}`, state: "opened", draft: false, web_url: `https://gitlab.example.org/space/sprint-tool/-/merge_requests/${iid}`,
-  created_at: "2026-10-10T08:00:00.000Z", merged_at: null, closed_at: null, source_branch: `feature-${iid}`, target_branch: "main", sha: C2,
+  created_at: "2026-10-10T08:00:00.000Z", description: `Description of merge ${iid}`, merged_at: null, closed_at: null, source_branch: `feature-${iid}`, target_branch: "main", sha: C2,
   diff_refs: { base_sha: BASE, head_sha: C2, start_sha: C0 }, ...more });
 const glCommit = (id, message, parents, date) => ({ id, message, parent_ids: parents, created_at: date, committed_date: date });
 const job = (name, status) => ({ name, status, web_url: `https://gitlab.example.org/space/sprint-tool/-/jobs/${name}` });
@@ -235,7 +235,7 @@ function gitlab({ mrs = [glMr(7)], pipelinesOf = { [C1]: [{ id: 60, status: "suc
 // guards: STATUS IS DERIVED FROM THE RECORDS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-032
 // given: a GitLab project with 130 merge requests over two pages: merged, closed, one locked, one draft
 // input: listPullRequests({}), then with state "open", "merged", "closed" and branch "feature-9"
-// expect: both pages of the project's merge requests with state=all; each as the PullRequest — iid as number, source_branch as branch, target_branch as base, sha as head, web_url as url, the server's dates; locked is open; open asks for state=opened, merged for merged, closed for closed, the branch for source_branch=feature-9; the token as PRIVATE-TOKEN to the project's API only, in no address
+// expect: both pages of the project's merge requests with state=all; each as the PullRequest — iid as number, source_branch as branch, target_branch as base, sha as head, web_url as url, the server's dates, description as body ("Description of merge 1" for merge request 1); locked is open; open asks for state=opened, merged for merged, closed for closed, the branch for source_branch=feature-9; the token as PRIVATE-TOKEN to the project's API only, in no address
 test("listPullRequests on GitLab — every page, each record in the one shape, the filters sent to the server", async () => {
   const all = Array.from({ length: 130 }, (_, i) => glMr(i + 1, i < 2 ? { state: "merged", merged_at: "2026-10-12T08:00:00.000Z", closed_at: null } : i < 4 ? { state: "closed", closed_at: "2026-10-11T08:00:00.000Z" }
     : i === 4 ? { state: "locked" } : i === 5 ? { draft: true } : {}));
@@ -245,7 +245,7 @@ test("listPullRequests on GitLab — every page, each record in the one shape, t
   assert.deepEqual(requests.map((r) => [r.path, r.query.get("state"), r.query.get("per_page"), r.query.get("page")]), [[`${GL}/merge_requests`, "all", "100", "1"], [`${GL}/merge_requests`, "all", "100", "2"]]);
   assert.ok(requests.every((r) => r.host === "gitlab.example.org" && r.headers["private-token"] === GL_TOKEN && !r.href.includes(GL_TOKEN) && r.headers.authorization === undefined));
   assert.deepEqual(result[0], { number: 1, title: "Merge 1", branch: "feature-1", base: "main", head: C2, state: "merged", draft: false, url: "https://gitlab.example.org/space/sprint-tool/-/merge_requests/1",
-    opened: "2026-10-10T08:00:00.000Z", merged: "2026-10-12T08:00:00.000Z", closed: null });
+    opened: "2026-10-10T08:00:00.000Z", merged: "2026-10-12T08:00:00.000Z", closed: null, body: "Description of merge 1" });
   assert.deepEqual(result.slice(0, 7).map((p) => [p.state, p.draft]), [["merged", false], ["merged", false], ["closed", false], ["closed", false], ["open", false], ["open", true], ["open", false]]);
   for (const [filter, key, value] of [[{ state: "open" }, "state", "opened"], [{ state: "merged" }, "state", "merged"], [{ state: "closed" }, "state", "closed"], [{ branch: "feature-9" }, "source_branch", "feature-9"]]) {
     const asked = await serving(server([[`${GL}/merge_requests`, () => json(200, [])]]), () => host.listPullRequests(filter));
@@ -258,12 +258,12 @@ test("listPullRequests on GitLab — every page, each record in the one shape, t
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-002; UC-032
 // given: merge request 7 with two commits the server lists newest first, pipelines for each commit, diffs, one approval, and the jobs of the head commit's newest pipeline
 // input: pullRequestFacts(7), and read on both sides
-// expect: the commits oldest first with their paths and ci from their newest pipeline (the first success, the second failure; a commit with no pipeline none); the files of the request; the approval as a verdict `approved` on the head commit, dated by approved_at; the head's checks as the jobs of its newest pipeline with their states; the texts read by the merge base commit and the head commit, null for a path the commit lacks, a repeated read made once; every request to the project's API with PRIVATE-TOKEN
+// expect: the merge request with body "Description of merge 7"; the commits oldest first with their paths and ci from their newest pipeline (the first success, the second failure; a commit with no pipeline none); the files of the request; the approval as a verdict `approved` on the head commit, dated by approved_at; the head's checks as the jobs of its newest pipeline with their states; the texts read by the merge base commit and the head commit, null for a path the commit lacks, a repeated read made once; every request to the project's API with PRIVATE-TOKEN
 test("pullRequestFacts on GitLab — commits, files, approvals, head jobs and the exact sides", async () => {
   const host = connect(GITLAB, { token: GL_TOKEN });
   const { result: facts, requests } = await serving(gitlab(), () => host.pullRequestFacts(7));
   assert.deepEqual(facts.pullRequest, { number: 7, title: "Merge 7", branch: "feature-7", base: "main", head: C2, state: "open", draft: false,
-    url: "https://gitlab.example.org/space/sprint-tool/-/merge_requests/7", opened: "2026-10-10T08:00:00.000Z", merged: null, closed: null });
+    url: "https://gitlab.example.org/space/sprint-tool/-/merge_requests/7", opened: "2026-10-10T08:00:00.000Z", merged: null, closed: null, body: "Description of merge 7" });
   assert.deepEqual(facts.commits, [
     { sha: C1, message: "first\n", files: ["a.md"], ci: "success" },
     { sha: C2, message: "second\n", files: ["a.md", "docs/b.md"], ci: "failure" }]);
@@ -421,4 +421,42 @@ test("pullRequestFacts on GitLab — commits that name no parents are ordered by
   const answer = (r) => (r.path === `${GL}/merge_requests/7/commits` ? pages([bare(C2, "second\n", "2026-10-10T09:00:00Z"), bare(C1, "first\n", "2026-10-10T08:30:00Z")])(r.query) : base(r));
   const { result } = await serving(answer, () => connect(GITLAB, { token: GL_TOKEN }).pullRequestFacts(7));
   assert.deepEqual(result.commits.map((c) => c.sha), [C1, C2]);
+});
+
+// ---------------------------------------------------------------- the description
+
+// TST-537001 · level: unit · module: MOD-repository-hosts
+// guards: STATUS IS DERIVED FROM THE RECORDS; UC-032
+// given: a GitHub repository whose pull request 1 has the description "Closes the gap.\n\nSecond paragraph.", 2 has body null, 3 has body "" and 4 has no body field at all; pull request 7 (for the facts) has the description "Facts text" or null
+// input: listPullRequests({}), and pullRequestFacts(7) once with the description and once with null
+// expect: body "Closes the gap.\n\nSecond paragraph." for 1 exactly as written; "" for 2, 3 and 4; body "Facts text" in the facts' pullRequest, and "" in the facts when the server gives null; every body is a string
+test("PullRequest.body on GitHub — the description as written, \"\" where there is none, in the list and in the facts", async () => {
+  const host = connect(GITHUB, { token: GH_TOKEN });
+  const pulls = [ghPull(1, { body: "Closes the gap.\n\nSecond paragraph." }), ghPull(2, { body: null }), ghPull(3, { body: "" }), ghPull(4, { body: undefined })];
+  assert.equal("body" in JSON.parse(JSON.stringify(pulls[3])), false, "known positive: the fixture's pull request 4 carries no body field");
+  const { result: listed } = await serving(github({ pulls }), () => host.listPullRequests({}));
+  assert.deepEqual(listed.map((p) => p.body), ["Closes the gap.\n\nSecond paragraph.", "", "", ""]);
+  assert.ok(listed.every((p) => typeof p.body === "string"));
+  const base = github();
+  const factsWith = (body) => serving((r) => (r.path === `${GH}/pulls/7` ? json(200, ghPull(7, { body })) : base(r)), () => host.pullRequestFacts(7));
+  assert.equal((await factsWith("Facts text")).result.pullRequest.body, "Facts text");
+  assert.equal((await factsWith(null)).result.pullRequest.body, "");
+});
+
+// TST-537002 · level: unit · module: MOD-repository-hosts
+// guards: STATUS IS DERIVED FROM THE RECORDS; UC-032
+// given: a GitLab project whose merge request 1 has the description "Closes the gap.\n\nSecond paragraph.", 2 has description null, 3 has description "" and 4 has no description field at all; merge request 7 (for the facts) has the description "Facts text" or null
+// input: listPullRequests({}), and pullRequestFacts(7) once with the description and once with null
+// expect: body "Closes the gap.\n\nSecond paragraph." for 1 exactly as written; "" for 2, 3 and 4; body "Facts text" in the facts' pullRequest, and "" in the facts when the server gives null; every body is a string
+test("PullRequest.body on GitLab — the description as written, \"\" where there is none, in the list and in the facts", async () => {
+  const host = connect(GITLAB, { token: GL_TOKEN });
+  const mrs = [glMr(1, { description: "Closes the gap.\n\nSecond paragraph." }), glMr(2, { description: null }), glMr(3, { description: "" }), glMr(4, { description: undefined })];
+  assert.equal("description" in JSON.parse(JSON.stringify(mrs[3])), false, "known positive: the fixture's merge request 4 carries no description field");
+  const { result: listed } = await serving(gitlab({ mrs }), () => host.listPullRequests({}));
+  assert.deepEqual(listed.map((p) => p.body), ["Closes the gap.\n\nSecond paragraph.", "", "", ""]);
+  assert.ok(listed.every((p) => typeof p.body === "string"));
+  const base = gitlab();
+  const factsWith = (description) => serving((r) => (r.path === `${GL}/merge_requests/7` ? json(200, glMr(7, { description })) : base(r)), () => host.pullRequestFacts(7));
+  assert.equal((await factsWith("Facts text")).result.pullRequest.body, "Facts text");
+  assert.equal((await factsWith(null)).result.pullRequest.body, "");
 });
