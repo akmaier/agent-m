@@ -70,6 +70,8 @@ const row = (name, type, route, { context = "200000", capabilities = "draft text
 const registerOf = (...rows) => `# Participants of this instance\n\n${COLUMNS}\n${rows.join("\n")}\n`;
 const DRAFTER = row("drafter-a", "model endpoint", "endpoint ep1");
 const OTHER = row("drafter-b", "model endpoint", "endpoint ep2", { place: "this machine" });
+const DRAFTER_CI = row("drafter-a", "model endpoint", "endpoint ep1 secret KEY_A");
+const JOB_WORKFLOW = { ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" };
 const SUB = row("sub-agent", "CLI agent", "through drafter-a");
 
 const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.stringify(fields)}`), { name }, fields);
@@ -94,6 +96,8 @@ function fakeRepo(web, files) {
         if (!tree) throw failure("NotFound", { what: ref });
         return { repository, ref, commit: id, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: () => null };
       },
+      async listPullRequests() { return []; },
+      async containsCommit() { return false; },
       async commitFiles(change) {
         attempts.push(structuredClone(change));
         if (change.branch !== "trunk" || change.expectedHead !== head) throw failure("Moved", { head });
@@ -145,14 +149,14 @@ const subjectOf = (over = {}) => ({
 
 // A page: the instance with its register and recording switch, a store keeping the endpoint ep1 (and ep2 where asked) and the instance's token, and the bar started
 // on it. `product` is a repository when the page is a product's.
-function page({ rows = [DRAFTER], ep2 = false, recording = false, product = null, token = true, subject = subjectOf() } = {}) {
+function page({ rows = [DRAFTER], ep2 = false, recording = false, product = null, token = true, subject = subjectOf(), instanceFiles = {} } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const store = openStore("alice/agent-m");
   writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
   if (ep2) writeSetting(store, "endpoint:ep2", { kind: "openai-compatible", url: "https://local.example/v1", model: "model-drafter-b", key: null });
   if (token) writeSetting(store, product ? "github-token:alice/thesis-tool" : "github-token", { value: "github_pat_FIXTURE0123456789abcdef", name: "alice", expires: "2027-01-01" });
-  const instance = fakeRepo(INSTANCE_WEB, { "docs/participants.md": registerOf(...rows), ...(recording ? { "docs/conversation-recording.md": SWITCH_ON } : {}) });
+  const instance = fakeRepo(INSTANCE_WEB, { "docs/participants.md": registerOf(...rows), ...(recording ? { "docs/conversation-recording.md": SWITCH_ON } : {}), ...instanceFiles });
   const productRepo = product ? fakeRepo(PRODUCT_WEB, product) : null;
   const target = document.createElement("div");
   showing = () => textOf(target);
@@ -412,17 +416,20 @@ test("Send — a message that cannot be recorded is not sent, and the page says 
 
 // TST-600030 · level: component · module: MOD-prompt-bar
 // guards: UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION
-// given: an endpoint whose draft proposes a hand-over { kind: "implement", works_on: ["ITM-504"], task: "Add the bar." }
+// given: a register whose participant drafter-a is a model endpoint with the CI secret KEY_A in its route and "Anthropic, USA" as its place; an instance that holds Agent M's job workflow; an endpoint whose draft proposes a hand-over { kind: "implement", works_on: ["ITM-504"], task: "Add the bar." }
 // input: Send
-// expect: the page shows "Kind: implement", "Works on: ITM-504" and "Task: Add the bar." and no button "Hand over"; no commit was attempted
-test("Send — a hand-over the participant proposes is shown with its kind, what it works on and its task, without Hand over", async () => {
+// expect: the page shows "Kind: implement", "Works on: ITM-504", "Task: Add the bar.", "Participant: drafter-a — Anthropic, USA" and "Route: ci hosted", and one button "Hand over"; no commit was attempted
+test("Send — a hand-over the participant proposes is shown with its kind, what it works on, its task, the participant and its route, with Hand over beside it", async () => {
   endpointAnswers(answer("I can hand this on.", { handOver: { kind: "implement", works_on: ["ITM-504"], task: "Add the bar." } }));
-  const it = page();
+  const it = page({ rows: [DRAFTER_CI], instanceFiles: JOB_WORKFLOW });
   await drawn(it);
   await sends(it, "implement this");
+  await until(() => !textOf(one(it.target, "hand-over")).includes("Checking"), "the hand-over is checked");
   const proposal = textOf(one(it.target, "hand-over"));
-  assert.ok(proposal.includes("Kind: implement") && proposal.includes("Works on: ITM-504") && proposal.includes("Task: Add the bar."), proposal);
-  assert.equal(all(it.target, (node) => node.localName === "button" && /hand over/i.test(textOf(node))).length, 0);
+  for (const line of ["Kind: implement", "Works on: ITM-504", "Task: Add the bar.", "Participant: drafter-a — Anthropic, USA", "Route: ci hosted"]) {
+    assert.ok(proposal.includes(line), `${line} in ${proposal}`);
+  }
+  assert.equal(all(it.target, (node) => node.localName === "button" && /hand over/i.test(textOf(node))).length, 1);
   assert.equal(it.instance.attempts.length, 0);
 });
 

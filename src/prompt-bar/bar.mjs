@@ -1,24 +1,29 @@
 // MOD-prompt-bar, bar.mjs — the bar (docs/architecture/MOD-prompt-bar.md: Parts, Interfaces: startPromptBar, latestDraft, currentJob): the
-// selector, the input, *Send* and *Stop*, the conversation, and the answer. Of it, ITM-504 builds the offer of the participants and a
-// message sent as a job in this tab; the hand-over a participant proposes is shown without *Hand over*, which the item that follows builds.
+// selector, the input, *Send* and *Stop*, the conversation, the answer, and the hand-over a participant proposes: shown with its kind, what it
+// works on, its task, the participant and its route, checked with the product's start rules (hand-over.mjs), queued by *Hand over* and followed
+// until it has ended (follow.mjs), with *Stop* cancelling it.
 //
 // Module: MOD-prompt-bar
 //
 // THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION. Nothing is read from a participant's
 // route, written or sent while the bar is drawn: *Send* is the one click that sends a message, and the one that, with recording on, writes
-// the conversation record first. The conversation lives in the tab's values (MOD-browser-store): `prompt-bar:conversation`, a list of
-// Messages; `prompt-bar:draft`, the latest ConversationDraft; and `prompt-bar:records`, the record each repository's part of the
-// conversation is appended to.
+// the conversation record first; *Hand over* is the one click that queues a job, and only a click the browser marks as a person's (`isTrusted`)
+// does. The conversation lives in the tab's values (MOD-browser-store): `prompt-bar:conversation`, a list of Messages; `prompt-bar:draft`, the
+// latest ConversationDraft; `prompt-bar:records`, the record each repository's part of the conversation is appended to; and `prompt-bar:job`,
+// the job handed over and followed while it runs ({ id, address }).
 
 import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { offeredAmong, placeOf, readParticipants } from "./offer.mjs";
+import { followJob } from "./follow.mjs";
+import { assess, queue, worksOnOf } from "./hand-over.mjs";
 import { appendToConversation, conversationPath, recordingOf } from "./record.mjs";
 import { defaultSnapshot, prepareMessage, runMessage, shown, whyNot } from "./send.mjs";
 
 const CONVERSATION = "prompt-bar:conversation";
 const DRAFT = "prompt-bar:draft";
 const RECORDS = "prompt-bar:records";
+const JOB = "prompt-bar:job";
 
 const el = (name, className, ...children) => {
   const node = document.createElement(name);
@@ -29,6 +34,12 @@ const el = (name, className, ...children) => {
 const button = (className, text) => {
   const node = el("button", className, text);
   node.type = "button";
+  return node;
+};
+// A run's address as a link, when it is a web address: a record may name anything as its log.
+const linkTo = (address) => {
+  const node = el("a", "run", address);
+  if (/^https?:\/\//.test(address)) node.setAttribute("href", address);
   return node;
 };
 
@@ -72,10 +83,11 @@ const said = (failure) => `${failure.name ?? "Error"}: ${failure.message}`;
  */
 export function startPromptBar(target, setup) {
   const { store, instance } = setup;
-  const state = { stopped: false, controller: null };
-  let offered = [], recording = false;
+  const state = { stopped: false, controller: null, follower: null, following: false };
+  let offered = [], recording = false, instanceWeb = null;
 
   const status = el("section", "status");
+  const followed = el("section", "following");
   const conversation = el("ul", "conversation");
   const recorded = el("p", "recording", "This conversation is recorded in the repository of the page it is held on.");
   const input = el("textarea", "instruction");
@@ -102,13 +114,100 @@ export function startPromptBar(target, setup) {
     conversation.replaceChildren(...messages.map(line));
   };
 
+  // The repository the conversation is held on: the product's, or the instance's.
+  function pageOf() {
+    const product = setup.product();
+    return product ? { address: product.address, host: product.host } : { address: instanceWeb, host: instance.host };
+  }
+
   // Appends one entry to the conversation record of the repository the page is held on: the record the tab keeps for it, or a new one.
-  async function record(ready, entry) {
+  async function record(page, person, entry) {
     const records = readTabValue(store, RECORDS) ?? {};
-    const held = records[ready.page.address] ?? { path: conversationPath(entry.at), startedBy: ready.person };
-    const done = await appendToConversation(ready.page.host, held, entry);
-    writeTabValue(store, RECORDS, { ...records, [ready.page.address]: held });
+    const held = records[page.address] ?? { path: conversationPath(entry.at), startedBy: person };
+    const done = await appendToConversation(page.host, held, entry);
+    writeTabValue(store, RECORDS, { ...records, [page.address]: held });
     return done;
+  }
+
+  // The job handed over is kept in the tab so that the next page goes on following it; a tab that keeps nothing follows it on this page only.
+  function keepJob(job) {
+    try {
+      writeTabValue(store, JOB, job);
+    } catch { /* the tab keeps no values */ }
+  }
+
+  // Stop is for the message that runs in this tab, or else for the job that is followed.
+  const refreshStop = () => { stop.disabled = state.controller === null && !state.following; };
+
+  // The job followed, as the last poll saw it.
+  function showJob(view) {
+    state.following = view.end === null;
+    if (view.end !== null) keepJob(null);
+    refreshStop();
+    const route = view.route ?? "";
+    const waiting = view.end !== null || route === "" ? [] : [el("p", "waiting", route.startsWith("bridge ") ? `waiting for the Bridge ${route.slice("bridge ".length)}` : "waiting for GitHub Actions")];
+    const run = view.address === null ? [] : [el("p", "run-address", "Run: ", linkTo(view.address))];
+    const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
+      ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
+      ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
+    followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...run,
+      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
+      ...(view.problem ? [problem(view.problem)] : []));
+  }
+
+  function follow(job) {
+    state.follower?.stop();
+    state.following = true;
+    state.follower = followJob({ id: job.id, address: job.address, host: pageOf().host, store, show: showJob });
+    refreshStop();
+  }
+
+  // The hand-over the participant proposed: whether the product's start rules let it start and the route it would take; *Hand over* queues it, on a person's click, and the bar follows it.
+  async function proposeHandOver(section, handOver, participant) {
+    const outcome = el("div", "outcome", el("p", "checking", "Checking whether it can start…"));
+    section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
+    const render = (assessment) => {
+      const parts = [el("p", "route", assessment.route ? `Route: ${assessment.routeText}` : `Route: not available — ${assessment.routeText}`)];
+      if (assessment.reasons.length) parts.push(el("ul", "start-reasons", ...assessment.reasons.map((each) => el("li", "reason", each))));
+      else if (assessment.route) {
+        const hand = button("queue", "Hand over");
+        hand.addEventListener("click", (event) => onHandOver(event, hand));
+        parts.push(hand);
+      }
+      outcome.replaceChildren(...parts);
+    };
+    // The click is checked again against the product as it stands then, and queues only when nothing keeps the work from starting.
+    async function onHandOver(event, hand) {
+      if (event?.isTrusted !== true || hand.disabled) return;
+      hand.disabled = true;
+      try {
+        const page = pageOf();
+        const fresh = await assess({ handOver, participant, instance, page });
+        if (fresh.reasons.length > 0 || fresh.route === null) { render(fresh); return; }
+        const conversation = (await recordingOf(fresh.instanceSnapshot)) ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
+        const queued = await queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: setup.product() !== null, conversation });
+        outcome.replaceChildren(el("p", "queued", `Queued as ${queued.id}.`));
+        keepJob({ id: queued.id, address: page.address });
+        follow({ id: queued.id, address: page.address });
+        if (conversation !== null) {
+          try {
+            await record(page, queued.person, { at: new Date(), job: queued.id });
+          } catch (failure) {
+            outcome.append(problem(`The hand-over could not be recorded in the conversation. ${said(failure)}`));
+          }
+        }
+      } catch (failure) {
+        const findings = failure?.name === "NotStartable" && Array.isArray(failure.findings) ? failure.findings : [];
+        outcome.append(problem(findings.length > 0 ? "Nothing was queued." : `Nothing was queued. ${said(failure)}`),
+          ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", shown(each))))] : []));
+        hand.disabled = false;
+      }
+    }
+    try {
+      render(await assess({ handOver, participant, instance, page: pageOf() }));
+    } catch (failure) {
+      outcome.replaceChildren(problem(`It could not be checked whether this can start. ${said(failure)}`));
+    }
   }
 
   function showAnswer(result, ready, subject, participant) {
@@ -125,9 +224,11 @@ export function startPromptBar(target, setup) {
       el("p", "rounds", `Rounds: ${result.rounds.length}`)];
     if (left.length) parts.push(el("ul", "left", ...left.map((each) => el("li", "finding", shown(each)))));
     if (draft.handOver) {
-      const { kind, works_on: worksOn, task } = draft.handOver;
-      parts.push(el("section", "hand-over", el("h3", null, "The participant proposes handing this on"),
-        el("p", "kind", `Kind: ${kind}`), el("p", "works-on", `Works on: ${[worksOn].flat().join(", ")}`), el("p", "task", `Task: ${task}`)));
+      const { kind, task } = draft.handOver;
+      const section = el("section", "hand-over", el("h3", null, "The participant proposes handing this on"),
+        el("p", "kind", `Kind: ${kind}`), el("p", "works-on", `Works on: ${worksOnOf(draft.handOver).join(", ")}`), el("p", "task", `Task: ${task}`));
+      parts.push(section);
+      proposeHandOver(section, draft.handOver, participant);
     }
     if (subject.draftRoute !== null) {
       const review = button("review", "Review the draft");
@@ -175,7 +276,7 @@ export function startPromptBar(target, setup) {
           return;
         }
         try {
-          await record(ready, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
+          await record(ready.page, ready.person, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
         } catch (failure) {
           show(problem(`Nothing was sent. The message could not be recorded: ${said(failure)}`));
           return;
@@ -191,7 +292,7 @@ export function startPromptBar(target, setup) {
         keep([...conversationOf(store), { at: new Date(), from: "participant", who: participant.name, text: answered, subject: subject.key }]);
         if (ready.recording) {
           try {
-            await record(ready, { at: new Date(), who: participant.name, page: subject.title, model: participant.model ?? undefined, text: answered,
+            await record(ready.page, ready.person, { at: new Date(), who: participant.name, page: subject.title, model: participant.model ?? undefined, text: answered,
               withheld: subject.withhold?.(answered) ?? undefined });
           } catch (failure) {
             status.append(problem(`The answer could not be recorded: ${said(failure)}`));
@@ -203,13 +304,14 @@ export function startPromptBar(target, setup) {
     } finally {
       state.controller = null;
       running = null;
-      stop.disabled = true;
+      refreshStop();
       send.disabled = false;
     }
   }
 
   async function draw() {
     const snapshot = await defaultSnapshot(instance.host);
+    instanceWeb = snapshot.repository.web;
     offered = offeredAmong(await readParticipants(snapshot), store);
     if (offered.length === 0 || state.stopped) return;
     const named = (each) => `${each.name} — ${placeOf(each)}`;
@@ -226,13 +328,19 @@ export function startPromptBar(target, setup) {
     }
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
-    stop.addEventListener("click", () => state.controller?.abort());
+    stop.addEventListener("click", () => (state.controller ? state.controller.abort() : state.follower?.cancel()));
     conversation.replaceChildren(...conversationOf(store).map(line));
-    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, selector, conversation, input, el("div", "buttons", send, stop), status);
+    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, selector, conversation, input, el("div", "buttons", send, stop), status, followed);
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
     bar.setAttribute("style", "position: fixed; bottom: 0; left: 0; right: 0;");
     target.replaceChildren(bar);
+    // A job handed over on an earlier page of this tab goes on being followed.
+    let handedOver = null;
+    try {
+      handedOver = readTabValue(store, JOB);
+    } catch { /* the tab keeps no values */ }
+    if (handedOver !== null && handedOver.address === pageOf().address) follow(handedOver);
   }
 
   draw().catch((failure) => {
@@ -243,6 +351,7 @@ export function startPromptBar(target, setup) {
     stop() {
       state.stopped = true;
       state.controller?.abort();
+      state.follower?.stop();
       target.replaceChildren();
     },
   };
