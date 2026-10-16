@@ -67,6 +67,8 @@ in a browser and in Node; fetching a legal text runs in Node, in the instance's 
 - `source.schema.md` — the schema of a register entry, in the schema language of MOD-documents.
 - `links.schema.md` — the schema of a product's links file.
 - `content.mjs` — where a version's files lie, and reading them with their hashes checked.
+- `person.mjs` — the person who gives an instruction: their account (`personAccount`) and their own source
+  (`personSource`).
 - `legal-text.mjs` — recognising an EU legal text, and fetching it.
 - `strategies.mjs` — the recipe `source-excerpt`, and the four recipes of the book's chapters, each with the chapters
   of its kind of work.

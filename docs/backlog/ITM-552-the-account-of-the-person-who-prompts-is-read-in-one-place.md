@@ -45,6 +45,16 @@ No existing test's expected result changes: the account is the same.
   that refusal, so it stays in both until a draft does. It is left out of this item.
 - **Existing tests.** None changes, since the account is the same. `accountOf` is private in both modules, and no test
   names it.
+- **Where `personAccount` stands**, settled after the first CI run of #631. In `src/source-register/index.mjs`, its
+  `new URL(<origin>)` makes `tests/test_no_backend.py`'s check of that file refuse the file's existing `fetch` (line 48).
+  That check allows a file's `fetch` only where every `new URL(` in it resolves `./…` against the module's own address
+  (`_own_data_file`, lines 167–173).
+  - **The settled measure.** `personAccount` and `personSource` stand in a part of their own, `person.mjs`, which
+    `index.mjs` re-exports, as the interface re-exports its other parts (AGENTS.md §2, one responsibility per file).
+  - **The draft.** MOD-source-register's Parts gain `person.mjs` in a draft for akmaier, as the trace pages' and review
+    pages' new parts were drafted, and the gate is not held by it.
+  - **What is set aside.** Parsing the host without `new URL(` would only dodge the check. Widening the check would
+    weaken a rule on what a page may request, which no text asks for.
 
 ## Acceptance
 
