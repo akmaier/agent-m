@@ -100,7 +100,8 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
-  Subject | null }`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
+  Subject | null, leave?: () -> boolean }`. Before the frame shows another route on a change of the address, it asks the
+  route shown with `leave`; `false` keeps that route and puts its address back. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
   under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.

@@ -46,14 +46,13 @@ test("TST-572005 on the main page start.mjs registers its view's set once and th
 // given: the main page of TST-572005, started
 // input: MOD-job-runner's prepareJob for each kind of the catalogue named below, in a context with no snapshot and no participant
 // expect: no kind of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture,
-//   review-architecture, check-for-persons, check-resource and converse meets an UnknownStrategy; implement meets the UnknownStrategy
-//   branch-and-pull-request and no other; draft-plan meets the UnknownStrategy architecture-and-model — the last two show that the check
-//   does detect a missing strategy
+//   review-architecture, check-for-persons, check-resource, converse and implement meets an UnknownStrategy (implement's writer
+//   branch-and-pull-request is handed by MOD-runtimes' routeStrategies through the bar's handOverStrategies); draft-plan meets the
+//   UnknownStrategy architecture-and-model — which shows that the check does detect a missing strategy
 test("TST-572006 on the main page every kind whose strategies are all handed is prepared without UnknownStrategy", async () => {
   for (const kind of ["derive-requirements", "change-requirements", "derive-use-cases", "change-use-case", "derive-architecture",
-    "review-architecture", "check-for-persons", "check-resource", "converse"]) {
+    "review-architecture", "check-for-persons", "check-resource", "converse", "implement"]) {
     assert.equal(await unknownStrategyOf(kind), null, `${kind} meets no UnknownStrategy`);
   }
-  assert.equal(await unknownStrategyOf("implement"), "branch-and-pull-request");
   assert.equal(await unknownStrategyOf("draft-plan"), "architecture-and-model");
 });

@@ -27,12 +27,27 @@ shows:
 - the bar says "It could not be checked whether this can start. NotFound: https://github.com…", so *Hand over* is not
   offered and `namedButton` fails.
 
-**Not ready for a sprint yet.** Before it is selected, its readings are settled from the test's fixture and ITM-505's
-code:
-- **The NotFound.** Which read of `productFacts` fails in the fixture — a file the fixture product lacks — and whether
-  the test's world gives it, or the product should treat it as "unknown".
-- **The kind.** Whether `implement-item` is a kind of the catalogue, or should be `implement`, whose recipe waits for
-  ITM-568.
+**The readings, settled at sprint team1/56 for sprint 57:**
+- **Where it runs.**
+  - CI runs Node 22 (`.github/workflows/tests.yml:31, 75`), where `tests/system-uc-019-change-by-prompt.test.mjs`
+    loads, and CI's evidence decides the gate.
+  - On Node 26 the file fails to load for ITM-566's cycle. Local runs therefore preload
+    `src/model-catalogue/index.mjs` (`node --import <a file importing it>`), as the developers of ITM-571 and ITM-572 did.
+  - ITM-566 does not have to come first.
+- **The kind.**
+  - `implement-item` is in no catalogue, and the task "Run the tests of UC-007" is no change by prompt.
+  - UC-019 6b hands over "the work" of the change itself: "The workflow runs the correction loop of step 7 ... commits
+    the draft ... a use case as open".
+  - So the fixture's proposal names `change-use-case`, works on UC-007, and carries a change of UC-007 as its task.
+  - Its strategies are handed since ITM-572 (`tests/site-frame-start-hand-over-review.test.mjs`, TST-572002, lists it
+    among the kinds that prepare).
+- **The NotFound.**
+  - Under the preload, the test today ends with "It could not be checked whether this can start. NotFound:
+    https://github.com/akmaier/lending-tool was not found." That was run on `68ffaed4` by the Product Owner.
+  - The developer first logs the fixture's requests and names the one that answers `404`. If the fixture's product
+    server does not serve a request a real GitHub answers, the fixture serves it, and only test files change.
+  - If the product reads something a real GitHub would also refuse, that is a defect of the product, and it becomes an
+    item, as the Acceptance says.
 
 The test is turned plain by a developer who implemented none of ITM-505.
 

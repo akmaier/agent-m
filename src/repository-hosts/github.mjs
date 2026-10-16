@@ -5,7 +5,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -347,6 +347,13 @@ export function githubAdapter(address, { token, tokenName }, links) {
       const head = branch ? `&head=${encodeURIComponent(`${address.path.split("/")[0]}:${branch}`)}` : "";
       const listed = await everyPage(`${repo}/pulls?state=${ask}${head}`);
       return listed.map(pullOf).filter((p) => state === "all" || state === "open" || p.state === state);
+    },
+
+    // Opens a pull request ("Create a pull request": POST …/pulls, body title, head, base, body, draft; 201 with the pull request, read with pullOf as listPullRequests reads it). Every refusal is the host's own
+    // failure: the page documents 403 and 422, a write's 404 is a missing permission (failures.mjs).
+    async openPullRequest({ branch, base, title, body, draft }) {
+      const made = await call("POST", `${repo}/pulls`, { body: { title, head: branch, base, body, draft: draft === true }, permission: "Pull requests", what: address.web });
+      return pullOf(await json(made, API));
     },
 
     // Whether the branch's history holds the commit ("Compare two commits": GET …/compare/{basehead}, basehead BASE...HEAD, here the commit

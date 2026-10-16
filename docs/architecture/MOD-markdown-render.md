@@ -64,7 +64,7 @@ vendored libraries in `vendor/README.md` — one line per library: name, version
   `save`. On `refused` the edited text stays in the editor and the newer version is shown beside it with the difference
   (`A REFUSED SAVE KEEPS THE EDIT`); leaving with unsaved changes asks first.
 - `Editor` — `{ text() -> string, showDraft(draft: string, against: string) -> void, setMarks(findings: Finding[]) ->
-  void, close() -> void }`; `showDraft` puts a participant's draft into the editor as the difference against the current
+  void, close() -> boolean }`; `close` asks first when the text holds unsaved changes, and says whether the editor closed; `showDraft` puts a participant's draft into the editor as the difference against the current
   text (`A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT`).
 - `SaveOutcome` — `{ kind: "saved", link: string } | { kind: "refused", newer: string } | { kind: "failed", reason:
   string }` — what the caller's `save` returns to the editor.
