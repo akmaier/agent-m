@@ -7,7 +7,7 @@
 // links. ITM-313 adds recogniseLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names. ITM-383 adds
 // personSource, the source of the person who gives an instruction, and ITM-552 personAccount, the account personSource takes; both stand in
 // person.mjs and this file re-exports them. ITM-314 adds registrationCommits, the commit plan of a
-// registration. Fetching a source's content, a new version and the module's other functions are not built yet.
+// registration. ITM-589 adds affectedRequirements and changedPassages. Fetching a source's content, a new version and the module's other functions are not built yet.
 //
 // Module: MOD-source-register
 //
@@ -22,7 +22,8 @@
 // Schema and Document, in the types below, are MOD-documents' types of those names; Host is MOD-repository-hosts'; Strategies
 // is MOD-job-runner's; Requirement is MOD-spec-document's and Finding MOD-text-tools'.
 import { loadSchema, writeDocument } from "../documents/index.mjs";
-import { finding, sha256 } from "../text-tools/index.mjs";
+import { finding, lineDiff, sha256 } from "../text-tools/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
 import { strategiesOf } from "./strategies.mjs";
 import { failure, filesOf, linkOf, unquoted, versionHash, versionRecord } from "./content.mjs";
 
@@ -228,6 +229,10 @@ export async function versionCommits(entry, files, version) {
 const namesOf = (entry) => [entry.id, entry.fields.title, entry.fields.kind === "standard" ? entry.fields.designation : null]
   .filter((name) => typeof name === "string" && name !== "");
 
+// Whether a requirement's source item names the source called `name`: the item begins with it, followed by the end of the item
+// or by `, ` and the part it draws on. The one grammar of entryNamed, sourceFindings and affectedRequirements.
+const namesSource = (item, name) => item === name || item.startsWith(`${name}, `);
+
 // The register entry a source item names: the one whose identifier, title or — for a standard — designation the item begins
 // with, the longest such match, followed by the end of the item or by `, ` and the part it draws on; null when the item
 // begins with no entry's name.
@@ -235,7 +240,7 @@ function entryNamed(register, item) {
   let entry = null, longest = -1;
   for (const each of register) {
     for (const name of namesOf(each)) {
-      if ((item === name || item.startsWith(`${name}, `)) && name.length > longest) [entry, longest] = [each, name.length];
+      if (namesSource(item, name) && name.length > longest) [entry, longest] = [each, name.length];
     }
   }
   return entry;
@@ -262,6 +267,32 @@ export function linkedVersion(links, register, source) {
   if (!version) return null;
   const part = typeof link.cells.Part === "string" && link.cells.Part.trim() ? link.cells.Part.trim() : null;
   return { source: entry, version, part };
+}
+
+/**
+ * affectedRequirements(spec: string, source: string) -> string[] — the names of the requirements one of whose source items names
+ * the source, in the SPEC's order, as MOD-spec-document's parseSpec reads them. `source` is a register entry's identifier; an item
+ * names it when it begins with the identifier, followed by the end of the item or by `, ` and the part — the grammar
+ * sourceFindings reads. A title or a designation is not matched: the signature carries no register entry.
+ * @param {string} spec — the text of a SPEC
+ * @param {string} source — a register entry's identifier
+ * @returns {string[]}
+ */
+export function affectedRequirements(spec, source) {
+  return [...parseSpec(spec).requirements.values()]
+    .filter((requirement) => requirement.sources.some((item) => namesSource(item, source)))
+    .map((requirement) => requirement.name);
+}
+
+/**
+ * changedPassages(before: string, after: string) -> DiffLine[] — the passages that changed between two versions of a text, line by
+ * line: MOD-text-tools' lineDiff of the two texts without its `same` lines.
+ * @param {string} before
+ * @param {string} after
+ * @returns {Array<{ op: "added" | "removed", text: string, before: number | null, after: number | null }>}
+ */
+export function changedPassages(before, after) {
+  return lineDiff(before, after).filter((line) => line.op !== "same");
 }
 
 const REGISTERED_SOURCE = "A REQUIREMENT HAS A REGISTERED SOURCE";
