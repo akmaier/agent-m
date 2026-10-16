@@ -22,7 +22,16 @@
 // on github.com, `secrets.token` as the name of the secret that holds the person's token and `secrets.keys` as the names of the
 // secrets that hold the agents' keys; the entries find the runner a job is for in `AGENT_M_RUNNER` and the product's checkout in
 // `AGENT_M_PRODUCT_DIR`, and the names of the secrets in `AGENT_M_TOKEN_NAME` and `AGENT_M_KEY_NAMES`. The include entry GitLab needs
-// is returned as the text of `.gitlab-ci.yml` to add, a second file. Each test states its input and its expected result before it runs
+// is returned as the text of `.gitlab-ci.yml` to add, a second file. The inputs `job`, `task` and `endpoint` of a pipeline started
+// through the API (ITM-532) are read as the item states them: declared in the `spec:inputs` header of the main `.gitlab-ci.yml`, each
+// with `default: ""`, and passed on to `.gitlab/agent-m-jobs.yml` through `include:` … `inputs:` as `$[[ inputs.<name> ]]` ("Inputs for
+// pipelines must be defined in the `spec:inputs` header of the main `.gitlab-ci.yml` file", docs.gitlab.com, "CI/CD inputs"); the included
+// file declares the same three and sets the variables AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK and AGENT_M_INPUT_ENDPOINT, each to `$[[ inputs.<name> ]]`
+// as the whole value ("interpolated into the configuration as its specified type", so a task with quotes or line breaks stays one string);
+// the one rule of the entry onDispatch is `$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"`. No test reads a document for its
+// expected result: every expected text and name below is written in the test. The names AGENT_M_INPUT_… are the ones MOD-workflow-entries'
+// ciEnvironment reads from a GitLab job; TST-532104 gives that function an environment built from the template and from nothing else.
+// Each test states its input and its expected result before it runs
 // (given / input / expect). A name the module does not provide yet is undefined here, so that each test fails by itself. Nothing reaches
 // the network. The counter-proofs are recorded in the pull request.
 //
@@ -35,6 +44,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as runtimes from "../src/runtimes/index.mjs";
+import { ciEnvironment } from "../src/workflow-entries/compose.mjs";
 
 const { jobWorkflowFiles } = runtimes;
 
@@ -46,6 +56,9 @@ const RUNNERS = ["gpu"];
 const files = (server, runners = RUNNERS, secrets = SECRETS) => jobWorkflowFiles(server, INSTANCE, secrets, runners);
 const workflow = (server, runners, secrets) => files(server, runners, secrets)[0].text;
 const MAIN = "node src/workflow-entries/main.mjs";
+
+// The `spec:` header both GitLab files start with, then the `---` that ends it: the three inputs of a pipeline started through the API, each with an empty default.
+const SPEC_HEADER = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n';
 
 // The entries the five events start (MOD-runtimes, Data).
 const ENTRIES = ["onRecordsChanged", "onPullRequestClosed", "onCheckCompleted", "onSchedule", "onDispatch"];
@@ -71,14 +84,15 @@ const rulesOf = (job) => job.text.split(/\n(?=    - if:)/).slice(1);
 // guards: UC-010; AGENT M WORKS WITHOUT A LOCAL INSTALLATION
 // given: an instance alice/agent-m at a commit, two secret names for keys and one for the token, and the runner label gpu
 // input: jobWorkflowFiles("github", …) and jobWorkflowFiles("gitlab", …)
-// expect: for GitHub one file, .github/workflows/agent-m-jobs.yml; for GitLab .gitlab/agent-m-jobs.yml first and then the include the product's .gitlab-ci.yml needs, at the path .gitlab-ci.yml, which includes that file; each file's text is not empty
-test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the include its .gitlab-ci.yml needs", () => {
+// expect: for GitHub one file, .github/workflows/agent-m-jobs.yml; for GitLab .gitlab/agent-m-jobs.yml first and then the file the product's .gitlab-ci.yml needs, at the path .gitlab-ci.yml, whose text is exactly: a `spec:` header with `inputs:` job, task and endpoint, each with `default: ""`, then a line `---`, then `include:` of the local file ".gitlab/agent-m-jobs.yml" with `inputs:` job, task and endpoint, each passed as the whole value `$[[ inputs.<name> ]]`; each file's text is not empty
+test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the spec and include its .gitlab-ci.yml needs", () => {
   const github = files("github"), gitlab = files("gitlab");
 
   assert.deepEqual(github.map((file) => file.path), [".github/workflows/agent-m-jobs.yml"]);
   assert.deepEqual(gitlab.map((file) => file.path), [".gitlab/agent-m-jobs.yml", ".gitlab-ci.yml"]);
   for (const file of [...github, ...gitlab]) assert.match(file.text, /\S/, file.path);
-  assert.match(gitlab[1].text, /^include:\n\s+- local: ["']?\.gitlab\/agent-m-jobs\.yml["']?\s*$/);
+  assert.equal(gitlab[1].text, 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n'
+    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n');
 });
 
 // ---------------------------------------------------------------- the events
@@ -214,6 +228,104 @@ test("jobWorkflowFiles — the secrets are named and never valued, the token is 
     assert.throws(() => jobWorkflowFiles("github", { repository, commit: COMMIT }, SECRETS, []), TypeError, `repository ${JSON.stringify(repository)}`);
   }
   assert.throws(() => files("github", ["my gpu"]), TypeError, "a label");
+});
+
+// ---------------------------------------------------------------- the inputs of a pipeline started through the API
+
+// The variables a GitLab job sets for the inputs: [[ variable, the value it is set to ]], in the order they stand in the job's text.
+const inputVariables = (job) => [...job.text.matchAll(/^ {4}(AGENT_M_INPUT_[A-Z_]+): (.*)$/gm)].map((m) => [m[1], m[2]]);
+// The lines of a file that are not comments.
+const codeLines = (text) => text.split("\n").filter((line) => !/^\s*#/.test(line));
+// A task with double quotes, single quotes, a backslash, a dollar sign, braces and two line breaks.
+const TASK = 'Fix the "loan due date" for \'Ana\'\nand keep C:\\temp, $HOME and {braces}\nas they stand';
+const JOB_ID = "JOB-20261016-0800-a1b2";
+const ENDPOINT = '{"kind":"openai-compatible","baseUrl":"https://llm.example.test/v1","model":"fixture-llm"}';
+const WHEN = new Date("2026-10-16T09:00:00Z");
+
+// TST-532101 · level: unit · module: MOD-runtimes
+// guards: UC-049; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: the two files for the instance, the secrets and the runner above
+// input: the text of the GitLab job file, and of the GitHub file
+// expect: the GitLab job file begins with exactly `spec:`, `  inputs:`, job, task and endpoint each with `default: ""`, and then the line `---`, which stands once; the GitHub file holds no `spec:` header and no `$[[`
+test("jobWorkflowFiles — the GitLab job file declares job, task and endpoint with an empty default, the GitHub file declares none of it", () => {
+  const gitlab = workflow("gitlab");
+  assert.ok(gitlab.startsWith(SPEC_HEADER), gitlab.slice(0, 200));
+  assert.equal(gitlab.split("\n---\n").length, 2, "one header, ended by one `---`");
+  const github = workflow("github");
+  assert.ok(!/^spec:/m.test(github) && !github.includes("$[["), "GitHub's file has no GitLab input syntax");
+});
+
+// TST-532102 · level: unit · module: MOD-runtimes
+// guards: UC-049
+// given: the runner labels (1) none, (2) gpu, (3) gpu and cpu
+// input: jobWorkflowFiles("gitlab", …) for each; the lines of every job that begin AGENT_M_INPUT_, and every line of the file, comments apart, that holds `$[[`
+// expect: in every job, in this order, AGENT_M_INPUT_JOB set to `$[[ inputs.job ]]`, AGENT_M_INPUT_TASK to `$[[ inputs.task ]]` and AGENT_M_INPUT_ENDPOINT to `$[[ inputs.endpoint ]]`, each the whole value — no quote, no other text — and no other AGENT_M_INPUT_ variable; the only lines of the file that hold `$[[` are those three lines of each job
+test("jobWorkflowFiles — every GitLab job sets the three input variables to the whole value of the input, and nothing else", () => {
+  for (const runners of [[], ["gpu"], ["gpu", "cpu"]]) {
+    const text = workflow("gitlab", runners), jobs = gitlabJobs(text);
+    assert.equal(jobs.length, 1 + runners.length);
+    for (const job of jobs) {
+      assert.deepEqual(inputVariables(job), [["AGENT_M_INPUT_JOB", "$[[ inputs.job ]]"], ["AGENT_M_INPUT_TASK", "$[[ inputs.task ]]"],
+        ["AGENT_M_INPUT_ENDPOINT", "$[[ inputs.endpoint ]]"]], `${job.id} with ${runners}`);
+    }
+    assert.deepEqual(codeLines(text).filter((line) => line.includes("$[[")), jobs.flatMap(() => ["    AGENT_M_INPUT_JOB: $[[ inputs.job ]]",
+      "    AGENT_M_INPUT_TASK: $[[ inputs.task ]]", "    AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]"]), `the lines with $[[ with ${runners}`);
+  }
+});
+
+// TST-532103 · level: unit · module: MOD-runtimes
+// guards: UC-010; UC-049 4a
+// given: the GitLab job file for the runner gpu
+// input: the rules of each job
+// expect: in every job five rules, and exactly one that sets AGENT_M_ENTRY to onDispatch, whose condition is exactly `$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"`; no other rule's text holds "api"
+test("jobWorkflowFiles — the entry onDispatch runs for a pipeline started from the server's page and for one the API started, with one rule", () => {
+  const jobs = gitlabJobs(workflow("gitlab"));
+  assert.ok(jobs.length > 0);
+  for (const job of jobs) {
+    const rules = rulesOf(job);
+    assert.equal(rules.length, 5, `${job.id}: five rules`);
+    const dispatch = rules.filter((rule) => rule.includes("AGENT_M_ENTRY: onDispatch"));
+    assert.equal(dispatch.length, 1, `${job.id}: one rule for onDispatch`);
+    assert.ok(dispatch[0].startsWith(`    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'\n`), `${job.id}: ${dispatch[0]}`);
+    for (const rule of rules.filter((each) => each !== dispatch[0])) assert.ok(!rule.includes('"api"'), `${job.id}: ${rule}`);
+  }
+});
+
+// TST-532104 · level: unit · module: MOD-runtimes
+// guards: UC-049; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: the GitLab job file; a GitLab job's environment built from what the file sets and nothing else — each variable it sets, to the value of the input it names, as GitLab interpolates a whole value —, GITLAB_CI `true`, CI_PIPELINE_SOURCE `api`, and one more variable AGENT_M_INPUT_PLANTED
+// input: the names of the variables the file sets for the inputs; ciEnvironment("onDispatch", that environment, a date)
+// expect: the names are exactly AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK and AGENT_M_INPUT_ENDPOINT, set to the inputs job, task and endpoint; the event is named "api" and its payload is exactly { inputs: { job, task, endpoint } } with the three values given, the planted variable absent
+test("jobWorkflowFiles — the three variables the GitLab file sets are exactly the names an entry reads from a GitLab job", () => {
+  const [job] = gitlabJobs(workflow("gitlab"));
+  assert.deepEqual(inputVariables(job).map(([name]) => name), ["AGENT_M_INPUT_JOB", "AGENT_M_INPUT_TASK", "AGENT_M_INPUT_ENDPOINT"]);
+  const given = { job: JOB_ID, task: TASK, endpoint: ENDPOINT };
+  const set = Object.fromEntries(inputVariables(job).map(([name, value]) => [name, given[/^\$\[\[ inputs\.([a-z]+) \]\]$/.exec(value)?.[1]]]));
+  assert.deepEqual(set, { AGENT_M_INPUT_JOB: JOB_ID, AGENT_M_INPUT_TASK: TASK, AGENT_M_INPUT_ENDPOINT: ENDPOINT });
+
+  const env = ciEnvironment("onDispatch", { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "api", ...set, AGENT_M_INPUT_PLANTED: "planted" }, WHEN);
+  assert.equal(env.event.name, "api");
+  assert.deepEqual(env.event.payload, { inputs: { job: JOB_ID, task: TASK, endpoint: ENDPOINT } });
+});
+
+// TST-532105 · level: unit · module: MOD-runtimes
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: a task with double quotes, single quotes, a backslash, a dollar sign, braces and two line breaks, as the input `task`; the two GitLab files for the instance and the runner gpu
+// input: every line of the two files, comments apart, that holds `inputs.task`; the script of every job; the task's words searched in both files; the task carried by ciEnvironment as AGENT_M_INPUT_TASK
+// expect: `inputs.task` stands in exactly three lines, `AGENT_M_INPUT_TASK: $[[ inputs.task ]]` of the hosted job's variables and of the gpu job's, then `task: $[[ inputs.task ]]` of the .gitlab-ci.yml include; no job's script holds AGENT_M_INPUT_TASK or `inputs.`; no file holds a word of the task; ciEnvironment gives the task unchanged as one string with its two line breaks
+test("jobWorkflowFiles — a task with quotes and line breaks is one value, held by a variable of the job and written to no file", () => {
+  const [jobFile, ciFile] = files("gitlab", ["gpu"]);
+  const lines = [...codeLines(jobFile.text), ...codeLines(ciFile.text)].filter((line) => line.includes("inputs.task"));
+  assert.deepEqual(lines, ["    AGENT_M_INPUT_TASK: $[[ inputs.task ]]", "    AGENT_M_INPUT_TASK: $[[ inputs.task ]]", "      task: $[[ inputs.task ]]"]);
+  for (const job of gitlabJobs(jobFile.text)) {
+    const script = job.text.slice(job.text.indexOf("  script:\n"));
+    assert.ok(script.startsWith("  script:\n") && !script.includes("AGENT_M_INPUT_TASK") && !script.includes("inputs."), `${job.id}: no script line holds the task`);
+  }
+  for (const file of [jobFile, ciFile]) for (const word of ["loan due date", "Ana", "C:", "braces"]) assert.ok(!file.text.includes(word), `${file.path}: ${word}`);
+
+  const carried = ciEnvironment("onDispatch", { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "api", AGENT_M_INPUT_JOB: JOB_ID, AGENT_M_INPUT_TASK: TASK }, WHEN);
+  assert.equal(carried.event.payload.inputs.task, TASK);
+  assert.equal(carried.event.payload.inputs.task.split("\n").length, 3);
 });
 
 // ---------------------------------------------------------------- without a disk

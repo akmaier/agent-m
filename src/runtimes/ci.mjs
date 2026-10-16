@@ -1,7 +1,7 @@
 // ci.mjs — the CI route (docs/architecture/MOD-runtimes.md, Parts: "ci.mjs — the CI route: queueing, live state, log
 // and cancel through the repository host"). Of it, ITM-253 builds queueing; ITM-535 adds the live state, the log and the cancel of a job taken on CI, through the host
 // (runOfAddress, cancelRun, used by index.mjs). ITM-322 adds jobWorkflowFiles, the files of Agent M's job workflow for a product, from the
-// templates workflow/github.yml and workflow/gitlab.yml, which it reads once, when it is loaded, from the disk, in Node.
+// templates workflow/github.yml and workflow/gitlab.yml, which it reads once, when it is loaded, from the disk, in Node; ITM-532 gives the GitLab files the inputs of a pipeline the API starts.
 //
 // Module: MOD-runtimes
 //
@@ -82,8 +82,9 @@ const fill = (template, values) => template.replace(/@@([a-z-]+)@@/g, (_, name) 
  * jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string, keys:
  * string[] }, runners: string[]) -> { path: string, text: string }[] — the files of Agent M's job workflow in a product
  * (MOD-runtimes, Data), for the caller to commit on a person's click: on GitHub .github/workflows/agent-m-jobs.yml; on GitLab
- * .gitlab/agent-m-jobs.yml and, as the second file, the text the product's .gitlab-ci.yml needs to include it, to be added to
- * that file and not to replace it. One job for each route of the product's CI agents: the server's runners, `hosted`, and each
+ * .gitlab/agent-m-jobs.yml and, as the second file, the text the product's .gitlab-ci.yml needs, to be added to that file and not to
+ * replace it: the `spec:inputs` header that declares the inputs `job`, `task` and `endpoint` of a pipeline the API starts, each with an empty
+ * default, and the include of the job file that passes them on. One job for each route of the product's CI agents: the server's runners, `hosted`, and each
  * self-hosted runner by its label in `runners`. `instance.repository` is `owner/name` on github.com and `instance.commit` a
  * 40-digit commit, at which each job checks out the instance. `secrets.token` is the name of the secret that holds the person's
  * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. Pure.
@@ -114,7 +115,14 @@ export function jobWorkflowFiles(server, instance, secrets, runners) {
   const jobs = routes.map((route) => fill(job, { ...common, ...route, runner: JSON.stringify(route.runner), route: route.runner,
     id: github ? route.id : `agent-m-${route.id}`, "key-env": secrets.keys.map((name) => `      ${name}: \${{ secrets.${name} }}\n`).join("") }));
   const files = [{ path: WORKFLOW_PATH[server], text: `${fill(head, common)}${jobs.join("\n")}` }];
-  if (!github) files.push({ path: ".gitlab-ci.yml", text: `include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n` });
+  if (!github) {
+    // The inputs of a pipeline started through the API: GitLab takes them only from the `spec:inputs` header of the main .gitlab-ci.yml (docs.gitlab.com, "CI/CD
+    // inputs"), which passes them to the included job file through `include:inputs`. The template starts with the header, the one place that declares them, and
+    // so does this file; a push starts the pipeline without inputs, so each has an empty default there.
+    const spec = head.slice(0, head.indexOf("---\n") + 4);
+    const inputs = [...spec.matchAll(/^ {4}([a-z]+):$/gm)].map((match) => match[1]);
+    files.push({ path: ".gitlab-ci.yml", text: `${spec}include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n    inputs:\n${inputs.map((name) => `      ${name}: $[[ inputs.${name} ]]\n`).join("")}` });
+  }
   return files;
 }
 
