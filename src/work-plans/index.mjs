@@ -1,7 +1,7 @@
 // MOD-work-plans — implementation plans, backlogs and sprints, and the state of each item
 // (docs/architecture/MOD-work-plans.md): its interface. Of it, these are built: planSchemas, which gives the schema of the
 // implementation plan's order, planOrder, and the schema of a team's sprint, sprint; ItemState, itemStates and startable;
-// Held, heldItems and conflicts, the items the teams' sprints hold and what keeps an item from a team's selection;
+// Held, heldItems, undecidedHeads and conflicts, the items the teams' sprints hold and what keeps an item from a team's selection;
 // startSprint; and closeSprint, which does not add new items from the feedback yet. planFindings, backlogFindings,
 // sprintFacts, savePlan, saveItems, endSprint and workStrategies are not built yet. A backlog keeps no order of its own:
 // its items are listed after the items they build on.
@@ -17,7 +17,7 @@
 // Schema, in the type below, is MOD-documents' type of that name.
 import { planOrderSchema, sprintSchema } from "./schemas.mjs";
 
-export { conflicts, heldItems } from "./sprints.mjs";
+export { conflicts, heldItems, undecidedHeads } from "./sprints.mjs";
 export { itemStates, startable } from "./states.mjs";
 export { closeSprint, startSprint, WorkPlansError } from "./saves.mjs";
 
