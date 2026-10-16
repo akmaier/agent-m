@@ -52,6 +52,10 @@ The readings, settled at sprint team1/51's start:
   of the product's own. `jobWorkflowFiles` then throws a `RuntimeError` named `GitlabCiNotList`, naming the file, and
   nothing is written. The settings page shows its message beside *Install*. "Every other line stays as it is" forbids
   the rewrite, so the refusal is the reading that keeps it.
+- **An `inputs:` written inline.** This is settled at its first gate (#627, `c10480b7`). A `spec:` header's `inputs:`, or
+  the existing entry's `inputs:`, written inline, such as `inputs: {}`, would also have to be rewritten to add to it.
+  Adding a second `inputs:` block beside it would give the map the key twice. So it is refused with the same
+  `GitlabCiNotList`, whose message names the part that is not written as a block. Nothing is written.
 - **The caller.** `src/settings-pages/settings.mjs:822` passes the text of `.gitlab-ci.yml` read from the snapshot it
   already holds, `null` where there is none.
 - **Existing tests.** None changes. `tests/runtimes-workflow.test.mjs` calls `jobWorkflowFiles` without `gitlabCi`, which
