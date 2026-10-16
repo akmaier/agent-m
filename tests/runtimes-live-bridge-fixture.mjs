@@ -31,6 +31,7 @@ export function fixtureBridge({ jobs = [], outage = null, onRequest = () => {} }
     if (where.origin !== BRIDGE_ADDRESS) { stray.push(request); return notFound("(stray)"); }
     requests.push(request);
     onRequest(request);
+    if (requests.length > 50) return json({ error: "upstream-failed", message: "more than 50 requests: a loop that should have ended does not" }, 502);
     if (outage) throw new TypeError(outage);
     if (request.token !== BRIDGE_TOKEN) return json({ error: "token-refused", message: "pair again" }, 401);
     if (request.method === "GET" && where.pathname === "/v1/jobs") return json({ jobs: jobs.map((job) => job.row) });

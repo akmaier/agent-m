@@ -7,7 +7,7 @@
 // resumeJob, retryJob and routeStrategies are not part of
 // this item (UC-010, UC-011, UC-036) and are not built yet; nor is a job of a run
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
-// ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; a job taken on a Bridge waits for MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (ITM-544, ITM-545).
+// ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
 // ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; retryJob is not built yet.
 //
 // Module: MOD-runtimes
@@ -16,9 +16,9 @@
 // index.mjs. ci.mjs is private to it, besides the RuntimeError it re-exports here.
 
 import { appendToRecord } from "../job-ledger/index.mjs";
-import { RuntimeError, cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
+import { cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
 import { abortOnTab, heldOnTab, queueOnTab } from "./tab.mjs";
-import { queueOnBridge } from "./bridge.mjs";
+import { bridgeNamed, cancelBridgeJob, followBridgeLog, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
 export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
@@ -56,10 +56,9 @@ export async function queueJob(host, start, route, head, bridge) {
 }
 
 
-// ---------------------------------------------------------------- a job's live state, its log and its cancel (ITM-535)
+// ---------------------------------------------------------------- a job's live state, its log and its cancel (ITM-535, ITM-545)
 
 const UNKNOWN = { reachable: true, reason: null, known: false, running: false, cancelling: false, log: null, usage: null, writtenAfterCancel: [] };
-const BRIDGE_NOT_READ = "the Bridge's jobs are not read yet";
 
 // Which runtime took the job, from the `by:` of its `## Taken` (MOD-job-ledger, Data: "a CI run's address, a Bridge's name, this tab"): none; the tab; CI — a run's address, or `ci <runner>` where the
 // run's address was not known —; any other is a Bridge's name.
@@ -72,15 +71,21 @@ function takenOn(record) {
 
 /**
  * liveState(record, product, bridges) -> Promise<LiveState> — what the runtime that took the job reports (MOD-runtimes, Interfaces). A job no runtime has taken is unknown; a job taken on CI is running while its run
- * is queued, running or waiting, with the run's address as its log; one taken by this tab is running while the tab holds it; one taken on a Bridge is not read yet (`reachable: false`). A failure of the host gives
- * `reachable: false` and its reason, never an error. `writtenAfterCancel` is always empty: no way to read a branch's commits is among this module's Uses.
+ * is queued, running or waiting, with the run's address as its log; one taken by this tab is running while the tab holds it; one taken on a Bridge is the job with the record's id among the Bridge's jobs
+ * (bridgeJobs), running while its state is `running`, with its usage, and unknown where the Bridge lists none. A failure of the host, a Bridge missing from `bridges` and a Bridge that does not answer give
+ * `reachable: false` and the reason (the client's, for a Bridge), never an error. `writtenAfterCancel` is always empty: no way to read a branch's commits is among this module's Uses.
  */
 export async function liveState(record, product, bridges) {
-  void bridges;
   switch (takenOn(record)) {
     case "none": return { ...UNKNOWN };
     case "tab": return heldOnTab(record.id) ? { ...UNKNOWN, known: true, running: true } : { ...UNKNOWN };
-    case "bridge": return { ...UNKNOWN, reachable: false, reason: BRIDGE_NOT_READ };
+    case "bridge":
+      try {
+        const job = await listedOnBridge(bridgeNamed(bridges, record.taken.by), record.id);
+        return job ? { ...UNKNOWN, known: true, running: job.state === "running", usage: job.usage ?? null } : { ...UNKNOWN };
+      } catch (error) {
+        return { ...UNKNOWN, reachable: false, reason: String(error?.message ?? error) };
+      }
     default:
       try {
         const run = await runOfAddress(product.host, record.taken.by);
@@ -93,13 +98,13 @@ export async function liveState(record, product, bridges) {
 }
 
 /**
- * jobLog(record, product, bridges) -> Promise<{ address: string } | { gone: true }> — the CI run's log by the run's address; `{ gone: true }` for a run the server no longer lists, for the tab, which keeps no log apart from
- * the page, and for a job no runtime has taken. A job taken on a Bridge fails with NotSupported. A CI job fails as the host fails.
+ * jobLog(record, product, bridges) -> Promise<{ stream: AsyncIterable<string> } | { address: string } | { gone: true }> — the CI run's log by the run's address; `{ gone: true }` for a run the server no longer lists,
+ * for the tab, which keeps no log apart from the page, and for a job no runtime has taken. A job taken on a Bridge gives `{ stream }`, which asks the Bridge's log from line 0 and again from the answer's `next` until
+ * it has ended (followBridgeLog); the Bridge client's failures are thrown by the stream, and a Bridge missing from `bridges` is refused with NotFound { what } (the Bridge's name). A CI job fails as the host fails.
  */
 export async function jobLog(record, product, bridges) {
-  void bridges;
   switch (takenOn(record)) {
-    case "bridge": throw new RuntimeError("NotSupported", { reason: BRIDGE_NOT_READ }, BRIDGE_NOT_READ);
+    case "bridge": return { stream: followBridgeLog(bridgeNamed(bridges, record.taken.by), record.id) };
     case "ci": {
       const run = await runOfAddress(product.host, record.taken.by);
       return run ? { address: run.url } : { gone: true };
@@ -119,13 +124,17 @@ async function endAsCancelled(host, record, log) {
 
 /**
  * cancelJob(record, product, bridges) -> Promise<"cancelled" | "cancelling"> — stops the job at its runtime (MOD-runtimes, Interfaces). On CI it asks the run to cancel and reads it once: where it is cancelled it appends
- * the end `cancelled` and gives "cancelled", else "cancelling" with nothing appended. A job in the tab is aborted; a job no runtime has taken, and one the tab does not hold, is ended at once. A job taken on a Bridge
- * fails with NotSupported. Fails with NotFound { what } for a CI run the server does not list, with the host's failures, and with RecordEnded for a record that has its end.
+ * the end `cancelled` and gives "cancelled", else "cancelling" with nothing appended. A job in the tab is aborted; a job no runtime has taken, and one the tab does not hold, is ended at once. A job taken on a Bridge is
+ * cancelled with cancelOnBridge: where the Bridge confirms, the end `cancelled` is appended and "cancelled" given, else "cancelling" with nothing appended. Fails with NotFound { what } for a CI run the server does not
+ * list and for a Bridge missing from `bridges`, with the host's failures, with the Bridge client's (nothing is appended), and with RecordEnded for a record that has its end.
  */
 export async function cancelJob(record, product, bridges) {
-  void bridges;
   switch (takenOn(record)) {
-    case "bridge": throw new RuntimeError("NotSupported", { reason: BRIDGE_NOT_READ }, BRIDGE_NOT_READ);
+    case "bridge": {
+      if (!(await cancelBridgeJob(bridgeNamed(bridges, record.taken.by), record.id))) return "cancelling";
+      await endAsCancelled(product.host, record, null);
+      return "cancelled";
+    }
     case "ci": {
       const { cancelled, address } = await cancelRun(product.host, record.taken.by);
       if (!cancelled) return "cancelling";

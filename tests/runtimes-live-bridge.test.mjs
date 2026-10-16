@@ -150,9 +150,9 @@ test("jobLog — the next ask is from the answer's next, and none follows an end
 
 // TST-545006 · level: unit · module: MOD-runtimes
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049
-// given: a job taken by `lab-pc`; known positive first — the Bridge knows the job and ends its log; then (a) the Bridge does not know the job (404 not-found "No job JOB-20261016-1100-c0de."), (b) it is not running (fetch throws "connection refused"), (c) it refuses the token (401), (d) `bridges` holds only `other-box`
+// given: a job taken by `lab-pc`; known positive first — the Bridge knows the job and ends its log; then (a) the Bridge does not know the job (404 not-found "No job JOB-20261016-1100-c0de."), (b) it is not running (fetch throws "connection refused"), (c) it refuses the token (401), (d) `bridges` holds only `other-box`, and `bridges` is empty for a job taken by "toString"
 // input: jobLog, the stream read to its end
-// expect: the known positive yields "only"; (a) rejects with BridgeFailed whose error is "not-found" and message "No job JOB-20261016-1100-c0de."; (b) NoAnswer; (c) TokenRefused; (d) a RuntimeError named NotFound whose what is "lab-pc" and no request made; no case commits anything
+// expect: the known positive yields "only"; (a) rejects with BridgeFailed whose error is "not-found" and message "No job JOB-20261016-1100-c0de."; (b) NoAnswer; (c) TokenRefused; (d) a RuntimeError named NotFound whose what is "lab-pc", and for "toString" whose what is "toString", and no request made; no case commits anything
 test("jobLog — the client's failures are thrown by name, and a Bridge missing from the Bridges is NotFound", async () => {
   const fake = fakeHost({ taken: "lab-pc" });
   install({ jobs: [job({ lines: ["only"], ended: true })] });
@@ -166,6 +166,8 @@ test("jobLog — the client's failures are thrown by name, and a Bridge missing 
   await assert.rejects(follow(fake, { "lab-pc": bridgeAt({ address: BRIDGE_ADDRESS, token: "another-token" }) }), named("TokenRefused"));
   const bridge = install({ jobs: [job()] });
   await assert.rejects(follow(fake, { "other-box": BRIDGES["lab-pc"] }), (error) => error instanceof runtimes.RuntimeError && named("NotFound", { what: "lab-pc" })(error));
+  const inherited = fakeHost({ taken: "toString" });
+  await assert.rejects(follow(inherited, {}), (error) => error instanceof runtimes.RuntimeError && named("NotFound", { what: "toString" })(error));
   assert.deepEqual(bridge.requests, [], "no request for a Bridge that is not among the Bridges");
   assert.equal(fake.writes.length, 0, "nothing committed");
 });
@@ -215,9 +217,9 @@ test("cancelJob — while the Bridge has not confirmed it gives cancelling and a
 
 // TST-545009 · level: unit · module: MOD-runtimes
 // guards: A CANCELLED JOB WRITES NOTHING MORE; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049
-// given: a job taken by `lab-pc`; (a) the Bridge does not know the job (404 not-found "No job JOB-20261016-1100-c0de."), (b) it is not running (fetch throws "connection refused"), (c) it refuses the token (401), (d) `bridges` holds only `other-box`, (e) it confirms but the commit of the end is refused with Moved (head c9)
+// given: a job taken by `lab-pc`; (a) the Bridge does not know the job (404 not-found "No job JOB-20261016-1100-c0de."), (b) it is not running (fetch throws "connection refused"), (c) it refuses the token (401), (d) `bridges` holds only `other-box`, and `bridges` is empty for a job taken by "toString", (e) it confirms but the commit of the end is refused with Moved (head c9)
 // input: cancelJob in each case
-// expect: (a) rejects with BridgeFailed, error "not-found", message "No job JOB-20261016-1100-c0de."; (b) NoAnswer; (c) TokenRefused; each with no commit asked for; (d) a RuntimeError named NotFound whose what is "lab-pc", no request made, no commit asked for; (e) rejects with Moved whose head is "c9", the Bridge having been asked once
+// expect: (a) rejects with BridgeFailed, error "not-found", message "No job JOB-20261016-1100-c0de."; (b) NoAnswer; (c) TokenRefused; each with no commit asked for; (d) a RuntimeError named NotFound whose what is "lab-pc", and for "toString" whose what is "toString", no request made, no commit asked for; (e) rejects with Moved whose head is "c9", the Bridge having been asked once
 test("cancelJob — the client's failures and a moved head are thrown by name, a Bridge missing from the Bridges is NotFound, and nothing is committed but the end", async () => {
   const none = (fake) => assert.deepEqual([fake.writes.length, fake.attempts], [0, []], "nothing committed");
 
@@ -236,8 +238,11 @@ test("cancelJob — the client's failures and a moved head are thrown by name, a
   const missing = fakeHost({ taken: "lab-pc" });
   const nobody = install({ jobs: [job()] });
   await assert.rejects(cancel(missing, { "other-box": BRIDGES["lab-pc"] }), (error) => error instanceof runtimes.RuntimeError && named("NotFound", { what: "lab-pc" })(error));
+  const inherited = fakeHost({ taken: "toString" });
+  await assert.rejects(cancel(inherited, {}), (error) => error instanceof runtimes.RuntimeError && named("NotFound", { what: "toString" })(error));
   assert.deepEqual(nobody.requests, [], "no request for a Bridge that is not among the Bridges");
   none(missing);
+  none(inherited);
 
   const moved = fakeHost({ taken: "lab-pc", commitFails: Object.assign(new Error("Moved"), { name: "Moved", head: "c9" }) });
   const asked = install({ jobs: [job()] });
