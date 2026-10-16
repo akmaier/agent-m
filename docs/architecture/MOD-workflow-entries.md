@@ -20,6 +20,7 @@ uses:
   - MOD-participant-list.participantSchema
   - MOD-endpoint-calls.endpointDriver
   - MOD-endpoint-calls.diagnoseEndpoint
+  - MOD-endpoint-calls.testEndpoint
   - MOD-agent-processes.agentDriver
   - MOD-job-runner.JobContext
   - MOD-job-runner.registerStrategies
@@ -218,7 +219,9 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-test-document.TestDeclaration`, `testDeclarations` — the declarations of the product's tests, to which a report's
   outcomes are matched.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-agent-processes.agentDriver` — the drivers of CI participants;
-  `MOD-endpoint-calls.diagnoseEndpoint` — why a handed-over run could not reach its endpoint.
+  `MOD-endpoint-calls.diagnoseEndpoint` — why a handed-over run could not reach its endpoint;
+  `MOD-endpoint-calls.testEndpoint` — after a handed-over run's agent failed working with an endpoint, one short request to
+  that endpoint, whose diagnosis names the reason where the endpoint is the cause.
 - `MOD-job-runner.JobContext`, `registerStrategies`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of
   any kind from its record, unattended.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `newJobId`, `startRecord`, `takeJob`, `appendToRecord`, `jobState` — the
