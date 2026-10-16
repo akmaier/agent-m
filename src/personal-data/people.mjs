@@ -1,4 +1,4 @@
-// MOD-personal-data — the search of a text for a mail's people. Pure: it calls no other module, sends no request and reads no file.
+// MOD-personal-data — the people of a mail, and the search of a text for them. Pure: it calls no other module, sends no request and reads no file.
 
 /**
  * @typedef {{ names: string[], addresses: string[], phones: string[], accounts: string[] }} People
@@ -101,4 +101,69 @@ export function personHits(text, people) {
     while (starts[line - 1] > hit.start) line -= 1;
     return { kind: hit.kind, value: source.slice(hit.start, hit.end), line, column: hit.start - starts[line - 1] + 1 };
   });
+}
+
+/**
+ * @typedef {{ name: string | null, address: string }} HeaderAddress
+ * @typedef {{ addresses: HeaderAddress[], text: string }} MailText
+ */
+
+const LOCAL_CHAR = "\\p{L}\\p{N}_%+\\-";
+// local@domain: a local part of letters, digits and `_ % + -` joined by single dots, `@`, and a domain of labels joined by single dots,
+// so that a dot closing a sentence is not part of the address.
+const ADDRESS = new RegExp(`[${LOCAL_CHAR}]+(?:\\.[${LOCAL_CHAR}]+)*@[\\p{L}\\p{N}\\-]+(?:\\.[\\p{L}\\p{N}\\-]+)*`, "gu");
+// `@` and letters, digits and `_`, which single `.` or `-` may join.
+const HANDLE = /@[\p{L}\p{N}_]+(?:[.\-][\p{L}\p{N}_]+)*/gu;
+const MIN_PHONE_DIGITS = 7;
+
+const GREETING = /^(?:Dear|Hello|Hi|Hallo|Liebe|Lieber|Sehr geehrte|Sehr geehrter)[ \t]+(?:(?:Mr|Ms|Herr|Frau|Dr)\.?[ \t]+)?([^,]+)/iu;
+const CLOSING = /^(?:Regards|Best regards|Kind regards|Best|Thanks|Cheers|Viele Grüße|Beste Grüße|Mit freundlichen Grüßen|Gruß|Grüße)[,.!]?$/iu;
+const SIGNATURE_DELIMITER = "-- ";
+
+/** What a text gives as a name: trimmed, without a closing period, `!`, `?`, `:` or `;`, and only if it holds a letter. */
+function nameFrom(text) {
+  const name = text.replace(/[.!?:;\s]+$/u, "").trim();
+  return /\p{L}/u.test(name) ? name : null;
+}
+
+/** The names a text gives, in the order of its lines: after a greeting, after a closing, and the first line after the first `-- ` line. */
+function namesIn(text) {
+  const lines = text.split(/\r?\n/);
+  const signatureAt = lines.indexOf(SIGNATURE_DELIMITER);
+  const names = [];
+  lines.forEach((line, index) => {
+    const greeting = GREETING.exec(line);
+    if (greeting) names.push(nameFrom(greeting[1]));
+    const nextLine = index + 1 < lines.length ? lines[index + 1] : "";
+    if (CLOSING.test(line.trim())) names.push(nameFrom(nextLine));
+    if (index === signatureAt) names.push(nameFrom(nextLine));
+  });
+  return names.filter(Boolean);
+}
+
+/**
+ * peopleIn(mail: MailText) -> People — every address and display name of the mail's headers, and every name, address, phone number
+ * and account handle found in its text and its signature, each by its form. Deterministic; a person found twice (a name, address or
+ * account regardless of case, a phone number by its digits) is listed once, as first found: the headers first, then the text.
+ */
+export function peopleIn(mail) {
+  const text = String(mail?.text ?? "");
+  const headers = Array.isArray(mail?.addresses) ? mail.addresses : [];
+
+  const addresses = [...text.matchAll(ADDRESS)];
+  const insideAddress = (handle) => addresses.some((found) => found.index <= handle.index && handle.index < found.index + found[0].length);
+  const handles = [...text.matchAll(HANDLE)].filter((handle) => !insideAddress(handle));
+  const phones = [...text.matchAll(PHONE_RUN)].map((run) => run[0]).filter((run) => digitsOf(run).length >= MIN_PHONE_DIGITS);
+
+  const once = (list, key) => {
+    const seen = new Set();
+    return list.filter((entry) => { const id = key(entry); return seen.has(id) ? false : (seen.add(id), true); });
+  };
+  const lower = (value) => value.toLowerCase();
+  return {
+    names: once([...kept(headers.map((header) => header?.name)), ...namesIn(text)], lower),
+    addresses: once([...kept(headers.map((header) => header?.address)), ...addresses.map((found) => found[0])], lower),
+    phones: once(phones, digitsOf),
+    accounts: once(handles.map((handle) => handle[0]), lower),
+  };
 }
