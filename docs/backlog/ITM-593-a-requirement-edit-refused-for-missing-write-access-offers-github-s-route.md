@@ -5,8 +5,9 @@ level: module
 realises:
   - UC-018
 modules:
-  - MOD-review-pages
+  - MOD-spec-changes
 builds_on:
+  - ITM-611
 tests:
   - unit
 origin:
@@ -19,6 +20,17 @@ origin:
 ## Outcome
 
 UC-018 6b for a requirement: "the dashboard offers the GitHub route". `src/review-pages/edit.mjs:108-110` shows only the error's name and message. The use-case path offers the route (`file-edit.mjs:106`).
+
+**The design, a draft for akmaier on `main`**, with ITM-611's (MOD-spec-changes, Interfaces, `proposeSection`).
+- When GitHub refuses the commit for a missing write permission, `proposeSection` and `saveEntry` write nothing and
+  return GitHub's pages, as without a token. On GitLab, `PermissionMissing` is thrown as now, since GitLab has no
+  fallback.
+- *Nothing twice:* the review pages already show a `fallback` (`edit.mjs`, through `fallbackPages` since ITM-592). So
+  MOD-review-pages needs no change, and the route reaches the person through the path that exists.
+- **Existing tests.** No test asserts that `proposeSection` throws `PermissionMissing`. A grep of the spec-changes tests
+  for `PermissionMissing` finds none, while the same grep over `tests/approvals-accept.test.mjs` finds its known
+  positive.
+- **Ready to be selected** after ITM-611, once akmaier accepts the draft.
 
 ## Acceptance
 

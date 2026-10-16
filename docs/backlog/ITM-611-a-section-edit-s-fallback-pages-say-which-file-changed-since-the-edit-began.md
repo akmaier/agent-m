@@ -7,6 +7,7 @@ realises:
   - WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 modules:
   - MOD-spec-changes
+  - MOD-review-pages
 builds_on:
   - ITM-592
 tests:
@@ -28,9 +29,25 @@ already differs" never shows.
 `existing` is to say whether the file existed when the edit began, as MOD-artifact-edits defines `differs`: "the file on
 the default branch is no longer what the edit started from".
 
-**Not ready for a sprint yet.** Before its start, it is read from MOD-spec-changes' interface where the edit's beginning
-comes from. The change already carries `openedBlob`, the blob of the section that was opened. A queue's files that did
-not exist then may need the head that was read when the edit opened.
+**The design, a draft for akmaier on `main`** (MOD-spec-changes, Interfaces, `proposeSection` and `saveEntry`).
+- **What changes.** Both functions take `openedHead`, the commit the edit was opened on. A fallback page's `differs` says
+  whether its file exists on the default branch otherwise than at `openedHead`.
+- **The principles it rests on.**
+  - *One responsibility.* The writer that builds the pages also knows where the edit began, so the caller passes that
+    in and computes nothing.
+  - *Nothing twice.* `fallbackEditLinks` keeps its definition of `differs` (MOD-artifact-edits). Only the input it is
+    given changes.
+  - *No special first case.* `openedHead` stands beside `openedBlob`, which already says what the edit started from.
+- **The callers.** All in MOD-review-pages, each holding the snapshot it opened on, whose `commit` it passes:
+  - `src/review-pages/edit.mjs:92`;
+  - `src/review-pages/requirements-draft.mjs:73`;
+  - `src/review-pages/entry-edit.mjs:71`.
+- **Existing tests.**
+  - Every test that calls the two functions gains `openedHead` in its input:
+    - `tests/spec-changes-propose-section.test.mjs`, where TST-472992 asserts `differs` false at `:273`;
+    - `tests/spec-changes-save-entry.test.mjs` (`:176`).
+  - Their expected results hold, since their files exist alike at both commits.
+- **Ready to be selected** once akmaier accepts the draft.
 
 ## Acceptance
 

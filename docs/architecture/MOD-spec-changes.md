@@ -132,7 +132,7 @@ earlier entry of the queue creates it.
   queue of that day that has no entry in SPEC yet, or `null` (`A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE`). The person
   of a queue is the author of the commit that created its index. Crosses the network; fails with the host's errors.
 - `proposeSection(host: Host, change: { target: string, anchor: string, until: string | null, text: string,
-  why: string, origin: string, person: string, openedBlob: string, trailers?: string[] }) -> Promise<{ commit: string, queue: string,
+  why: string, origin: string, person: string, openedBlob: string, openedHead: string, trailers?: string[] }) -> Promise<{ commit: string, queue: string,
   entry: number, alsoReplacing: Array<{ queue: string, entry: number }> } | { refused: "changed meanwhile", current:
   string } | { fallback: Array<{ url: string, path: string, text: string, differs: boolean }> }>` — writes one edited
   section as an entry, in one commit under the person's account: into the person's open queue of the day, or a new
@@ -144,11 +144,13 @@ earlier entry of the queue creates it.
   keeps the edit beside it (`A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE`, `A REFUSED SAVE KEEPS THE EDIT`).
   `alsoReplacing` names other open entries that replace the same section. `trailers` end the commit's message: a job's
   provenance lines when a person saves the draft of a change by prompt (UC-019 step 9), none for the person's own edit.
-  Without a token on GitHub it writes nothing and returns GitHub's pages for each file of the entry; on GitLab without a
-  token it refuses with `TokenRequired`. Considers: called only on a person's click. Crosses the network. Errors:
+  Without a token on GitHub, or when GitHub refuses the commit for a missing write permission (`PermissionMissing`), it
+  writes nothing and returns GitHub's pages for each file of the entry, each file's `differs` saying whether it exists
+  on the default branch otherwise than at `openedHead`, the commit the edit was opened on (UC-018 4a, 6b); on GitLab
+  without a token it refuses with `TokenRequired`, and a refused commit there throws `PermissionMissing`. Considers: called only on a person's click. Crosses the network. Errors:
   `Moved`, `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`, `TokenRequired`.
 - `saveEntry(host: Host, edit: { queue: string, entry: number, text: string, why: string, person: string, openedBlob:
-  string }) -> Promise<{ commit: string } | { refused: "changed meanwhile", current: string } | { refused: "not open",
+  string, openedHead: string }) -> Promise<{ commit: string } | { refused: "changed meanwhile", current: string } | { refused: "not open",
   state: string } | { fallback: Array<{ url: string, path: string, text: string, differs: boolean }> }>` — saves an
   edited entry in place, in its own queue, in one commit under the person's account: its proposal replaced by `text`, its
   rationale's impact list computed anew. No second queue is made, since the entry already is a proposal (UC-006 3a,
