@@ -1,7 +1,7 @@
 // The page's client for the Bridge API used by UC-003 endpoint tests.
 //
 // Module: MOD-bridge-client
-// Public: BridgeError, settingsOf, bridgeAt, pair, testBridge, handOver, ask, mailCall, probe
+// Public: BridgeError, settingsOf, bridgeAt, pair, testBridge, handOver, ask, bridgeJobs, bridgeJobLog, cancelOnBridge, mailCall, probe
 
 import { bridgeApi } from "../bridge-http/index.mjs";
 import { bridgePath } from "./paths.mjs";
@@ -154,6 +154,29 @@ export async function ask(bridge, target, input) {
     if (answer.state === "done") return { text: answer.text, calls: answer.calls ?? [], usage: answer.usage ?? null };
     if (answer.state === "failed") throw new BridgeError("AskFailed", {}, answer.error ?? "The Bridge ask failed.");
   }
+}
+
+// bridgeJobs(bridge) -> the Bridge's jobs — GET /v1/jobs, the `jobs` of its answer. Sent as handOver is sent (call: the Bridge's address and its pairing token).
+export async function bridgeJobs(bridge) {
+  const route = apiRoute("GET", "/v1/jobs");
+  const answer = await call(bridge, route.path, { method: route.method });
+  return answer?.jobs;
+}
+
+// A job's identifier is one segment of the path of its routes: percent-encoded, as the Bridge decodes it.
+const jobPath = (route, id) => route.path.replace("{id}", encodeURIComponent(id));
+
+// bridgeJobLog(bridge, id, from) -> { lines, next, ended } — GET /v1/jobs/{id}/log?from={from}: a job's log from a line on. A job the Bridge does not know is
+// BridgeFailed `not-found`, as call() reads the Bridge's error.
+export async function bridgeJobLog(bridge, id, from) {
+  const route = apiRoute("GET", "/v1/jobs/{id}/log");
+  return call(bridge, `${jobPath(route, id)}?from=${from}`, { method: route.method });
+}
+
+// cancelOnBridge(bridge, id) -> { confirmed } — POST /v1/jobs/{id}/cancel, which bridgeApi gives no request: nothing travels in a body.
+export async function cancelOnBridge(bridge, id) {
+  const route = apiRoute("POST", "/v1/jobs/{id}/cancel");
+  return call(bridge, jobPath(route, id), { method: route.method });
 }
 
 // mailCall(bridge, operation, connection, args) -> the Bridge's answer — POST /v1/mail/{operation} with { connection, args }: the connection with its
