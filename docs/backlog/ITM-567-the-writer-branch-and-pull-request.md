@@ -8,6 +8,8 @@ realises:
   - A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS
 modules:
   - MOD-runtimes
+  - MOD-workflow-entries
+  - MOD-desktop-shell
 builds_on:
   - ITM-537
 tests:
@@ -36,7 +38,7 @@ states it:
 Without it, a job of the four kinds that name it has no writer. So a hand-over's run without a pull request cannot be
 told today from a writer that never ran, and ITM-538 waits for it.
 
-**Not ready for a sprint yet.** Its readings were settled at sprint team1/53, and one waits for a draft's acceptance.
+Its readings were settled at sprint team1/53 and team1/54.
 - **The branch** is the `branch` the participant's answer reports. Each kind that names this writer requires it, as
   `implement`'s `answer.schema.json` shows. No text fixes a form for the name, so the writer checks none. A branch the
   host does not hold is `NoBranch`, and one with no commit beyond the job's snapshot is `NoCommits`.
@@ -52,12 +54,23 @@ told today from a writer that never ran, and ITM-538 waits for it.
   - In CI, the entry's host names the branch the workflow runs for (`checkoutHost`,
     `src/workflow-entries/compose.mjs:101`). That is the target branch UC-024 step 6 names: the default branch, or the
     phase's.
-  - MOD-runtimes' Uses did not name `repositoryInfo`. The one-line draft that adds it waits for akmaier's acceptance,
-    and the item waits for it.
+  - MOD-runtimes' Uses name `repositoryInfo` since akmaier's acceptance `838b091c`.
+- **Where it is registered.** In CI and on a Bridge, as ITM-568 registered `runStrategies`:
+  - `OFFERED` in `src/workflow-entries/compose.mjs` gains `["MOD-runtimes", runtimes, "routeStrategies"]`;
+  - `STRATEGIES` in `src/desktop-shell/compose.mjs` gains the same.
 
-**Also in this module's next change, from ITM-548's gate (`7bd2`).** In `src/runtimes/ci.mjs`, `GitlabCiNotList`'s
-messages for an inline `inputs:` end with the sentence about an `include:` that is a list. That sentence does not fit
-them. Each message is made to say only its own case.
+  Both modules' texts name `MOD-runtimes.routeStrategies` already. The tab gets it through MOD-prompt-bar's
+  `handOverStrategies`, which is ITM-605.
+- **Existing test whose expected result changes:** TST-367002 (`tests/mod-desktop-shell-jobs-composition.test.mjs:79–85`)
+  deep-equals `bridgeStrategyRegistrations()` and gains `MOD-runtimes.routeStrategies` as its sixth entry. Its header's
+  line changes with it.
+  - Four tests register their own stand-in `branch-and-pull-request`:
+    - `tests/job-runner-check-fixes.test.mjs:270`;
+    - `tests/job-runner-run.test.mjs:77`;
+    - `tests/prompt-bar-hand-over.test.mjs:220`;
+    - `tests/job-catalogue-instruction.test.mjs:23`.
+
+    None of them imports a composition, so each holds, as in ITM-568.
 
 ## Acceptance
 
@@ -65,4 +78,5 @@ them. Each message is made to say only its own case.
   and opens none where one exists.
 - **On a clone.** It returns what the agent reports.
 - **Its failures.** `NoBranch` and `NoCommits` are named, each beside a known positive.
+- **Registered.** `composeProduct` and `bridgeStrategyRegistrations()` register it, with no `DuplicateStrategy`.
 - **Tests first.** The first commit holds only the tests, and CI is red on it. No stub is committed.
