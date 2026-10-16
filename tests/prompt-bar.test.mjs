@@ -25,6 +25,7 @@ import { createHash } from "node:crypto";
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { latestDraft, currentJob, startPromptBar } from "../src/prompt-bar/index.mjs";
+import { tick, until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used
 
@@ -49,8 +50,6 @@ const all = (root, test) => { const found = []; (function visit(node) { for (con
 const byClass = (root, name) => all(root, (node) => node.className.split(" ").includes(name));
 const one = (root, name) => byClass(root, name)[0];
 const textOf = (node) => node.textContent;
-const tick = () => new Promise((resolve) => setImmediate(resolve));
-async function until(condition, what) { for (let at = 0; at < 400; at += 1) { if (condition()) return; await tick(); } assert.fail(`never: ${what}`); }
 const click = (node) => node.dispatchEvent(new Event("click"));
 
 class Storage {

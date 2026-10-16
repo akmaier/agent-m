@@ -13,7 +13,7 @@
 // Module: MOD-trace-pages
 // Private to the module: flow.mjs uses it.
 
-import { personSource, sourceSchemas } from "../source-register/index.mjs";
+import { personAccount, personSource, sourceSchemas } from "../source-register/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 
 const DRAFT_ROUTE = "draft";
@@ -23,16 +23,6 @@ export function opening(list, item, open, same = (a, b) => a === b) {
   const at = list.findIndex((each) => same(each, item));
   if (at >= 0) list.splice(at, 1);
   if (open) list.push(item);
-}
-
-// The account of a person as the register writes it, `<host>/<owner>`: the owner of the instance's repository on the server of its origin,
-// as the review pages' prompt route reads it for the person who gives an instruction.
-function accountOf(snapshot) {
-  const owner = String(snapshot.repository?.path ?? "").split("/")[0];
-  if (!owner) return null;
-  let server = snapshot.repository?.server === "github" ? "github.com" : null;
-  try { server = new URL(snapshot.repository?.origin).host || server; } catch { /* use the canonical GitHub host above */ }
-  return server ? `${server}/${owner}` : null;
 }
 
 /**
@@ -48,7 +38,7 @@ export async function personsSource(context, snapshot) {
     const linked = readDocument(links, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? "");
     const register = await Promise.all(instance.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path))
       .map(async (path) => readDocument(entry, path, (await instance.read(path)) ?? "")));
-    return personSource(linked, register, accountOf(instance));
+    return personSource(linked, register, personAccount(instance));
   } catch {
     return null;
   }

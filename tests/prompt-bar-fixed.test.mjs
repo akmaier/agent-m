@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { startPromptBar } from "../src/prompt-bar/index.mjs";
+import { until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used (no `style` object: only the attribute)
 
@@ -42,8 +43,6 @@ globalThis.document = { createElement: (name) => new Element(name) };
 
 const all = (root, test) => { const found = []; (function visit(node) { for (const child of node.childNodes ?? []) if (child instanceof Element) { if (test(child)) found.push(child); visit(child); } })(root); return found; };
 const one = (root, name) => all(root, (node) => node.className.split(" ").includes(name))[0];
-const tick = () => new Promise((resolve) => setImmediate(resolve));
-async function until(condition, what) { for (let at = 0; at < 400; at += 1) { if (condition()) return; await tick(); } assert.fail(`never: ${what}`); }
 
 // The declarations of an element's style attribute, as a name -> value map; empty where it has none.
 function declared(node) {
