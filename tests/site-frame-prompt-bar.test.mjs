@@ -34,6 +34,7 @@ import { all, changeFragment, fixtureStorage, installPage } from "./site-frame-s
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { subjectOf } from "../src/site-frame/subject.mjs";
+import { until } from "./prompt-bar.d/until.mjs";
 
 const { startPage } = await import("../src/site-frame/index.mjs");
 
@@ -42,7 +43,6 @@ const WIDGET = "https://github.com/acme/widget";
 const encoded = (address) => encodeURIComponent(address);
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const settleLong = async () => { for (let at = 0; at < 40; at += 1) await settle(); };
-async function until(condition, what) { for (let at = 0; at < 400; at += 1) { if (condition()) return; await settle(); } assert.fail(`never: ${what}`); }
 
 // ---------------------------------------------------------------- the elements of the page
 
