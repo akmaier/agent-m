@@ -18,19 +18,20 @@ import { handOverStrategies } from "../src/prompt-bar/index.mjs";
 import { resourceStrategies } from "../src/resource-list/index.mjs";
 import { reuseStrategies } from "../src/reuse-facts/index.mjs";
 import { runStrategies } from "../src/run-planner/index.mjs";
+import { routeStrategies } from "../src/runtimes/index.mjs";
 import { sourceStrategies } from "../src/source-register/index.mjs";
 import { specStrategies } from "../src/spec-changes/index.mjs";
 
 // TST-572007 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
-// given: the seven strategy sets that modules build and export today: approvalStrategies, specStrategies, editStrategies,
-//   sourceStrategies, reuseStrategies, resourceStrategies and runStrategies
+// given: the eight strategy sets that modules build and export today: approvalStrategies, specStrategies, editStrategies,
+//   sourceStrategies, reuseStrategies, resourceStrategies, runStrategies and MOD-runtimes' routeStrategies
 // input: MOD-prompt-bar's handOverStrategies
-// expect: an array of seven entries, which are those seven sets themselves (the same objects, not copies), in the order named, and no
-//   other
-test("TST-572007 handOverStrategies holds the seven strategy sets that are built today, as the modules export them", () => {
+// expect: an array of eight entries, which are those eight sets themselves (the same objects, not copies), in the order named
+//   (routeStrategies last), and no other
+test("TST-572007 handOverStrategies holds the eight strategy sets that are built today, as the modules export them", () => {
   assert.ok(Array.isArray(handOverStrategies), "handOverStrategies is an array");
-  assert.equal(handOverStrategies.length, 7);
-  const expected = [approvalStrategies, specStrategies, editStrategies, sourceStrategies, reuseStrategies, resourceStrategies, runStrategies];
+  assert.equal(handOverStrategies.length, 8);
+  const expected = [approvalStrategies, specStrategies, editStrategies, sourceStrategies, reuseStrategies, resourceStrategies, runStrategies, routeStrategies];
   expected.forEach((set, at) => assert.equal(handOverStrategies[at], set, `entry ${at} is the module's own set`));
 });
