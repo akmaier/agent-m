@@ -36,7 +36,7 @@ states it:
 Without it, a job of the four kinds that name it has no writer. So a hand-over's run without a pull request cannot be
 told today from a writer that never ran, and ITM-538 waits for it.
 
-**Not ready for a sprint yet.** Three readings were settled at sprint team1/53; one is still open.
+**Not ready for a sprint yet.** Its readings were settled at sprint team1/53, and one waits for a draft's acceptance.
 - **The branch** is the `branch` the participant's answer reports. Each kind that names this writer requires it, as
   `implement`'s `answer.schema.json` shows. No text fixes a form for the name, so the writer checks none. A branch the
   host does not hold is `NoBranch`, and one with no commit beyond the job's snapshot is `NoCommits`.
@@ -48,13 +48,12 @@ told today from a writer that never ran, and ITM-538 waits for it.
 - **New tests** are the declarations, read with `testDeclarations`, in the files the branch adds or changes against the
   job's `context.product.snapshot`, whose identifier that snapshot's version of the file does not declare. This follows
   the check `test-declarations` (`src/job-runner/builtins.mjs:163–186`).
-- **Open: the base of a pull request the writer opens.** `openPullRequest` takes a `base`. UC-024 step 6 names the target
-  branch as the default branch or the phase's branch. The writer's Uses give it no way to read that branch:
-  - `repositoryInfo` and MOD-product-process are not among them;
-  - in CI, `context.product.snapshot` is read at `HEAD`.
-
-  So either a draft gives the job's context its target branch, or the entry reads the product's snapshot at the branch
-  the workflow runs for, so that its `ref` names that branch. This is settled before the start.
+- **The base of a pull request the writer opens** is the default branch the host's `repositoryInfo` names.
+  - In CI, the entry's host names the branch the workflow runs for (`checkoutHost`,
+    `src/workflow-entries/compose.mjs:101`). That is the target branch UC-024 step 6 names: the default branch, or the
+    phase's.
+  - MOD-runtimes' Uses did not name `repositoryInfo`. The one-line draft that adds it waits for akmaier's acceptance,
+    and the item waits for it.
 
 **Also in this module's next change, from ITM-548's gate (`7bd2`).** In `src/runtimes/ci.mjs`, `GitlabCiNotList`'s
 messages for an inline `inputs:` end with the sentence about an `include:` that is a list. That sentence does not fit

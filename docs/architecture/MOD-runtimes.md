@@ -39,6 +39,7 @@ uses:
   - MOD-repository-hosts.startWorkflow
   - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.listPullRequests
+  - MOD-repository-hosts.repositoryInfo
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.ask
   - MOD-bridge-client.handOver
@@ -224,7 +225,8 @@ a person's decision.
   commit ends the job's record as failed with the server's reason. A secret the run lacks ends it `not run`, naming the
   secret (MOD-workflow-entries), and the prompt bar shows that (UC-049 4c).
 - `routeStrategies` — `Partial<Strategies>` with the writer `branch-and-pull-request`.  reads the branch named after the job
-  and its commits. With a host of a server's API, it opens the pull request if the coding participant has not, gives it
+  and its commits. With a host of a server's API, it opens the pull request if the coding participant has not — into the default branch the host's
+  `repositoryInfo` names —, gives it
   a description that names the job, the plan step or backlog item, its modules, the requirements its new tests guard —
   read with MOD-test-document's `testDeclarations` — and the provenance lines, and returns its address. With a local host
   — a Bridge's clone, which makes no server requests and throws `NotSupported` for them — it opens nothing and returns
@@ -254,6 +256,7 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
 - `MOD-repository-hosts.Host`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.commitFiles`,
   `MOD-repository-hosts.listCiRuns`, `MOD-repository-hosts.cancelCiRun`, `MOD-repository-hosts.ciRunLog`,
   `MOD-repository-hosts.openPullRequest`, `MOD-repository-hosts.listPullRequests` — the CI route and the pull request;
+  `MOD-repository-hosts.repositoryInfo` — the default branch a pull request the writer opens goes into;
   `MOD-repository-hosts.startWorkflow` — the start of a handed-over job, with its task.
 - `MOD-participant-list.reachedThrough` — a subagent's route through the participant that starts it.
 - `MOD-bridge-client.Bridge`, `MOD-bridge-client.ask`, `MOD-bridge-client.handOver`, `MOD-bridge-client.bridgeJobs`,
