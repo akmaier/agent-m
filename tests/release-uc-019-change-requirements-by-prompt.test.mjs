@@ -101,11 +101,11 @@ test("TST-418103: the conflict panel shows both sources and their authority", as
 // level: release
 // module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
 // guards: UC-019; THE PAGE NAMES WHERE IT SENDS
-// given: a returned draft on the route draft and a follow-up instruction written in the bar
+// given: a returned draft on the route draft and a follow-up instruction written in the bar; the participant answers the follow-up with a draft of the same kind (the change kind reads only a draft)
 // input: write the follow-up "Make the display final." without pressing Send, then press Send
 // expect: before Send no further request is made; Send makes exactly one further exchange to the participant named by the bar ("Sent to: drafter — this machine"), whose message holds the follow-up and the draft as it stands - its rule "Every loan visibly displays its due date." - and nothing is written
 test("TST-418104: a follow-up in the bar is sent only on Send, with the draft as it stands", async () => {
-  const s = await scenario({ answers: [draft(), { answer: "Noted." }] });
+  const s = await scenario({ answers: [draft(), draft()] });
   await run(s);
   assert.equal(s.endpointRequests.length, 1);
   one(barOf(s), "textarea", "instruction").value = "Make the display final.";
@@ -329,7 +329,7 @@ test("TST-418114: a warning ends only after its one-line justification", async (
 // guards: UC-019; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A COMPILER MESSAGE
 // given: five different invalid drafts that cannot trigger an unchanged-round early stop
 // input: Send, then Review the draft
-// expect: exactly five exchanges; the bar and the draft page show five rounds; the draft page lists the finding left with its rule, what is wrong and the correction expected; the draft the bar kept holds the finding with its artifact "VISIBLE DUE DATE 4", a line, the kind error and the rule; the loop stopped because of the limit
+// expect: exactly five exchanges; the bar and the draft page show five rounds; the draft page lists the finding left in the compiler form, with its artifact "VISIBLE DUE DATE 4", a line, the kind error, the rule by name and the correction expected; the draft the bar kept holds the finding with its artifact "VISIBLE DUE DATE 4", a line, the kind error and the rule; the loop stopped because of the limit
 test("TST-418115: the declared five-round cap retains the remaining findings", async () => {
   const answers = Array.from({ length: 5 }, (_, i) => draft(candidate({ name: `VISIBLE DUE DATE ${i}`, check: "" })));
   const s = await scenario({ answers }); await onRequirementPage(s); await send(s);
@@ -337,7 +337,7 @@ test("TST-418115: the declared five-round cap retains the remaining findings", a
   assert.match(statusOf(s).textContent, /Rounds: 5/);
   await review(s);
   assert.equal(one(s.target, "p", "rounds").textContent, "Correction rounds: 5");
-  assert.match(one(s.target, "ul", "left").textContent, /^A REQUIREMENT HAS FOUR FIELDS: no check — add a line/);
+  assert.match(one(s.target, "ul", "left").textContent, /^VISIBLE DUE DATE 4:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
   const [left] = keptDraft(s).result.remaining;
   assert.deepEqual([left.artifact, left.kind, left.rule, left.line >= 1], ["VISIBLE DUE DATE 4", "error", "A REQUIREMENT HAS FOUR FIELDS", true]);
   assert.equal(keptDraft(s).result.stoppedBecause, "limit");
@@ -594,7 +594,7 @@ test("TST-418125: the bar names the limit of correction rounds before the first 
 // given: five different invalid drafts, the loop ended by its limit with the finding of the last one left
 // input: Send, Review the draft; read the finding left on the draft page
 // expect: the finding reads in the compiler form with its artifact and line, its kind and the rule by name: "VISIBLE DUE DATE 4:<line>: error: no check [A REQUIREMENT HAS FOUR FIELDS]" followed by the correction expected
-test("TST-418126: a finding left on the draft page reads like a compiler message", { todo: "FINDING UC019-S14 - the draft page lists a finding left as `<rule>: <what> — <fix>` (src/review-pages/common.mjs roundsAndLeft), without its artifact, line and kind, and the bar lists it as `<kind>: <what> — <fix> [<rule>]` (shown in MOD-prompt-bar's send.mjs); the finding in the draft the bar keeps has all of them (TST-418115)" }, async () => {
+test("TST-418126: a finding left on the draft page reads like a compiler message", async () => {
   const answers = Array.from({ length: 5 }, (_, i) => draft(candidate({ name: `VISIBLE DUE DATE ${i}`, check: "" })));
   const s = await scenario({ answers }); await onRequirementPage(s); await send(s); await review(s);
   assert.match(one(s.target, "ul", "left").textContent, /VISIBLE DUE DATE 4:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
@@ -606,7 +606,7 @@ test("TST-418126: a finding left on the draft page reads like a compiler message
 const at = (...parts) => join(...parts);
 const FAULTS = [
   { ids: ["TST-418001"], file: at("src", "trace-pages", "subject.mjs"), from: 'if (name !== undefined && shown.onDefaultBranch) return changing(', to: 'if (false) return changing(' },
-  { ids: ["TST-418003"], file: at("src", "trace-pages", "subject.mjs"), from: 'paramsFor: () => ({ requirements: [...names], source: shown.source })', to: 'paramsFor: () => ({ requirements: [...names].slice(0, 1), source: shown.source })' },
+  { ids: ["TST-418003"], file: at("src", "trace-pages", "subject.mjs"), from: 'return { requirements: [...names], source: shown.source };', to: 'return { requirements: [...names].slice(0, 1), source: shown.source };' },
   { ids: ["TST-418002", "TST-418003", "TST-418110"], file: at("src", "spec-changes", "propose.mjs"), from: 'files.push({ path: proposalPath, text: change.text }', to: 'files.push({ path: change.target, text: change.text }' },
   { ids: ["TST-418004"], file: at("src", "review-pages", "subjects.mjs"), from: 'if (facts.source === null) throw missingSource();', to: 'if (false) throw missingSource();' },
   { ids: ["TST-418005", "TST-418112"], file: at("src", "spec-changes", "propose.mjs"), from: 'candidate && each.class !== "conflict" && ["new", "change", "duplicate"].includes(each.class)', to: 'candidate && ["new", "change", "duplicate", "conflict"].includes(each.class)' },
@@ -614,7 +614,7 @@ const FAULTS = [
   { ids: ["TST-418101"], file: at("src", "review-pages", "subjects.mjs"), from: 'context.product ? await defaultSnapshot(context.instance.host) : snapshot', to: 'snapshot' },
   { ids: ["TST-418102"], file: at("src", "runtimes", "tab.mjs"), from: 'if (entry.bridge !== null)', to: 'if (false)' },
   { ids: ["TST-418103"], file: at("src", "review-pages", "candidates.mjs"), from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
-  { ids: ["TST-418104", "TST-377007"], file: at("src", "site-frame", "subject.mjs"), from: 'address, drawn()].join("\\n")', to: 'address, ""].join("\\n")' },
+  { ids: ["TST-418104", "TST-377007"], file: at("src", "review-pages", "conversation-draft.mjs"), from: 'paramsFor: () => ({ ...draft.params, draft: draft.result })', to: 'paramsFor: () => ({ ...draft.params })' },
   { ids: ["TST-418105", "TST-377004", "TST-418001"], file: at("src", "prompt-bar", "offer.mjs"), from: 'participant.place ?? "no processing place declared"', to: '"no processing place declared"' },
   { ids: ["TST-418105", "TST-377014"], file: at("src", "job-runner", "prepare.mjs"), from: 'judged(destination, { capabilities: kind.needs }', to: 'judged(destination, { capabilities: [] }' },
   { ids: ["TST-418106"], file: at("src", "spec-changes", "strategies.mjs"), from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
