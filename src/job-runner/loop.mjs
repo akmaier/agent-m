@@ -15,6 +15,7 @@ import { finding, formatFinding } from "../text-tools/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { classesOf } from "./builtins.mjs";
 import { failure, strategyOf } from "./registry.mjs";
+import { offerTools, withHeld } from "./tools.mjs";
 
 const line = (f) => formatFinding(f);
 const same = (a, b) => a.length === b.length && a.every((f, at) => line(f) === line(b[at]));
@@ -26,7 +27,7 @@ const envelopeOf = (draft) => ({ type: "object", required: ["draft"], properties
 
 // Why a value does not have the shape a schema of the five keywords — type, properties, required, items, enum — gives, or
 // null. A property that is not required may be left out, or be null.
-function misfit(value, schema, at) {
+export function misfit(value, schema, at) {
   if (!schema) return null;
   if (schema.type === "object") {
     if (value === null || typeof value !== "object" || Array.isArray(value)) return `${at} is not an object`;
@@ -132,8 +133,10 @@ export async function runJob(prepared, drivers, options) {
     if (fresh) {
       // The first exchange of a refinement carries the draft to change, with no finding.
       const previous = number === 1 ? (refine === undefined ? null : draftText(refine)) : (readable ? draftText(draft) : lastText);
+      // Where the kind names tools, this exchange carries the ToolUse the drafter may have; what the exchange holds goes into the draft.
+      const offered = await offerTools(kind, drivers.drafter.participant, context);
       const sent = await drivers.drafter.send({ prompt: promptOf(kind, drafterParts), parts: drafterParts, output: envelope,
-        findings: number === 1 ? [] : open, previous, workdir: null }, { onOutput, signal });
+        findings: number === 1 ? [] : open, previous, workdir: null, tools: offered?.use ?? null }, { onOutput, signal });
       usage.push({ participant: drivers.drafter.participant.name, usage: sent.usage });
       cancelled();
       lastText = sent.text;
@@ -144,8 +147,9 @@ export async function runJob(prepared, drivers, options) {
           found: last?.findings.find((f) => line(f) === answer.finding) })).filter((answer) => answer.found);
         if (last) last.answers = answers.map(({ found, how, text }) => ({ finding: found, how, text: text ?? null }));
         for (const { found, how } of answers) if (found.kind === "warning" && how !== "fixed") settled.add(line(found));
-        changed = number === 1 || JSON.stringify(read.value.draft) !== JSON.stringify(draft);
-        draft = read.value.draft;
+        const drafted = withHeld(read.value.draft, offered?.held);
+        changed = number === 1 || JSON.stringify(drafted) !== JSON.stringify(draft);
+        draft = drafted;
       }
     }
 
@@ -158,7 +162,7 @@ export async function runJob(prepared, drivers, options) {
         const parts = [...reviewerParts, { name: "draft", text: draftText(draft), size: 0, sources: [], required: true,
           recipe: "draft" }];
         const sent = await reviewer.send({ prompt: promptOf(reviewing, parts), parts, output: envelopeOf(reviewing.answer),
-          findings: [], previous: null, workdir: null }, { onOutput, signal });
+          findings: [], previous: null, workdir: null, tools: null }, { onOutput, signal });
         usage.push({ participant: reviewer.participant.name, usage: sent.usage });
         const findings = reviewed(sent.text, reviewing);
         if (findings === null) unchecked = true;

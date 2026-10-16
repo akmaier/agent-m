@@ -12,6 +12,7 @@ resources: product
 preconditions:
   - rests-on-accepted
 recipes:
+  - instruction?
   - draft
   - test-selection
   - chapters-for-tests

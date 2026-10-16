@@ -3,9 +3,9 @@
 // Module: MOD-job-runner
 //
 // A program registers each module's strategies once, before its first job; the runner itself registers its built-ins. A
-// name is registered once within its category — recipes, checks, preconditions, steps, writers.
+// name is registered once within its category — recipes, checks, preconditions, steps, writers, tools.
 
-const CATEGORIES = ["recipes", "checks", "preconditions", "steps", "writers"];
+const CATEGORIES = ["recipes", "checks", "preconditions", "steps", "writers", "tools"];
 const registry = new Map(CATEGORIES.map((category) => [category, new Map()]));
 
 // A failure of the runner's own, by name, with the fields the module file gives it.
