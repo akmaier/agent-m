@@ -78,11 +78,3 @@ export async function readPlace(target, context) {
   }
 }
 
-// The account of the person who owns the instance, written `<server>/<account>`, such as github.com/akmaier: the identifier of a person's entry in the register of sources.
-export function accountOf(snapshot) {
-  const owner = String(snapshot.repository?.path ?? "").split("/")[0];
-  if (!owner) return null;
-  let server = snapshot.repository?.server === "github" ? "github.com" : null;
-  try { server = new URL(snapshot.repository?.origin).host || server; } catch { /* use the canonical GitHub host above */ }
-  return server ? `${server}/${owner}` : null;
-}

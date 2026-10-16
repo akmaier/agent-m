@@ -9,11 +9,11 @@
 // THE PERSON WHO PROMPTS IS A SOURCE: a change of requirements carries the person's own source, and without one its parameters are refused, naming the missing step (UC-019 4b).
 
 import { statuses } from "../approvals/index.mjs";
-import { personSource } from "../source-register/index.mjs";
+import { personAccount, personSource } from "../source-register/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
-import { accountOf, defaultSnapshot } from "./common.mjs";
+import { defaultSnapshot } from "./common.mjs";
 import { entryId, sourcesOf } from "./spec-entries.mjs";
 
 const SPEC = "SPEC.md";
@@ -84,7 +84,7 @@ async function ownSource(where) {
     const { snapshot, context } = where;
     const instanceSnapshot = context.product ? await defaultSnapshot(context.instance.host) : snapshot;
     const { links, register } = await sourcesOf(where);
-    return personSource(links, register, accountOf(instanceSnapshot));
+    return personSource(links, register, personAccount(instanceSnapshot));
   } catch {
     return null;
   }
