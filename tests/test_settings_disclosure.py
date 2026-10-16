@@ -1,11 +1,12 @@
 # Module: MOD-settings-pages
-# Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; EVERY STEP EXPLAINS ITSELF; THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE; A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-042
+# Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; EVERY STEP EXPLAINS ITSELF; THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE; A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS; UC-042
 # Level: component
 """SPEC §7 THE SHARED PAGES ORIGIN IS DISCLOSED — stated before anything is stored.
 
 That nothing can be stored before the notice is acknowledged (canStore, still in the kernel) is checked in
 tests/test_settings_in_the_core.py.
 """
+import json
 import re
 import unittest
 from pathlib import Path
@@ -182,3 +183,140 @@ class PseudonymisationExplained(unittest.TestCase):
         self.assertIsNotNone(explain, "the setting has a folded explanation")
         self.assertEqual(explain.group(1).strip(), "${h(PSEUDONYMISATION_EXPLANATION)}",
                          "the fold shows the one exported text, not a second copy of it")
+
+
+# The Settings page in a small DOM, as tests/settings-pages-recording.test.mjs renders it (its fixture shapes, written again here):
+# the instance fixture/instance is a fixture host keeping to MOD-repository-hosts' interface (repositoryInfo, readSnapshot, commitFiles;
+# every commit recorded), and the products this browser keeps are read through the real GitHub host over a fixture fetch that answers
+# GET /repos/<owner>/<name> from memory. Nothing reaches the network.
+RECORDING_PAGE = r"""
+class Element {
+  constructor(name) { this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.disabled = false; this.hidden = false; this.attributes = new Map(); this.listeners = []; }
+  append(...nodes) { for (const node of nodes.flat()) this.childNodes.push(typeof node === "string" ? new Text(node) : node); }
+  replaceChildren(...nodes) { this.childNodes = []; this.append(...nodes); }
+  setAttribute(name, value) { this.attributes.set(name, String(value)); }
+  getAttribute(name) { return this.attributes.get(name) ?? null; }
+  addEventListener(type, listener) { this.listeners.push([type, listener]); }
+  fire(type, event = {}) { return Promise.all(this.listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ type, target: this, currentTarget: this, ...event }))); }
+  focus() {}
+  get textContent() { return this.childNodes.map((child) => child.textContent).join(""); }
+  set textContent(value) { this.replaceChildren(String(value)); }
+}
+class Text { constructor(value) { this.value = String(value); } get textContent() { return this.value; } }
+class Storage {
+  constructor() { this.values = new Map(); }
+  getItem(key) { return this.values.get(key) ?? null; }
+  setItem(key, value) { this.values.set(key, String(value)); }
+  removeItem(key) { this.values.delete(key); }
+  get length() { return this.values.size; }
+  key(index) { return [...this.values.keys()][index] ?? null; }
+}
+globalThis.document = { createElement: (name) => new Element(name) };
+const storage = new Storage();
+Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+const descendants = (root, test) => {
+  const found = [];
+  (function visit(node) { for (const child of node.childNodes ?? []) { if (child instanceof Element) { if (test(child)) found.push(child); visit(child); } } })(root);
+  return found;
+};
+const all = (root, name) => descendants(root, (node) => node.className.split(" ").includes(name));
+const one = (root, name) => all(root, name)[0];
+const stored = () => JSON.stringify([...storage.values.entries()]);
+const instanceHost = (visibility) => {
+  const writes = [];
+  const files = { "README.md": "# Instance\n" };
+  return {
+    writes,
+    async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility }; },
+    async readSnapshot() { return { commit: "1".repeat(40), paths: Object.keys(files), blob: () => null, async read(path) { return files[path] ?? null; } }; },
+    async commitFiles(change) { writes.push(change); return { commit: "2".repeat(40), url: "https://github.com/fixture/instance/commit/" + "2".repeat(40) }; },
+  };
+};
+const servers = (visibilities) => async (url) => {
+  const hit = /^https:\/\/api\.github\.com\/repos\/([^/]+\/([^/]+))$/.exec(String(url));
+  const visibility = hit && visibilities[hit[2]];
+  const answer = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  if (!visibility) return answer({ message: "Not Found" }, 404);
+  return answer({ default_branch: "main", visibility, private: visibility !== "public", permissions: { push: true }, archived: false, description: "" });
+};
+// The Settings page of fixture/instance (its server reports it `instanceVisibility`) over the products named (each with what its
+// server reports), opened on its tab Repositories; what the person sees and what is stored at each step of the switch.
+async function recordingSwitch({ instanceVisibility, products, visibilities }) {
+  globalThis.fetch = servers(visibilities);
+  const host = instanceHost(instanceVisibility);
+  const store = browserStore.openStore("fixture/instance");
+  browserStore.writeSetting(store, "products", products);
+  const target = document.createElement("div");
+  await settingsPagesSettings.route.render(target, { instance: { repository: "fixture/instance", host }, product: null, store, go() {} }, {});
+  await all(target, "settings-tab")[1].fire("click", { isTrusted: true });
+  for (let turn = 0; turn < 5; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+  const line = one(target, "settings-recording");
+  const beforeSwitchOn = { stored: stored(), writes: host.writes.length };
+  await one(line, "settings-recording-on").fire("click", { isTrusted: true });
+  const notice = one(line, "settings-recording-notice");
+  const shown = { noticeText: notice.textContent, publicLine: one(notice, "settings-recording-public").textContent, noticeHidden: notice.hidden };
+  const save = one(line, "settings-recording-save");
+  await save.fire("click", { isTrusted: true });
+  const afterUnacknowledgedSave = { stored: stored(), writes: host.writes.length };
+  const box = one(line, "settings-recording-ack");
+  box.checked = true;
+  await box.fire("change");
+  await save.fire("click", { isTrusted: true });
+  return { beforeSwitchOn, shown, afterUnacknowledgedSave, writesAfterAcknowledgedSave: host.writes.length };
+}
+"""
+
+PUBLIC_PRODUCT = "https://github.com/fixture/public-product"
+PRIVATE_PRODUCT = "https://github.com/fixture/private-product"
+
+
+class RecordingConversationsDisclosure(unittest.TestCase):
+    """SPEC §13 SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS: the line *Recording conversations* of the Settings page
+    (UC-042 step 3), reached through settingsPagesSettings.route over fixture hosts, as tests/settings-pages-recording.test.mjs
+    reaches it. Fixture: an instance whose server reports it public, and two products this browser keeps, fixture/public-product
+    whose server reports it public and fixture/private-product whose server reports it private."""
+
+    @staticmethod
+    def switch() -> dict:
+        given = {"instanceVisibility": "public", "products": [PUBLIC_PRODUCT, PRIVATE_PRODUCT],
+                 "visibilities": {"public-product": "public", "private-product": "private"}}
+        return js(RECORDING_PAGE + f"return await recordingSwitch({json.dumps(given)});")
+
+    # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
+    # given: the fixture above, opened on the tab Repositories
+    # input: the person presses Switch on; presses Save before ticking I have read this; then ticks it and presses Save
+    # expect: Switch on shows the notice and stores nothing; Save before the tick stores nothing (no commit, no browser setting
+    #   changed); Save after the tick commits once (the known positive that shows the check sees a commit)
+    def test_the_switch_stores_nothing_before_the_notice_is_acknowledged(self):
+        r = self.switch()
+        self.assertFalse(r["shown"]["noticeHidden"], "Switch on shows the notice")
+        self.assertEqual(r["beforeSwitchOn"]["writes"], 0)
+        self.assertEqual(r["afterUnacknowledgedSave"]["writes"], 0, "Save before the tick commits nothing")
+        self.assertEqual(r["afterUnacknowledgedSave"]["stored"], r["beforeSwitchOn"]["stored"],
+                         "Switch on and Save before the tick change no browser setting")
+        self.assertEqual(r["writesAfterAcknowledgedSave"], 1, "known positive: Save after the tick commits once")
+
+    # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
+    # given: the fixture above
+    # input: the person presses Switch on
+    # expect: the notice states that every message of a conversation will be committed under docs/conversations/, that it stays in
+    #   that repository's history and that conversations held on a public repository's pages will be published; the line of public
+    #   repositories names fixture/instance (as published) and the address https://github.com/fixture/public-product
+    def test_the_notice_names_the_public_product_and_the_instance_as_published(self):
+        r = self.switch()
+        notice, public = r["shown"]["noticeText"], r["shown"]["publicLine"]
+        for words in ["Every message of a conversation", "will be committed", "docs/conversations/",
+                      "stays in that repository's history", "will be published"]:
+            self.assertIn(words, notice)
+        self.assertIn("fixture/instance", public)
+        self.assertIn(PUBLIC_PRODUCT, public)
+
+    # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS (counter-proof)
+    # given: the fixture above
+    # input: the person presses Switch on
+    # expect: the address https://github.com/fixture/private-product, whose server reports it private, is in no part of the notice,
+    #   so it is not named as public
+    def test_a_private_product_is_not_named_as_public(self):
+        r = self.switch()
+        self.assertNotIn(PRIVATE_PRODUCT, r["shown"]["publicLine"])
+        self.assertNotIn("private-product", r["shown"]["noticeText"])
