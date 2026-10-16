@@ -3,7 +3,7 @@
 
 /**
  * @param {string[]} requirements
- * @param {import("./index.mjs").Model} model
+ * @param {Model} model - the module's public Model, documented in index.mjs.
  * @returns {{ entries: Array<{ requirement: string, phase: string }>, count: string }}
  * @throws {Error} NotPlanned for a pulled model.
  */
