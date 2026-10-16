@@ -163,7 +163,7 @@ function missingRepositoryNotice(web, host) {
   const p = el("p", "result", `✗ ${web} was not found — it may not exist yet, or be private to a key that does not ` +
     "reach it yet. ");
   p.append(anchor("Create it on the server's page for a new repository ↗", host.webLinks().newRepository ?? "#"),
-    ", then press Check again.");
+    ", then press Check again.", explain("new-repository"));
   return p;
 }
 

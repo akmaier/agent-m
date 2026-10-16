@@ -9,6 +9,7 @@ modules:
   - MOD-prompt-bar
 builds_on:
   - ITM-505
+  - ITM-626
 tests:
   - system
 origin:
@@ -48,6 +49,30 @@ shows:
     server does not serve a request a real GitHub answers, the fixture serves it, and only test files change.
   - If the product reads something a real GitHub would also refuse, that is a defect of the product, and it becomes an
     item, as the Acceptance says.
+
+**Found at sprint team1/57** by developer-sonnet-a, who stopped before any commit.
+- **The `NotFound` is a gap of the fixture.** `assess()` → `productFacts(scope: "work")` asks
+  `GET /repos/akmaier/lending-tool/pulls?state=all…` (`src/repository-hosts/github.mjs:348`). `tests/app-harness.mjs`'s
+  `repoServer` serves no `/pulls`, and a real GitHub answers a list. `pullsApi` of
+  `tests/dashboard-backlog-layout.test.mjs:123` shows how to serve one.
+- **Three more gaps of the fixture.**
+  - The drafter's route `endpoint fixture` is not taken by a hand-over. The register's
+    `endpoint fixture secret FIXTURE_KEY` gives `ci hosted` and *Hand over* (`src/runtimes/routes.mjs:63`).
+  - The test's click is not trusted, and `bar.mjs:188` ignores such a click. It needs a person's click, as `personal()`
+    in `tests/prompt-bar-hand-over.test.mjs` makes one.
+  - `POST …/actions/workflows/agent-m-jobs.yml/dispatches` is not served.
+- **A defect of the product,** which this item waits for: ITM-626. The hand-over gives `change-use-case` no `useCase`.
+
+**The test, once ITM-626 is merged** (test files only):
+- the proposal `change-use-case` on UC-007, with its task;
+- the register's route for the drafter;
+- `/pulls` answered with `[]`;
+- a dispatch handler that records the task;
+- a trusted click.
+
+Its expected values: one job record, naming no message of the conversation, and the dispatch carrying the task.
+
+Its developer reads chapters 9, 11, 12 and 13 before starting, and has implemented none of ITM-505 or ITM-626.
 
 The test is turned plain by a developer who implemented none of ITM-505.
 

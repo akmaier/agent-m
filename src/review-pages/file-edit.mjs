@@ -52,7 +52,7 @@ export function fallbackPages(target, pages) {
       page.differs ? el("p", "problem", "The file differs on the default branch; compare before committing.") : "",
       el("pre", "clipboard-text", page.text)));
   }
-  target.replaceChildren(el("p", null, "There is no token: GitHub's page opens for the file, and you commit it there."), list);
+  target.replaceChildren(el("p", null, "There is no token: GitHub's page opens for each file, and you commit them there."), list);
   return true;
 }
 
