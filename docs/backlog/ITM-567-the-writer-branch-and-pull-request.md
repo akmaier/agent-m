@@ -43,6 +43,10 @@ told today from a writer that never ran, and ITM-538 waits for it.
   person's token;
 - how "the requirements its new tests guard" are told new: against the base of the branch.
 
+**Also in this module's next change, from ITM-548's gate (`7bd2`).** In `src/runtimes/ci.mjs`, `GitlabCiNotList`'s
+messages for an inline `inputs:` end with the sentence about an `include:` that is a list. That sentence does not fit
+them. Each message is made to say only its own case.
+
 ## Acceptance
 
 - **On a server.** Against a fixture server, it opens the pull request with the description and returns its address,
