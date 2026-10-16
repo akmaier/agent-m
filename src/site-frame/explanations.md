@@ -651,3 +651,12 @@ accepts them: for a new candidate, an entry that adds the requirement to its sec
 holds the requirement, changing it under its name, with the current text beside it and its impact list; for a duplicate, an entry
 that adds the new source to the existing requirement; for a conflict, an entry only as you resolved it. Every entry records the
 Agent M version, the participant, the model and the date. The SPEC itself is unchanged until you accept entries.
+
+## prompt-bar
+
+The prompt bar is where you talk to a participant about the page you are looking at: you write what you want, and the
+participant is given the page as it is shown. Each message goes only to the participant named above the input, at the place
+where that participant processes data, and that place is named with it before you press *Send*. The conversation stays in this
+browser tab; it is written to a repository only while recording conversations is switched on in the instance's settings. A draft
+or an edit the participant proposes changes nothing until you save it. Work this tab cannot do is handed over only when you click *Hand over*; that is
+work such as running code or tests, changing code or reaching the web.

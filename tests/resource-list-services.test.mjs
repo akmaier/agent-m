@@ -87,17 +87,17 @@ test("reachableBy gives a resource on a Bridge or a runner its route, and a reso
 // TST-472598 · level: unit · module: MOD-resource-list
 // guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-040 (step 9)
 // given: a compute resource on the Bridge lab-pc and one on the runner gpu, as reachableBy gives them; a participant on lab-pc and one on the runner gpu
-// input: routesFor of each participant with the routes as its needs
+// input: routesFor of each participant, given the two participants, with the routes as its needs
 // expect: the participant on lab-pc is offered for the Bridge need and refused, naming the resource and its route, for the runner need; the participant on the runner the other way round — the routes are in the form routesFor reads
 test("the routes reachableBy gives are the form routesFor reads", () => {
   const product = { visibility: "private", jobWorkflow: true };
   const needs = reachableBy([entry("gpu-box", "compute", { route: "bridge lab-pc" }), entry("cluster", "compute", { route: "runner:gpu" })]);
   assert.equal(needs.length, 2, "known positive");
-  const onBridge = { name: "a", route: "bridge lab-pc agent claude" }, onRunner = { name: "b", route: "ci runner:gpu secret KEY" };
-  const bridgeOnly = routesFor(onBridge, product, [needs[0]]), runnerOnly = routesFor(onRunner, product, [needs[1]]);
+  const onBridge = { name: "a", route: "bridge lab-pc agent claude" }, onRunner = { name: "b", route: "ci runner:gpu secret KEY" }, register = [onBridge, onRunner];
+  const bridgeOnly = routesFor(onBridge, register, product, [needs[0]]), runnerOnly = routesFor(onRunner, register, product, [needs[1]]);
   assert.deepEqual([bridgeOnly[0].available, runnerOnly[0].available], [true, true]);
-  const wrong = routesFor(onBridge, product, [needs[1]]);
+  const wrong = routesFor(onBridge, register, product, [needs[1]]);
   assert.equal(wrong[0].available, false);
   assert.match(wrong[0].reason, /runner:gpu/);
-  assert.equal(routesFor(onRunner, product, [needs[0]])[0].available, false);
+  assert.equal(routesFor(onRunner, register, product, [needs[0]])[0].available, false);
 });
