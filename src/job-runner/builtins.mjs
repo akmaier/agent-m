@@ -142,8 +142,9 @@ export const builtins = {
   },
   checks: {
     // MOD-documents' documentFindings on every drafted document, read with the schema artifactSchemaOf names for its path; a
-    // path no schema's pattern matches is not judged here.
-    "document-schema": (draft) => draft.files.flatMap(({ path, text }) => {
+    // path no schema's pattern matches is not judged here. The drafted documents are the `files` of a draft and the `edits` of a
+    // conversation, each { path, text }; a draft with neither has no document and no finding.
+    "document-schema": (draft) => [...(draft.files ?? []), ...(draft.edits ?? [])].flatMap(({ path, text }) => {
       const schema = artifactSchemaOf(path);
       return schema ? documentFindings(schema, readDocument(schema, path, text)) : [];
     }),
