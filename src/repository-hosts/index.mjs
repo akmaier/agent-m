@@ -154,6 +154,7 @@ function throughClone(repository, folder, rest) {
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
     listPullRequests: rest ? (...a) => rest.listPullRequests(...a) : without("the pull requests"),
     pullRequestFacts: rest ? (...a) => rest.pullRequestFacts(...a) : without("the facts of a pull request"),
+    containsCommit: (...a) => clone.containsCommit(...a),
     snapshot: (ref) => clone.snapshot(ref),
     readFile: (commit, path) => clone.readFile(commit, path),
     commitFiles: (change) => clone.commitFiles(change),
@@ -316,6 +317,14 @@ export function connect(address, credentials = {}) {
       if (!PR_STATES.includes(state)) throw new TypeError(`a pull request's state is one of ${PR_STATES.join(", ")}: ${String(state)}`);
       if (branch !== undefined && (typeof branch !== "string" || !branch.trim())) throw new TypeError("a branch is a name");
       return adapter.listPullRequests({ state, branch });
+    },
+
+    // containsCommit(branch, commit) -> boolean — whether the branch's history holds the commit: through the server's comparison of the two, in a clone with
+    // the git command's merge-base --is-ancestor. A commit the server does not know is not contained. Crosses the network; fails as readSnapshot.
+    async containsCommit(branch, commit) {
+      if (typeof branch !== "string" || !branch.trim()) throw new TypeError("a branch is a name");
+      if (typeof commit !== "string" || !commit.trim()) throw new TypeError("a commit is an identifier");
+      return adapter.containsCommit(branch, commit);
     },
 
     // pullRequestFacts(number) -> PullRequestFacts — the pull request, its commits oldest first (by their parents, then their dates: neither server's page states an order) with the paths each changed

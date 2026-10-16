@@ -307,6 +307,15 @@ export function githubAdapter(address, { token, tokenName }, links) {
       return listed.map(pullOf).filter((p) => state === "all" || state === "open" || p.state === state);
     },
 
+    // Whether the branch's history holds the commit ("Compare two commits": GET …/compare/{basehead}, basehead BASE...HEAD, here the commit
+    // ... the branch): behind_by counts the commits of the base the head lacks, so the branch holds the commit when it is 0 (status ahead or
+    // identical). The page documents 404 and 422 for what it cannot compare, here a commit the server does not know: not contained.
+    async containsCommit(branch, commit) {
+      const compared = await read(`${repo}/compare/${encodeURIComponent(commit)}...${encodeURIComponent(branch)}`,
+        { on: { 404: () => null, 422: () => null } });
+      return compared !== null && compared.behind_by === 0;
+    },
+
     // What a Definition-of-Done check sees of one pull request ("Get a pull request", "List commits on a pull request", "List pull requests files", "List reviews for a pull request",
     // and a commit's files and checks): the commits as the server lists them, with their parents and dates for index.mjs to order, and readFile for the two commits.
     async pullRequestFacts(number) {
