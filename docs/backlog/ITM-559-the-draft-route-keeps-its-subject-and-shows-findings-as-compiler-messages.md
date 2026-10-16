@@ -47,6 +47,22 @@ none of this item.
   `params.subject`.
 - **No existing test changes.**
 
+**Settled at sprint team1/51**, once ITM-564 and ITM-555 were merged and `220b55d0` accepted the use of `formatFinding`:
+- **S11, the subject.** The route `draft`, where `latestDraft` finds a draft for the subject the address names, gives:
+  - the draft's own subject: its `key`, its `kind`, the title of what it changes, and `draftRoute`
+    `draft/subject=<encodeURIComponent(key)>`;
+  - a `paramsFor` that gives the draft's parameters plus `draft`, the conversation's draft as it stands. That is the
+    kept `ConversationDraft`'s result. An edit open in an editor and not saved is the page's, not the conversation's.
+
+  Where the route finds no draft, its `subject` gives `null`, and the frame's default applies (ITM-555). The change kind
+  then hands the draft through its recipe `draft?` (ITM-564), so TST-377007 and TST-418104 keep their expected results.
+- **S14, the findings.** Each finding the loop left is shown as `formatFinding(finding)` (`src/text-tools/index.mjs:34`),
+  in place of `<rule>: <what> — <fix>` (`src/review-pages/conversation-draft.mjs:38`).
+- **Existing tests.** None changes. TST-507021 asserts that the rule's name is listed, which `formatFinding`'s form keeps.
+  No other test asserts the route `draft`'s subject.
+- **UC-019's `todo`s.** TST-377012 (S11, a system test) and TST-418126 (S14, a release test) then hold. They are turned
+  plain by ITM-571, by a developer who implements none of this item.
+
 ## Acceptance
 
 - **S11.** In a small DOM with a fixture draft, the route's subject is the draft's, and a follow-up offers *Review the
