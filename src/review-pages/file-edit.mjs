@@ -44,7 +44,7 @@ function unmatchedRealises(artifact, text, requirements) {
       what: `realises "${value}", which matches no requirement`, fix: "use an existing requirement name or remove it" }));
 }
 
-function fallbackPages(target, pages) {
+export function fallbackPages(target, pages) {
   if (pages.refused) return false;
   const list = el("ul", "pages");
   for (const page of pages) {

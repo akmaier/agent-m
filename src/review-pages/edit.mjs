@@ -15,6 +15,7 @@ import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { el, link, problem, parseServer, TOKEN_STEP } from "./common.mjs";
+import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
 const SPEC = "SPEC.md";
@@ -92,10 +93,8 @@ export async function showEdit(where, kind, params) {
         person: token?.name ?? "anonymous", openedBlob });
       if (outcome.refused) return { kind: "refused", newer: outcome.current ?? "" };
       if (outcome.fallback) {
-        const pages = el("ul", "pages");
-        for (const file of outcome.fallback) pages.append(el("li", null, link(file.url, "github-page", `Open GitHub's page for ${file.path}`)));
-        saved.replaceChildren(el("p", null, "There is no token: GitHub's page opens for each file of the entry, and you commit them there."), pages);
-        return { kind: "failed", reason: "there is no token, so nothing was committed from here." };
+        return fallbackPages(saved, outcome.fallback) ? { kind: "failed", reason: "there is no token, so nothing was committed from here." }
+          : { kind: "failed", reason: "a GitLab product is written with the project's own token." };
       }
       const id = entryId(outcome.queue, outcome.entry);
       const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
