@@ -56,7 +56,7 @@ function ciOf(checks) {
 
 // A pull request of "List pull requests" / "Get a pull request" as the PullRequest: a closed one with a merged_at is merged.
 const pullOf = (p) => ({ number: p.number, title: p.title, branch: p.head.ref, base: p.base.ref, head: p.head.sha, state: p.state === "open" ? "open" : p.merged_at ? "merged" : "closed",
-  draft: p.draft === true, url: p.html_url, opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null });
+  draft: p.draft === true, url: p.html_url, opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null, body: p.body ?? "" });
 
 // The bytes of a file as base64, in pieces small enough for String.fromCharCode.
 function base64(bytes) {
