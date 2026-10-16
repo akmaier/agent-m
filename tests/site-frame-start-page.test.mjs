@@ -38,8 +38,9 @@ const route = (name, entry) => ({ name, entry, title: name, async render(target,
 const VIEW = { routes: [route("alpha", "requirements"), route("cases-list", "use-cases"), route("cases-new", "use-cases"),
   route("beta", "tests")], strategies: [] };
 
-// Starts a page on a fresh fixture. `timers` collects the delays of the intervals the frame starts.
-async function start({ page = "review", fragment = "", views = [VIEW], products = [], tokens = {}, menuViews = [] } = {}) {
+// Starts a page on a fresh fixture. `timers` collects the delays of the intervals the frame starts. `extra` is the rest of the
+// setup besides the page and its views; the tests that do not concern it pass menuViews: [] as the callers in the repository do.
+async function start({ page = "review", fragment = "", views = [VIEW], products = [], tokens = {}, extra = { menuViews: [] } } = {}) {
   rendered.length = 0;
   const fixture = installPage({ ...REVIEW, hash: fragment });
   offline();
@@ -48,7 +49,7 @@ async function start({ page = "review", fragment = "", views = [VIEW], products 
   const store = openStore("acme/instance");
   if (products.length) writeSetting(store, "products", products);
   for (const [key, value] of Object.entries(tokens)) writeSetting(store, key, { value, name: "token", expires: "2030-01-01" });
-  await startPage({ page, views, menuViews });
+  await startPage({ page, views, ...extra });
   const body = fixture.document.body;
   return { ...fixture, timers, body, target: all(body, "main")[0], menu: all(body, "nav")[0], select: all(body, "select")[0] };
 }
@@ -225,17 +226,25 @@ test("TST-531008 the notices say Finish setting up while no token is stored and 
 
 // TST-531009 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
-// given: the main page and no view loaded
-// input: startPage({ page: "main", views: [], menuViews: [] })
-// expect: a header, a menu of eight entries none of which is served (all spans of class soon), the selector with the instance
-//   first, and the paragraph "This page is not built yet."
-test("TST-531009 startPage on the main page draws the header, the menu and the selector and says the page is not built yet while no view is loaded", async () => {
-  const page = await start({ page: "main", views: [] });
+// given: the main page and no view loaded; once with a setup that also carries menuViews naming a view module that does not exist
+// input: startPage({ page: "main", views: [] }); then startPage({ page: "main", views: [], menuViews: ["../tests/site-frame-start.d/not-a-view"] })
+// expect: a header, a menu of eight entries that are all links (none a span of class soon) whose hrefs are, in the order
+//   Requirements, Use cases, Architecture, Implementation, Tests, Releases, Maintenance, Settings,
+//   docs/index.html#requirements, docs/index.html#use-cases, docs/index.html#architecture, docs/index.html#implementation,
+//   docs/index.html#tests, docs/index.html#releases, docs/index.html#maintenance, docs/index.html#settings; the selector with the
+//   instance first, and the paragraph "This page is not built yet."; the second call is not refused and draws the same eight
+//   hrefs, since menuViews is ignored and the missing module is never imported
+test("TST-531009 startPage on the main page links every entry into the review pages, loads no view, and ignores menuViews", async () => {
+  const hrefs = ["requirements", "use-cases", "architecture", "implementation", "tests", "releases", "maintenance", "settings"].map((key) => `docs/index.html#${key}`);
+  const page = await start({ page: "main", views: [], extra: {} });
   assert.equal(all(page.body, "header").length, 1);
   assert.equal(page.menu.children.length, 8);
-  assert.ok(page.menu.children.every((entry) => entry.localName === "span" && entry.className === "soon"));
+  assert.ok(page.menu.children.every((entry) => entry.localName === "a" && entry.className !== "soon"));
+  assert.deepEqual(page.menu.children.map((entry) => entry.getAttribute("href")), hrefs);
   assert.equal(page.select.children[0].textContent, "acme/instance");
   assert.equal(page.target.textContent, "This page is not built yet.");
+  const ignored = await start({ page: "main", views: [], extra: { menuViews: ["../tests/site-frame-start.d/not-a-view"] } });
+  assert.deepEqual(ignored.menu.children.map((entry) => entry.getAttribute("href")), hrefs);
 });
 
 // TST-531010 · level: unit · module: MOD-site-frame
@@ -245,7 +254,8 @@ test("TST-531009 startPage on the main page draws the header, the menu and the s
 // expect: the eight keys in the order requirements, use-cases, architecture, implementation, tests, releases, maintenance,
 //   settings with the labels Requirements, Use cases, Architecture, Implementation, Tests, Releases, Maintenance, Settings; on
 //   the review page hrefs #requirements and #tests and null for the other six, whose titles say "not built yet"; on the main
-//   page the use-cases entry links into the review pages as docs/index.html#use-cases
+//   page the use-cases entry links into the review pages as docs/index.html#use-cases, and so does every entry of
+//   menuOf("main", []): the eight hrefs docs/index.html#<key> for the eight keys, in that order
 test("TST-531010 menuOf lists the eight entries in the order of the process and links only the entries a loaded view serves", () => {
   const review = menuOf("review", ["tests", "requirements"]);
   assert.deepEqual(review.map((entry) => entry.key), ["requirements", "use-cases", "architecture", "implementation", "tests", "releases", "maintenance", "settings"]);
@@ -253,6 +263,7 @@ test("TST-531010 menuOf lists the eight entries in the order of the process and 
   assert.deepEqual(review.map((entry) => entry.href), ["#requirements", null, null, null, "#tests", null, null, null]);
   for (const entry of review.filter((candidate) => candidate.href === null)) assert.match(entry.title, /not built yet/);
   assert.equal(menuOf("main", ["use-cases"])[1].href, "docs/index.html#use-cases");
+  assert.deepEqual(menuOf("main", []).map((entry) => entry.href), review.map((entry) => `docs/index.html#${entry.key}`));
 });
 
 // TST-531011 · level: unit · module: MOD-site-frame

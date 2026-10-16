@@ -1,6 +1,6 @@
 // start.mjs — the script both entry pages load (docs/architecture/MOD-site-frame.md, Parts). It reads the page's setup from the
-// attributes of its own script tag — `data-page` ("main" or "review"), `data-views` and `data-menu-views`, each a list of slugs
-// separated by spaces —, loads the view modules the slugs name from `../<slug>/index.mjs`, registers the strategies of each view
+// attributes of its own script tag — `data-page` ("main" or "review") and `data-views`, a list of slugs separated by
+// spaces —, loads the view modules the slugs name from `../<slug>/index.mjs`, registers the strategies of each view
 // with MOD-job-runner under its slug, and calls startPage. This is where the entry pages register strategies (ARC-038).
 //
 // Module: MOD-site-frame
@@ -34,4 +34,4 @@ for (const slug of slugsOf("data-views")) {
   views.push(view);
 }
 
-await startPage({ page: tag.getAttribute("data-page"), views, menuViews: slugsOf("data-menu-views") });
+await startPage({ page: tag.getAttribute("data-page"), views });

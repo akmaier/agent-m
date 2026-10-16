@@ -20,12 +20,13 @@ export const linkOf = (page, key) => page === "main" ? `docs/index.html#${key}` 
 
 /**
  * menuOf(page: "main" | "review", loaded: string[]) -> MenuEntry[] — the eight entries in the order of the process, each
- * { key, label, href: string | null, title }. `loaded` names the entries some loaded view serves; the others have href null and a
- * title that says they are not built yet.
+ * { key, label, href: string | null, title }. On the review pages `loaded` names the entries some loaded view serves; the others have
+ * href null and a title that says they are not built yet. On the main page every entry links into the review pages, which say there
+ * when an entry is not built yet, so `loaded` is not read.
  */
 export function menuOf(page, loaded) {
   return ENTRIES.map(([key, label]) => {
-    const built = loaded.includes(key);
+    const built = page === "main" || loaded.includes(key);
     return { key, label, href: built ? linkOf(page, key) : null, title: built ? label : `${label} — not built yet` };
   });
 }
