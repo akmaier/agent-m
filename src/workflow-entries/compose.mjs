@@ -28,8 +28,9 @@ const path = globalThis.process?.getBuiltinModule?.("node:path");
  * CiEnvironment — { entry: string, service: "github" | "gitlab", event: { name: string | null, payload: object | null }, checkout: string,
  * repository: string, branch: string | null, agentM: { commit: string | null }, token: string | null, now: Date, job: { runner: string | null,
  * productDir: string | null, instanceDir: string | null, actor: string | null, runUrl: string | null, tokenName: string, personToken: string | null,
- * keys: Record<string, string | null> } } — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
- * the runner, the checkouts, the run's address, the name and value of the person's token and each key secret's value by its name. `token` is the workflow's own token, by its name GITHUB_TOKEN, never by value in a file; `branch` the branch the workflow runs for.
+ * keys: Record<string, string | null>, summaryFile: string | null } } — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
+ * the runner, the checkouts, the run's address, the name and value of the person's token and each key secret's value by its name, and the file GITHUB_STEP_SUMMARY names
+ * for the run's summary, where it is set. `token` is the workflow's own token, by its name GITHUB_TOKEN, never by value in a file; `branch` the branch the workflow runs for.
  */
 export function ciEnvironment(entry, env, now) {
   let payload = null;
@@ -44,6 +45,7 @@ export function ciEnvironment(entry, env, now) {
       runUrl: env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}` : null,
       tokenName: env.AGENT_M_TOKEN_NAME || "AGENT_M_TOKEN", personToken: env.AGENT_M_TOKEN || null,
       keys: Object.fromEntries(String(env.AGENT_M_KEY_NAMES ?? "").split(/\s+/).filter(Boolean).map((name) => [name, env[name] || null])),
+      summaryFile: env.GITHUB_STEP_SUMMARY || null,
     },
   };
 }
