@@ -22,7 +22,8 @@ origin:
 
 ## Outcome
 
-A `Route` may give `subject`; one that gives none has the frame's default — the kind `converse`, the route's title, and
+A `Route` may give `subject`, and whichever gives it, the frame sets its `entry` to the route's `entry`, `null` for a
+route out of the menu; a route that gives no subject has the frame's default — the kind `converse`, the route's title, and
 as the page the title, the menu entry, the product and the text the route has drawn. On the main and the review pages,
 never in the Bridge's window, the frame starts `startPromptBar` in the page's foot with the store, the instance, the
 chosen product, the subject of the route shown at each moment, `explain` and its navigation.

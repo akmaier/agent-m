@@ -38,7 +38,7 @@ origin:
 
 `startPromptBar` draws the bar: it offers the participants its module file names, each with its processing place —
 none drawn without one (UC-049 1a), a subagent never offered (1b) —; holds the conversation in the tab; on *Send* asks the
-subject for the kind and parameters, adds `instruction` and `conversation`, prepares the job with `prepareJob` in a
+subject for the kind and parameters, adds `instruction`, `conversation` and the subject's `entry` as `entry`, prepares the job with `prepareJob` in a
 `tabContext`, sends nothing while it does not fit or a finding keeps it, names every destination before it sends, appends
 to the conversation record first where recording is on, runs the job with `runOnTab` without a record, and shows the
 answer — for a draft, *Review the draft*, which keeps the `ConversationDraft` and goes to the subject's draft route;
