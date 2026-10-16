@@ -99,12 +99,12 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
-  Subject }`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
+  Subject | null }`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
   under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
-  Whichever gives the subject, the frame sets its `entry` to the route's `entry`. A route that gives none has the frame's
-  default: the kind `converse`, the route's title, and as the page the route's title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
+  Whichever gives the subject, the frame sets its `entry` to the route's `entry`. A route that gives none, or whose
+  `subject` gives `null` for these parameters, has the frame's default: the kind `converse`, the route's title, and as the page the route's title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
   secret is shown only in a hidden field (`A STORED SECRET IS HIDDEN UNTIL SHOWN`).
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
   host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`

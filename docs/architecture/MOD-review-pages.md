@@ -81,6 +81,7 @@ uses:
   - MOD-runtimes.tabContext
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.latestDraft
+  - MOD-prompt-bar.dropDraft
   - MOD-prompt-bar.ConversationDraft
 provides:
   - view
@@ -106,8 +107,19 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 ## Parts
 
 - `index.mjs` — the interface: `view`.
-- `flow.mjs` — the template method: list, file, review all, accept, edit, the draft of a conversation, drafting, arrange;
-  and the subject each of its routes gives the prompt bar.
+- `flow.mjs` — the template method: list, file, review all, accept, edit, drafting, arrange.
+- `common.mjs` — what the pages of every kind share: the elements of a page, the token kept for the page's product, the
+  problem a failed read shows, the kind of server a product is on, and the account of the person who prompts.
+- `subjects.mjs` — the subject each route gives the prompt bar.
+- `conversation-draft.mjs` — the route `draft`: the conversation's draft for the subject the address names, against the
+  current text.
+- `file-drafts.mjs` — drafted files in editors as their difference, saved together in one commit.
+- `requirements-draft.mjs` — a draft of requirements: the candidates beside the requirements they refer to, saved as
+  sections of the person's open queue.
+- `candidates.mjs` — the candidates of a draft of requirements as the author reviews them, with their classes.
+- `file-edit.mjs`, `edit.mjs`, `entry-edit.mjs` — the editors of a reviewed file, of a requirement, and of an open SPEC
+  entry in place.
+- `spec-entries.mjs` — what the flow asks of the kind whose files are the entries of a change queue.
 - `kinds.mjs` — the five descriptors.
 - `jobs.mjs` — preparing, starting and following the drafting jobs of a kind, and letting a result that waits for the
   person go on.
@@ -262,7 +274,8 @@ and `docs/participants.md` of the instance.
   the run panel; MOD-job-runner.writeResult — a result that waited for the person, written on their click;
   MOD-job-runner.provenanceLines — the trailers of a draft of the conversation the person saves.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar; MOD-prompt-bar.latestDraft,
-  MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows.
+  MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows; MOD-prompt-bar.dropDraft — the
+  draft dropped once it is saved or discarded.
 - MOD-job-ledger.newJobId — the identifier of a job started here; MOD-job-ledger.listJobs — the record of the job that
   drafted a file, with its rounds.
 - MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.tabContext, MOD-runtimes.runOnTab,

@@ -51,6 +51,7 @@ provides:
   - ConversationDraft
   - startPromptBar
   - latestDraft
+  - dropDraft
   - currentJob
   - recordingSchema
   - recordingOf
@@ -179,6 +180,8 @@ IN THE REPOSITORY`).
   failure of the participant's route is shown in the conversation by name.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
+- `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
+  subject; for the review pages' route once the person saves or discards it.
 - `currentJob() -> { kind: string, participant: string, started: Date, state: "running" } | null` — the message of this
   page's conversation that is running in this tab at the moment of the call, for the list of every job (`ONE DASHBOARD
   SHOWS EVERY JOB`), which shows it as this tab's, in the state `running`; `null` while none runs. A handed-over job is
