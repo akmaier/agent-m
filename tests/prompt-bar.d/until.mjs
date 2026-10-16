@@ -1,11 +1,12 @@
-// The wait that the prompt bar's and the frame's tests share (tests/prompt-bar.test.mjs, tests/prompt-bar-fixed.test.mjs,
-// tests/prompt-bar-hand-over.test.mjs, tests/site-frame-prompt-bar.test.mjs, tests/site-frame-prompt-bar-foot.test.mjs): it checks a
+// The wait that the prompt bar's, the frame's and the release panel's tests share (tests/prompt-bar.test.mjs, tests/prompt-bar-fixed.test.mjs,
+// tests/prompt-bar-hand-over.test.mjs, tests/site-frame-prompt-bar.test.mjs, tests/site-frame-prompt-bar-foot.test.mjs,
+// tests/test-pages-release.test.mjs): it checks a
 // condition, and while the condition does not hold lets the event loop run one turn (setImmediate), until the condition holds or ten
 // seconds of the clock (Date.now) have passed. At the limit it fails "never: <what>", naming what it waited for. Neither Date.now nor
 // setImmediate is faked by any of these files: only tests/prompt-bar-hand-over.test.mjs enables mock timers, for setTimeout alone. It is
 // test code; it holds no expected result.
 //
-// Module: MOD-prompt-bar; MOD-site-frame
+// Module: MOD-prompt-bar; MOD-site-frame; MOD-test-pages
 // Level: unit
 
 import assert from "node:assert/strict";
