@@ -167,7 +167,8 @@ function sharedHeader(section = null) {
  * and the review pages get the header, the menu and the product selector, the notices, the instance and the chosen product
  * connected, the route the fragment names rendered again on every change of the fragment, MOD-notifications' check of what
  * waits for acceptance, and MOD-prompt-bar's bar in a footer after the route's main, started once with the store, the instance, the
- * chosen product, the subject of the route shown at each moment, `explain` and the navigation. Throws a TypeError for a page that is
+ * chosen product, the subject of the route shown at each moment, `explain` and the navigation; that footer takes the height of the bar
+ * it holds (footTakesBarHeight). Throws a TypeError for a page that is
  * none of the three, and for views or menuViews that are no lists.
  */
 export async function startPage({ page, views, menuViews }) {
@@ -290,11 +291,31 @@ async function startSite({ page, views, menuViews }) {
   watchForAcceptance({ store, instance,
     addressOf: (route, given, forRepository) =>
       addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, given, forRepository) });
+  footTakesBarHeight(foot);
   startPromptBar(foot, { page, store, instance,
     product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host },
     subject: () => subjectOf({ ...shown, drawn: () => target.textContent }),
     explain,
     go: (name, given) => shown.context.go(name, given) });
+}
+
+// The prompt bar is fixed to the bottom of the window, so it takes no room in the page: the footer that holds it takes the bar's height,
+// and the page can be scrolled until its last line stands above the bar. The bar is the footer's child that MOD-prompt-bar draws once it
+// has read the participants; a MutationObserver on the footer notices that, and a ResizeObserver, where the browser has one, notices that
+// the bar changes (a selector, a conversation, a draft). Where it has none, the height is set once, when the bar is drawn. The height is
+// the footer's `style` attribute, as the bar's own position is its root's.
+function footTakesBarHeight(foot) {
+  const fit = () => {
+    const bar = foot.children[0];
+    if (bar) foot.setAttribute("style", `height: ${bar.offsetHeight}px;`);
+  };
+  const resizes = globalThis.ResizeObserver ? new globalThis.ResizeObserver(fit) : null;
+  if (!globalThis.MutationObserver) return;
+  new globalThis.MutationObserver(() => {
+    resizes?.disconnect();
+    if (foot.children[0]) resizes?.observe(foot.children[0]);
+    fit();
+  }).observe(foot, { childList: true });
 }
 
 // The value of the selector's entry that goes to the add-product route of the settings.
