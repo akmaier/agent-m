@@ -660,3 +660,13 @@ where that participant processes data, and that place is named with it before yo
 browser tab; it is written to a repository only while recording conversations is switched on in the instance's settings. A draft
 or an edit the participant proposes changes nothing until you save it. Work this tab cannot do is handed over only when you click *Hand over*; that is
 work such as running code or tests, changing code or reaching the web.
+
+## recording-conversations
+
+*Recording conversations* decides whether the conversations of the prompt bar are written to git. It is off unless you switch it on.
+
+While it is on, every message of a conversation, yours and the participant's, is committed under `docs/conversations/` of the repository of the page the conversation is held on: the instance's own repository for a page of the instance, the product's for a page of a product.
+
+A repository that its server reports as public publishes what is committed to it, so the conversations held on its pages are published too. Before you switch it on, the page names each repository it reports as public; for a repository whose visibility it cannot read, it says *visibility not known*.
+
+Switching it off is saved at once. Records already written stay in the history of the repositories; switching off writes no more and removes none.

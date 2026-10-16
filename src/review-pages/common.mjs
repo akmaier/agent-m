@@ -54,3 +54,35 @@ export function problem(failure, token) {
 }
 
 export const parseServer = (context) => { try { return parseAddress(context.product.address).server; } catch { return null; } };
+
+/** defaultSnapshot(host) — the repository at its default branch now. */
+export async function defaultSnapshot(host) {
+  const { defaultBranch } = await host.repositoryInfo();
+  return host.readSnapshot(defaultBranch);
+}
+
+/**
+ * readPlace(target, context) — what every route reads before it draws: the host of the page's repository (the product's, else the instance's), the token this
+ * browser stores for it, and its default branch now. Returns { host, token, snapshot, context, target } with `target` emptied; a read that fails draws the problem into
+ * `target` and returns null.
+ */
+export async function readPlace(target, context) {
+  const host = (context.product ?? context.instance).host;
+  const token = storedToken(context);
+  target.replaceChildren();
+  try {
+    return { host, token, snapshot: await defaultSnapshot(host), context, target };
+  } catch (failure) {
+    target.append(problem(failure, token));
+    return null;
+  }
+}
+
+// The account of the person who owns the instance, written `<server>/<account>`, such as github.com/akmaier: the identifier of a person's entry in the register of sources.
+export function accountOf(snapshot) {
+  const owner = String(snapshot.repository?.path ?? "").split("/")[0];
+  if (!owner) return null;
+  let server = snapshot.repository?.server === "github" ? "github.com" : null;
+  try { server = new URL(snapshot.repository?.origin).host || server; } catch { /* use the canonical GitHub host above */ }
+  return server ? `${server}/${owner}` : null;
+}

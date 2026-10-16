@@ -13,7 +13,8 @@ import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { el, link, button, storedToken, problem, parseServer, TOKEN_STEP } from "./common.mjs";
+import { el, link, button, problem, parseServer, readPlace, TOKEN_STEP } from "./common.mjs";
+import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
@@ -101,22 +102,14 @@ export function reviewRoute(kind) {
   const idOf = (path, snapshot) => statuses(snapshot).get(path)?.id ?? path;
 
   async function render(target, context, params) {
-    const host = (context.product ?? context.instance).host;
-    const token = storedToken(context);
-    target.replaceChildren();
-    let snapshot;
-    try {
-      const { defaultBranch } = await host.repositoryInfo();
-      snapshot = await host.readSnapshot(defaultBranch);
-    } catch (failure) {
-      target.append(problem(failure, token));
-      return;
-    }
-    const where = { host, token, snapshot, context, target };
+    beginSubject(context, target);
+    const where = await readPlace(target, context);
+    if (where === null) return;
     try {
       await view(where, params);
+      await rememberSubject(where, kind, params);
     } catch (failure) {
-      target.append(problem(failure, token));
+      target.append(problem(failure, where.token));
     }
   }
 
@@ -382,5 +375,5 @@ export function reviewRoute(kind) {
     } else offerGitHub();
   }
 
-  return { name: kind.route, entry: kind.entry, title: kind.title, render };
+  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context) };
 }
