@@ -14,7 +14,8 @@ import { fragmentOf } from "./routing.mjs";
 /**
  * subjectOf({ route, params, context, drawn }) -> Subject — the subject of the route shown with these `params` and `context`; `drawn()` is
  * the `textContent` of what the route has drawn. The route's own `subject(params, context)` where it gives one, else the default: `key`
- * the route's name with its parameters as the fragment writes them (without the leading `#`), `title` the route's title, `kind` `converse`,
+ * the route's fragment (its name with its parameters as the fragment writes them, without the leading `#`) with the chosen product's
+ * address as the fragment writes it, none for the instance — the same route on another product is another subject —, `title` the route's title, `kind` `converse`,
  * `paramsFor` giving `{ page }` — the route's title, the menu entry's label (none for a route out of the menu), the chosen product's
  * address or the instance's, and what the route has drawn, one per line —, `draftRoute` and `withhold` `null`, `refuses` `[]`.
  */
@@ -23,7 +24,7 @@ export function subjectOf({ route, params, context, drawn }) {
   const label = labelOf(route.entry);
   const address = context.product?.address ?? `https://github.com/${context.instance.repository}`;
   return {
-    key: fragmentOf(route.name, params).slice(1),
+    key: fragmentOf(route.name, context.product ? { ...params, product: context.product.address } : params).slice(1),
     title: route.title,
     kind: "converse",
     entry: route.entry,
