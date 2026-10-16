@@ -26,6 +26,7 @@ uses:
   - MOD-endpoint-calls.EndpointConfig
   - MOD-participant-list.Participant
   - MOD-participant-list.reachedThrough
+  - MOD-participant-list.eligible
   - MOD-job-catalogue.KindDefinition
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.Host
@@ -125,13 +126,13 @@ a person's decision.
 - `ResourceNeed` — `{ resource: string, route: string }`: a resource a job needs and the route that reaches it —
   `bridge <name>`, or `runner:<label>` —, as MOD-resource-list's `reachableBy` gives it for the product's resources; a
   product's facts carry them (MOD-progress-measures).
-- `routesFor(participant: Participant, product: { visibility: "public" | "private" | "internal", jobWorkflow: boolean },
-  needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route in the register: a model endpoint in the
+- `routesFor(participant: Participant, participants: Participant[], product: { visibility: "public" | "private" |
+  "internal", jobWorkflow: boolean }, needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route in the register: a model endpoint in the
   tab, called directly or through the Bridge its configuration names, and, where its route names the CI secret of its
   key, on the server's runners too, where opencode works with that endpoint (MOD-agent-processes); a CI agent in CI, on
   the server's runners or on its runner; a CLI or sandboxed agent through the Bridge its route names; a subagent — whose
-  route `reachedThrough` names another participant — the routes of that participant, its job's input naming the subagent
-  for that participant to start. A self-hosted runner is offered only for a repository whose server reports
+  route `reachedThrough` names another participant — the routes of that participant among `participants`, as
+  MOD-participant-list's `eligible` finds it there, its job's input naming the subagent for that participant to start. A self-hosted runner is offered only for a repository whose server reports
   it private, and refused with the reason otherwise (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE
   REPOSITORY`). A job that needs no resource reached only by a Bridge or a runner is offered on the server's own runners
   whenever a CI agent can take it (`AGENT M WORKS WITHOUT A LOCAL INSTALLATION`); one that needs such a resource is offered

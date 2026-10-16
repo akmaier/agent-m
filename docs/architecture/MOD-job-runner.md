@@ -187,7 +187,8 @@ ONLY WHEN RECORDING IS ON`).
   offered, or arguments its schema refuses, with a refusal the participant reads; `limit` the most calls of one exchange,
   the kind's `tool_limit`. The runner gives it only to a drafter that declares *use tools* and is a model endpoint —
   called directly, or through the Bridge its configuration names, the loop running in the program either way —, offering
-  only the tools whose capability the drafter declares and that the page's subject does not refuse; a coding agent gets
+  only the tools whose capability the drafter declares and that the job's parameter `refuses` does not name — the
+  page's subject's (MOD-prompt-bar); a coding agent gets
   `null` and works with its own tools.
 - `driverPrompt(input: DriverInput) -> string` — the text a driver sends: the prepared `prompt` unchanged, followed by
   the current draft when `previous` is not null and the findings when any are present, each in MOD-text-tools'
