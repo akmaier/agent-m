@@ -265,10 +265,10 @@ test("TST-377006: UC-019 4a a context that does not fit sends nothing and offers
 // module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
 // guards: UC-019 (step 8)
 // given: the draft of UC-007 and UC-008 on the route draft, with the added alternative flow 2b
-// input: the author writes the follow-up "make 2b say what is logged" in the bar and presses Send
+// input: the author writes the follow-up "make 2b say what is logged" in the bar and presses Send; the participant answers it with a draft of the same kind (the change kind reads only a draft)
 // expect: nothing is written before the author's Save; the follow-up goes to the endpoint on the author's Send only, and the draft as it stands - its added line "2b. The service fails." - is among what the participant is given
 test("TST-377007: UC-019 8 a follow-up instruction in the prompt bar goes with the draft as it stands", async () => {
-  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8)), { answer: "Noted." }] });
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8)), filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
   await onUseCase(s);
   await send(s, ALIGN);
   await review(s);
