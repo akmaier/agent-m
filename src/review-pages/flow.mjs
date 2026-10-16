@@ -100,7 +100,7 @@ export function reviewRoute(kind) {
   const idOf = (path, snapshot) => statuses(snapshot).get(path)?.id ?? path;
 
   async function render(target, context, params) {
-    beginSubject(context, target);
+    beginSubject(context);
     const where = await readPlace(target, context);
     if (where === null) return;
     try {

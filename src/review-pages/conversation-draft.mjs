@@ -1,6 +1,6 @@
 // conversation-draft.mjs — the route `draft` (MOD-review-pages, Interfaces: `draft`; UC-049 steps 5 and 6, UC-019 steps 7 to 9): the draft of the conversation that MOD-prompt-bar keeps for the
 // subject the address names, shown against the current text before anything can be saved. Files each in the editor as their difference (file-drafts.mjs); requirements as the sections
-// `entrySections` composes (requirements-draft.mjs); an architecture file with the rounds of its job and its due diligence. Save and Discard are the person's decisions.
+// `entrySections` composes (requirements-draft.mjs); an architecture file with the rounds of its job and its due diligence. Save and Discard are the person's decisions, and a draft saved or discarded is dropped from the conversation.
 //
 // Module: MOD-review-pages
 //
@@ -12,7 +12,7 @@
 import { artifactSchemas, documentFindings, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
-import { latestDraft } from "../prompt-bar/index.mjs";
+import { dropDraft, latestDraft } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { el, link, problem, readPlace } from "./common.mjs";
 import { fileDrafts } from "./file-drafts.mjs";
@@ -42,7 +42,7 @@ function roundsAndLeft(result) {
 // The files of a draft: a change of a use case or of the architecture drafts `files`, a conversation `edits`.
 const filesOf = (draft) => (draft.kind === "converse" ? draft.result.draft.edits : draft.result.draft.files) ?? [];
 
-async function showFiles(where, draft, trailers, target) {
+async function showFiles(where, draft, trailers, target, drop) {
   const { snapshot, host } = where;
   const params = draft.params;
   // The text the job read: for the file the subject names, the blob in `version`; for any other, the one the page read.
@@ -58,7 +58,7 @@ async function showFiles(where, draft, trailers, target) {
   if (typeof draft.result.draft.answer === "string") target.append(el("div", "answer", draft.result.draft.answer));
   target.append(...roundsAndLeft(draft.result));
   if (architecture) target.append(roundsSection(draft.result.rounds, draft.result.stoppedBecause));
-  const { drafts, discard, saved } = await fileDrafts({ files: filesOf(draft), snapshot, host, trailers, versionOf, check, extras });
+  const { drafts, discard, saved } = await fileDrafts({ files: filesOf(draft), snapshot, host, trailers, versionOf, check, extras, drop });
   target.append(explain("draft-difference"), drafts, discard, saved);
 }
 
@@ -78,12 +78,13 @@ async function show(where, params) {
   }
   const { participants, instanceSnapshot } = await loadStage(where, draft.kind);
   const participant = participants.find((each) => each.name === draft.participant) ?? { name: draft.participant, model: null };
+  const drop = () => dropDraft(context.store, key);
   const commit = instanceSnapshot.commit ?? "unknown";
   const trailers = provenanceLines({ agentM: { version: commit, commit }, jobId: null, kind: draft.kind, participant, rounds: draft.result.rounds.length });
   if (draft.kind === "change-requirements") {
-    target.append(...roundsAndLeft(draft.result), await requirementsDraft({ ...where, draft, trailers }));
+    target.append(...roundsAndLeft(draft.result), await requirementsDraft({ ...where, draft, trailers, drop }));
   } else {
-    await showFiles(where, draft, trailers, target);
+    await showFiles(where, draft, trailers, target, drop);
   }
 }
 

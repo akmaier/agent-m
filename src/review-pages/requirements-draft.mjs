@@ -5,7 +5,7 @@
 // Module: MOD-review-pages
 //
 // A SPEC EDIT IS SAVED AS A PROPOSAL; A CONFLICT IS DECIDED BY A PERSON; THE PERSON WHO PROMPTS IS A SOURCE; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; THE
-// DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Nothing is written before Save.
+// DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Nothing is written before Save. A draft that was saved in a commit, or discarded, is dropped from the conversation: `drop` is called then.
 
 import { showDifference } from "../markdown-render/index.mjs";
 import { entrySections, proposeSection } from "../spec-changes/index.mjs";
@@ -19,11 +19,11 @@ import { sourcesOf } from "./spec-entries.mjs";
 const SPEC = "SPEC.md";
 
 /**
- * requirementsDraft({ snapshot, host, token, context, draft, trailers }) -> Promise<Element> — the page of the draft of requirements `draft` (a ConversationDraft): `snapshot` the default
- * branch as the page read it, `trailers` the provenance lines of what is saved. The section a draft's parameters name (`section`, else the section of its first requirement) is opened on the
+ * requirementsDraft({ snapshot, host, token, context, draft, trailers, drop }) -> Promise<Element> — the page of the draft of requirements `draft` (a ConversationDraft): `snapshot` the default
+ * branch as the page read it, `trailers` the provenance lines of what is saved, `drop()` called once the sections are saved in a commit, and on Discard. The section a draft's parameters name (`section`, else the section of its first requirement) is opened on the
  * blob in its `version`, every other on the blob the page read.
  */
-export async function requirementsDraft({ snapshot, host, token, context, draft, trailers }) {
+export async function requirementsDraft({ snapshot, host, token, context, draft, trailers, drop = () => {} }) {
   const { result, params } = draft;
   const spec = (await snapshot.read(SPEC)) ?? "";
   const parsed = parseSpec(spec);
@@ -81,6 +81,7 @@ export async function requirementsDraft({ snapshot, host, token, context, draft,
         status.replaceChildren(el("p", null, "There is no token: GitHub's pages open for the proposal files."), pages);
         return;
       }
+      drop();
       status.replaceChildren(el("p", "entry", `Saved ${sections.length} proposed section${sections.length === 1 ? "" : "s"} in `,
         link(`${snapshot.repository.web}/commit/${saved.at(-1)?.commit}`, null, "this commit"), "."));
     } catch (failure) {
@@ -90,7 +91,10 @@ export async function requirementsDraft({ snapshot, host, token, context, draft,
     }
   });
   const discard = button("btn discard", "Discard");
-  discard.addEventListener("click", () => panel.replaceChildren(el("p", null, "The draft was discarded. Nothing was written.")));
+  discard.addEventListener("click", () => {
+    drop();
+    panel.replaceChildren(el("p", null, "The draft was discarded. Nothing was written."));
+  });
   panel.append(el("div", "actions", save, discard), status, newer);
   return panel;
 }
