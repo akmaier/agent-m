@@ -12,7 +12,7 @@
 import { appendToRecord, jobCost, jobState, recordsNewestFirst, startRecord, takeJob } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, provenanceLines, runJob } from "../job-runner/index.mjs";
-import { endpointDriver, diagnoseEndpoint, testEndpoint } from "../endpoint-calls/index.mjs";
+import { endpointDriver, testEndpoint } from "../endpoint-calls/index.mjs";
 import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
@@ -155,10 +155,10 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     let reason = error?.message ?? String(error);
     if (endpoint && error?.name === "AgentFailed") {
       const said = String(error.lastOutput ?? "").trim().split("\n").filter(Boolean).at(-1) ?? error.message;
-      // One short request to the endpoint, with the key the agent was given: where it fails, its diagnosis is the reason; where it works, the failure is the agent's.
+      // One short request to the endpoint, with the key the agent was given: where it fails, its diagnosis is the reason; where it works, the run reached it and the failure is the agent's.
       const probe = await testEndpoint({ name: "hand-over", ...endpoint, key: job.keys[secretName] ?? null });
-      const diagnosis = probe.works ? diagnoseEndpoint({ message: said }, endpoint, "node") : probe.diagnosis;
-      reason = `the run failed against the endpoint ${endpoint.baseUrl} (${endpoint.model}): ${diagnosis.reason} — ${diagnosis.message}. The routes that would work: a self-hosted runner, or a Bridge.`;
+      reason = probe.works ? `the agent failed (exit code ${error.exitCode}) working with the endpoint ${endpoint.baseUrl} (${endpoint.model}): ${said}`
+        : `the run failed against the endpoint ${endpoint.baseUrl} (${endpoint.model}): ${probe.diagnosis.reason} — ${probe.diagnosis.message}. The routes that would work: a self-hosted runner, or a Bridge.`;
     }
     ended = { ...ended, reason: handOver ? hidden(reason) : reason };
   }
