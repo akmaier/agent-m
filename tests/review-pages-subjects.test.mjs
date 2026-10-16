@@ -5,7 +5,7 @@
 // the product's linked sources; without one, the prompt bar sends nothing and names the step that is missing (UC-004, UC-015, UC-019 4b)", and MOD-site-frame's Route.subject.
 // Run: node --test tests/review-pages-subjects.test.mjs
 //
-// Module: MOD-review-pages
+// Module: MOD-review-pages · MOD-site-frame
 // Guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
 // Level: unit
 //
@@ -18,12 +18,13 @@
 //     (its identifier); for requirements, `requirements` (the names the SPEC holds), `source` and, for a new requirement, `section`; for a SPEC change entry `target` (its
 //     identifier), the `requirements` of its proposal that the SPEC holds, and `source`. All carry `version`: the blob of the file, or of the SPEC section the named requirements stand in, as the
 //     page read it, which is the text the job reads.
-//   - A page that names no file — a list, Review all, a drafting page, an identifier the product does not hold — has a subject of the kind `converse`
-//     that is the frame's default: its key the route's fragment, its title the route's title, no draft route, the page it has drawn.
+//   - A page that names no file — a list, Review all, a drafting page, an identifier the product does not hold — has no subject of its own: the route's subject gives `null`, and the
+//     frame's default stands (MOD-site-frame's Route.subject): the kind `converse`, its key the route's fragment, its title the route's title, no draft route, the page it has drawn.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { subjectOf as frameSubjectOf } from "../src/site-frame/subject.mjs";
 import { ARC1, ENTRY_ID, GITHUB, HEADING, LENDING, LOAN, MOD_READER, NO_LINKS, PRODUCT, PRODUCT_FILES, SHELF, SOURCE, UC7, blobOf,
   byClass, contextOf, draw, fakeProduct, fetched, find, routeNamed } from "./review-pages-draft-world.mjs";
 
@@ -163,18 +164,23 @@ test("use-case/<id> — the same route on the instance and on a product are two 
   assert.equal(onProduct.key, `use-case/id=UC-007/product=${PRODUCT}`);
 });
 
-// TST-507008 · level: unit · module: MOD-review-pages
+// TST-507008 · level: unit · module: MOD-review-pages · MOD-site-frame
 // guards: UC-049 (step 3)
 // given: a product page of the route `use-case`
-// input: the subject of the list (no part), of Review all (id=all), of the drafting page (id=draft) and of an identifier the product does not hold (UC-999)
-// expect: each is the frame's default — kind converse, title "Use cases", no draft route, no withhold, refuses [], entry use-cases — with the key the route's fragment ("use-case", "use-case/id=all", …, each with
-//   "/product=<address>" after it), and as its page the title, the product's address and what the route has drawn — for the list the row "UC-007"
-test("the other routes of a kind keep the frame's default subject", async () => {
+// input: the route's own subject for the list (no part), for Review all (id=all), for the drafting page (id=draft) and for an identifier the product does not hold (UC-999); then the
+//   subject the frame gives for each, its `subjectOf` called with the route, the same parameters and context, and the text the route has drawn
+// expect: the route's own subject is null for each; the frame's is its default — kind converse, title "Use cases", no draft route, no withhold, refuses [], entry use-cases — with the key the
+//   route's fragment ("use-case", "use-case/id=all", …, each with "/product=<address>" after it), and as its page the lines "Use cases", "Use cases" (the menu entry's label), the product's
+//   address and what the route has drawn — for the list the rows "UC-007" and "UC-008"
+test("the other routes of a kind give null, and the frame's default subject stands", async () => {
   const fake = fakeProduct();
   const cases = [[{}, "use-case"], [{ id: "all" }, "use-case/id=all"], [{ id: "draft" }, "use-case/id=draft"], [{ id: "UC-999" }, "use-case/id=UC-999"]];
+  const defaults = [];
   for (const [params, fragment] of cases) {
     const page = await draw(fake, "use-case", params);
-    const subject = page.subject();
+    assert.equal(page.subject(), null, `${fragment}: the route gives no subject of its own`);
+    const subject = frameSubjectOf({ route: page.route, params, context: page.context, drawn: () => page.target.textContent });
+    defaults.push(subject);
     assert.equal(subject.kind, "converse", fragment);
     assert.equal(subject.key, `${fragment}/product=${PRODUCT}`);
     assert.equal(subject.title, "Use cases");
@@ -182,13 +188,15 @@ test("the other routes of a kind keep the frame's default subject", async () => 
     assert.equal(subject.draftRoute, null);
     assert.equal(subject.withhold, null);
     assert.deepEqual(subject.refuses, []);
-    const given = subject.paramsFor(participant).page;
-    assert.match(given, /^Use cases\n/, fragment);
-    assert.ok(given.includes(GITHUB.web), `${fragment}: the product's address`);
+    const given = subject.paramsFor(participant).page.split("\n");
+    assert.deepEqual(given.slice(0, 3), ["Use cases", "Use cases", GITHUB.web], `${fragment}: the title, the menu entry's label and the product's address`);
+    assert.equal(given.slice(3).join("\n"), page.target.textContent, `${fragment}: what the route has drawn`);
   }
-  const list = (await draw(fake, "use-case", {})).subject().paramsFor(participant).page;
+  const list = defaults[0].paramsFor(participant).page;
   assert.match(list, /UC-007/);
   assert.match(list, /UC-008/);
+  const file = await draw(fake, "use-case", { id: "UC-007" });
+  assert.equal(frameSubjectOf({ route: file.route, params: { id: "UC-007" }, context: file.context, drawn: () => "" }).kind, "change-use-case", "known positive: a file's page keeps its own subject");
 });
 
 // TST-507009 · level: unit · module: MOD-review-pages
