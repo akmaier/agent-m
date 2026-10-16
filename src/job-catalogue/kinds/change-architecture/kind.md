@@ -12,6 +12,7 @@ preconditions:
 recipes:
   - instruction
   - conversation
+  - draft?
   - whole-spec
   - use-cases
   - whole-architecture
