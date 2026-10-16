@@ -31,6 +31,12 @@ UC-049 checked as a whole: a system test that walks the main flow and each alter
 with fixture endpoints, a fixture Bridge, a fixture repository host and the job workflow over fixture checkouts; and
 release tests, one or more for each requirement UC-049 realises. A flow no item has built yet is a pending finding.
 
+Among them are the checks SPEC.md names for the conversation:
+- `tests/test_conversation_not_recorded.py` (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`, `A
+  RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD`);
+- the conversation's part of `tests/test_destination_disclosure.py` (`THE PAGE NAMES WHERE IT SENDS`).
+Both were cut from ITM-519 and ITM-528.
+
 ## Acceptance
 
 - Each test states its input, precondition and expected result, names what it guards, and has a counter-proof recorded
