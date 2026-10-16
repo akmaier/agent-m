@@ -15,6 +15,12 @@ Change nothing the instruction does not ask for.
 
 {{conversation}}
 
+## The draft as it stands
+
+The draft, where one is given, is what the conversation has produced so far: change it further as the instruction says.
+
+{{draft}}
+
 ## The requirements to change, each with its whole section
 
 {{named-requirements}}

@@ -17,6 +17,7 @@ uses:
   - MOD-job-runner.WriteOutcome
   - MOD-job-ledger.startRecord
   - MOD-job-ledger.appendToRecord
+  - MOD-job-ledger.jobCost
   - MOD-job-ledger.newJobId
   - MOD-job-ledger.JobStart
   - MOD-job-ledger.JobRecord
@@ -26,6 +27,7 @@ uses:
   - MOD-endpoint-calls.EndpointConfig
   - MOD-participant-list.Participant
   - MOD-participant-list.reachedThrough
+  - MOD-participant-list.eligible
   - MOD-job-catalogue.KindDefinition
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.Host
@@ -125,13 +127,13 @@ a person's decision.
 - `ResourceNeed` — `{ resource: string, route: string }`: a resource a job needs and the route that reaches it —
   `bridge <name>`, or `runner:<label>` —, as MOD-resource-list's `reachableBy` gives it for the product's resources; a
   product's facts carry them (MOD-progress-measures).
-- `routesFor(participant: Participant, product: { visibility: "public" | "private" | "internal", jobWorkflow: boolean },
-  needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route in the register: a model endpoint in the
+- `routesFor(participant: Participant, participants: Participant[], product: { visibility: "public" | "private" |
+  "internal", jobWorkflow: boolean }, needs: ResourceNeed[]) -> RouteOffer[]` — the routes by the participant's route in the register: a model endpoint in the
   tab, called directly or through the Bridge its configuration names, and, where its route names the CI secret of its
   key, on the server's runners too, where opencode works with that endpoint (MOD-agent-processes); a CI agent in CI, on
   the server's runners or on its runner; a CLI or sandboxed agent through the Bridge its route names; a subagent — whose
-  route `reachedThrough` names another participant — the routes of that participant, its job's input naming the subagent
-  for that participant to start. A self-hosted runner is offered only for a repository whose server reports
+  route `reachedThrough` names another participant — the routes of that participant among `participants`, as
+  MOD-participant-list's `eligible` finds it there, its job's input naming the subagent for that participant to start. A self-hosted runner is offered only for a repository whose server reports
   it private, and refused with the reason otherwise (`A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE
   REPOSITORY`). A job that needs no resource reached only by a Bridge or a runner is offered on the server's own runners
   whenever a CI agent can take it (`AGENT M WORKS WITHOUT A LOCAL INSTALLATION`); one that needs such a resource is offered
@@ -198,8 +200,14 @@ a person's decision.
   not retried here, since its record holds no task: the list offers to hand it over again from the prompt bar, where the
   person writes the task anew. Fails with `TaskNotInRecord` for such a job.
 - `jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string,
-  keys: string[] }, runners: string[]) -> { path: string, text: string }[]` — the files of the job workflow described under
-  Data, for the caller to commit on a person's click.
+  keys: string[] }, runners: string[], gitlabCi?: string | null) -> { path: string, text: string }[]` — the files of the job
+  workflow described under Data, for the caller to commit on a person's click. On GitLab, `gitlabCi` is the product's
+  `.gitlab-ci.yml` at the head the caller read, `null` where it has none. The returned `.gitlab-ci.yml` is that text with
+  three additions, each made only where it is missing:
+  - the inputs `job`, `task` and `endpoint` under its `spec:` header, with the header where the file has none;
+  - the entry `- local: .gitlab/agent-m-jobs.yml` under its `include:`, with the key where the file has none;
+  - the inputs that entry passes on.
+  Every other line stays as it is. Where the product has no `.gitlab-ci.yml`, the returned one is the whole file.
 - `handOverJob(prepared: Prepared, route: Route, start: JobStart, host: Host, head: string, task: string, target: {
   endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null }) -> Promise<{ path: string,
   commit: string }>` — queues the work a conversation of the prompt bar handed over, on the person's click *Hand over*
@@ -237,7 +245,8 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
 - `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent once through the
   Bridge; tab callers do not pre-render this context for an endpoint or Bridge driver.
 - `MOD-job-ledger.startRecord`, `MOD-job-ledger.appendToRecord`, `MOD-job-ledger.newJobId`, `MOD-job-ledger.JobStart`,
-  `MOD-job-ledger.JobRecord`, `MOD-job-ledger.LiveState` — the records it writes and the live state it reports.
+  `MOD-job-ledger.JobRecord`, `MOD-job-ledger.LiveState` — the records it writes and the live state it reports;
+  `MOD-job-ledger.jobCost` — the cost an end of a job it ran in the tab records.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-endpoint-calls.EndpointConfig` — the driver of an endpoint the browser calls,
   and the configuration a Bridge receives for one it calls; `MOD-endpoint-calls.endpointExchange` — one request of the
   tool loop of an endpoint the Bridge calls.

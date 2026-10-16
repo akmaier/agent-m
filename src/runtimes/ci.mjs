@@ -1,7 +1,7 @@
 // ci.mjs — the CI route (docs/architecture/MOD-runtimes.md, Parts: "ci.mjs — the CI route: queueing, live state, log
-// and cancel through the repository host"). Of it, ITM-253 builds queueing: live state, the log and cancelling through the host
-// are UC-036's and are not built yet. ITM-322 adds jobWorkflowFiles, the files of Agent M's job workflow for a product, from the
-// templates workflow/github.yml and workflow/gitlab.yml, which it reads once, when it is loaded, from the disk, in Node.
+// and cancel through the repository host"). Of it, ITM-253 builds queueing; ITM-535 adds the live state, the log and the cancel of a job taken on CI, through the host
+// (runOfAddress, cancelRun, used by index.mjs). ITM-322 adds jobWorkflowFiles, the files of Agent M's job workflow for a product, from the
+// templates workflow/github.yml and workflow/gitlab.yml, which it reads once, when it is loaded, from the disk, in Node; ITM-532 gives the GitLab files the inputs of a pipeline the API starts.
 //
 // Module: MOD-runtimes
 //
@@ -29,25 +29,33 @@ export class RuntimeError extends Error {
 // Agent M's job workflow in a product (MOD-runtimes.md, Data), by the repository's server: one file.
 const WORKFLOW_PATH = { github: ".github/workflows/agent-m-jobs.yml", gitlab: ".gitlab/agent-m-jobs.yml" };
 
-// queueOnCi(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
-// commits the job's start record (MOD-job-ledger's startRecord) at its path, on the head that was read, in one
-// commit, as the person's commit — the host's commitFiles, on the branch its repositoryInfo names, with
-// expectedHead the head given; the push starts the product's job workflow (Data). Refused with WorkflowMissing,
-// naming the job workflow's file, while the snapshot at the head read does not hold it: nothing is committed then.
-// Crosses the network through the host; fails as it fails — Moved, TokenRefused, PermissionMissing, RateLimited,
-// Unreachable — unchanged, and with WorkflowMissing of its own.
-export async function queueOnCi(host, start, head) {
+// commitStart(host, start, head) -> Promise<{ path, commit, defaultBranch, workflow }> — the commit of the CI route
+// (MOD-runtimes' queueJob, Interfaces): the job's start record (MOD-job-ledger's startRecord) at its path, on the head
+// that was read, in one commit, as the person's commit — the host's commitFiles, on the branch its repositoryInfo names,
+// with expectedHead the head given —; with it that branch and the server's job workflow file, for a caller that starts the
+// workflow itself (hand-over.mjs). Refused with WorkflowMissing, naming the job workflow's file, while the snapshot at the
+// head read does not hold it: nothing is committed then. Crosses the network through the host; fails as it fails — Moved,
+// TokenRefused, PermissionMissing, RateLimited, Unreachable — unchanged, and with WorkflowMissing of its own.
+export async function commitStart(host, start, head) {
   const [{ defaultBranch }, snapshot] = await Promise.all([host.repositoryInfo(), host.readSnapshot(head)]);
-  const workflowPath = WORKFLOW_PATH[snapshot.repository.server];
-  if (!snapshot.paths.includes(workflowPath)) {
-    throw new RuntimeError("WorkflowMissing", { files: [workflowPath] },
-      `${snapshot.repository.path} has no Agent M job workflow yet — add ${workflowPath}.`);
+  const workflow = WORKFLOW_PATH[snapshot.repository.server];
+  if (!snapshot.paths.includes(workflow)) {
+    throw new RuntimeError("WorkflowMissing", { files: [workflow] },
+      `${snapshot.repository.path} has no Agent M job workflow yet — add ${workflow}.`);
   }
   const { path, text } = startRecord(start);
   const { commit } = await host.commitFiles({
     branch: defaultBranch, expectedHead: head, files: [{ path, text }],
     message: `Queue job ${start.id}: ${start.kind}`,
   });
+  // GitHub's dispatch call names a workflow by its file name alone (repository-hosts' github adapter encodes the name into the URL path); GitLab's is left as the path.
+  return { path, commit, defaultBranch, workflow: snapshot.repository.server === "github" ? workflow.split("/").pop() : workflow };
+}
+
+// queueOnCi(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
+// commitStart; the push starts the product's job workflow (Data).
+export async function queueOnCi(host, start, head) {
+  const { path, commit } = await commitStart(host, start, head);
   return { path, commit };
 }
 
@@ -70,12 +78,108 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 // A text with each @@name@@ of the template replaced by the value given.
 const fill = (template, values) => template.replace(/@@([a-z-]+)@@/g, (_, name) => values[name]);
 
+// ---------------------------------------------------------------- the product's own .gitlab-ci.yml
+
+const isBlank = (line) => /^\s*(#.*)?$/.test(line);
+const indentOf = (line) => line.length - line.trimStart().length;
+const LIST_ITEM = /^\s*-(\s|$)/;
+// A line that names the job file, as a `local:` value or as a plain string item.
+const NAMES_JOB_FILE = /^\s*(-\s+)?(local:\s*)?["']?\/?\.gitlab\/agent-m-jobs\.yml["']?\s*(#.*)?$/;
+
+const notAList = (why) => new RuntimeError("GitlabCiNotList", { file: ".gitlab-ci.yml" },
+  `.gitlab-ci.yml: ${why} Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.`);
+
+// appendToBlock(lines, keyAt, limit, names, render) -> boolean — under the key at lines[keyAt], whose block ends before `limit`, adds render(name, pad) for each
+// of `names` the block lacks, after the block's last line that holds anything; true where it added. `pad` is the indentation of the block's own entries.
+function appendToBlock(lines, keyAt, limit, names, render) {
+  const keyIndent = indentOf(lines[keyAt]);
+  let last = keyAt, childIndent = null;
+  for (let at = keyAt + 1; at < limit; at += 1) {
+    if (isBlank(lines[at])) continue;
+    if (indentOf(lines[at]) <= keyIndent) break;
+    childIndent ??= indentOf(lines[at]);
+    last = at;
+  }
+  const pad = " ".repeat(childIndent ?? keyIndent + 2);
+  const lacking = names.filter((name) => !lines.slice(keyAt + 1, last + 1).some((line) => line.startsWith(`${pad}${name}:`)));
+  lines.splice(last + 1, 0, ...lacking.flatMap((name) => render(name, pad)));
+  return lacking.length > 0;
+}
+
+// mergeGitlabCi(text, names) -> string — the product's .gitlab-ci.yml with the three additions of MOD-runtimes' jobWorkflowFiles, each only where it is
+// missing, and no other line touched; `text` itself where nothing is missing. Throws RuntimeError GitlabCiNotList for an include: that is not a list.
+function mergeGitlabCi(text, names) {
+  const lines = text === "" ? [] : text.replace(/\n$/, "").split("\n");
+  let changed = false;
+  const defaults = (name, pad) => [`${pad}${name}:`, `${pad}  default: ""`];
+  const passed = (name, pad) => [`${pad}${name}: $[[ inputs.${name} ]]`];
+
+  // 1. The `spec:` header, which ends at the first line `---`: each input it lacks under `inputs:`; the whole header before the first line where there is none.
+  const dashAt = lines.findIndex((line) => /^---\s*$/.test(line));
+  const specAt = lines.findIndex((line) => /^spec:\s*$/.test(line));
+  if (specAt !== -1 && dashAt > specAt && lines.slice(0, specAt).every(isBlank)) {
+    const inputsAt = lines.findIndex((line, at) => at > specAt && at < dashAt && /^\s+inputs:/.test(line));
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the spec: header is not written as a block.");
+    if (inputsAt === -1) {
+      lines.splice(dashAt, 0, "  inputs:", ...names.flatMap((name) => defaults(name, "    ")));
+      changed = true;
+    } else changed = appendToBlock(lines, inputsAt, dashAt, names, defaults);
+  } else {
+    lines.unshift("spec:", "  inputs:", ...names.flatMap((name) => defaults(name, "    ")), "---");
+    changed = true;
+  }
+
+  // 2. The entry under `include:`: at the end of a list; the key with it at the end of the file where there is none. An entry that names the job file
+  // already gains only the inputs it lacks.
+  const entry = (pad) => [`${pad}- local: "${WORKFLOW_PATH.gitlab}"`, `${pad}  inputs:`, ...names.flatMap((name) => passed(name, `${pad}    `))];
+  const includeAt = lines.findIndex((line) => /^include:/.test(line));
+  if (includeAt === -1) {
+    lines.push("include:", ...entry("  "));
+    return `${lines.join("\n")}\n`;
+  }
+  const rest = lines[includeAt].slice("include:".length).trim();
+  if (rest !== "" && !rest.startsWith("#")) throw notAList("include: holds a single string or an inline map.");
+  let first = null, end = includeAt;
+  for (let at = includeAt + 1; at < lines.length; at += 1) {
+    if (isBlank(lines[at])) continue;
+    if (indentOf(lines[at]) === 0 && !LIST_ITEM.test(lines[at])) break;
+    first ??= at;
+    end = at;
+  }
+  if (first !== null && !LIST_ITEM.test(lines[first])) throw notAList("include: holds a map.");
+  const itemIndent = first === null ? 2 : indentOf(lines[first]), margin = " ".repeat(itemIndent);
+  const starts = [];
+  if (first !== null) for (let at = first; at <= end; at += 1) if (indentOf(lines[at]) === itemIndent && LIST_ITEM.test(lines[at])) starts.push(at);
+  const named = starts.findIndex((start, i) => lines.slice(start, starts[i + 1] ?? end + 1).some((line) => NAMES_JOB_FILE.test(line)));
+  if (named === -1) {
+    lines.splice(end + 1, 0, ...entry(margin));
+    changed = true;
+  } else {
+    const start = starts[named], stop = starts[named + 1] ?? end + 1;
+    if (!lines.slice(start, stop).some((line) => /^\s*(-\s+)?local:/.test(line))) {
+      throw notAList("the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.");
+    }
+    const inputsAt = lines.findIndex((line, at) => at > start && at < stop && /^\s+inputs:/.test(line));
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.");
+    if (inputsAt === -1) {
+      let last = stop - 1;
+      while (isBlank(lines[last])) last -= 1;
+      lines.splice(last + 1, 0, `${margin}  inputs:`, ...names.flatMap((name) => passed(name, `${margin}    `)));
+      changed = true;
+    } else changed = appendToBlock(lines, inputsAt, stop, names, passed) || changed;
+  }
+  return changed ? `${lines.join("\n")}\n` : text;
+}
+
 /**
  * jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string, keys:
- * string[] }, runners: string[]) -> { path: string, text: string }[] — the files of Agent M's job workflow in a product
+ * string[] }, runners: string[], gitlabCi?: string | null) -> { path: string, text: string }[] — the files of Agent M's job workflow in a product
  * (MOD-runtimes, Data), for the caller to commit on a person's click: on GitHub .github/workflows/agent-m-jobs.yml; on GitLab
- * .gitlab/agent-m-jobs.yml and, as the second file, the text the product's .gitlab-ci.yml needs to include it, to be added to
- * that file and not to replace it. One job for each route of the product's CI agents: the server's runners, `hosted`, and each
+ * .gitlab/agent-m-jobs.yml and, as the second file, the product's .gitlab-ci.yml. `gitlabCi` is the product's .gitlab-ci.yml at the head the caller
+ * read, `null` where it has none: the second file is then the whole file the template gives — the `spec:inputs` header that declares the inputs `job`,
+ * `task` and `endpoint` of a pipeline the API starts, each with an empty default, and the include of the job file that passes them on —, and otherwise
+ * `gitlabCi` with those three things added, each only where it is missing, and every other line as it was. Throws RuntimeError GitlabCiNotList, naming
+ * the file, where its `include:` holds a single string or a map. One job for each route of the product's CI agents: the server's runners, `hosted`, and each
  * self-hosted runner by its label in `runners`. `instance.repository` is `owner/name` on github.com and `instance.commit` a
  * 40-digit commit, at which each job checks out the instance. `secrets.token` is the name of the secret that holds the person's
  * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. Pure.
@@ -85,9 +189,10 @@ const fill = (template, values) => template.replace(/@@([a-z-]+)@@/g, (_, name) 
  * @param {{ repository: string, commit: string }} instance
  * @param {{ token: string, keys: string[] }} secrets
  * @param {string[]} runners
+ * @param {string | null} [gitlabCi]
  * @returns {Array<{ path: string, text: string }>}
  */
-export function jobWorkflowFiles(server, instance, secrets, runners) {
+export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = null) {
   if (!Object.hasOwn(WORKFLOW_PATH, server)) throw new TypeError(`the job workflow is written for GitHub or GitLab, not ${server}`);
   if (!REPOSITORY.test(instance.repository)) throw new TypeError(`the instance is owner/name: ${instance.repository}`);
   if (!COMMIT.test(instance.commit)) throw new TypeError(`the instance is at a commit of 40 hexadecimal digits: ${instance.commit}`);
@@ -106,6 +211,41 @@ export function jobWorkflowFiles(server, instance, secrets, runners) {
   const jobs = routes.map((route) => fill(job, { ...common, ...route, runner: JSON.stringify(route.runner), route: route.runner,
     id: github ? route.id : `agent-m-${route.id}`, "key-env": secrets.keys.map((name) => `      ${name}: \${{ secrets.${name} }}\n`).join("") }));
   const files = [{ path: WORKFLOW_PATH[server], text: `${fill(head, common)}${jobs.join("\n")}` }];
-  if (!github) files.push({ path: ".gitlab-ci.yml", text: `include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n` });
+  if (!github) {
+    // The inputs of a pipeline started through the API: GitLab takes them only from the `spec:inputs` header of the main .gitlab-ci.yml (docs.gitlab.com, "CI/CD
+    // inputs"), which passes them to the included job file through `include:inputs`. The template starts with the header, the one place that declares them, and
+    // so does this file; a push starts the pipeline without inputs, so each has an empty default there.
+    const spec = head.slice(0, head.indexOf("---\n") + 4);
+    const inputs = [...spec.matchAll(/^ {4}([a-z]+):$/gm)].map((match) => match[1]);
+    // Where the product has a .gitlab-ci.yml, it is that text with what it lacks added (mergeGitlabCi); where it has none, the whole file.
+    if (gitlabCi !== null && typeof gitlabCi !== "string") throw new TypeError("the product's .gitlab-ci.yml is given as its text, or as null where it has none");
+    files.push({ path: ".gitlab-ci.yml", text: gitlabCi === null ? `${spec}include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n    inputs:\n${inputs.map((name) => `      ${name}: $[[ inputs.${name} ]]\n`).join("")}`
+      : mergeGitlabCi(gitlabCi, inputs) });
+  }
   return files;
+}
+
+// ---------------------------------------------------------------- the live state, the log and the cancel of a job taken on CI
+
+// The job workflow's file name, as GitHub's dispatch call names a workflow (hand-over.mjs): the filter of listCiRuns.
+const JOB_WORKFLOW = "agent-m-jobs.yml";
+
+/**
+ * runOfAddress(host, address) -> Promise<CiRun | null> — the run among listCiRuns({ workflow }) whose url is the address a record's `## Taken` holds in `by:` (MOD-job-ledger, Data); null where the server lists
+ * none. Crosses the network through the host and fails as it fails.
+ */
+export async function runOfAddress(host, address) {
+  const runs = await host.listCiRuns({ workflow: JOB_WORKFLOW });
+  return runs.find((run) => run.url === address) ?? null;
+}
+
+/**
+ * cancelRun(host, address) -> Promise<{ cancelled: boolean, address: string }> — asks the server to cancel the run at the address (cancelCiRun), then reads the run once: `cancelled` where it is. Throws
+ * RuntimeError NotFound { what: address } for a run the server does not list, before anything is asked. Fails as the host fails.
+ */
+export async function cancelRun(host, address) {
+  const run = await runOfAddress(host, address);
+  if (!run) throw new RuntimeError("NotFound", { what: address }, `the CI run ${address} is not listed`);
+  await host.cancelCiRun(run.id);
+  return { cancelled: (await runOfAddress(host, address))?.state === "cancelled", address: run.url };
 }

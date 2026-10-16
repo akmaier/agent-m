@@ -32,6 +32,7 @@ provides:
   - versionCommits
   - linkedVersion
   - personSource
+  - personAccount
   - readContent
   - affectedRequirements
   - sourceFindings
@@ -66,6 +67,8 @@ in a browser and in Node; fetching a legal text runs in Node, in the instance's 
 - `source.schema.md` — the schema of a register entry, in the schema language of MOD-documents.
 - `links.schema.md` — the schema of a product's links file.
 - `content.mjs` — where a version's files lie, and reading them with their hashes checked.
+- `person.mjs` — the person who gives an instruction: their account (`personAccount`) and their own source
+  (`personSource`).
 - `legal-text.mjs` — recognising an EU legal text, and fetching it.
 - `strategies.mjs` — the recipe `source-excerpt`, and the four recipes of the book's chapters, each with the chapters
   of its kind of work.
@@ -155,6 +158,9 @@ names no source.
 - `personSource(links: Document, register: Document[], account: string) -> string | null` — the identifier of the
   register entry of kind `person` whose `identifier` is the account `<server>/<account>` and which the product links, or
   `null`: the source of the person who gives an instruction (`THE PERSON WHO PROMPTS IS A SOURCE`).
+- `personAccount(instance: Snapshot) -> string | null` — the account `<server>/<account>` of the person who gives an
+  instruction, which `personSource` takes: the owner of the instance's repository on its server's host, `github.com` on
+  GitHub. It is `null` where the snapshot names no owner. No request is made.
 - `readContent(version: SourceVersion, open: (source: string) => Promise<Host>) -> Promise<{ name: string, bytes:
   Uint8Array }[]>` — reads every stored file of the version from `docs/sources/<source>/<version>/` of the repository that
   holds it, at its default branch, across the network through the host `open` gives for the version's source — its

@@ -9,6 +9,7 @@ import { participantSchema } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
+import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
@@ -550,6 +551,113 @@ function repositoryStatus(info, stored) {
   return `${expiry}${tested}`;
 }
 
+// The repositories the notice of *Recording conversations* must not leave out: the instance's and each product this browser keeps (the
+// setting `products`), each with what its server reports of its visibility — a product asked with the credentials the page already
+// uses for it (`credentialsFor`). A repository whose information cannot be read is `visibility: null`, never taken for private.
+async function repositoryVisibilities(context) {
+  const visibility = async (name, info) => {
+    try { return { name, visibility: (await info()).visibility }; } catch { return { name, visibility: null }; }
+  };
+  const products = (readSetting(context.store, "products") ?? []).map((web) => visibility(web, async () => {
+    const address = parseAddress(web);
+    const checked = await checkProduct(address, credentialsFor(context.store, address));
+    if (!checked.ok) throw checked.error;
+    return checked.info;
+  }));
+  return Promise.all([visibility(context.instance.repository, () => context.instance.host.repositoryInfo()), ...products]);
+}
+
+const RECORDING_STATEMENTS = [
+  "Every message of a conversation in the prompt bar, the person's and the participant's, will be committed to the repository of the page the conversation is held on, under docs/conversations/.",
+  "It stays in that repository's history.",
+  "For each repository the server reports as public, the conversations held on its pages will be published.",
+];
+
+// UC-042 step 3 and 3b: the instance's line *Recording conversations*. `load()` reads the switch from the instance's default branch with
+// MOD-prompt-bar's recordingOf, once, when the tab that holds the line is shown; *Switch on* builds the notice and shows it before
+// anything is saved, and *Save* writes only after *I have read this* and on a person's click; *Switch off* is saved at once, on a person's
+// click, and the page says that written records stay.
+function recordingControls(context) {
+  const schema = recordingSchema();
+  const host = context.instance?.host;
+  const state = el("p", "settings-recording-state", "Recording conversations is not read yet.");
+  const switchOn = el("button", "settings-recording-on btn", "Switch on");
+  const switchOff = el("button", "settings-recording-off btn", "Switch off");
+  const publicLine = el("p", "settings-recording-public"), unknownLine = el("p", "settings-recording-unknown"), noneLine = el("p", "settings-recording-none");
+  const ack = el("input", "settings-recording-ack"), save = el("button", "settings-recording-save btn primary", "Save");
+  const notice = el("div", "notice settings-recording-notice");
+  const result = el("p", "settings-recording-result");
+  const controls = el("p", null, switchOn, " ", switchOff);
+  const node = el("section", "settings-recording panel", el("h3", null, "Instance · Recording conversations"), state,
+    controls, notice, result,
+    el("div", "settings-recording-explanation", explain("recording-conversations")));
+  ack.type = "checkbox";
+  switchOn.hidden = switchOff.hidden = notice.hidden = true;
+  let openedBlob = null, loaded = false;
+  const show = (on) => {
+    state.textContent = `Recording conversations is ${on ? "on" : "off"}.`;
+    switchOn.hidden = on;
+    switchOff.hidden = !on;
+    notice.hidden = true;
+  };
+  const load = async () => {
+    if (loaded) return;
+    loaded = true;
+    if (!host) { controls.replaceChildren(); state.textContent = "The instance repository is not connected, so the switch cannot be read."; return; }
+    try {
+      const snapshot = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+      const on = await recordingOf(snapshot);
+      openedBlob = snapshot.blob(schema.path);
+      show(on);
+    } catch (error) { controls.replaceChildren(); state.textContent = `The switch could not be read: ${error?.message ?? error}`; }
+  };
+  // The file as recording.schema.md states it, written on the blob it was opened on (A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE).
+  const write = async (next) => {
+    const text = writeDocument(schema, { kind: schema.schema, path: schema.path, id: null, title: null,
+      fields: { recording: next }, sections: [], appended: [], body: `${schema.title}\n` });
+    try {
+      const saved = await saveFile(host, { path: schema.path, text, openedBlob });
+      if (saved.refused) { result.textContent = "The switch changed meanwhile; nothing was written."; return false; }
+      openedBlob = saved.blob;
+      return true;
+    } catch (error) { result.textContent = error?.message ?? String(error); return false; }
+  };
+  switchOn.addEventListener("click", async () => {
+    result.textContent = "Asking each repository's server whether it is public…";
+    const repositories = await repositoryVisibilities(context);
+    const named = (visibility) => repositories.filter((repository) => repository.visibility === visibility).map((repository) => repository.name);
+    const publics = named("public"), unknown = named(null);
+    publicLine.textContent = `Reported as public: ${publics.join(", ")}.`;
+    unknownLine.textContent = `Could not be read, so visibility not known: ${unknown.join(", ")}.`;
+    noneLine.textContent = "No repository is reported as public.";
+    publicLine.hidden = !publics.length;
+    unknownLine.hidden = !unknown.length;
+    noneLine.hidden = publics.length > 0;
+    ack.checked = false;
+    ack.disabled = false;
+    save.disabled = true;
+    notice.replaceChildren(el("div", "settings-recording-statements", ...RECORDING_STATEMENTS.map((statement) => el("p", null, statement))),
+      publicLine, unknownLine, noneLine, el("p", null, el("label", null, ack, " I have read this."), " ", save));
+    result.textContent = "";
+    notice.hidden = false;
+    ack.focus();
+  });
+  ack.addEventListener("change", () => { save.disabled = !ack.checked; });
+  save.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
+    if (!ack.checked) { result.textContent = "Tick I have read this before saving."; return; }
+    if (await write("on")) { show(true); result.textContent = "Saved in the instance repository."; }
+  });
+  switchOff.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
+    if (await write("off")) {
+      show(false);
+      result.textContent = "Records already written stay in the history of the repositories they were written to.";
+    }
+  });
+  return { node, load };
+}
+
 function productListControls(target, context) {
   const products = readSetting(context.store, "products");
   if (!Array.isArray(products) || !products.length) return null;
@@ -711,7 +819,9 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
   let files = [], expectedHead = snapshot.commit;
   try {
     const input = await jobWorkflowInput(context);
-    files = jobWorkflowFiles(address.server, input.instance, input.secrets, input.runners);
+    // On GitLab the product's own .gitlab-ci.yml at this head is given to be added to, as the other files are read below; null where it has none.
+    const gitlabCi = address.server === "gitlab" ? (await snapshot.read(".gitlab-ci.yml")) ?? null : null;
+    files = jobWorkflowFiles(address.server, input.instance, input.secrets, input.runners, gitlabCi);
     const current = await Promise.all(files.map(async (file) => [file.path, await snapshot.read(file.path)]));
     const missing = current.filter(([, text]) => text === null || text === undefined).map(([path]) => path);
     const different = current.filter(([, text], index) => text !== null && text !== undefined && text !== files[index].text).map(([path]) => path);
@@ -978,6 +1088,7 @@ export const route = {
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
       exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
+    const recording = recordingControls(context);
     const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
@@ -985,7 +1096,7 @@ export const route = {
         const line = repositoryLine(target, inPlace, info);
         return !line ? [] : info.key === "products" ? [line, productForm] : [line];
       }),
-      ...(productList ? [productList] : []), product);
+      recording.node, ...(productList ? [productList] : []), product);
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
       configurationControls(inPlace), form,
@@ -1000,7 +1111,7 @@ export const route = {
       { name: "Repositories", id: "settings-repositories", node: repositories },
       { name: "Endpoints & Agents", id: "settings-endpoints-agents", node: endpointPane },
       { name: "Usability", id: "settings-usability", node: usability },
-    ], chosenTabs.get(context), (id) => chosenTabs.set(context, id));
+    ], chosenTabs.get(context), (id) => { chosenTabs.set(context, id); if (id === "settings-repositories") recording.load(); });
     target.replaceChildren(el("section", "head", el("h2", null, "Settings")), tabbed.tabs, ...tabbed.panels);
   },
 };

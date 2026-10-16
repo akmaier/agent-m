@@ -19,6 +19,12 @@ on:
       job:
         description: "The identifier of the job to start"
         required: true
+      task:
+        description: "The task a conversation handed over, in the participant's words; given to the job and written to no file"
+        required: false
+      endpoint:
+        description: "The kind, address and model of a model endpoint, as JSON text"
+        required: false
 
 permissions:
   contents: read

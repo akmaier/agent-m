@@ -29,6 +29,8 @@ uses:
   - MOD-job-runner.JobResult
   - MOD-job-ledger.listJobs
   - MOD-job-ledger.JobRecord
+  - MOD-job-ledger.newJobId
+  - MOD-job-ledger.JobStart
   - MOD-runtimes.tabContext
   - MOD-runtimes.runOnTab
   - MOD-runtimes.routesFor
@@ -41,6 +43,7 @@ uses:
   - MOD-runtimes.jobLog
   - MOD-runtimes.cancelJob
   - MOD-bridge-client.Bridge
+  - MOD-bridge-client.settingsOf
   - MOD-bridge-client.bridgeAt
   - MOD-markdown-render.renderArtifact
   - MOD-text-tools.Finding
@@ -50,6 +53,7 @@ provides:
   - ConversationDraft
   - startPromptBar
   - latestDraft
+  - dropDraft
   - currentJob
   - recordingSchema
   - recordingOf
@@ -78,6 +82,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 - `bar.mjs` — the bar: the selector, the input, *Send* and *Stop*, the conversation, the waiting for a handed-over job.
 - `offer.mjs` — the participants offered and the place each is named with.
 - `send.mjs` — preparing and running a message as a job in this tab.
+- `hand-over.mjs` — a proposed hand-over assessed against the start rules, and queued on the person's click.
+- `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
 - `record.mjs` — the conversation record and the recording switch.
 - `conversation.schema.md`, `recording.schema.md` — the schemas of the two files it owns, in the schema language of
   MOD-documents.
@@ -151,8 +157,8 @@ IN THE REPOSITORY`).
   keeps (UC-049 precondition); with none, it draws nothing and says nothing (UC-049 1a); with one, it names it; with
   several, a small selector above the input chooses, each named with its processing place. A folded *What is this?*
   explains the bar. On *Send* — the decision to send — it asks the subject for the kind and the parameters, adds the
-  person's words as `instruction`, the conversation so far as `conversation` and the subject's `entry` as `entry`,
-  prepares the job with MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
+  person's words as `instruction`, the conversation so far as `conversation`, the subject's `entry` as `entry` and its
+  `refuses` as `refuses`, prepares the job with MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
   or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b). It names every destination before it sends
   — the drafter and, for a kind with reviewers, each reviewer, with its processing place. With recording on — read from
   the instance at that moment —, it first appends the person's message to the conversation record of the page's
@@ -178,6 +184,8 @@ IN THE REPOSITORY`).
   failure of the participant's route is shown in the conversation by name.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
+- `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
+  subject; for the review pages' route once the person saves or discards it.
 - `currentJob() -> { kind: string, participant: string, started: Date, state: "running" } | null` — the message of this
   page's conversation that is running in this tab at the moment of the call, for the list of every job (`ONE DASHBOARD
   SHOWS EVERY JOB`), which shows it as this tab's, in the state `running`; `null` while none runs. A handed-over job is
@@ -212,7 +220,9 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   MOD-work-plans.startable, MOD-work-plans.itemStates, MOD-progress-measures.productFacts, MOD-product-process.holdsRole —
   whether a hand-over of a kind of the product's workflow may start, by the same rules as every implementation job;
   MOD-runtimes.liveState, MOD-runtimes.jobLog, MOD-runtimes.cancelJob, MOD-job-ledger.listJobs,
-  MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*.
-- MOD-bridge-client.Bridge, MOD-bridge-client.bridgeAt — the Bridges handed to the runtimes.
+  MOD-job-ledger.JobRecord — a handed-over job followed, its answer, and *Stop*; MOD-job-ledger.newJobId,
+  MOD-job-ledger.JobStart — the identifier and the start of the job a hand-over queues.
+- MOD-bridge-client.Bridge, MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt — the Bridges handed to the
+  runtimes, each from its stored entry and the stored jump host.
 - MOD-markdown-render.renderArtifact — the answers, rendered safely.
 - MOD-text-tools.Finding — the findings a message's preparation or its loop names.

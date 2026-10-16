@@ -221,7 +221,7 @@ test("explain — agent-test: an agent's test through the Bridge (UC-017)", () =
 });
 
 // TST-472834 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-010 (precondition); EVERY STEP EXPLAINS ITSELF
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-010 (precondition); EVERY STEP EXPLAINS ITSELF
 // given: the topic job-workflow
 // input: explain("job-workflow")
 // expect: text saying the job workflow runs a job on GitHub's machines; reads two Actions secrets, the key of the agent or endpoint and the person's Agent M token, each named by the dashboard, which opens the secrets page and never asks for the value; that the token makes the job's pushes start CI; that the calls are billed per use by the agent's provider; and a pointer to chapter 10, section 6 of the book

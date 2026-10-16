@@ -9,6 +9,7 @@ needs:
 resources: product
 preconditions:
 recipes:
+  - instruction?
   - fix-inputs
   - chapters-for-tests
 checks:

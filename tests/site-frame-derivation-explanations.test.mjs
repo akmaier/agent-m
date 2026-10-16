@@ -98,7 +98,7 @@ test("explain — existing-requirements: every existing requirement goes with th
 });
 
 // TST-472801 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; ONE CLICK PER DECISION; UC-005 (step 3) and alternative 3a
+// guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; UC-005 (step 3) and alternative 3a
 // given: the topic derivation-run-panel
 // input: explain("derivation-run-panel")
 // expect: text saying the panel comes before anything is sent; names the destination and where it processes data; says exactly what is sent — the excerpt and the existing requirements, with the chapter — and how many requirements are included; states the limit of correction rounds; and that Run is the one click that sends, nothing being sent without it

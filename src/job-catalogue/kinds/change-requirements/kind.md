@@ -12,6 +12,7 @@ preconditions:
 recipes:
   - instruction
   - conversation
+  - draft?
   - named-requirements
   - spec-with-queues
   - chapters-for-requirements

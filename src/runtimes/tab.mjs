@@ -74,6 +74,14 @@ export function tabContext({ kind, params, product, instance, participants, plac
     participants, places, gates, person, now: new Date(), agentM, jobId };
 }
 
+// The jobs this tab runs with a record, by the record's id, each with the controller that aborts it: held from the start of its runOnTab until that call settles (MOD-runtimes, Data: it keeps, in memory, the
+// jobs running in this tab). cancelJob aborts one through abortOnTab; liveState asks heldOnTab.
+const held = new Map();
+export const heldOnTab = (id) => held.has(id);
+export function abortOnTab(id) {
+  held.get(id)?.abort();
+}
+
 /**
  * runOnTab(prepared, context, connections, hooks) -> Promise<JobResult> — runs the prepared job in this tab with MOD-job-runner, attended unless its record names a
  * run: the drafter's and the reviewers' drivers from their routes (an endpoint's driver from its configuration, `endpointDriver`), a gate reached and the end
@@ -81,9 +89,23 @@ export function tabContext({ kind, params, product, instance, participants, plac
  * ends the record as failed, with the failure's name and message as the reason, and is thrown again unchanged; a cancelled job is ended by cancelJob, not here.
  */
 export async function runOnTab(prepared, context, connections, hooks) {
-  const { host, record, refine, onOutput, signal } = hooks;
+  const { host, record, refine, onOutput } = hooks;
+  // The job's own abort: the caller's signal aborts it, and so does cancelJob. After it fires, nothing more is appended to the record (A CANCELLED JOB WRITES NOTHING MORE): the end is cancelJob's.
+  const controller = new AbortController();
+  const signal = controller.signal;
+  if (hooks.signal?.aborted) controller.abort();
+  else hooks.signal?.addEventListener("abort", () => controller.abort(), { once: true });
+  if (record) held.set(record.id, controller);
+  try {
+    return await runHeld(prepared, context, connections, { host, record, refine, onOutput, signal });
+  } finally {
+    if (record && held.get(record.id) === controller) held.delete(record.id);
+  }
+}
+
+async function runHeld(prepared, context, connections, { host, record, refine, onOutput, signal }) {
   const append = async (part) => {
-    if (!record) return; // a conversation of the prompt bar has no record: nothing is appended anywhere
+    if (!record || signal.aborted) return; // a conversation of the prompt bar has no record: nothing is appended anywhere; a cancelled job appends nothing more
     const { defaultBranch } = await host.repositoryInfo();
     const snapshot = await host.readSnapshot(defaultBranch);
     const text = appendToRecord(await snapshot.read(record.path), part);

@@ -6,6 +6,12 @@ the job instruction names, keep the product's coding standards, and leave the bu
 a test passes before any code exists, stop and ask instead of going on. Push your branch, open a pull request, and
 report the `branch`, its `commits` and the `pullRequest`.
 
+## The task as the person gave it
+
+The task, where one is given, is the work asked for, within what the inputs below allow.
+
+{{instruction}}
+
 ## The step or item, with everything it rests on
 
 {{implementation-inputs}}

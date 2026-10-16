@@ -44,6 +44,39 @@ to the conversation record first where recording is on, runs the job with `runOn
 answer — for a draft, *Review the draft*, which keeps the `ConversationDraft` and goes to the subject's draft route;
 *Stop* aborts it. `latestDraft` and `currentJob` give the draft and the running message. A hand-over is ITM-505.
 
+It builds against MOD-prompt-bar's file as accepted at `4345829a`. There, the bar also passes the subject's `refuses`
+as `refuses`, and makes each Bridge with `settingsOf` and then `bridgeAt`.
+
+What the module file leaves unstated, and what is built:
+- **The participants.** The instance's `docs/participants.md`, read through the instance's host with `participantSchema`,
+  `readRegister` and `participantsOf`.
+- **Which participants are offered.** A model endpoint, a CLI agent or a sandboxed agent for which `reachedThrough` is
+  `null`, and whose route this browser reaches:
+  - an endpoint `endpoint <name>` whose setting `endpoint:<name>` the store keeps — and, where that setting names a
+    Bridge, whose `bridge:<bridge>` the store keeps;
+  - an agent `bridge <bridge> agent <agent>` whose `bridge:<bridge>` the store keeps.
+- **The connections handed to `runOnTab`.** They are built as the review pages build them
+  (`src/review-pages/jobs.mjs`, `connectionsOf`):
+  - an endpoint's configuration `{ name, kind, baseUrl: url, model, key }` and its `bridge` from its setting;
+  - each Bridge as `bridgeAt(settingsOf({ name, ...stored }, readSetting(store, "jump-host")))`.
+- **The context.** `tabContext` with:
+  - the product of `setup.product()`, or the instance when it gives `null`;
+  - `places` `{ sources: {}, mailbox: null, contents: [] }`, `gates` `[]` and `jobId` `null`;
+  - `person` the name of the token the store keeps for the page's repository, `null` without one;
+  - `agentM` `{ version, commit }`, both the instance snapshot's commit, as the review pages give it.
+- **What the tab keeps.** The conversation under the tab value `prompt-bar:conversation`, a list of `Message`s. The
+  latest draft under `prompt-bar:draft`. `latestDraft(store, subject)` gives that draft when its `subject` is the one
+  asked for, and `null` otherwise.
+- **The answer shown.** The text through `renderArtifact`, the number of rounds, and each finding the loop left in
+  MOD-text-tools' form. For a draft, a button *Review the draft* that keeps it and calls `go` with the subject's
+  `draftRoute`.
+- **What waits for ITM-505.** A hand-over the participant proposes is shown with its kind, what it works on and its task,
+  without *Hand over*.
+
+No existing test's expected result changes, release tests included. The tests of MOD-prompt-bar (ITM-503's record and
+switch) read `record.mjs`, which this item does not change. `tests/test_no_backend.py` permits MOD-prompt-bar one channel
+for its own data files, and the bar reaches the network only through the hosts and the Bridge client.
+
 ## Acceptance
 
 - In a small DOM with fixture participants, store and host: the selector, *Send*, a refused send naming why, the

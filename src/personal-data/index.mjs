@@ -1,9 +1,11 @@
-// MOD-personal-data — the canonical product settings schemas and the pseudonymisation reader.
+// MOD-personal-data — the canonical product settings schemas, the pseudonymisation reader and the search of a text for a mail's people.
 //
 // It reads only its own schema data files, once when this module loads. In Node those files come from disk; in a browser
 // they come from the module's own address. Product documents remain the caller's responsibility through MOD-documents.
 
 import { loadSchema } from "../documents/index.mjs";
+
+export { peopleIn, personHits } from "./people.mjs";
 
 const OWNER = "MOD-personal-data";
 const SETTINGS_SCHEMA_FILE = new URL("./settings.schema.md", import.meta.url);

@@ -78,7 +78,20 @@ per person who agreed to be named in the repository, with the columns *Name* (as
 - `People` — `{ names: string[], addresses: string[], phones: string[], accounts: string[] }`.
 - `peopleIn(mail: MailText) -> People` — every address and display name of the mail's headers, and every name, address,
   phone number and account handle found in its text and its signature. Deterministic; a person found twice is listed
-  once.
+  once. It finds each kind by its form:
+  - **addresses**: every mail address;
+  - **phone numbers**: every run of at least seven digits, which may start with `+` and be separated by blanks, hyphens,
+    slashes, dots or parentheses;
+  - **account handles**: every `@` followed by letters, digits, `_`, `-` or `.` that is not part of a mail address.
+  - **Names.** The display names of the headers, and in the text:
+    - the words that follow a greeting at the start of a line (*Dear*, *Hello*, *Hi*, *Hallo*, *Liebe*, *Lieber*,
+      *Sehr geehrte*, *Sehr geehrter*, with an optional *Mr*, *Ms*, *Herr*, *Frau* or *Dr*), up to the line's first
+      comma or its end;
+    - the line that follows a closing (*Regards*, *Best regards*, *Kind regards*, *Best*, *Thanks*, *Cheers*, *Viele
+      Grüße*, *Beste Grüße*, *Mit freundlichen Grüßen*, *Gruß*, *Grüße*);
+    - the first line of the signature, which starts after a line `-- `.
+
+  A name that none of these forms gives is not found here. The three checking participants find it (UC-038 step 6).
 - `Hit` — `{ kind: "name" | "address" | "phone" | "account", value: string, line: number, column: number }`.
 - `personHits(text: string, people: People) -> Hit[]` — every place in `text` where one of `people` appears: names also by
   their parts, addresses also by their local part, phone numbers by their digits whatever the separators, regardless of

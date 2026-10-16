@@ -49,6 +49,7 @@ uses:
   - MOD-release-evidence.auditDocument
   - MOD-artifact-edits.saveFile
   - MOD-source-register.personSource
+  - MOD-source-register.personAccount
   - MOD-prompt-bar.Subject
 provides:
   - view
@@ -74,6 +75,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
 - `index.mjs` — the interface: `view`.
 - `flow.mjs` — the template method: version choice and comparison, tree or table, filters, a row's detail, links.
+- `subject.mjs` — the subject the specification view gives the prompt bar: what is open, its kind and draft route, the
+  person's own source.
 - `views.mjs` — the five descriptors.
 - `diagram.mjs` — the component diagram of the modules view, as Mermaid.
 - `export.mjs` — saving the audit document in the browser.
@@ -138,7 +141,8 @@ instance's host that the frame gives every route, it also reads the instance's p
 - MOD-approvals.statuses — the review status of use cases and architecture files.
 - MOD-spec-changes.queues, MOD-spec-changes.requirementHistory — open proposals and a requirement's history.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — a requirement's sources with version and part;
-  MOD-source-register.personSource — the person's own source, which the subject of a requirement carries.
+  MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a
+  requirement carries.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar.
 - MOD-test-schedule.occasionsOf — when the schedule runs a test.
 - MOD-result-records.resultsAt, MOD-result-records.flakyTests, MOD-result-records.rateComparison,

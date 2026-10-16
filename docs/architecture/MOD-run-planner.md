@@ -114,7 +114,7 @@ limit or stops it.
   - recipe `implementation-inputs` — for a step or item: the file of each of its modules; the decision of their
     subsystem and the decision that states the system; the SPEC; the interfaces — the `## Interfaces` of their files, not
     the code — of the modules they use; the code in their folders and the tests that name them; the product's coding
-    standards file, if it has one; for a subsystem's integration, the subsystem's decision and the files, code and tests
+    standards file, `AGENTS.md` at its root, if it has one; for a subsystem's integration, the subsystem's decision and the files, code and tests
     of its modules; for the system, the decision that states it, the subsystems' decisions and the use cases. Each part
     names the sources whose content it carries, so that restricted content goes only where its source permits.
 

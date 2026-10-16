@@ -1,14 +1,17 @@
-// Independent ITM-418 requirements release battery, authored by Developer terra-d.
+// Independent ITM-418 requirements release battery, authored by Developer terra-d, and moved to the prompt bar and the review pages' route `draft` by ITM-514.
 // Successor: Team 2 Developer itm475-integration; implemented no UC-019 production behavior.
 // Original cases: TST-418101..104 by terra-d. Added cases: TST-418105..121 and counterproofs by the successor.
 // TST-418122..123 retain terra-d (Harvey)'s original TST-418127/130 assertions; transferred by developer-terra-e,
 // who implemented no UC-019 production behavior. Original assertion checkpoint: b0ce6dc86108c3ccf73b2d7b1ea94e48961cfdda.
 // TST-418124: independent actual-CI correction regression by developer-terra-e; no production implementation.
-// Module: MOD-review-pages; MOD-trace-pages; MOD-spec-changes; MOD-source-register; MOD-job-runner; MOD-runtimes
+// ITM-514: the flows of TST-418101..123 go through the prompt bar and the route `draft` (developer-sonnet-e, who implemented none of ITM-507, ITM-508 or ITM-551);
+// TST-418120 and TST-418124 start the actual workflow entry from the record the test writes, since the bar offers no hand-over yet (TST-377013).
+// Module: MOD-review-pages; MOD-trace-pages; MOD-site-frame; MOD-prompt-bar; MOD-spec-changes; MOD-source-register; MOD-job-runner; MOD-runtimes
 // Guards: UC-019
 // Level: release
 // Run: node --test tests/release-uc-019-change-requirements-by-prompt.test.mjs
-// All endpoint and repository traffic is controlled by app-harness; no paid service is called.
+// All endpoint and repository traffic is controlled by the harness of tests/system-uc-019-change-requirements-by-prompt.test.mjs, whose global fetch answers
+// in-memory servers and refuses every other origin; no paid service is called. Each test states its input and its expected values in its own text.
 
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
@@ -18,11 +21,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { press } from "./app-harness.mjs";
 import { ask, bridgeAt } from "../src/bridge-client/index.mjs";
-import { view as reviewPages } from "../src/review-pages/index.mjs";
 import { startRecord } from "../src/job-ledger/index.mjs";
-import { scenario, fromTrace, prepare, run, save, all, one, row, namedButton, draft, candidate,
+import { scenario, onRequirementPage, run, send, review, save, goTo, press, rest, statusOf, barOf, keptDraft, sentText, targetsOf, messageLines, all, one, row, namedButton, draft, candidate,
   SOURCE, LOAN, SHELF, CONFLICT, CHANGED, INSTRUCTION, SPEC, CURRENT_RULE, proposalWrites, proposalTexts, recordTexts, assertProposal } from "./system-uc-019-change-requirements-by-prompt.test.mjs";
 
 // UC-only exclusions from this requirements battery:
@@ -33,31 +34,37 @@ import { scenario, fromTrace, prepare, run, save, all, one, row, namedButton, dr
 // AN EDITED FILE KEEPS ITS IDENTIFIER: its SPEC rule enumerates use cases, architecture decisions and tests;
 //   requirement names follow the separate change/rename rules below.
 
+const resultOf = (s) => one(s.target, "section", "requirements-result");
+const roundsOf = (s) => keptDraft(s).result.rounds;
+const brokenThenFixed = () => [draft(candidate({ check: "" })), draft()];
+
 // TST-418101
 // level: release
-// module: MOD-review-pages; MOD-source-register
+// module: MOD-review-pages; MOD-prompt-bar; MOD-source-register
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: author github.com/akmaier uses their instance to edit bob/lending-tool; only SRC-author is linked
-// input: the public trace prompt control followed by Run and Save
-// expect: the author is not mistaken for bob; the job and proposal name SRC-author, despite the different product owner
+// input: the page of the requirement, the instruction in the bar, Send, Review the draft and Save
+// expect: the author is not mistaken for bob; the bar sends, the draft kept carries the source SRC-author, and the proposal names SRC-author, despite the different product owner
 test("TST-418101: prompting source follows the author account, not the product owner", async () => {
   const s = await scenario({ owner: "bob" });
-  await fromTrace(s);
-  assert.equal(all(s.target, "p", "no-source").length, 0, "the linked author source is available when the product owner differs");
-  await run(s);
-  assert.match(recordTexts(s)[0], /"source": "SRC-author"/);
+  await onRequirementPage(s);
+  await send(s);
+  assert.doesNotMatch(statusOf(s).textContent, /Nothing was sent/, "the linked author source is available when the product owner differs");
+  await review(s);
+  assert.equal(keptDraft(s).params.source, SOURCE);
+  await until(s, () => all(s.target, "section", "requirements-result").length === 1);
   await save(s);
   assert.match(assertProposal(s), /SRC-author/);
 });
 
 // TST-418102
 // level: release
-// module: MOD-review-pages; MOD-runtimes
+// module: MOD-prompt-bar; MOD-runtimes
 // guards: UC-019; ONE DEFINITION, THREE DRIVERS
 // given: the endpoint record names paired Bridge release-bridge, with its configured loopback address and token
-// input: the public requirement flow prepares and runs change-requirements
-// expect: no direct model request; one POST /v1/ask to that named Bridge carries the same instruction and context
-test("TST-418102: a named Bridge endpoint uses the Bridge transport in the public flow", async () => {
+// input: the prompt bar sends the message of change-requirements for the open requirement
+// expect: no direct model request; one POST /v1/ask to that named Bridge carries the same instruction and the requirement A LOAN HAS A DUE DATE
+test("TST-418102: a named Bridge endpoint uses the Bridge transport from the bar", async () => {
   const s = await scenario({ bridge: true });
   const positive = await ask(bridgeAt({ address: "http://127.0.0.1:9418", token: "fixture-pairing-token" }),
     { endpoint: { name: "fixture", baseUrl: "https://fixture-endpoint.example.test/v1", kind: "openai-compatible", model: "fixture-model", key: null } }, INSTRUCTION);
@@ -80,7 +87,7 @@ test("TST-418102: a named Bridge endpoint uses the Bridge transport in the publi
 // module: MOD-review-pages; MOD-source-register
 // guards: UC-019; A CONFLICT IS DECIDED BY A PERSON
 // given: a candidate from SRC-author (advisory) conflicts with LOAN from SRC-policy (normative)
-// input: Run and inspect the undecided conflict beside the existing requirement (UC-019 8a)
+// input: Send, Review the draft and inspect the undecided conflict beside the existing requirement (UC-019 8a)
 // expect: both sources and both authorities are visible in that conflict's panel before any decision or write
 test("TST-418103: the conflict panel shows both sources and their authority", async () => {
   const s = await scenario({ answers: [draft(candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))] });
@@ -92,75 +99,68 @@ test("TST-418103: the conflict panel shows both sources and their authority", as
 
 // TST-418104
 // level: release
-// module: MOD-review-pages; MOD-site-frame; MOD-runtimes
-// guards: UC-019; THE PAGE STATES WHAT IT SENDS WHERE
-// given: a returned editable draft and a follow-up instruction
-// input: edit the draft and press Refine, inspect the renewed disclosure, then press Run (UC-019 step 8 repeats 5-7)
-// expect: Refine exposes the current draft and follow-up in a new run panel before sending; Run makes exactly one further exchange
-test("TST-418104: Refine repeats disclosure and the send decision before another exchange", async () => {
-  const s = await scenario({ answers: [draft(), draft(candidate({ rule: "Every loan displays its final due date." }))] });
+// module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
+// guards: UC-019; THE PAGE NAMES WHERE IT SENDS
+// given: a returned draft on the route draft and a follow-up instruction written in the bar; the participant answers the follow-up with a draft of the same kind (the change kind reads only a draft)
+// input: write the follow-up "Make the display final." without pressing Send, then press Send
+// expect: before Send no further request is made; Send makes exactly one further exchange to the participant named by the bar ("Sent to: drafter — this machine"), whose message holds the follow-up and the draft as it stands - its rule "Every loan visibly displays its due date." - and nothing is written
+test("TST-418104: a follow-up in the bar is sent only on Send, with the draft as it stands", async () => {
+  const s = await scenario({ answers: [draft(), draft()] });
   await run(s);
-  const edit = one(row(s), "textarea", "candidate-rule");
-  edit.value = "Every loan displays the author's current draft.";
-  one(s.target, "textarea", "refinement").value = "Make the display final.";
-  await press(s.server, namedButton(s.target, "Refine"));
-  assert.equal(s.endpointRequests.length, 1, "the new panel precedes the next sending decision");
-  const panels = all(s.target, "section", "run-panel");
-  assert.ok(panels.some((panel) => panel.textContent.includes("Make the display final.") && panel.textContent.includes("current draft")), "the renewed panel discloses the follow-up and current draft");
-  assert.match(panels.at(-1).textContent, /2 existing requirements included\./);
-  assert.match(panels.at(-1).textContent, /0 use cases included\./);
-  const go = all(s.target, "button").find((button) => button.textContent === "Run" && !button.disabled);
-  assert.ok(go, "the renewed panel offers its Run decision");
-  await press(s.server, go);
+  assert.equal(s.endpointRequests.length, 1);
+  one(barOf(s), "textarea", "instruction").value = "Make the display final.";
+  await rest(s);
+  assert.equal(s.endpointRequests.length, 1, "nothing is sent before Send");
+  await send(s, "Make the display final.");
   assert.equal(s.endpointRequests.length, 2);
-  assert.match(JSON.stringify(s.endpointRequests[1].body), /author's current draft/);
-  assert.match(JSON.stringify(s.endpointRequests[1].body), /Make the display final\./);
+  assert.match(statusOf(s).textContent, /^Sent to:drafter — this machine/);
+  assert.ok(sentText(s, 1).includes("Make the display final."));
+  assert.ok(sentText(s, 1).includes("Every loan visibly displays its due date."), "the current draft goes with the follow-up");
+  assert.equal(s.product.writes.length, 0);
 });
-
-const sentText = (s, at = 0) => s.endpointRequests[at].body.messages[0].content;
-const resultOf = (s) => one(s.target, "section", "requirements-result");
-const runPrepared = (s) => press(s.server, namedButton(s.target, "Run"));
-const brokenThenFixed = () => [draft(candidate({ check: "" })), draft()];
 
 // TST-418105
 // level: release
-// module: MOD-review-pages; MOD-participant-list; MOD-site-frame
+// module: MOD-prompt-bar; MOD-participant-list; MOD-site-frame
 // guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
-// given: draft-capable endpoint and CI participants, plus a read-only observer
-// input: follow the public prompt route, choose the endpoint, prepare and Run
-// expect: only drafters are selectable, each processing place is visible, and every decision stage has a folded explanation
-test("TST-418105: eligible participants, processing places and folded explanations are visible", async () => {
+// given: a draft-capable endpoint participant (drafter, this machine) and a read-only one (observer, Anthropic, USA), and a CI agent that the bar does not offer
+// input: open the page of the requirement, read the bar, choose observer and press Send; then choose drafter, Send and Review the draft
+// expect: the selector names drafter and observer with their places and not the CI agent; observer is refused with "lacks the capability \"draft text\"" and nothing is sent; the bar and the draft page each hold a folded "What is this?"
+test("TST-418105: offered participants, processing places and folded explanations are visible", async () => {
   const s = await scenario();
-  await fromTrace(s);
-  assert.deepEqual(all(s.target, "input", "participant").map((node) => node.value), ["drafter", "ci-drafter"]);
-  for (const name of ["this machine", "GitHub Actions in the USA"]) assert.ok(s.target.textContent.includes(name));
-  const explanations = () => all(s.target, "details").filter((node) => node.textContent.includes("What is this?"));
-  assert.ok(explanations().length >= 2);
-  assert.ok(explanations().every((node) => !node.open));
-  await prepare(s);
-  assert.ok(explanations().length >= 3);
-  await runPrepared(s);
-  assert.ok(all(resultOf(s), "details").length > 0);
+  await onRequirementPage(s);
+  assert.deepEqual(all(barOf(s), "option").map((option) => option.textContent), ["drafter — this machine", "observer — Anthropic, USA"]);
+  const explanations = () => all(s.body, "details").filter((node) => node.textContent.includes("What is this?"));
+  assert.ok(explanations().length >= 2, "the page and the bar explain themselves");
+  assert.ok(all(barOf(s), "details").some((node) => node.textContent.includes("What is this?") && !node.open), "the bar's explanation is folded");
+  await send(s, INSTRUCTION, { participant: "observer" });
+  assert.match(statusOf(s).textContent, /observer, the drafter of this job of change-requirements, lacks the capability "draft text"/);
+  assert.equal(s.endpointRequests.length, 0);
+  await send(s, INSTRUCTION, { participant: "drafter" });
+  await review(s);
+  assert.ok(all(s.target, "details").some((node) => node.textContent.includes("What is this?") && !node.open), "the draft page's explanation is folded");
+  assert.equal(all(resultOf(s), "details").length > 0, true);
 });
 
 // TST-418106
 // level: release
-// module: MOD-review-pages; MOD-spec-changes; MOD-job-runner
-// guards: UC-019; DERIVATION SEES THE EXISTING REQUIREMENTS; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; THE PAGE STATES WHAT IT SENDS WHERE
-// given: two SPEC requirements and an actual open proposal generated by the public Save flow
-// input: prepare a new job against that repository, inspect disclosure, then Run
-// expect: no send before Run; the endpoint receives the instruction, both SPEC rules, the queued rule, and chapter 8 byte-for-byte
+// module: MOD-prompt-bar; MOD-spec-changes; MOD-job-runner
+// guards: UC-019; DERIVATION SEES THE EXISTING REQUIREMENTS; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING; THE PAGE NAMES WHERE IT SENDS
+// given: two SPEC requirements and an actual open proposal generated by the bar's draft and its Save
+// input: on a new page of that repository write the instruction in the bar; Send
+// expect: no send before Send; the bar names "drafter — this machine" as the destination; the endpoint receives the instruction, both SPEC rules, the queued rule, and chapter 8 byte-for-byte
 test("TST-418106: complete SPEC, open queues and the whole original chapter reach the participant", async () => {
   const queued = await scenario({ answers: [draft(candidate({ name: "A LOAN IS RENEWABLE", class: "new", of: undefined, rule: "Every loan permits renewal." }))] });
   await run(queued); await save(queued);
   const extraFiles = Object.fromEntries(Object.entries(queued.product.files).filter(([path]) => path.startsWith("docs/spec-freigaben/")));
   assert.ok(Object.keys(extraFiles).length >= 4, "known positive: a real open queue was generated");
   const s = await scenario({ extraFiles });
-  const panel = await prepare(s);
-  assert.match(panel.textContent, /drafter.*model: fixture-model.*processes data at: this machine/s);
-  assert.match(panel.textContent, /SPEC.md with its open queues/);
+  await onRequirementPage(s);
+  one(barOf(s), "textarea", "instruction").value = INSTRUCTION;
+  await rest(s);
   assert.equal(s.endpointRequests.length, 0);
-  await runPrepared(s);
+  await send(s);
+  assert.match(statusOf(s).textContent, /^Sent to:drafter — this machine/);
   const text = sentText(s);
   for (const required of [INSTRUCTION, LOAN, SHELF, CURRENT_RULE, "Every book has a shelf.", "A LOAN IS RENEWABLE", "Every loan permits renewal.", s.chapter]) assert.ok(text.includes(required), `complete input includes ${required.slice(0, 70)}`);
   assert.equal(proposalWrites(s).length, 0);
@@ -168,17 +168,18 @@ test("TST-418106: complete SPEC, open queues and the whole original chapter reac
 
 // TST-418107
 // level: release
-// module: MOD-review-pages; MOD-job-runner; MOD-site-frame
+// module: MOD-prompt-bar; MOD-job-runner
 // guards: UC-019; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
-// given: the complete requirements/chapter context and a participant with a one-token capacity
-// input: prepare the job (UC-019 4a)
-// expect: a capacity diagnosis precedes any request, Run is absent, all parts remain disclosed, and nothing is written
-test("TST-418107: a too-small context stops without truncation or a send decision", async () => {
+// given: the complete requirements/chapter context and a participant, drafter, with a one-token capacity; observer holds 200000
+// input: the page of the requirement, choose drafter, Send (UC-019 4a)
+// expect: nothing is sent and nothing is written; the bar says "Nothing was sent.", "drafter does not hold this message: its context holds 1 tokens" and "Choose observer, whose context is larger."
+test("TST-418107: a too-small context stops without truncation or a send", async () => {
   const s = await scenario({ context: 1 });
-  const panel = await prepare(s);
-  assert.match(one(panel, "p", "not-fitting").textContent, /drafter cannot hold.*context holds 1/);
-  assert.equal(all(panel, "button").some((node) => node.textContent === "Run"), false);
-  assert.match(panel.textContent, /SPEC.md with its open queues/);
+  await onRequirementPage(s);
+  await send(s, INSTRUCTION, { participant: "drafter" });
+  assert.match(statusOf(s).textContent, /^Nothing was sent\./);
+  assert.match(statusOf(s).textContent, /drafter does not hold this message: its context holds 1 tokens, the job needs about \d+\./);
+  assert.match(statusOf(s).textContent, /Choose observer, whose context is larger\./);
   assert.equal(s.endpointRequests.length, 0); assert.equal(s.product.writes.length, 0);
 });
 
@@ -187,8 +188,8 @@ test("TST-418107: a too-small context stops without truncation or a send decisio
 // module: MOD-review-pages; MOD-job-runner; MOD-documents
 // guards: UC-019; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // given: one new, changed, restated and conflicting candidate, with the restatement wrongly classed new
-// input: Run twice through the deterministic correction loop, correcting the duplicate classification
-// expect: the duplicate finding names LOAN before any extra model classification; the editor exposes all four actual classes
+// input: Send through the deterministic correction loop, correcting the duplicate classification, and Review the draft
+// expect: the duplicate finding names LOAN before any extra model classification; the draft exposes all four actual classes
 test("TST-418108: deterministic duplicate correction retains the four candidate classes", async () => {
   const fresh = candidate({ name: "A LOAN IS RENEWABLE", rule: "Every loan permits renewal.", class: "new", of: undefined });
   const duplicate = candidate({ name: "A DUE DATE IS STATED", rule: CURRENT_RULE, class: "new", of: undefined });
@@ -206,7 +207,7 @@ test("TST-418108: deterministic duplicate correction retains the four candidate 
 // module: MOD-review-pages; MOD-spec-changes; MOD-markdown-render
 // guards: UC-019; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: a changed candidate whose display name differs from its existing target
-// input: inspect its current-text difference, edit the rule, then Save
+// input: inspect its current-text difference on the route draft, then Save
 // expect: old and new lines are shown before Save; the proposal retains LOAN, excludes the candidate name, and preserves SHELF
 test("TST-418109: a changed rule is compared and proposed under its existing identifier", async () => {
   const s = await scenario(); await run(s);
@@ -222,23 +223,27 @@ test("TST-418109: a changed rule is compared and proposed under its existing ide
 
 // TST-418110
 // level: release
-// module: MOD-review-pages; MOD-spec-changes; MOD-job-runner
+// module: MOD-prompt-bar; MOD-review-pages; MOD-spec-changes; MOD-job-runner
 // guards: UC-019; A SPEC EDIT IS SAVED AS A PROPOSAL; A GENERATED ARTIFACT IS A PROPOSAL; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: an untouched page, a prepared job and an editable result
-// input: pause before Run and Save, then press each once
-// expect: no repository write before Run, no proposal before Save; one Save writes one open queue, unchanged SPEC and complete commit provenance
-test("TST-418110: explicit Run and one Save preserve proposal state and complete provenance", async () => {
-  const s = await scenario(); await prepare(s);
+// given: an untouched page, an instruction typed in the bar and an editable draft
+// input: pause before Send and before Save, then press each once
+// expect: no request and no write before Send; none to the repository after it; one Save writes one open queue, unchanged SPEC and the provenance lines Agent-M-Version, Agent-M-Kind: change-requirements, Agent-M-Participant: drafter, Agent-M-Model: fixture-model, Agent-M-Rounds: 1, with no Agent-M-Job line, no line naming the instruction and no job record
+test("TST-418110: explicit Send and one Save preserve proposal state and complete provenance", async () => {
+  const s = await scenario(); await onRequirementPage(s);
+  one(barOf(s), "textarea", "instruction").value = INSTRUCTION;
+  await rest(s);
   assert.equal(s.product.writes.length, 0); assert.equal(s.endpointRequests.length, 0);
-  await runPrepared(s);
+  await send(s); await review(s);
   assert.equal(proposalWrites(s).length, 0);
+  assert.equal(s.endpointRequests.length, 1);
   await save(s); assertProposal(s);
-  const write = proposalWrites(s)[0];
-  for (const trailer of ["Agent-M-Version:", "Agent-M-Job:", "Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter", "Agent-M-Model: fixture-model", "Agent-M-Rounds: 1"]) assert.ok(write.message.includes(trailer), trailer);
-  assert.ok(!write.message.split("\n").some((line) => line.includes("Agent-M-Instruction") || line.includes(INSTRUCTION)), "no line names the instruction");
+  const write = proposalWrites(s)[0], lines = messageLines(write);
+  assert.ok(lines.some((line) => line.startsWith("Agent-M-Version: ")));
+  for (const trailer of ["Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter", "Agent-M-Model: fixture-model", "Agent-M-Rounds: 1"]) assert.ok(lines.includes(trailer), trailer);
+  assert.ok(lines.every((line) => !line.startsWith("Agent-M-Job:") && !line.includes("Agent-M-Instruction") && !line.includes(INSTRUCTION)), "no job line, no line names the instruction");
   const decisions = Object.entries(write.files).find(([path]) => path.endsWith("/entscheidungen.md"));
   assert.ok(decisions); assert.doesNotMatch(decisions[1], /akzeptiert|accepted/i);
-  assert.match(recordTexts(s)[0], /start: \d{4}-\d{2}-\d{2}/);
+  assert.equal(recordTexts(s).length, 0);
 });
 
 // TST-418111
@@ -250,7 +255,7 @@ test("TST-418110: explicit Run and one Save preserve proposal state and complete
 // expect: zero additional write and the exact draft retained beside that newer section
 test("TST-418111: stale Save retains the exact edit beside the newer baseline", async () => {
   const s = await scenario(); await run(s);
-  const edit = one(row(s), "textarea", "candidate-rule"); edit.value = "Every loan shows the person's retained edit.";
+  const edit = one(row(s), "textarea", "candidate-rule"); edit.value = "Every loan shows the person's retained edit."; edit.dispatchEvent(new Event("input"));
   await s.product.change("SPEC.md", SPEC.replace(CURRENT_RULE, "Every loan states its revised due date."));
   const before = s.product.writes.length; await save(s);
   assert.equal(s.product.writes.length, before);
@@ -262,43 +267,48 @@ test("TST-418111: stale Save retains the exact edit beside the newer baseline", 
 // level: release
 // module: MOD-review-pages; MOD-job-runner
 // guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; WHAT A PERSON DECIDES IS NOT SENT BACK
-// given: one otherwise valid conflicting requirement
-// input: Run, Save while undecided, then choose change and Save
-// expect: one endpoint call, no automatic conflict correction, zero proposal while undecided, then the person's exact decision in one proposal
+// given: one otherwise valid conflicting requirement beside a valid change
+// input: Send, Review the draft, Save while undecided; in a second page choose change and Save
+// expect: one endpoint call and one correction round in each, no automatic conflict correction; undecided: the proposal does not hold the conflict's rule; decided: it holds the person's exact decision
 test("TST-418112: the person alone decides a conflict without another participant call", async () => {
-  const s = await scenario({ answers: [draft(candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))] });
-  await run(s); assert.equal(s.endpointRequests.length, 1);
-  await save(s); assert.equal(proposalWrites(s).length, 0);
-  assert.match(s.target.textContent, /ConflictUndecided/);
-  one(row(s, CONFLICT), "select", "class").value = "change";
-  await save(s); assertProposal(s); assert.equal(s.endpointRequests.length, 1);
+  const answers = [draft(candidate(), candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))];
+  const undecided = await scenario({ answers }); await run(undecided);
+  assert.equal(undecided.endpointRequests.length, 1);
+  assert.equal(one(undecided.target, "p", "rounds").textContent, "Correction rounds: 1");
+  await save(undecided);
+  assert.ok(!assertProposal(undecided).includes("Every loan may hide its due date."));
+  assert.equal(undecided.endpointRequests.length, 1);
+  const decided = await scenario({ answers }); await run(decided);
+  const choice = one(row(decided, CONFLICT), "select", "class"); choice.value = "change"; choice.dispatchEvent(new Event("change"));
+  await save(decided); assert.match(assertProposal(decided), /Every loan may hide its due date\./); assert.equal(decided.endpointRequests.length, 1);
 });
 
 // TST-418113
 // level: release
-// module: MOD-review-pages; MOD-runtimes; MOD-job-runner
+// module: MOD-prompt-bar; MOD-review-pages; MOD-job-runner
 // guards: UC-019; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; THE ROUNDS ARE COUNTED AND SHOWN
 // given: a candidate missing its check, followed by the corrected candidate
-// input: Run
-// expect: the same endpoint receives draft and compiler-complete finding; only the corrected draft reaches the editor; both rounds are displayed and recorded
+// input: Send and Review the draft
+// expect: the same endpoint receives draft and compiler-complete finding; only the corrected draft reaches the editor; both rounds are shown on the draft page ("Correction rounds: 2") and kept with the first round's finding
 test("TST-418113: an invalid draft goes back with its complete compiler finding", async () => {
-  const s = await scenario({ answers: [draft(candidate({ check: "" })), draft()] }); await run(s);
+  const s = await scenario({ answers: brokenThenFixed() }); await run(s);
   assert.equal(s.endpointRequests.length, 2);
   const correction = sentText(s, 1);
   assert.match(correction, /A DUE DATE IS VISIBLE:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
   assert.match(correction, /Current draft to change/);
   assert.equal(one(row(s), "textarea", "candidate-check").value, candidate().check);
-  assert.match(one(resultOf(s), "p", "rounds").textContent, /Correction rounds: 2/);
-  assert.match(recordTexts(s)[0], /Round 1.*A REQUIREMENT HAS FOUR FIELDS.*Round 2/s);
+  assert.equal(one(s.target, "p", "rounds").textContent, "Correction rounds: 2");
+  assert.equal(roundsOf(s).length, 2);
+  assert.match(JSON.stringify(roundsOf(s)[0].findings), /A REQUIREMENT HAS FOUR FIELDS/);
 });
 
 // TST-418114
 // level: release
-// module: MOD-review-pages; MOD-runtimes; MOD-job-runner
+// module: MOD-prompt-bar; MOD-review-pages; MOD-job-runner
 // guards: UC-019; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
 // given: a rule with a conjunction, followed by the same rule and a one-line justification of its exact finding
-// input: Run
-// expect: two exchanges, justified warning recorded, no remaining finding and no silent rewrite of the author's rule
+// input: Send and Review the draft
+// expect: two exchanges, justified warning kept with the draft, no remaining finding on the page and no silent rewrite of the author's rule
 test("TST-418114: a warning ends only after its one-line justification", async () => {
   const both = draft(candidate({ rule: "Every loan shows its due date and its renewal limit." }));
   const s = await scenario({ answers: [both, (requests) => {
@@ -308,59 +318,62 @@ test("TST-418114: a warning ends only after its one-line justification", async (
     return { draft: both, answers: [{ finding: line, how: "justified", text: "Both displays form one visible state." }] };
   }] }); await run(s);
   assert.equal(s.endpointRequests.length, 2);
-  assert.equal(all(one(resultOf(s), "ul", "left"), "li").length, 0);
-  assert.match(recordTexts(s)[0], /justified: Both displays form one visible state\./);
+  assert.equal(all(one(s.target, "ul", "left"), "li").length, 0);
+  assert.match(JSON.stringify(roundsOf(s)), /Both displays form one visible state\./);
   assert.equal(one(row(s), "textarea", "candidate-rule").value, both.candidates[0].rule);
 });
 
 // TST-418115
 // level: release
-// module: MOD-review-pages; MOD-job-runner
+// module: MOD-prompt-bar; MOD-review-pages; MOD-job-runner
 // guards: UC-019; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A COMPILER MESSAGE
 // given: five different invalid drafts that cannot trigger an unchanged-round early stop
-// input: inspect the default limit before Run, then Run
-// expect: exactly five exchanges; the editor shows round count and the last artifact, line, error kind, named rule and expected correction
-test("TST-418115: the declared five-round cap retains compiler-complete remaining findings", async () => {
+// input: Send, then Review the draft
+// expect: exactly five exchanges; the bar and the draft page show five rounds; the draft page lists the finding left in the compiler form, with its artifact "VISIBLE DUE DATE 4", a line, the kind error, the rule by name and the correction expected; the draft the bar kept holds the finding with its artifact "VISIBLE DUE DATE 4", a line, the kind error and the rule; the loop stopped because of the limit
+test("TST-418115: the declared five-round cap retains the remaining findings", async () => {
   const answers = Array.from({ length: 5 }, (_, i) => draft(candidate({ name: `VISIBLE DUE DATE ${i}`, check: "" })));
-  const s = await scenario({ answers }); const panel = await prepare(s);
-  assert.match(one(panel, "p", "limit").textContent, /at most 5/); await runPrepared(s);
+  const s = await scenario({ answers }); await onRequirementPage(s); await send(s);
   assert.equal(s.endpointRequests.length, 5);
-  assert.match(one(resultOf(s), "p", "rounds").textContent, /Correction rounds: 5/);
-  assert.match(one(resultOf(s), "ul", "left").textContent, /VISIBLE DUE DATE 4:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
-  assert.match(recordTexts(s)[0], /stopped because: limit.*limit: 5/);
+  assert.match(statusOf(s).textContent, /Rounds: 5/);
+  await review(s);
+  assert.equal(one(s.target, "p", "rounds").textContent, "Correction rounds: 5");
+  assert.match(one(s.target, "ul", "left").textContent, /^VISIBLE DUE DATE 4:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
+  const [left] = keptDraft(s).result.remaining;
+  assert.deepEqual([left.artifact, left.kind, left.rule, left.line >= 1], ["VISIBLE DUE DATE 4", "error", "A REQUIREMENT HAS FOUR FIELDS", true]);
+  assert.equal(keptDraft(s).result.stoppedBecause, "limit");
 });
 
 // TST-418116
 // level: release
-// module: MOD-review-pages; MOD-job-runner
+// module: MOD-prompt-bar; MOD-review-pages; MOD-job-runner
 // guards: UC-019; THE CORRECTION LOOP HAS A FIXED LIMIT; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: the same invalid draft on every exchange
-// input: Run
-// expect: the unchanged finding ends the loop after two exchanges, with its remaining finding and no proposal
+// input: Send, then Review the draft
+// expect: the unchanged finding ends the loop after two exchanges, with its remaining finding on the page and no proposal
 test("TST-418116: an unchanged finding stops early without writing a proposal", async () => {
   const s = await scenario({ answers: [draft(candidate({ check: "" }))] }); await run(s);
   assert.equal(s.endpointRequests.length, 2); assert.equal(proposalWrites(s).length, 0);
-  assert.match(one(resultOf(s), "ul", "left").textContent, /no check/);
-  assert.match(recordTexts(s)[0], /stopped because: unchanged/);
+  assert.match(one(s.target, "ul", "left").textContent, /no check/);
+  assert.equal(keptDraft(s).result.stoppedBecause, "unchanged");
 });
 
 // TST-418117
 // level: release
-// module: MOD-review-pages; MOD-job-runner
+// module: MOD-prompt-bar; MOD-job-runner
 // guards: UC-019; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A GENERATED ARTIFACT IS A PROPOSAL
 // given: a participant repeatedly returning malformed artifact text (UC-019 6c)
-// input: prepare and Run
-// expect: two correction exchanges, a named unusable result, exact raw answer folded, no candidate editor, Save or proposal
+// input: Send
+// expect: two correction exchanges, a named unusable result, exact raw answer folded, no Review the draft, no candidate editor, and no write or proposal
 test("TST-418117: an unusable answer remains folded and cannot be saved", async () => {
   const raw = "not an artifact: retained verbatim";
-  const s = await scenario({ answers: [raw] }); await prepare(s); await runPrepared(s);
+  const s = await scenario({ answers: [raw] }); await onRequirementPage(s); await send(s);
   assert.equal(s.endpointRequests.length, 2);
-  assert.equal(all(s.target, "p", "unusable").length, 1);
-  const folded = one(s.target, "details", "raw"); assert.ok(!folded.open);
-  assert.equal(one(folded, "pre", "answer").textContent, raw);
+  assert.match(statusOf(s).textContent, /The participant's answer could not be read\. Nothing was changed\./);
+  const folded = one(statusOf(s), "details", "raw"); assert.ok(!folded.open);
+  assert.equal(one(folded, "pre").textContent, raw);
+  assert.equal(all(barOf(s), "button", "review").length, 0);
   assert.equal(all(s.target, "section", "requirements-result").length, 0);
-  assert.equal(all(s.target, "button").some((node) => node.textContent === "Save"), false);
-  assert.equal(proposalWrites(s).length, 0); assert.equal(s.product.files["SPEC.md"], SPEC);
+  assert.equal(s.product.writes.length, 0); assert.equal(proposalWrites(s).length, 0); assert.equal(s.product.files["SPEC.md"], SPEC);
 });
 
 // TST-418118
@@ -371,10 +384,9 @@ test("TST-418117: an unusable answer remains folded and cannot be saved", async 
 // input: rename LOAN to CHANGED, inspect its impact, then Save once with a reason
 // expect: the impact explicitly withdraws LOAN and adds CHANGED; the proposal has only the new name, while SPEC remains unchanged
 test("TST-418118: a manual requirement rename is proposed as withdrawal plus addition", async () => {
-  const s = await scenario();
-  await reviewPages.routes.find((route) => route.name === "requirement").render(s.target, s.viewContext, { name: LOAN });
+  const s = await scenario(); await onRequirementPage(s);
   const area = all(s.target, "textarea").find((node) => !node.className.split(/\s+/).includes("why"));
-  assert.ok(area); area.value = area.value.replace(`**${LOAN}**`, `**${CHANGED}**`); await area.fire("input");
+  assert.ok(area); area.value = area.value.replace(`**${LOAN}**`, `**${CHANGED}**`); area.dispatchEvent(new Event("input"));
   assert.match(one(s.target, "ul", "impact").textContent, /A LOAN HAS A DUE DATE.*withdrawn.*A DUE DATE IS VISIBLE.*added/s);
   one(s.target, "textarea", "why").value = "Use the displayed name.";
   await save(s);
@@ -384,18 +396,18 @@ test("TST-418118: a manual requirement rename is proposed as withdrawal plus add
 
 // TST-418119
 // level: release
-// module: MOD-review-pages; MOD-spec-changes
-// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE PAGE STATES WHAT IT SENDS WHERE
-// given: a draft followed by a newer SPEC section while the author refines
-// input: Refine, Run, inspect the new current text, then Save
-// expect: refinement uses the latest snapshot for both difference and Save, not the first draft's stale baseline
-test("TST-418119: a refined draft uses the latest disclosed section as its Save baseline", async () => {
+// module: MOD-prompt-bar; MOD-review-pages; MOD-spec-changes
+// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE PAGE NAMES WHERE IT SENDS
+// given: a draft, then a newer SPEC section while the author is still on the page, and the page drawn again
+// input: write a further instruction in the bar, Send, Review the draft, inspect the current text, then Save
+// expect: the new message carries the newer section, the draft shows the newer section as the current text, and Save writes one proposal on it without a refusal
+test("TST-418119: a message sent after the section changed uses the latest section as its Save baseline", async () => {
   const s = await scenario({ answers: [draft(), draft(candidate({ rule: "Every loan displays its final due date." }))] }); await run(s);
   const newer = SPEC.replace(CURRENT_RULE, "Every loan states its revised due date."); await s.product.change("SPEC.md", newer);
-  one(s.target, "textarea", "refinement").value = "Make the display final.";
-  await press(s.server, namedButton(s.target, "Refine"));
-  assert.equal(s.endpointRequests.length, 1);
-  await press(s.server, all(s.target, "button").find((node) => node.textContent === "Run" && !node.disabled));
+  await onRequirementPage(s);
+  await send(s, "Make the display final.");
+  await review(s);
+  assert.equal(s.endpointRequests.length, 2);
   assert.match(sentText(s, 1), /Every loan states its revised due date\./);
   assert.match(one(row(s), "section", "current-requirement").textContent, /Every loan states its revised due date\./);
   await save(s); assert.equal(proposalWrites(s).length, 1); assert.equal(s.product.files["SPEC.md"], newer);
@@ -425,7 +437,7 @@ async function withWorkflow(s, answers, verify) {
   const root = mkdtempSync(join(tmpdir(), "agent-m-418-ci-"));
   try {
     mkdirSync(join(root, "ws"));
-    const instance = workflowRepository(root, "instance", s.server.files);
+    const instance = workflowRepository(root, "instance", s.instance.files);
     const agentM = { version: "2026.10.0", commit: instance.commit }, id = "JOB-20261014-0900-a418";
     const record = startRecord({ id, kind: "change-requirements", worksOn: [LOAN], participant: "ci-drafter", model: "ci-model", route: "ci hosted",
       run: null, retries: null, startedBy: "github.com/akmaier", start: new Date("2026-10-14T09:00:00Z"), agentM,
@@ -451,15 +463,14 @@ async function withWorkflow(s, answers, verify) {
 
 // TST-418120
 // level: release
-// module: MOD-review-pages; MOD-workflow-entries; MOD-spec-changes; MOD-job-runner
+// module: MOD-workflow-entries; MOD-spec-changes; MOD-job-runner
 // guards: UC-019; A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-// given: the public CI selection and a local workflow workspace with the endpoint-bearing record contract used by the existing working CI runner
-// input: click Run to queue, then invoke the real onRecordsChanged entry on a fresh queued CI record
-// expect: the tab neither contacts the endpoint nor offers an editor; the actual workflow writes an undecided queue to main with provenance, never SPEC or an acceptance
+// given: the product of the bar's page and a local workflow workspace with the endpoint-bearing record contract used by the existing working CI runner (the record is written by the test, since the bar offers no hand-over: TST-377013)
+// input: invoke the real onRecordsChanged entry on a fresh queued CI record
+// expect: the actual workflow writes an undecided queue to main with provenance, never SPEC or an acceptance
 test("TST-418120: the actual CI entry commits requirements only as an open proposal", async () => {
-  const s = await scenario(); await prepare(s, { participant: "ci-drafter" }); await runPrepared(s);
-  assert.equal(s.endpointRequests.length, 0); assert.equal(all(s.target, "section", "requirements-result").length, 0);
-  assert.equal(all(s.target, "p", "queued").length, 1); assert.equal(proposalWrites(s).length, 0);
+  const s = await scenario();
+  assert.equal(s.endpointRequests.length, 0); assert.equal(proposalWrites(s).length, 0);
   await withWorkflow(s, [draft()], async ({ status, requests, agentM, product }) => {
     assert.equal(status.outcome, "done", status.summary); assert.equal(requests.length, 1);
     assert.ok(requests[0].messages[0].content.includes(INSTRUCTION)); assert.ok(requests[0].messages[0].content.includes(SHELF));
@@ -477,16 +488,16 @@ test("TST-418120: the actual CI entry commits requirements only as an open propo
 
 // TST-418121
 // level: release
-// module: MOD-review-pages; MOD-site-frame
-// guards: UC-019; THE PAGE STATES WHAT IT SENDS WHERE
+// module: MOD-prompt-bar; MOD-job-runner
+// guards: UC-019; THE PAGE NAMES WHERE IT SENDS
 // given: two existing requirements and no use-case input in the requirements branch
-// input: prepare without Run (UC-019 step 5)
-// expect: the run panel states both included counts before the sending decision
-test("TST-418121: the run panel states included requirement and use-case counts before sending", async () => {
-  const s = await scenario(); const panel = await prepare(s);
-  assert.match(panel.textContent, /2\s+(?:existing\s+)?requirements?\s+(?:included|sent)/i);
-  assert.match(panel.textContent, /0\s+use[ -]cases?\s+(?:included|sent)/i);
-  assert.equal(s.endpointRequests.length, 0); assert.equal(s.product.writes.length, 0);
+// input: the page of the requirement, an instruction in the bar, Send
+// expect: the bar states how many requirements and how many use cases the message holds - 2 requirements and 0 use cases - with the destination
+test("TST-418121: the bar states included requirement and use-case counts with its destination", { todo: "FINDING UC019-S10 - the bar names its destination (\"Sent to: drafter — this machine\", onSend in MOD-prompt-bar's bar.mjs) but not how many requirements or use cases the message holds; the run panel that stated them (src/site-frame/run-panel.mjs) is not part of the bar" }, async () => {
+  const s = await scenario(); await onRequirementPage(s); await send(s);
+  assert.match(statusOf(s).textContent, /^Sent to:drafter — this machine/, "known positive: the destination is named");
+  assert.match(statusOf(s).textContent, /2\s+(?:existing\s+)?requirements?\s+(?:included|sent)/i);
+  assert.match(statusOf(s).textContent, /0\s+use[ -]cases?\s+(?:included|sent)/i);
 });
 
 // TST-418122
@@ -494,8 +505,8 @@ test("TST-418121: the run panel states included requirement and use-case counts 
 // module: MOD-job-runner; MOD-runtimes; MOD-review-pages
 // guards: UC-019; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED
 // given: a warning-containing rule, whose next answer retains it and justifies the exact finding received
-// input: Run; fixture participant echoes that finding in answers with how justified and a one-line reason
-// expect: the justified warning ends after two rounds with no remaining warning and its reason recorded
+// input: Send; fixture participant echoes that finding in answers with how justified and a one-line reason
+// expect: the justified warning ends after two rounds with no remaining warning and its reason kept with the draft
 test("TST-418122: a warning justified using the received finding ends the loop", async () => {
   const warning = draft(candidate({ rule: "Every loan shows a due date and a time." }));
   const s = await scenario({ answers: [warning, (requests) => {
@@ -506,8 +517,8 @@ test("TST-418122: a warning justified using the received finding ends the loop",
   }] });
   await run(s);
   assert.equal(s.endpointRequests.length, 2);
-  assert.equal(all(one(s.target, "section", "requirements-result"), "li", "left").length, 0, "the justified warning is settled");
-  assert.match(recordTexts(s)[0], /justified: Date and time are one displayed timestamp\./);
+  assert.equal(all(one(s.target, "ul", "left"), "li").length, 0, "the justified warning is settled");
+  assert.match(JSON.stringify(roundsOf(s)), /Date and time are one displayed timestamp\./);
 });
 
 // TST-418123
@@ -515,13 +526,14 @@ test("TST-418122: a warning justified using the received finding ends the loop",
 // module: MOD-review-pages; MOD-job-runner; MOD-runtimes
 // guards: UC-019; THE ROUNDS ARE COUNTED AND SHOWN
 // given: a two-round job whose first draft lacks a check and whose second draft fixes it
-// input: Run and inspect the draft page and the persisted job record
-// expect: the page shows two rounds and the first round's finding, while the record includes both rounds and that finding
-test("TST-418123: the page and record show the correction rounds and their findings", async () => {
+// input: Send and Review the draft; inspect the draft page and the draft the bar kept
+// expect: the page shows two rounds; the kept draft holds both rounds and the first round's finding "no check"
+test("TST-418123: the page and the kept draft show the correction rounds and their findings", async () => {
   const s = await scenario({ answers: brokenThenFixed() }); await run(s);
   assert.match(one(s.target, "p", "rounds").textContent, /2/);
-  assert.match(one(s.target, "section", "requirements-result").textContent, /no check/, "the first round's finding is shown with the corrected draft");
-  const record = recordTexts(s)[0]; assert.match(record, /Round 1/); assert.match(record, /Round 2/); assert.match(record, /no check/);
+  assert.equal(roundsOf(s).length, 2);
+  assert.match(JSON.stringify(roundsOf(s)[0].findings), /no check/);
+  assert.deepEqual(roundsOf(s)[1].findings, [], "the second round passes");
 });
 
 // TST-418124
@@ -529,10 +541,10 @@ test("TST-418123: the page and record show the correction rounds and their findi
 // module: MOD-workflow-entries; MOD-endpoint-calls; MOD-job-runner; MOD-spec-changes
 // guards: UC-019; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; A CI AGENT'S DRAFT ENTERS AS OPEN; ONE DEFINITION, THREE DRIVERS; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: the established local-origin CI fixture; a first candidate has an empty check and the second corrects it
-// input: queue through the public CI flow, then invoke actual onRecordsChanged in a fresh process with controlled endpoint answers
+// input: invoke actual onRecordsChanged in a fresh process with controlled endpoint answers on a fresh queued CI record
 // expect: two actual model requests; the second contains the exact rejected draft and canonical finding; the corrected proposal stays open, SPEC unchanged, with two-round provenance
 test("TST-418124: the actual CI correction request carries its rejected draft and canonical finding", async () => {
-  const s = await scenario(); await prepare(s, { participant: "ci-drafter" }); await runPrepared(s);
+  const s = await scenario();
   assert.equal(s.endpointRequests.length, 0); assert.equal(proposalWrites(s).length, 0);
   const invalid = draft(candidate({ check: "" }));
   await withWorkflow(s, [invalid, draft()], async ({ status, requests, agentM, record, product }) => {
@@ -544,7 +556,7 @@ test("TST-418124: the actual CI correction request carries its rejected draft an
     const finding = job.split("\n").find((line) => line.startsWith(`- ${CHANGED}:`) && line.includes(": error: no check [A REQUIREMENT HAS FOUR FIELDS]"));
     assert.ok(finding, "the actual CI job record retains the first-round finding");
     const canonical = finding.slice(2);
-    assert.match(canonical, /^A DUE DATE IS VISIBLE:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\] \u2014 add a line \*Check:\* that names the test guarding the rule, or says: no automatic check; at review\.$/);
+    assert.match(canonical, /^A DUE DATE IS VISIBLE:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\] — add a line \*Check:\* that names the test guarding the rule, or says: no automatic check; at review\.$/);
     assert.ok(correction.includes(canonical), "the second actual CI request contains the recorded canonical finding verbatim");
     assert.match(job, /Round 1.*no check.*Round 2.*stopped because: passed/s);
     assert.equal(git(product.origin, "show", "main:SPEC.md"), SPEC);
@@ -562,48 +574,78 @@ test("TST-418124: the actual CI correction request carries its rejected draft an
   });
 });
 
+// TST-418125
+// level: release
+// module: MOD-prompt-bar; MOD-job-runner
+// guards: UC-019; THE CORRECTION LOOP HAS A FIXED LIMIT
+// given: the page of the requirement and a participant able to draft
+// input: an instruction in the bar and Send, with the exchange not yet answered
+// expect: the conversation names the limit of correction rounds ("at most 5") before the first round
+test("TST-418125: the bar names the limit of correction rounds before the first round", { todo: "FINDING UC019-S13 - the bar names the destinations before the exchange (onSend in MOD-prompt-bar's bar.mjs) and the rounds after it (\"Rounds: <n>\"); the limit, which MOD-job-runner's prepareJob fixes for the message (prepared.limit), is shown in no text of the bar. The run panel's \"at most 5\" (src/site-frame/run-panel.mjs) is not part of the bar" }, async () => {
+  const s = await scenario({ answers: [draft()] }); await onRequirementPage(s);
+  await send(s);
+  assert.match(statusOf(s).textContent, /at most 5/);
+});
+
+// TST-418126
+// level: release
+// module: MOD-review-pages; MOD-job-runner
+// guards: UC-019 (7a); A FINDING READS LIKE A COMPILER MESSAGE
+// given: five different invalid drafts, the loop ended by its limit with the finding of the last one left
+// input: Send, Review the draft; read the finding left on the draft page
+// expect: the finding reads in the compiler form with its artifact and line, its kind and the rule by name: "VISIBLE DUE DATE 4:<line>: error: no check [A REQUIREMENT HAS FOUR FIELDS]" followed by the correction expected
+test("TST-418126: a finding left on the draft page reads like a compiler message", async () => {
+  const answers = Array.from({ length: 5 }, (_, i) => draft(candidate({ name: `VISIBLE DUE DATE ${i}`, check: "" })));
+  const s = await scenario({ answers }); await onRequirementPage(s); await send(s); await review(s);
+  assert.match(one(s.target, "ul", "left").textContent, /VISIBLE DUE DATE 4:\d+: error: no check \[A REQUIREMENT HAS FOUR FIELDS\].*add a line/);
+});
+
 // Counterproofs are requested explicitly; ordinary CI still runs every behavior case. Each fault is confined to a copied
 // source tree. The same unchanged case must fail normally, then pass after byte-exact restoration, before its receipt is emitted.
+// ITM-514: the faults go into the files the bar and the route `draft` use. A path is joined from its parts.
+const at = (...parts) => join(...parts);
 const FAULTS = [
-  { ids: ["TST-418001"], file: "src/trace-pages/flow.mjs", from: 'if (editable) detail.append(reviewLink("requirement-prompt"', to: 'if (false) detail.append(reviewLink("requirement-prompt"' },
-  { ids: ["TST-418002", "TST-418003", "TST-418110"], file: "src/spec-changes/propose.mjs", from: 'files.push({ path: proposalPath, text: change.text }', to: 'files.push({ path: change.target, text: change.text }' },
-  { ids: ["TST-418004"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (!source) {', to: 'if (false) {' },
-  { ids: ["TST-418005", "TST-418112"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (edited.classes.some((each) => each.class === "conflict"))', to: 'if (false)' },
-  { ids: ["TST-418006", "TST-418111"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (await blobSha(current) !== opened.get(section.anchor))', to: 'if (false)' },
-  { ids: ["TST-418101"], file: "src/review-pages/requirements-prompt.mjs", from: 'accountOf(loaded.instanceSnapshot)', to: 'accountOf(snapshot)' },
-  { ids: ["TST-418102"], file: "src/runtimes/tab.mjs", from: 'if (entry.bridge !== null)', to: 'if (false)' },
-  { ids: ["TST-418103"], file: "src/review-pages/requirements-prompt.mjs", from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
-  { ids: ["TST-418104", "TST-418124"], file: "src/job-runner/driver-prompt.mjs", from: 'if (input.previous !== null && input.previous !== undefined)', to: 'if (false)' },
-  { ids: ["TST-418105"], file: "src/review-pages/jobs.mjs", from: 'drafters: eligible(participants, { capabilities: definition.needs }).eligible', to: 'drafters: participants' },
-  { ids: ["TST-418106"], file: "src/spec-changes/strategies.mjs", from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
-  { ids: ["TST-418107"], file: "src/site-frame/run-panel.mjs", from: 'if (prepared.blocking.length === 0 && prepared.notFitting.length === 0)', to: 'if (true)' },
-  { ids: ["TST-418108"], file: "src/job-runner/builtins.mjs", from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
-  { ids: ["TST-418109"], file: "src/review-pages/requirements-prompt.mjs", from: 'showDifference(held?.rule ?? "", rule.value)', to: 'renderArtifact(held?.rule ?? "")' },
-  { ids: ["TST-418113", "TST-418124"], file: "src/job-runner/driver-prompt.mjs", from: 'if (input.findings?.length)', to: 'if (false)' },
-  { ids: ["TST-418114", "TST-418122"], file: "src/job-runner/loop.mjs", from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
-  { ids: ["TST-418115"], file: "src/job-runner/loop.mjs", from: 'number >= prepared.limit', to: 'number >= 3' },
-  { ids: ["TST-418116"], file: "src/job-runner/loop.mjs", from: 'number > 1 && now.length && same(now, open)', to: 'false' },
-  { ids: ["TST-418117"], file: "src/review-pages/requirements-prompt.mjs", from: 'if (outcome.stoppedBecause === "unusable")', to: 'if (false)' },
-  { ids: ["TST-418118"], file: "src/review-pages/edit.mjs", from: '...withdrawn.map((name)', to: '...[].map((name)' },
-  { ids: ["TST-418119"], file: "src/review-pages/jobs.mjs", from: 'const snapshot = await defaultSnapshot(run.host);', to: 'const snapshot = run.snapshot;' },
-  { ids: ["TST-418120"], file: "src/spec-changes/propose.mjs", from: 'files.push({ path: `${base}.md`, text: section.text }', to: 'files.push({ path: "SPEC.md", text: section.text }' },
-  { ids: ["TST-418121"], file: "src/review-pages/requirements-prompt.mjs", from: 'const count = prepared.parts.find((part) => part.recipe === "spec-with-queues")?.artifacts?.length ?? 0;', to: 'const count = 0;' },
-  { ids: ["TST-418104"], file: "src/review-pages/jobs.mjs", from: 'ready.decoratePanel?.(panel, ready.prepared);', to: 'void ready.decoratePanel;' },
-  { ids: ["TST-418114", "TST-418122", "TST-418124"], file: "src/job-runner/driver-prompt.mjs", from: 'input.findings.map(formatFinding)',
-    to: 'input.findings.map((finding) => `${finding.artifact}:${finding.line}: ${finding.kind}: ${finding.what} [${finding.rule}] - ${finding.fix}`)' },
-  { ids: ["TST-418123"], file: "src/review-pages/requirements-prompt.mjs", from: 'panel.append(left, roundsSection(state.outcome.rounds, state.outcome.stoppedBecause));', to: 'panel.append(left);' },
-  { ids: ["TST-418124"], file: "src/endpoint-calls/index.mjs", from: 'driverRequest(config, driverPrompt(input), options.signal)', to: 'driverRequest(config, input.prompt, options.signal)' },
+  { ids: ["TST-418001"], file: at("src", "trace-pages", "subject.mjs"), from: 'if (name !== undefined && shown.onDefaultBranch) return changing(', to: 'if (false) return changing(' },
+  { ids: ["TST-418003"], file: at("src", "trace-pages", "subject.mjs"), from: 'return { requirements: [...names], source: shown.source };', to: 'return { requirements: [...names].slice(0, 1), source: shown.source };' },
+  { ids: ["TST-418002", "TST-418003", "TST-418110"], file: at("src", "spec-changes", "propose.mjs"), from: 'files.push({ path: proposalPath, text: change.text }', to: 'files.push({ path: change.target, text: change.text }' },
+  { ids: ["TST-418004"], file: at("src", "review-pages", "subjects.mjs"), from: 'if (facts.source === null) throw missingSource();', to: 'if (false) throw missingSource();' },
+  { ids: ["TST-418005", "TST-418112"], file: at("src", "spec-changes", "propose.mjs"), from: 'candidate && each.class !== "conflict" && ["new", "change", "duplicate"].includes(each.class)', to: 'candidate && ["new", "change", "duplicate", "conflict"].includes(each.class)' },
+  { ids: ["TST-418006", "TST-418111"], file: at("src", "review-pages", "requirements-draft.mjs"), from: 'if (await blobSha(current) !== opened.get(section.anchor))', to: 'if (false)' },
+  { ids: ["TST-418101"], file: at("src", "review-pages", "subjects.mjs"), from: 'context.product ? await defaultSnapshot(context.instance.host) : snapshot', to: 'snapshot' },
+  { ids: ["TST-418102"], file: at("src", "runtimes", "tab.mjs"), from: 'if (entry.bridge !== null)', to: 'if (false)' },
+  { ids: ["TST-418103"], file: at("src", "review-pages", "candidates.mjs"), from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
+  { ids: ["TST-418104", "TST-377007"], file: at("src", "review-pages", "conversation-draft.mjs"), from: 'paramsFor: () => ({ ...draft.params, draft: draft.result })', to: 'paramsFor: () => ({ ...draft.params })' },
+  { ids: ["TST-418105", "TST-377004", "TST-418001"], file: at("src", "prompt-bar", "offer.mjs"), from: 'participant.place ?? "no processing place declared"', to: '"no processing place declared"' },
+  { ids: ["TST-418105", "TST-377014"], file: at("src", "job-runner", "prepare.mjs"), from: 'judged(destination, { capabilities: kind.needs }', to: 'judged(destination, { capabilities: [] }' },
+  { ids: ["TST-418106"], file: at("src", "spec-changes", "strategies.mjs"), from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
+  { ids: ["TST-418107", "TST-377006"], file: at("src", "prompt-bar", "send.mjs"), from: '...prepared.notFitting.map(', to: '...[].map(' },
+  { ids: ["TST-418108"], file: at("src", "job-runner", "builtins.mjs"), from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
+  { ids: ["TST-418109"], file: at("src", "review-pages", "candidates.mjs"), from: 'showDifference(held?.rule ?? "", rule.value)', to: 'renderArtifact(held?.rule ?? "")' },
+  { ids: ["TST-418113", "TST-418124"], file: at("src", "job-runner", "driver-prompt.mjs"), from: 'if (input.findings?.length)', to: 'if (false)' },
+  { ids: ["TST-418114", "TST-418122"], file: at("src", "job-runner", "loop.mjs"), from: 'settled.add(line(found))', to: 'settled.delete(line(found))' },
+  { ids: ["TST-418115"], file: at("src", "job-runner", "loop.mjs"), from: 'number >= prepared.limit', to: 'number >= 3' },
+  { ids: ["TST-418116"], file: at("src", "job-runner", "loop.mjs"), from: 'number > 1 && now.length && same(now, open)', to: 'false' },
+  { ids: ["TST-418117", "TST-377015"], file: at("src", "prompt-bar", "bar.mjs"), from: 'if (result.stoppedBecause === "unusable" || draft === null || draft === undefined) {', to: 'if (false) {' },
+  { ids: ["TST-418118"], file: at("src", "review-pages", "edit.mjs"), from: '...withdrawn.map((name)', to: '...[].map((name)' },
+  { ids: ["TST-418120"], file: at("src", "spec-changes", "propose.mjs"), from: 'files.push({ path: `${base}.md`, text: section.text }', to: 'files.push({ path: "SPEC.md", text: section.text }' },
+  { ids: ["TST-418123"], file: at("src", "review-pages", "conversation-draft.mjs"), from: 'target.append(...roundsAndLeft(draft.result), await requirementsDraft(', to: 'target.append(await requirementsDraft(' },
+  { ids: ["TST-418124"], file: at("src", "endpoint-calls", "index.mjs"), from: 'driverRequest(config, driverPrompt(input), options.signal)', to: 'driverRequest(config, input.prompt, options.signal)' },
+  { ids: ["TST-377005"], file: at("src", "prompt-bar", "bar.mjs"), from: 'send.addEventListener("click", onSend);', to: 'input.addEventListener("input", onSend);' },
+  { ids: ["TST-377008"], file: at("src", "prompt-bar", "bar.mjs"), from: 'if (draft.handOver) {', to: 'if (false) {' },
+  { ids: ["TST-377004"], file: at("src", "review-pages", "subjects.mjs"), from: 'params: { [kind.change.parameter]: id, version: snapshot.blob(path) } };', to: 'params: { [kind.change.parameter]: "UC-008", version: snapshot.blob(path) } };' },
+  { ids: ["TST-377009"], file: at("src", "review-pages", "conversation-draft.mjs"), from: 'rounds: draft.result.rounds.length', to: 'rounds: 0' },
 ];
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function counterproofs() {
   const temporary = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-418-fault-"))), copied = join(temporary, "agent-m");
-  const tests = ["tests/system-uc-019-change-requirements-by-prompt.test.mjs", "tests/release-uc-019-change-requirements-by-prompt.test.mjs"];
+  const tests = ["tests/system-uc-019-change-requirements-by-prompt.test.mjs", "tests/system-uc-019-change-by-prompt.test.mjs", "tests/release-uc-019-change-requirements-by-prompt.test.mjs"];
+  const helpers = ["tests/app-harness.mjs", "tests/review-pages-draft-world.mjs", "tests/review-pages-use-cases.test.mjs"];
   const receipts = [], receiptPath = join(tmpdir(), `agent-m-418-counterproof-${process.pid}.json`);
   try {
     cpSync(join(ROOT, "src"), join(copied, "src"), { recursive: true, filter: (path) => !path.split(/[\\/]/).includes("node_modules") });
     cpSync(join(ROOT, "docs"), join(copied, "docs"), { recursive: true });
     mkdirSync(join(copied, "tests"), { recursive: true });
-    for (const file of [...tests, "tests/app-harness.mjs"]) cpSync(join(ROOT, file), join(copied, file));
+    for (const file of [...tests, ...helpers]) cpSync(join(ROOT, file), join(copied, file));
     const testHashes = Object.fromEntries(tests.map((path) => [path, hash(readFileSync(join(copied, path)))]));
     for (const fault of FAULTS) {
       const path = join(copied, fault.file), original = readFileSync(path), text = original.toString();
@@ -611,12 +653,12 @@ async function counterproofs() {
       const mutated = Buffer.from(text.replace(fault.from, fault.to)); assert.notDeepEqual(mutated, original);
       const argv = [process.execPath, "--test", "--test-reporter=tap", "--test-name-pattern", fault.ids.join("|"), ...tests.map((path) => join(copied, path))];
       const env = { ...process.env, AGENT_M_418_FAULT_CHILD: "1" }; delete env.NODE_TEST_CONTEXT;
-      const invoke = () => spawnSync(argv[0], argv.slice(1), { cwd: copied, env, encoding: "utf8", timeout: 20000, maxBuffer: 4 * 1024 * 1024 });
+      const invoke = () => spawnSync(argv[0], argv.slice(1), { cwd: copied, env, encoding: "utf8", timeout: 60000, maxBuffer: 16 * 1024 * 1024 });
       const started = new Date().toISOString(); writeFileSync(path, mutated);
       const failed = invoke(); writeFileSync(path, original);
       const restoredHash = hash(readFileSync(path)), passed = invoke(), ended = new Date().toISOString();
       const nodes = Object.fromEntries(fault.ids.map((id) => [id, failed.stdout.match(new RegExp(`^not ok \\d+ - ${id}:[\\s\\S]*?(?=\\n# Subtest:|\\n1\\.\\.)`, "m"))?.[0] ?? null]));
-      const receipt = { ...fault, participant: "developer-terra-e", sourceCommit: git(ROOT, "rev-parse", "HEAD"),
+      const receipt = { ...fault, participant: "developer-sonnet-e", sourceCommit: git(ROOT, "rev-parse", "HEAD"),
         testsUncommitted: git(ROOT, "diff", "HEAD", "--", ...tests) !== "", cwd: copied, argv,
         environment: { AGENT_M_418_FAULT_CHILD: "1", NODE_TEST_CONTEXT: null },
         sourceHashes: { original: hash(original), planted: hash(mutated), restored: restoredHash }, testHashes, started, ended,
@@ -634,3 +676,9 @@ async function counterproofs() {
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 }
 if (process.env.AGENT_M_418_COUNTERPROOF === "1" && !process.env.AGENT_M_418_FAULT_CHILD) after(counterproofs);
+
+// Waits, with the servers settled, until a condition holds.
+async function until(s, condition) {
+  for (let turn = 0; turn < 200 && !condition(); turn += 1) await rest(s);
+  assert.ok(condition(), "the condition did not hold");
+}

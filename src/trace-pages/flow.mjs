@@ -7,6 +7,7 @@
 import { parseSpec } from "../spec-document/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { descriptorFor } from "./views.mjs";
+import { opening, personsSource, subjectOf } from "./subject.mjs";
 
 const SPEC_PATH = "SPEC.md";
 
@@ -19,14 +20,13 @@ function el(name, className, ...children) {
 
 const sectionTitle = (heading) => String(heading ?? "").replace(/^##[ \t]*/, "");
 
-function requirementDetail(requirement, editable) {
+function requirementDetail(requirement) {
   const detail = el("section", "requirement-detail", el("h3", null, requirement.name));
   for (const [label, text] of [["Source", requirement.source], ["Rule", requirement.rule], ["Check", requirement.check]]) {
     const field = el("section", "requirement-field", el("h4", null, label));
     field.append(renderArtifact(text ?? ""));
     detail.append(field);
   }
-  if (editable) detail.append(reviewLink("requirement-prompt", "Change by prompt", "requirement", { name: requirement.name, prompt: 1 }));
   return detail;
 }
 
@@ -38,7 +38,7 @@ function reviewLink(className, text, route, params) {
   return anchor;
 }
 
-function requirementRows(requirement, editable) {
+function requirementRows(requirement, editable, shown) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
   const cell = el("td", null, button);
@@ -48,45 +48,45 @@ function requirementRows(requirement, editable) {
   button.addEventListener("click", () => {
     if (opened.textContent) {
       opened.replaceChildren();
+      opening(shown.requirements, requirement.name, false);
       return;
     }
-    const cell = el("td", "panel", requirementDetail(requirement, editable));
+    const cell = el("td", "panel", requirementDetail(requirement));
     cell.setAttribute("colspan", "1");
     opened.replaceChildren(cell);
+    opening(shown.requirements, requirement.name, true);
   });
   return [row, opened];
 }
 
-function requirementsTable(requirements, editable) {
+function requirementsTable(requirements, editable, shown) {
   const body = el("tbody");
-  for (const requirement of requirements) body.append(...requirementRows(requirement, editable));
+  for (const requirement of requirements) body.append(...requirementRows(requirement, editable, shown));
   return el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"))), body);
 }
 
-function overview(spec, editable) {
+function overview(spec, editable, shown) {
   const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
   const sectioned = new Set(spec.sections.flatMap((section) => section.requirements));
   const outside = [...spec.requirements.values()].filter((requirement) => !sectioned.has(requirement.name));
 
-  if (outside.length) page.append(requirementsTable(outside, editable));
+  if (outside.length) page.append(requirementsTable(outside, editable, shown));
   for (const section of spec.sections) {
     const requirements = section.requirements.map((name) => spec.requirements.get(name)).filter(Boolean);
-    const table = requirementsTable(requirements, editable);
+    const table = requirementsTable(requirements, editable, shown);
+    const held = { heading: sectionTitle(section.heading), names: requirements.map(({ name }) => name) };
     table.setAttribute("hidden", "hidden");
     const toggle = el("button", "spec-section-toggle btn", sectionTitle(section.heading));
-    const prompt = editable
-      ? reviewLink("requirement-group-prompt", "Change by prompt", "requirements", { requirements: JSON.stringify(requirements.map(({ name }) => name)), prompt: 1 })
-      : null;
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", "false");
     toggle.addEventListener("click", () => {
       const collapsed = table.getAttribute("hidden") !== null;
       if (collapsed) {
         table.removeAttribute("hidden");
-        if (prompt && !prompt.parentNode) group.insertBefore(prompt, table);
       }
       else table.setAttribute("hidden", "hidden");
       toggle.setAttribute("aria-expanded", String(collapsed));
+      opening(shown.groups, held, collapsed, (a, b) => a.heading === b.heading);
     });
     const group = el("section", "spec-section", el("h3", null, toggle), table);
     if (editable) {
@@ -109,13 +109,20 @@ async function onDefaultBranch(host, ref) {
   }
 }
 
+// What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
+const drawn = new WeakMap();
+
 export const route = {
   name: "trace",
   entry: "requirements",
   title: "Current requirements",
 
+  subject: (params, context) => subjectOf({ title: route.title, params, context, shown: drawn.get(context) ?? null }),
+
   async render(target, context, params = {}) {
     target.replaceChildren();
+    const shown = { target, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [] };
+    drawn.set(context, shown);
     const descriptor = descriptorFor(params.key);
     if (!descriptor || !context.product?.host || !params.ref) {
       target.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
@@ -123,6 +130,9 @@ export const route = {
     }
     const snapshot = await context.product.host.readSnapshot(params.ref);
     const text = await snapshot.read(SPEC_PATH);
-    target.append(overview(parseSpec(text ?? ""), await onDefaultBranch(context.product.host, params.ref)));
+    shown.onDefaultBranch = await onDefaultBranch(context.product.host, params.ref);
+    shown.spec = parseSpec(text ?? "");
+    if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
+    target.append(overview(shown.spec, shown.onDefaultBranch, shown));
   },
 };

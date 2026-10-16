@@ -1,7 +1,7 @@
 // MOD-trace-pages' specification view leads to the review pages' editing (ITM-360), as the accepted text of docs/architecture/MOD-trace-pages.md states it: for the
-// specification, "to the review pages, on the default branch only: *Edit* and *Change by prompt* on a requirement, ..., *+ Requirement* in each section, which opens
-// `requirements/new` for that section (UC-018 3d)"; and "Editing, changing by prompt and arranging are the review pages' routes, which its links lead to". This file also
-// covers *Change by prompt* (ITM-399); *Arrange* (UC-021) is not part of either item. For UC-018 (step 1, 3d) and UC-019 (step 1).
+// specification, "to the review pages, on the default branch only: *Edit* on a requirement, ..., *+ Requirement* in each section, which opens
+// `requirements/new` for that section (UC-018 3d)"; and "Editing, the draft of a change asked for in the prompt bar, and arranging are the review pages' routes, which its links lead to".
+// The specification view offers no *Change by prompt*: a change is asked for in the prompt bar (ITM-551); *Arrange* (UC-021) is not part of this file. For UC-018 (step 1, 3d) and UC-019 (step 1).
 // Run: node --test tests/trace-pages-edit-links.test.mjs
 //
 // This imports the shared small DOM of tests/site-frame.test.mjs unchanged, as the other tests of the views do, and calls the public trace/specification route with a Host of the
@@ -13,8 +13,6 @@
 //   - The links are anchors in the address form the frame reads and the review pages' routes take: `#requirement/name=<NAME>` for Edit and
 //     `#requirements/section=<the section's heading line>` for + Requirement, each part encoded as the frame's fragmentOf encodes it. Edit stands in the requirement's own row
 //     beside its name; + Requirement stands in its section, none for the requirements before the first section.
-//   - Prompt routes use the frame's structured key=value fragment convention: one requirement is
-//     `#requirement/name=<NAME>/prompt=1`; a requirement group is `#requirements/requirements=<JSON names>/prompt=1`, with the JSON array in the group's order.
 // Each test case carries its declaration (given / input / expect); where a test expects a link to be absent, the same page is first shown to hold it. The counter-proofs are
 // recorded in the pull request.
 
@@ -138,55 +136,58 @@ test("TST-360004 the default branch is the Host's own, and a Host that cannot na
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019 (step 1)
 // given: the specification of the library on its default branch, with four requirements
 // input: the route rendered at main, then each requirement opened through its requirement-name control
-// expect: every opened requirement offers Change by prompt in its own detail, in SPEC order, with the frame route #requirement/name=<NAME>/prompt=1
-test("TST-399001 Change by prompt on each requirement uses its structured review route on the default branch", async () => {
+// expect: each of the four opened requirements shows its detail (a section.requirement-detail headed by its name) and Edit beside its name as the known positive; no opened requirement offers Change by prompt:
+//         no anchor of the class requirement-prompt, no text "Change by prompt" on the page, no anchor whose address ends with /prompt=1
+test("TST-399001 an opened requirement offers no Change by prompt", async () => {
   const target = await render(host(), "main");
   const requirements = find(target, (node) => node.localName === "button" && node.className.includes("requirement-name"));
   requirements.forEach((button) => button.dispatchEvent(new Event("click")));
 
-  const prompts = links(target, "requirement-prompt");
-  assert.deepEqual(prompts.map((node) => node.textContent), ["Change by prompt", "Change by prompt", "Change by prompt", "Change by prompt"]);
-  assert.deepEqual(prompts.map((node) => node.getAttribute("href")), [OUTSIDE, LOAN, SHELF, CARD].map((name) => `#requirement/name=${encodeURIComponent(name)}/prompt=1`));
-  for (const [prompt, name] of prompts.map((node, at) => [node, [OUTSIDE, LOAN, SHELF, CARD][at]])) {
-    assert.equal(prompt.parentNode.className, "requirement-detail", `${name}: its prompt control is in its opened detail`);
-    assert.equal(prompt.parentNode.childNodes[0].textContent, name);
-  }
+  const details = find(target, (node) => node.localName === "section" && node.className.includes("requirement-detail"));
+  assert.deepEqual(details.map((node) => node.childNodes[0].textContent), [OUTSIDE, LOAN, SHELF, CARD], "known positive: each opened requirement shows its detail");
+  assert.equal(links(target, "requirement-edit").length, 4, "known positive: Edit stays");
+  assert.equal(links(target, "requirement-prompt").length, 0);
+  assert.equal(target.textContent.includes("Change by prompt"), false);
+  assert.deepEqual(find(target, (node) => node.localName === "a").map((node) => node.getAttribute("href")).filter((href) => /\/prompt=1$/.test(href ?? "")), []);
 });
 
 // TST-399002 · level: unit · module: MOD-trace-pages
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019 (step 1)
 // given: the same specification on the default branch, whose Lending group holds LOAN then SHELF and whose Membership group holds CARD
 // input: the route rendered at main, then each group opened through its spec-section-toggle control
-// expect: each opened group offers Change by prompt inside itself, with #requirements/requirements=<encoded JSON names>/prompt=1 and the names in group order
-test("TST-399002 Change by prompt on a requirement group hands its names to the structured route in group order", async () => {
+// expect: both groups are opened (their tables no longer hidden) with + Requirement in each as the known positive; no group offers Change by prompt: no anchor of the class requirement-group-prompt, no text
+//         "Change by prompt", no anchor whose address starts with #requirements/requirements=
+test("TST-399002 an opened requirement group offers no Change by prompt", async () => {
   const target = await render(host(), "main");
-  const sections = find(target, (node) => node.localName === "section" && node.className.includes("spec-section"));
   find(target, (node) => node.localName === "button" && node.className.includes("spec-section-toggle")).forEach((button) => button.dispatchEvent(new Event("click")));
 
-  const prompts = links(target, "requirement-group-prompt");
-  const groups = [[LOAN, SHELF], [CARD]];
-  assert.deepEqual(prompts.map((node) => node.textContent), ["Change by prompt", "Change by prompt"]);
-  assert.deepEqual(prompts.map((node) => node.getAttribute("href")), groups.map((names) => `#requirements/requirements=${encodeURIComponent(JSON.stringify(names))}/prompt=1`));
-  sections.forEach((section, at) => assert.deepEqual(links(section, "requirement-group-prompt"), [prompts[at]], `group ${at + 1} holds its own prompt control alone`));
+  const groups = find(target, (node) => node.localName === "section" && node.className.includes("spec-section"));
+  assert.deepEqual(groups.map((group) => find(group, (node) => node.localName === "table" && node.getAttribute("hidden") === null).length), [1, 1], "known positive: both groups are opened");
+  assert.equal(links(target, "requirement-new").length, 2, "known positive: + Requirement stays");
+  assert.equal(links(target, "requirement-group-prompt").length, 0);
+  assert.equal(target.textContent.includes("Change by prompt"), false);
+  assert.deepEqual(find(target, (node) => node.localName === "a").map((node) => node.getAttribute("href")).filter((href) => (href ?? "").startsWith("#requirements/requirements=")), []);
 });
 
 // TST-399003 · level: unit · module: MOD-trace-pages
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019 (step 1)
 // given: the same specification on the default branch main and at the tag v1.0
 // input: on each ref, every requirement and group is opened through its existing control
-// expect: main has four requirement and two group prompt links as the known positive; the tag has neither control while all requirements remain readable
-test("TST-399003 Change by prompt on requirements and groups is offered on the default branch only, never a tag", async () => {
+// expect: main has four Edit and two + Requirement as the known positive and no Change by prompt control; the tag has none of them, while all four requirements remain readable
+test("TST-399003 neither the default branch nor a tag offers Change by prompt on requirements or groups", async () => {
   const openAll = async (ref) => {
     const target = await render(host(), ref);
     find(target, (node) => node.localName === "button" && (node.className.includes("requirement-name") || node.className.includes("spec-section-toggle"))).forEach((button) => button.dispatchEvent(new Event("click")));
     return target;
   };
+  const prompts = (target) => [links(target, "requirement-prompt").length, links(target, "requirement-group-prompt").length, target.textContent.includes("Change by prompt") ? 1 : 0];
   const onMain = await openAll("main");
-  assert.deepEqual([links(onMain, "requirement-prompt").length, links(onMain, "requirement-group-prompt").length], [4, 2], "known positive: the default branch offers both controls");
+  assert.deepEqual([links(onMain, "requirement-edit").length, links(onMain, "requirement-new").length], [4, 2], "known positive: the default branch offers Edit and + Requirement");
+  assert.deepEqual(prompts(onMain), [0, 0, 0]);
 
   const onTag = await openAll("v1.0");
   assert.deepEqual(find(onTag, (node) => node.localName === "button" && node.className.includes("requirement-name")).map((node) => node.textContent), [OUTSIDE, LOAN, SHELF, CARD]);
-  assert.deepEqual([links(onTag, "requirement-prompt").length, links(onTag, "requirement-group-prompt").length], [0, 0]);
+  assert.deepEqual(prompts(onTag), [0, 0, 0]);
 });
 
 // TST-515003 · level: unit · module: MOD-trace-pages

@@ -17,9 +17,11 @@ uses:
   - MOD-product-process.workflowOf
   - MOD-product-process.gateSchema
   - MOD-product-process.gateStates
+  - MOD-product-process.roleAssignmentSchema
   - MOD-model-catalogue.Model
   - MOD-model-catalogue.catalogue
   - MOD-model-catalogue.planGrid
+  - MOD-model-catalogue.modelSchema
   - MOD-approvals.statuses
   - MOD-spec-changes.Queue
   - MOD-spec-changes.queues
@@ -44,9 +46,11 @@ uses:
   - MOD-bridge-client.Bridge
   - MOD-participant-list.Participant
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-documents.Document
   - MOD-documents.readDocument
   - MOD-documents.readRegister
+  - MOD-documents.artifactSchemas
   - MOD-repository-hosts.containsCommit
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
@@ -110,16 +114,16 @@ The six stages of the main page, each a share between 0 and 1:
 
 ## Interfaces
 
-- `Facts` — one product's facts: `{ address: string, info: RepositoryInfo | "unknown", snapshot: Snapshot, graph: Graph,
-  requirements: string[], statuses: Map<string, { id: string, kind: string, status: string }>, queues: Queue[],
+- `Facts` — one product's facts: `{ address: string, info: RepositoryInfo | "unknown", snapshot: Snapshot, graph: Graph | "unknown",
+  requirements: string[] | "unknown", statuses: Map<string, { id: string, kind: string, status: string }>, queues: Queue[],
   declaration: Document | null, workflow: Workflow | null | "unknown", model: Model | null | "unknown", modelUnread: {
-  commit: string, error: string } | null, modelSince: string | null, participants:
+  commit: string, error: string } | null, modelSince: string | null | "unknown", participants:
   Participant[], plan: { order: Document | null, items: Document[], states: ItemState[] }, sprints: Document[],
   assignments: Document[], held: Held[], gates: Document[], gateStates: Array<{ gate: string, state: string, record: string | null, needs:
   string | null, difference: string | null }>, jobs: JobRow[], pullRequests: PullRequest[] | "unknown", schedule:
-  Document, ci: { runs: CiRun[] | "unknown", configured: boolean, drift: Array<{ path: string, difference: string }>,
-  jobWorkflow: boolean }, tags: Array<{ name: string, commit: string }> | "unknown", results: Snapshot | null, tests:
-  TestDeclaration[], resourceNeeds: ResourceNeed[] }`: `requirements` the accepted ones; `model` the declared model as the
+  Document | "unknown", ci: { runs: CiRun[] | "unknown", configured: boolean, drift: Array<{ path: string, difference:
+  string }>, jobWorkflow: boolean } | "unknown", tags: Array<{ name: string, commit: string }> | "unknown", results:
+  Snapshot | null | "unknown", tests: TestDeclaration[] | "unknown", resourceNeeds: ResourceNeed[] | "unknown" }`: `requirements` the accepted ones; `model` the declared model as the
   instance's catalogue held it at the commit the declaration's `model_version` names — the version the product declared
   and keeps (UC-031 6a) —, and `workflow` derived from it. Both are `"unknown"` when that commit cannot be read, and
   `modelUnread` then names the commit and the error it was read with. `modelSince` is the date the declared model was
@@ -136,7 +140,12 @@ The six stages of the main page, each a share between 0 and 1:
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
 - `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date, bridges:
-  Record<string, Bridge>) -> Promise<Facts>` — reads everything once: the default branch of the product — through a
+  Record<string, Bridge>, options?: { scope: "all" | "work" }) -> Promise<Facts>` — with the scope `work`, what MOD-prompt-bar
+  asks before a hand-over starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
+  `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
+  participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
+  records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
+  With the scope `all`, the default, it reads everything once: the default branch of the product — through a
   local clone, the branch it has checked out — and what the repository says about it, the trace graph, the approval
   records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
   commit the declaration's `model_version` names, read with `instanceAt`, and the history of the declaration, the
@@ -233,6 +242,7 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 
 - Reads, for `productFacts`: the product's `SPEC.md`, `docs/approvals/`, `docs/spec-freigaben/`, `docs/use-cases/`,
   `docs/architecture/`, `docs/process.md` and its history, `docs/plan/` or `docs/backlog/` with `docs/backlog/sprints/`,
+  `docs/role-assignments/`,
   `docs/gates/`, `docs/jobs/`, `docs/tests/schedule.md`, the generated configurations, the test files, `docs/resources.md`
   and the branch `test-results`; its pull requests, CI runs and tags; of the instance, `docs/participants.md`, the process models and `SPEC.md`, whose requirements are the process
   requirements, and the process models at the commit the product's declaration names.
@@ -245,9 +255,9 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 
 - MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, planSchemas — the steps and items, their order, the sprints,
   what they hold, and each one's state.
-- MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates — the declared process, its gates
-  and their states. The workflow is read with the instance's SPEC, where the process requirements stand.
-- MOD-model-catalogue.Model, catalogue, planGrid — the declared model, from the catalogue at the commit the declaration
+- MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates, roleAssignmentSchema — the
+  declared process, its gates and their states, and the role assignments. The workflow is read with the instance's SPEC, where the process requirements stand.
+- MOD-model-catalogue.Model, catalogue, planGrid, modelSchema — the declared model and its practices' files, from the catalogue at the commit the declaration
   names (UC-031 6a; ARC-042: earlier work keeps the model it was done under), and its plan of requirements times phases.
 - MOD-approvals.statuses — accepted, open and changed files, for the stages and for what waits.
 - MOD-spec-changes.Queue, queues — decided and open SPEC changes, for the stages and for what waits.
@@ -263,8 +273,9 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   job workflow, and the type of a resource need.
 - MOD-resource-list.resourceSchema, reachableBy — the product's resources and the routes that reach them.
 - MOD-bridge-client.Bridge — the Bridges whose jobs' live states are asked.
-- MOD-participant-list.Participant, participantSchema — the participants and their roles.
-- MOD-documents.Document, readDocument, readRegister — the files by their schemas.
+- MOD-participant-list.Participant, participantSchema, participantsOf — the participants and their roles.
+- MOD-documents.Document, readDocument, readRegister, artifactSchemas — the files by their schemas, the items and the
+  module files among them.
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,
   listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it; the snapshots
   `instanceAt` gives of the instance at the commit a declaration names.

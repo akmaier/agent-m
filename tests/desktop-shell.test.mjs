@@ -9,6 +9,7 @@ import { delimiter, join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "node:net";
+import { wait } from "./desktop-shell.d/wait.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const appEnvironment = { ...process.env, NODE_PATH: [join(root, "src/bridge-build/node_modules"), process.env.NODE_PATH].filter(Boolean).join(delimiter) };
@@ -23,7 +24,6 @@ let nativeFixtureLockHeld = false;
 let runtimeFailure;
 let virtualDisplayFailure;
 let windowManagerFailure;
-const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
 const tokenOf = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
 const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
 const within = async (promise, name) => {
@@ -137,7 +137,7 @@ const electronCommand = (executable, arguments_) => {
   if (manager.status !== 0) {
     if (windowManagerFailure) throw windowManagerFailure;
     diagnoseOpenboxAcquisition();
-    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "-o", "Debug::Acquire::http=true", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "-o", "Debug::Acquire::http=true", "-o", "DPkg::Lock::Timeout=50", "-o", "Acquire::Retries=3", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 60000 });
     const installEvidence = commandEvidence("Linux Openbox install", install);
     let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
     let availableEvidence = commandEvidence("Linux Openbox ready probe", available);
@@ -190,15 +190,15 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const stopped = () => { if (spawnError || child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}`); };
   try {
-    const page = await wait(async () => {
+    const page = await wait("the window page appears among the debugging targets", async () => {
       try {
         const targets = await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json();
         debugTargets = JSON.stringify(targets.map(({ type, url }) => ({ type, url })));
         return targets.find((candidate) => candidate.url.startsWith("agent-m://"));
       } catch (error) { debugTargets = `${error.name}: ${error.message}`; throw error; }
     }, stopped);
-    const browser = await wait(async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
-    const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
+    const browser = await wait("the browser debugging address answers", async () => (await (await fetch(`http://127.0.0.1:${debug}/json/version`)).json()).webSocketDebuggerUrl, stopped);
+    const main = await wait("the main process inspector address answers", async () => (await (await fetch(`http://127.0.0.1:${inspect}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
     return { browser, child, exited, folder, main, origin, page, port };
   } catch (failure) {
     const processes = process.platform === "linux" ? spawnSync("ps", ["-eo", "pid,ppid,stat,args"], { encoding: "utf8", timeout: 1000 }).stdout?.split("\n").filter((line) => /electron|Xvfb|openbox|agent-m-xvfb/.test(line)).join("\n") : "";
@@ -213,9 +213,9 @@ async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")
 }
 
 async function quit(app) {
-  await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Quit')"));
+  await wait("the Quit button is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Quit')"));
   try { await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Quit').click()"); } catch {}
-  await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
+  await wait("the Bridge stops answering on its port", async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
   let timeout;
   try { await Promise.race([app.exited, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("Electron did not exit after Quit.")), 30000); })]); }
   finally { clearTimeout(timeout); }
@@ -230,9 +230,9 @@ async function clean(app) { try { await quit(app); } finally { if (app.child.exi
 test("TST-276001: the actual Electron entry renders its forked pairing page and rotates its token", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   try {
-    const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
+    const token = await wait("the pairing token file exists", () => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     assert.equal(app.page.url, "agent-m://release-owner.github.io/release-frame/desktop-shell/window.html");
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pair anew')"));
+    await wait("the Pair anew button is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pair anew')"));
     assert.deepEqual(await evaluate(app.page.webSocketDebuggerUrl, "({ frame: document.body.innerText.includes('What is this?'), node: [typeof window.require, typeof window.process], local: performance.getEntriesByType('resource').every(x => x.name.startsWith('agent-m://')) })"), { frame: true, node: ["undefined", "undefined"], local: true });
     const pair = (value, origin = app.origin) => fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin, "x-agent-m-bridge-token": value } });
     assert.equal((await pair(token)).status, 200);
@@ -241,13 +241,13 @@ test("TST-276001: the actual Electron entry renders its forked pairing page and 
     assert.equal(await evaluate(app.main, `(async () => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); await electron.clipboard.writeText(${JSON.stringify(sentinel)}); return await electron.clipboard.readText() === ${JSON.stringify(sentinel)}; })()`), true, "native clipboard sentinel");
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Copy address').click()");
     const address = `http://127.0.0.1:${app.port}`;
-    const addressProbe = { display: await evaluate(app.page.webSocketDebuggerUrl, `document.querySelectorAll('code')[0].textContent === ${JSON.stringify(address)}`), clipboard: await wait(async () => await nativeClipboardEquals(app, address)) };
+    const addressProbe = { display: await evaluate(app.page.webSocketDebuggerUrl, `document.querySelectorAll('code')[0].textContent === ${JSON.stringify(address)}`), clipboard: await wait("the native clipboard holds the address", async () => await nativeClipboardEquals(app, address)) };
     assert.deepEqual(addressProbe, { display: true, clipboard: true }, "Copy address reaches the native clipboard");
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Copy token').click()");
-    assert.equal(await wait(async () => await nativeClipboardEquals(app, token)), true, "Copy token reaches the native clipboard");
+    assert.equal(await wait("the native clipboard holds the token", async () => await nativeClipboardEquals(app, token)), true, "Copy token reaches the native clipboard");
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Pair anew').click()");
     await evaluate(app.page.webSocketDebuggerUrl, "document.querySelector('.decision button:last-child').click()");
-    const rotated = await wait(() => { const value = tokenOf(app.folder); return value !== token && value; });
+    const rotated = await wait("the pairing token is rotated", () => { const value = tokenOf(app.folder); return value !== token && value; });
     assert.equal((await pair(token)).status, 401);
     assert.equal((await pair(rotated)).status, 200);
   } catch (failure) { throw new Error(`${failure.message}; page=${app.page.url}`); }
@@ -263,14 +263,14 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
   const app = await launch();
   let didQuit = false;
   try {
-    const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
+    const token = await wait("the pairing token file exists", () => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     const work = () => fetch(`http://127.0.0.1:${app.port}/v1/probes/unlisted-kind`, { method: "POST", headers: { origin: app.origin, "x-agent-m-bridge-token": token, "content-type": "application/json" }, body: JSON.stringify({ args: {} }) });
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
+    await wait("the Pause button is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Pause').click()");
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Resume')"));
+    await wait("the Resume button is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Resume')"));
     assert.equal((await work()).status, 503);
     await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].find(x => x.textContent === 'Resume').click()");
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
+    await wait("the Pause button is shown again", async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Pause')"));
     assert.equal((await work()).status, 404);
     await quit(app);
     didQuit = true;
@@ -289,12 +289,12 @@ test("TST-276003: an occupied port is visible and its replacement starts the sam
   let app;
   try {
     app = await launch({ port });
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge could not start')"));
+    await wait("the window shows that the Bridge could not start", async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge could not start')"));
     assert.equal(await evaluate(app.page.webSocketDebuggerUrl, "document.querySelector('input[type=number]')?.value"), "4712");
     const replacement = await unusedPort();
     await evaluate(app.page.webSocketDebuggerUrl, `document.querySelector('input[type=number]').value=${replacement}; [...document.querySelectorAll('button')].find(x => x.textContent === 'Use this port').click()`);
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Copy token')"));
-    const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
+    await wait("the Copy token button is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Copy token')"));
+    const token = await wait("the pairing token file exists", () => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     assert.equal((await fetch(`http://127.0.0.1:${replacement}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
   } finally { await new Promise((resolve) => occupied.close(resolve)); if (app) await clean(app); }
 });
@@ -309,7 +309,7 @@ test("TST-276004: an unwritable private folder is shown without starting a serve
   chmodSync(folder, 0o500);
   const app = await launch({ folder, port: await unusedPort() });
   try {
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge could not start')"));
+    await wait("the window shows that the Bridge could not start", async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge could not start')"));
     assert.equal(await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('NotWritable')"), true);
     assert.equal(existsSync(join(folder, "pairing-token")), false);
   } finally { chmodSync(folder, 0o700); await clean(app); }
@@ -326,7 +326,7 @@ test("TST-276006: the production default stores the instance token privately", {
   const folder = join(appData, `io.github.${owner}.bridge.bridge`);
   const app = await launch({ dataFolder: false, instance });
   try {
-    await wait(() => existsSync(join(folder, "pairing-token")));
+    await wait("the pairing token file exists in the platform data folder", () => existsSync(join(folder, "pairing-token")));
     assert.equal(statSync(folder).mode & 0o777, 0o700);
     assert.equal(statSync(join(folder, "pairing-token")).mode & 0o777, 0o600);
   } finally { await clean(app); rmSync(folder, { recursive: true, force: true }); }
@@ -341,11 +341,11 @@ test("TST-276005: native close behavior and a second source start restore the fi
   const app = await launch();
   const second = [];
   try {
-    const token = await wait(() => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
+    const token = await wait("the pairing token file exists", () => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
     const state = "process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').BrowserWindow.getAllWindows()[0]";
     assert.equal(await evaluate(app.main, `${state}.isVisible()`), true);
     await evaluate(app.main, `${state}.close()`);
-    await wait(async () => await evaluate(app.main, process.platform === "linux" ? `!${state}.isDestroyed() && ${state}.isVisible()` : `!${state}.isDestroyed() && !${state}.isVisible()`));
+    await wait("the first window closed natively (hidden on macOS, still visible on Linux)", async () => await evaluate(app.main, process.platform === "linux" ? `!${state}.isDestroyed() && ${state}.isVisible()` : `!${state}.isDestroyed() && !${state}.isVisible()`));
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
     const startSecond = async () => {
       const launched = electronCommand(await runtime(), [...(process.platform === "linux" ? ["--no-sandbox"] : []), "src/desktop-shell/main.mjs", "--instance=release-owner/release-frame", "--origin=https://release-owner.github.io", `--data-folder=${app.folder}`, `--port=${app.port}`]);
@@ -354,11 +354,11 @@ test("TST-276005: native close behavior and a second source start restore the fi
     };
     const observeSecond = async () => await evaluate(app.main, "(() => { globalThis.__agentMSecondInstanceCount ??= 0; process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.once('second-instance', () => { globalThis.__agentMSecondInstanceCount += 1; }); return globalThis.__agentMSecondInstanceCount; })()");
     let count = await observeSecond(), started = await startSecond();
-    await wait(async () => await evaluate(app.main, `globalThis.__agentMSecondInstanceCount === ${count + 1}`));
+    await wait("the first window counts the second start", async () => await evaluate(app.main, `globalThis.__agentMSecondInstanceCount === ${count + 1}`));
     await within(started.exited, "second source start exit");
-    await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
+    await wait("the first window is visible and not minimised", async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
     await evaluate(app.main, `${state}.minimize()`);
-    try { await wait(async () => await evaluate(app.main, `${state}.isMinimized()`)); }
+    try { await wait("the first window is minimised", async () => await evaluate(app.main, `${state}.isMinimized()`)); }
     catch (failure) {
       if (process.platform !== "linux") throw failure;
       const manager = await evaluate(app.main, "(() => { try { const text = process.getBuiltinModule('child_process').execFileSync('xprop', ['-root', '_NET_SUPPORTING_WM_CHECK'], { encoding: 'utf8' }); return { available: true, windowManager: text.includes('_NET_SUPPORTING_WM_CHECK') }; } catch (error) { return { available: false, error: error.code ?? error.name }; } })()");
@@ -369,15 +369,15 @@ test("TST-276005: native close behavior and a second source start restore the fi
       throw new Error(`${failure.message}; xprop=${JSON.stringify(manager)}; candidates=${JSON.stringify(candidates)}`);
     }
     count = await observeSecond(); started = await startSecond();
-    await wait(async () => await evaluate(app.main, `globalThis.__agentMSecondInstanceCount === ${count + 1}`));
+    await wait("the first window counts the second start", async () => await evaluate(app.main, `globalThis.__agentMSecondInstanceCount === ${count + 1}`));
     await within(started.exited, "second source start exit");
-    await wait(async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
+    await wait("the first window is visible and not minimised", async () => await evaluate(app.main, `${state}.isVisible() && !${state}.isMinimized()`));
     assert.equal((await fetch(`http://127.0.0.1:${app.port}/v1/pair`, { headers: { origin: app.origin, "x-agent-m-bridge-token": token } })).status, 200);
   } finally {
     for (const child of second) child.kill();
     try {
       await evaluate(app.main, "process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron').app.quit()");
-      await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
+      await wait("the Bridge stops answering on its port", async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
       await within(app.exited, "Electron main-process quit");
     } finally { if (app.child.exitCode === null) app.child.kill(); }
   }

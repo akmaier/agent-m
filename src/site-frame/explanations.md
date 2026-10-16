@@ -338,13 +338,6 @@ Drafted use cases are written as one file each in `docs/use-cases/`, on the defa
 not yet accepted. Nothing relies on a use case until you accept it. You review and accept each use case on its own, in the
 review of use cases, which writes an approval record for exactly the text you read.
 
-## change-instruction
-
-The instruction is one sentence that says what should change; the participant drafts the change from it, with the use case or
-requirement and everything related in front of it. Examples: split a requirement into two; make a rule checkable; add an
-alternative flow to a use case; align a use case with a requirement that has changed. Say what you want changed and leave the
-rest alone: what the instruction does not ask for should come back unchanged.
-
 ## draft-difference
 
 The difference shows the draft against the current text, line by line: lines removed on one side, lines added on the other, so
@@ -651,3 +644,24 @@ accepts them: for a new candidate, an entry that adds the requirement to its sec
 holds the requirement, changing it under its name, with the current text beside it and its impact list; for a duplicate, an entry
 that adds the new source to the existing requirement; for a conflict, an entry only as you resolved it. Every entry records the
 Agent M version, the participant, the model and the date. The SPEC itself is unchanged until you accept entries.
+
+## prompt-bar
+
+The prompt bar is where you talk to a participant about the page you are looking at: you write what you want, and the
+participant is given the page as it is shown. Each message goes only to the participant named above the input, at the place
+where that participant processes data, and that place is named with it before you press *Send*. The conversation stays in this
+browser tab; it is written to a repository only while recording conversations is switched on in the instance's settings. A draft
+or an edit the participant proposes changes nothing until you save it. Work this tab cannot do is handed over only when you click *Hand over*; that is
+work such as running code or tests, changing code or reaching the web.
+
+Examples of what to ask: split a requirement into two; make a rule checkable; add an alternative flow to a use case; align a use case with a requirement that has changed.
+
+## recording-conversations
+
+*Recording conversations* decides whether the conversations of the prompt bar are written to git. It is off unless you switch it on.
+
+While it is on, every message of a conversation, yours and the participant's, is committed under `docs/conversations/` of the repository of the page the conversation is held on: the instance's own repository for a page of the instance, the product's for a page of a product.
+
+A repository that its server reports as public publishes what is committed to it, so the conversations held on its pages are published too. Before you switch it on, the page names each repository it reports as public; for a repository whose visibility it cannot read, it says *visibility not known*.
+
+Switching it off is saved at once. Records already written stay in the history of the repositories; switching off writes no more and removes none.

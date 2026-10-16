@@ -16,6 +16,7 @@
 // MOD-documents'; Snapshot and Host MOD-repository-hosts'.
 import { builtins } from "./builtins.mjs";
 import { registerStrategies } from "./registry.mjs";
+import { tools } from "./tools.mjs";
 
 export { registerStrategies } from "./registry.mjs";
 export { prepareJob } from "./prepare.mjs";
@@ -116,4 +117,4 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
  *   context: number | null }>, leftOut: Array<{ part: string, reason: string }>, blocking: Finding[], limit: number }} Prepared
  */
 
-registerStrategies("MOD-job-runner", builtins);
+registerStrategies("MOD-job-runner", { ...builtins, tools });

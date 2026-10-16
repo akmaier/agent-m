@@ -1,9 +1,12 @@
 // MOD-prompt-bar — the prompt bar, where a person talks to an agent about the page (docs/architecture/MOD-prompt-bar.md): its
 // interface. Of it, ITM-503 builds the recording switch and the conversation record (record.mjs): recordingSchema and recordingOf.
-// The bar itself (startPromptBar, latestDraft, currentJob) is ITM-504 and the items that follow.
+// ITM-504 builds the bar (bar.mjs): startPromptBar, latestDraft and currentJob, with the participants it offers (offer.mjs) and a
+// message sent as a job in this tab (send.mjs). ITM-505 builds the hand-over a participant proposes in the bar: checked with the product's
+// start rules and its route (hand-over.mjs), queued by *Hand over* and followed until it has ended, with *Stop* cancelling it (follow.mjs).
 //
 // Module: MOD-prompt-bar
 //
 // It belongs to the Site (ARC-038) and runs in a browser. Every other file of this folder is private to the module.
 
+export { currentJob, dropDraft, latestDraft, startPromptBar } from "./bar.mjs";
 export { recordingOf, recordingSchema } from "./record.mjs";

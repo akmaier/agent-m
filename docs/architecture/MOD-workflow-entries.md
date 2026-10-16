@@ -10,6 +10,7 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.pullRequestFacts
+  - MOD-repository-hosts.readHistory
   - MOD-documents.readDocument
   - MOD-documents.readRegister
   - MOD-documents.writeDocument
@@ -19,6 +20,7 @@ uses:
   - MOD-participant-list.participantSchema
   - MOD-endpoint-calls.endpointDriver
   - MOD-endpoint-calls.diagnoseEndpoint
+  - MOD-endpoint-calls.testEndpoint
   - MOD-agent-processes.agentDriver
   - MOD-job-runner.JobContext
   - MOD-job-runner.registerStrategies
@@ -208,7 +210,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 
 - `MOD-repository-hosts.connect`, `readSnapshot`, `commitFiles` — the repository the entry runs in, through the local
   clone with the token from the secret; `pullRequestFacts` — the facts the Definition-of-Done check weighs, through the
-  server's API with the same token. In a product's job workflow, also the instance at the commit a declaration names,
+  server's API with the same token; `readHistory` — the commit messages of a branch a hand-over's run pushed without a
+  pull request, so that a branch holding the task's words is refused whether or not a pull request was opened. In a product's job workflow, also the instance at the commit a declaration names,
   through the checkout of the instance, which fetches it with its own credentials.
 - `MOD-documents.readDocument`, `readRegister`, `writeDocument` and `MOD-participant-list.participantSchema` — the
   declaration, the participants, the register entries.
@@ -216,7 +219,9 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-test-document.TestDeclaration`, `testDeclarations` — the declarations of the product's tests, to which a report's
   outcomes are matched.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-agent-processes.agentDriver` — the drivers of CI participants;
-  `MOD-endpoint-calls.diagnoseEndpoint` — why a handed-over run could not reach its endpoint.
+  `MOD-endpoint-calls.diagnoseEndpoint` — why a handed-over run could not reach its endpoint;
+  `MOD-endpoint-calls.testEndpoint` — after a handed-over run's agent failed working with an endpoint, one short request to
+  that endpoint, whose diagnosis names the reason where the endpoint is the cause.
 - `MOD-job-runner.JobContext`, `registerStrategies`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of
   any kind from its record, unattended.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `newJobId`, `startRecord`, `takeJob`, `appendToRecord`, `jobState` — the

@@ -80,9 +80,7 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 It keeps nothing but what is on the screen. It owns these formats:
 
 - **The page setup**, written by an entry page in the attributes of the script tag that loads `start.mjs`:
-  `data-page` — `main` or `review`; `data-views` — the slugs of the view modules this page loads; `data-menu-views` —
-  on the main page, the slugs of the views the review pages load, so its menu can tell built entries from those not yet
-  built without loading them. Example: `<script type="module" src="../src/site-frame/start.mjs" data-page="review"
+  `data-page` — `main` or `review`; `data-views` — the slugs of the view modules this page loads. Example: `<script type="module" src="../src/site-frame/start.mjs" data-page="review"
   data-views="review-pages trace-pages implementation-pages test-pages maintenance-pages settings-pages"></script>`.
 - **The explanations file** `explanations.md`: one section `## <topic>` per topic, its body the Markdown shown when the
   explanation is unfolded; a topic is a lower-case slug, for example `## shared-pages-origin`. It holds the topics of the
@@ -101,19 +99,19 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
-  Subject }`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
+  Subject | null }`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
   under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
-  Whichever gives the subject, the frame sets its `entry` to the route's `entry`. A route that gives none has the frame's
-  default: the kind `converse`, the route's title, and as the page the route's title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
+  Whichever gives the subject, the frame sets its `entry` to the route's `entry`. A route that gives none, or whose
+  `subject` gives `null` for these parameters, has the frame's default: the kind `converse`, the route's title, and as the page the route's title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
   secret is shown only in a hidden field (`A STORED SECRET IS HIDDEN UNTIL SHOWN`).
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
   host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
   "gitlab", host: Host }`.
-- `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[], menuViews: string[] }`.
+- `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
   notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
   change of the fragment. A fragment that names no loaded route shows the first route of its menu entry, or says that
@@ -130,8 +128,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   `target`.
 - `menuOf(page: "main" | "review", loaded: string[]) -> MenuEntry[]` — the entries in the order of `THE MENU FOLLOWS THE
   PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then Maintenance and Settings; each
-  `{ key, label, href: string | null, title }`, `href` null and `title` saying *not built yet* for an entry no loaded
-  view serves. On the main page each entry links into the review pages.
+  `{ key, label, href: string | null, title }`; on the review pages `href` null and `title` saying *not built yet* for an
+  entry no loaded view serves. On the main page each entry links into the review pages, which say there when an entry
+  is not built yet, so that the main page loads none of their views.
 - `instanceOf(location: { hostname: string, pathname: string }) -> string` — the instance repository `owner/name` from
   the Pages address the page is served from (`AN INSTANCE IS A FORK OF AGENT M`), read with MOD-identifiers'
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.

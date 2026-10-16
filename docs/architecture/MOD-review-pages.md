@@ -21,6 +21,7 @@ uses:
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.webLinks
   - MOD-text-tools.blobSha
+  - MOD-text-tools.formatFinding
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
   - MOD-documents.documentFindings
@@ -62,6 +63,7 @@ uses:
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
   - MOD-source-register.personSource
+  - MOD-source-register.personAccount
   - MOD-source-register.sourceStrategies
   - MOD-reuse-facts.reuseStrategies
   - MOD-participant-list.participantSchema
@@ -80,6 +82,7 @@ uses:
   - MOD-runtimes.tabContext
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.latestDraft
+  - MOD-prompt-bar.dropDraft
   - MOD-prompt-bar.ConversationDraft
 provides:
   - view
@@ -105,8 +108,19 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 ## Parts
 
 - `index.mjs` — the interface: `view`.
-- `flow.mjs` — the template method: list, file, review all, accept, edit, the draft of a conversation, drafting, arrange;
-  and the subject each of its routes gives the prompt bar.
+- `flow.mjs` — the template method: list, file, review all, accept, edit, drafting, arrange.
+- `common.mjs` — what the pages of every kind share: the elements of a page, the token kept for the page's product, the
+  problem a failed read shows, and the kind of server a product is on.
+- `subjects.mjs` — the subject each route gives the prompt bar.
+- `conversation-draft.mjs` — the route `draft`: the conversation's draft for the subject the address names, against the
+  current text.
+- `file-drafts.mjs` — drafted files in editors as their difference, saved together in one commit.
+- `requirements-draft.mjs` — a draft of requirements: the candidates beside the requirements they refer to, saved as
+  sections of the person's open queue.
+- `candidates.mjs` — the candidates of a draft of requirements as the author reviews them, with their classes.
+- `file-edit.mjs`, `edit.mjs`, `entry-edit.mjs` — the editors of a reviewed file, of a requirement, and of an open SPEC
+  entry in place.
+- `spec-entries.mjs` — what the flow asks of the kind whose files are the entries of a change queue.
 - `kinds.mjs` — the five descriptors.
 - `jobs.mjs` — preparing, starting and following the drafting jobs of a kind, and letting a result that waits for the
   person go on.
@@ -231,7 +245,8 @@ and `docs/participants.md` of the instance.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.webLinks — the
   product's files, whether the person may write and the repository's visibility, GitHub's own pages.
 - MOD-text-tools.blobSha — the blob of each text as it was shown, which an acceptance names (`AN APPROVAL NAMES THE EXACT
-  TEXT`).
+  TEXT`); MOD-text-tools.formatFinding — a finding the loop left, shown in its one fixed text form (`A FINDING READS
+  LIKE A COMPILER MESSAGE`).
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-documents.documentFindings,
   MOD-documents.readRegister — the kinds' files, their marks, the participant list; MOD-spec-document.parseSpec,
   MOD-spec-document.sectionText, MOD-spec-document.requirementFindings — requirements, their sections and marks;
@@ -251,7 +266,8 @@ and `docs/participants.md` of the instance.
   MOD-artifact-edits.keptIdentifier — a drafted change's identifier restored before the editor opens.
 - MOD-release-evidence.acceptAndRelease — accepting an open release test report.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — the product's links file and register, and its
-  linked sources with their parts; MOD-source-register.personSource — the source of the person who gives an instruction.
+  linked sources with their parts; MOD-source-register.personSource, MOD-source-register.personAccount — the source of
+  the person who gives an instruction.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.
 - MOD-participant-list.participantSchema, MOD-participant-list.eligible, MOD-participant-list.differs — who may draft and
@@ -260,7 +276,8 @@ and `docs/participants.md` of the instance.
   the run panel; MOD-job-runner.writeResult — a result that waited for the person, written on their click;
   MOD-job-runner.provenanceLines — the trailers of a draft of the conversation the person saves.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar; MOD-prompt-bar.latestDraft,
-  MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows.
+  MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows; MOD-prompt-bar.dropDraft — the
+  draft dropped once it is saved or discarded.
 - MOD-job-ledger.newJobId — the identifier of a job started here; MOD-job-ledger.listJobs — the record of the job that
   drafted a file, with its rounds.
 - MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.tabContext, MOD-runtimes.runOnTab,

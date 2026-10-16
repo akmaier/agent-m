@@ -142,6 +142,16 @@ def _site_frame_asset(text: str, at: int) -> bool:
             or (window.startswith('createElement("img")') and 'logo.setAttribute("src", PRL_LOGO)' in window))
 
 
+FRAME_VIEW_IMPORT = "a view module of the site, loaded from its own origin: viewAddress(slug), resolved as ../<slug>/index.mjs against the module's own address"
+
+
+def _site_frame_view_import(text: str, at: int) -> bool:
+    """MOD-site-frame's routing.mjs loads a view module (its file: start.mjs "loads the named view modules from their folders"): the
+    argument of the import() is viewAddress(slug), and the file's one viewAddress resolves ../<slug>/index.mjs against import.meta.url."""
+    resolves = re.findall(r"^const viewAddress = \(slug\) => new URL\(`\.\./\$\{slug\}/index\.mjs`, import\.meta\.url\)\.href;$", text, re.M)
+    return text[at:].startswith("import(viewAddress(slug))") and len(resolves) == 1 and len(re.findall(r"\bviewAddress\s*=", text)) == 1
+
+
 MERMAID_LIBRARY_LOADING = "the diagram library beside MOD-markdown-render, resolved from the module address"
 
 
@@ -315,6 +325,7 @@ PERMITTED_CHANNELS = {
                                                   lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("docs/assets/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("docs/assets/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
+    ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
     **{(path, channel): rule for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js")
        for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
 }
@@ -687,6 +698,30 @@ class NoServer(unittest.TestCase):
                           f"src/prompt-bar/: fetch found 2 times, permitted at most 1 ({OWN_DATA_FILES})"])
         foreign = own.replace("fetch(url)", 'fetch("https://tracker.example/x")')
         self.assertEqual(len(channel_findings({"src/prompt-bar/record.mjs": foreign})), 1)
+
+    def test_counter_proof_the_site_frames_view_import_is_viewaddress_of_its_own_origin(self):
+        # MOD-site-frame's routing.mjs loads a view module by its slug: the one import() takes viewAddress(slug), which resolves
+        # ../<slug>/index.mjs against the module's own address.
+        path = "src/site-frame/routing.mjs"
+        own = ("const viewAddress = (slug) => new URL(`../${slug}/index.mjs`, import.meta.url).href;\n"
+               "export async function loadView(slug) {\n  return (await import(viewAddress(slug))).view;\n}\n")
+        self.assertEqual(channel_findings({path: own}), [])  # expected: no finding
+        # Elsewhere the same text is found (expected: the import() at line 3 is not a permitted channel there).
+        self.assertEqual(channel_findings({"src/text-tools/routing.mjs": own}),
+                         ["src/text-tools/routing.mjs:3: import(): import(viewAddress(slug))).view;"])
+        # Another address in that file (expected: one finding each, at line 3, "not" the permitted form).
+        for argument in ('"https://example.org/x.mjs"', "url"):
+            other = own.replace("import(viewAddress(slug))", f"import({argument})")
+            self.assertEqual(channel_findings({path: other}), [f"{path}:3: import(): not {FRAME_VIEW_IMPORT}"])
+        # A viewAddress that does not resolve ../<slug>/index.mjs against the module's own address (expected: the import() at
+        # line 3 is found, once each).
+        for foreign in (own.replace("import.meta.url", "location.href"),
+                        own.replace("`../${slug}/index.mjs`", "`https://example.org/${slug}.mjs`")):
+            self.assertEqual(channel_findings({path: foreign}), [f"{path}:3: import(): not {FRAME_VIEW_IMPORT}"])
+        # A second import() in the file (expected: a count finding, the file's entry permits one).
+        twice = own + "export const again = (slug) => import(viewAddress(slug));\n"
+        self.assertEqual(channel_findings({path: twice}),
+                         [f"{path}: import() found 2 times, permitted 1 ({FRAME_VIEW_IMPORT})"])
 
     def test_counter_proof_only_the_site_frames_own_static_header_assets_load(self):
         path = "src/site-frame/index.mjs"
