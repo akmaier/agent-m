@@ -1,10 +1,14 @@
 // Derive — what traceGraph's graph alone answers (MOD-trace-graph, Parts). Built so far: tracesTo, which gives a requirement the
 // sources its node keeps and the tests that guard it, read through `guards` edges, requirementImpact, which lists every place an
 // artifact names a requirement, read through the edges that point at it, and coverageGaps, which lists the requirements and use
-// cases that lack a counterpart and the names that match nothing. The impact list of an architecture change, the module order and
-// rows and the comparison of two graphs, which this file will hold too, are not built yet.
+// cases that lack a counterpart and the names that match nothing. architectureImpact derives the architecture-change list from
+// the graph's facts and the caller's before/after texts. The module order and rows and the comparison of two graphs are not built yet.
 //
 // Module: MOD-trace-graph
+
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
+import { identifiersIn } from "../identifiers/index.mjs";
+import { isTestFile } from "../test-document/index.mjs";
 
 const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -40,6 +44,86 @@ export function requirementImpact(graph, name) {
     places.set(JSON.stringify(entry), entry);
   }
   return [...places.values()].sort((a, b) => IMPACT_ORDER.indexOf(a.kind) - IMPACT_ORDER.indexOf(b.kind) || byText(a.id, b.id));
+}
+
+const listOf = (value) => [value ?? []].flat();
+const unique = (values) => [...new Set(values)].sort(byText);
+
+// The document reader already isolates Interfaces. Compare its bullets, including their indented continuations, as the
+// existing architecture model does; unrelated sections cannot turn a prose edit into an interface change.
+function interfaceDeclarations(document) {
+  const lines = document?.sections.find((section) => section.heading === "## Interfaces")?.text.split(/\r?\n/) ?? [];
+  const declarations = new Map();
+  for (let at = 0; at < lines.length; at += 1) {
+    const name = /^- `([A-Za-z_][A-Za-z0-9_]*)/.exec(lines[at])?.[1];
+    if (!name) continue;
+    const declaration = [lines[at]];
+    while (at + 1 < lines.length && /^\s+\S/.test(lines[at + 1])) declaration.push(lines[++at]);
+    declarations.set(name, declaration.map((line) => line.trimEnd()).join("\n"));
+  }
+  return declarations;
+}
+
+// Paths only, not code reads or an import graph. The language extensions follow the existing code-path model.
+const CODE_EXTENSIONS = new Set(["js", "mjs", "cjs", "ts", "tsx", "jsx", "mts", "cts", "py", "rb", "go", "rs", "java", "kt", "kts", "scala",
+  "c", "h", "cc", "cpp", "hpp", "cs", "swift", "m", "php", "pl", "lua", "r", "jl", "sh", "bash", "zsh", "ps1", "sql", "css", "scss",
+  "html", "vue", "svelte", "dart", "ex", "exs", "erl", "hs", "ml", "fs", "clj"]);
+function codePath(path) {
+  const parts = path.split("/");
+  return !path.startsWith("docs/") && !isTestFile(path) && !parts.some((part) => ["vendor", "node_modules", "third_party", "third-party", ".git"].includes(part))
+    && CODE_EXTENSIONS.has(/\.([A-Za-z0-9]+)$/.exec(path)?.[1].toLowerCase());
+}
+
+// architectureImpact(graph, changes) -> ArchitectureImpact. All relationships come from the existing graph; only the supplied
+// changed texts are parsed. Removed modules keep their before folder even when the current graph has no node for them.
+export function architectureImpact(graph, changes) {
+  const modules = new Map(), folders = new Set(), beforeNames = new Set(), afterNames = new Set();
+  const priority = { changed: 0, "uses an interface that changes": 1, "uses an interface that is removed": 2 };
+  const mark = (id, why = "changed") => {
+    if (!modules.has(id) || priority[why] > priority[modules.get(id).why]) modules.set(id, { id, why, breaks: why !== "changed" });
+  };
+  const keepFolder = (folder) => { if (folder) folders.add(folder.endsWith("/") ? folder : `${folder}/`); };
+  for (const { path, before, after } of changes) {
+    const schema = path.startsWith("docs/architecture/ARC-") ? artifactSchemas().decision : artifactSchemas().module;
+    const old = before === null ? null : readDocument(schema, path, before);
+    const next = after === null ? null : readDocument(schema, path, after);
+    const id = (next ?? old).id;
+    for (const [text, names] of [[before, beforeNames], [after, afterNames]]) {
+      for (const place of identifiersIn(path, text)) if (["requirement", "UC"].includes(place.kind)) names.add(place.id);
+    }
+    if (schema === artifactSchemas().decision) {
+      for (const module of [...listOf(old?.fields.designs), ...listOf(next?.fields.designs)]) mark(module);
+      for (const edge of graph.edges) {
+        if (edge.via === "follows" && edge.to === id) mark(edge.from);
+        if (edge.via === "designs" && edge.from === id) mark(edge.to);
+      }
+    } else {
+      mark(id);
+      keepFolder(old?.fields.folder);
+      keepFolder(next?.fields.folder);
+      const was = interfaceDeclarations(old), now = interfaceDeclarations(next);
+      const provided = listOf(next?.fields.provides);
+      for (const name of listOf(old?.fields.provides)) {
+        const removed = !provided.includes(name);
+        if (!removed && was.get(name) === now.get(name)) continue;
+        for (const edge of graph.edges) {
+          if (edge.via === "uses" && edge.interface === name && edge.to === `${id}.${name}`) {
+            mark(edge.from, removed ? "uses an interface that is removed" : "uses an interface that changes");
+          }
+        }
+      }
+    }
+  }
+  for (const id of modules.keys()) keepFolder(graph.nodes.get(id)?.folder);
+  const tests = unique(graph.edges.filter((edge) => edge.via === "exercises" && modules.has(edge.to)).map((edge) => edge.from));
+  return {
+    modules: [...modules.values()].sort((a, b) => priority[b.why] - priority[a.why] || byText(a.id, b.id)),
+    codeFiles: unique(graph.files.filter((path) => codePath(path) && [...folders].some((folder) => path.startsWith(folder)))),
+    tests: tests.map((id) => ({ id, guards: unique(graph.edges.filter((edge) => edge.via === "guards" && edge.from === id).map((edge) => edge.to)) })),
+    named: { added: unique([...afterNames].filter((name) => !beforeNames.has(name))),
+      removed: unique([...beforeNames].filter((name) => !afterNames.has(name))) },
+    items: unique(graph.edges.filter((edge) => edge.via === "changes" && modules.has(edge.to)).map((edge) => edge.from)),
+  };
 }
 
 // The edges that name a requirement or a use case and match neither: a `realises`, a `forced_by` or a `guards` whose name is no
