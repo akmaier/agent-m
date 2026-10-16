@@ -18,7 +18,7 @@
 
 /**
  * The files of one repository at one commit, as the caller hands them; a snapshot of Access fits it.
- * @typedef {{ paths: string[], read: (path: string) => Promise<string | null> }} TextSource
+ * @typedef {{ paths: string[], read: (path: string) => Promise<string | null>, readMany?: (paths: string[]) => Promise<void> }} TextSource
  */
 
 /**
