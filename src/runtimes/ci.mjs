@@ -1,6 +1,6 @@
 // ci.mjs — the CI route (docs/architecture/MOD-runtimes.md, Parts: "ci.mjs — the CI route: queueing, live state, log
-// and cancel through the repository host"). Of it, ITM-253 builds queueing: live state, the log and cancelling through the host
-// are UC-036's and are not built yet. ITM-322 adds jobWorkflowFiles, the files of Agent M's job workflow for a product, from the
+// and cancel through the repository host"). Of it, ITM-253 builds queueing; ITM-535 adds the live state, the log and the cancel of a job taken on CI, through the host
+// (runOfAddress, cancelRun, used by index.mjs). ITM-322 adds jobWorkflowFiles, the files of Agent M's job workflow for a product, from the
 // templates workflow/github.yml and workflow/gitlab.yml, which it reads once, when it is loaded, from the disk, in Node.
 //
 // Module: MOD-runtimes
@@ -116,4 +116,29 @@ export function jobWorkflowFiles(server, instance, secrets, runners) {
   const files = [{ path: WORKFLOW_PATH[server], text: `${fill(head, common)}${jobs.join("\n")}` }];
   if (!github) files.push({ path: ".gitlab-ci.yml", text: `include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n` });
   return files;
+}
+
+// ---------------------------------------------------------------- the live state, the log and the cancel of a job taken on CI
+
+// The job workflow's file name, as GitHub's dispatch call names a workflow (hand-over.mjs): the filter of listCiRuns.
+const JOB_WORKFLOW = "agent-m-jobs.yml";
+
+/**
+ * runOfAddress(host, address) -> Promise<CiRun | null> — the run among listCiRuns({ workflow }) whose url is the address a record's `## Taken` holds in `by:` (MOD-job-ledger, Data); null where the server lists
+ * none. Crosses the network through the host and fails as it fails.
+ */
+export async function runOfAddress(host, address) {
+  const runs = await host.listCiRuns({ workflow: JOB_WORKFLOW });
+  return runs.find((run) => run.url === address) ?? null;
+}
+
+/**
+ * cancelRun(host, address) -> Promise<{ cancelled: boolean, address: string }> — asks the server to cancel the run at the address (cancelCiRun), then reads the run once: `cancelled` where it is. Throws
+ * RuntimeError NotFound { what: address } for a run the server does not list, before anything is asked. Fails as the host fails.
+ */
+export async function cancelRun(host, address) {
+  const run = await runOfAddress(host, address);
+  if (!run) throw new RuntimeError("NotFound", { what: address }, `the CI run ${address} is not listed`);
+  await host.cancelCiRun(run.id);
+  return { cancelled: (await runOfAddress(host, address))?.state === "cancelled", address: run.url };
 }
