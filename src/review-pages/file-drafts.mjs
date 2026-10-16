@@ -5,7 +5,8 @@
 // Module: MOD-review-pages
 //
 // A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; WITHOUT A TOKEN,
-// GITHUB'S WEB INTERFACE IS THE FALLBACK; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Nothing is written before Save; Discard removes the editors, which the page itself holds.
+// GITHUB'S WEB INTERFACE IS THE FALLBACK; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. Nothing is written before Save; Discard removes the editors, which the page itself holds. A draft that was
+// saved in a commit, or discarded, is dropped from the conversation: `drop` (MOD-prompt-bar's dropDraft for the page's subject) is called then.
 
 import { fallbackEditLinks, keptIdentifier, saveFile } from "../artifact-edits/index.mjs";
 import { statuses } from "../approvals/index.mjs";
@@ -15,10 +16,10 @@ import { el, button, link } from "./common.mjs";
 /**
  * fileDrafts({ files, snapshot, host, trailers, versionOf, check, extras }) -> Promise<{ drafts, discard, saved }> — `files` are the drafted { path, text }; `trailers` the provenance
  * lines of the commit; `versionOf(path)` the blob a file was read at by the job, where the page knows it (else the blob the page read); `check(path, text)` an error that keeps a file
- * from being saved, or null; `extras(path, text)` elements shown under a draft. `drafts` holds a <div class="draft" data-path> for each file, `discard` removes them, and `saved` says
+ * from being saved, or null; `extras(path, text)` elements shown under a draft; `drop()` is called once the files are saved in a commit, and on Discard. `drafts` holds a <div class="draft" data-path> for each file, `discard` removes them, and `saved` says
  * what a Save came to.
  */
-export async function fileDrafts({ files, snapshot, host, trailers, versionOf = () => undefined, check = () => null, extras = () => [] }) {
+export async function fileDrafts({ files, snapshot, host, trailers, versionOf = () => undefined, check = () => null, extras = () => [], drop = () => {} }) {
   const known = statuses(snapshot);
   const entries = [];
   const drafts = el("section", "drafts"), saved = el("div", "saved");
@@ -43,6 +44,7 @@ export async function fileDrafts({ files, snapshot, host, trailers, versionOf = 
       if (out.refused) return { kind: "failed", reason: `the identifier of a file changed from ${out.openedId} to ${out.nowId ?? "none"}; keep ${out.openedId}.` };
       const commit = `${snapshot.repository.web}/commit/${out.commit}`;
       saved.replaceChildren(el("p", "saved", `Saved ${edits.length} file${edits.length === 1 ? "" : "s"} as open in `, link(commit, null, "this commit"), "."));
+      drop();
       return { kind: "saved", link: commit };
     } catch (failure) {
       return { kind: "failed", reason: `${failure.name}: ${failure.message}` };
@@ -63,6 +65,7 @@ export async function fileDrafts({ files, snapshot, host, trailers, versionOf = 
   }
   const discard = button("btn discard", "Discard");
   discard.addEventListener("click", () => {
+    drop();
     drafts.replaceChildren();
     discard.remove?.();
     saved.replaceChildren(el("p", null, "The draft was discarded. Nothing was written."));

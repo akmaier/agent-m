@@ -1,4 +1,4 @@
-// MOD-prompt-bar, bar.mjs — the bar (docs/architecture/MOD-prompt-bar.md: Parts, Interfaces: startPromptBar, latestDraft, currentJob): the
+// MOD-prompt-bar, bar.mjs — the bar (docs/architecture/MOD-prompt-bar.md: Parts, Interfaces: startPromptBar, latestDraft, dropDraft, currentJob): the
 // selector, the input, *Send* and *Stop*, the conversation, the answer, and the hand-over a participant proposes: shown with its kind, what it
 // works on, its task, the participant and its route, checked with the product's start rules (hand-over.mjs), queued by *Hand over* and followed
 // until it has ended (follow.mjs), with *Stop* cancelling it.
@@ -68,6 +68,13 @@ export function currentJob() {
 export function latestDraft(store, subject) {
   const draft = readTabValue(store, DRAFT);
   return draft !== null && draft.subject === subject ? draft : null;
+}
+
+/**
+ * dropDraft(store: Store, subject: string) -> void — drops the conversation's latest draft, if it was drafted on that subject; the draft of another subject is left.
+ */
+export function dropDraft(store, subject) {
+  if (latestDraft(store, subject) !== null) writeTabValue(store, DRAFT, null);
 }
 
 // What a failure says: its name and message.

@@ -33,6 +33,7 @@ import test from "node:test";
 import { all, changeFragment, fixtureStorage, installPage } from "./site-frame-start.d/dom.mjs";
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { subjectOf } from "../src/site-frame/subject.mjs";
 
 const { startPage } = await import("../src/site-frame/index.mjs");
 
@@ -228,6 +229,30 @@ test("TST-506003 a route that gives no subject has the default: its key, its tit
   assert.equal(seen[2].page, 'Title of alpha\nRequirements\nhttps://github.com/acme/widget\nalpha {"id":"7"}');
   assert.deepEqual(conversationOf().map((message) => message.subject),
     ["alpha/id=7", "alpha/id=7", "beta/q=a%20b/z=1", "beta/q=a%20b/z=1", ...Array(2).fill("alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget")]);
+});
+
+// TST-555002 · level: unit · module: MOD-site-frame
+// guards: UC-049
+// given: the route alpha (entry requirements, title "Title of alpha") whose subject gives null for the parameters {} and its own subject (key "own", title "Own", kind change-use-case, entry "tests") for {"id":"7"}; the route beta (entry null) whose subject gives null; the context of the instance acme/instance, and one of the product https://github.com/acme/widget
+// input: subjectOf of the frame for alpha with {} and the text "drawn text" on the instance; for alpha with {} on the widget; for beta with {"q":"1"}; for alpha with {"id":"7"}
+// expect: alpha with {} on the instance is the default — key "alpha", title "Title of alpha", kind converse, entry "requirements", draftRoute null, withhold null, refuses [], its page "Title of alpha\nRequirements\nhttps://github.com/acme/instance\ndrawn text"; on the widget the key "alpha/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget" and the address https://github.com/acme/widget in the page; beta is the default with entry null and a page of its title, the address and the drawn text (no line for a menu entry); alpha with {"id":"7"} is the route's own subject, key "own", kind change-use-case, with its entry set to "requirements"
+test("TST-555002 a route whose subject gives null for these parameters has the frame's default, menu label included", () => {
+  const context = (product) => ({ instance: { repository: "acme/instance" }, product: product ? { address: WIDGET } : null });
+  const alpha = { name: "alpha", entry: "requirements", title: "Title of alpha",
+    subject: (params) => params.id === undefined ? null : { key: "own", title: "Own", kind: "change-use-case", entry: "tests", paramsFor: () => ({}), draftRoute: null, withhold: null, refuses: [] } };
+  const beta = { name: "beta", entry: null, title: "Title of beta", subject: () => null };
+  const instance = subjectOf({ route: alpha, params: {}, context: context(false), drawn: () => "drawn text" });
+  assert.deepEqual({ key: instance.key, title: instance.title, kind: instance.kind, entry: instance.entry, draftRoute: instance.draftRoute, withhold: instance.withhold, refuses: instance.refuses },
+    { key: "alpha", title: "Title of alpha", kind: "converse", entry: "requirements", draftRoute: null, withhold: null, refuses: [] });
+  assert.equal(instance.paramsFor({}).page, "Title of alpha\nRequirements\nhttps://github.com/acme/instance\ndrawn text");
+  const widget = subjectOf({ route: alpha, params: {}, context: context(true), drawn: () => "drawn text" });
+  assert.equal(widget.key, `alpha/product=${encoded(WIDGET)}`);
+  assert.equal(widget.paramsFor({}).page, "Title of alpha\nRequirements\nhttps://github.com/acme/widget\ndrawn text");
+  const out = subjectOf({ route: beta, params: { q: "1" }, context: context(false), drawn: () => "drawn text" });
+  assert.equal(out.entry, null);
+  assert.equal(out.paramsFor({}).page, "Title of beta\nhttps://github.com/acme/instance\ndrawn text");
+  const own = subjectOf({ route: alpha, params: { id: "7" }, context: context(false), drawn: () => "drawn text" });
+  assert.deepEqual({ key: own.key, kind: own.kind, entry: own.entry }, { key: "own", kind: "change-use-case", entry: "requirements" });
 });
 
 // TST-506007 · level: unit · module: MOD-site-frame

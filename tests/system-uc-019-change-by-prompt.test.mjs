@@ -13,8 +13,8 @@
 // Precondition: ITM-504, ITM-506, ITM-507 and ITM-508 are merged.
 // Expected result: every flow below is covered by executable evidence that asserts nothing the accepted UC-019 replaced, or is a finding
 // - a todo test below, or in the release file named - that fails now and names what the code does instead. The findings:
-// the participants offered (UC019-S9), the count of requirements and use cases when a context is too small (UC019-S10), the follow-up
-// instruction (UC019-S11), and the work handed to GitHub Actions (UC019-S12).
+// the participants offered (UC019-S9), the count of requirements and use cases when a context is too small (UC019-S10), and the work
+// handed to GitHub Actions (UC019-S12).
 //
 // The page, the servers and the person's actions are the harness of tests/system-uc-019-change-requirements-by-prompt.test.mjs: the real
 // MOD-site-frame, MOD-prompt-bar and MOD-review-pages over GitHub and a drafting endpoint served in memory; no request leaves the process.
@@ -99,6 +99,10 @@ const FLOW_EVIDENCE = {
     uc: "The loop ends with findings left",
     evidence: [[DRAFT, "TST-507021"], ["tests/specification-and-design-drafting-together.test.mjs", "TST-476060"]],
   },
+  "7a-findings-left-in-compiler-form": {
+    uc: "the remaining findings in the same compiler form",
+    evidence: [[RELEASE_REQUIREMENTS, "TST-418126"]],
+  },
   "7b-dropped-realises-name-shown-as-diff": {
     uc: "The participant dropped a name from `realises`",
     evidence: [[SELF, "TST-377003"], ["tests/markdown-render-release-20.test.mjs", "TST-342009"]],
@@ -106,6 +110,10 @@ const FLOW_EVIDENCE = {
   "8-follow-up-instruction-in-the-prompt-bar": {
     uc: "writes a follow-up instruction in the prompt bar",
     evidence: [[SELF, "TST-377007"]],
+  },
+  "8-follow-up-repeats-5-to-7-on-the-draft": {
+    uc: "which repeats steps 5–7 on the current draft",
+    evidence: [[SELF, "TST-377012"]],
   },
   "8b-several-use-cases-each-with-its-difference": {
     uc: "Each file is shown with its own difference",
@@ -130,11 +138,9 @@ const FLOW_FINDINGS = {
   "main-2-offers-only-participants-that-can-draft": { uc: "Agent M offers there only participants that can draft text", finding: "UC019-S9", file: SELF, test: "TST-377010" },
   "3a-links-uc-017": { uc: "Agent M says so and links to UC-017", finding: "UC019-S9", file: SELF, test: "TST-377010" },
   "4a-counts-of-requirements-and-use-cases": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: SELF, test: "TST-377011" },
-  "8-follow-up-repeats-5-to-7-on-the-draft": { uc: "which repeats steps 5–7 on the current draft", finding: "UC019-S11", file: SELF, test: "TST-377012" },
   "6b-hand-over-from-the-bar": { uc: "The work is handed to GitHub Actions", finding: "UC019-S12", file: SELF, test: "TST-377013" },
   "4a-counts-in-the-bar": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
   "7-limit-named-before-the-first-round": { uc: "named in the conversation (default 5)", finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
-  "7a-findings-left-in-compiler-form": { uc: "the remaining findings in the same compiler form", finding: "UC019-S14", file: RELEASE_REQUIREMENTS, test: "TST-418126" },
 };
 
 // TST-377001
@@ -265,10 +271,10 @@ test("TST-377006: UC-019 4a a context that does not fit sends nothing and offers
 // module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
 // guards: UC-019 (step 8)
 // given: the draft of UC-007 and UC-008 on the route draft, with the added alternative flow 2b
-// input: the author writes the follow-up "make 2b say what is logged" in the bar and presses Send
+// input: the author writes the follow-up "make 2b say what is logged" in the bar and presses Send; the participant answers it with a draft of the same kind (the change kind reads only a draft)
 // expect: nothing is written before the author's Save; the follow-up goes to the endpoint on the author's Send only, and the draft as it stands - its added line "2b. The service fails." - is among what the participant is given
 test("TST-377007: UC-019 8 a follow-up instruction in the prompt bar goes with the draft as it stands", async () => {
-  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8)), { answer: "Noted." }] });
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8)), filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
   await onUseCase(s);
   await send(s, ALIGN);
   await review(s);
@@ -407,7 +413,7 @@ test("TST-377011: UC-019 4a the bar says how many requirements and use cases the
 // given: the draft of UC-007 on the route draft, and a participant that answers a further change as a draft of the same kind
 // input: the author writes a follow-up instruction in the bar and presses Send
 // expect: the follow-up is a change of the use case again (steps 5 to 7 repeat), and the bar offers *Review the draft* for the newer draft
-test("TST-377012: UC-019 8 a follow-up instruction repeats steps 5 to 7 and gives a newer draft", { todo: "FINDING UC019-S11 - while the route draft is shown, the frame's subject for it is the default (kind converse, draft route null: src/site-frame/subject.mjs subjectOf), so the follow-up is sent as a conversation about the page text, its answer is read as text (\"the answer.draft has no answer\" for a draft), and no Review the draft is offered; ITM-559 mends it" }, async () => {
+test("TST-377012: UC-019 8 a follow-up instruction repeats steps 5 to 7 and gives a newer draft", async () => {
   const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7))] });
   await onUseCase(s);
   await send(s, "add error handling to UC-007");

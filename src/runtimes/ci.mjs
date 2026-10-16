@@ -78,13 +78,108 @@ const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 // A text with each @@name@@ of the template replaced by the value given.
 const fill = (template, values) => template.replace(/@@([a-z-]+)@@/g, (_, name) => values[name]);
 
+// ---------------------------------------------------------------- the product's own .gitlab-ci.yml
+
+const isBlank = (line) => /^\s*(#.*)?$/.test(line);
+const indentOf = (line) => line.length - line.trimStart().length;
+const LIST_ITEM = /^\s*-(\s|$)/;
+// A line that names the job file, as a `local:` value or as a plain string item.
+const NAMES_JOB_FILE = /^\s*(-\s+)?(local:\s*)?["']?\/?\.gitlab\/agent-m-jobs\.yml["']?\s*(#.*)?$/;
+
+const notAList = (why) => new RuntimeError("GitlabCiNotList", { file: ".gitlab-ci.yml" },
+  `.gitlab-ci.yml: ${why} Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.`);
+
+// appendToBlock(lines, keyAt, limit, names, render) -> boolean — under the key at lines[keyAt], whose block ends before `limit`, adds render(name, pad) for each
+// of `names` the block lacks, after the block's last line that holds anything; true where it added. `pad` is the indentation of the block's own entries.
+function appendToBlock(lines, keyAt, limit, names, render) {
+  const keyIndent = indentOf(lines[keyAt]);
+  let last = keyAt, childIndent = null;
+  for (let at = keyAt + 1; at < limit; at += 1) {
+    if (isBlank(lines[at])) continue;
+    if (indentOf(lines[at]) <= keyIndent) break;
+    childIndent ??= indentOf(lines[at]);
+    last = at;
+  }
+  const pad = " ".repeat(childIndent ?? keyIndent + 2);
+  const lacking = names.filter((name) => !lines.slice(keyAt + 1, last + 1).some((line) => line.startsWith(`${pad}${name}:`)));
+  lines.splice(last + 1, 0, ...lacking.flatMap((name) => render(name, pad)));
+  return lacking.length > 0;
+}
+
+// mergeGitlabCi(text, names) -> string — the product's .gitlab-ci.yml with the three additions of MOD-runtimes' jobWorkflowFiles, each only where it is
+// missing, and no other line touched; `text` itself where nothing is missing. Throws RuntimeError GitlabCiNotList for an include: that is not a list.
+function mergeGitlabCi(text, names) {
+  const lines = text === "" ? [] : text.replace(/\n$/, "").split("\n");
+  let changed = false;
+  const defaults = (name, pad) => [`${pad}${name}:`, `${pad}  default: ""`];
+  const passed = (name, pad) => [`${pad}${name}: $[[ inputs.${name} ]]`];
+
+  // 1. The `spec:` header, which ends at the first line `---`: each input it lacks under `inputs:`; the whole header before the first line where there is none.
+  const dashAt = lines.findIndex((line) => /^---\s*$/.test(line));
+  const specAt = lines.findIndex((line) => /^spec:\s*$/.test(line));
+  if (specAt !== -1 && dashAt > specAt && lines.slice(0, specAt).every(isBlank)) {
+    const inputsAt = lines.findIndex((line, at) => at > specAt && at < dashAt && /^\s+inputs:/.test(line));
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the spec: header is not written as a block.");
+    if (inputsAt === -1) {
+      lines.splice(dashAt, 0, "  inputs:", ...names.flatMap((name) => defaults(name, "    ")));
+      changed = true;
+    } else changed = appendToBlock(lines, inputsAt, dashAt, names, defaults);
+  } else {
+    lines.unshift("spec:", "  inputs:", ...names.flatMap((name) => defaults(name, "    ")), "---");
+    changed = true;
+  }
+
+  // 2. The entry under `include:`: at the end of a list; the key with it at the end of the file where there is none. An entry that names the job file
+  // already gains only the inputs it lacks.
+  const entry = (pad) => [`${pad}- local: "${WORKFLOW_PATH.gitlab}"`, `${pad}  inputs:`, ...names.flatMap((name) => passed(name, `${pad}    `))];
+  const includeAt = lines.findIndex((line) => /^include:/.test(line));
+  if (includeAt === -1) {
+    lines.push("include:", ...entry("  "));
+    return `${lines.join("\n")}\n`;
+  }
+  const rest = lines[includeAt].slice("include:".length).trim();
+  if (rest !== "" && !rest.startsWith("#")) throw notAList("include: holds a single string or an inline map.");
+  let first = null, end = includeAt;
+  for (let at = includeAt + 1; at < lines.length; at += 1) {
+    if (isBlank(lines[at])) continue;
+    if (indentOf(lines[at]) === 0 && !LIST_ITEM.test(lines[at])) break;
+    first ??= at;
+    end = at;
+  }
+  if (first !== null && !LIST_ITEM.test(lines[first])) throw notAList("include: holds a map.");
+  const itemIndent = first === null ? 2 : indentOf(lines[first]), margin = " ".repeat(itemIndent);
+  const starts = [];
+  if (first !== null) for (let at = first; at <= end; at += 1) if (indentOf(lines[at]) === itemIndent && LIST_ITEM.test(lines[at])) starts.push(at);
+  const named = starts.findIndex((start, i) => lines.slice(start, starts[i + 1] ?? end + 1).some((line) => NAMES_JOB_FILE.test(line)));
+  if (named === -1) {
+    lines.splice(end + 1, 0, ...entry(margin));
+    changed = true;
+  } else {
+    const start = starts[named], stop = starts[named + 1] ?? end + 1;
+    if (!lines.slice(start, stop).some((line) => /^\s*(-\s+)?local:/.test(line))) {
+      throw notAList("the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.");
+    }
+    const inputsAt = lines.findIndex((line, at) => at > start && at < stop && /^\s+inputs:/.test(line));
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.");
+    if (inputsAt === -1) {
+      let last = stop - 1;
+      while (isBlank(lines[last])) last -= 1;
+      lines.splice(last + 1, 0, `${margin}  inputs:`, ...names.flatMap((name) => passed(name, `${margin}    `)));
+      changed = true;
+    } else changed = appendToBlock(lines, inputsAt, stop, names, passed) || changed;
+  }
+  return changed ? `${lines.join("\n")}\n` : text;
+}
+
 /**
  * jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string, keys:
- * string[] }, runners: string[]) -> { path: string, text: string }[] — the files of Agent M's job workflow in a product
+ * string[] }, runners: string[], gitlabCi?: string | null) -> { path: string, text: string }[] — the files of Agent M's job workflow in a product
  * (MOD-runtimes, Data), for the caller to commit on a person's click: on GitHub .github/workflows/agent-m-jobs.yml; on GitLab
- * .gitlab/agent-m-jobs.yml and, as the second file, the text the product's .gitlab-ci.yml needs, to be added to that file and not to
- * replace it: the `spec:inputs` header that declares the inputs `job`, `task` and `endpoint` of a pipeline the API starts, each with an empty
- * default, and the include of the job file that passes them on. One job for each route of the product's CI agents: the server's runners, `hosted`, and each
+ * .gitlab/agent-m-jobs.yml and, as the second file, the product's .gitlab-ci.yml. `gitlabCi` is the product's .gitlab-ci.yml at the head the caller
+ * read, `null` where it has none: the second file is then the whole file the template gives — the `spec:inputs` header that declares the inputs `job`,
+ * `task` and `endpoint` of a pipeline the API starts, each with an empty default, and the include of the job file that passes them on —, and otherwise
+ * `gitlabCi` with those three things added, each only where it is missing, and every other line as it was. Throws RuntimeError GitlabCiNotList, naming
+ * the file, where its `include:` holds a single string or a map. One job for each route of the product's CI agents: the server's runners, `hosted`, and each
  * self-hosted runner by its label in `runners`. `instance.repository` is `owner/name` on github.com and `instance.commit` a
  * 40-digit commit, at which each job checks out the instance. `secrets.token` is the name of the secret that holds the person's
  * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. Pure.
@@ -94,9 +189,10 @@ const fill = (template, values) => template.replace(/@@([a-z-]+)@@/g, (_, name) 
  * @param {{ repository: string, commit: string }} instance
  * @param {{ token: string, keys: string[] }} secrets
  * @param {string[]} runners
+ * @param {string | null} [gitlabCi]
  * @returns {Array<{ path: string, text: string }>}
  */
-export function jobWorkflowFiles(server, instance, secrets, runners) {
+export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = null) {
   if (!Object.hasOwn(WORKFLOW_PATH, server)) throw new TypeError(`the job workflow is written for GitHub or GitLab, not ${server}`);
   if (!REPOSITORY.test(instance.repository)) throw new TypeError(`the instance is owner/name: ${instance.repository}`);
   if (!COMMIT.test(instance.commit)) throw new TypeError(`the instance is at a commit of 40 hexadecimal digits: ${instance.commit}`);
@@ -121,7 +217,10 @@ export function jobWorkflowFiles(server, instance, secrets, runners) {
     // so does this file; a push starts the pipeline without inputs, so each has an empty default there.
     const spec = head.slice(0, head.indexOf("---\n") + 4);
     const inputs = [...spec.matchAll(/^ {4}([a-z]+):$/gm)].map((match) => match[1]);
-    files.push({ path: ".gitlab-ci.yml", text: `${spec}include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n    inputs:\n${inputs.map((name) => `      ${name}: $[[ inputs.${name} ]]\n`).join("")}` });
+    // Where the product has a .gitlab-ci.yml, it is that text with what it lacks added (mergeGitlabCi); where it has none, the whole file.
+    if (gitlabCi !== null && typeof gitlabCi !== "string") throw new TypeError("the product's .gitlab-ci.yml is given as its text, or as null where it has none");
+    files.push({ path: ".gitlab-ci.yml", text: gitlabCi === null ? `${spec}include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n    inputs:\n${inputs.map((name) => `      ${name}: $[[ inputs.${name} ]]\n`).join("")}`
+      : mergeGitlabCi(gitlabCi, inputs) });
   }
   return files;
 }

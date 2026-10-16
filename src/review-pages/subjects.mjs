@@ -1,6 +1,6 @@
 // subjects.mjs — the subject each route gives the prompt bar (MOD-review-pages, Parts: flow.mjs, "the subject each of its routes gives the prompt bar"; MOD-site-frame, Route.subject;
 // MOD-prompt-bar, Subject). The page of a file (`<k>/id=<id>`), its editor, a requirement's editor and a new requirement's give a subject that names the descriptor's change kind
-// and the target, and `draft/subject=<key>` as the draft route; every other page of a kind has the subject the frame gives a route that gives none (kind `converse`).
+// and the target, and `draft/subject=<key>` as the draft route; every other page of a kind has no subject of its own: the route gives `null`, and the frame's default stands (MOD-site-frame, Route.subject).
 //
 // Module: MOD-review-pages
 //
@@ -17,7 +17,7 @@ import { accountOf, defaultSnapshot } from "./common.mjs";
 import { entryId, sourcesOf } from "./spec-entries.mjs";
 
 const SPEC = "SPEC.md";
-// What was read for a context when its route was drawn: { target, facts } — the element the route drew into, and the facts of the subject, or null where the page names none.
+// What was read for a context when its route was drawn: { facts } — the facts of the subject, or null where the page names none.
 const drawn = new WeakMap();
 
 const encoded = encodeURIComponent;
@@ -25,9 +25,9 @@ const productOf = (context) => (context.product ? [`product=${encoded(context.pr
 // The fragment of a page without its leading `#`: the route's name, its parts, then the product, as MOD-site-frame writes the key of its default subject.
 const keyOf = (route, parts, context) => [route, ...parts.map(([name, value]) => `${name}=${encoded(value)}`), ...productOf(context)].join("/");
 
-/** begin(context, target) — a route is being drawn in `target` for this context: nothing is known of its subject yet. */
-export function begin(context, target) {
-  drawn.set(context, { target, facts: null });
+/** begin(context) — a route is being drawn for this context: nothing is known of its subject yet. */
+export function begin(context) {
+  drawn.set(context, { facts: null });
 }
 
 // The facts of a file's page: the file addressed by its identifier, the blob of its text and its heading.
@@ -107,7 +107,8 @@ function missingSource() {
 }
 
 /**
- * subjectOf(kind, params, context) -> Subject — what a message in the prompt bar is about while the route of `kind` is shown with these `params` in this `context`.
+ * subjectOf(kind, params, context) -> Subject | null — what a message in the prompt bar is about while the route of `kind` is shown with these `params` in this `context`; `null` for a page that
+ * names no file or requirement the product holds, which has the frame's default.
  */
 export function subjectOf(kind, params, context) {
   const here = drawn.get(context);
@@ -121,7 +122,5 @@ export function subjectOf(kind, params, context) {
       },
       draftRoute: `draft/subject=${encoded(key)}`, withhold: null, refuses: [] };
   }
-  const address = context.product?.address ?? `https://github.com/${context.instance.repository}`;
-  return { key: keyOf(kind.route, Object.entries(params), context), title: kind.title, kind: "converse", entry: kind.entry,
-    paramsFor: () => ({ page: [kind.title, address, here?.target?.textContent ?? ""].join("\n") }), draftRoute: null, withhold: null, refuses: [] };
+  return null;
 }

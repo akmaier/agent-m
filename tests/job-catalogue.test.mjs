@@ -34,11 +34,11 @@ const ONE_DEFINITION = "ONE DEFINITION, THREE DRIVERS";
 // the draft it expects. A ~ stands where the module file writes a backtick.
 const TABLE_TEXT = `
 | ~derive-requirements~ | UC-005 | draft text | | ~source-excerpt~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
-| ~change-requirements~ | UC-019, UC-012, UC-049 | draft text | | ~instruction~, ~conversation~, ~named-requirements~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | the same |
+| ~change-requirements~ | UC-019, UC-012, UC-049 | draft text | | ~instruction~, ~conversation~, ~draft?~, ~named-requirements~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | the same |
 | ~derive-use-cases~ | UC-007 | draft text | ~rests-on-accepted~ | ~chosen-requirements~, ~use-cases~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | | | ~none~ · ~open-files~ | files |
-| ~change-use-case~ | UC-019, UC-049 | draft text | | ~instruction~, ~conversation~, ~use-case-with-neighbours~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~identifier-kept~ | | | ~person~ · ~open-files~ | files |
+| ~change-use-case~ | UC-019, UC-049 | draft text | | ~instruction~, ~conversation~, ~draft?~, ~use-case-with-neighbours~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~identifier-kept~ | | | ~person~ · ~open-files~ | files |
 | ~derive-architecture~ | UC-022 | draft text | ~architecture-ready~ | ~whole-spec~, ~accepted-use-cases~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
-| ~change-architecture~ | UC-023, UC-049 | draft text | ~rests-on-accepted~ | ~instruction~, ~conversation~, ~whole-spec~, ~use-cases~, ~whole-architecture~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~identifier-kept~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
+| ~change-architecture~ | UC-023, UC-049 | draft text | ~rests-on-accepted~ | ~instruction~, ~conversation~, ~draft?~, ~whole-spec~, ~use-cases~, ~whole-architecture~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~identifier-kept~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
 | ~review-architecture~ | UC-022, UC-023 | draft text | | ~whole-spec~, ~accepted-use-cases~, ~draft~, ~chapters-for-architecture~ | | | | ~none~ · ~return-draft~ | findings, each a warning |
 | ~propose-groups~ | UC-021 | draft text | | ~items-of-kind~ | ~group-rules~ | | | ~none~ · ~return-draft~ | moves, each a ~GroupMove~ of MOD-group-document |
 | ~draft-plan~ | UC-045 | draft text | ~rests-on-accepted~ | ~architecture-and-model~ | ~plan-checks~ | | | ~person~ · ~plan-steps~ | steps |
@@ -83,6 +83,10 @@ const PRODUCT_RESOURCES = ["implement", "refactor", "fix-bug", "write-tests", "r
 const MERGE_AND_QUESTION = ["implement", "refactor", "fix-bug"];
 const MERGE_ONLY = ["write-tests"];
 const PERSON_DECIDES = ["derive-requirements", "change-requirements", "derive-architecture", "change-architecture"];
+
+// The kinds whose prompt holds the named place {{draft}}, stated here: the three change kinds take the conversation's draft as it
+// stands; review-architecture, write-tests and check-for-persons take the draft under review, the cases, the text to check.
+const DRAFT_PLACE = ["change-requirements", "change-use-case", "change-architecture", "review-architecture", "write-tests", "check-for-persons"];
 
 const promptPlaces = (prompt) => [...new Set([...prompt.matchAll(/\{\{([a-z-]+)\}\}/g)].map((m) => m[1]))].sort();
 
@@ -169,7 +173,7 @@ test("kindOf — every shipped definition is read without an error and says what
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: each kind of the catalogue
 // input: kindOf(name)
-// expect: a kind with a participant has a prompt with a named place `{{recipe}}` for exactly each of its recipes, and a schema of its draft written with type, properties, required, items and enum only, describing an object; a kind without a participant has neither a prompt nor a schema of a draft
+// expect: a kind with a participant has a prompt with a named place `{{recipe}}` for exactly each of its recipes, and a schema of its draft written with type, properties, required, items and enum only, describing an object; the prompts of change-requirements, change-use-case and change-architecture hold the place `{{draft}}`, and the prompt of no other kind holds it except those of review-architecture, write-tests and check-for-persons; a kind without a participant has neither a prompt nor a schema of a draft
 test("kindOf — each prompt has a named place for exactly its kind's recipes, and each draft's schema uses the five keywords", async () => {
   for (const name of await kindNames()) {
     const kind = await kindOf(name);
@@ -178,6 +182,7 @@ test("kindOf — each prompt has a named place for exactly its kind's recipes, a
       continue;
     }
     assert.deepEqual(promptPlaces(kind.prompt), kind.recipes.map((recipe) => recipe.name).sort(), name);
+    assert.equal(promptPlaces(kind.prompt).includes("draft"), DRAFT_PLACE.includes(name), `${name}: the place {{draft}}`);
     assert.equal(kind.answer.type, "object", name);
     assert.deepEqual([...keywords(kind.answer)].filter((key) => !["type", "properties", "required", "items", "enum"]
       .includes(key)), [], name);
