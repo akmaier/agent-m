@@ -167,6 +167,7 @@ const COVERED_BY_RELEASE = {
   "A FINDING READS LIKE A COMPILER MESSAGE": [
     ev("tests/test_correction_loop.py", "TST-475002"),
     ev("tests/text-tools.test.mjs", "TST-473100"),
+    ev(RELEASE_REQUIREMENTS, "TST-418126"),
   ],
   "AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED": [
     ev("tests/test_correction_loop.py", "TST-475003"),
@@ -229,7 +230,6 @@ const FINDINGS = {
   "A CI AGENT'S DRAFT ENTERS AS OPEN": { finding: "UC019-S12", file: SYSTEM, test: "TST-377013" },
   "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY": { finding: "UC019-S10", file: SYSTEM, test: "TST-377011" },
   "THE PAGE NAMES WHERE IT SENDS": { finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
-  "A FINDING READS LIKE A COMPILER MESSAGE": { finding: "UC019-S14", file: RELEASE_REQUIREMENTS, test: "TST-418126" },
   "THE CORRECTION LOOP HAS A FIXED LIMIT": { finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
   "A PARTICIPANT DECLARES ITS CAPABILITIES": { finding: "UC019-S9", file: SYSTEM, test: "TST-377010" },
 };
