@@ -36,12 +36,25 @@ states it:
 Without it, a job of the four kinds that name it has no writer. So a hand-over's run without a pull request cannot be
 told today from a writer that never ran, and ITM-538 waits for it.
 
-**Not ready for a sprint yet.** Its readings are settled before it is selected:
-- the form of "the branch named after the job", read from the agents' prompts of MOD-agent-processes and the job
-  workflow;
-- which host a CI run's writer gets: the checkout's clone, which makes no server requests, or the server's API with the
-  person's token;
-- how "the requirements its new tests guard" are told new: against the base of the branch.
+**Not ready for a sprint yet.** Three readings were settled at sprint team1/53; one is still open.
+- **The branch** is the `branch` the participant's answer reports. Each kind that names this writer requires it, as
+  `implement`'s `answer.schema.json` shows. No text fixes a form for the name, so the writer checks none. A branch the
+  host does not hold is `NoBranch`, and one with no commit beyond the job's snapshot is `NoCommits`.
+- **The host** is the job's `context.product.host`. In CI it is the checkout's clone with the person's token, which
+  serves every function but the files through the server's REST API (MOD-repository-hosts, `connect`: "every other
+  function uses the REST adapter where a token is given, or throws `NotSupported`"). The entry already reads pull
+  requests through it (`refusedBranch`, `src/workflow-entries/product.mjs:88`). On a Bridge's clone, without a token,
+  `NotSupported` is the "local host" case.
+- **New tests** are the declarations, read with `testDeclarations`, in the files the branch adds or changes against the
+  job's `context.product.snapshot`, whose identifier that snapshot's version of the file does not declare. This follows
+  the check `test-declarations` (`src/job-runner/builtins.mjs:163–186`).
+- **Open: the base of a pull request the writer opens.** `openPullRequest` takes a `base`. UC-024 step 6 names the target
+  branch as the default branch or the phase's branch. The writer's Uses give it no way to read that branch:
+  - `repositoryInfo` and MOD-product-process are not among them;
+  - in CI, `context.product.snapshot` is read at `HEAD`.
+
+  So either a draft gives the job's context its target branch, or the entry reads the product's snapshot at the branch
+  the workflow runs for, so that its `ref` names that branch. This is settled before the start.
 
 **Also in this module's next change, from ITM-548's gate (`7bd2`).** In `src/runtimes/ci.mjs`, `GitlabCiNotList`'s
 messages for an inline `inputs:` end with the sentence about an `include:` that is a list. That sentence does not fit
