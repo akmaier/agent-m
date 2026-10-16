@@ -113,9 +113,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   message: string, changes: { path: string, change: "added" | "modified" | "deleted" | "renamed", from?: string }[] }`.
 - `FileWrite` — `{ path: string, text?: string, bytes?: Uint8Array, delete?: true }`: one file of a commit.
 - `PullRequest` — `{ number: number, title: string, branch: string, base: string, head: string, state: "open" | "merged" |
-  "closed", draft: boolean, url: string, opened: string, merged: string | null, closed: string | null }`: a pull request on
-  GitHub, a merge request on GitLab, with the dates it was opened, merged and closed — what a burn-down, a flow or a
-  timeline is computed from.
+  "closed", draft: boolean, url: string, opened: string, merged: string | null, closed: string | null, body: string }`: a pull
+  request on GitHub, a merge request on GitLab, with the dates it was opened, merged and closed — what a burn-down, a flow
+  or a timeline is computed from —, and its description, `""` where it has none.
 - `PullRequestFacts` — `{ pullRequest: PullRequest, commits: { sha: string, message: string, files: string[], ci: "success"
   | "failure" | "running" | "none" }[], files: { path: string, change: string }[], reviews: { reviewer: string, verdict:
   "approved" | "changes requested" | "commented" | "dismissed", commit: string, date: string }[], checks: { name: string,
