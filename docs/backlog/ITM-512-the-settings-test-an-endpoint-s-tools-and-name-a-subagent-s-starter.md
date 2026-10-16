@@ -28,7 +28,8 @@ origin:
 ## Outcome
 
 The route `endpoints` shows, after the test request, whether the model called the tool — *can use tools* or *text
-only*. The route `participants` offers, for a subagent, the CLI agent that starts it; for a model endpoint, *use tools*
+only*. With *text only*, the endpoint's message, if it gave one, is shown folded (UC-003 5a; MOD-endpoint-calls'
+`testEndpoint` already returns it as `toolMessage`). The route `participants` offers, for a subagent, the CLI agent that starts it; for a model endpoint, *use tools*
 preset from its last test and the CI secret of its key; and a folded explanation of when the prompt bar appears
 (UC-049 1a).
 

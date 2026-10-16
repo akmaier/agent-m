@@ -72,7 +72,8 @@ an interval the repository servers' rate limits allow, so the build stays curren
 
 - `view: View` — the routes of the main page, `{ routes, strategies: [sourceStrategies] }`, each route with the frame's
   default subject for the prompt bar:
-  - `home` — the greeting with its folded explanation; one card per product this browser keeps, each with its name, its
+  - `home` — the greeting with its folded explanation and *Get your own Agent M*, which leads to MOD-settings-pages'
+    `get-your-own` (UC-014 step 1); one card per product this browser keeps, each with its name, its
     process model, its bar of six stages each filled by its share, the stage it is in marked, a click on a stage leading
     to that stage's page under `docs/` for the product, and its build — the steps or items in progress, each with the job
     working on it, its participant, state and elapsed time; without a product, Agent M's own card from the instance

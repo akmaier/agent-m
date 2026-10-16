@@ -166,7 +166,9 @@ ReviewKind = {
   - `<k>` — the files of the kind with their status — open, accepted, changed since acceptance —, each with a tick. A
     SPEC entry's tick names the blob of its proposal, from the tree, and the blob of the section that holds now, from the
     SPEC read once with `sectionText` and `blobSha`; the list builds no impact list, which is built for an entry only
-    when it is opened.
+    when it is opened. An entry of the instance's own SPEC whose approval record is committed but whose section is not
+    written, because the instance's workflows are not turned on, is shown *approved*, not *in SPEC*, with why and a link
+    to the Actions step of MOD-settings-pages' `get-your-own` (UC-014 step 4, 4a).
   - `<k>/<id>` — one file, `<id>` the identifier an approval record names it by (MOD-approvals): `UC-<nnn>`,
     `ARC-<nnn>`, `MOD-<slug>`, `spec-<queue>-<NN>` for an entry of a change queue, `release-v<version>` for a release
     test report — one part of the address's fragment, since none of them holds a `/`. The file rendered, with its

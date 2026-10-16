@@ -102,7 +102,7 @@ person reviews it. Its formats are those of the modules it uses.
   `privacyStrategies`, `specStrategies`, `routeStrategies`:
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
-    fixing participant — one that can run tests — and its run panel, the job queued on its route; for a change, the
+    fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
     change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates
     shown by class beside the requirements they refer to and every conflict decided by the person, then *Save*, which
     writes them as a change queue naming the issue; *Move to backlog* with the item prefilled — its fields checked in a
