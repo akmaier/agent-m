@@ -2,8 +2,8 @@
 // its interface. Of it, ITM-215 builds what UC-002 needs: Model, Catalogue, catalogue, modelSchema and modelFindings, and the
 // shipped catalogue as data — the book's models in models/ and its practices in practices/, each file naming the chapter
 // it follows. ITM-229 adds a model's `## About` and Model.about: what UC-002 shows beside each model. ITM-258 adds reading
-// a kind's explanation in parentheses in a phase's Produces, and a stated Time box of none as no time box. planGrid and
-// modelDiagram are not built yet.
+// a kind's explanation in parentheses in a phase's Produces, and a stated Time box of none as no time box. planGrid gives
+// each accepted requirement every phase of a planned model (plan.mjs). modelDiagram is not built yet.
 //
 // Module: MOD-model-catalogue
 //
@@ -20,6 +20,8 @@
 // Snapshot MOD-repository-hosts'.
 import { documentFindings, loadSchema, readDocument } from "../documents/index.mjs";
 import { validate } from "./validate.mjs";
+
+export { planGrid } from "./plan.mjs";
 
 /**
  * A process model read by its schema: its name; its kind of work, planned or pulled; the model it was adapted from, or null;
