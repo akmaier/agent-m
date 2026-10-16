@@ -2,8 +2,8 @@
 // its interface: the types Participant, Capability, Need and Eligibility; participantSchema, the schema of the instance's
 // register docs/participants.md; participantsOf, which turns the register, as its callers read it, into participants;
 // eligible, which judges the capabilities a role or a job needs, the processing places a restricted source or the mailbox
-// allows, the size of the job a participant's context must hold and the participants it must differ from; and differs
-// (eligibility.mjs).
+// allows, the size of the job a participant's context must hold, the participants it must differ from and the CLI agent a
+// subagent is reached through; differs; and reachedThrough (eligibility.mjs).
 //
 // Module: MOD-participant-list
 //
@@ -18,7 +18,7 @@
 // Schema and Document, in the types below, are MOD-documents' types of those names.
 import { loadSchema } from "../documents/index.mjs";
 
-export { differs, eligible } from "./eligibility.mjs";
+export { differs, eligible, reachedThrough } from "./eligibility.mjs";
 
 /**
  * One of the six things a participant declares it can do (A PARTICIPANT DECLARES ITS CAPABILITIES).
