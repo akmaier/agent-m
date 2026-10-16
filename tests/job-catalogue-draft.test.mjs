@@ -21,7 +21,7 @@ const CHANGE_KINDS = ["change-requirements", "change-use-case", "change-architec
 const nothing = async () => [];
 for (const [category, name] of [["recipes", "named-requirements"], ["recipes", "spec-with-queues"],
   ["recipes", "chapters-for-requirements"], ["recipes", "use-case-with-neighbours"], ["recipes", "whole-spec"],
-  ["recipes", "use-cases"], ["recipes", "whole-architecture"], ["recipes", "chapters-for-architecture"],
+  ["recipes", "use-cases"], ["recipes", "accepted-use-cases"], ["recipes", "whole-architecture"], ["recipes", "chapters-for-architecture"],
   ["preconditions", "rests-on-accepted"], ["checks", "requirement-form"], ["checks", "identifier-kept"],
   ["steps", "due-diligence"], ["writers", "queue-entries"], ["writers", "open-files"]]) {
   try {
