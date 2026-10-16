@@ -84,15 +84,15 @@ const blobOf = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(tex
 
 // The instance repository: `files` is the default branch `main`; `visibility` what its server reports; every commit is recorded.
 function instanceHost({ files = {}, visibility = "public", readFails = false } = {}) {
-  const writes = [];
+  const writes = [], reads = [];
   let commit = "1".repeat(40);
   const host = {
-    writes, files,
+    writes, reads, files,
     async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility }; },
     async readSnapshot() {
       if (readFails) throw new Error("the server refused the read");
       const opened = new Map(Object.entries(files)), head = commit;
-      return { commit: head, paths: [...opened.keys()], blob: (path) => (opened.has(path) ? blobOf(opened.get(path)) : null), async read(path) { return opened.get(path) ?? null; } };
+      return { commit: head, paths: [...opened.keys()], blob: (path) => (opened.has(path) ? blobOf(opened.get(path)) : null), async read(path) { reads.push(path); return opened.get(path) ?? null; } };
     },
     async commitFiles(change) {
       writes.push(change);
@@ -125,14 +125,18 @@ function installServers(visibilities) {
 }
 test.afterEach(() => { globalThis.fetch = realFetch; focused = null; });
 
+// The person lets the event loop run until the line has read the switch.
+const settled = async () => { for (let turn = 0; turn < 5; turn += 1) await new Promise((resolve) => setImmediate(resolve)); };
 // The Settings page of the instance fixture/instance, with this instance host, the products this browser keeps (web addresses) and
-// the stored tokens ({ key: token value }); -> { target, line, host, store }.
+// the stored tokens ({ key: token value }), opened on its tab Repositories, where the line stands; -> { target, line, host, store }.
 async function open({ host = instanceHost(), products = [], tokens = {} } = {}) {
   const store = newStore();
   if (products.length) writeSetting(store, "products", products);
   for (const [key, value] of Object.entries(tokens)) writeSetting(store, key, { value, name: key, expires: null });
   const target = document.createElement("div");
   await settingsRoute().render(target, { instance: { repository: "fixture/instance", host }, product: null, store, go() {} }, {});
+  await click(byClass(target, "settings-tab")[1]);
+  await settled();
   const line = one(target, "settings-recording");
   assert.ok(line, "the instance's section holds the line Recording conversations");
   return { target, line, host, store };
@@ -173,6 +177,7 @@ test("Switch on shows the notice and saves nothing; Save works only after I have
   const page = await open();
   const notice = one(page.line, "settings-recording-notice");
   assert.equal(shown(page.line, notice), false, "before Switch on, the notice is not shown");
+  assert.doesNotMatch(page.line.textContent, /will be published|will be committed/, "before Switch on, the page says nothing of what follows");
   await switchOn(page);
   assert.equal(page.host.writes.length, 0, "Switch on writes nothing");
   assert.equal(shown(page.line, notice), true, "Switch on shows the notice");
@@ -318,6 +323,8 @@ test("an instance that is not connected or cannot be read gives a line without a
   const store = newStore();
   const target = document.createElement("div");
   await settingsRoute().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
+  await click(byClass(target, "settings-tab")[1]);
+  await settled();
   const notConnected = one(target, "settings-recording");
   assert.ok(notConnected, "the instance's section holds the line Recording conversations");
   assert.match(notConnected.textContent, /not connected/);
@@ -327,4 +334,24 @@ test("an instance that is not connected or cannot be read gives a line without a
     assert.equal(byClass(line, "settings-recording-on").length + byClass(line, "settings-recording-off").length, 0, "no switch is offered");
   }
   assert.equal(byClass(target, "settings-tab").length, 4, "known positive: the page still has its four tabs");
+});
+
+// TST-511010 · level: unit · module: MOD-settings-pages
+// guards: UC-042 (step 1: one line per setting with its state); UC-049 (3c: the page names the settings and their states)
+// given: an instance repository whose switch file holds `recording: on`
+// input: the Settings page is rendered and left on its first tab, General; the person then opens the tab Repositories
+// expect: while the first tab is shown the page asks the instance repository for no file at all and the line states "Recording conversations is not read yet."; once the tab Repositories is opened the
+//   switch file docs/conversation-recording.md is read exactly once and the line states "Recording conversations is on."
+test("the switch is read when the tab Repositories is shown, not when the page is rendered", async () => {
+  const host = instanceHost({ files: { [SWITCH]: file("recording: on\n") } });
+  const store = newStore();
+  const target = document.createElement("div");
+  await settingsRoute().render(target, { instance: { repository: "fixture/instance", host }, product: null, store, go() {} }, {});
+  await settled();
+  assert.deepEqual(host.reads, [], "no file of the instance repository was read");
+  assert.equal(stateOf(one(target, "settings-recording")), "Recording conversations is not read yet.");
+  await click(byClass(target, "settings-tab")[1]);
+  await settled();
+  assert.deepEqual(host.reads, [SWITCH], "the switch file was read once");
+  assert.equal(stateOf(one(target, "settings-recording")), "Recording conversations is on.");
 });

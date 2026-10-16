@@ -79,6 +79,9 @@ async function start() {
   const body = fixture.document.body;
   const footer = all(body, "footer")[0];
   await until(() => byClass(footer, "prompt-bar").length > 0 && byClass(body, "settings-repository-secret").length > 0, "the bar and the Settings page are drawn");
+  // The line Recording conversations stands in the tab Repositories, which the person opens.
+  byClass(body, "settings-tab")[1].dispatchEvent(new Event("click"));
+  await until(() => /Recording conversations is (on|off)\./.test(one(body, "settings-recording-state")?.textContent ?? ""), "the line has read the switch");
   return { body, footer };
 }
 async function sends(page, text) {
@@ -92,7 +95,7 @@ async function sends(page, text) {
 // guards: A STORED SECRET IS HIDDEN UNTIL SHOWN; UC-049 (3c); UC-042 (step 3)
 // given: the review page at #settings (the real Settings route, which gives no subject of its own), in a browser that stores the instance's token
 //   github_pat_SECRET_TOKEN_VALUE_0123456789 and an instance without a switch file
-// input: Send "what is stored?"; the person presses Show on the token's line; Send "and now?"
+// input: the person opens the tab Repositories; Send "what is stored?"; the person presses Show on the token's line; Send "and now?"
 // expect: the token's field holds the secret, hidden before Show and shown after it (known positive, so the check below can find it); the page each message is given
 //   begins "Settings\nSettings\nhttps://github.com/acme/instance\n", names the line with its state, "Recording conversations is off.", and the setting "GitHub token",
 //   and does not contain the secret — before Show and after it; the subjects kept with the tab's messages are "settings" four times
