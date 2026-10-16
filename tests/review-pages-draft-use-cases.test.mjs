@@ -234,6 +234,24 @@ test("use-case/draft — the requirements to cover by default, and the participa
   assert.equal(requests.length, 0, "nothing sent");
 });
 
+// TST-494007 · level: unit · module: MOD-review-pages
+// guards: UC-017; UC-049 (1b); UC-007 (step 1)
+// given: a register with the CLI agent lead (route `bridge lab-pc agent claude`), the subagent sub (route `through lead`) and the subagent orphan (route `through nobody`), each declaring draft text; the product holds no job workflow
+// input: the page #use-case/id=draft
+// expect: lead and sub are listed, orphan is not (its route reaches no CLI agent of the register); the route of lead reads "bridge lab-pc", and the route of sub reads "bridge lab-pc" too — the route of the participant it is reached through — and not "no route of a job"
+test("use-case/draft — a subagent is listed with the route of the participant it is reached through", async () => {
+  const lead = "| lead | CLI agent | model-y | 200000 | — | draft text | this machine | bridge lab-pc agent claude |";
+  const sub = "| sub | CLI agent | model-z | 200000 | — | draft text | this machine | through lead |";
+  const orphan = "| orphan | CLI agent | model-w | 200000 | — | draft text | this machine | through nobody |";
+  const fake = fakeProduct();
+  const target = await show(fake, { id: "draft" }, { register: registerOf(lead, sub, orphan) });
+  const listed = byClass(target, "li", "participant");
+  assert.deepEqual(listed.map((item) => item.getAttribute("data-name")).sort(), ["lead", "sub"]);
+  const routeOfName = (name) => byClass(listed.find((item) => item.getAttribute("data-name") === name), "span", "route")[0].textContent;
+  assert.equal(routeOfName("lead"), "bridge lab-pc");
+  assert.equal(routeOfName("sub"), "bridge lab-pc");
+});
+
 // ---------------------------------------------------------------- the run panel
 
 // TST-472617 · level: unit · module: MOD-review-pages
