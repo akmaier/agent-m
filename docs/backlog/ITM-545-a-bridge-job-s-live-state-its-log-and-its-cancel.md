@@ -36,6 +36,10 @@ Bridge's name (MOD-job-ledger, Data). The CI and tab routes are ITM-535's.
 - **`cancelJob`.** `cancelOnBridge(bridge, id)`. Where `confirmed`, it appends the end `cancelled` with `appendToRecord` on
   the head read, and returns `cancelled`. Otherwise it returns `cancelling` and appends nothing.
 
+One existing test's expected result changes: TST-535010 (`tests/runtimes-live-state.test.mjs`). It expects a Bridge job's
+`liveState` to be `reachable: false` with "the Bridge's jobs are not read yet", and `jobLog` and `cancelJob` to fail with
+`NotSupported`. Under this item it expects the outcome above. No other test changes.
+
 ## Acceptance
 
 - Against a fixture Bridge and a fixture host, each of the three gives what the outcome names for a running job, an

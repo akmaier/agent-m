@@ -63,6 +63,10 @@ The readings, settled from the module file and from what `startWorkflow` already
   - This item does not establish whether GitHub's log redirect answers a page's `fetch` across origins. A `fetch` that
     throws fails `Unreachable`, as every call in the adapter does.
 
+No existing test's expected result changes. The tests of `fetchFailures` and of ITM-535 use fixture hosts. Through the
+real host, the library page now sends requests it did not send before. So the tests of `src/settings-pages/library.mjs`
+and its callers are run under a `fetch` spy.
+
 ## Acceptance
 
 - Against a fetch fixture for each server, `listCiRuns` gives the runs with the fields and states above, with and
