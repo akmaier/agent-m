@@ -819,7 +819,9 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
   let files = [], expectedHead = snapshot.commit;
   try {
     const input = await jobWorkflowInput(context);
-    files = jobWorkflowFiles(address.server, input.instance, input.secrets, input.runners);
+    // On GitLab the product's own .gitlab-ci.yml at this head is given to be added to, as the other files are read below; null where it has none.
+    const gitlabCi = address.server === "gitlab" ? (await snapshot.read(".gitlab-ci.yml")) ?? null : null;
+    files = jobWorkflowFiles(address.server, input.instance, input.secrets, input.runners, gitlabCi);
     const current = await Promise.all(files.map(async (file) => [file.path, await snapshot.read(file.path)]));
     const missing = current.filter(([, text]) => text === null || text === undefined).map(([path]) => path);
     const different = current.filter(([, text], index) => text !== null && text !== undefined && text !== files[index].text).map(([path]) => path);
