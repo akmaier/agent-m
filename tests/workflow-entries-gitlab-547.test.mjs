@@ -203,6 +203,7 @@ function repository(root, name, files, folder) {
   git(root, "clone", "-q", origin, folder);
   git(folder, "config", "user.name", "Alice Agent M token");
   git(folder, "config", "user.email", "alice@example.org");
+  return origin;
 }
 // The layout of the GitLab template: the product's checkout `<root>/ws/product`, which CI_PROJECT_DIR names, and the instance's clone `../instance` next to it.
 async function withCheckouts(run) {
@@ -212,12 +213,12 @@ async function withCheckouts(run) {
     repository(root, "instance", { "README.md": "# Instance\n", "docs/participants.md": PARTICIPANTS }, instanceDir);
     const agentM = { version: "2026.10.0", commit: git(instanceDir, "rev-parse", "HEAD") };
     const start = startRecord(jobStart(agentM));
-    repository(root, "product", { "README.md": "# Thesis tool\n", [start.path]: start.text }, productDir);
-    return await run({ root, productDir, head: git(productDir, "rev-parse", "HEAD") });
+    const origin = repository(root, "product", { "README.md": "# Thesis tool\n", [start.path]: start.text }, productDir);
+    return await run({ root, productDir, origin, head: git(productDir, "rev-parse", "HEAD") });
   } finally { rmSync(root, { recursive: true, force: true }); }
 }
-const subjects = (c) => git(c.productDir, "log", "--format=%s", "main").split("\n");
-const fileAt = (c, path) => git(c.productDir, "show", `main:${path}`).concat("\n");
+const subjects = (c) => git(c.origin, "log", "--format=%s", "main").split("\n");
+const fileAt = (c, path) => git(c.origin, "show", `main:${path}`).concat("\n");
 
 // The fake model endpoint: answers as an OpenAI-compatible one does and records every request.
 function fakeEndpoint() {
@@ -254,7 +255,7 @@ test("onDispatch — on GitLab the input job is read from AGENT_M_INPUT_JOB and 
     const refused = await runEntry("onDispatch", without, { now: NOW });
     assert.equal(refused.outcome, "not run");
     assert.match(refused.summary, /input job is missing/);
-    assert.equal(git(c.productDir, "rev-parse", "main"), c.head, "known positive: without GITLAB_CI the origin's main is as it was");
+    assert.equal(git(c.origin, "rev-parse", "main"), c.head, "known positive: without GITLAB_CI the origin's main is as it was");
     assert.equal(requests.length, 0);
     const status = await runEntry("onDispatch", env(), { now: NOW });
     assert.equal(status.outcome, "done", status.summary);
@@ -282,6 +283,6 @@ test("onDispatch — on GitLab a job without a record is reported, with nothing 
     const status = await runEntry("onDispatch", gitlab({ CI_PROJECT_DIR: c.productDir, AGENT_M_PRODUCT_DIR: c.productDir, AGENT_M_INPUT_JOB: "JOB-20261016-0801-c3d4", AGENT_M_INPUT_TASK: "", AGENT_M_INPUT_ENDPOINT: "" }), { now: NOW });
     assert.equal(status.outcome, "failed");
     assert.match(status.summary, /There is no record JOB-20261016-0801-c3d4/);
-    assert.equal(git(c.productDir, "rev-parse", "main"), c.head, "nothing was written");
+    assert.equal(git(c.origin, "rev-parse", "main"), c.head, "nothing was written");
   });
 });
