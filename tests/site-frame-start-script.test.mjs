@@ -64,13 +64,16 @@ test("TST-531012 start.mjs reads its script tag, loads the named views, register
 
 // TST-531013 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
-// given: a page whose script tag has data-page="main", empty data-views and empty data-menu-views
+// given: a page whose script tag has data-page="main", empty data-views and data-menu-views naming the fixture view view-b (route
+//   beta under tests)
 // input: start.mjs is loaded (a second evaluation of it, under another query)
-// expect: the main page is started: its menu has eight entries, none served, and its route area reads "This page is not built
-//   yet."
-test("TST-531013 start.mjs starts the main page when its script tag says data-page=main", async () => {
-  const page = pageWithScript({ "data-page": "main", "data-views": "", "data-menu-views": "" });
+// expect: the main page is started: its menu has eight entries, of which only Tests is served, linking into the review pages as
+//   docs/index.html#tests, and its route area reads "This page is not built yet."
+test("TST-531013 start.mjs starts the main page when its script tag says data-page=main, its menu served by the views data-menu-views names", async () => {
+  const page = pageWithScript({ "data-page": "main", "data-views": "", "data-menu-views": VIEW_B });
   await import("../src/site-frame/start.mjs?main");
-  assert.equal(all(page.document.body, "nav")[0].children.length, 8);
+  const menu = all(page.document.body, "nav")[0];
+  assert.equal(menu.children.length, 8);
+  assert.deepEqual(menu.children.map((entry) => entry.getAttribute("href")), [null, null, null, null, "docs/index.html#tests", null, null, null]);
   assert.equal(all(page.document.body, "main")[0].textContent, "This page is not built yet.");
 });

@@ -1,8 +1,8 @@
-// MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Of it, ITM-221 builds
-// what UC-002's page needs: the types View, Route and ViewContext; schemaForm (forms.mjs), without its options secretKeys
-// and readOnly; and explain, with UC-002's topics in explanations.md, after stepHtml of docs/assets/dashboard-app.mjs; ITM-344
-// builds runPanel (run-panel.mjs). PageSetup, startPage, embedRoute, menuOf, instanceOf, chosenProduct, confirmDecision, notice,
-// the frame's own check of the topics, look.css and brand/ are not built yet.
+// MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Built: the types View,
+// Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, without the start
+// of the prompt bar; menuOf (menu.mjs); instanceOf; chosenProduct (routing.mjs); explain; runPanel (run-panel.mjs); confirmDecision;
+// notice; schemaForm (forms.mjs), without its options secretKeys and readOnly. Not built yet: embedRoute, the frame's own check
+// of the topics, subject.mjs, and the start of the prompt bar.
 //
 // Module: MOD-site-frame
 //
@@ -12,12 +12,17 @@
 // index.mjs. Every other file of this folder is private to the module.
 
 import { renderArtifact } from "../markdown-render/index.mjs";
-import { openStore } from "../browser-store/index.mjs";
+import { openStore, readSetting, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
+import { watchForAcceptance } from "../notifications/index.mjs";
+import { menuOf, labelOf, linkOf } from "./menu.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, loadView } from "./routing.mjs";
 
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
+export { menuOf } from "./menu.mjs";
+export { chosenProduct } from "./routing.mjs";
 
 const UPSTREAM = "akmaier/agent-m";
 let notices = null;
@@ -112,23 +117,8 @@ export function instanceOf(location) {
   return instanceOfPagesAddress(location) ?? UPSTREAM;
 }
 
-const partsOf = (fragment) => String(fragment ?? "").replace(/^#/, "").split("/").filter(Boolean);
-const routeOf = (fragment) => {
-  const [name = "", ...given] = partsOf(fragment);
-  const params = {};
-  for (const part of given) {
-    const at = part.indexOf("=");
-    if (at > 0) params[decodeURIComponent(part.slice(0, at))] = decodeURIComponent(part.slice(at + 1));
-  }
-  return { name: decodeURIComponent(name), params };
-};
-
-const fragmentOf = (route, params = {}) => {
-  const supplied = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-  return `#${[route, ...supplied].join("/")}`;
-};
-
-function sharedHeader() {
+// The header of every page: the lab's logo and the site's name; the Bridge's window names its section, "Bridge".
+function sharedHeader(section = null) {
   const head = document.head ?? document.getElementsByTagName("head")[0];
   if (![...head.getElementsByTagName("link")].some((link) => link.getAttribute("href") === LOOK)) {
     const look = document.createElement("link");
@@ -143,7 +133,7 @@ function sharedHeader() {
   const brand = document.createElement("a");
   brand.className = "brand";
   brand.setAttribute("href", "#");
-  brand.setAttribute("title", "Agent M Bridge");
+  brand.setAttribute("title", section ? `Agent M ${section}` : "Agent M");
   const picture = document.createElement("picture");
   const dark = document.createElement("source");
   dark.setAttribute("srcset", PRL_LOGO_DARK);
@@ -156,29 +146,154 @@ function sharedHeader() {
   picture.append(dark, logo);
   const name = document.createElement("span");
   name.className = "name";
-  name.append("Agent M ");
-  const section = document.createElement("small");
-  section.textContent = "Bridge";
-  name.append(section);
+  name.append(section ? "Agent M " : "Agent M");
+  if (section) {
+    const small = document.createElement("small");
+    small.textContent = section;
+    name.append(small);
+  }
   brand.append(picture, name);
   inner.append(brand);
   header.append(inner);
   return header;
 }
 
-// startPage(setup) -> Promise<void> — the bounded Bridge composition: one shared frame, the routes the entry passes it and
-// the browser store and repository host of the instance. Bridge views have no strategies, so this starts neither jobs nor
-// notifications and connects no repository until a view asks its supplied host to do so.
+/**
+ * startPage(setup: PageSetup) -> Promise<void> — starts a page. The Bridge's window gets the bounded composition below; the main
+ * and the review pages get the header, the menu and the product selector, the notices, the instance and the chosen product
+ * connected, the route the fragment names rendered again on every change of the fragment, and MOD-notifications' check of what
+ * waits for acceptance. Throws a TypeError for a page that is none of the three, and for views or menuViews that are no lists.
+ */
 export async function startPage({ page, views, menuViews }) {
-  if (page !== "bridge") throw new TypeError("This delivered frame starts the Bridge page only.");
+  if (!["bridge", "main", "review"].includes(page)) throw new TypeError(`The frame starts the pages bridge, main and review, not ${page}.`);
   if (!Array.isArray(views) || !Array.isArray(menuViews)) throw new TypeError("PageSetup names views and menuViews as lists.");
+  if (page === "bridge") return startBridge({ page, views });
+  return startSite({ page, views, menuViews });
+}
+
+// The main and the review pages. The menu serves the entries of the routes of `views`; on the main page, which loads no views of
+// the review pages, the entries come from the views `menuViews` names, whose routes are read for their `entry` and neither
+// rendered nor given their strategies.
+async function startSite({ page, views, menuViews }) {
+  const location = globalThis.location ?? {};
+  const repository = instanceOf(location);
+  const store = openStore(repository);
+  const secrets = secretValues(store);
+  const instanceToken = readSetting(store, "github-token");
+  const instance = { repository,
+    host: connect(parseAddress(`https://github.com/${repository}`), { token: instanceToken?.value ?? null, tokenName: instanceToken?.name ?? null, secrets }) };
+  const routes = views.flatMap((view) => view?.routes ?? []);
+  const served = new Set(routes.map((route) => route.entry).filter(Boolean));
+  if (page === "main") {
+    for (const slug of menuViews) for (const route of (await loadView(slug))?.routes ?? []) if (route.entry) served.add(route.entry);
+  }
+  const entries = menuOf(page, [...served]);
+
+  const header = sharedHeader();
+  const menu = document.createElement("nav");
+  menu.className = "menu";
+  const selector = document.createElement("select");
+  selector.className = "product";
+  header.getElementsByTagName("div")[0].append(selector, menu);
+  notices = document.createElement("section");
+  notices.className = "site-frame-notices";
+  const target = document.createElement("main");
+  target.className = "site-frame-route";
+  document.body.replaceChildren(header, notices, target);
+
+  let shownName = routes[0]?.name ?? "";
+  const drawMenu = (active, product) => {
+    menu.replaceChildren(...entries.map((entry) => {
+      const item = document.createElement(entry.href === null ? "span" : "a");
+      item.setAttribute("title", entry.title);
+      item.textContent = entry.label;
+      if (entry.href === null) item.className = "soon";
+      else {
+        item.setAttribute("href", product ? `${entry.href}/product=${encodeURIComponent(product)}` : entry.href);
+        if (entry.key === active) item.className = "active";
+      }
+      return item;
+    }));
+  };
+  const drawSelector = (product) => {
+    const option = (value, text) => {
+      const choice = document.createElement("option");
+      choice.setAttribute("value", value);
+      choice.textContent = text;
+      return choice;
+    };
+    const kept = (readSetting(store, "products") ?? []).flatMap((address) => { try { return [parseAddress(address).web]; } catch { return []; } });
+    selector.replaceChildren(option("", repository), ...kept.map((web) => option(web, web)), option(ADD_PRODUCT, "+ Add product"));
+    selector.value = product ?? "";
+  };
+  selector.addEventListener("change", () => {
+    if (selector.value === ADD_PRODUCT) { location.hash = fragmentOf("add-product"); return; }
+    const current = routeOf(location.hash);
+    const params = { ...current.params };
+    delete params.product;
+    location.hash = fragmentOf(current.name || shownName, selector.value ? { ...params, product: selector.value } : params);
+  });
+
+  const show = async () => {
+    const fragment = location.hash ?? "";
+    const selected = routeOf(fragment);
+    const { product: _named, ...params } = selected.params;
+    let product = null;
+    let unknown = null;
+    try {
+      product = await chosenProduct({ store, fragment });
+    } catch (error) {
+      if (error?.name !== "UnknownProduct") throw error;
+      unknown = error.address;
+    }
+    notices.replaceChildren();
+    if (readSetting(store, "github-token") === null) {
+      notice("setup", { text: "Finish setting up: store your GitHub token on the settings page.", link: { label: "Settings", href: linkOf(page, "settings") } });
+    }
+    if (unknown !== null) notice("info", { text: `This browser does not keep the product ${unknown}; the instance is shown. Choose + Add product to add it.` });
+
+    const byName = routes.find((candidate) => candidate.name === selected.name);
+    const entryKey = labelOf(selected.name) ? selected.name : null;
+    const route = byName ?? (entryKey ? routes.find((candidate) => candidate.entry === entryKey) : routes[0]) ?? null;
+    drawSelector(product?.address ?? null);
+    drawMenu(route?.entry ?? entryKey, product?.address ?? null);
+    if (!route) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = entryKey ? `The ${labelOf(entryKey)} entry is not built yet.` : "This page is not built yet.";
+      target.replaceChildren(paragraph);
+      return;
+    }
+    shownName = route.name;
+    const context = { page, instance, product, store,
+      go: (name, given = {}) => {
+        location.hash = fragmentOf(name, product && !("product" in given) ? { ...given, product: product.address } : given);
+      } };
+    await route.render(target, context, route === byName ? params : {});
+  };
+  const browser = globalThis.window ?? globalThis;
+  browser.addEventListener?.("hashchange", show);
+  await show();
+
+  const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
+  watchForAcceptance({ store, instance,
+    addressOf: (route, given, forRepository) =>
+      addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, given, forRepository) });
+}
+
+// The value of the selector's entry that goes to the add-product route of the settings.
+const ADD_PRODUCT = "+add";
+
+// The Bridge's window: one shared frame, the routes the entry passes it and the browser store and repository host of the
+// instance. Bridge views have no strategies, so this starts neither jobs nor notifications and connects no repository until a
+// view asks its supplied host to do so.
+async function startBridge({ page, views }) {
   const location = globalThis.location ?? {};
   const repository = instanceOf(location);
   const store = openStore(repository);
   const host = connect(parseAddress(`https://github.com/${repository}`));
   const routes = views.flatMap((view) => view?.routes ?? []);
   const first = routes[0] ?? null;
-  const header = sharedHeader();
+  const header = sharedHeader("Bridge");
   notices = document.createElement("section");
   notices.className = "site-frame-notices";
   const target = document.createElement("main");
