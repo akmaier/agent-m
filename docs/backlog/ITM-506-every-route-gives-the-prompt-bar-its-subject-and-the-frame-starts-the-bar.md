@@ -10,6 +10,7 @@ modules:
   - MOD-site-frame
 builds_on:
   - ITM-504
+  - ITM-531
 tests:
   - unit
 origin:
