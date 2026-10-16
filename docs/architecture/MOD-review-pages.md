@@ -21,6 +21,7 @@ uses:
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.webLinks
   - MOD-text-tools.blobSha
+  - MOD-text-tools.formatFinding
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
   - MOD-documents.documentFindings
@@ -244,7 +245,8 @@ and `docs/participants.md` of the instance.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.webLinks — the
   product's files, whether the person may write and the repository's visibility, GitHub's own pages.
 - MOD-text-tools.blobSha — the blob of each text as it was shown, which an acceptance names (`AN APPROVAL NAMES THE EXACT
-  TEXT`).
+  TEXT`); MOD-text-tools.formatFinding — a finding the loop left, shown in its one fixed text form (`A FINDING READS
+  LIKE A COMPILER MESSAGE`).
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-documents.documentFindings,
   MOD-documents.readRegister — the kinds' files, their marks, the participant list; MOD-spec-document.parseSpec,
   MOD-spec-document.sectionText, MOD-spec-document.requirementFindings — requirements, their sections and marks;
