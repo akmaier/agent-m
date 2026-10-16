@@ -14,6 +14,12 @@ new or replaced library is a decision naming the candidate and its alternatives 
 
 {{conversation}}
 
+## The draft as it stands
+
+The draft, where one is given, is what the conversation has produced so far: change it further as the instruction says.
+
+{{draft}}
+
 ## The whole SPEC
 
 {{whole-spec}}

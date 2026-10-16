@@ -11,6 +11,7 @@ preconditions:
 recipes:
   - instruction
   - conversation
+  - draft?
   - use-case-with-neighbours
   - chapters-for-requirements
 checks:
