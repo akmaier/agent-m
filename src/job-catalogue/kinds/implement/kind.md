@@ -12,6 +12,7 @@ resources: product
 preconditions:
   - rests-on-accepted
 recipes:
+  - instruction?
   - implementation-inputs
   - chapters-for-implementation
 checks:
