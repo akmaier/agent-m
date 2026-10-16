@@ -27,12 +27,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { all, installPage, fixtureStorage } from "./site-frame-start.d/dom.mjs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { until } from "./prompt-bar.d/until.mjs";
 
 const { startPage } = await import("../src/site-frame/index.mjs");
 
 const REVIEW = { hostname: "acme.github.io", pathname: "/instance/docs/index.html" };
 const settle = () => new Promise((resolve) => setImmediate(resolve));
-async function until(condition, what) { for (let at = 0; at < 400; at += 1) { if (condition()) return; await settle(); } assert.fail(`never: ${what}`); }
 
 // ---------------------------------------------------------------- the instance, the endpoint
 

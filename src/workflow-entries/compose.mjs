@@ -20,6 +20,7 @@ import * as approvals from "../approvals/index.mjs";
 import * as specChanges from "../spec-changes/index.mjs";
 import * as artifactEdits from "../artifact-edits/index.mjs";
 import * as sourceRegister from "../source-register/index.mjs";
+import * as runPlanner from "../run-planner/index.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
 const path = globalThis.process?.getBuiltinModule?.("node:path");
@@ -124,7 +125,8 @@ function originOf(dir, fallback) {
 
 // The strategies the modules that offer them give the job runner, registered once for the program that runs, as the runner asks.
 const OFFERED = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
-  ["MOD-artifact-edits", artifactEdits, "editStrategies"], ["MOD-source-register", sourceRegister, "sourceStrategies"]];
+  ["MOD-artifact-edits", artifactEdits, "editStrategies"], ["MOD-source-register", sourceRegister, "sourceStrategies"],
+  ["MOD-run-planner", runPlanner, "runStrategies"]];
 let registered = false;
 function registerStrategiesOnce() {
   if (registered) return;
