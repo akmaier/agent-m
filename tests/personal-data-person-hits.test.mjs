@@ -107,6 +107,22 @@ test("a phone number is found by its digits whatever the separators: hyphens and
   assert.deepEqual(hits("Tel: 49911123456", given), [hit("phone", "49911123456", 1, 6)]);
 });
 
+test("a phone number after other digits in the same run is found: a ticket number before it, on line 1 and on line 2", () => {
+  const given = { phones: ["0912 345678"] };
+  // "Ticket " is 7 characters, "4711" ends at column 11 and " / " fills columns 12 to 14, so the number begins at column 15.
+  assert.deepEqual(hits("Ticket 4711 / 0912 345678 please", given), [hit("phone", "0912 345678", 1, 15)]);
+  // Line 2: "Call " is 5 characters and "4711 " 5 more, so the number begins at column 11.
+  assert.deepEqual(hits("x\nCall 4711 0912 345678.", given), [hit("phone", "0912 345678", 2, 11)]);
+  // The number may also come first, with other digits after it: it begins at column 1.
+  assert.deepEqual(hits("0912 345678 4711", given), [hit("phone", "0912 345678", 1, 1)]);
+});
+
+test("only whole digit groups of a run count: 4712 345678 is no hit of 12 345678, nor is a stretch of other digits", () => {
+  assert.deepEqual(hits("Ticket 4712 345678", { phones: ["12 345678"] }), []);
+  assert.deepEqual(hits("Ticket 4711 / 0912 345679", { phones: ["0912 345678"] }), []);
+  assert.deepEqual(hits("Ticket 4711 / 0912", { phones: ["0912 345678"] }), []);
+});
+
 test("a phone number with other digits is no hit, nor a run that a letter touches, nor a run that a line break splits", () => {
   const given = { phones: ["+49 911 123456"] };
   assert.deepEqual(hits("Tel: +49 911 123457", given), []);
