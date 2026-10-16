@@ -20,19 +20,23 @@ export const ciRun = (id, state, workflow = "agent-m-jobs.yml") => ({ id: String
 
 // The fake host. `taken` is the `by:` of the record's `## Taken` (null: not taken). `runs` is what the CI lists; `calls` keeps, in order, `list <workflow>`, `cancel <id>`
 // and `log <id>`; `afterCancel(id, runs)` may change the runs when a cancel arrives. `listFails` / `cancelFails` make that call reject with the error given;
-// `id` is the job's identifier; `commitFails` makes every commit reject; `withoutCi` leaves out the CI calls altogether.
-export function fakeHost({ id = START.id, taken = null, runs = [], afterCancel = () => {}, listFails = null, cancelFails = null, commitFails = null, withoutCi = false } = {}) {
+// `id` is the job's identifier; `commitFails` makes every commit reject; `blockEnd` holds every commit whose message ends `: end` until `release()` is called, and `attempts` keeps the message of every commit asked for, whether it succeeds or not; `withoutCi` leaves out the CI calls altogether.
+export function fakeHost({ id = START.id, taken = null, runs = [], afterCancel = () => {}, listFails = null, cancelFails = null, commitFails = null, withoutCi = false, blockEnd = false } = {}) {
   const tree = new Map();
   const path = `docs/jobs/${id}.md`;
   const base = startRecord({ ...START, id }).text;
   tree.set(path, taken === null ? base : appendToRecord(base, { part: "taken", at: new Date("2026-10-16T11:01:00Z"), by: taken }));
-  const writes = [], calls = [];
+  const writes = [], calls = [], attempts = [];
+  let release = () => {};
+  const gate = new Promise((resolve) => { release = resolve; });
   let head = "c0", made = 0;
   const snapshot = () => ({ repository: REPOSITORY, ref: "trunk", commit: head, paths: [...tree.keys()].sort(), read: async (path) => tree.get(path) ?? null, blob: () => null });
   const host = {
     async repositoryInfo() { return { defaultBranch: "trunk", visibility: "public", canWrite: true, archived: false, description: "" }; },
     async readSnapshot() { return snapshot(); },
     async commitFiles(change) {
+      attempts.push(change.message);
+      if (blockEnd && change.message.endsWith(": end")) await gate;
       if (commitFails) throw commitFails;
       if (change.branch !== "trunk" || change.expectedHead !== head) throw failure("Moved", { head });
       writes.push(structuredClone(change));
@@ -54,7 +58,7 @@ export function fakeHost({ id = START.id, taken = null, runs = [], afterCancel =
     };
     host.ciRunLog = async (id) => { calls.push(`log ${id}`); return "the log"; };
   }
-  return { host, writes, calls, tree, head: () => head,
+  return { host, writes, calls, attempts, release: () => release(), tree, head: () => head,
     record: async () => { for await (const each of recordsNewestFirst(snapshot())) return each; return null; } };
 }
 

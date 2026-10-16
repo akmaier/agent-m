@@ -54,8 +54,8 @@ function endpoint({ hold }) {
 test.afterEach(() => { globalThis.fetch = realFetch; });
 
 // A repository that holds the job as the tab's route queued it: start and taking in one commit.
-async function queued() {
-  const fake = fakeHost({ taken: "tab" });
+async function queued(options = {}) {
+  const fake = fakeHost({ taken: "tab", ...options });
   return { fake, record: await fake.record(), loose: { ...START, path: `docs/jobs/${START.id}.md`, run: null } };
 }
 const settle = (promise) => promise.then(() => "resolved", (error) => error);
@@ -105,19 +105,22 @@ test("runOnTab — the tab holds a job until the call ends, whether it ends or f
 
 // TST-535013 · level: unit · module: MOD-runtimes
 // guards: A CANCELLED JOB WRITES NOTHING MORE; UC-049
-// given: a job taken by the tab, pending on its endpoint, after the queueing commit c0
-// input: cancelJob(record, { host }, {}), then the endpoint's rejection settles runOnTab
-// expect: "cancelled"; the endpoint's request was aborted (runOnTab rejects); exactly one commit after the queueing: the end, on head c0, message "Job JOB-20261016-1100-c0de: end", state cancelled, reason "cancelled by a person", log null; after runOnTab settled still that one commit — the job's own failure to read the aborted request is not appended; liveState afterwards is the unknown state
+// given: a job taken by the tab, pending on its endpoint; a host that holds the commit of an end until it is released, and keeps every commit asked for
+// input: cancelJob(record, { host }, {}); after 30 ms, in which the aborted job's own call has settled, the held commit is released
+// expect: "cancelled"; the endpoint's request was aborted (runOnTab rejects); exactly one commit was asked for, in all: the end, on head c0, message "Job JOB-20261016-1100-c0de: end", state cancelled, reason "cancelled by a person", log null — the aborted job asked for none of its own (no "failed" end); liveState afterwards is the unknown state
 test("cancelJob — a job in the tab is aborted and ended as cancelled, and writes nothing more", async () => {
-  const { fake, record, loose } = await queued();
+  const { fake, record, loose } = await queued({ blockEnd: true });
   endpoint({ hold: true });
   const running = settle(runtimes.runOnTab(prepared(), context(), CONNECTIONS, { host: fake.host, record: loose }));
   await arrived;
-  assert.equal(fake.writes.length, 0, "known state: nothing committed since the queueing");
-  assert.equal(await runtimes.cancelJob(record, { host: fake.host }, {}), "cancelled");
+  assert.deepEqual(fake.attempts, [], "known state: nothing asked for before the cancel");
+  const cancelling = runtimes.cancelJob(record, { host: fake.host }, {});
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  fake.release();
+  assert.equal(await cancelling, "cancelled");
   const outcome = await running;
   assert.notEqual(outcome, "resolved", "the job's call was aborted");
-  assert.equal(fake.writes.length, 1, "one commit: the end");
+  assert.deepEqual(fake.attempts, [`Job ${START.id}: end`], "one commit asked for: the cancel's end");
   assert.deepEqual([fake.writes[0].expectedHead, fake.writes[0].message], ["c0", `Job ${START.id}: end`]);
   const { state, reason, log, results } = (await fake.record()).end;
   assert.deepEqual({ state, reason, log, results }, { state: "cancelled", reason: "cancelled by a person", log: null, results: [] });
