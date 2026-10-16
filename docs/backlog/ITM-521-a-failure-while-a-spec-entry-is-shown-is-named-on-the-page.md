@@ -30,6 +30,24 @@ was refused.
 Today `showEntry` has no catch: a `RateLimited` raised while the impact list is built rejects `route.render`, and the
 page shows nothing in its place.
 
+What the module file leaves unstated, and what is built:
+- **Where the catch stands.** It wraps everything `render` does after the snapshot is read, and not `showEntry` alone.
+  Every view of the route then fails the same way.
+- **What is drawn.** `problem(failure, token)`, as for a failure while reading the snapshot. Its text is the failure's
+  message as Access gives it, so no new wording is added. It is appended after whatever the view drew before the
+  failure.
+
+The existing test whose expected result the accepted texts change, named here:
+
+- TST-479203 (`tests/release-uc-006-batched-reads.test.mjs`), a release test. It expects the page to reject with
+  `RateLimited` or `TokenRefused`. Once ITM-521 is built, the page resolves and draws the problem paragraph:
+  - for a used-up limit, a paragraph naming the limit and its reset, and no word of the token;
+  - for a refused token, a paragraph with `TokenRefused`'s message.
+  The test is changed by a Developer who implemented none of the review pages' behaviour
+  (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`), never by this item's implementer.
+
+No other test expects a review page's `render` to reject.
+
 ## Acceptance
 
 - A release test, written before the code by a Developer who implemented none of the review pages' behaviour, opens a
