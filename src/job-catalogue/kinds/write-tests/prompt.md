@@ -7,6 +7,12 @@ report its `outcome` as `failed`. Mock every paid service with the recorded or c
 Push your branch, open a pull request, and report the `branch`, its `commits`, the `pullRequest`, and each test with its
 `outcome` and its `counterProof`.
 
+## The task as the person gave it
+
+The task, where one is given, is the work asked for, within what the inputs below allow.
+
+{{instruction}}
+
 ## The reviewed test cases
 
 {{draft}}

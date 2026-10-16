@@ -5,6 +5,12 @@ interface the step's modules offer, and only the folders the job instruction nam
 stop and ask instead of going on. Push your branch, open a pull request, and report the `branch`, its `commits` and the
 `pullRequest`.
 
+## The task as the person gave it
+
+The task, where one is given, is the work asked for, within what the inputs below allow.
+
+{{instruction}}
+
 ## The step, with everything it rests on
 
 {{implementation-inputs}}

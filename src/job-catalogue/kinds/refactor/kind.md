@@ -10,6 +10,7 @@ resources: product
 preconditions:
   - rests-on-accepted
 recipes:
+  - instruction?
   - implementation-inputs
 checks:
 person_decides:
