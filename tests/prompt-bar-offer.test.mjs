@@ -14,7 +14,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { openStore, writeSetting, writeTabValue } from "../src/browser-store/index.mjs";
+import { openStore, readTabValue, writeSetting, writeTabValue } from "../src/browser-store/index.mjs";
+import * as promptBar from "../src/prompt-bar/index.mjs";
 import { currentJob, latestDraft } from "../src/prompt-bar/index.mjs";
 import { offeredAmong, placeOf, readParticipants } from "../src/prompt-bar/offer.mjs";
 import { whyNot } from "../src/prompt-bar/send.mjs";
@@ -119,6 +120,25 @@ test("latestDraft — the draft only for the subject it was drafted on", () => {
   assert.deepEqual(latestDraft(store, "use-case:UC-007"), draft);
   assert.equal(latestDraft(store, "use-case:UC-008"), null);
   assert.equal(latestDraft(freshStore(), "use-case:UC-007"), null);
+});
+
+// TST-555001 · level: unit · module: MOD-prompt-bar
+// guards: UC-049
+// given: a store whose tab keeps a draft for the subject "use-case:UC-007"; a store whose tab keeps none; MOD-prompt-bar's `dropDraft`, read from the module's interface so that a missing export fails this test alone
+// input: dropDraft(store, "use-case:UC-008") on the first, then latestDraft(store, "use-case:UC-007"); dropDraft(store, "use-case:UC-007") on the first, then latestDraft for both subjects and the raw tab value "prompt-bar:draft"; dropDraft(store, "use-case:UC-007") on the second
+// expect: dropping for another subject returns undefined and leaves the draft, which latestDraft still gives as it was kept; dropping for the subject returns undefined, and then latestDraft gives null for both subjects and the tab keeps no value under "prompt-bar:draft" (readTabValue gives null); dropping where the tab keeps no draft returns undefined and throws nothing
+test("dropDraft — drops the draft where it was drafted on that subject, and leaves it otherwise", () => {
+  assert.equal(typeof promptBar.dropDraft, "function", "MOD-prompt-bar provides dropDraft");
+  const store = freshStore();
+  const draft = { subject: "use-case:UC-007", kind: "converse", participant: "ep-local", params: {}, result: { draft: { answer: "A" } } };
+  writeTabValue(store, "prompt-bar:draft", draft);
+  assert.equal(promptBar.dropDraft(store, "use-case:UC-008"), undefined);
+  assert.deepEqual(latestDraft(store, "use-case:UC-007"), draft, "a draft for another subject is left");
+  assert.equal(promptBar.dropDraft(store, "use-case:UC-007"), undefined);
+  assert.equal(latestDraft(store, "use-case:UC-007"), null);
+  assert.equal(latestDraft(store, "use-case:UC-008"), null);
+  assert.equal(readTabValue(store, "prompt-bar:draft"), null, "the tab keeps no value");
+  assert.equal(promptBar.dropDraft(freshStore(), "use-case:UC-007"), undefined, "no draft kept: nothing to drop");
 });
 
 // TST-600015 · level: unit · module: MOD-prompt-bar

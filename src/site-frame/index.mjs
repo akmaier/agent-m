@@ -44,11 +44,11 @@ const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url)
 /**
  * One route of a view. `name` is the first part of the address's fragment, the rest are the `params` render is given; a
  * route's `entry` puts it under that entry of the menu, null keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a
- * message in the prompt bar is about while the route is shown; a route that gives none has the frame's default (subject.mjs).
+ * message in the prompt bar is about while the route is shown; a route that gives none, or whose `subject` gives `null`, has the frame's default (subject.mjs).
  * @typedef {{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" | "releases" |
  *   "maintenance" | "settings" | null, title: string,
  *   render(target: Element, context: ViewContext, params: Record<string, string>): Promise<void>,
- *   subject?: (params: Record<string, string>, context: ViewContext) => Subject }} Route
+ *   subject?: (params: Record<string, string>, context: ViewContext) => Subject | null }} Route
  */
 
 /**

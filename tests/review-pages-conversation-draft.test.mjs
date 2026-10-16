@@ -36,6 +36,7 @@ import assert from "node:assert/strict";
 import { ARC1, ARC_PATH, DUE_DILIGENCE, HIDE, INSTANCE_COMMIT, LENDING, LOAN, PRODUCT, PRODUCT_FILES, RENEW, ROUND_ONE, SOURCE, SPEC, UC7, UC7_PATH, UC8, UC8_PATH,
   blobOf, buttonsNamed, byClass, changedUseCase, click, contextOf, draw, fakeProduct, fetched, find, finding, keepDraft, resultOf, routeNamed, routeOfFragment, until }
   from "./review-pages-draft-world.mjs";
+import { latestDraft } from "../src/prompt-bar/index.mjs";
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 
@@ -54,6 +55,14 @@ const written = (fake) => fake.writes().filter((change) => change.files.length >
 const useCaseParams = { useCase: "UC-007", version: blobOf(UC7), instruction: ALIGN };
 const draft7 = () => changedUseCase("UC-007", UC7_PATH, UC7), draft8 = () => changedUseCase("UC-008", UC8_PATH, UC8);
 const messageLines = (change) => change.message.split("\n");
+// After Save or Discard (ITM-555): the tab keeps no draft for the subject `key`, and the route draft drawn again in the same context says that there is none.
+async function assertDropped(shown, key) {
+  assert.equal(latestDraft(shown.context.store, key), null, "the tab keeps no draft for the subject");
+  const again = await draw(shown.fake, "draft", { subject: key }, { context: shown.context });
+  assert.equal(byClass(again.target, "p", "none").length, 1, "the route says there is no draft");
+  assert.equal(draftBoxes(again.target).length, 0, "no editor");
+}
+const kept = (shown, key) => assert.notEqual(latestDraft(shown.context.store, key), null, "known positive: the tab keeps the draft before the click");
 
 // TST-507020 · level: component · module: MOD-review-pages
 // guards: UC-049 (step 5); UC-019 (steps 7, 8); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
@@ -96,12 +105,14 @@ test("draft — a changed identifier the loop left is restored before the editor
 // input: a click on Save
 // expect: one commit holding both files — the first as drafted, the second as edited, byte for byte, no trailer in a file —, whose message ends with the provenance lines — Agent-M-Version: <the
 //   instance's commit>, commit <it>; Agent-M-Kind: change-use-case; Agent-M-Participant: drafter-a; Agent-M-Model: example-model; Agent-M-Rounds: 1 —, no Agent-M-Job line, and no line that
-//   holds a word of the conversation; the page links the commit
+//   holds a word of the conversation; the page links the commit; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
 test("draft — Save writes the use cases in one commit with the provenance lines and no message of the conversation", async () => {
   const fake = fakeProduct();
   const conversation = [{ at: "2026-10-16T10:00:00Z", from: "person", who: "alice", text: ALIGN, subject: UC7_KEY }];
-  const { target } = await showDraft(fake, { kind: "change-use-case", params: { ...useCaseParams, conversation },
+  const shown = await showDraft(fake, { kind: "change-use-case", params: { ...useCaseParams, conversation },
     result: resultOf({ files: [draft7(), draft8()] }, { rounds: [ROUND_ONE] }) });
+  const { target } = shown;
+  kept(shown, UC7_KEY);
   const boxes = draftBoxes(target);
   assert.deepEqual(boxes.map((box) => box.getAttribute("data-path")), [UC7_PATH, UC8_PATH]);
   const edited = `${draft8().text}\nA line the person added.\n`;
@@ -120,6 +131,7 @@ test("draft — Save writes the use cases in one commit with the provenance line
   assert.ok(lines.every((line) => !line.startsWith("Agent-M-Job:")), `no job line in ${change.message}`);
   assert.ok(lines.every((line) => !line.includes(ALIGN) && !line.includes("change it")), `no message of the conversation in ${change.message}`);
   assert.ok(find(byClass(target, "p", "saved")[0], (node) => node.localName === "a").some((node) => node.getAttribute("href").includes(`/commit/${fake.head()}`)));
+  await assertDropped(shown, UC7_KEY);
 });
 
 // TST-507023 · level: component · module: MOD-review-pages
@@ -172,15 +184,18 @@ test("draft — without a token, GitHub's page opens for each file", async () =>
 // guards: UC-019 (8c); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the draft of UC-007 in its editor
 // input: a click on Discard
-// expect: the draft is gone from the page and the page says it was discarded and that nothing was written; nothing written
+// expect: the draft is gone from the page and the page says it was discarded and that nothing was written; nothing written; latestDraft for the subject gives null, and the route draft drawn again says that there is no draft
 test("draft — Discard drops the draft and writes nothing", async () => {
   const fake = fakeProduct();
-  const { target } = await showDraft(fake, { kind: "change-use-case", params: useCaseParams, result: resultOf({ files: [draft7()] }, { rounds: [ROUND_ONE] }) });
+  const shown = await showDraft(fake, { kind: "change-use-case", params: useCaseParams, result: resultOf({ files: [draft7()] }, { rounds: [ROUND_ONE] }) });
+  const { target } = shown;
   assert.equal(draftBoxes(target).length, 1, "known positive: the draft is there");
+  kept(shown, UC7_KEY);
   click(byClass(target, "button", "discard")[0]);
   assert.equal(draftBoxes(target).length, 0);
   assert.match(target.textContent, /The draft was discarded\. Nothing was written\./);
   assert.equal(written(fake).length, 0);
+  await assertDropped(shown, UC7_KEY);
 });
 
 // TST-507027 · level: component · module: MOD-review-pages
@@ -209,15 +224,17 @@ test("draft — without a draft for the subject the page says so and links back 
 // given: the draft of the decision ARC-001 for a change of the architecture, whose text holds a due-diligence section, with one correction round that had a warning, fixed
 // input: the route draft; then a click on Save
 // expect: the page shows the file's difference against the current text, the rounds of the job (Round 1 with the warning) and the due diligence (a table with "lend-lib" and "GPL-3.0"); Save writes the
-//   file in one commit whose message holds "Agent-M-Kind: change-architecture"
+//   file in one commit whose message holds "Agent-M-Kind: change-architecture"; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
 test("draft — an architecture file is shown with its rounds and its due diligence, and saved", async () => {
   const diligent = `${ARC1}\n${DUE_DILIGENCE}`;
   const warning = finding({ artifact: "ARC-001", line: 9, kind: "warning", rule: "A REUSE DECISION RECORDS ITS DUE DILIGENCE", what: "the candidate desk-kit has no release history", fix: "record its release history" });
   const rounds = [{ number: 1, findings: [warning], answers: [{ finding: warning, how: "fixed", text: null }], changed: true }];
   const key = `decision/id=ARC-001/product=${PRODUCT}`;
   const fake = fakeProduct();
-  const { target } = await showDraft(fake, { key, kind: "change-architecture", params: { target: "ARC-001", version: blobOf(ARC1), instruction: "record the due diligence" },
+  const shown = await showDraft(fake, { key, kind: "change-architecture", params: { target: "ARC-001", version: blobOf(ARC1), instruction: "record the due diligence" },
     result: resultOf({ files: [{ path: ARC_PATH, text: diligent, class: "change", of: "ARC-001" }] }, { rounds }) });
+  const { target } = shown;
+  kept(shown, key);
   assert.match(byClass(draftBoxes(target)[0], "div", "newer")[0].textContent, /\+ \| lend-lib \| MIT \|/);
   const section = byClass(target, "section", "rounds")[0];
   assert.match(section.textContent, /Round 1 — 1 finding/);
@@ -230,6 +247,7 @@ test("draft — an architecture file is shown with its rounds and its due dilige
   const [change] = written(fake);
   assert.deepEqual(change.files.map((file) => [file.path, file.text]), [[ARC_PATH, diligent]]);
   assert.ok(messageLines(change).includes("Agent-M-Kind: change-architecture"), change.message);
+  await assertDropped(shown, key);
 });
 
 // ---------------------------------------------------------------- requirements
@@ -282,10 +300,12 @@ test("draft — requirements are shown with their classes, beside the requiremen
 // input: a click on Save
 // expect: one commit in a change queue under docs/spec-freigaben/, SPEC.md byte-identical; the proposal holds the changed rule and the new requirement, both naming SRC-alice among their sources, and not the
 //   conflict; the commit's message holds Agent-M-Kind: change-requirements, Agent-M-Participant: drafter-a, Agent-M-Model: example-model, Agent-M-Rounds: 1, and no line that holds the instruction
-//   "split this requirement"; the page links the commit
+//   "split this requirement"; the page links the commit; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
 test("draft — Save writes the composed section as an entry of a queue, the conflict undecided and left out", async () => {
   const fake = fakeProduct();
-  const { target } = await showRequirements(fake);
+  const shown = await showRequirements(fake);
+  const { target } = shown;
+  kept(shown, REQUIREMENTS_KEY);
   click(buttonsNamed(target, "Save")[0]);
   await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
   assert.equal(fake.files()["SPEC.md"], SPEC, "SPEC.md byte-identical");
@@ -298,6 +318,7 @@ test("draft — Save writes the composed section as an entry of a queue, the con
   const lines = messageLines(written(fake)[0]);
   for (const wanted of ["Agent-M-Kind: change-requirements", "Agent-M-Participant: drafter-a", "Agent-M-Model: example-model", "Agent-M-Rounds: 1"]) assert.ok(lines.includes(wanted), `${wanted} in ${lines.join("|")}`);
   assert.ok(lines.every((line) => !line.includes("split this requirement")), "no message of the conversation");
+  await assertDropped(shown, REQUIREMENTS_KEY);
 });
 
 // TST-507031 · level: component · module: MOD-review-pages
@@ -351,15 +372,18 @@ test("draft — a SPEC section changed while the participant drafted refuses the
 // guards: UC-019 (8c); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the draft of requirements in the page
 // input: a click on Discard
-// expect: the candidates are gone and the page says the draft was discarded and nothing written; nothing written
+// expect: the candidates are gone and the page says the draft was discarded and nothing written; nothing written; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
 test("draft — Discard drops the requirements and writes nothing", async () => {
   const fake = fakeProduct();
-  const { target } = await showRequirements(fake);
+  const shown = await showRequirements(fake);
+  const { target } = shown;
   assert.equal(byClass(target, "li", "candidate").length, 3, "known positive: the candidates are there");
+  kept(shown, REQUIREMENTS_KEY);
   click(byClass(target, "button", "discard")[0]);
   assert.equal(byClass(target, "li", "candidate").length, 0);
   assert.match(target.textContent, /The draft was discarded\. Nothing was written\./);
   assert.equal(written(fake).length, 0);
+  await assertDropped(shown, REQUIREMENTS_KEY);
 });
 
 // ---------------------------------------------------------------- the kind converse
@@ -371,11 +395,13 @@ const NOTES = "# Notes\n\nA note the participant proposed.\n";
 // guards: UC-049 (steps 5, 6); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A GENERATED ARTIFACT IS A PROPOSAL
 // given: the draft of a conversation of the kind converse: the answer "Here is the change." and two edits — UC-007 changed, and a new file docs/notes.md
 // input: the route draft; then a click on Save
-// expect: the answer is shown; two drafts, each in an editor, the new file as all added lines against nothing; Save writes both in one commit, the new file too, and the message holds Agent-M-Kind: converse
+// expect: the answer is shown; two drafts, each in an editor, the new file as all added lines against nothing; Save writes both in one commit, the new file too, and the message holds Agent-M-Kind: converse; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
 test("draft — the edits of a converse draft are shown and saved, a new file too", async () => {
   const fake = fakeProduct();
-  const { target } = await showDraft(fake, { kind: "converse", params: { ...useCaseParams, page: "the page" },
+  const shown = await showDraft(fake, { kind: "converse", params: { ...useCaseParams, page: "the page" },
     result: resultOf({ answer: "Here is the change.", edits: [{ path: UC7_PATH, text: draft7().text }, { path: NOTES_PATH, text: NOTES }] }, { rounds: [ROUND_ONE] }) });
+  const { target } = shown;
+  kept(shown, UC7_KEY);
   assert.match(byClass(target, "div", "answer")[0].textContent, /Here is the change\./);
   const boxes = draftBoxes(target);
   assert.deepEqual(boxes.map((box) => box.getAttribute("data-path")), [UC7_PATH, NOTES_PATH]);
@@ -385,6 +411,7 @@ test("draft — the edits of a converse draft are shown and saved, a new file to
   assert.equal(written(fake).length, 1, "one commit");
   assert.deepEqual(written(fake)[0].files.map((file) => [file.path, file.text]), [[UC7_PATH, draft7().text], [NOTES_PATH, NOTES]]);
   assert.ok(messageLines(written(fake)[0]).includes("Agent-M-Kind: converse"));
+  await assertDropped(shown, UC7_KEY);
 });
 
 // TST-507036 · level: component · module: MOD-review-pages
