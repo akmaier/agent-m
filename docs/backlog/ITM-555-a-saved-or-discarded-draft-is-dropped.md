@@ -30,10 +30,21 @@ origin:
   `null`. The review pages' routes give `null` where they now build a local copy of that default
   (`src/review-pages/subjects.mjs`), and the copy is removed (AGENTS.md §2, "Nothing twice").
 
-It waits for akmaier's acceptance of the two drafts.
+The drafts were accepted with `220b55d0`: MOD-prompt-bar (`23996f9f`), MOD-site-frame (`0066c3cc`) and
+MOD-review-pages (`64ca6dcf`).
 
-No existing test's expected result changes beyond ITM-507's own tests of the default subject, which then expect the
-frame's default with its menu label.
+The readings, settled at sprint team1/51's start:
+- **`dropDraft(store, subject)`** writes the tab value that `latestDraft` reads back as `null` (`writeTabValue`, as
+  `src/prompt-bar/bar.mjs` keeps the draft), but only where the kept draft's `subject` equals the one given.
+- **The frame's subject.** `subjectOf` (`src/site-frame/subject.mjs:22–23`) takes a route's own subject where its
+  `subject` gives one, and the default where it gives `null`.
+- **The review pages.** Their routes' `subject` gives `null` where `src/review-pages/subjects.mjs` builds its copy of the
+  default today, and the copy goes.
+
+**Existing tests whose expected result changes:** TST-507008 (`tests/review-pages-subjects.test.mjs:166`), whose default
+subjects then carry the menu label in their page, as the frame's default does. The tests of *Save* and *Discard* in
+`tests/review-pages-conversation-draft.test.mjs` keep their expected results, and gain that `latestDraft` gives `null`
+afterwards.
 
 ## Acceptance
 

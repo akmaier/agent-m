@@ -39,7 +39,23 @@ Interfaces).
 - **The caller.** The settings page passes the file it reads from the snapshot, as it already reads it to show whether
   the workflow is installed.
 
-It waits for akmaier's acceptance of that draft.
+The draft was accepted with `220b55d0` (`docs/approvals/MOD-runtimes-7e3b846f59ed.md`).
+
+The readings, settled at sprint team1/51's start:
+- **The header.** Where the file has no `spec:` header, the header with the three inputs and its `---` are put before
+  its first line. Where it has one, each of `job`, `task` and `endpoint` that is missing is added under its `inputs:`,
+  with `default: ""`.
+- **The include.** Where the file has `include:` as a list, the entry `- local: ".gitlab/agent-m-jobs.yml"` with its
+  `inputs:` is added at the list's end, unless an entry names that file already. Where the file has no `include:`, the
+  key and the entry are added at the end of the document.
+- **A file it cannot add to safely.** Where `include:` holds a single string or a map, the change would rewrite a line
+  of the product's own. `jobWorkflowFiles` then throws a `RuntimeError` named `GitlabCiNotList`, naming the file, and
+  nothing is written. The settings page shows its message beside *Install*. "Every other line stays as it is" forbids
+  the rewrite, so the refusal is the reading that keeps it.
+- **The caller.** `src/settings-pages/settings.mjs:822` passes the text of `.gitlab-ci.yml` read from the snapshot it
+  already holds, `null` where there is none.
+- **Existing tests.** None changes. `tests/runtimes-workflow.test.mjs` calls `jobWorkflowFiles` without `gitlabCi`, which
+  gives the whole file as before. No settings test names `.gitlab-ci.yml`.
 
 ## Acceptance
 

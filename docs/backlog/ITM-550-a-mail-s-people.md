@@ -38,7 +38,9 @@ How it finds a name in a mail's own text is not stated by the accepted module fi
 
   A name that none of these forms gives is left to the three checking participants (UC-038 step 6).
 
-This item builds `peopleIn` as that draft states it. It waits for the draft's acceptance.
+This item builds `peopleIn` as that draft states it. The draft was accepted with `220b55d0`
+(`docs/approvals/MOD-personal-data-200e7a95148e.md`). It calls no function of another module, and no existing test names
+`peopleIn`.
 
 ## Acceptance
 

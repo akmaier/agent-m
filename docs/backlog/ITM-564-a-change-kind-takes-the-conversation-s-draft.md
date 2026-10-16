@@ -28,7 +28,9 @@ origin:
   changes it further.
 - **Without one.** The recipe gives nothing.
 
-It waits for akmaier's acceptance of the draft. ITM-559's S11 builds on it.
+The draft was accepted with `220b55d0` (`docs/approvals/MOD-job-catalogue-9da35d8bd107.md`). ITM-559's S11 builds on
+it. The recipe `draft` is registered (`src/job-runner/builtins.mjs:140`), and gives nothing where `params.draft` is
+undefined. That is the optional recipe's behaviour, as `instruction?` has.
 
 **Existing tests whose expected result changes:** TST-472283, whose stated table lists the kinds' recipes
 (`tests/job-catalogue.test.mjs:39`), and TST-472284, a prompt's named place for each recipe.
