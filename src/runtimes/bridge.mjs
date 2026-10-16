@@ -65,8 +65,12 @@ export async function listedOnBridge(bridge, id) {
   return (await bridgeJobs(bridge)).find((job) => job.id === id) ?? null;
 }
 
+// After an answer that has not ended and brought no new line, the next ask waits one second; after an answer with lines it is made at once.
+const QUIET_LOG_WAIT_MS = 1000;
+
 /**
- * followBridgeLog(bridge, id) -> AsyncIterable<string> — the job's log: asks `bridgeJobLog` from line 0, yields each line of the answer, and asks again from the answer's `next` until its `ended`. Crosses the
+ * followBridgeLog(bridge, id) -> AsyncIterable<string> — the job's log: asks `bridgeJobLog` from line 0, yields each line of the answer, and asks again from the answer's `next` until its `ended`: at once after an
+ * answer with new lines, after one second after an answer that has not ended and brought none. Crosses the
  * network at each ask and fails as the client fails — `not-found` for a job the Bridge does not know —, the failure thrown by the iteration.
  */
 export async function* followBridgeLog(bridge, id) {
@@ -76,6 +80,7 @@ export async function* followBridgeLog(bridge, id) {
     yield* lines;
     if (ended) return;
     from = next;
+    if (lines.length === 0) await new Promise((resolve) => setTimeout(resolve, QUIET_LOG_WAIT_MS));
   }
 }
 

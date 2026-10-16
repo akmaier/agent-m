@@ -14,7 +14,8 @@
 //   - A Bridge missing from `bridges`, or one that does not answer, gives `reachable: false` with the client's reason: the `message` of the client's failure; for a Bridge missing there is no
 //     client, and the reason is a text.
 //   - `jobLog` gives `{ stream }`; the stream asks `bridgeJobLog(bridge, id, from)` from line 0, yields each line (one string at a time, in order), and asks again from the answer's `next` until
-//     its `ended` is true; it asks no more after that.
+//     its `ended` is true; it asks no more after that. After an answer with new lines it asks again at once; after an answer that has not ended and brought no line it waits one second (ITM-545:
+//     "After an answer that has not ended and brought no new line, it waits one second before asking again").
 //   - `cancelJob` asks `cancelOnBridge(bridge, id)` once; where the answer's `confirmed` is true it appends the end `cancelled` as ITM-535's cancel does (one commit on the default branch on the
 //     head read, the message `Job <id>: end`, no results, no draft, no rounds, no usage, the cost `{ known: false, usage: null }`, the reason `cancelled by a person`, no `log`) and gives
 //     "cancelled"; otherwise it gives "cancelling" and commits nothing.
