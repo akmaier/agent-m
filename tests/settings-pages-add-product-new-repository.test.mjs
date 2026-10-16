@@ -105,7 +105,7 @@ test("add-product — 2a: the notice of Check on a 404 carries explain('new-repo
 // guards: UC-001 2a (Add product); EVERY STEP EXPLAINS ITSELF
 // given: a GitHub product's own token stored, and an address whose repository the server answers 404 for
 // input: Add product
-// expect: known positive — the topic new-repository gives a folded details. The notice in Step C that names the repository as not found holds the link to https://github.com/new and, after it, one folded explanation with the text of explain("new-repository"); no other folded explanation stands in Step C
+// expect: known positive — the topic new-repository gives a folded details. The notice in Step C that names the repository as not found holds the link to https://github.com/new and, after it, one folded explanation with the text of explain("new-repository"); no other folded explanation stands in that notice
 test("add-product — 2a: the notice of Add product on a 404 carries explain('new-repository') after the link", async () => {
   assert.equal(explain("new-repository").localName, "details", "known positive: the topic new-repository gives a folded explanation");
   const store = freshStore();
@@ -118,20 +118,22 @@ test("add-product — 2a: the notice of Add product on a 404 carries explain('ne
   const link = childIndex(notice, (n) => n.localName === "a" && n.href === "https://github.com/new");
   const at = childIndex(notice, (n) => n.localName === "details");
   assert.ok(link >= 0 && at > link, "the explanation stands after the link to GitHub's page for a new repository");
-  assert.equal(foldedIn(c).length, 1, "it is the only folded explanation in Step C");
+  assert.equal(foldedIn(notice).length, 1, "it is the only folded explanation in the notice");
   assert.equal(notice.childNodes[at].textContent, explain("new-repository").textContent);
 });
 
 // TST-575003 · level: unit · module: MOD-settings-pages
 // guards: UC-001 2a (a GitLab server); EVERY STEP EXPLAINS ITSELF
-// given: a fresh store and a GitLab project address whose project the server answers 404 for
+// given: a project token stored for a GitLab project address (the page then offers Check in Step B, "Give the key to Agent M"), whose project the server answers 404 for
 // input: Check
 // expect: known positive — the topic new-repository gives a folded details. The notice names the project as not found, links https://gitlab.rrze.fau.de/projects/new, and holds after that link one folded explanation with the text of explain("new-repository")
 test("add-product — 2a: the notice of Check on a GitLab 404 links the server's new-project page and carries explain('new-repository')", async () => {
   assert.equal(explain("new-repository").localName, "details", "known positive: the topic new-repository gives a folded explanation");
-  const target = await renderAddress(contextOf(freshStore()), GL_WEB);
-  const b = stepTitled(target, "Step B · Check");
-  await notFound(() => click(byTag(b, "button")[0]));
+  const store = freshStore();
+  writeSetting(store, "gitlab-token:gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool", { name: "fixture", expires: "2027-06-01", stored: "2026-01-01", value: "glpat-X" });
+  const target = await renderAddress(contextOf(store), GL_WEB);
+  const b = stepTitled(target, "Step B · Give the key to Agent M");
+  await notFound(() => click(byTag(b, "button").find((button) => button.textContent === "Check")));
   const notice = missingNotice(b);
   assert.ok(notice, "the notice names the project as not found");
   const link = childIndex(notice, (n) => n.localName === "a" && n.href === "https://gitlab.rrze.fau.de/projects/new");
