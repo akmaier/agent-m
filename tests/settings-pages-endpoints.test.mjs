@@ -2,7 +2,7 @@
 // Run: node --test tests/settings-pages-endpoints.test.mjs
 //
 // Module: MOD-settings-pages
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO; A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY; EVERY SETTING IS REACHED FROM ONE PAGE; EVERY STEP EXPLAINS ITSELF; THE PAGE STATES WHAT IT SENDS WHERE
+// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO; A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY; EVERY SETTING IS REACHED FROM ONE PAGE; EVERY STEP EXPLAINS ITSELF; THE PAGE NAMES WHERE IT SENDS
 // Level: unit
 //
 // These tests use only MOD-settings-pages' public `view` interface. An endpoint route is a Route, so every interaction
@@ -142,7 +142,7 @@ test("TST-265006: an absent key maps to null at the direct-call boundary", async
 });
 
 // TST-265007 · level: unit · module: MOD-settings-pages
-// guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; THE PAGE STATES WHAT IT SENDS WHERE
+// guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; THE PAGE NAMES WHERE IT SENDS
 // given: an endpoint key in the real password control
 // input: the public endpoints Route renders before the author saves
 // expect: destination disclosure precedes the action, the key is hidden, and neither a URL nor a repository writer receives it
@@ -288,7 +288,7 @@ test("TST-265013: Settings explains its browser section and each stored endpoint
 });
 
 // TST-265014 · level: unit · module: MOD-settings-pages
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; A CREDENTIAL IS NEVER PLACED IN A URL
+// guards: THE PAGE NAMES WHERE IT SENDS; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a stored direct endpoint in the public Settings Route
 // input: the person reads its line before pressing Test
 // expect: the line discloses the stored destination and what the request sends before its Test control

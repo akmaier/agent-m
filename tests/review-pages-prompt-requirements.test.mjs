@@ -6,7 +6,7 @@
 // are offered. Run: node --test tests/review-pages-prompt-requirements.test.mjs
 //
 // Module: MOD-review-pages
-// Guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE PAGE STATES WHAT IT SENDS WHERE; A SPEC EDIT IS SAVED AS A PROPOSAL; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
+// Guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE; A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE PAGE NAMES WHERE IT SENDS; A SPEC EDIT IS SAVED AS A PROPOSAL; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // Level: unit
 //
 // The frame parses route parts as key=value. Therefore one requirement arrives as { name, prompt: "1" }, while a group
@@ -203,7 +203,7 @@ function queuedRecord(fake) {
 // ---------------------------------------------------------------- routes and the person's source
 
 // TST-398001 · level: unit · module: MOD-review-pages
-// guards: UC-019 steps 1 to 6; THE PERSON WHO PROMPTS IS A SOURCE; THE PAGE STATES WHAT IT SENDS WHERE
+// guards: UC-019 steps 1 to 6; THE PERSON WHO PROMPTS IS A SOURCE; THE PAGE NAMES WHERE IT SENDS
 // given: A LOAN HAS A DUE DATE and the linked person source SRC-alice for the product owner github.com/alice; a CI drafting participant
 // input: { name: A LOAN HAS A DUE DATE, prompt: "1" }, an instruction, Show the run panel, Run
 // expect: change-requirements is queued for that one name, with the instruction and source SRC-alice among its parameters; nothing is sent from the tab

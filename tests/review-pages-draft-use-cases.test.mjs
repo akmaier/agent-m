@@ -9,7 +9,7 @@
 // Run: node --test tests/review-pages-draft-use-cases.test.mjs
 //
 // Module: MOD-review-pages
-// Guards: UC-007; ONE CLICK PER DECISION; THE PAGE STATES WHAT IT SENDS WHERE; A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; THE ROUNDS ARE COUNTED AND SHOWN; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// Guards: UC-007; ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; THE ROUNDS ARE COUNTED AND SHOWN; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // Level: unit
 //
 // This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to
@@ -209,7 +209,7 @@ test("use-case — the list's Draft use cases leads to the drafting page", async
 // ---------------------------------------------------------------- the selection and the participants
 
 // TST-472616 · level: unit · module: MOD-review-pages
-// guards: UC-007 (steps 1, 2); THE PAGE STATES WHAT IT SENDS WHERE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
+// guards: UC-007 (steps 1, 2); THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: a product with the requirements A LOAN HAS A DUE DATE (realised by UC-001 and UC-002) and A BOOK IS SHELVED (realised by none); the register with a model endpoint and a CI agent that declare draft text and a person that does not; the product holds no job workflow
 // input: the page #use-case/id=draft
 // expect: both requirements listed, only the unrealised one checked; the two drafting participants listed, each with where it processes data and its route — the endpoint's the tab, the CI agent's one that cannot be taken, with the reason naming the workflow file —, the person not; no Run on the page; the explanations of the selection and of the participant folded in it; nothing written, nothing sent
@@ -255,7 +255,7 @@ test("use-case/draft — a subagent is listed with the route of the participant 
 // ---------------------------------------------------------------- the run panel
 
 // TST-472617 · level: unit · module: MOD-review-pages
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-007 (step 2)
+// guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-007 (step 2)
 // given: the page with the requirement A BOOK IS SHELVED checked
 // input: choosing the endpoint participant and pressing Show the run panel
 // expect: the run panel of derive-use-cases — the destination drafter-a, where it processes data, the parts sent: the requirement, every existing use case, the book's chapter 8 —, and in it the only Run; nothing written, nothing sent
@@ -404,7 +404,7 @@ test("use-case/<id> — the notes of the job are not shown beside a use case tha
 });
 
 // TST-472624 · level: unit · module: MOD-review-pages
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; THE PAGE STATES WHAT IT SENDS WHERE
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; THE PAGE NAMES WHERE IT SENDS
 // given: the drafting page without a token
 // input: the page
 // expect: the requirements and the participants are shown; no way to the run panel; the token's step linked; nothing written
@@ -418,7 +418,7 @@ test("use-case/draft — without a token the run panel is not offered, and the t
 });
 
 // TST-472625 · level: unit · module: MOD-review-pages
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-007 (step 1)
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-007 (step 1)
 // given: the page, whose selection the person changes: A LOAN HAS A DUE DATE ticked, A BOOK IS SHELVED unticked
 // input: the run panel; then Run
 // expect: the panel's parts name the requirement ticked and not the one unticked; the job's record names the selection as the requirements it works on

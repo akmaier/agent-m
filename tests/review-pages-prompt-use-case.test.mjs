@@ -9,7 +9,7 @@
 // Run: node --test tests/review-pages-prompt-use-case.test.mjs
 //
 // Module: MOD-review-pages
-// Guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; THE PAGE STATES WHAT IT SENDS WHERE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; THE ROUNDS ARE COUNTED AND SHOWN; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// Guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; THE ROUNDS ARE COUNTED AND SHOWN; AN EDITED FILE KEEPS ITS IDENTIFIER; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // Level: unit
 //
 // This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The data are UC-019's own example: the use cases UC-007 and UC-008, the instructions
@@ -238,7 +238,7 @@ test("use-case/<id>/prompt — with no participant able to draft, the reason and
 // ---------------------------------------------------------------- the run panel
 
 // TST-472640 · level: unit · module: MOD-review-pages
-// guards: UC-019 (steps 4, 5, 4a, 5a); THE PAGE STATES WHAT IT SENDS WHERE; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
+// guards: UC-019 (steps 4, 5, 4a, 5a); THE PAGE NAMES WHERE IT SENDS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
 // given: the prompt page of UC-007; a participant whose context holds 100 tokens and one that holds 200000
 // input: the run panel for each
 // expect: for the large one the panel of change-use-case — the destination, where it processes data, the parts: the instruction, UC-007 with the requirement it realises, and UC-008 — and the only Run; for the small one the panel says it does not fit and offers no Run; nothing written, nothing sent in either case

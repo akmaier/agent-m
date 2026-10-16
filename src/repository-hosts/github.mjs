@@ -5,7 +5,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), listPullRequests(filter), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -36,6 +36,16 @@ const VERDICTS = { APPROVED: "approved", CHANGES_REQUESTED: "changes requested",
 const CONCLUSIONS = { success: "success", failure: "failure", neutral: "neutral", cancelled: "cancelled", skipped: "skipped", timed_out: "timed out", action_required: "failure" };
 const runState = (r) => (r.status === "completed" ? CONCLUSIONS[r.conclusion] ?? "neutral" : r.status === "in_progress" ? "running" : "queued");
 const STATUS_STATES = { pending: "running", success: "success", error: "failure", failure: "failure" };
+
+// A workflow run's state ("List workflow runs for a repository": status queued, in_progress, completed, waiting, requested, pending; conclusion success, failure, neutral, cancelled,
+// skipped, timed_out, action_required, stale, startup_failure): waiting is waiting, in_progress running, queued, requested and pending queued; a completed run takes its conclusion — success,
+// cancelled and skipped as named, every other conclusion failure. The run is a CiRun: the workflow is the file name, the last part of its path; the address is html_url, the one startWorkflow
+// returns; it ends at updated_at once it is completed.
+const RUN_STATUS = { waiting: "waiting", in_progress: "running" };
+const RUN_CONCLUSIONS = { success: "success", cancelled: "cancelled", skipped: "skipped" };
+const ciRunOf = (r) => ({ id: String(r.id), workflow: String(r.path ?? "").split("/").pop(), commit: r.head_sha, event: r.event,
+  state: r.status === "completed" ? RUN_CONCLUSIONS[r.conclusion] ?? "failure" : RUN_STATUS[r.status] ?? "queued", url: r.html_url, started: r.run_started_at ?? null,
+  ended: r.status === "completed" ? r.updated_at ?? null : null });
 
 // A commit's ci from its checks: failure when any failed, was cancelled or timed out; else running when any is queued or running; else success when it has any; else none.
 function ciOf(checks) {
@@ -297,6 +307,38 @@ export function githubAdapter(address, { token, tokenName }, links) {
       const run = await json(answer, API);
       if (run?.workflow_run_id === undefined) return null;
       return { id: String(run.workflow_run_id), workflow, commit: "", event: "workflow_dispatch", state: "queued", url: run.html_url, started: null, ended: null };
+    },
+
+    // The runs ("List workflow runs for a workflow" where a workflow is given, else "List workflow runs for a repository"; branch and head_sha from the filter's branch and commit; the
+    // answer's workflow_runs, 100 to a page, read page by page).
+    async listCiRuns({ workflow, branch, commit } = {}) {
+      const query = new URLSearchParams();
+      if (branch) query.set("branch", branch);
+      if (commit) query.set("head_sha", commit);
+      const list = workflow ? `${repo}/actions/workflows/${encodeURIComponent(workflow)}/runs` : `${repo}/actions/runs`;
+      return (await everyPage(`${list}${query.size ? `?${query}` : ""}`, { permission: "Actions" }, (answer) => answer.workflow_runs)).map(ciRunOf);
+    },
+
+    // Cancels a run ("Cancel a workflow run": POST …/actions/runs/{run_id}/cancel, 202). The page documents 409 for a run that cannot be cancelled: where the run is completed already, that is
+    // no failure and the call returns; for a run that is not, and for every other refusal, the host's own failure.
+    async cancelCiRun(id) {
+      const run = `${repo}/actions/runs/${encodeURIComponent(id)}`, options = { permission: "Actions", what: `run ${id} of ${address.web}` };
+      await call("POST", `${run}/cancel`, { ...options, on: { 409: async (a) => {
+        if ((await read(run, options)).status === "completed") return null;
+        throw await refusal(a, { ...context, write: true, ...options });
+      } } });
+    },
+
+    // The jobs of a run in the order the server lists them ("List jobs for a workflow run": the answer's jobs, page by page), each with its log ("Download job logs for a workflow run": the
+    // server answers with a redirect to the log's text, which fetch follows) -> [{ name, text }] of the jobs that have one; a log answered 404 or 410 is not kept.
+    async jobLogs(id) {
+      const options = { permission: "Actions", what: `run ${id} of ${address.web}` };
+      const logs = [];
+      for (const job of await everyPage(`${repo}/actions/runs/${encodeURIComponent(id)}/jobs`, options, (answer) => answer.jobs)) {
+        const answer = await call("GET", `${repo}/actions/jobs/${encodeURIComponent(job.id)}/logs`, { ...options, on: { 404: () => null, 410: () => null } });
+        if (answer !== null) logs.push({ name: job.name, text: await answer.text() });
+      }
+      return logs;
     },
 
     // The pull requests ("List pull requests": state open, closed or all — a merged one is a closed one with a merged_at —, head `<owner>:<branch>`, 100 to a page, read page by page).
