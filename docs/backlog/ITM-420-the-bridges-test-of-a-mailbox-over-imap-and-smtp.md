@@ -24,24 +24,31 @@ origin:
 
 ## Outcome
 
-MOD-mail-protocols, as its file states it, begun in `src/mail-protocols/`: `mailHandlers` with the operation `test` — a
-login to the IMAP server only over implicit TLS or STARTTLS, each named folder opened read-only and its mails counted,
-Drafts and Sent recognised by their special-use markings, a login to the SMTP server over TLS and a disconnect without
-sending —, with imapflow and nodemailer at the versions ARC-051 records and their logging off. The connection and its
-password live only as long as the request. Errors: `no-encryption` naming the server, with no login sent to it;
-`login-refused` with the server's answer; `not-found` for a named folder; `upstream-failed`. The other operations —
-reading, finding, drafts, sending — are UC-038's and UC-039's and not part of this item.
+Complete the unit verification of MOD-mail-protocols' existing `mailHandlers` operation `test`, as its accepted file
+states it: IMAP and SMTP over TLS, read-only folder counts and special-use Drafts/Sent, no mail sent, named errors,
+and no file written or mailbox password logged or retained beyond the request.
+
+The selected work is tests-only completion of the existing no-file/no-password-log Acceptance. Product code, the
+operation's interface and behaviour, dependency versions and existing expected results stay unchanged. Reading,
+finding, drafts and sending remain outside this item.
 
 ## Acceptance
 
-- Unit tests that name MOD-mail-protocols state, before the code exists, against local IMAP and SMTP test servers on
-  loopback: the counts of two named folders, Drafts and Sent found and sending reported as working; a server without TLS
-  sent no `LOGIN` or `AUTH`, and `no-encryption` naming it; a refused login with the server's answer; an unknown folder
-  `not-found`; the IMAP session issuing `EXAMINE` and never `SELECT`, `STORE`, `COPY`, `MOVE` or `EXPUNGE`; no file
-  written and nothing logged that holds the test's marker password.
-- The tests reach imapflow and nodemailer the way the tunnels' tests reach ssh2; nothing reaches a server off this
-  computer.
-- The first commit holds only these tests, and CI is red on it; every new test's counter-proof is recorded in the pull
-  request.
-- The existing tests stay green, with no expected result changed.
-- Only `src/mail-protocols/` and the tests that name MOD-mail-protocols change.
+- TST-420001 through TST-420005 in `tests/mail-protocols.test.mjs` remain green with every assertion and expected result
+  unchanged: counts, TLS, read-only commands, no sending, encryption refusal before login, refused-login answer and
+  missing-folder error.
+- New unit tests naming MOD-mail-protocols state their preconditions, inputs and literal expected results before
+  running. Through the existing public handler and real local IMAP/SMTP loopback fixtures, they observe that the
+  handler writes no file and that its and its libraries' output holds no marker password. Observe the handler's
+  operation separately from fixture setup, which creates the test certificate; distinguish fixture protocol records
+  from product/library output. Include a successful request and the named failure paths that the existing fixtures
+  exercise. No real mailbox or off-computer mail server is reached.
+- Reach imapflow and nodemailer from the existing Bridge lockfile installation, as ITM-459 states; no test downloads
+  or installs a package. Existing test fixture preparation may be factored for reuse only within tests naming
+  MOD-mail-protocols; no existing case, header ownership or asserted result is changed.
+- The first commit holds only tests and their fixture data. This job adds no product behaviour, so it does not
+  manufacture a failing product baseline; each new test is instead shown to fail at its own assertion on a planted
+  source fault and to pass after exact restoration. The pull request records the actual baseline/fault/restored
+  commands, outcomes and source/test/executor pins. Final CI is green.
+- Only tests naming MOD-mail-protocols and their necessary owned fixture preparation change. No production source,
+  dependency, workflow, SPEC, use case, architecture, process or role change is part of this tests-only job.
