@@ -200,8 +200,14 @@ a person's decision.
   not retried here, since its record holds no task: the list offers to hand it over again from the prompt bar, where the
   person writes the task anew. Fails with `TaskNotInRecord` for such a job.
 - `jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string,
-  keys: string[] }, runners: string[]) -> { path: string, text: string }[]` — the files of the job workflow described under
-  Data, for the caller to commit on a person's click.
+  keys: string[] }, runners: string[], gitlabCi?: string | null) -> { path: string, text: string }[]` — the files of the job
+  workflow described under Data, for the caller to commit on a person's click. On GitLab, `gitlabCi` is the product's
+  `.gitlab-ci.yml` at the head the caller read, `null` where it has none. The returned `.gitlab-ci.yml` is that text with
+  three additions, each made only where it is missing:
+  - the inputs `job`, `task` and `endpoint` under its `spec:` header, with the header where the file has none;
+  - the entry `- local: .gitlab/agent-m-jobs.yml` under its `include:`, with the key where the file has none;
+  - the inputs that entry passes on.
+  Every other line stays as it is. Where the product has no `.gitlab-ci.yml`, the returned one is the whole file.
 - `handOverJob(prepared: Prepared, route: Route, start: JobStart, host: Host, head: string, task: string, target: {
   endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null }) -> Promise<{ path: string,
   commit: string }>` — queues the work a conversation of the prompt bar handed over, on the person's click *Hand over*
