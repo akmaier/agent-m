@@ -48,8 +48,9 @@ What the module file leaves unstated, and what is built:
 - **The refused branch.** A commit message or the pull request's text holding the task's text, trimmed, as one string
   refuses the branch by name. The job ends failed, and nothing is merged.
 - **The answer.** It is appended to the file `GITHUB_STEP_SUMMARY` names where it is set, and printed to the log.
-- **An unreachable endpoint.** The run ends failed with `diagnoseEndpoint`'s reason and the routes `routesFor` offers the
-  participant among the instance's participants that are available.
+- **An unreachable endpoint.** The run ends failed with `diagnoseEndpoint`'s reason and, as MOD-workflow-entries' file
+  says, "the routes that would work — a self-hosted runner, or a Bridge (UC-049 4d)". `routesFor` is not among the
+  module's Uses and is not called.
 - **`onRecordsChanged`.** It leaves every record whose `task` is `with the hand-over` queued.
 
 No existing test's expected result changes, release tests included. The tests of `onDispatch` and `onRecordsChanged`
