@@ -2,6 +2,7 @@
 name: change-architecture
 serves:
   - UC-023
+  - UC-049
 participant: one
 needs:
   - draft text
@@ -10,6 +11,7 @@ preconditions:
   - rests-on-accepted
 recipes:
   - instruction
+  - conversation
   - whole-spec
   - use-cases
   - whole-architecture
@@ -29,6 +31,12 @@ gate_points:
 review: person
 writer: open-files
 limit: 5
+tools:
+  - list-files
+  - read-file
+  - search-files
+  - hand-over
+tool_limit: 30
 ---
 ## Purpose
 

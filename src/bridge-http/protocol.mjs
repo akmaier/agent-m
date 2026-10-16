@@ -17,12 +17,12 @@ export const bridgeApi = {
   routes: [
     { method: "GET", path: "/v1/pair", answer: { bridge: { name: "string", version: "string", platform: "string" }, origin: "string" } },
     { method: "GET", path: "/v1/agents", answer: { agents: [{ name: "string", version: "string", ready: "boolean", loggedIn: "boolean" }], missing: [{ name: "string" }] } },
-    { method: "POST", path: "/v1/jobs", request: { product: "string", record: "string", commit: "string" }, answer: { accepted: "string" } },
+    { method: "POST", path: "/v1/jobs", request: { product: "string", record: "string", commit: "string", task: "string?" }, answer: { accepted: "string" } },
     { method: "GET", path: "/v1/jobs", answer: { jobs: [{ id: "string", product: "string", kind: "string", agent: "string", state: "string", started: "string", usage: "object" }] } },
     { method: "GET", path: "/v1/jobs/{id}/log", query: { from: "number" }, answer: { lines: ["string"], next: "number", ended: "boolean" } },
     { method: "POST", path: "/v1/jobs/{id}/cancel", answer: { confirmed: "boolean" } },
-    { method: "POST", path: "/v1/ask", request: [{ agent: "string", input: "string" }, { endpoint: endpointConfiguration, input: "string" }], answer: { ask: "string" } },
-    { method: "GET", path: "/v1/ask/{ask}", answer: { state: ["running", "done", "failed"], text: ["string", "null"], usage: ["object", "null"], error: ["string", "null"] } },
+    { method: "POST", path: "/v1/ask", request: [{ agent: "string", input: "string" }, { endpoint: endpointConfiguration, input: "string" }, { endpoint: endpointConfiguration, exchange: { messages: ["object"], tools: ["object"] } }], answer: { ask: "string" } },
+    { method: "GET", path: "/v1/ask/{ask}", answer: { state: ["running", "done", "failed"], text: ["string", "null"], calls: [{ id: "string", name: "string", args: "object" }], usage: ["object", "null"], error: ["string", "null"] } },
     { method: "POST", path: "/v1/probes/{kind}", kinds: ["agent", "endpoint-models", "endpoint-test", "partitions"], endpointTest: {
       args: endpointConfiguration,
       answer: { works: [true, false], model: "string", diagnosis: { reason: endpointDiagnosisReasons, message: "string", routes: ["ci", "bridge"] } },
@@ -34,6 +34,13 @@ export const bridgeApi = {
     { method: "GET", path: "/v1/tunnels", answer: { tunnels: [{ name: "string", kind: "string", state: "string", reason: ["string", "null"] }] } },
   ],
 };
+
+// A job's hand-over: product, record and commit are text; task is absent or text.
+export function validJobRequest(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    && ["product", "record", "commit"].every((name) => typeof value[name] === "string")
+    && (!Object.hasOwn(value, "task") || typeof value.task === "string");
+}
 
 export function validEndpointTest(value) {
   return value && typeof value === "object" && typeof value.name === "string" && ["openai-compatible", "anthropic"].includes(value.kind)

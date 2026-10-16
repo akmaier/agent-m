@@ -142,7 +142,7 @@ export async function testBridge(bridge) {
 
 export async function handOver(bridge, job) {
   const route = apiRoute("POST", "/v1/jobs");
-  return call(bridge, route.path, { method: route.method, body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit }) });
+  return call(bridge, route.path, { method: route.method, body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit, ...(job.task === undefined ? {} : { task: job.task }) }) });
 }
 
 export async function ask(bridge, target, input) {
@@ -151,7 +151,7 @@ export async function ask(bridge, target, input) {
   const follow = apiRoute("GET", "/v1/ask/{ask}");
   for (;;) {
     const answer = await call(bridge, follow.path.replace("{ask}", id), { method: follow.method });
-    if (answer.state === "done") return { text: answer.text, usage: answer.usage ?? null };
+    if (answer.state === "done") return { text: answer.text, calls: answer.calls ?? [], usage: answer.usage ?? null };
     if (answer.state === "failed") throw new BridgeError("AskFailed", {}, answer.error ?? "The Bridge ask failed.");
   }
 }

@@ -16,8 +16,8 @@ const response = (body, status = 200) => new Response(JSON.stringify(body), { st
 function withFetch(t, fn) { const prior = globalThis.fetch; globalThis.fetch = fn; t.after(() => { globalThis.fetch = prior; }); }
 const FAULTS = {
   "TST-324001": ['const agents = await call(bridge, route.path, { method: route.method });', 'const agents = { agents: [], missing: [] };'],
-  "TST-324002": ['body: JSON.stringify({ product: job.product, record: job.record, commit: job.commit })', 'body: JSON.stringify({ product: job.product, record: job.record, commit: "fault" })'],
-  "TST-324003": ['return { text: answer.text, usage: answer.usage ?? null };', 'return { text: answer.text, usage: null };'],
+  "TST-324002": ['commit: job.commit, ...(job.task', 'commit: "fault", ...(job.task'],
+  "TST-324003": ['calls: answer.calls ?? [], usage: answer.usage ?? null };', 'calls: [], usage: answer.usage ?? null };'],
   "TST-324004": ['["endpoint-test", "agent"].includes(kind)', '["endpoint-test"].includes(kind)'],
   "TST-324005": ['if (answer.status === 401)', 'if (answer.status === 402)'],
 };
@@ -34,11 +34,28 @@ const FAULTS = {
  // expect: only those fields travel in the POST body and accepted is returned
  test("TST-324002: handOver posts the committed job identity", async (t) => { let call; withFetch(t, async (url, init) => { call={url:String(url),init}; return response({accepted:"JOB-324"}); }); assert.deepEqual(await handOver(bridge(), {product:"a/b",record:"docs/jobs/JOB-324.md",commit:"abc"}), {accepted:"JOB-324"}); assert.equal(call.url,"http://127.0.0.1:4711/v1/jobs"); assert.equal(call.init.method,"POST"); assert.equal(call.init.headers["x-agent-m-bridge-token"],"bridge-token"); assert.deepEqual(JSON.parse(call.init.body),{product:"a/b",record:"docs/jobs/JOB-324.md",commit:"abc"}); });
  // TST-324003 · level: unit · module: MOD-bridge-client
- // guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
- // given: a paired Bridge whose ask runs then completes
- // input: ask an agent and ask an endpoint
- // expect: each POST body carries only its target/input, polls to done, and endpoint key never enters an address
- test("TST-324003: ask sends agent or endpoint body then polls to done", async (t) => { const calls=[], states=[{ask:"ASK-agent"},{state:"running"},{state:"done",text:"draft",usage:{input:2}},{ask:"ASK-endpoint"},{state:"running"},{state:"done",text:"draft",usage:null}]; withFetch(t, async (url, init={}) => { calls.push([String(url),init]); return response(states.shift()); }); assert.deepEqual(await ask(bridge(),{agent:"codex"},"write"),{text:"draft",usage:{input:2}}); assert.deepEqual(await ask(bridge(),{endpoint},"write"),{text:"draft",usage:null}); assert.deepEqual(JSON.parse(calls[0][1].body),{agent:"codex",input:"write"}); assert.deepEqual(JSON.parse(calls[3][1].body),{endpoint,input:"write"}); assert.deepEqual(calls.map(([url,init])=>[new URL(url).pathname,init.method,init.headers["x-agent-m-bridge-token"]]), [["/v1/ask","POST","bridge-token"],["/v1/ask/ASK-agent","GET","bridge-token"],["/v1/ask/ASK-agent","GET","bridge-token"],["/v1/ask","POST","bridge-token"],["/v1/ask/ASK-endpoint","GET","bridge-token"],["/v1/ask/ASK-endpoint","GET","bridge-token"]]); assert.ok(calls.every(([url])=>!url.includes(endpoint.key))); });
+ // guards: UC-011; UC-017; UC-049; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+ // given: a paired Bridge whose ask runs then completes, the third answer carrying one tool call
+ // input: ask an agent, ask an endpoint, and ask an endpoint with one exchange of a tool loop
+ // expect: the POST bodies are exactly {agent,input}, {endpoint,input} and {endpoint,exchange}; each polls to done; the first two return calls [], the third returns [{id:"c1",name:"read",args:{path:"a"}}]; the endpoint key never enters an address
+ test("TST-324003: ask sends agent, endpoint or exchange body, polls to done and returns calls", async (t) => {
+  const exchange = { messages: [{ role: "user", text: "go" }], tools: [{ name: "read", description: "reads", input: {} }] };
+  const calls = [], states = [{ ask: "ASK-agent" }, { state: "running" }, { state: "done", text: "draft", usage: { input: 2 } },
+    { ask: "ASK-endpoint" }, { state: "running" }, { state: "done", text: "draft", usage: null },
+    { ask: "ASK-exchange" }, { state: "running" }, { state: "done", text: "", calls: [{ id: "c1", name: "read", args: { path: "a" } }], usage: { input: 3 } }];
+  withFetch(t, async (url, init = {}) => { calls.push([String(url), init]); return response(states.shift()); });
+  assert.deepEqual(await ask(bridge(), { agent: "codex" }, "write"), { text: "draft", calls: [], usage: { input: 2 } });
+  assert.deepEqual(await ask(bridge(), { endpoint }, "write"), { text: "draft", calls: [], usage: null });
+  assert.deepEqual(await ask(bridge(), { endpoint, exchange }), { text: "", calls: [{ id: "c1", name: "read", args: { path: "a" } }], usage: { input: 3 } });
+  assert.deepEqual(JSON.parse(calls[0][1].body), { agent: "codex", input: "write" });
+  assert.deepEqual(JSON.parse(calls[3][1].body), { endpoint, input: "write" });
+  assert.deepEqual(JSON.parse(calls[6][1].body), { endpoint, exchange });
+  assert.deepEqual(calls.map(([url, init]) => [new URL(url).pathname, init.method, init.headers["x-agent-m-bridge-token"]]),
+    [["/v1/ask", "POST", "bridge-token"], ["/v1/ask/ASK-agent", "GET", "bridge-token"], ["/v1/ask/ASK-agent", "GET", "bridge-token"],
+     ["/v1/ask", "POST", "bridge-token"], ["/v1/ask/ASK-endpoint", "GET", "bridge-token"], ["/v1/ask/ASK-endpoint", "GET", "bridge-token"],
+     ["/v1/ask", "POST", "bridge-token"], ["/v1/ask/ASK-exchange", "GET", "bridge-token"], ["/v1/ask/ASK-exchange", "GET", "bridge-token"]]);
+  assert.ok(calls.every(([url]) => !url.includes(endpoint.key)));
+});
  // TST-324004 · level: unit · module: MOD-bridge-client
  // guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
  // given: a paired Bridge whose ask reports failure, and one agent probe

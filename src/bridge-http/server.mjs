@@ -1,4 +1,4 @@
-import { bridgeApi, validEndpointTest } from "./protocol.mjs";
+import { bridgeApi, validEndpointTest, validJobRequest } from "./protocol.mjs";
 import { currentToken } from "./pairing.mjs";
 
 const loopback = new Set(["127.0.0.1", "::1", "localhost"]);
@@ -69,6 +69,7 @@ export async function serveBridge(config, handlers) {
         let text = ""; for await (const chunk of request) text += chunk;
         try { body = text ? JSON.parse(text) : {}; } catch { error(response, 422, "invalid-request", "Bridge request is not JSON.", config.origin); log(422); return; }
       }
+      if (route.path === "/v1/jobs" && request.method === "POST" && !validJobRequest(body)) { error(response, 422, "invalid-request", "Job hand-over is invalid.", config.origin); log(422); return; }
       const key = `${route.method} ${route.path}`, handler = handlers.jobs?.[key];
       if (!handler) { error(response, 404, "not-found", "Bridge handler not found.", config.origin); log(404); return; }
       try { reply(response, 200, await handler({ params, query: Object.fromEntries(new URL(request.url, "http://localhost").searchParams), body }), config.origin); log(200); }

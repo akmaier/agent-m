@@ -181,6 +181,7 @@ function readerOf(path) {
 export async function traceGraph(source, options = {}) {
   const nodes = new Map();
   const edges = [], links = [], positions = [], unread = [];
+  await source.readMany?.(source.paths.filter((path) => readerOf(path)));
   for (const path of source.paths) {
     const read = readerOf(path);
     if (!read) continue;

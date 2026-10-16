@@ -117,7 +117,7 @@ test("TST-324901: public testBridge consumes the pair datum then the agents datu
 // guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS; A DATA FORMAT IS DEFINED ONCE
 // given: a public Bridge client, one committed job identity, and constructed accepted, completed, and failed ask answers
 // input: handOver(job), then agent asks that complete and fail
-// expect: hand-over sends the exact committed identity; completed asks preserve text/usage and a failed ask is named AskFailed
+// expect: hand-over sends the exact committed identity; completed asks answer { text, calls, usage } with calls empty for a request that is not one exchange of a tool loop, and a failed ask is named AskFailed
 test("TST-324902: public handOver and ask preserve committed identity and named ask outcomes", async (t) => {
   const calls = [];
   const answers = [
@@ -133,7 +133,7 @@ test("TST-324902: public handOver and ask preserve committed identity and named 
   });
 
   assert.deepEqual(await handOver(bridge(), { product: "owner/product", record: "docs/jobs/JOB-901.md", commit: "a".repeat(40) }), { accepted: "JOB-901" });
-  assert.deepEqual(await ask(bridge(), { agent: "codex" }, "draft"), { text: "draft", usage: { input: 2, output: 3 } });
+  assert.deepEqual(await ask(bridge(), { agent: "codex" }, "draft"), { text: "draft", calls: [], usage: { input: 2, output: 3 } });
   await assert.rejects(() => ask(bridge(), { agent: "codex" }, "draft"),
     (error) => error instanceof BridgeError && error.name === "AskFailed" && error.message === "agent unavailable");
   assert.deepEqual(JSON.parse(calls[0].init.body), {

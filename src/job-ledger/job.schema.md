@@ -47,7 +47,9 @@ example shows.
     "start": { "type": "time", "required": true },
     "agent_m": { "type": "text", "required": true },
     "inputs": { "type": "list", "required": false, "item": { "type": "text" } },
-    "limit": { "type": "number", "required": true }
+    "limit": { "type": "number", "required": true },
+    "task": { "type": "enum", "values": ["in parameters", "with the hand-over"], "required": false },
+    "conversation": { "type": "text", "required": false }
   },
   "sections": [
     { "heading": "## Destinations", "required": true },

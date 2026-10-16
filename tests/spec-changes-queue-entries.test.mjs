@@ -280,24 +280,44 @@ test("queue-entries — the queue of the day takes the next letter", async () =>
 
 // TST-473003 · level: unit · module: MOD-spec-changes
 // guards: THE PERSON WHO PROMPTS IS A SOURCE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-019 6b
-// given: a job of change-requirements whose parameters carry the person's own source and their instruction
+// given: a job of change-requirements whose parameters carry the person's own source, the page the prompt bar is on ("/spec.html") and their instruction
 // input: the writer
-// expect: the requirement names that source with the passage; the rationale's origin names the instruction; the commit's message ends with the provenance lines, the instruction among them
-test("queue-entries — a change by prompt names the person's source and records the instruction", async () => {
+// expect: the requirement names that source with the passage; the rationale's origin names a conversation in the prompt bar on "/spec.html" and no word of the instruction; the commit's message ends with the six provenance lines and no line names the instruction
+test("queue-entries — a change by prompt names the person's source and the conversation, never its message", async () => {
   const f = fixture();
   f.context.kind = { name: "change-requirements" };
-  f.context.params = { source: "SRC-fixture-book", instruction: "Make the reader say why a file cannot be read.\nKeep the rest." };
+  f.context.params = { source: "SRC-fixture-book", page: "/spec.html", instruction: "Make the reader say why a file cannot be read.\nKeep the rest." };
   await writer(resultOf([CHANGE]), f.context);
   const commit = f.product.host.commits[0];
   const written = filesOf(commit);
   const [folder] = folderOf(commit);
   assert.match(folder, /_change-requirements-job-20261012-0900-ab12$/);
   assert.ok(written[`${folder}/01-reading.md`].includes("*(Product Owner; SRC-fixture-book, ch. 8)*"));
-  assert.ok(written[`${folder}/01-reading.begruendung.md`].includes("Instruction: Make the reader say why a file cannot be read. Keep the rest."));
-  const trailers = provenanceLines({ agentM: { version: "unreleased", commit: "c".repeat(40) }, jobId: "JOB-20261012-0900-ab12", kind: "change-requirements", participant: DRAFTER, rounds: 2,
-    instruction: "Make the reader say why a file cannot be read.\nKeep the rest." });
-  assert.ok(trailers.some((line) => line.startsWith("Agent-M-Instruction: ")));
-  assert.ok(commit.message.endsWith(trailers.join("\n")));
+  const rationale = written[`${folder}/01-reading.begruendung.md`];
+  assert.ok(rationale.includes("a conversation in the prompt bar on /spec.html"), rationale);
+  assert.ok(!rationale.includes("Instruction:") && !rationale.includes("say why a file cannot be read"), "no word of the instruction");
+  const trailers = ["Agent-M-Version: unreleased, commit " + "c".repeat(40), "Agent-M-Job: JOB-20261012-0900-ab12", "Agent-M-Kind: change-requirements",
+    "Agent-M-Participant: drafter-a", "Agent-M-Model: example-model", "Agent-M-Rounds: 2"];
+  assert.ok(commit.message.endsWith(trailers.join("\n")), commit.message);
+  assert.ok(!commit.message.split("\n").some((line) => line.startsWith("Agent-M-Instruction")), "no line names the instruction");
+});
+
+// TST-473208 · level: unit · module: MOD-spec-changes
+// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-019 6b
+// given: a job of change-requirements whose parameters carry a source, the page "/spec.html" and the instruction "Make the reader say why a file cannot be read."
+// input: the writer
+// expect: the queue's index.md holds no word of the instruction and no "instruction:" label, and no file of the commit holds the instruction
+test("queue-entries — the queue's index holds no instruction of the person", async () => {
+  const f = fixture();
+  f.context.kind = { name: "change-requirements" };
+  f.context.params = { source: "SRC-fixture-book", page: "/spec.html", instruction: "Make the reader say why a file cannot be read." };
+  await writer(resultOf([CHANGE]), f.context);
+  const written = filesOf(f.product.host.commits[0]);
+  const [folder] = folderOf(f.product.host.commits[0]);
+  const index = written[`${folder}/index.md`];
+  assert.ok(index.includes("**Decision:**"), index);
+  assert.ok(!index.includes("say why a file cannot be read") && !/instruction:/i.test(index), index);
+  assert.ok(!Object.values(written).some((text) => text.includes("say why a file cannot be read")), "no file holds the instruction");
 });
 
 // TST-473004 · level: unit · module: MOD-spec-changes

@@ -188,3 +188,19 @@ test("TST-399003 Change by prompt on requirements and groups is offered on the d
   assert.deepEqual(find(onTag, (node) => node.localName === "button" && node.className.includes("requirement-name")).map((node) => node.textContent), [OUTSIDE, LOAN, SHELF, CARD]);
   assert.deepEqual([links(onTag, "requirement-prompt").length, links(onTag, "requirement-group-prompt").length], [0, 0]);
 });
+
+// TST-515003 · level: unit · module: MOD-trace-pages
+// guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; UC-020 (issue #519: + Requirement touched the table below it)
+// given: the specification of a library on the default branch main, two sections
+// input: the route rendered at main
+// expect: in each section, + Requirement carries a style attribute with a bottom margin above zero (px, em or rem), so that it stands apart from the section's table, which follows it
+test("TST-515003 + Requirement carries the space that separates it from the table below it", async () => {
+  const target = await render(host(), "main");
+  const added = links(target, "requirement-new");
+  assert.equal(added.length, 2, "known positive: both sections offer + Requirement");
+  for (const link of added) {
+    const space = /(?:^|;)\s*margin(?:-bottom)?\s*:\s*(?:[^;]*\s)?(0*\.?\d*[1-9]\d*)(?:px|em|rem)\s*(?:;|$)/.exec(link.getAttribute("style") ?? "");
+    assert.ok(space, `${link.getAttribute("href")}: a margin above zero, got ${JSON.stringify(link.getAttribute("style"))}`);
+    assert.equal(link.nextSibling.localName, "table", "the table follows it");
+  }
+});

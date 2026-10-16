@@ -29,3 +29,5 @@ request's body.
 
 - `handOver` with and without `task` sends exactly the wire's body to a fixture Bridge; the task stands in no URL.
 - The wire's schema accepts both bodies and refuses a `task` that is not text.
+- TST-323001 (`tests/bridge-http-323.test.mjs`), which states the route `POST /v1/jobs` as a whole, changes its expected
+  request by the optional `task`, as MOD-bridge-http's accepted wire table states it.

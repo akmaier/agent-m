@@ -3,6 +3,7 @@ name: change-requirements
 serves:
   - UC-019
   - UC-012
+  - UC-049
 participant: one
 needs:
   - draft text
@@ -10,6 +11,7 @@ resources: none
 preconditions:
 recipes:
   - instruction
+  - conversation
   - named-requirements
   - spec-with-queues
   - chapters-for-requirements
@@ -23,6 +25,12 @@ gate_points:
 review: person
 writer: queue-entries
 limit: 5
+tools:
+  - list-files
+  - read-file
+  - search-files
+  - hand-over
+tool_limit: 30
 ---
 ## Purpose
 

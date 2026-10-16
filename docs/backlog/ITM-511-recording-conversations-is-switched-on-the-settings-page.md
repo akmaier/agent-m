@@ -11,7 +11,6 @@ realises:
 modules:
   - MOD-settings-pages
 builds_on:
-  - ITM-501
   - ITM-503
   - ITM-506
 tests:

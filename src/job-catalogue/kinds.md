@@ -30,3 +30,4 @@ its prompt `prompt.md` and the schema of the draft it expects, `answer.schema.js
 | check-for-persons | kinds/check-for-persons |
 | draft-replies | kinds/draft-replies |
 | check-resource | kinds/check-resource |
+| converse | kinds/converse |
