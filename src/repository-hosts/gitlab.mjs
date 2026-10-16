@@ -247,6 +247,15 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return listed.map(pullOf).filter((p) => state === "all" || p.state === state);
     },
 
+    // Whether the branch's history holds the commit ("Get a merge base": GET …/repository/merge_base?refs[]=…&refs[]=…): the common ancestor of
+    // the commit and the branch is the commit itself when the branch holds it. The page names no status for a ref the server does not know;
+    // GitLab answers 400 or 404, here a commit it does not know: not contained.
+    async containsCommit(branch, commit) {
+      const base = await read(`${api}/repository/merge_base?refs[]=${encodeURIComponent(commit)}&refs[]=${encodeURIComponent(branch)}`,
+        { on: { 400: () => null, 404: () => null } });
+      return base !== null && base.id === commit;
+    },
+
     // What a Definition-of-Done check sees of one merge request (the merge request, its commits, diffs and approvals, and for a commit its files and newest pipeline, for the head the
     // jobs of that pipeline). The approvals carry no commit: each is given on the merge request's head commit. See github.mjs.
     async pullRequestFacts(number) {

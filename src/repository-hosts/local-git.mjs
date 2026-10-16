@@ -75,6 +75,12 @@ export function localAdapter(address, folder) {
       return { commit, blobs };
     },
 
+    // Whether the branch's history holds the commit: `git merge-base --is-ancestor <commit> <branch>` exits 0 when it does and 1 when it
+    // does not; any other exit — a commit or branch the clone does not hold — is not contained either. Nothing is fetched.
+    async containsCommit(branch, commit) {
+      return typeof (await git(["merge-base", "--is-ancestor", commit, branch], { tolerate: true })) === "string";
+    },
+
     async readFile(commit, path) {
       return new TextDecoder().decode(await git(["cat-file", "blob", `${commit}:${path}`], { buffer: true }));
     },

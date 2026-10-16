@@ -22,7 +22,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { documentFindings, readDocument } from "../src/documents/index.mjs";
-import { conflicts, heldItems, planSchemas } from "../src/work-plans/index.mjs";
+import { conflicts, heldItems, planSchemas, undecidedHeads } from "../src/work-plans/index.mjs";
 
 // ---------------------------------------------------------------- the fixture product
 
@@ -160,8 +160,8 @@ test("heldItems — an item merged into its sprint's own branch stays held until
 // TST-469001 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
 // given: known positive first — team1's sprint 26 selecting ITM-292; #280, a pull request naming ITM-292, merged into sprint/19, whose branch is never merged on; then the same pull request with sprint/19 merged into main after it; then ITM-292 merged straight into main
-// input: heldItems(that sprint, the items including ITM-292, the architecture, the pull requests of each case)
-// expect: ITM-292 is held when its change reached only sprint/19; not held after sprint/19 reaches main; not held when the item reaches main directly
+// input: heldItems(that sprint, the items including ITM-292, the architecture, the pull requests of each case); for the last case also onDefault, a Set holding #283's head commit
+// expect: ITM-292 is held when its change reached only sprint/19; not held after sprint/19 reaches main; not held when the item reaches main directly; held when it was merged into trunk — the chain ends at main —; not held when #283's head commit is in onDefault
 test("heldItems — an item merged into a branch that never reached the default branch stays held", () => {
   const selected = item("ITM-292", ["MOD-store"]);
   const sprints = [sprint("team1", "26", { selection: ["ITM-292"], branch: "sprint/team1/26" })];
@@ -176,7 +176,7 @@ test("heldItems — an item merged into a branch that never reached the default 
   assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE, [straightToDefault])), []);
   assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE, [straightToTrunk])), ["ITM-292"]);
   assert.deepEqual(heldIds(heldItems(sprints, [...ITEMS, selected], ARCHITECTURE, [straightToTrunk],
-    { defaultBranch: "trunk" })), []);
+    new Set(["a".repeat(40)]))), []);
 });
 
 // TST-590001 · level: unit · module: MOD-work-plans
@@ -308,4 +308,64 @@ test("conflicts — every shared module is named, in the order of its identifier
     { sprint: "team2/01", team: "team2", item: "ITM-004", module: "MOD-feed" },
     { sprint: "team2/01", team: "team2", item: "ITM-004", module: "MOD-mail" },
   ]);
+});
+
+// ---------------------------------------------------------------- onDefault and undecidedHeads
+
+// ITM-291's pull requests #279 and #285, merged into sprint/19, which no pull request merged into main; each with a head commit of its own.
+const sha = (letter) => letter.repeat(40);
+const ITM291 = [
+  { ...pr(279, "ITM-291", "sprint/19", "merged", "2026-10-08T10:00:00Z"), head: sha("1") },
+  { ...pr(285, "ITM-291", "sprint/19", "merged", "2026-10-09T10:00:00Z"), head: sha("2") },
+];
+const SPRINT_291 = [sprint("team1", "26", { selection: ["ITM-291"], branch: "sprint/team1/26" })];
+const ITEMS_291 = [...ITEMS, item("ITM-291", ["MOD-store"])];
+
+// TST-516001 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-032 step 6
+// given: team1's sprint 26 selecting ITM-291; #279 (head 1111…) and #285 (head 2222…), both naming ITM-291, merged into sprint/19, which no pull request merged into main
+// input: heldItems(that sprint, the items, the architecture, #279 and #285, onDefault) for: no onDefault; an empty Set; a Set with 3333… only; a Set with #285's head 2222…; a Set with #279's head 1111…; and with the pull requests "unknown" and 1111… in onDefault
+// expect: ITM-291 held for the first three — its change is on the default branch in none of them —; not held for the next two, whichever of its pull requests' heads is in onDefault; held with the pull requests unknown
+test("heldItems — an item merged into a branch no pull request merged on is released when a pull request's head commit is in onDefault", () => {
+  const held = (...rest) => heldIds(heldItems(SPRINT_291, ITEMS_291, ARCHITECTURE, ...rest));
+  assert.deepEqual(held(ITM291), ["ITM-291"]);
+  assert.deepEqual(held(ITM291, new Set()), ["ITM-291"]);
+  assert.deepEqual(held(ITM291, new Set([sha("3")])), ["ITM-291"]);
+  assert.deepEqual(held(ITM291, new Set([sha("2")])), []);
+  assert.deepEqual(held(ITM291, new Set([sha("1")])), []);
+  assert.deepEqual(held("unknown", new Set([sha("1")])), ["ITM-291"]);
+});
+
+// TST-516002 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team1's sprint 26 selecting ITM-291, ITM-001 and ITM-003; ITM-291's #279 (head 1111…) and #285 (head 2222…) merged into sprint/19; a pull request of ITM-001 merged into main (head 4444…); ITM-003's #290 merged into sprint/20 (head 5555…), and #291 with the same head 5555…; a merged pull request of ITM-002 into sprint/19 (head 6666…), an item no sprint holds; an open pull request of ITM-003 (head 7777…)
+// input: undecidedHeads(that sprint, the pull requests in the order given); then with #285 listed before #279; then with only ITM-001's pull request
+// expect: ["1111…", "2222…", "5555…"] — the heads of merged pull requests naming a held item whose chain reaches no main, each once —; ["2222…", "1111…", "5555…"] in the other order; and [] for the last
+test("undecidedHeads — the heads of the merged pull requests of held items that reach no default branch, in order, each once", () => {
+  const selecting = [sprint("team1", "26", { selection: ["ITM-291", "ITM-001", "ITM-003"] })];
+  const intoMain = { ...pr(286, "ITM-001", "main", "merged", "2026-10-09T11:00:00Z"), head: sha("4") };
+  const sameHeadA = { ...pr(290, "ITM-003", "sprint/20", "merged", "2026-10-09T12:00:00Z"), head: sha("5") };
+  const sameHeadB = { ...pr(291, "ITM-003", "sprint/20", "merged", "2026-10-09T13:00:00Z"), head: sha("5") };
+  const unheld = { ...pr(292, "ITM-002", "sprint/19", "merged", "2026-10-09T14:00:00Z"), head: sha("6") };
+  const open = { ...pr(293, "ITM-003", "sprint/20"), head: sha("7") };
+  assert.deepEqual(undecidedHeads(selecting, [...ITM291, intoMain, sameHeadA, sameHeadB, unheld, open]),
+    [sha("1"), sha("2"), sha("5")]);
+  assert.deepEqual(undecidedHeads(selecting, [ITM291[1], ITM291[0], intoMain, sameHeadA, sameHeadB, unheld, open]),
+    [sha("2"), sha("1"), sha("5")]);
+  assert.deepEqual(undecidedHeads(selecting, [intoMain]), []);
+});
+
+// TST-516003 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team1's sprint 26 selecting ITM-291; #279 (head 1111…) merged into sprint/19; then #281 merging sprint/19 into main after it; then #279 together with #295, ITM-291 merged into main (head 8888…)
+// input: undecidedHeads(that sprint, each list of pull requests)
+// expect: [1111…] for #279 alone; [] when sprint/19 reached main by #281 — a chain that reaches main needs no host question —; [] when #295 reached main, though #279 alone would be undecided; [] with no pull requests
+test("undecidedHeads — a chain that reaches main, or an item no pull request names, leaves no head to ask about", () => {
+  const first = ITM291[0];
+  const sprintToMain = { ...increment(281, "sprint/19", "merged", "2026-10-10T10:00:00Z"), head: sha("9") };
+  const straight = { ...pr(295, "ITM-291", "main", "merged", "2026-10-11T10:00:00Z"), head: sha("8") };
+  assert.deepEqual(undecidedHeads(SPRINT_291, [first]), [sha("1")]);
+  assert.deepEqual(undecidedHeads(SPRINT_291, [first, sprintToMain]), []);
+  assert.deepEqual(undecidedHeads(SPRINT_291, [first, straight]), []);
+  assert.deepEqual(undecidedHeads(SPRINT_291, []), []);
 });
