@@ -665,3 +665,15 @@ While it is on, every message of a conversation, yours and the participant's, is
 A repository that its server reports as public publishes what is committed to it, so the conversations held on its pages are published too. Before you switch it on, the page names each repository it reports as public; for a repository whose visibility it cannot read, it says *visibility not known*.
 
 Switching it off is saved at once. Records already written stay in the history of the repositories; switching off writes no more and removes none.
+
+## new-repository
+
+The product needs a repository to live in, and the server creates one on its own page for a new repository, which the link opens in a new tab. Agent M creates nothing there: you make the choices, then come back, continue at the address and press *Check* again. On GitHub the page asks for these choices:
+
+- *Owner* — the account or the organisation the repository belongs to. Choose the one that should own the product; the address you paste here starts with it, and you need permission to write to it. The product's key (Step A) is made for the same owner.
+- *Repository name* — the last part of the address, in lower case with hyphens, for example `thesis-tool` in `alice/thesis-tool`. The key's name is built from it.
+- *Description* — optional; one line for people who find the repository.
+- *Visibility* — a public repository can be read by anyone, and everything Agent M writes into it — requirements, use cases, architecture — is published; a private repository can be read only by you and the people you invite. Choose a private repository where the product holds what it should not publish. Visibility can be changed later in the repository's settings.
+- *Starter files* — a README, a `.gitignore` and a licence are offered; all three are optional. Agent M writes the folders and files of its review layout that are still missing and overwrites nothing, so you may start empty or with any of them.
+
+On a GitLab server the page is the one for a new project and asks for the same choices under other names: the project name, the group or user it sits under (its owner), a visibility level of *Private*, *Internal* or *Public*, and whether to start with a README. The advice is the same.
