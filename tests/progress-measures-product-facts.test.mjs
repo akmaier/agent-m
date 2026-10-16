@@ -371,14 +371,14 @@ test("productFacts, scope work — a declared model the catalogue does not hold 
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-049
 // given: a host that does no server operations — repositoryInfo and listPullRequests fail with NotSupported — over the fixture product
 // input: productFacts(…, { scope: "work" }), and the calls of the host
-// expect: the snapshot is read at "HEAD", the branch the clone has checked out; pullRequests "unknown"; held is every selected item — ITM-001, ITM-002, ITM-004; plan.states ITM-001 and ITM-004 unknown (they need the pull requests), ITM-002 in progress (its job), ITM-003 waiting for acceptance; containsCommit is not asked
+// expect: the snapshot is read at "HEAD", the branch the clone has checked out; pullRequests "unknown"; held is every selected item — ITM-001, ITM-002, ITM-004; plan.states ITM-001 and ITM-004 unknown (they need the pull requests), ITM-002 waiting for an item it builds on (ITM-001, which it builds on, is not done: its state is unknown), ITM-003 waiting for acceptance; containsCommit is not asked
 test("productFacts, scope work — a host that does no server operations gives unknown pull requests and holds every selected item", async () => {
   const f = fixture({ serverOperations: false });
   const facts = await work(f);
   assert.deepEqual(f.calls, [["repositoryInfo"], ["readSnapshot", "HEAD"], ["listPullRequests"]]);
   assert.equal(facts.pullRequests, "unknown");
   assert.deepEqual(facts.held.map((h) => h.item), ["ITM-001", "ITM-002", "ITM-004"]);
-  assert.deepEqual(facts.plan.states.map((s) => [s.item, s.state]), [["ITM-001", "unknown"], ["ITM-002", "in progress"],
+  assert.deepEqual(facts.plan.states.map((s) => [s.item, s.state]), [["ITM-001", "unknown"], ["ITM-002", "waiting for an item it builds on"],
     ["ITM-003", "waiting for acceptance"], ["ITM-004", "unknown"]]);
 });
 
