@@ -1,5 +1,5 @@
 import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
-import { endpointDriver, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
+import { endpointDriver, endpointExchange, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 import { handOver } from "./watch.mjs";
 
 function validEndpointConfig(value) {
@@ -64,6 +64,16 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, agents = [] } = {
     },
     "POST /v1/ask": async ({ body }) => {
       const entry = { state: "running", text: null, usage: null, error: null }, ask = globalThis.crypto.randomUUID();
+      if (body?.endpoint !== undefined && body.exchange !== undefined) {
+        if (!validEndpointConfig(body.endpoint) || !Array.isArray(body.exchange?.messages) || !Array.isArray(body.exchange?.tools)) {
+          throw failure("invalid-request", "An exchange ask carries a valid endpoint configuration and an exchange of messages and tools, both lists.");
+        }
+        const key = body.endpoint.key, exchanging = { state: "running", text: null, calls: [], usage: null, error: null };
+        asks.set(ask, exchanging);
+        endpointExchange(body.endpoint, body.exchange).then(({ text, calls, usage }) => Object.assign(exchanging, { state: "done", text, calls, usage }),
+          (error) => Object.assign(exchanging, { state: "failed", error: endpointReason(error, key) }));
+        return { ask };
+      }
       if (body?.endpoint !== undefined) {
         if (!validEndpointConfig(body.endpoint) || typeof body.input !== "string") throw failure("invalid-request", "An endpoint ask carries a valid endpoint configuration and an input that is text.");
         const key = body.endpoint.key;

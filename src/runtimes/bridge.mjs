@@ -11,6 +11,7 @@
 import { ask, bridgeJobLog, bridgeJobs, cancelOnBridge, handOver } from "../bridge-client/index.mjs";
 import { startRecord } from "../job-ledger/index.mjs";
 import { driverPrompt } from "../job-runner/index.mjs";
+import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { RuntimeError } from "./ci.mjs";
 
 /**
@@ -37,11 +38,15 @@ export async function queueOnBridge(host, start, head, bridge, task) {
 
 /**
  * bridgeDriver(bridge, target, participant) -> Driver — a driver whose `send` hands driverPrompt(input) to the named agent on the Bridge (`{ agent }`), or to the model endpoint the Bridge calls
- * (`{ endpoint }`, the endpoint's configuration), through the client's `ask`, and returns the answer's text and the usage reported. Fails with what the client names. The abort signal is not passed
- * on: `ask` takes none.
+ * (`{ endpoint }`, the endpoint's configuration), through the client's `ask`, and returns the answer's text and the usage reported. For an endpoint given an input that carries `tools`, the loop of
+ * MOD-endpoint-calls' `endpointDriver` runs here, each of its requests one `ask(bridge, { endpoint, exchange })`; an agent, and an input without tools, are the single `ask` with the prompt. Fails with what the
+ * client names. The abort signal is not passed on to `ask`, which takes none.
  */
 export function bridgeDriver(bridge, target, participant) {
-  return { participant, async send(input) {
+  const looped = target.endpoint === undefined ? null
+    : endpointDriver(target.endpoint, participant, async (endpoint, exchange) => ask(bridge, { endpoint, exchange }));
+  return { participant, async send(input, options) {
+    if (looped && input.tools?.definitions?.length) return looped.send(input, options);
     const { text, usage } = await ask(bridge, target, driverPrompt(input));
     return { text, usage };
   } };
