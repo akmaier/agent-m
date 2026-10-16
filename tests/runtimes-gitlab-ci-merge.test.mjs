@@ -177,3 +177,49 @@ test("jobWorkflowFiles — an inline inputs: in the header or in the entry is re
     assert.equal(result, null, `${part}: nothing is returned`);
   }
 });
+
+// The two endings of a GitlabCiNotList message (ITM-604), each written whole here.
+const INCLUDE_ENDING = " Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.";
+const INPUTS_ENDING = " Agent M adds its inputs only to an inputs: written as a block, and rewrites no line of the product's own — write it as a block, then install again.";
+const messageOf = (gitlabCi) => { try { merged(gitlabCi); } catch (error) { return error.message; } return null; };
+
+// TST-604001 · level: unit · module: MOD-runtimes
+// guards: UC-010; UC-027
+// given: a product's .gitlab-ci.yml whose include: is a single string, one whose include: is a block map, and one whose include: is written inline as a map
+// input: jobWorkflowFiles("gitlab", …, each text)
+// expect: each throws a GitlabCiNotList whose whole message is `.gitlab-ci.yml: include: holds a single string or an inline map.` (the single string and the inline map) or
+// `.gitlab-ci.yml: include: holds a map.` (the block map), followed by the include: ending: ` Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.`
+test("jobWorkflowFiles — an include: that is not a list says the include: case and nothing about inputs:", () => {
+  const forms = {
+    "a single string": ['include: ".gitlab/other.yml"\nbuild:\n  script: make\n', ".gitlab-ci.yml: include: holds a single string or an inline map."],
+    "a block map": ['include:\n  local: ".gitlab/other.yml"\nbuild:\n  script: make\n', ".gitlab-ci.yml: include: holds a map."],
+    "an inline map": ['include: { local: ".gitlab/other.yml" }\nbuild:\n  script: make\n', ".gitlab-ci.yml: include: holds a single string or an inline map."],
+  };
+  for (const [form, [own, why]] of Object.entries(forms)) assert.equal(messageOf(own), why + INCLUDE_ENDING, form);
+});
+
+// TST-604002 · level: unit · module: MOD-runtimes
+// guards: UC-010; UC-027
+// given: a product's .gitlab-ci.yml whose spec: header writes `inputs: {}` inline, and one whose include: entry for .gitlab/agent-m-jobs.yml writes `inputs: { job: x }` inline
+// input: jobWorkflowFiles("gitlab", …, each text)
+// expect: each throws a GitlabCiNotList whose whole message is `.gitlab-ci.yml: the inputs: of the spec: header is not written as a block.` for the header and
+// `.gitlab-ci.yml: the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.` for the entry, followed by the inputs: ending:
+// ` Agent M adds its inputs only to an inputs: written as a block, and rewrites no line of the product's own — write it as a block, then install again.`
+test("jobWorkflowFiles — an inline inputs: says the inputs: case and nothing about an include: list", () => {
+  const forms = {
+    header: ['spec:\n  inputs: {}\n---\nbuild:\n  script: make\n', ".gitlab-ci.yml: the inputs: of the spec: header is not written as a block."],
+    entry: ['include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs: { job: x }\nbuild:\n  script: make\n', ".gitlab-ci.yml: the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block."],
+  };
+  for (const [part, [own, why]] of Object.entries(forms)) assert.equal(messageOf(own), why + INPUTS_ENDING, part);
+});
+
+// TST-604003 · level: unit · module: MOD-runtimes
+// guards: UC-010; UC-027
+// given: a product's .gitlab-ci.yml whose include: is a list holding the job file as a plain string
+// input: jobWorkflowFiles("gitlab", …, that text)
+// expect: a GitlabCiNotList whose whole message is `.gitlab-ci.yml: the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.` followed by the
+// include: ending, as it stands (ITM-604 changes only the inputs: messages)
+test("jobWorkflowFiles — the job file as a plain string in the include: keeps the include: ending", () => {
+  assert.equal(messageOf('include:\n  - ".gitlab/agent-m-jobs.yml"\nbuild:\n  script: make\n'),
+    ".gitlab-ci.yml: the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on." + INCLUDE_ENDING);
+});
