@@ -36,6 +36,10 @@ ITM-514's todo test TST-377116 then passes.
 - TST-472806, whose list of topics drops `change-instruction`;
 - TST-472812, the case of `change-instruction`, which goes with the topic.
 
+ITM-551 removed the review pages' keys that named the topic, so this item changes only MOD-site-frame. The text of
+TST-377116 in the release test `tests/release-uc-019-change-by-prompt.test.mjs` names `change-instruction`, and this
+item does not change it. That is ITM-563's, whose developer implements none of this item.
+
 ## Acceptance
 
 - **The examples.** The topic `prompt-bar` holds UC-019 step 1's examples, as the todo test states them.
