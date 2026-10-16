@@ -58,8 +58,22 @@ none of this item.
   then hands the draft through its recipe `draft?` (ITM-564), so TST-377007 and TST-418104 keep their expected results.
 - **S14, the findings.** Each finding the loop left is shown as `formatFinding(finding)` (`src/text-tools/index.mjs:34`),
   in place of `<rule>: <what> — <fix>` (`src/review-pages/conversation-draft.mjs:38`).
-- **Existing tests.** None changes. TST-507021 asserts that the rule's name is listed, which `formatFinding`'s form keeps.
-  No other test asserts the route `draft`'s subject.
+- **Existing tests**, corrected after the developer's wide run, since the start's grep missed three:
+  - **TST-377007** (`tests/system-uc-019-change-by-prompt.test.mjs:270`, a system test). Its fixture answers the
+    follow-up with `{ answer: "Noted." }`. That was readable only while the route's subject was `converse`. With S11 the
+    follow-up runs the change kind, whose answer must hold `files`, so the loop finds the answer unreadable and asks
+    again (UC-019 6c). This item changes the fixture's second answer into a readable draft, and keeps every expected
+    value: two requests, the draft and the follow-up in what is sent.
+  - **TST-418104 and TST-418115** are in a release test, so ITM-571 changes them:
+    - TST-418104 (`tests/release-uc-019-change-requirements-by-prompt.test.mjs:107`) needs the same change of its fixture;
+    - TST-418115 (`:340`) expects the old form of a finding, which S14 replaces.
+  - **TST-507021** keeps its expected result, since the rule's name stays in `formatFinding`'s form.
+- **The title.** The draft's subject is titled by:
+  - its use case's or target's identifier;
+  - else its requirements, joined;
+  - else the route's title.
+
+  A subject is computed synchronously, and the kept `ConversationDraft` holds no heading.
 - **UC-019's `todo`s.** TST-377012 (S11, a system test) and TST-418126 (S14, a release test) then hold. They are turned
   plain by ITM-571, by a developer who implements none of this item.
 

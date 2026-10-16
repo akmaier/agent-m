@@ -27,6 +27,19 @@ Once ITM-559 is merged, two `todo` tests hold, and they become plain tests with 
 Their entries move from the findings maps to the evidence maps, as ITM-563 moved S7, S8 and S15. The author implements
 none of ITM-559 (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`).
 
+**The release test's other changes, which ITM-559 makes necessary**, as a release test is changed by a developer who
+implements none of the item (`tests/release-uc-019-change-requirements-by-prompt.test.mjs`):
+- **TST-418104** (`:107`). Its fixture's second answer becomes a readable draft, as ITM-559 changes TST-377007's. Its
+  expected values stay: two requests, the draft and the follow-up sent.
+- **TST-418115** (`:340`). Its expected finding is written in `formatFinding`'s form, as TST-418126 expects on the same
+  page.
+- **The counter-proof table's entry for TST-418104 and TST-377007**, which plants a fault in
+  `src/site-frame/subject.mjs`'s `drawn()`. After S11 the draft travels through `draft?`, not the page's text, so the
+  entry is read again. Where that fault no longer breaks them, it is moved to the subject of the route `draft`.
+
+**Order.** This item merges into `sprint/team1/51` before the sprint's pull request into `main`. TST-418104 and
+TST-418115 run only there, since the sprint branch's pull requests leave out the release files.
+
 ## Acceptance
 
 - **The tests.** Both pass as plain tests. A planted fault in each mend fails its test.
