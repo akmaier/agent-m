@@ -17,6 +17,7 @@ uses:
   - MOD-job-runner.WriteOutcome
   - MOD-job-ledger.startRecord
   - MOD-job-ledger.appendToRecord
+  - MOD-job-ledger.jobCost
   - MOD-job-ledger.newJobId
   - MOD-job-ledger.JobStart
   - MOD-job-ledger.JobRecord
@@ -238,7 +239,8 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
 - `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent once through the
   Bridge; tab callers do not pre-render this context for an endpoint or Bridge driver.
 - `MOD-job-ledger.startRecord`, `MOD-job-ledger.appendToRecord`, `MOD-job-ledger.newJobId`, `MOD-job-ledger.JobStart`,
-  `MOD-job-ledger.JobRecord`, `MOD-job-ledger.LiveState` — the records it writes and the live state it reports.
+  `MOD-job-ledger.JobRecord`, `MOD-job-ledger.LiveState` — the records it writes and the live state it reports;
+  `MOD-job-ledger.jobCost` — the cost an end of a job it ran in the tab records.
 - `MOD-endpoint-calls.endpointDriver`, `MOD-endpoint-calls.EndpointConfig` — the driver of an endpoint the browser calls,
   and the configuration a Bridge receives for one it calls; `MOD-endpoint-calls.endpointExchange` — one request of the
   tool loop of an endpoint the Bridge calls.
