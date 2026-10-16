@@ -40,6 +40,18 @@ as `#requirement/name=…/prompt=1` shows. The links are at `flow.mjs:343`, and 
 
 UC-019's system and release tests no longer use the old routes, since ITM-514 moved them.
 
+**What the old routes leave behind goes with them**, settled at its first gate (#611, `65a55cd4`). Once the routes are
+removed, the following have no reader left. They are the routes' remains, and the Outcome "the review pages lose the
+routes" removes them too:
+- `refineOnTab` in `src/review-pages/jobs.mjs`, whose only caller was `requirements-prompt.mjs`;
+- the test of `params.prompt` in `factsOf` (`src/review-pages/subjects.mjs:75`);
+- the descriptors' keys `prompt:` in `src/review-pages/kinds.mjs`;
+- the descriptors' keys `instruction: "change-instruction"`, which only the old prompt page read. With them gone, ITM-562
+  removes the topic without leaving a key that points at nothing.
+
+TST-507009 ("the old prompt routes stay") and TST-507008's `prompt=1` case change with the routes, since they asserted
+that the routes exist.
+
 ## Acceptance
 
 - **Nothing old remains.** No route, file, link or button above is left. `git grep` for "Change by prompt" and `/prompt`
