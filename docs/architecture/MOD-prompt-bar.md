@@ -123,13 +123,15 @@ IN THE REPOSITORY`).
 
 ## Interfaces
 
-- `Subject` — `{ key: string, title: string, kind: string, paramsFor: (participant: Participant) -> Record<string,
-  unknown>, draftRoute: string | null, withhold: ((text: string) -> string | null) | null, refuses: string[] }`: what a message on the page
+- `Subject` — `{ key: string, title: string, kind: string, entry: string | null, paramsFor: (participant: Participant) ->
+  Record<string, unknown>, draftRoute: string | null, withhold: ((text: string) -> string | null) | null, refuses:
+  string[] }`: what a message on the page
   shown is about, given by the route that shows it (MOD-site-frame's `Route.subject`), or by the frame for a route that
   gives none. `key` names the subject, so that a draft is shown only for the subject it was drafted on; `title` is what
   the bar and the record say the message was about; `kind` is the kind of MOD-job-catalogue a message runs — `converse`
-  unless the route names another, such as `change-requirements` on a requirement; `paramsFor` gives the kind's parameters
-  for the participant chosen — the target and its version, and `page`, the page as the participant may see it, so that a
+  unless the route names another, such as `change-requirements` on a requirement; `entry` the menu entry of the route
+  shown, `Route.entry`, which the frame sets on every subject, `null` for a route out of the menu; `paramsFor` gives the
+  kind's parameters for the participant chosen — the target and its version, and `page`, the page as the participant may see it, so that a
   page of mail gives a mail's text only to a participant the mailbox allows and that does not write to the repository,
   and its `MAIL-` identifier to any other (UC-049 3b), and a page of settings names each setting and whether it is stored,
   never its value (UC-049 3c); `draftRoute` the route of the review pages that shows a draft of this subject, `null` where
@@ -149,8 +151,8 @@ IN THE REPOSITORY`).
   keeps (UC-049 precondition); with none, it draws nothing and says nothing (UC-049 1a); with one, it names it; with
   several, a small selector above the input chooses, each named with its processing place. A folded *What is this?*
   explains the bar. On *Send* — the decision to send — it asks the subject for the kind and the parameters, adds the
-  person's words as `instruction` and the conversation so far as `conversation`, prepares the job with
-  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
+  person's words as `instruction`, the conversation so far as `conversation` and the subject's `entry` as `entry`,
+  prepares the job with MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
   or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b). It names every destination before it sends
   — the drafter and, for a kind with reviewers, each reviewer, with its processing place. With recording on — read from
   the instance at that moment —, it first appends the person's message to the conversation record of the page's

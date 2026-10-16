@@ -68,7 +68,7 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `routing.mjs` — views by the address's fragment, and the address of a route for a repository.
 - `notices.mjs`, `run-panel.mjs`, `decision.mjs`, `forms.mjs` — notices, the run panel, the dialog of a decision, the
   form built from a schema.
-- `subject.mjs` — the subject of the route shown, its own or the frame's default.
+- `subject.mjs` — the subject of the route shown, its own or the frame's default, with the route's menu entry.
 - `look.css` — colours, fonts and the header, footer and menu of the lab's look: FAU blue `#04316a`, dark blue `#041e42`,
   metallic `#8c9fb1`, and their tints, for light and dark mode.
 - `brand/` — the logo files of the Pattern Recognition Lab, lettered and as a sign, for light and dark backgrounds, the
@@ -105,8 +105,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
-  A route that gives none has the frame's default: the kind `converse`, the route's title, and as the page the route's
-  title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
+  Whichever gives the subject, the frame sets its `entry` to the route's `entry`. A route that gives none has the frame's
+  default: the kind `converse`, the route's title, and as the page the route's title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
   secret is shown only in a hidden field (`A STORED SECRET IS HIDDEN UNTIL SHOWN`).
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
   host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
