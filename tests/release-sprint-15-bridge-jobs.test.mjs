@@ -58,9 +58,9 @@ test("the public default endpoint-test job crosses a paired loopback Bridge and 
     assert.deepEqual(providerCalls, [], "the refusal made no provider call");
 
     const success = await probe(bridge, bridge.token, CONFIG);
-    assert.deepEqual(success, { status: 200, body: { answer: { works: true, model: "small" } } }, "the default handler preserves the typed success result");
+    assert.deepEqual(success, { status: 200, body: { answer: { works: true, model: "small", tools: false, toolMessage: "ok" } } }, "the default handler preserves the typed success result");
     assert.equal(providerCalls.length, 1, "one paired probe makes exactly one provider call");
-    assert.deepEqual(JSON.parse(providerCalls[0].init.body), { model: "small", messages: [{ role: "user", content: "Reply with one word: ok." }], max_tokens: 1 });
+    assert.deepEqual(JSON.parse(providerCalls[0].init.body), { model: "small", messages: [{ role: "user", content: "Call agent_m_probe once. It is a harmless capability check." }], max_tokens: 64, tools: [{ type: "function", function: { name: "agent_m_probe", description: "Report that tool calling works without changing anything.", parameters: { type: "object", properties: {}, additionalProperties: false } } }] });
     assert.equal(providerCalls[0].init.headers.Authorization, "Bearer endpoint-key-in-body-only", "the typed key reaches the provider header");
     assert.ok(!providerCalls[0].url.includes(CONFIG.key), "the credential is not in the provider URL");
 
