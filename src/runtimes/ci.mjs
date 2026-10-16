@@ -118,7 +118,8 @@ function mergeGitlabCi(text, names) {
   const dashAt = lines.findIndex((line) => /^---\s*$/.test(line));
   const specAt = lines.findIndex((line) => /^spec:\s*$/.test(line));
   if (specAt !== -1 && dashAt > specAt && lines.slice(0, specAt).every(isBlank)) {
-    const inputsAt = lines.findIndex((line, at) => at > specAt && at < dashAt && /^\s+inputs:\s*$/.test(line));
+    const inputsAt = lines.findIndex((line, at) => at > specAt && at < dashAt && /^\s+inputs:/.test(line));
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the spec: header is not written as a block.");
     if (inputsAt === -1) {
       lines.splice(dashAt, 0, "  inputs:", ...names.flatMap((name) => defaults(name, "    ")));
       changed = true;
@@ -158,7 +159,8 @@ function mergeGitlabCi(text, names) {
     if (!lines.slice(start, stop).some((line) => /^\s*(-\s+)?local:/.test(line))) {
       throw notAList("the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.");
     }
-    const inputsAt = lines.findIndex((line, at) => at > start && at < stop && /^\s+inputs:\s*$/.test(line));
+    const inputsAt = lines.findIndex((line, at) => at > start && at < stop && /^\s+inputs:/.test(line));
+    if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.");
     if (inputsAt === -1) {
       let last = stop - 1;
       while (isBlank(lines[last])) last -= 1;
