@@ -10,10 +10,13 @@ realises:
 modules:
   - MOD-endpoint-calls
   - MOD-desktop-shell
+  - MOD-bridge-jobs
 builds_on:
 tests:
   - unit
   - system
+  - component
+  - release
 origin:
   - the architecture of the prompt bar, accepted by akmaier at 7e893c63 (110d2499)
   - MOD-endpoint-calls, Interfaces: endpointExchange, testEndpoint
@@ -37,6 +40,17 @@ Existing tests whose expected result follows the accepted endpoint interface:
 - TST-268001, `tests/desktop-shell-endpoint-composition.test.mjs`: the forwarded answer carries the two new fields,
   and the captured request body is the tool probe. MOD-desktop-shell is included only for this owned boundary test;
   no Desktop production code changes.
+- TST-266001, `tests/system-uc-003-dashboard-bridge.test.mjs`: the captured model request body is the tool probe.
+- TST-294001, `tests/component-itm-294-https-reverse-tunnel.test.mjs`: the captured direct and bridged model request
+  bodies are the tool probe, for each controlled web server.
+- TST-269901, `tests/release-itm-269-endpoint-route.test.mjs`, and TST-266002,
+  `tests/release-uc-003-dashboard-https-bridge.test.mjs`: the captured model request body is the tool probe.
+- TST-268901, `tests/release-itm-268-desktop-shell.test.mjs`, and TST-472517,
+  `tests/release-sprint-15-bridge-jobs.test.mjs`: the captured request body is the tool probe and the forwarded text-only
+  answer carries `tools: false` and `toolMessage: "ok"`. MOD-bridge-jobs is included only for TST-472517's owned boundary
+  expectations; no Bridge jobs production code changes.
+
+The four release-case adaptations are made by a participant who implemented none of the endpoint behaviour.
 
 The authentication, pairing, origin, request-count, storage and secret-boundary assertions remain unchanged. Production
 changes stay in MOD-endpoint-calls' Parts; test expectations are stated literally, never read from a document at runtime.
