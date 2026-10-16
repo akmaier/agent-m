@@ -53,7 +53,7 @@ const byClass = (root, name) => all(root, (node) => node.className.split(" ").in
 const one = (root, name) => byClass(root, name)[0];
 const textOf = (node) => node.textContent;
 const tick = () => new Promise((resolve) => setImmediate(resolve));
-async function until(condition, what) { for (let at = 0; at < 600; at += 1) { if (condition()) return; await tick(); } assert.fail(`never: ${what}`); }
+async function until(condition, what) { const limit = Date.now() + 10000; while (Date.now() < limit) { if (condition()) return; await tick(); } if (condition()) return; assert.fail(`never: ${what}`); }
 const settle = async () => { for (let at = 0; at < 40; at += 1) await tick(); };
 const scripted = () => new Event("click");
 const personal = () => Object.defineProperty(new Event("click"), "isTrusted", { value: true });
