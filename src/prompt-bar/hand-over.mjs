@@ -14,7 +14,9 @@
 //     product's one in a model without sprints"). The work-in-progress limit is the workflow's `model.flow.wip`.
 //   - routesFor is given the repository's visibility from the host's repositoryInfo, whether the product holds Agent M's job workflow (one of the two files below, as the review pages
 //     look for them), and no resource needs: the scope `work` reads none.
-//   - The job's parameters name what the hand-over works on as the parameters `requirements`, `useCases` and `items` of the kinds that rest on them; the task is no parameter.
+//   - The job's parameters name what the hand-over works on, whatever the kind, by the keys the kinds' strategies read (MOD-approvals, MOD-spec-changes, MOD-run-planner, MOD-runtimes): `requirements`, `useCases`
+//     and, for one use case alone, `useCase` beside it, `items` for backlog items and `steps` for plan steps; the task is no parameter. Nothing else is given: a key that `works_on` does not determine — a
+//     source, a resource, a kind, an entry, a part — is left to the strategy that reads it, which refuses the preparation with its own error where it needs the key.
 
 import { approvalStrategies } from "../approvals/index.mjs";
 import { editStrategies } from "../artifact-edits/index.mjs";
@@ -85,12 +87,16 @@ export async function assess({ handOver, participant, instance, page }) {
   return { reasons, route: taken?.route ?? null, routeText, facts, head: facts.snapshot.commit, instanceSnapshot, participants };
 }
 
-// The parameters the job rests on: use cases, items and requirements by their names; any other identifier is in the record's `works_on` only.
-function paramsOf(worksOn) {
+// The parameters the job rests on, from what it works on by name: use cases (`useCases`, and `useCase` where it is one), plan steps (`steps`: the names the product's plan holds as a file under docs/plan/) and
+// backlog items (`items`: the other ITM names), and requirements (`requirements`); any other identifier is in the record's `works_on` only.
+function paramsOf(worksOn, snapshot) {
   const useCases = worksOn.filter((name) => /^UC-\d+$/.test(name));
-  const items = worksOn.filter((name) => /^ITM-\d+$/.test(name));
+  const planned = worksOn.filter((name) => /^ITM-\d+$/.test(name));
+  const steps = planned.filter((name) => snapshot.paths.some((path) => path.startsWith(`docs/plan/${name}-`)));
+  const items = planned.filter((name) => !steps.includes(name));
   const requirements = worksOn.filter((name) => !/^[A-Z]+-[A-Za-z0-9-]+$/.test(name));
-  return { ...(requirements.length ? { requirements } : {}), ...(useCases.length ? { useCases } : {}), ...(items.length ? { items } : {}) };
+  return { ...(requirements.length ? { requirements } : {}), ...(useCases.length ? { useCases } : {}), ...(useCases.length === 1 ? { useCase: useCases[0] } : {}),
+    ...(items.length ? { items } : {}), ...(steps.length ? { steps } : {}) };
 }
 
 /**
@@ -108,7 +114,7 @@ export async function queue({ handOver, participant, assessment, store, instance
   const commit = instanceSnapshot.commit ?? "unknown";
   const agentM = { version: commit, commit };
   const worksOn = worksOnOf(handOver);
-  const params = paramsOf(worksOn);
+  const params = paramsOf(worksOn, facts.snapshot);
   const inputs = { product: { address: page.address, snapshot: facts.snapshot, host: page.host }, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
     places: { sources: {}, mailbox: null, contents: [] }, gates: [], person, agentM, jobId: id };
   const prepared = await prepareJob(handOver.kind, tabContext({ kind: null, params: { ...params, instruction: handOver.task }, ...inputs }), { drafter: participant, reviewers: [] });
