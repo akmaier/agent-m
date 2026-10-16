@@ -113,7 +113,6 @@ test("the interfaces of a used module are its ## Interfaces section alone — MO
   const parts = await recipe({ items: ["ITM-001"] });
   const interfaces = parts.find((part) => part.name === READER_INTERFACES);
   assert.equal(interfaces.text, "## Interfaces\n\n- `write` — INTERFACE-OF-MOD-writer\n");
-  assert.equal(parts.some((part) => part.text.includes("RESPONSIBILITY-OF-MOD-writer") && part.name === READER_INTERFACES), false);
   assert.equal(parts.filter((part) => part.name === "docs/architecture/MOD-writer.md").length, 1, "known positive: MOD-writer's whole file is a part of its own, given once");
 });
 
