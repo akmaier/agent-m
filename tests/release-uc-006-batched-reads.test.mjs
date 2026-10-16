@@ -72,7 +72,7 @@ test("TST-479203: a used-up limit on a batched read is named on the page, a refu
     const page = await openPage(fake, { id: ENTRY_ID });
     const problems = byClass(page, "p", "problem");
     assert.equal(problems.length, 1, `${name}: one problem paragraph on the page`);
-    assert.equal(page.lastElementChild, problems[0], `${name}: the paragraph is appended after what the view drew`);
+    assert.equal(page.children[page.children.length - 1], problems[0], `${name}: the paragraph is appended after what the view drew`);
     const text = problems[0].textContent;
     if (name === "RateLimited") {
       assert.match(text, /request limit/);
@@ -98,7 +98,7 @@ test("TST-521201: a SPEC-entry page whose impact list meets a used-up limit name
 
   const problems = byClass(page, "p", "problem");
   assert.equal(problems.length, 1, "one problem paragraph on the page");
-  assert.equal(page.lastElementChild, problems[0], "the paragraph is the last element of the page");
+  assert.equal(page.children[page.children.length - 1], problems[0], "the paragraph is the last element of the page");
   const text = problems[0].textContent;
   assert.match(text, /request limit for the account these requests are made with is used up/);
   assert.match(text, /resets at 2030-01-01/);
