@@ -17,7 +17,7 @@
 //     is still open. A requirement open beats a group open; with neither open, and on every key but `specification`, the subject is the frame's default
 //     (kind `converse`, the route's title, a page holding the title, the product, the version shown and the text the route has drawn).
 //   - The person is the owner of the instance repository: the account `<host of the instance's origin>/<owner>`, as the review pages' prompt route reads it.
-//     A person whose source cannot be found, or read, gives `source: null`.
+//     A person whose source cannot be found, or read, has none: the subject is still given, and its `paramsFor` throws the error NoPersonSource (ITM-558).
 //   - A subject at a released version offers no draft route (`null`): a change is drafted only against the current text.
 // The counter-proofs are recorded in the pull request.
 
@@ -113,14 +113,14 @@ const PARTICIPANT = { name: "po-opus" };
 // guards: UC-049; UC-019 (step 1, step 3); THE PERSON WHO PROMPTS IS A SOURCE
 // given: the specification of a library on its default branch main; the instance acme/agent-m, whose register holds SRC-acme-person, a person of the account github.com/acme, which the product links
 // input: the route rendered at main, then the requirement A LOAN HAS A DUE DATE opened through its requirement-name control, then route.subject(params, context)
-// expect: kind "change-requirements"; draftRoute "draft"; withhold null; refuses []; paramsFor gives exactly { requirements: ["A LOAN HAS A DUE DATE"], source: "SRC-acme-person" }; a key that is a non-empty string
+// expect: kind "change-requirements"; draftRoute "draft/subject=" followed by encodeURIComponent of the subject's key (ITM-558); withhold null; refuses []; paramsFor gives exactly { requirements: ["A LOAN HAS A DUE DATE"], source: "SRC-acme-person" }; a key that is a non-empty string
 test("TST-600150 on the default branch the open requirement is the subject, with the kind change-requirements, the person's source and the draft route", async () => {
   assert.equal(typeof route.subject, "function", "the route gives a subject");
   const page = await shown();
   click(named(page.target, LOAN));
   const subject = page.subject();
   assert.equal(subject.kind, "change-requirements");
-  assert.equal(subject.draftRoute, "draft");
+  assert.equal(subject.draftRoute, `draft/subject=${encodeURIComponent(subject.key)}`);
   assert.equal(subject.withhold, null);
   assert.deepEqual(subject.refuses, []);
   assert.deepEqual(subject.paramsFor(PARTICIPANT), { requirements: [LOAN], source: PERSON });
@@ -133,13 +133,14 @@ test("TST-600150 on the default branch the open requirement is the subject, with
 // given: the same specification on main, whose group "## 1. Lending" holds A LOAN HAS A DUE DATE then A BOOK IS SHELVED and whose group "## 2. Membership" holds A MEMBER HAS A CARD
 // input: the group "## 1. Lending" opened through its spec-section-toggle control; then A BOOK IS SHELVED opened inside it; then that requirement closed; then the group closed
 // expect: group open: change-requirements with requirements [LOAN, SHELF] in group order, source "SRC-acme-person", draftRoute "draft";
-//         requirement open inside it: requirements [SHELF] (the narrower subject wins); requirement closed: the group again; group closed: the frame's default, kind "converse", draftRoute null
+//         requirement open inside it: requirements [SHELF] (the narrower subject wins); requirement closed: the group again; group closed: the frame's default, kind "converse", draftRoute null;
+//         the group's draftRoute is "draft/subject=" followed by encodeURIComponent of its key (ITM-558)
 test("TST-600151 an open group gives the names it holds in group order, an open requirement in it narrows the subject, and closing them gives it back", async () => {
   const page = await shown();
   click(toggled(page.target, "1. Lending"));
   let subject = page.subject();
   assert.equal(subject.kind, "change-requirements");
-  assert.equal(subject.draftRoute, "draft");
+  assert.equal(subject.draftRoute, `draft/subject=${encodeURIComponent(subject.key)}`);
   assert.deepEqual(subject.paramsFor(PARTICIPANT), { requirements: [LOAN, SHELF], source: PERSON });
   const groupKey = subject.key;
 
@@ -231,8 +232,8 @@ test("TST-600154 every other view, and the specification with nothing open, give
 // given: the subject of an open requirement on main (known positive: source "SRC-acme-person"); then the same page where (a) the product's links file holds no row for the person, (b) the register holds only a person of another account,
 //        (c) the context has no instance at all, as in the tests of ITM-360, (d) the instance's Host fails
 // input: A LOAN HAS A DUE DATE opened and route.subject for each
-// expect: the known positive gives source "SRC-acme-person"; (a) to (d) give exactly { requirements: [LOAN], source: null }, and the requirement is still listed and opens
-test("TST-600155 a person whose source is not found, or cannot be read, gives the source null and the page still opens", async () => {
+// expect: the known positive gives source "SRC-acme-person"; for (a) to (d) the requirement is still listed and opens, the subject is still given with the kind "change-requirements", and its paramsFor throws an error named NoPersonSource (ITM-558)
+test("TST-600155 a person whose source is not found, or cannot be read, refuses at paramsFor with NoPersonSource and the page still opens", async () => {
   const positive = await shown();
   click(named(positive.target, LOAN));
   assert.equal(positive.subject().paramsFor(PARTICIPANT).source, PERSON, "known positive");
@@ -249,7 +250,8 @@ test("TST-600155 a person whose source is not found, or cannot be read, gives th
     const page = await shown({ context });
     click(named(page.target, LOAN));
     assert.ok(named(page.target, LOAN).parentNode.parentNode.nextSibling.textContent.includes(LOAN), `${what}: the requirement opens`);
-    assert.deepEqual(page.subject().paramsFor(PARTICIPANT), { requirements: [LOAN], source: null }, what);
+    assert.equal(page.subject().kind, "change-requirements", what);
+    assert.throws(() => page.subject().paramsFor(PARTICIPANT), (error) => error.name === "NoPersonSource", what);
   }
 });
 
