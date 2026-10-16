@@ -95,13 +95,13 @@ test("placeOf — the declared place, or the statement that none is declared", (
 // guards: UC-049 (3a); UC-019 (4a, 4b)
 // given: a prepared job with one finding that keeps it from starting, and one that does not fit the participant tiny (context 100, size 400), with the offered participants tiny, big (context 1000) and unknown (no context)
 // input: whyNot(prepared, offered)
-// expect: two lines — the finding in MOD-text-tools' one-line form, and "tiny does not hold this message: its context holds 100 tokens, the job needs about 400. Choose big, whose context is larger."
+// expect: two lines — the finding as the run panel shows it (kind, what, fix, [rule]), and "tiny does not hold this message: its context holds 100 tokens, the job needs about 400. Choose big, whose context is larger."
 test("whyNot — a finding that keeps the job from starting, and the participant it does not fit, with a larger one offered", () => {
   const blocking = { artifact: "docs/participants.md", line: 1, kind: "error", rule: "A PARTICIPANT DECLARES ITS CAPABILITIES", what: "tiny cannot draft text", fix: "choose one that can" };
   const prepared = { blocking: [blocking], notFitting: [{ participant: { name: "tiny" }, size: 400, context: 100 }] };
   const offered = [{ name: "tiny", context: 100 }, { name: "big", context: 1000 }, { name: "unknown", context: null }];
   assert.deepEqual(whyNot(prepared, offered), [
-    "docs/participants.md:1: error: tiny cannot draft text [A PARTICIPANT DECLARES ITS CAPABILITIES] — choose one that can.",
+    "error: tiny cannot draft text — choose one that can [A PARTICIPANT DECLARES ITS CAPABILITIES]",
     "tiny does not hold this message: its context holds 100 tokens, the job needs about 400. Choose big, whose context is larger.",
   ]);
   assert.deepEqual(whyNot({ blocking: [], notFitting: [] }, offered), []);

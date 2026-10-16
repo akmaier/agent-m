@@ -12,10 +12,9 @@
 
 import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
-import { formatFinding } from "../text-tools/index.mjs";
 import { offeredAmong, placeOf, readParticipants } from "./offer.mjs";
 import { appendToConversation, conversationPath, recordingOf } from "./record.mjs";
-import { defaultSnapshot, prepareMessage, runMessage, whyNot } from "./send.mjs";
+import { defaultSnapshot, prepareMessage, runMessage, shown, whyNot } from "./send.mjs";
 
 const CONVERSATION = "prompt-bar:conversation";
 const DRAFT = "prompt-bar:draft";
@@ -64,8 +63,12 @@ export function latestDraft(store, subject) {
 const said = (failure) => `${failure.name ?? "Error"}: ${failure.message}`;
 
 /**
- * startPromptBar(target, setup) -> { stop } — draws the bar into `target` once the instance's participants are read, and keeps it for the life
- * of the page. With no participant offered it draws nothing and says nothing (UC-049 1a).
+ * startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host: Host },
+ * product: () -> { address: string, host: Host } | null, subject: () -> Subject, explain: (topic: string) -> Element,
+ * go: (route: string, params?: Record<string, string>) -> void }) -> { stop: () -> void } — draws the bar into `target` once the
+ * instance's participants are read, and keeps it for the life of the page. With no participant offered it draws nothing and says nothing
+ * (UC-049 1a). It crosses the network through the hosts and the participant's route; a failure of either is shown in the bar by name, and
+ * nothing is thrown to the caller. `stop` removes the bar and aborts a message that is running.
  */
 export function startPromptBar(target, setup) {
   const { store, instance } = setup;
@@ -118,12 +121,12 @@ export function startPromptBar(target, setup) {
     const text = typeof draft.answer === "string" ? draft.answer
       : subject.draftRoute !== null ? `A draft of ${subject.title} is ready to review.` : "";
     const left = [...result.remaining, ...result.forPerson];
-    const shown = [el("div", "answer", renderArtifact(text, { frontMatter: "hidden" })),
+    const parts = [el("div", "answer", renderArtifact(text, { frontMatter: "hidden" })),
       el("p", "rounds", `Rounds: ${result.rounds.length}`)];
-    if (left.length) shown.push(el("ul", "left", ...left.map((each) => el("li", "finding", formatFinding(each)))));
+    if (left.length) parts.push(el("ul", "left", ...left.map((each) => el("li", "finding", shown(each)))));
     if (draft.handOver) {
       const { kind, works_on: worksOn, task } = draft.handOver;
-      shown.push(el("section", "hand-over", el("h3", null, "The participant proposes handing this on"),
+      parts.push(el("section", "hand-over", el("h3", null, "The participant proposes handing this on"),
         el("p", "kind", `Kind: ${kind}`), el("p", "works-on", `Works on: ${[worksOn].flat().join(", ")}`), el("p", "task", `Task: ${task}`)));
     }
     if (subject.draftRoute !== null) {
@@ -132,9 +135,9 @@ export function startPromptBar(target, setup) {
         writeTabValue(store, DRAFT, { subject: subject.key, kind: subject.kind, participant: participant.name, params: ready.prepared.params, result });
         setup.go(subject.draftRoute);
       });
-      shown.push(review);
+      parts.push(review);
     }
-    status.append(...shown);
+    status.append(...parts);
     return text;
   }
 

@@ -464,3 +464,20 @@ test("startPromptBar — the conversation of the tab is shown again on the next 
   assert.ok(textOf(messages[0]).includes("first question") && textOf(messages[1]).includes("First answer."));
   assert.equal(requests.length, 1);
 });
+
+// TST-600033 · level: component · module: MOD-prompt-bar
+// guards: UC-049 (5); THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A COMPILER MESSAGE; THE CORRECTION LOOP HAS A FIXED LIMIT
+// given: an endpoint that always answers with an edit of docs/use-cases/UC-999-broken.md whose text is "# broken" (a use case without its parts), so that the kind's check finds errors the drafter does not fix
+// input: Send "write the use case"
+// expect: the page shows "Rounds: " followed by a number above 1, and a list of the findings the loop left, each item reading `error: <what> — <fix> [<RULE>]` or the same with `warning`, at least one of them an error
+test("Send — the findings the loop left are shown with the rounds, each as the run panel shows a finding", async () => {
+  endpointAnswers(answer("Here it is.", { edits: [{ path: "docs/use-cases/UC-999-broken.md", text: "# broken\n" }] }));
+  const it = page();
+  await drawn(it);
+  await sends(it, "write the use case");
+  console.log("STATUS", textOf(one(it.target, "status")));
+  assert.match(textOf(one(it.target, "rounds")), /^Rounds: ([2-9]|\d\d+)$/);
+  const left = byClass(it.target, "finding").map(textOf);
+  assert.ok(left.length > 0 && left.some((text) => text.startsWith("error: ")), left.join("\n"));
+  for (const text of left) assert.match(text, /^(error|warning): .+ — .+ \[[A-Z0-9 ,'-]+\]$/, text);
+});

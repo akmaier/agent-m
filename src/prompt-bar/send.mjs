@@ -13,7 +13,6 @@ import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { runOnTab, tabContext } from "../runtimes/index.mjs";
-import { formatFinding } from "../text-tools/index.mjs";
 import { readParticipants } from "./offer.mjs";
 import { recordingOf } from "./record.mjs";
 
@@ -79,6 +78,12 @@ export async function prepareMessage({ subject, participant, instruction, conver
 }
 
 /**
+ * shown(finding: Finding) -> string — a finding as the run panel and a form of MOD-site-frame show it: its kind, what is wrong, the correction
+ * expected and the requirement, read from the fields of MOD-text-tools' Finding.
+ */
+export const shown = (finding) => `${finding.kind}: ${finding.what} — ${finding.fix} [${finding.rule}]`;
+
+/**
  * whyNot(prepared: Prepared, offered: Participant[]) -> string[] — what keeps a prepared job from being sent: each finding that keeps it
  * from starting, and each participant it does not fit with the offered participants whose context would hold it (UC-049 3a, UC-019 4a, 4b).
  * Empty when the job may be sent.
@@ -86,7 +91,7 @@ export async function prepareMessage({ subject, participant, instruction, conver
 export function whyNot(prepared, offered) {
   const larger = (size) => offered.filter((each) => each.context !== null && each.context >= size).map((each) => each.name);
   return [
-    ...prepared.blocking.map(formatFinding),
+    ...prepared.blocking.map(shown),
     ...prepared.notFitting.map(({ participant, size, context }) => {
       const choice = larger(size);
       return `${participant.name} does not hold this message: ${context === null ? "it declares no context size" : `its context holds ${context} tokens`}, `
