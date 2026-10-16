@@ -47,6 +47,7 @@ uses:
   - MOD-bridge-client.bridgeJobLog
   - MOD-bridge-client.cancelOnBridge
   - MOD-test-document.testDeclarations
+  - MOD-trace-graph.traceGraph
 provides:
   - Route
   - RouteOffer
@@ -263,6 +264,7 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
   `MOD-bridge-client.bridgeJobLog`, `MOD-bridge-client.cancelOnBridge` — the Bridge route, on the Bridges its callers
   hand in.
 - `MOD-test-document.testDeclarations` — the requirements a pull request's new tests guard.
+- `MOD-trace-graph.traceGraph` — the modules of the plan step or backlog item a pull request names: its `changes` edges.
 
 The workflow files name the entries of MOD-workflow-entries by their path in the instance repository; this module does not
 call them.
