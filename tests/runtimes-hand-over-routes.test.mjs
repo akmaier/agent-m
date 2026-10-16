@@ -142,3 +142,16 @@ test("handOverJob — a record that cannot be ended does not hide the server's r
   await assert.rejects(runtimes.handOverJob(preparedOf(), CI_HOSTED, START, run.host, run.head(), TASK, NO_ENDPOINT), (error) => error === refusal);
   assert.equal(run.writes.length, 1, "only the queued record");
 });
+
+// TST-495015 · level: component · module: MOD-runtimes
+// guards: NO SECRET IN THE REPOSITORY; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-049 4a
+// given: the endpoint of the target is a configuration that also holds the endpoint's key, "sk-PLANTED-KEY-91" (a configuration as the tab keeps it)
+// input: handOverJob on the CI route with that target
+// expect: one startWorkflow whose input `endpoint` is exactly the JSON text of the endpoint's kind, address and model; none of its inputs holds the key
+test("handOverJob — the endpoint input holds the endpoint's kind, address and model, never its key", async () => {
+  const run = fakeHost({});
+  await runtimes.handOverJob(preparedOf(), CI_HOSTED, START, run.host, run.head(), TASK, { endpoint: { ...ENDPOINT, key: "sk-PLANTED-KEY-91" }, bridge: null });
+  assert.equal(run.starts.length, 1);
+  assert.equal(run.starts[0].inputs.endpoint, ENDPOINT_TEXT);
+  assert.equal(Object.values(run.starts[0].inputs).some((value) => value.includes("sk-PLANTED-KEY-91")), false, "no input holds the key");
+});

@@ -15,15 +15,16 @@ import { driverPrompt } from "../job-runner/index.mjs";
  * queueOnBridge(host, start, head, bridge?) -> Promise<{ path, commit }> — MOD-runtimes' queueJob for the Bridge route: the job's start record committed on the head that was read, as the
  * person's commit, on the branch the host's repositoryInfo names; then, when `bridge` — the handle of the Bridge the participant's route names — is given, the job handed over to it with the
  * product's address, the record's path and that commit. Without a handle the Bridge takes the job when it next reads the repository. Fails as the host fails, before anything is written; a
- * hand-over that fails after the commit is thrown as the Bridge client's error, to which `queued` is added, and the start stays committed.
+ * hand-over that fails after the commit is thrown as the Bridge client's error, to which `queued` is added, and the start stays committed. With `task` — a conversation's
+ * hand-over (hand-over.mjs) — the task travels in the hand-over, beside the product, the record and the commit, and in no file.
  */
-export async function queueOnBridge(host, start, head, bridge) {
+export async function queueOnBridge(host, start, head, bridge, task) {
   const [{ defaultBranch }, snapshot] = await Promise.all([host.repositoryInfo(), host.readSnapshot(head)]);
   const { path, text } = startRecord(start);
   const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text }], message: `Queue job ${start.id}: ${start.kind}` });
   if (bridge) {
     try {
-      await handOver(bridge, { product: snapshot.repository.web, record: path, commit });
+      await handOver(bridge, { product: snapshot.repository.web, record: path, commit, ...(task === undefined ? {} : { task }) });
     } catch (error) {
       error.queued = { path, commit };
       throw error;

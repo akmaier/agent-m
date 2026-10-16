@@ -29,25 +29,32 @@ export class RuntimeError extends Error {
 // Agent M's job workflow in a product (MOD-runtimes.md, Data), by the repository's server: one file.
 const WORKFLOW_PATH = { github: ".github/workflows/agent-m-jobs.yml", gitlab: ".gitlab/agent-m-jobs.yml" };
 
-// queueOnCi(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
-// commits the job's start record (MOD-job-ledger's startRecord) at its path, on the head that was read, in one
-// commit, as the person's commit — the host's commitFiles, on the branch its repositoryInfo names, with
-// expectedHead the head given; the push starts the product's job workflow (Data). Refused with WorkflowMissing,
-// naming the job workflow's file, while the snapshot at the head read does not hold it: nothing is committed then.
-// Crosses the network through the host; fails as it fails — Moved, TokenRefused, PermissionMissing, RateLimited,
-// Unreachable — unchanged, and with WorkflowMissing of its own.
-export async function queueOnCi(host, start, head) {
+// commitStart(host, start, head) -> Promise<{ path, commit, defaultBranch, workflow }> — the commit of the CI route
+// (MOD-runtimes' queueJob, Interfaces): the job's start record (MOD-job-ledger's startRecord) at its path, on the head
+// that was read, in one commit, as the person's commit — the host's commitFiles, on the branch its repositoryInfo names,
+// with expectedHead the head given —; with it that branch and the server's job workflow file, for a caller that starts the
+// workflow itself (hand-over.mjs). Refused with WorkflowMissing, naming the job workflow's file, while the snapshot at the
+// head read does not hold it: nothing is committed then. Crosses the network through the host; fails as it fails — Moved,
+// TokenRefused, PermissionMissing, RateLimited, Unreachable — unchanged, and with WorkflowMissing of its own.
+export async function commitStart(host, start, head) {
   const [{ defaultBranch }, snapshot] = await Promise.all([host.repositoryInfo(), host.readSnapshot(head)]);
-  const workflowPath = WORKFLOW_PATH[snapshot.repository.server];
-  if (!snapshot.paths.includes(workflowPath)) {
-    throw new RuntimeError("WorkflowMissing", { files: [workflowPath] },
-      `${snapshot.repository.path} has no Agent M job workflow yet — add ${workflowPath}.`);
+  const workflow = WORKFLOW_PATH[snapshot.repository.server];
+  if (!snapshot.paths.includes(workflow)) {
+    throw new RuntimeError("WorkflowMissing", { files: [workflow] },
+      `${snapshot.repository.path} has no Agent M job workflow yet — add ${workflow}.`);
   }
   const { path, text } = startRecord(start);
   const { commit } = await host.commitFiles({
     branch: defaultBranch, expectedHead: head, files: [{ path, text }],
     message: `Queue job ${start.id}: ${start.kind}`,
   });
+  return { path, commit, defaultBranch, workflow };
+}
+
+// queueOnCi(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
+// commitStart; the push starts the product's job workflow (Data).
+export async function queueOnCi(host, start, head) {
+  const { path, commit } = await commitStart(host, start, head);
   return { path, commit };
 }
 

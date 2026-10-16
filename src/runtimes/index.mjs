@@ -7,6 +7,7 @@
 // resumeJob, liveState, jobLog, cancelJob, retryJob and routeStrategies are not part of
 // this item (UC-010, UC-011, UC-036) and are not built yet; nor is a job of a run
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
+// ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; retryJob is not built yet.
 //
 // Module: MOD-runtimes
 //
@@ -21,6 +22,7 @@ export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
 export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
+export { handOverJob } from "./hand-over.mjs";
 
 export { RuntimeError } from "./ci.mjs";
 
