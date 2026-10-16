@@ -22,7 +22,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as runtimes from "../src/runtimes/index.mjs";
-import { BRIDGE_ADDRESS, BRIDGE_ROUTE, CI_HOSTED, ENDPOINT, ENDPOINT_TEXT, GITHUB_WORKFLOW, RECORD_PATH, START, TASK, bridgeNamed, failure, fakeHost, holdsTask, installBridge, preparedOf,
+import { BRIDGE_ADDRESS, BRIDGE_ROUTE, CI_HOSTED, ENDPOINT, ENDPOINT_TEXT, RECORD_PATH, START, TASK, bridgeNamed, failure, fakeHost, holdsTask, installBridge, preparedOf,
   restoreFetch } from "./runtimes-hand-over-fixture.mjs";
 
 test.afterEach(restoreFetch);
@@ -33,7 +33,7 @@ const NO_ENDPOINT = { endpoint: null, bridge: null };
 // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049 4a
 // given: a product on GitHub whose default branch `trunk` holds its job workflow; a prepared job that fits and blocks nothing; a task in the participant's words; a model endpoint as the target
 // input: handOverJob(prepared, { kind: "ci", runner: "hosted" }, START, host, the head read, TASK, { endpoint: ENDPOINT, bridge: null }); then the same with `endpoint: null`
-// expect: one commit on `trunk`, on the head read, of the start record alone at docs/jobs/<id>.md with the message "Queue job JOB-20261016-0930-abcd: write-tests", whose text has the line `task: with the hand-over` and none of the task's words; after it exactly one startWorkflow, of .github/workflows/agent-m-jobs.yml on `trunk`, with the inputs { job: the id, task: TASK, endpoint: the JSON text of the endpoint } — and, without an endpoint, { job, task } alone; the result { path, commit } of the start record's commit
+// expect: one commit on `trunk`, on the head read, of the start record alone at docs/jobs/<id>.md with the message "Queue job JOB-20261016-0930-abcd: write-tests", whose text has the line `task: with the hand-over` and none of the task's words; after it exactly one startWorkflow, of the workflow by its file name alone, agent-m-jobs.yml (as GitHub's dispatch call names a workflow), on `trunk`, with the inputs { job: the id, task: TASK, endpoint: the JSON text of the endpoint } — and, without an endpoint, { job, task } alone; the result { path, commit } of the start record's commit
 test("handOverJob — the CI route commits the record without the task, then starts the job workflow with the job, the task and the endpoint", async () => {
   assert.equal(typeof runtimes.handOverJob, "function");
   const run = fakeHost({});
@@ -47,8 +47,8 @@ test("handOverJob — the CI route commits the record without the task, then sta
   assert.deepEqual(change.files.map((file) => file.path), [RECORD_PATH], "the start record alone");
   assert.match(change.files[0].text, /^task: with the hand-over$/m, "the record says that its task travels with the hand-over");
   assert.equal(holdsTask(change.files[0].text), false, "the record holds no word of the task");
-  assert.deepEqual(run.events, [["commit", "Queue job JOB-20261016-0930-abcd: write-tests"], ["start", GITHUB_WORKFLOW]], "the record is committed first, the run started after it");
-  assert.deepEqual(run.starts, [{ workflow: GITHUB_WORKFLOW, ref: "trunk", inputs: { job: START.id, task: TASK, endpoint: ENDPOINT_TEXT } }]);
+  assert.deepEqual(run.events, [["commit", "Queue job JOB-20261016-0930-abcd: write-tests"], ["start", "agent-m-jobs.yml"]], "the record is committed first, the run started after it");
+  assert.deepEqual(run.starts, [{ workflow: "agent-m-jobs.yml", ref: "trunk", inputs: { job: START.id, task: TASK, endpoint: ENDPOINT_TEXT } }]);
   assert.deepEqual(result, { path: RECORD_PATH, commit: run.head() });
 
   const without = fakeHost({});

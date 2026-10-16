@@ -48,7 +48,8 @@ export async function commitStart(host, start, head) {
     branch: defaultBranch, expectedHead: head, files: [{ path, text }],
     message: `Queue job ${start.id}: ${start.kind}`,
   });
-  return { path, commit, defaultBranch, workflow };
+  // GitHub's dispatch call names a workflow by its file name alone (repository-hosts' github adapter encodes the name into the URL path); GitLab's is left as the path.
+  return { path, commit, defaultBranch, workflow: snapshot.repository.server === "github" ? workflow.split("/").pop() : workflow };
 }
 
 // queueOnCi(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
