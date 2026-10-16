@@ -8,7 +8,9 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, wri
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { after, test } from "node:test";
 import { agentDriver } from "../src/agent-processes/index.mjs";
 import { loadSchema, readRegister, writeDocument } from "../src/documents/index.mjs";
 
@@ -65,11 +67,16 @@ async function fixture(work) {
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-049
 // given: the production supported-agent register and its schema, read through MOD-documents
 // input: read every supported agent's Endpoint cell
-// expect: claude, codex and opencode each declare a nonempty Endpoint cell, whose unsupported form may be the literal dash
+// expect: the schema declares Endpoint; claude and opencode declare options, and codex's unsupported dash is read as an absent value
 test("TST-489001: every supported-agent row declares Endpoint", () => {
-  const { rows } = registerAt(ROOT);
+  const { schema, rows } = registerAt(ROOT);
+  assert.ok(schema.sections[0].table.columns.some(({ name }) => name === "Endpoint"));
   assert.deepEqual(rows.map(({ cells }) => cells.Agent), ["claude", "codex", "opencode"]);
   for (const { cells } of rows) {
+    if (cells.Agent === "codex") {
+      assert.equal(cells.Endpoint, undefined, "the public register reader normalizes the unsupported dash");
+      continue;
+    }
     assert.equal(typeof cells.Endpoint, "string", `${cells.Agent} has an Endpoint column`);
     assert.ok(cells.Endpoint.trim(), `${cells.Agent} declares endpoint options or the unsupported marker`);
   }
@@ -93,6 +100,7 @@ test("TST-489002: endpoint options and the named key reference reach the coding 
       assert.equal(call.argv.filter((arg) => arg === INPUT.prompt).length, 1, "the complete task reaches the fixture once");
       assert.equal(call.hasNamedKey, true, "the fixture inherits the named CI key");
       const config = JSON.parse(call.config ?? "{}");
+      if (process.env.AGENT_M_489_FAULT_CHILD) console.log("TST489-input " + JSON.stringify({ id: "TST-489002", endpoint, call }));
       const selected = Object.entries(config.provider ?? {}).find(([, provider]) => provider.options?.baseURL === endpoint.baseUrl);
       assert.ok(selected, "the requested endpoint address must reach the agent's provider configuration");
       const [providerId, provider] = selected;
@@ -131,5 +139,88 @@ test("TST-489003: an unsupported register row refuses an endpoint before spawnin
   await assert.rejects(async () => copiedModule.agentDriver(AGENT, { workdir, keyVariable: KEY_VARIABLE,
     endpoint: { kind: "openai-compatible", baseUrl: "https://unsupported.fixture.invalid/v1", model: "fixture-model" } }, PARTICIPANT).send(INPUT),
   { name: "EndpointUnsupported" });
+  if (process.env.AGENT_M_489_FAULT_CHILD) console.log("TST489-input " + JSON.stringify({ id: "TST-489003", calls: calls() }));
   assert.equal(calls().length, 1, "the refused endpoint starts no additional process");
 }));
+
+const FAULTS = [
+  { id: "TST-489001", file: REGISTER,
+    needle: registerAt(ROOT).rows.find(({ cells }) => cells.Agent === "claude").cells.Endpoint,
+    replacement: "\u2014" },
+  { id: "TST-489002", cases: ["openai-compatible", "anthropic"], file: "src/agent-processes/processes.mjs",
+    needle: "baseUrl: endpoint.baseUrl, model: endpoint.model",
+    replacement: 'baseUrl: "https://wrong.fixture.invalid/v1", model: endpoint.model' },
+  { id: "TST-489003", file: "src/agent-processes/processes.mjs",
+    needle: "const configured = endpointOptions(row, endpoint, keyVariable);",
+    replacement: `if (endpoint != null && !row.endpoint?.[endpoint.kind]) {
+        await started(row.command, row.task.args.map((arg) => arg === "{prompt}" ? driverPrompt(input) : arg),
+          input.workdir ?? workdir, keyVariable, options, helpers.ownLoginEnvironment, {});
+      }
+      const configured = endpointOptions(row, endpoint, keyVariable);` },
+];
+
+after(() => {
+  if (process.env.AGENT_M_489_FAULT_CHILD ||
+      (process.env.GITHUB_ACTIONS !== "true" && process.env.AGENT_M_489_COUNTERPROOFS !== "1")) return;
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-489-proof-")));
+  const testFile = "tests/agent-processes-endpoint-489.test.mjs";
+  const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  const pin = (file) => {
+    const bytes = readFileSync(join(ROOT, file));
+    return { file, sha256: digest(bytes), blob: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex") };
+  };
+  try {
+    cpSync(join(ROOT, "src"), join(root, "src"), { recursive: true, filter: (path) => !path.includes("/node_modules") });
+    mkdirSync(join(root, "tests"));
+    cpSync(join(ROOT, testFile), join(root, testFile));
+    const pins = ["src/agent-processes/index.mjs", "src/agent-processes/processes.mjs", REGISTER, SCHEMA, testFile].map(pin);
+    const inputs = { agent: AGENT, participant: PARTICIPANT, input: INPUT, keyVariable: KEY_VARIABLE,
+      endpoints: ["openai-compatible", "anthropic"].map((kind) => ({ kind, baseUrl: `https://${kind}.fixture.invalid/v1`, model: "fixture-model" })),
+      unsupported: { registerAgent: "opencode", Endpoint: "\u2014", positiveEndpoint: "omitted",
+        endpoint: { kind: "openai-compatible", baseUrl: "https://unsupported.fixture.invalid/v1", model: "fixture-model" } } };
+    const env = { ...process.env, AGENT_M_489_FAULT_CHILD: "1" };
+    delete env.NODE_TEST_CONTEXT;
+    const executor = { executable: process.execPath, sha256: digest(readFileSync(process.execPath)), version: process.version,
+      platform: process.platform, arch: process.arch, envNames: Object.keys(env).sort(),
+      fixtureEnvNames: ["PATH", "CI", "GITHUB_ACTIONS", "OPENCODE_CONFIG_CONTENT", KEY_VARIABLE] };
+    for (const fault of FAULTS) {
+      const source = join(root, fault.file), original = readFileSync(source);
+      assert.equal(original.toString().split(fault.needle).length - 1, 1, `${fault.id}: unique production fault target`);
+      const argv = [process.execPath, "--test", "--test-reporter=tap", "--test-name-pattern", fault.id, testFile];
+      const invoke = () => {
+        const started = new Date().toISOString();
+        const result = spawnSync(argv[0], argv.slice(1), { cwd: root, env, encoding: "utf8", timeout: 15000 });
+        return { started, ended: new Date().toISOString(), status: result.status, signal: result.signal,
+          error: result.error?.message ?? null, stdout: result.stdout, stderr: result.stderr };
+      };
+      let failed, faultHash, restoredHash, restoreStarted, restoreEnded;
+      try {
+        writeFileSync(source, original.toString().replace(fault.needle, fault.replacement));
+        faultHash = digest(readFileSync(source));
+        failed = invoke();
+      } finally {
+        restoreStarted = new Date().toISOString();
+        writeFileSync(source, original);
+        restoredHash = digest(readFileSync(source));
+        restoreEnded = new Date().toISOString();
+      }
+      const passed = invoke();
+      const record = { ...fault, pins, inputs, inputSha256: digest(JSON.stringify(inputs)), executor, argv, cwd: root,
+        sourceHash: digest(original), faultHash, restoredHash, restoredBytes: readFileSync(source).equals(original),
+        testsUnchanged: digest(readFileSync(join(root, testFile))) === pins.at(-1).sha256,
+        restoreStarted, restoreEnded, failed, passed };
+      console.log("TST489-counterproof-uri " + encodeURIComponent(JSON.stringify(record)));
+      assert.equal(failed.status, 1, fault.id);
+      assert.equal(failed.signal, null, fault.id);
+      assert.equal(failed.error, null, fault.id);
+      assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${fault.id}\\b`));
+      if (fault.cases) for (const name of fault.cases) assert.match(failed.stdout, new RegExp(`not ok \\d+ - ${name}\\b`));
+      assert.equal(record.restoredBytes, true, `${fault.id}: exact restoration`);
+      assert.equal(record.testsUnchanged, true, `${fault.id}: unchanged test`);
+      assert.equal(passed.status, 0, fault.id);
+      assert.equal(passed.signal, null, fault.id);
+      assert.equal(passed.error, null, fault.id);
+      assert.match(passed.stdout, new RegExp(`ok \\d+ - ${fault.id}\\b`));
+    }
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

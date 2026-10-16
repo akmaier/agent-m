@@ -41,9 +41,50 @@ function stop(child) {
   });
 }
 
-function started(command, args, workdir, keyVariable, options, ownLoginEnvironment) {
+function endpointOptions(row, endpoint, keyVariable) {
+  if (endpoint == null) return { args: [], env: {} };
+  const configuration = row.endpoint?.[endpoint.kind];
+  if (!configuration) throw failure("EndpointUnsupported", "the selected agent does not support this endpoint");
+  const values = { baseUrl: endpoint.baseUrl, model: endpoint.model, node: process.execPath,
+    keyVariableBase64: Buffer.from(keyVariable ?? "").toString("base64"),
+    keyReference: hasCiKey(keyVariable) ? `{env:${keyVariable}}` : undefined };
+  const render = (value) => {
+    if (typeof value === "string") {
+      if (value === "{keyReference}") return values.keyReference;
+      return value.replace(/\{(baseUrl|model|node|keyVariableBase64)\}/g, (_, name) => values[name]);
+    }
+    if (Array.isArray(value)) return value.map(render);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value)
+      .map(([name, entry]) => [render(name), render(entry)]).filter(([, entry]) => entry !== undefined));
+    return value;
+  };
+  const rendered = render(configuration);
+  return {
+    args: [...(rendered.args ?? []), ...(hasCiKey(keyVariable) ? rendered.keyArgs ?? [] : [])]
+      .map((arg) => typeof arg === "string" ? arg : JSON.stringify(arg)),
+    env: Object.fromEntries(Object.entries(rendered.env ?? {})
+      .map(([name, value]) => [name, typeof value === "string" ? value : JSON.stringify(value)])),
+  };
+}
+
+function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment) {
   return new Promise((resolve) => {
     const environment = environmentFor(keyVariable, ownLoginEnvironment);
+    if (Object.keys(endpointEnvironment).length) {
+      // The child sets only non-secret settings and inherits credentials without copying their values in Agent M.
+      args = ["-e", `
+        const { spawn } = require("node:child_process");
+        const [settings, command, ...args] = process.argv.slice(1);
+        for (const [name, value] of Object.entries(JSON.parse(settings))) process.env[name] = value;
+        const child = spawn(command, args, { stdio: "inherit" });
+        child.on("error", (error) => { console.error(error.message); process.exitCode = 1; });
+        child.on("exit", (code, signal) => {
+          if (signal) process.kill(process.pid, signal);
+          else process.exitCode = code;
+        });
+      `, JSON.stringify(endpointEnvironment), command, ...args];
+      command = process.execPath;
+    }
     const child = spawn(command, args, {
       cwd: workdir,
       stdio: ["ignore", "pipe", "pipe"],
@@ -80,7 +121,7 @@ function started(command, args, workdir, keyVariable, options, ownLoginEnvironme
  * DriverInput. The register supplies command, task and output interpretation; local runs omit every declared credential
  * name before values are copied, while CI inherits its named secret without this module reading its value.
  */
-export function processDriver(agent, { workdir, keyVariable }, participant, helpers) {
+export function processDriver(agent, { workdir, keyVariable, endpoint }, participant, helpers) {
   return {
     participant,
     async send(input, options = {}) {
@@ -89,9 +130,10 @@ export function processDriver(agent, { workdir, keyVariable }, participant, help
       if (!agent.loggedIn && !hasCiKey(keyVariable)) throw failure("AgentNotLoggedIn", "the selected agent is not logged in");
       const row = helpers.configuration(agent.name);
       if (!row) throw failure("AgentMissing", "the selected agent is not supported");
+      const configured = endpointOptions(row, endpoint, keyVariable);
       const prompt = driverPrompt(input);
-      const result = await started(row.command, row.task.args.map((arg) => arg === "{prompt}" ? prompt : arg),
-        input.workdir ?? workdir, keyVariable, options, helpers.ownLoginEnvironment);
+      const result = await started(row.command, [...row.task.args.map((arg) => arg === "{prompt}" ? prompt : arg), ...configured.args],
+        input.workdir ?? workdir, keyVariable, options, helpers.ownLoginEnvironment, configured.env);
       if (result.stopError) {
         throw failure("AgentFailed", "the agent process could not be stopped", {
           exitCode: result.stopError.exitCode ?? result.status,
