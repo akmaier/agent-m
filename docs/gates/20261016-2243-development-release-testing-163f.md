@@ -49,4 +49,4 @@ the sprint branch after ITM-567 (`182d110b`), and no pushed commit was rewritten
 `DuplicateStrategy` only when its first owner is the owner now registering.
 
 **Found: MOD-work-plans' `workStrategies` is not built, and no item held it.** `draft-plan` names its recipe
-`architecture-and-model`, which MOD-work-plans' file gives with the rest of `workStrategies`. ITM-608 builds it.
+`architecture-and-model`, which MOD-work-plans' file gives with the rest of `workStrategies`. ITM-610 builds it.

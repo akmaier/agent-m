@@ -1,5 +1,5 @@
 ---
-id: ITM-608
+id: ITM-610
 title: MOD-work-plans offers workStrategies
 level: module
 realises:
@@ -15,7 +15,7 @@ tests:
 origin:
   - ITM-572's gate (docs/gates/20261016-2243-development-release-testing-163f.md): `draft-plan` meets UnknownStrategy for its recipe `architecture-and-model`, which MOD-work-plans' `workStrategies` gives and which is not built
 ---
-# ITM-608 MOD-work-plans offers workStrategies
+# ITM-610 MOD-work-plans offers workStrategies
 
 **REGISTER**
 
