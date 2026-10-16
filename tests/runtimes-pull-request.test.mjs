@@ -18,7 +18,7 @@
 //   - The host is a server's where `listPullRequests` answers, a local one where it throws `NotSupported`. A pull request of the branch that stands open or merged is the one
 //     returned; the writer opens none beside it. `openPullRequest` failing with what the host names (`NotSupported` included) is thrown, not taken for a local host.
 //   - The description is lines: `Job:`, `Kind:`, `Plan step:` and `Backlog item:` (those the job's parameters `steps` and `items` name), `Modules:` (the distinct `MOD-` modules the new tests
-//     declare), `Requirements guarded by the new tests:` (their `guards`, in order, once each), then a blank line and the provenance lines of MOD-job-runner's `provenanceLines`.
+//     declare), `Requirements guarded by the new tests:` (their `guards`, once each), both in the order the new tests are found: the changed files by path, the declarations of a file in order, then a blank line and the provenance lines of MOD-job-runner's `provenanceLines`.
 //     It holds none of the job's instruction.
 // Each test states its expected values in its own text; none reads them from a document. The repository server is the fake host of this file, which records every call; nothing
 // reaches the network (a fetch that fails the test replaces the real one). A name the module does not provide yet is undefined here, so that each test fails by itself. The
@@ -98,7 +98,7 @@ const write = (host, draft, params) => writer()(resultOf(draft), contextOf(host,
 // guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-024 step 11
 // given: a server host whose default branch is `develop`, no pull request of the branch; the job's snapshot at c0 declares TST-001 (OLD RULE) in tests/old.test.mjs and TST-004 (UNTOUCHED RULE) in tests/same.test.mjs; the branch is at c1 and, besides src/alpha/index.mjs, changes tests/old.test.mjs to declare TST-001 and TST-002 (NEW RULE ONE, module MOD-alpha), adds tests/new.test.mjs declaring TST-003 (NEW RULE TWO and NEW RULE ONE, module MOD-beta) and TST-005 (NEW RULE THREE, module system); the job JOB-20261017-1000-abcd of kind implement names the backlog item ITM-9 and the plan step ITM-10, and its instruction holds PLANTED-INSTRUCTION-91C2
 // input: the writer `branch-and-pull-request` of routeStrategies with the answer { branch: the job's id, commits: ["c1"], pullRequest: "" }, the drafter coder-a with model model-m, after two rounds
-// expect: one openPullRequest, with branch = the job's id, base "develop" and a title that names the job; its body holds the lines "Job: JOB-20261017-1000-abcd", "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-alpha, MOD-beta", "Requirements guarded by the new tests: NEW RULE ONE; NEW RULE TWO; NEW RULE THREE", and, after a blank line, exactly the six provenance lines ("Agent-M-Version: 2026.10.0, commit aaaa…", "Agent-M-Job: JOB-20261017-1000-abcd", "Agent-M-Kind: implement", "Agent-M-Participant: coder-a", "Agent-M-Model: model-m", "Agent-M-Rounds: 2"), and none of OLD RULE, UNTOUCHED RULE, MOD-system or PLANTED-INSTRUCTION-91C2; the outcome's pullRequest is "https://github.com/acme/product/pull/7", its commits ["c1"] and its files the three paths the branch changes, sorted
+// expect: one openPullRequest, with branch = the job's id, base "develop" and a title that names the job; its body holds the lines "Job: JOB-20261017-1000-abcd", "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-beta, MOD-alpha", "Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE", and, after a blank line, exactly the six provenance lines ("Agent-M-Version: 2026.10.0, commit aaaa…", "Agent-M-Job: JOB-20261017-1000-abcd", "Agent-M-Kind: implement", "Agent-M-Participant: coder-a", "Agent-M-Model: model-m", "Agent-M-Rounds: 2"), and none of OLD RULE, UNTOUCHED RULE, MOD-system or PLANTED-INSTRUCTION-91C2; the outcome's pullRequest is "https://github.com/acme/product/pull/7", its commits ["c1"] and its files the three paths the branch changes, sorted
 test("the writer opens the pull request into the default branch with the job, the work, the modules, the new tests' requirements and the provenance lines", async () => {
   assert.equal(typeof writer(), "function", "failure node: routeStrategies offers the writer branch-and-pull-request");
   const server = fakeHost();
@@ -110,8 +110,8 @@ test("the writer opens the pull request into the default branch with the job, th
   assert.equal(request.base, "develop");
   assert.ok(request.title.includes(JOB), `the title names the job: ${request.title}`);
   const lines = request.body.split("\n");
-  for (const line of [`Job: ${JOB}`, "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-alpha, MOD-beta",
-    "Requirements guarded by the new tests: NEW RULE ONE; NEW RULE TWO; NEW RULE THREE"]) assert.ok(lines.includes(line), `the description holds the line ${line}`);
+  for (const line of [`Job: ${JOB}`, "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-beta, MOD-alpha",
+    "Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE"]) assert.ok(lines.includes(line), `the description holds the line ${line}`);
   const trailers = [`Agent-M-Version: 2026.10.0, commit ${"a".repeat(40)}`, `Agent-M-Job: ${JOB}`, "Agent-M-Kind: implement", "Agent-M-Participant: coder-a", "Agent-M-Model: model-m", "Agent-M-Rounds: 2"];
   assert.deepEqual(lines.slice(-trailers.length), trailers, "the provenance lines close the description");
   assert.equal(lines[lines.length - trailers.length - 1], "", "a blank line stands before them");
