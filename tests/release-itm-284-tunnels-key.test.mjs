@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 const ssh2Cache = join(tmpdir(), "agent-m-284-release-ssh2-1.17.0");
@@ -25,7 +26,9 @@ function run(command, arguments_, options = {}) {
 function runtime() {
   if (runtimeFailure) throw runtimeFailure;
   try {
-    if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
+    const staged = fileURLToPath(new URL("../src/bridge-build/node_modules", import.meta.url));
+    const nodePath = existsSync(join(staged, "ssh2", "package.json")) ? staged : join(ssh2Cache, "node_modules");
+    if (!existsSync(join(nodePath, "ssh2", "package.json"))) {
       run("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
     }
     const positive = run(process.execPath, ["--input-type=module", "-e", `
@@ -59,9 +62,9 @@ function runtime() {
         crypto.generateKeyPairSync = generateKeyPairSync;
       }
       console.log("ssh2-known-positive");
-    `], { env: { ...process.env, NODE_PATH: join(ssh2Cache, "node_modules") } });
+    `], { env: { ...process.env, NODE_PATH: nodePath } });
     assert.match(positive.stdout, /ssh2-known-positive/);
-    return join(ssh2Cache, "node_modules");
+    return nodePath;
   } catch (error) { runtimeFailure = error; throw error; }
 }
 
