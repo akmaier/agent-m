@@ -150,10 +150,42 @@ export async function endpointExchange(config, exchange) {
   }
 }
 
-// endpointDriver(config, participant) -> Driver — one direct exchange for a prepared job prompt; no route selection,
-// retries, input cutting, or part duplication belongs here.
+function addUsage(total, usage) {
+  if (!usage) return total;
+  if (!total) return { ...usage };
+  const sum = (a, b) => (a === null ? b : b === null ? a : a + b);
+  return { inputTokens: sum(total.inputTokens, usage.inputTokens), outputTokens: sum(total.outputTokens, usage.outputTokens), minutes: null, cost: null };
+}
+
+// The execution loop: each request is one endpointExchange; the runner's ToolUse carries every call out.
+async function toolLoop(config, input, signal) {
+  const { definitions, limit } = input.tools;
+  const messages = [{ role: "user", text: driverPrompt(input) }];
+  let offered = definitions, carriedOut = 0, usage = null;
+  for (;;) {
+    signal?.throwIfAborted();
+    const answer = await endpointExchange(config, { messages, tools: offered });
+    usage = addUsage(usage, answer.usage);
+    if (answer.calls.length === 0 || offered.length === 0) return { text: answer.text, usage };
+    messages.push({ role: "assistant", text: answer.text, calls: answer.calls });
+    for (const requested of answer.calls) {
+      let text;
+      if (carriedOut < limit) {
+        signal?.throwIfAborted();
+        text = await input.tools.call(requested.name, requested.args);
+        carriedOut += 1;
+      } else text = `refused: the limit of ${limit} tool calls is reached`;
+      messages.push({ role: "tool", text, callId: requested.id });
+    }
+    if (carriedOut >= limit) offered = [];
+  }
+}
+
+// endpointDriver(config, participant) -> Driver — one direct exchange for a prepared job prompt, or, where the input offers
+// tools, the requests of the execution loop; no route selection, retries, input cutting, or part duplication belongs here.
 export function endpointDriver(config, participant) {
   return { participant, async send(input, options = {}) {
+    if (input.tools?.definitions?.length) return toolLoop(config, input, options.signal);
     const where = typeof window === "undefined" ? "node" : "browser";
     const { url, init } = driverRequest(config, driverPrompt(input), options.signal);
     const response = await endpointResponse(config, { url, init }, where);
