@@ -21,90 +21,50 @@ origin:
 
 ## Outcome
 
-One load of a dashboard page sends at most a stated number of requests with the repository token the person stores in
-it, split into REST and GraphQL. A second load of an unchanged tree sends fewer. That token's rate limit is the one used
-up. The fix is in the dashboard's loading code and in the host code.
+The live dashboard meets `A PAGE LOAD READS THE REPOSITORY IN BATCHES`, which the SPEC queue
+`docs/spec-freigaben/2026-10-17_a-page-load-reads-the-repository-in-batches/` drafts for akmaier. With a token on
+GitHub, one page load:
+- reads its commit and that commit's tree once;
+- reads the files it shows in requests of at most 100 files;
+- reads no blob it has read already.
 
-**The live loading code is code that no module owns.**
-- `docs/index.html` loads `assets/dashboard-app.mjs`. No HTML page loads MOD-site-frame's `start.mjs`.
-- No module file names a folder under `docs/assets/`. The known positive: `folder: src/run-planner` is found in
-  MOD-run-planner.
-- The headers of `tests/load-per-view.test.mjs` still name MOD-dashboard-app, whose file is gone from
-  `docs/architecture/`.
+An acceptance reads the head it commits on once.
 
-**Leads, which the measurement confirms or refutes.** None is a finding yet.
-1. **Every file read is one REST request.** With a token, `readFile` (`src/repository-hosts/github.mjs:223`) is one
-   `/contents/` request per file.
-   - `Snapshot.readMany` (`src/repository-hosts/index.mjs:213`) batches through GraphQL `readFiles` (`github.mjs:234`),
-     but the loading code never calls it. `git grep readMany -- docs/assets` finds nothing. The same grep over `src/`
-     finds `src/trace-graph/build.mjs:185` as the known positive.
-2. **The cross-load cache was removed.** On 2026-10-10, `b9a65089` ("Align existing fixtures with accepted browser
-   storage behavior", developer-terra-e) removed the cache of file texts kept by blob SHA across loads.
-   - The expectation "a second load on an unchanged tree reads no file — the texts are kept by their blob SHA" became "a
-     second load on an unchanged tree reads its displayed files again" (`tests/load-per-view.test.mjs:152`).
-   - That test's own header still gives the reason for the cache: "on 2026-10-01 the PO's account used up its 5,000
-     requests per hour … about 450 requests" for one page load.
-   - Which accepted text required the removal is read before the start.
-3. **Within one load**, the host's `texts` cache is kept by blob SHA for as long as the host lives
-   (`src/repository-hosts/index.mjs:195`). `dashboard-app.mjs:212–220` keeps one host per address and token. Whether
-   `loadSnapshot`'s reset of `memo` (`dashboard-app.mjs:266`) causes a request is measured.
-4. **A snapshot per read.** `readAt` (`dashboard-app.mjs:270`) calls `readSnapshot`, a tree request
-   (`github.mjs:168`), once for each path an acceptance reads.
+**The measurement**, `docs/measurements/2026-10-17_dashboard-load-requests.md`, measured on `c7717fd1`:
+- **The counts.**
+  - The start page sends 51 requests, `#arc` 91, `#spec` 116 and `#backlog` 563.
+  - A reload of the same commit sends 51 again.
+  - All are REST; no batch is ever sent.
+- **The causes, each traced at its failure node.**
+  - `fileText` (`docs/assets/dashboard-app.mjs:288`) reads through `Snapshot.read`, which is one `/contents/` request
+    per file (`src/repository-hosts/github.mjs:223`). The loading code never calls `Snapshot.readMany`.
+  - `readAt` (`dashboard-app.mjs:270`, called at `docs/assets/dashboard/writes.mjs:72`) builds a snapshot per path.
+  - `#spec`, process, release, roles and backlog open hosts of their own, whose caches start empty.
+- **The cache of file texts across loads** was retired by `d8c69b76` (2026-10-10), which also runs `retireFileTexts`
+  (`dashboard-app.mjs:622`). `b9a65089` changed only the tests that expected it. The draft does not bring it back,
+  since it would change MOD-browser-store's text and the batches suffice.
+- **Refuted.** Resetting `memo` on an unchanged commit costs only the commit and the tree.
 
-**Not ready for a sprint yet.** Its readings are settled before it is selected.
+**How it is changed.** No module owns the loading code. The SPEC queue's entry 02 adds to
+`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS` the form "makes old code meet a requirement of this specification by
+calling a module's interface as the module's file states it, together with the test that checks that requirement". The
+fix is a pull request of that form:
+- one host and one snapshot per load, its files read with `Snapshot.readMany` ahead of their reads;
+- `readAt` reading the head's snapshot once per acceptance;
+- `tests/load-per-view.test.mjs` counting it.
 
-**1. Measure.** A developer who changes no product file records a MEASUREMENT under `docs/measurements/` with its
-method.
-- **The harness.** The counting GitHub mock of `tests/app-harness.mjs` (`repoServer`, `openDashboard`), with a GraphQL
-  endpoint where the lead needs one.
-- **The known positive.** `tests/load-per-view.test.mjs`'s counts, and TST-479201's at most 22 requests for one
-  SPEC-entry page of 1,332 files.
-- **What is counted.** For a product of this repository's size, by method and path, split into REST and GraphQL:
-  - the first load of the main page and of each review view;
-  - a second load of an unchanged tree;
-  - one load after an accept.
-- **The bar's reads**, counted the same way: one hand-over assessment (`productFacts`,
-  `src/prompt-bar/hand-over.mjs:55`), one poll of a followed job (`src/prompt-bar/follow.mjs:18`, every 15 s), and one
-  notifications check (`src/notifications/checks.mjs:22–23`).
+MOD-repository-hosts, named under `modules`, is the module whose interface the fix calls. Its file and its code do not
+change.
 
-**2. The bound, from the texts.** What the texts give today:
-- `A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN` (SPEC.md:664) names the failure and bounds nothing.
-- ITM-479's release tests bound only the SPEC-entry page.
-- `Snapshot.read` "fetches a file's text once" per host.
+**Ready to be selected** once akmaier accepts the queue.
 
-No text bounds the requests of a page load. So the bound is a draft for akmaier on `main`, made from the measurement,
-not a question. It covers what is read in batches, and what a second load of unchanged blobs may read.
-
-**3. Who may change what.**
-- MOD-repository-hosts is changed by this item.
-- `docs/assets/` is code no module owns. `WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS` (SPEC.md:1421) lets a pull
-  request between jobs only make old code call a module in place of its own code, among the forms it names.
-- **Read at sprint team1/54: no named form fits a fix inside the loading code.**
-  - The rule's forms are these:
-    - making old code call a module in place of its own code;
-    - removing what a module now provides;
-    - naming a test's module;
-    - letting a whole-repository check allow a stated use;
-    - letting a test helper reach the modules' files;
-    - a workflow file that only runs a module's entry.
-  - Adding a call of `readMany` ahead of `fileText`'s reads replaces none of the loading code's own code, so it is none
-    of these. Bringing back the cache of file texts across loads is not one either.
-  - Two forms of the fix stay open, and the bound's draft chooses between them:
-    - `docs/index.html` loads the module-built site through `start.mjs`, in place of `assets/dashboard-app.mjs`. That is
-      the first form. ITM-574's bound then holds for the modules' loading.
-    - A SPEC change that admits the loading code's fix between jobs. That is a draft for akmaier through a SPEC queue.
-- **The cache across loads.** `d8c69b76` (2026-10-10) retired the Cache Storage `agent-m-file-texts`, in the course of
-  "canonical storage". MOD-browser-store's table of keys names no store of file texts. Bringing such a cache back is a
-  change of MOD-browser-store's text, and part of the bound's draft.
-
-**Earlier work.** `docs/backlog` was grepped for "rate limit", "readMany", "GraphQL" and "batched read"; the known
-positive is ITM-479, which batched the trace graph's reads after akmaier's earlier report. The tests were grepped for
-"5,000 requests", which found `tests/load-per-view.test.mjs` and its history above.
+**Not in it.** The prompt bar's reads (`productFacts` at a hand-over, the poll every 15 s) and the notifications check
+were not measured. Bounding them is a later item, after a count.
 
 ## Acceptance
 
-- A component test counts the requests of one page load, and of a second load of an unchanged tree, over the counting
-  mock. It holds both at or under the accepted bound.
-- The counter-proof: the loading code as it stands exceeds the bound, and the test is seen failing on it first.
+- Over a counting fake GitHub that serves the batch request, each of the start page, `#arc`, `#spec` and `#backlog` sends
+  its commit and tree once and one batch for every hundred files it shows.
+- An acceptance of three files reads its head once.
+- The counter-proof: the loading code as it stands exceeds those counts, and the test is seen failing on it first.
 - A used-up limit is still named, never blamed on the token.
-- The release test is written by a developer who implemented none of it.
