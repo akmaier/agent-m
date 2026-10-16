@@ -142,7 +142,7 @@ const electronCommand = (executable, arguments_) => {
   if (manager.status !== 0) {
     if (windowManagerFailure) throw windowManagerFailure;
     diagnoseOpenboxAcquisition();
-    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "-o", "Debug::Acquire::http=true", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    const started = Date.now(), install = spawnSync("sudo", ["apt-get", "-o", "Debug::Acquire::http=true", "-o", "Acquire::Retries=3", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 60000 });
     const installEvidence = commandEvidence("Linux Openbox install", install);
     let available = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
     let availableEvidence = commandEvidence("Linux Openbox ready probe", available);
