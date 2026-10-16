@@ -6,7 +6,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -273,6 +273,13 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       const ask = state === "open" ? "opened" : state;
       const listed = await everyPage(`${api}/merge_requests?state=${ask}${branch ? `&source_branch=${encodeURIComponent(branch)}` : ""}`, {}, (m) => m.iid);
       return listed.map(pullOf).filter((p) => state === "all" || p.state === state);
+    },
+
+    // Opens a merge request ("Create MR": POST …/merge_requests, source_branch, target_branch, title, description; 201 with the merge request, read with pullOf as listPullRequests reads it). The page lists no
+    // draft parameter: a draft is GitLab's draft marker, the title prefix "Draft: ". Every refusal is the host's own failure (failures.mjs).
+    async openPullRequest({ branch, base, title, body, draft }) {
+      const made = await call("POST", `${api}/merge_requests`, { body: { source_branch: branch, target_branch: base, title: draft === true ? `Draft: ${title}` : title, description: body } });
+      return pullOf(await json(made, address.origin));
     },
 
     // Whether the branch's history holds the commit ("Get a merge base": GET …/repository/merge_base?refs[]=…&refs[]=…): the common ancestor of

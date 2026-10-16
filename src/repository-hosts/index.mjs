@@ -156,6 +156,7 @@ function throughClone(repository, folder, rest) {
     cancelCiRun: rest ? (...a) => rest.cancelCiRun(...a) : without("cancelling a CI run"),
     jobLogs: rest ? (...a) => rest.jobLogs(...a) : without("the log of a CI run"),
     listPullRequests: rest ? (...a) => rest.listPullRequests(...a) : without("the pull requests"),
+    openPullRequest: rest ? (...a) => rest.openPullRequest(...a) : without("a pull request"),
     pullRequestFacts: rest ? (...a) => rest.pullRequestFacts(...a) : without("the facts of a pull request"),
     containsCommit: (...a) => clone.containsCommit(...a),
     snapshot: (ref) => clone.snapshot(ref),
@@ -349,11 +350,20 @@ export function connect(address, credentials = {}) {
       });
     },
 
-    // openPullRequest(request) -> PullRequest — a pull request is the server's: through a clone NotSupported. Its adapter for GitHub
-    // and GitLab is not built yet, and until it is, nor is it offered.
-    async openPullRequest() {
-      throw new HostError("NotSupported", { what: clone ? "a pull request through a local clone" : "a pull request" },
-        clone ? "A pull request is opened on the server, not in a clone." : "Opening a pull request is not built yet.");
+    // openPullRequest({ branch, base, title, body, draft }) -> PullRequest — a pull request on GitHub, a merge request on GitLab, as the server answers it. Crosses the network; fails with TokenRefused,
+    // PermissionMissing, RateLimited, Unreachable, and NotSupported without a token, before any request. Through a clone, the server's call where a token is given, else NotSupported.
+    async openPullRequest(request) {
+      const { branch, base, title, body, draft } = request ?? {};
+      for (const [key, value] of Object.entries({ branch, base, title })) {
+        if (typeof value !== "string" || !value.trim()) throw new TypeError(`openPullRequest names its ${key}`);
+      }
+      if (typeof body !== "string") throw new TypeError("a pull request's body is a text");
+      if (draft !== undefined && typeof draft !== "boolean") throw new TypeError("draft is true or false");
+      if (!token) {
+        throw new HostError("NotSupported", { what: clone ? "a pull request through a local clone without a token" : "opening a pull request without a token" },
+          "A pull request is opened on the server, with a token that may write to the repository; store one first.");
+      }
+      return adapter.openPullRequest({ branch, base, title, body, draft });
     },
 
     // listCiRuns({ commit, branch, workflow }) -> CiRun[] — the GitHub Actions runs or GitLab pipelines, every page, optionally only those of a commit, of a branch, and — on GitHub — of a workflow. Crosses the
