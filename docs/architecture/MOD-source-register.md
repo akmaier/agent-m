@@ -188,7 +188,7 @@ names no source.
   and `NotInVersion { files }` for a part that names a file the version does not hold.
   And the five recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`,
   `chapters-for-architecture`, `chapters-for-implementation` and `chapters-for-page`, which takes the row of the menu
-  entry the job's `page` parameter names: each reads the instance's register entry
+  entry the job's `entry` parameter names: each reads the instance's register entry
   `SRC-vibe-coding`, takes its newest version — the last row of its `## Versions` —, reads that version's files through
   `readContent`, and returns one part per chapter of its row above, in the order of their numbers: the whole file,
   naming `SRC-vibe-coding` as its source and, in the part's name, the file, the version and the version's hash as its
