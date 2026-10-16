@@ -32,6 +32,12 @@ const CHAPTERS = {
   "chapters-for-implementation": [9, 11, 12, 13],
 };
 
+// The row of CHAPTERS each menu entry (the key of MOD-site-frame's Route.entry) takes in a conversation; any other entry takes none.
+const PAGE_ROWS = {
+  requirements: "chapters-for-requirements", "use-cases": "chapters-for-requirements", architecture: "chapters-for-architecture",
+  implementation: "chapters-for-implementation", tests: "chapters-for-tests", releases: "chapters-for-tests",
+};
+
 // The instance's snapshot as the host that holds the book's content.
 const holderOf = (snapshot) => ({ repositoryInfo: async () => ({ defaultBranch: snapshot.ref }), readSnapshot: async () => snapshot });
 
@@ -125,6 +131,8 @@ async function excerpt(context, params, module) {
  *   version's, and the part the product's link names. A file outside the part is not read. Throws as readContent throws,
  *   NotLinked { source } for a source the product does not link, and NotInVersion { files } for a part that names files
  *   the version does not hold, before any content is read;
+ * - `chapters-for-page`: the parts of the row of the menu entry the job's parameter `entry` names — requirements and use-cases the requirements row, architecture the
+ *   architecture row, implementation the implementation row, tests and releases the tests row —, as those recipes give them; no part for any other `entry`, a missing one included;
  * - the four recipes of the book's chapters, `chapters-for-requirements`, `chapters-for-tests`, `chapters-for-
  *   architecture` and `chapters-for-implementation`: each reads the instance's register entry SRC-vibe-coding, takes its
  *   newest version, reads that version's files through readContent, and returns one part per chapter of its row, in the
@@ -139,5 +147,9 @@ export const strategiesOf = (module) => ({
     "source-excerpt": (context, params) => excerpt(context, params, module),
     ...Object.fromEntries(Object.entries(CHAPTERS).map(([name, numbers]) =>
       [name, (context) => chapters(numbers, context, module.entry)])),
+    "chapters-for-page": (context, params) => {
+      const row = Object.hasOwn(PAGE_ROWS, params?.entry) ? PAGE_ROWS[params.entry] : null;
+      return row === null ? [] : chapters(CHAPTERS[row], context, module.entry);
+    },
   },
 });
