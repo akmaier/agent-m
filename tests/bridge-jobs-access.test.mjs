@@ -22,7 +22,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, statSync } from "node:fs";
+import fs, { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, statSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as bridgeJobs from "../src/bridge-jobs/index.mjs";
@@ -58,7 +59,9 @@ function stateOf(folder) {
   const files = [];
   (function walk(dir) {
     for (const name of readdirSync(dir).sort()) {
-      const path = join(dir, name), stat = statSync(path);
+      const path = join(dir, name);
+      if (name.endsWith(".lock") && path.slice(folder.length).startsWith("/.git/")) continue; // git's own locks come and go by themselves
+      const stat = statSync(path);
       if (stat.isDirectory()) walk(path); else files.push(`${path.slice(folder.length)}:${stat.size}:${stat.mtimeMs}`);
     }
   })(folder);
@@ -126,4 +129,51 @@ test("testAccess — nothing is changed in any clone", async () => {
     git(a.clone, "fetch", "-q", "origin");
     assert.notDeepEqual(stateOf(a.clone), before[1], "known positive: a fetch in a clone is seen");
   });
+});
+
+// A file in `folder` that vanishes after the walk has listed it and before the walk has measured it — as git's background maintenance
+// removes its lock: the named file is removed right after readdirSync returns the list that holds it.
+function withVanishing(folder, file, run) {
+  const real = fs.readdirSync;
+  fs.readdirSync = (...args) => {
+    const names = real(...args);
+    if (String(args[0]) === folder && names.includes(file)) rmSync(join(folder, file), { force: true });
+    return names;
+  };
+  syncBuiltinESMExports();
+  try { return run(); } finally { fs.readdirSync = real; syncBuiltinESMExports(); }
+}
+
+// TST-526001 · level: unit · module: MOD-bridge-jobs
+// guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
+// given: a clone, and git's own lock .git/objects/maintenance.lock in it that vanishes after the walk has listed it and before the walk has measured it
+// input: stateOf(clone)
+// expect: no error, and the state does not list the lock
+test("the walk of a clone leaves out git's own lock files, which vanish by themselves", () => {
+  const root = mkdtempSync(join(tmpdir(), "agent-m-access-"));
+  try {
+    const { clone } = repository(root, "lock");
+    writeFileSync(join(clone, ".git", "objects", "maintenance.lock"), "");
+    const state = withVanishing(join(clone, ".git", "objects"), "maintenance.lock", () => stateOf(clone));
+    assert.equal(state.files.some((entry) => entry.includes(".lock:")), false, "no lock is measured");
+    assert.ok(state.files.some((entry) => entry.includes("HEAD:")), "the other files are measured");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// TST-526002 · level: unit · module: MOD-bridge-jobs
+// guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
+// given: a clone, and a file in it that is no lock — .git/objects/other.tmp — that vanishes after the walk has listed it and before the walk has measured it
+// input: stateOf(clone)
+// expect: the walk throws ENOENT — a file that is no lock and vanishes still fails
+test("the walk of a clone still fails for another file that vanishes", () => {
+  const root = mkdtempSync(join(tmpdir(), "agent-m-access-"));
+  try {
+    const { clone } = repository(root, "other");
+    writeFileSync(join(clone, ".git", "objects", "other.tmp"), "");
+    assert.throws(() => withVanishing(join(clone, ".git", "objects"), "other.tmp", () => stateOf(clone)), { code: "ENOENT" });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

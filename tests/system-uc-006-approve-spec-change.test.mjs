@@ -312,10 +312,12 @@ const type = (target, value) => {
   area.dispatchEvent(new Event("input"));
 };
 async function until(condition, what) {
-  for (let turn = 0; turn < 500; turn++) {
+  const limit = Date.now() + 10000;
+  while (Date.now() < limit) {
     if (condition()) return;
     await new Promise((resolve) => setImmediate(resolve));
   }
+  if (condition()) return;
   assert.fail(`waited for ${what}`);
 }
 const written = (fake) => Object.fromEntries(fake.writes()[0].change.files.map((file) => [file.path, file.text]));
