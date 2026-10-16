@@ -12,7 +12,7 @@
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { parseGroupFile } from "../group-document/index.mjs";
-import { identifiersIn, positionalReferences } from "../identifiers/index.mjs";
+import { identifiersIn, kindOfIdentifier, positionalReferences } from "../identifiers/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
@@ -56,12 +56,13 @@ function requirementNodes(text) {
     withFacts({ id: r.name, kind: "requirement", path: SPEC_PATH, line: r.line, title: null, blob: null }, { sources: [...r.sources] }));
 }
 
-// The nodes of one test file's declarations, and a guards edge from each to every name it guards.
+// The nodes of one test file's declarations, a guards edge from each to every name it guards, and an exercises edge to the module its `module` line names where that is a MOD- identifier (`system` and anything else give none).
 function testFileGraph(path, text) {
   const nodes = [], edges = [];
   for (const d of testDeclarations(path, text)) {
     nodes.push(withFacts({ id: d.id, kind: "TST", path: d.path, line: d.line, title: null, blob: null }));
     for (const guarded of d.guards ?? []) edges.push(edge(d.id, guarded, "guards", d.path, d.line));
+    if (kindOfIdentifier(d.module ?? "") === "MOD") edges.push(edge(d.id, d.module, "exercises", d.path, d.line));
   }
   return { nodes, edges };
 }
