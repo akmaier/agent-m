@@ -22,14 +22,24 @@ ITM-018 · the graph of this repository's commit` (`tests/release-sprint-02-d-tr
 edge names an identifier". The failing edge is `tests/site-frame-settings-subject.test.mjs -guards-> UC-049 (3c: the
 context names the settings and whether each is stored, never a stored token)`.
 
-**The cause.** Line 8 of that file's header, added by ITM-511 (#599), puts a sentence in the parentheses after `UC-049`.
-The trace graph reads the whole as one target, and that target is no identifier. The same file's lines 95 and 123, and
-the rest of `tests/`, write the step alone, such as `UC-049 (3c)`. ITM-018 is a release test, so it did not run in the
-item's pull request, and the developer's local runs did not include it.
+**The cause.** Line 8 of that file's header was added by ITM-511 (#599), and it puts a parenthesis after `UC-049`.
+- The trace graph reads only the file's header `Guards:` line (`docs/assets/artifacts/headers.mjs:21`), whose grammar is
+  "requirement names in capitals, or UC-<nnn>, separated by '; '" (line 9).
+- It makes one edge per entry, so the target is the whole `UC-049 (3c: …)`.
+- ITM-018's `IDENTIFIER` (`tests/release-sprint-02-d-traceability.test.mjs:330`) matches neither `UC-[\w-]+`, because of
+  the space, nor the upper-case form, because of the lowercase letters. A step in parentheses belongs only in a case's
+  own `// guards:` line, as at lines 95 and 123, which the graph does not read.
 
-**The mend, as the Scrum Master proposes it, is taken.**
-- **The change.** A pull request into `sprint/team1/47` changes that one comment line to `// Guards: A STORED SECRET IS
-  HIDDEN UNTIL SHOWN; UC-049 (3c); UC-042`, and nothing else.
+ITM-018 is a release test, so it did not run in the item's pull request, and the developer's local runs did not include
+it.
+
+**The mend.**
+- **The change.** A pull request into `sprint/team1/47` changes that one header line to `// Guards: A STORED SECRET IS
+  HIDDEN UNTIL SHOWN; UC-049; UC-042`, the bare identifier, and nothing else. Step 3c stays named in the case's own
+  guards at line 95.
+  - The developer's probe of that exact line passes ITM-018, 8 of 8.
+  - The form `UC-049 (3c)`, first proposed, would still fail on `… -guards-> UC-049 (3c)`.
+  - A search, with a known positive, finds no other header with a parenthesis after a use case.
 - **Who.** The file names MOD-site-frame, so this is a fix of ITM-511's test, made by a developer who did not build
   ITM-511. developer-sonnet-b is free.
 - **The proof.** ITM-018 run locally before, failing with that edge named, and after, passing.
