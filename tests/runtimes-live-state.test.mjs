@@ -1,6 +1,6 @@
-// A job's live state, its log and its cancel (ITM-535) on the CI route, for a job no runtime has taken, and for a job taken on a Bridge — MOD-runtimes' `liveState(record, product,
+// A job's live state, its log and its cancel (ITM-535) on the CI route, for a job no runtime has taken, and (ITM-545) for a job taken on a Bridge — MOD-runtimes' `liveState(record, product,
 // bridges)`, `jobLog(record, product, bridges)` and `cancelJob(record, product, bridges)`, as the accepted text of docs/architecture/MOD-runtimes.md states it (Interfaces) and
-// ITM-535's Outcome settles it, for UC-049 and UC-036. The tab's route is tests/runtimes-live-tab.test.mjs.
+// ITM-535's Outcome settles it, for UC-049 and UC-036; for a Bridge ITM-545's Outcome, whose further cases are tests/runtimes-live-bridge.test.mjs. The tab's route is tests/runtimes-live-tab.test.mjs.
 // Run: node --test tests/runtimes-live-state.test.mjs
 //
 // Module: MOD-runtimes
@@ -21,20 +21,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as runtimes from "../src/runtimes/index.mjs";
-import { bridgeAt } from "../src/bridge-client/index.mjs";
 import { RECORD_PATH, RUN_URL, START, ciRun, failure, fakeHost, fetched, restoreFetch, spyOnFetch } from "./runtimes-live-fixture.mjs";
+import { BRIDGES, BRIDGE_ADDRESS, bridgeRow, fixtureBridge } from "./runtimes-live-bridge-fixture.mjs";
 
-test.beforeEach(spyOnFetch);
+let bridge = null;
+test.beforeEach(() => { bridge = null; spyOnFetch(); });
 test.afterEach(() => {
   const requests = [...fetched];
   restoreFetch();
   assert.deepEqual(requests, [], "no request reached the network");
+  assert.deepEqual(bridge?.stray ?? [], [], "no request that was not for the fixture Bridge");
 });
 
 const UNKNOWN = { reachable: true, reason: null, known: false, running: false, cancelling: false, log: null, usage: null, writtenAfterCancel: [] };
-const BRIDGES = { "lab-pc": bridgeAt({ name: "lab-pc", address: "http://127.0.0.1:4712", token: "token-lab-pc" }) };
-const NOT_READ = "the Bridge's jobs are not read yet";
-const ask = (fake, call, bridges = BRIDGES) => async () => runtimes[call](await fake.record(), { host: fake.host }, bridges);
 
 // TST-535001 · level: unit · module: MOD-runtimes
 // guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049
@@ -185,16 +184,23 @@ test("cancelJob — a run not found, a refused cancel and a moved head are throw
 });
 
 // TST-535010 · level: unit · module: MOD-runtimes
-// guards: ONE DASHBOARD SHOWS EVERY JOB; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049
-// given: a job taken by the Bridge `lab-pc`, which is among the connected Bridges; the global fetch is a spy that answers nothing
-// input: liveState, jobLog, cancelJob
-// expect: liveState { reachable: false, reason: "the Bridge's jobs are not read yet", known: false, running: false, cancelling: false, log: null, usage: null, writtenAfterCancel: [] }; jobLog and cancelJob each rejected with a RuntimeError named NotSupported whose message is "the Bridge's jobs are not read yet"; no request reached the network (checked after the test), no CI call, no commit
-test("liveState, jobLog and cancelJob — a job taken on a Bridge is not read yet: unreachable, and NotSupported", async () => {
+// guards: ONE DASHBOARD SHOWS EVERY JOB; A CANCELLED JOB WRITES NOTHING MORE; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049
+// given: a job taken by the Bridge `lab-pc`, which is among the connected Bridges; the Bridge lists the job running with usage { tokens: 12 }, keeps its log "one", "two", ended, and confirms a cancel; the global fetch is the fixture Bridge's stand-in
+// input: liveState, jobLog (its stream read to its end), cancelJob
+// expect: liveState { reachable: true, reason: null, known: true, running: true, cancelling: false, log: null, usage: { tokens: 12 }, writtenAfterCancel: [] }; the log's lines "one", "two"; cancelJob "cancelled"; the Bridge was asked in this order: GET http://localhost:4712/v1/jobs, GET http://localhost:4712/v1/jobs/JOB-20261016-1100-c0de/log?from=0, POST http://localhost:4712/v1/jobs/JOB-20261016-1100-c0de/cancel; no CI call; exactly one commit, the job's end; no request that was not for the Bridge (checked after the test)
+test("liveState, jobLog and cancelJob — a job taken on a Bridge gives the Bridge's state, its log and its cancel", async () => {
   const fake = fakeHost({ taken: "lab-pc", runs: [ciRun(7, "running")] });
-  assert.deepEqual(await ask(fake, "liveState")(),
-    { reachable: false, reason: NOT_READ, known: false, running: false, cancelling: false, log: null, usage: null, writtenAfterCancel: [] });
-  for (const call of ["jobLog", "cancelJob"]) {
-    await assert.rejects(ask(fake, call)(), (error) => error instanceof runtimes.RuntimeError && error.name === "NotSupported" && error.message === NOT_READ, call);
-  }
-  assert.deepEqual([fake.calls, fake.writes.length], [[], 0], "no CI call, no commit");
+  bridge = fixtureBridge({ jobs: [{ row: bridgeRow(START.id, "running", { tokens: 12 }), lines: ["one", "two"], ended: true }] });
+  const record = await fake.record();
+  const product = { host: fake.host };
+  assert.deepEqual(await runtimes.liveState(record, product, BRIDGES),
+    { reachable: true, reason: null, known: true, running: true, cancelling: false, log: null, usage: { tokens: 12 }, writtenAfterCancel: [] });
+  const lines = [];
+  for await (const line of (await runtimes.jobLog(record, product, BRIDGES)).stream) lines.push(line);
+  assert.deepEqual(lines, ["one", "two"]);
+  assert.equal(await runtimes.cancelJob(record, product, BRIDGES), "cancelled");
+  const job = `${BRIDGE_ADDRESS}/v1/jobs/${START.id}`;
+  assert.deepEqual(bridge.requests.map(({ method, url }) => `${method} ${url}`), [`GET ${BRIDGE_ADDRESS}/v1/jobs`, `GET ${job}/log?from=0`, `POST ${job}/cancel`]);
+  assert.deepEqual([fake.calls, fake.writes.length], [[], 1], "no CI call, one commit");
+  assert.equal((await fake.record()).end.state, "cancelled");
 });
