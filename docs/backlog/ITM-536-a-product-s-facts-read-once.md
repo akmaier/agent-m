@@ -24,24 +24,30 @@ origin:
 
 ## Outcome
 
-MOD-progress-measures' `Facts` and `productFacts`, cut to what MOD-work-plans' `itemStates` and `startable` and
-MOD-product-process' `holdsRole` need. That is what ITM-505 asks before a hand-over starts (MOD-prompt-bar).
+MOD-progress-measures' `productFacts` with the scope `work`, and `Facts` as it then holds them. It builds against the
+draft of MOD-progress-measures' file committed on `main` for akmaier's acceptance with sprint 45's swap, and waits for
+that acceptance.
+- **Why a draft.** Reading what `itemStates`, `startable` and `holdsRole` take needs schemas and functions the module's
+  Uses did not name: `artifactSchemas` for the items and module files, `roleAssignmentSchema`, `participantsOf` and
+  `modelSchema`. `docs/role-assignments/` was missing from its Reads.
+- **The scope.** A cut that leaves facts out needs the interface to say so. The draft adds the scope `work`, in which
+  every fact outside that set is `"unknown"`, and lets those fields' types hold `"unknown"`.
 
-`productFacts` reads once, from the product's default branch through its host:
-- the approval statuses (MOD-approvals);
-- the change queues (MOD-spec-changes);
-- the job records as `JobRow`s, through MOD-job-ledger;
-- the pull requests (`listPullRequests`);
-- the gate records and their states (`gateStates`);
-- the declaration's workflow (`workflowOf`);
-- the backlog or plan items and the plan order;
-- the sprint records and the role assignments;
-- the instance's participants.
-It computes `held` with `heldItems`, asking `containsCommit` for exactly the heads `undecidedHeads` names.
+What is built, with the scope `work`. `productFacts` reads once, from the product's default branch through its host:
+- the approval statuses (MOD-approvals) and the change queues (MOD-spec-changes);
+- the declaration with its model and workflow, read with `instanceAt` at the commit the declaration names;
+- the instance's participants (`participantsOf`);
+- the plan or the backlog — items read with `artifactSchemas().item`, the order with `planSchemas` — and the sprints;
+- the role assignments (`roleAssignmentSchema`);
+- the gate records and `gateStates`;
+- the job records as `JobRow`s, without asking a live state;
+- the pull requests.
+From them it derives `plan.states` with `itemStates`, and `held` with `heldItems`, asking `containsCommit` for exactly the
+heads `undecidedHeads` names, with the module files read by `artifactSchemas().module`. Every other field is
+`"unknown"`.
 
-Cut off, for later items that need them: the trace graph, the CI runs of the head, the tags, the test facts, the live
-states of running jobs, and the stage measures. The facts it reads carry them as `"unknown"` where `Facts` has the field,
-never a guess.
+The scope `all` is left to a later item. Until then the module's header names it as not built, as it names its other
+unbuilt parts.
 
 ## Acceptance
 
