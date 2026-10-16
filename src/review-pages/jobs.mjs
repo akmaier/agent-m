@@ -204,27 +204,6 @@ async function start(run) {
   }
 }
 
-/**
- * refineOnTab(run, params, draft, handlers) — discloses a follow-up, whose Run records and executes it against `draft`.
- */
-export async function refineOnTab(run, params, draft, { stage, onResult }) {
-  const snapshot = await defaultSnapshot(run.host);
-  const ready = await preparedRun(run, snapshot, params);
-  if (ready.offer?.route.kind !== "tab") throw Object.assign(new Error("Refine is available only for a job running in this tab."), { name: "RouteUnavailable" });
-  const panel = runPanel(ready.prepared, { onRun: async () => {
-    try {
-      const executed = await execute(ready, draft);
-      await onResult({ outcome: executed.outcome, run: { ...ready, record: executed.record } });
-    } catch (failure) {
-      stage.append(problem(failure, run.token));
-    }
-  } });
-  ready.decoratePanel?.(panel, ready.prepared);
-  panel.append(el("section", "refinement-input", el("h4", null, "Follow-up instruction"), el("pre", null, params.instruction),
-    el("h4", null, "Current draft"), el("pre", null, typeof draft === "string" ? draft : JSON.stringify(draft, null, 2))));
-  stage.replaceChildren(explain(run.kind.explain.draft.panel), panel);
-}
-
 // What a run of the drafting job came to: the rounds, what the loop left, the files written.
 async function presentDraft(outcome, result, run) {
   const { kind } = run;

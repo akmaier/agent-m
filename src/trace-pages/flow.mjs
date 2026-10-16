@@ -20,14 +20,13 @@ function el(name, className, ...children) {
 
 const sectionTitle = (heading) => String(heading ?? "").replace(/^##[ \t]*/, "");
 
-function requirementDetail(requirement, editable) {
+function requirementDetail(requirement) {
   const detail = el("section", "requirement-detail", el("h3", null, requirement.name));
   for (const [label, text] of [["Source", requirement.source], ["Rule", requirement.rule], ["Check", requirement.check]]) {
     const field = el("section", "requirement-field", el("h4", null, label));
     field.append(renderArtifact(text ?? ""));
     detail.append(field);
   }
-  if (editable) detail.append(reviewLink("requirement-prompt", "Change by prompt", "requirement", { name: requirement.name, prompt: 1 }));
   return detail;
 }
 
@@ -52,7 +51,7 @@ function requirementRows(requirement, editable, shown) {
       opening(shown.requirements, requirement.name, false);
       return;
     }
-    const cell = el("td", "panel", requirementDetail(requirement, editable));
+    const cell = el("td", "panel", requirementDetail(requirement));
     cell.setAttribute("colspan", "1");
     opened.replaceChildren(cell);
     opening(shown.requirements, requirement.name, true);
@@ -78,16 +77,12 @@ function overview(spec, editable, shown) {
     const held = { heading: sectionTitle(section.heading), names: requirements.map(({ name }) => name) };
     table.setAttribute("hidden", "hidden");
     const toggle = el("button", "spec-section-toggle btn", sectionTitle(section.heading));
-    const prompt = editable
-      ? reviewLink("requirement-group-prompt", "Change by prompt", "requirements", { requirements: JSON.stringify(requirements.map(({ name }) => name)), prompt: 1 })
-      : null;
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", "false");
     toggle.addEventListener("click", () => {
       const collapsed = table.getAttribute("hidden") !== null;
       if (collapsed) {
         table.removeAttribute("hidden");
-        if (prompt && !prompt.parentNode) group.insertBefore(prompt, table);
       }
       else table.setAttribute("hidden", "hidden");
       toggle.setAttribute("aria-expanded", String(collapsed));

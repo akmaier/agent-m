@@ -32,7 +32,7 @@ function ownerError(path, text) {
   return error ? `${path}: ${error.what}` : null;
 }
 
-// The rounds, and the findings the loop left, as the old prompt pages show them.
+// The rounds, and the findings the loop left, as the draft shows them.
 function roundsAndLeft(result) {
   const left = el("ul", "left");
   for (const found of result.remaining) left.append(el("li", "left", `${found.rule}: ${found.what} — ${found.fix}`));

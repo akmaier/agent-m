@@ -1,7 +1,8 @@
 // The subject the specification view gives the prompt bar (docs/architecture/MOD-trace-pages.md, Data: specification; Interfaces: view),
 // MOD-prompt-bar's `Subject`, for UC-049, UC-019 (step 1) and UC-020 (1a):
 // - on the default branch, the open requirement, or the group with the names it holds, with the kind `change-requirements`, the person's own
-//   source and the review pages' `draft` as its draft route;
+//   source and the review pages' `draft` as its draft route, `draft/subject=<key, encoded>`, in the form the review pages' own subjects give; without the person's own
+//   source its parameters are refused with the error NoPersonSource, which names registering the person as a source and linking it to the product (UC-019 4b);
 // - at a released version, the requirement as it read there, with the kind `converse` and no draft route, since a change is drafted only
 //   against the current text;
 // - every other view, and the specification with nothing open, the frame's default with the version shown among its page.
@@ -54,6 +55,12 @@ export async function personsSource(context, snapshot) {
 }
 
 const encoded = encodeURIComponent;
+// A change of requirements without the person's own source sends nothing and names the two steps that are missing (UC-019 4b), as the review pages' subjects do.
+function missingSource() {
+  return Object.assign(new Error("The author has no personal source linked to this product. Register the person as a source (#library) and link that source to the product (#sources), then ask again."),
+    { name: "NoPersonSource" });
+}
+
 const lines = (...parts) => parts.filter((part) => typeof part === "string" && part !== "").join("\n");
 
 /**
@@ -74,8 +81,15 @@ export function subjectOf({ title, params, context, shown }) {
 
   const name = shown.requirements.at(-1);
   const group = shown.groups.at(-1);
-  const changing = (part, names, about) => ({ key: keyOf(part), title: about, kind: "change-requirements",
-    paramsFor: () => ({ requirements: [...names], source: shown.source }), draftRoute: DRAFT_ROUTE, withhold: null, refuses: [] });
+  const changing = (part, names, about) => {
+    const key = keyOf(part);
+    return { key, title: about, kind: "change-requirements",
+      paramsFor: () => {
+        if (shown.source === null) throw missingSource();
+        return { requirements: [...names], source: shown.source };
+      },
+      draftRoute: `${DRAFT_ROUTE}/subject=${encoded(key)}`, withhold: null, refuses: [] };
+  };
   if (name !== undefined && shown.onDefaultBranch) return changing(`requirement=${encoded(name)}`, [name], name);
   if (name === undefined && group !== undefined && shown.onDefaultBranch) {
     return changing(`requirements=${encoded(JSON.stringify(group.names))}`, group.names, group.heading);
