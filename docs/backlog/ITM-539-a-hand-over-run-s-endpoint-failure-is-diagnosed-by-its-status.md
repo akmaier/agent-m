@@ -35,6 +35,16 @@ The draft was accepted with `90ed6d66` (`docs/approvals/MOD-workflow-entries-e8d
 classifies `AgentFailed`'s last output with `diagnoseEndpoint` (`src/workflow-entries/product.mjs:156–159`). This item
 replaces that with one `testEndpoint` call and its `diagnosis`.
 
+**Where the endpoint works**, settled at its first gate (#616, `343fdc6a`), the failure is the agent's. The reason names
+`AgentFailed`'s exit code and its last output, and nothing else:
+- it does not name the endpoint as not reachable;
+- it does not offer other routes;
+- it does not pass the last output through `diagnoseEndpoint`.
+
+MOD-workflow-entries names the diagnosis and the routes only for "an endpoint the run cannot reach". Once `testEndpoint`
+shows that it works, the run did reach it. "As today" in the line above means the last output is named, as it was
+before any endpoint was classified.
+
 **Existing tests.** TST-498006 (`tests/workflow-entries-hand-over.test.mjs:355`), an endpoint the run cannot reach,
 keeps its expected reason `not reachable`. Its run now makes the one `testEndpoint` request, which the test's fixture
 must answer or refuse without leaving the machine. That is checked under a `fetch` spy. No other test names
