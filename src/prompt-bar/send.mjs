@@ -22,9 +22,11 @@ export async function defaultSnapshot(host) {
   return host.readSnapshot(defaultBranch);
 }
 
-// The name of the token this browser stores for the page's repository, or null without one: a product's own, never the instance's; the
-// instance's for the page of the instance.
-function personOf(store, snapshot, ofProduct) {
+/**
+ * personOf(store: Store, snapshot: Snapshot, ofProduct: boolean) -> string | null — the name of the token this browser stores for the page's repository, or null
+ * without one: a product's own, never the instance's; the instance's for the page of the instance.
+ */
+export function personOf(store, snapshot, ofProduct) {
   const { server, origin, path } = snapshot.repository;
   const keys = !ofProduct ? ["github-token"] : server === "gitlab" ? [`gitlab-token:${new URL(origin).host}/${path}`] : [`github-token:${path}`];
   for (const key of keys) {
@@ -34,8 +36,11 @@ function personOf(store, snapshot, ofProduct) {
   return null;
 }
 
-// The endpoint and the Bridges the participant is reached through, from what the store keeps.
-function connectionsOf(participant, store) {
+/**
+ * connectionsOf(participant: Participant, store: Store) -> { endpoints, bridges } — the endpoint and the Bridges the participant is reached through, from what the store
+ * keeps: an endpoint's configuration and the Bridge it is called through, and the Bridge of an agent, each Bridge with settingsOf and then bridgeAt.
+ */
+export function connectionsOf(participant, store) {
   const endpoints = {}, bridges = {};
   const connectBridge = (name) => {
     if (!name || bridges[name]) return;
