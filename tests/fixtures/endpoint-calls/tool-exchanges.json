@@ -1,0 +1,82 @@
+{
+  "exchange": {
+    "messages": [
+      { "role": "user", "text": "Inspect the fixture." },
+      { "role": "assistant", "text": "Reading two paths.", "calls": [
+        { "id": "old-a", "name": "read_file", "args": { "path": "one.md" } },
+        { "id": "old-b", "name": "read_file", "args": { "path": "two.md" } }
+      ] },
+      { "role": "tool", "text": "first result", "callId": "old-a" },
+      { "role": "tool", "text": "second result", "callId": "old-b" },
+      { "role": "user", "text": "Continue." }
+    ],
+    "tools": [{ "name": "read_file", "description": "Read one fixture path.", "input": {
+      "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"]
+    } }]
+  },
+  "openai": {
+    "config": { "name": "fixture-openai", "kind": "openai-compatible", "baseUrl": "https://openai.example.test/v1", "model": "fixture-model", "key": "fixture-openai-key" },
+    "request": {
+      "model": "fixture-model",
+      "messages": [
+        { "role": "user", "content": "Inspect the fixture." },
+        { "role": "assistant", "content": "Reading two paths.", "tool_calls": [
+          { "id": "old-a", "type": "function", "function": { "name": "read_file", "arguments": "{\"path\":\"one.md\"}" } },
+          { "id": "old-b", "type": "function", "function": { "name": "read_file", "arguments": "{\"path\":\"two.md\"}" } }
+        ] },
+        { "role": "tool", "content": "first result", "tool_call_id": "old-a" },
+        { "role": "tool", "content": "second result", "tool_call_id": "old-b" },
+        { "role": "user", "content": "Continue." }
+      ],
+      "tools": [{ "type": "function", "function": { "name": "read_file", "description": "Read one fixture path.", "parameters": {
+        "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"]
+      } } }]
+    },
+    "response": {
+      "choices": [{ "message": { "role": "assistant", "content": "Inspecting.", "tool_calls": [
+        { "id": "next-a", "type": "function", "function": { "name": "read_file", "arguments": "{\"path\":\"three.md\"}" } },
+        { "id": "next-b", "type": "function", "function": { "name": "read_file", "arguments": "{\"path\":\"four.md\"}" } }
+      ] } }],
+      "usage": { "prompt_tokens": 13, "completion_tokens": 5 }
+    },
+    "answer": { "text": "Inspecting.", "calls": [
+      { "id": "next-a", "name": "read_file", "args": { "path": "three.md" } },
+      { "id": "next-b", "name": "read_file", "args": { "path": "four.md" } }
+    ], "usage": { "inputTokens": 13, "outputTokens": 5, "minutes": null, "cost": null } }
+  },
+  "anthropic": {
+    "config": { "name": "fixture-anthropic", "kind": "anthropic", "baseUrl": "https://anthropic.example.test/v1", "model": "fixture-model", "key": "fixture-anthropic-key" },
+    "request": {
+      "model": "fixture-model", "max_tokens": 1024,
+      "messages": [
+        { "role": "user", "content": "Inspect the fixture." },
+        { "role": "assistant", "content": [
+          { "type": "text", "text": "Reading two paths." },
+          { "type": "tool_use", "id": "old-a", "name": "read_file", "input": { "path": "one.md" } },
+          { "type": "tool_use", "id": "old-b", "name": "read_file", "input": { "path": "two.md" } }
+        ] },
+        { "role": "user", "content": [
+          { "type": "tool_result", "tool_use_id": "old-a", "content": "first result" },
+          { "type": "tool_result", "tool_use_id": "old-b", "content": "second result" },
+          { "type": "text", "text": "Continue." }
+        ] }
+      ],
+      "tools": [{ "name": "read_file", "description": "Read one fixture path.", "input_schema": {
+        "type": "object", "properties": { "path": { "type": "string" } }, "required": ["path"]
+      } }]
+    },
+    "response": {
+      "content": [
+        { "type": "text", "text": "Inspecting. " },
+        { "type": "tool_use", "id": "next-a", "name": "read_file", "input": { "path": "three.md" } },
+        { "type": "text", "text": "Two calls." },
+        { "type": "tool_use", "id": "next-b", "name": "read_file", "input": { "path": "four.md" } }
+      ],
+      "usage": { "input_tokens": 17, "output_tokens": 7 }
+    },
+    "answer": { "text": "Inspecting. Two calls.", "calls": [
+      { "id": "next-a", "name": "read_file", "args": { "path": "three.md" } },
+      { "id": "next-b", "name": "read_file", "args": { "path": "four.md" } }
+    ], "usage": { "inputTokens": 17, "outputTokens": 7, "minutes": null, "cost": null } }
+  }
+}

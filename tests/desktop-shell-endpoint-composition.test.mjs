@@ -84,11 +84,12 @@ test("TST-268001: production compose registers endpoint-test with pairing, origi
 
   const response = await request(bridge, bridge.token, config);
   assert.equal(response.status, 200, "the paired same-origin request reaches the registered production handler");
-  assert.deepEqual(await response.json(), { answer: { works: true, model: "small" } });
+  assert.deepEqual(await response.json(), { answer: { works: true, model: "small", tools: false, toolMessage: "ok" } });
   assert.deepEqual(received, [{
     url: "/v1/chat/completions",
     authorization: `Bearer ${KEY}`,
-    body: { model: "small", messages: [{ role: "user", content: "Reply with one word: ok." }], max_tokens: 1 },
+    body: { model: "small", messages: [{ role: "user", content: "Call agent_m_probe once. It is a harmless capability check." }], max_tokens: 64,
+      tools: [{ type: "function", function: { name: "agent_m_probe", description: "Report that tool calling works without changing anything.", parameters: { type: "object", properties: {}, additionalProperties: false } } }] },
   }], "one bridge probe makes one controlled endpoint request");
   assert.equal((await readFile(join(folder, "pairing-token"), "utf8")).includes(KEY), false, "the endpoint key is absent from retained shell data");
   assert.equal(lines.join("\n").includes(KEY), false, "the endpoint key is absent from bridge logs");
