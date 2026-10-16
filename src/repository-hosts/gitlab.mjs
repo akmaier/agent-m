@@ -31,7 +31,7 @@ const PIPELINE_CI = { success: "success", failed: "failure", canceled: "failure"
 // A merge request ("List project merge requests"): locked, one being merged, is still open.
 const MR_STATES = { opened: "open", locked: "open", merged: "merged", closed: "closed" };
 const pullOf = (m) => ({ number: m.iid, title: m.title, branch: m.source_branch, base: m.target_branch, head: m.sha, state: MR_STATES[m.state] ?? "closed", draft: m.draft === true,
-  url: m.web_url, opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null });
+  url: m.web_url, opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null, body: m.description ?? "" });
 
 // An entry of the diff of a commit as the change the commit made to the file: added, deleted, renamed — with the path it came
 // from — or modified.
