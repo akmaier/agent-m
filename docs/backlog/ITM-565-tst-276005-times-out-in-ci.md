@@ -32,11 +32,46 @@ logs endpoint now gives the second attempt's content for that id. The copy shows
 
 So the test itself ran out of its 120 seconds, not the Openbox install.
 
-**Not ready for a sprint yet.** Before it is selected, the job's log is read for where the 120 seconds went: the
-install, the Electron start, or the second start's wait. The measure follows from that, as ITM-541 and ITM-543 did. It
-is never a skip, which would leave the test unseen.
+**Where the 120 seconds went**, read by the Scrum Master from that copy:
+- **Not the install.** The Openbox install ended at 18:32:24.11 (status 0), and the fixture was ready at 18:32:24.12.
+- **The other tests were quick.** TST-276001–004 and TST-276006 passed in about a second each.
+- **TST-276005 stalled.** Its probes ran at 18:32:28.98, 18:32:29.60 and 18:32:30.02–30.03, the last being the second
+  start's probe. Then the log holds nothing for 118.9 seconds, until `not ok 92` at 18:34:28.97.
+
+**Why a wait can take minutes and say nothing**, read from `tests/desktop-shell.test.mjs`:
+- `wait` (line 26) tries its condition 240 times, 125 ms apart, and swallows every error (`catch {}`). It ends with
+  "Timed out waiting for real Electron." and does not say what it waited for.
+- Each try is an `evaluate` through `cdp` (lines 160–173), which allows up to 5 seconds to open the socket and 5 more for
+  the answer.
+- So a main process that stops answering makes each try take up to 10 seconds. The intended bound of about 30 seconds
+  becomes up to 40 minutes, and the test's own 120 seconds end it first, with nothing printed.
+
+After the second start, the test waits in turn for:
+- `__agentMSecondInstanceCount === count + 1`;
+- the second start's exit (`within`, 5 seconds, named);
+- the first window visible and not minimised.
+
+One of these never held, and the log cannot say which.
+
+**The settled measure.** It finds where the time goes; it is not a skip:
+- **`wait` gets a deadline in time.** It allows 30 seconds from its start, whatever each try takes.
+- **It names what it waited for.** It takes a name for its condition. On the deadline it throws "<name> did not hold
+  within 30 s", with the last error a try threw.
+- **Each wait in TST-276005 gets its name.** For example, "the first window counts the second start", or "the first
+  window is visible and not minimised again".
+- **One helper.** `tests/release-itm-276-desktop-shell.test.mjs` (line 31) holds the same `wait`, so the helper moves into
+  one file both import, `tests/desktop-shell.d/wait.mjs`, whose header names MOD-desktop-shell (AGENTS.md §2, "Nothing
+  twice").
+
+The next time the test fails in CI, its message then names the condition that did not hold. If the product itself never
+restores the window, that becomes a finding of MOD-desktop-shell for an item of its own.
+
+**Existing tests.** No expected result changes; only the helper's bound and message change. The release test's file
+changes, so its developer implements none of MOD-desktop-shell and records its local run before and after.
 
 ## Acceptance
 
-- The cause is named from the log, with the place the time went.
-- The measure keeps every expected result. A counter-proof shows that the test still fails where the behaviour breaks.
+- **The bound holds.** A planted condition that never holds makes `wait` throw within 30 seconds, naming the condition
+  and the last error. Its message is checked by a test of the helper.
+- **The test is unchanged.** TST-276005 passes as before, with every expected value unchanged.
+- **The release test.** TST-276901's file passes before and after, and its run is recorded.

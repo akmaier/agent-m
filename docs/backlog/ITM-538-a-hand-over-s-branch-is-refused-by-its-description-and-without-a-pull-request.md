@@ -10,6 +10,7 @@ modules:
 builds_on:
   - ITM-498
   - ITM-537
+  - ITM-567
 tests:
   - component
 origin:
@@ -35,6 +36,18 @@ with `readHistory` when no pull request was opened.
 words is already refused as "the pull request's text". This item therefore adds a test that holds that case, and the
 branch of a run whose writer returned no pull request. Which commits of that branch are read, and against which base, is
 settled before its start.
+
+**Which runs have no pull request**, read at sprint team1/50:
+- **The kinds that write code.** `implement`, `refactor`, `fix-bug` and `write-tests` name the writer
+  `branch-and-pull-request`. On a local host it "opens nothing and returns the branch and the pull request the agent
+  reports", so an agent that reports none leaves a branch without a pull request, and nothing merged. That writer is not
+  built, which is ITM-567, and this item waits for it.
+- **The change kinds handed to CI.** These are `change-requirements`, `change-use-case` and `change-architecture` (UC-019
+  6b). Their writers `queue-entries` and `open-files` commit on the default branch with Agent M's own messages. They
+  make no branch to refuse.
+  - **A question to settle first.** The entry gives the job's context the task as `instruction`
+    (`src/workflow-entries/product.mjs:127`), and `provenanceLines` takes an `instruction`. So before this item starts,
+    it is read whether those writers' commit messages carry the task. If they do, that leak is this item's too.
 
 ## Acceptance
 

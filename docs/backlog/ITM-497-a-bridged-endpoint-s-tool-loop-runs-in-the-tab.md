@@ -8,6 +8,7 @@ realises:
 modules:
   - MOD-runtimes
   - MOD-bridge-jobs
+  - MOD-endpoint-calls
 builds_on:
   - ITM-492
   - ITM-496
@@ -34,6 +35,17 @@ It waits for akmaier's acceptance of the draft of MOD-endpoint-calls' file commi
   But MOD-endpoint-calls' interface keeps that loop inside `endpointDriver`, whose every request is an `endpointExchange`
   over the network. Building a second loop in MOD-runtimes would keep two copies of one loop.
 - **The draft.** `endpointDriver` takes an optional `exchange`, with which `bridgeDriver` passes the Bridge's `ask`.
+
+**Since the draft's acceptance** (`90ed6d66`, `docs/approvals/MOD-endpoint-calls-1f24a36cd76a.md`):
+- **MOD-endpoint-calls joins the modules.** Its `endpointDriver(config, participant)` (`src/endpoint-calls/index.mjs:186`)
+  takes the optional `exchange`.
+- **The existing tests it touches**, found by grepping `tests/` for `bridgeDriver`. They assert that an endpoint on the
+  Bridge receives one `ask` with `driverPrompt`'s text, which then becomes one `ask` per exchange of the loop:
+  - TST-472697, TST-472698 and TST-472700 (`tests/runtimes-bridge.test.mjs`);
+  - TST-398020–022, their endpoint targets.
+
+  Before its start, each is read for whether its expected result changes or holds, and the item names them.
+- **The wire of one exchange** is read from ITM-520's `ask` (MOD-bridge-client) before its start.
 
 ## Acceptance
 

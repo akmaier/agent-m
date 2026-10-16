@@ -28,6 +28,12 @@ When the context is too small, the job runner's `prepareJob` names the tokens an
 selected: which module words the reason, whether `notFitting` carries the count, and how the bar and the run panel show
 it.
 
+**What `Prepared` holds**, read at sprint team1/50. `notFitting` gives `{ participant, size, context }` per participant
+(MOD-job-runner, Interfaces, `Prepared`), and nothing names how many requirements or use cases a part holds, or how many
+of them fit. The count and "how much fits" therefore need either a field of `Prepared` or a function of MOD-job-runner
+that gives them. Either is a draft of MOD-job-runner's interface, made once the source of the count is read from the
+recipes that give `named-requirements`, `spec-with-queues` and `use-case-with-neighbours`.
+
 ## Acceptance
 
 - ITM-514's todo tests TST-377011 and TST-418121 pass, with counter-proofs.
