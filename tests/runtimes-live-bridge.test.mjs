@@ -23,7 +23,7 @@
 // The fixture Bridge is the stand-in for `fetch` of tests/runtimes-live-bridge-fixture.mjs, the repository server the fake host of tests/runtimes-live-fixture.mjs, the record is read back with
 // MOD-job-ledger; no request reaches the network, and a request that is not for the fixture Bridge fails the test. The counter-proofs are recorded in the pull request.
 
-import test from "node:test";
+import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import * as runtimes from "../src/runtimes/index.mjs";
 import { bridgeAt } from "../src/bridge-client/index.mjs";
@@ -248,4 +248,37 @@ test("cancelJob — the client's failures and a moved head are thrown by name, a
   const asked = install({ jobs: [job()] });
   await assert.rejects(cancel(moved), named("Moved", { head: "c9" }));
   assert.equal(asked.requests.length, 1, "the Bridge was asked once");
+});
+
+// TST-545010 · level: unit · module: MOD-runtimes
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049
+// given: a job taken by `lab-pc` whose log the Bridge answers in turn with { lines: [], next: 0, ended: false }, { lines: ["a"], next: 1, ended: false }, { lines: ["b"], next: 2, ended: true }; setTimeout is Node's mock timer (mock.timers, as tests/job-ledger-append.test.mjs mocks the clock with it), so time passes only by tick
+// input: the stream of jobLog, read one line at a time
+// expect: after the first answer (no line, not ended) there is one request, and still one after many turns and after a tick of 999 ms; after one more ms the second request is made and "a" is yielded; after that answer, which brought a line, the third request is made at once, with no tick, and "b" is yielded; then the stream is done; the requests are ?from=0, ?from=0, ?from=1
+test("jobLog — after an answer with no new line that has not ended it waits one second, and after an answer with lines it asks at once", async () => {
+  const turns = async () => { for (let i = 0; i < 30; i += 1) await new Promise((resolve) => setImmediate(resolve)); };
+  const fake = fakeHost({ taken: "lab-pc" });
+  const bridge = install({ jobs: [job({ script: [{ lines: [], next: 0, ended: false }, { lines: ["a"], next: 1, ended: false }, { lines: ["b"], next: 2, ended: true }] })] });
+  mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    const { stream } = await runtimes.jobLog(await fake.record(), { host: fake.host }, BRIDGES);
+    const iterator = stream[Symbol.asyncIterator]();
+    const first = iterator.next();
+    await turns();
+    assert.equal(bridge.requests.length, 1, "one request, then the wait: no second request without time passing");
+    mock.timers.tick(999);
+    await turns();
+    assert.equal(bridge.requests.length, 1, "none after 999 ms");
+    mock.timers.tick(1);
+    assert.deepEqual(await first, { value: "a", done: false });
+    assert.equal(bridge.requests.length, 2, "the second request after 1000 ms");
+    const second = iterator.next();
+    await turns();
+    assert.equal(bridge.requests.length, 3, "after an answer with a line, the third request at once, without a tick");
+    assert.deepEqual(await second, { value: "b", done: false });
+    assert.deepEqual(await iterator.next(), { value: undefined, done: true });
+    assert.deepEqual(bridge.requests.map((request) => request.url), [0, 0, 1].map(LOG_URL));
+  } finally {
+    mock.timers.reset();
+  }
 });
