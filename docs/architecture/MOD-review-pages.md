@@ -110,7 +110,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `index.mjs` — the interface: `view`.
 - `flow.mjs` — the template method: list, file, review all, accept, edit, drafting, arrange.
 - `common.mjs` — what the pages of every kind share: the elements of a page, the token kept for the page's product, the
-  problem a failed read shows, the kind of server a product is on, and the account of the person who prompts.
+  problem a failed read shows, and the kind of server a product is on.
 - `subjects.mjs` — the subject each route gives the prompt bar.
 - `conversation-draft.mjs` — the route `draft`: the conversation's draft for the subject the address names, against the
   current text.
