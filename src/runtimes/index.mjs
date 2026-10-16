@@ -4,11 +4,12 @@
 // workflow's file, for a product without it; and the host's other failures, by name. ITM-318 builds RouteOffer, ResourceNeed
 // and routesFor (routes.mjs): the routes a participant offers, with the reason of each that cannot be taken. ITM-322 builds
 // jobWorkflowFiles (ci.mjs) with the templates workflow/github.yml and workflow/gitlab.yml. bridgeAgentDriver,
-// resumeJob, retryJob and routeStrategies are not part of
+// resumeJob and retryJob are not part of
 // this item (UC-010, UC-011, UC-036) and are not built yet; nor is a job of a run
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 // ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
 // ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; retryJob is not built yet.
+// ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request.
 //
 // Module: MOD-runtimes
 //
@@ -25,6 +26,7 @@ export { jobWorkflowFiles } from "./ci.mjs";
 export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
 export { handOverJob } from "./hand-over.mjs";
+export { routeStrategies } from "./pull-request.mjs";
 
 export { RuntimeError } from "./ci.mjs";
 
