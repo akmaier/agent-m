@@ -31,6 +31,15 @@ Uses committed on `main` for akmaier's acceptance, which adds `testEndpoint`.
   address — and the routes that would work.
 - Where it works, the failure is the agent's, and the summary names `AgentFailed`'s last output, as today.
 
+The draft was accepted with `90ed6d66` (`docs/approvals/MOD-workflow-entries-e8d9eb778f11.md`). Today the entry
+classifies `AgentFailed`'s last output with `diagnoseEndpoint` (`src/workflow-entries/product.mjs:156–159`). This item
+replaces that with one `testEndpoint` call and its `diagnosis`.
+
+**Existing tests.** TST-498006 (`tests/workflow-entries-hand-over.test.mjs:355`), an endpoint the run cannot reach,
+keeps its expected reason `not reachable`. Its run now makes the one `testEndpoint` request, which the test's fixture
+must answer or refuse without leaving the machine. That is checked under a `fetch` spy. No other test names
+`AgentFailed` with an endpoint in MOD-workflow-entries.
+
 ## Acceptance
 
 - A fixture opencode whose endpoint answers 401, 404 and no connection gives the three reasons `diagnoseEndpoint` gives

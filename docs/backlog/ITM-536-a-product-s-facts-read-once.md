@@ -49,6 +49,15 @@ heads `undecidedHeads` names, with the module files read by `artifactSchemas().m
 The scope `all` is left to a later item. Until then the module's header names it as not built, as it names its other
 unbuilt parts.
 
+The draft was accepted with `90ed6d66` (`docs/approvals/MOD-progress-measures-8b1263eaba0c.md`).
+
+**Existing tests: none change.** A grep of `tests/` for `productFacts` finds two hits:
+- `tests/test_main_page.py:51` calls `progress.productFacts`, which is `src/home/progress.mjs`, not this module;
+- a `todo` text in `tests/system-uc-019-change-by-prompt.test.mjs:421`.
+
+A new file in `src/progress-measures/` takes a name that `tests/jsrun.py` reaches by no other file, since jsrun refuses
+two files of one name.
+
 ## Acceptance
 
 - Against a fixture product and instance, `productFacts` reads the facts its file names once each, and `held` is computed
