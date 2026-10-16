@@ -51,8 +51,8 @@ function stageSsh2() {
 function ensureWebServers() {
   for (const binary of ["apache2", "nginx", "openssl"]) {
     if (command("sh", ["-c", `command -v ${binary}`]).status !== 0) {
-      requireSuccess("sudo", ["apt-get", "update"]);
-      requireSuccess("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "apache2", "nginx", "openssl"]);
+      requireSuccess("sudo", ["apt-get", "-o", "DPkg::Lock::Timeout=50", "-o", "Acquire::Retries=3", "update"], { timeout: 60_000 });
+      requireSuccess("sudo", ["apt-get", "-o", "DPkg::Lock::Timeout=50", "-o", "Acquire::Retries=3", "install", "--yes", "--no-install-recommends", "apache2", "nginx", "openssl"], { timeout: 60_000 });
       return;
     }
   }
