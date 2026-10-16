@@ -8,7 +8,7 @@
 // Run: node --test tests/review-pages-draft-architecture.test.mjs
 //
 // Module: MOD-review-pages
-// Guards: UC-022; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; NO REVIEWER IS THE DRAFTER; THE PAGE STATES WHAT IT SENDS WHERE; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
+// Guards: UC-022; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; NO REVIEWER IS THE DRAFTER; THE PAGE NAMES WHERE IT SENDS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
 // This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to MOD-repository-hosts'
@@ -460,7 +460,7 @@ test("decision/draft — a participant whose place a linked source forbids is le
 // ---------------------------------------------------------------- the run panel
 
 // TST-442008 · level: unit · module: MOD-review-pages
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; UC-022 (3, 4)
+// guards: THE PAGE NAMES WHERE IT SENDS; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; UC-022 (3, 4)
 // given: the ready product; drafter-a and reviewer-b chosen
 // input: Show the run panel
 // expect: two destinations — drafter-a as drafter and reviewer-b as reviewer, each with its place — each receiving seven parts: SPEC.md, both use cases and chapters 9 to 12 of the book; in it the only Run; nothing written, nothing sent
@@ -506,7 +506,7 @@ test("decision/draft — a participant whose context is too small is named, and 
 // ---------------------------------------------------------------- Run
 
 // TST-442010 · level: unit · module: MOD-review-pages
-// guards: ONE CLICK PER DECISION; THE PAGE STATES WHAT IT SENDS WHERE; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-022 (4, 4a)
+// guards: ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-022 (4, 4a)
 // given: the panel of drafter-a with reviewer-b, whose endpoints answer an empty architecture and no findings
 // input: a click on Run
 // expect: the job runs in this tab: one request to each endpoint, the record of one job of the kind derive-architecture in docs/jobs/ — its start with taking in one commit, its end in another —, naming every requirement and use case it works on; the page says the job ran

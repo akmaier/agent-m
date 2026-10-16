@@ -1,5 +1,5 @@
 // The run panel (ITM-344) — MOD-site-frame's runPanel, as docs/architecture/MOD-site-frame.md states it under Interfaces: the panel
-// before a job runs (THE PAGE STATES WHAT IT SENDS WHERE): every destination — the participant, its part as drafter, reviewer or
+// before a job runs (THE PAGE NAMES WHERE IT SENDS): every destination — the participant, its part as drafter, reviewer or
 // checker, its model, where it processes data — and what goes there, part by part with its size against the participant's context
 // and the requirement sources whose content it carries; what does not fit, and why; a part left out, with its reason; the findings
 // that keep the job from starting; the limit of correction rounds fixed for it. Run is offered only when nothing keeps the job from
@@ -7,7 +7,7 @@
 // Run: node --test tests/site-frame-run-panel.test.mjs
 //
 // Module: MOD-site-frame
-// Guards: THE PAGE STATES WHAT IT SENDS WHERE; ONE CLICK PER DECISION; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-005; UC-007; UC-019
+// Guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-005; UC-007; UC-019
 // Level: unit
 //
 // This imports the module's existing browser harness unchanged, as tests/site-frame-review-explanations.test.mjs does, and
@@ -74,7 +74,7 @@ const panel = (value, handlers = {}) => runPanel(value, { onRun: async () => {},
 // ---------------------------------------------------------------- what goes where
 
 // TST-472846 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-005; UC-007; UC-019
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-005; UC-007; UC-019
 // given: a Prepared value with a drafter that receives three parts, one of which carries the content of SRC-standard, and a reviewer that receives one of them
 // input: runPanel(prepared, handlers)
 // expect: a run panel with one destination for each participant, in order, each naming the participant, its role, its model and its place, and listing the parts it receives, each with its name and its size in tokens, the source identifier only on the part that carries it; the size of the whole against the participant's context
@@ -104,7 +104,7 @@ test("runPanel — every destination with its participant, role, model and place
 });
 
 // TST-472847 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-005
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-005
 // given: the Prepared value above, and one whose only destination is a person, who has no model, no place and no context
 // input: runPanel for each
 // expect: the first names the model and the place; the second says the model, the place and the context are not declared, and prints neither null nor undefined
@@ -140,7 +140,7 @@ test("runPanel — a participant whose context is too small is named with what i
 });
 
 // TST-472849 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-005
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-005
 // given: a Prepared value whose only destination is a person, whose context is not declared and who therefore is not in notFitting, to show Run offered; and one whose notFitting names three participants, the third a person whose context is null
 // input: runPanel for each
 // expect: Run for the first; for the second one statement for each participant, in order — the last, a participant whose context is not declared, saying so —, and no Run
@@ -177,7 +177,7 @@ test("runPanel — a part left out is shown with its reason, and does not keep t
 });
 
 // TST-472851 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; UC-019
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-019
 // given: the Prepared value above with two findings that keep the job from starting: an error that a participant lacks a capability, and one that a restricted source may not go to the reviewer's place
 // input: runPanel
 // expect: each finding shown once, in order, with its kind, what it says, its fix and its rule; no Run button
@@ -218,7 +218,7 @@ test("runPanel — the limit of correction rounds fixed for the job", () => {
 // ---------------------------------------------------------------- the decision
 
 // TST-472853 · level: unit · module: MOD-site-frame
-// guards: ONE CLICK PER DECISION; THE PAGE STATES WHAT IT SENDS WHERE; UC-005 step 3
+// guards: ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; UC-005 step 3
 // given: the Prepared value above, a handler onRun that counts its calls
 // input: runPanel, nothing pressed; then Run pressed twice
 // expect: nothing sent before the press; after it onRun called once, the second press calling nothing; the Run button disabled
@@ -256,7 +256,7 @@ test("runPanel — Cancel is offered only with onCancel, and calls it", () => {
 // ---------------------------------------------------------------- text is shown as text
 
 // TST-472855 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE
+// guards: THE PAGE NAMES WHERE IT SENDS
 // given: a Prepared value whose participant, part, left-out reason and finding hold markup
 // input: runPanel
 // expect: the text is shown as it is written and the panel holds no element the text made: no <b>, <img> or <script>

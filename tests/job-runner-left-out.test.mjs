@@ -4,7 +4,7 @@
 // Run: node --test tests/job-runner-left-out.test.mjs
 //
 // Module: MOD-job-runner
-// Guards: THE PAGE STATES WHAT IT SENDS WHERE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
+// Guards: THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // Level: component
 //
 // No kind of the catalogue has such a recipe yet. Before this file loads the runner — and with it the catalogue, once in
@@ -58,7 +58,7 @@ const contextOf = (kind) => ({ kind, params: {}, product: { address: "https://gi
   commit: "0".repeat(40) }, jobId: null });
 
 // TST-472332 · level: component · module: MOD-job-runner
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
+// guards: THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: derive-requirements as this file's disk gives it, source-excerpt a recipe whose part may be left out; known positive first — the stand-in gives its part; then it fails with NotLinked
 // input: prepareJob("derive-requirements", its context, { drafter, reviewers: [] }) for each
 // expect: first the excerpt among the parts, not required, and nothing left out; then no excerpt, `leftOut` naming source-excerpt with the failure's own words as its reason, and the other parts as before

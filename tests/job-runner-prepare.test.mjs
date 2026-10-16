@@ -5,7 +5,7 @@
 // Run: node --test tests/job-runner-prepare.test.mjs
 //
 // Module: MOD-job-runner
-// Guards: THE PAGE STATES WHAT IT SENDS WHERE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; NOTHING IS LEFT OUT OF
+// Guards: THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; NOTHING IS LEFT OUT OF
 //         AN ARCHITECTURE PROMPT SILENTLY; THE CORRECTION LOOP HAS A FIXED LIMIT; NO REVIEWER IS THE DRAFTER; RESTRICTED
 //         CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT
 //         DECLARES ITS CAPABILITIES
@@ -101,7 +101,7 @@ test("registerStrategies — a name registered twice is refused as DuplicateStra
 // ---------------------------------------------------------------- prepareJob: parts, destinations, limit
 
 // TST-472335 · level: component · module: MOD-job-runner
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; THE CORRECTION LOOP HAS A FIXED LIMIT
+// guards: THE PAGE NAMES WHERE IT SENDS; THE CORRECTION LOOP HAS A FIXED LIMIT
 // given: the kind derive-architecture, whose recipes are whole-spec, accepted-use-cases and chapters-for-architecture, reviewed by one participant of review-architecture, whose recipes are whole-spec, accepted-use-cases, the draft under review and chapters-for-architecture; drafter-a with 200000 tokens of context; reviewer-c, another participant with another model
 // input: prepareJob("derive-architecture", its context, { drafter: drafter-a, reviewers: [reviewer-c] }); and once more with the limit 2
 // expect: the job's parts — the SPEC, both use cases and the chapters, whole, each sized by the estimate and naming its recipe, the reviewer's being the same; two destinations: the drafter, with those parts and its prompt, and the reviewer, with review-architecture's prompt and the parts its recipes give before a draft exists, each at its place; everything fits, nothing left out, nothing blocking; the kind's limit, 5, and the caller's, 2, where it gives one

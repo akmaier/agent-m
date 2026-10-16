@@ -6,7 +6,7 @@
 // Run: node --test tests/review-pages-draft-requirements.test.mjs
 //
 // Module: MOD-review-pages
-// Guards: UC-005; THE PAGE STATES WHAT IT SENDS WHERE; ONE CLICK PER DECISION; A GENERATED ARTIFACT IS A PROPOSAL; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; A CONFLICT IS DECIDED BY A PERSON; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; THE ROUNDS ARE COUNTED AND SHOWN
+// Guards: UC-005; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A GENERATED ARTIFACT IS A PROPOSAL; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; A CONFLICT IS DECIDED BY A PERSON; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; THE ROUNDS ARE COUNTED AND SHOWN
 // Level: unit
 //
 // The test reuses the browser DOM harness of tests/review-pages-use-cases.test.mjs. The product and the instance are
@@ -188,12 +188,12 @@ async function panelFor(target, participant = "drafter-a") {
 // ---------------------------------------------------------------- assertions
 
 // TST-361001 - level: unit - module: MOD-review-pages
-// guards: UC-005; THE PAGE STATES WHAT IT SENDS WHERE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
+// guards: UC-005; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: a product that links SRC-policy version 2026-10-01, whose version has main.md and appendix.md
 // input: the SPEC change list, then #spec-entry/id=draft
 // expect: the list links to drafting requirements; the draft page names the linked source, its part, both files, the participant and the folded explanations; nothing is written or sent
 // TST-584009 · level: unit · module: MOD-review-pages
-// guards: UC-005; THE PAGE STATES WHAT IT SENDS WHERE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
+// guards: UC-005; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: a product that links SRC-policy version 2026-10-01, whose version has main.md and appendix.md
 // input: the SPEC change list, then #spec-entry/id=draft
 // expect: the list links to drafting requirements; the draft page names the linked source, its part, both files, the participant and the folded explanations; nothing is written or sent
@@ -214,12 +214,12 @@ test("spec-entry/draft - linked source, part, files and participant are shown be
 });
 
 // TST-361002 - level: unit - module: MOD-review-pages
-// guards: UC-005 (steps 1 to 3, alternative flow 2a); THE PAGE STATES WHAT IT SENDS WHERE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; ONE CLICK PER DECISION
+// guards: UC-005 (steps 1 to 3, alternative flow 2a); THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; ONE CLICK PER DECISION
 // given: a two-file linked source, the person leaves main.md checked and clears appendix.md
 // input: Show the run panel, once with drafter-a and once with small-d
 // expect: the panel names derive-requirements' destination and the selected file, the existing requirements count, and chapter 8; small-d is named as unable to hold the context and Run is not offered; nothing is sent
 // TST-584010 · level: unit · module: MOD-review-pages
-// guards: UC-005 (steps 1 to 3, alternative flow 2a); THE PAGE STATES WHAT IT SENDS WHERE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; ONE CLICK PER DECISION
+// guards: UC-005 (steps 1 to 3, alternative flow 2a); THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; ONE CLICK PER DECISION
 // given: a two-file linked source, the person leaves main.md checked and clears appendix.md
 // input: Show the run panel, once with drafter-a and once with small-d
 // expect: the panel names derive-requirements' destination and the selected file, the existing requirements count, and chapter 8; small-d is named as unable to hold the context and Run is not offered; nothing is sent

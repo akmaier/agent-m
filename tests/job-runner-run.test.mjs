@@ -311,7 +311,7 @@ test("runJob — a cancelled job is refused as Cancelled and writes nothing more
 });
 
 // TST-472361 · level: component · module: MOD-job-runner
-// guards: THE PAGE STATES WHAT IT SENDS WHERE
+// guards: THE PAGE NAMES WHERE IT SENDS
 // given: a prepared job with a blocking finding, and one with a participant named as not fitting
 // input: runJob of each
 // expect: both refused as NotStartable, nothing sent
