@@ -32,6 +32,7 @@ function rowOf(cells) {
     task: json(cells.Task, "Task"),
     login: json(cells["Login check"], "Login check"),
     keyVariable: cells["Key variable"] ?? null,
+    endpoint: cells.Endpoint == null ? null : json(cells.Endpoint, "Endpoint"),
     install: { macos: cells["Install macos"], windows: cells["Install windows"], linux: cells["Install linux"] },
   };
 }
