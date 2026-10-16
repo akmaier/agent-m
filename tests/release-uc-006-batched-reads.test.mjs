@@ -59,8 +59,8 @@ test("TST-479202: the token goes only to api.github.com, in the header, also on 
 // guards: UC-006; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
 // given: the product on GitHub with the reviewer's token; the account's hourly limit is used up, which GitHub tells on a query as (a) 403 with X-RateLimit-Remaining: 0 and (b) 200 with the error type RATE_LIMITED and X-RateLimit-Remaining: 0; and, apart, (c) a query answered 401 "Bad credentials"
 // input: open the SPEC-entry page of entry 07 for each
-// expect: (a) and (b) fail with RateLimited, whose text names the used-up limit and its reset (2030-01-01) and does not mention the token; (c) fails with TokenRefused; no file is read on its own after the limit is named
-test("TST-479203: a used-up limit on a batched read is named RateLimited, a refused token TokenRefused", async () => {
+// expect: the page is drawn (it does not reject), and its last element is one problem paragraph: for (a) and (b) it names the used-up limit and its reset (2030-01-01) and does not mention the token; for (c) it reads "GitHub rejected authentication with your ... Renew it on ..."; no file is read on its own after the limit is named
+test("TST-479203: a used-up limit on a batched read is named on the page, a refused token shows its message", async () => {
   const limit = { "Content-Type": "application/json", "x-ratelimit-remaining": "0", "x-ratelimit-limit": "5000", "x-ratelimit-reset": "1893456000" };
   const answers = [
     [() => new Response(JSON.stringify({ message: "API rate limit exceeded" }), { status: 403, headers: limit }), "RateLimited"],
@@ -69,14 +69,39 @@ test("TST-479203: a used-up limit on a batched read is named RateLimited, a refu
   ];
   for (const [graphql, name] of answers) {
     const fake = fakeGitHub(productFiles(1332), { graphql });
-    const failure = await openPage(fake, { id: ENTRY_ID }).then(() => null, (e) => e);
-    assert.equal(failure?.name, name);
+    const page = await openPage(fake, { id: ENTRY_ID });
+    const problems = byClass(page, "p", "problem");
+    assert.equal(problems.length, 1, `${name}: one problem paragraph on the page`);
+    assert.equal(page.children[page.children.length - 1], problems[0], `${name}: the paragraph is appended after what the view drew`);
+    const text = problems[0].textContent;
     if (name === "RateLimited") {
-      assert.match(failure.message, /request limit/);
-      assert.match(failure.message, /used up/);
-      assert.match(failure.message, /2030-01-01/);
-      assert.doesNotMatch(failure.message, /token/i);
+      assert.match(text, /request limit/);
+      assert.match(text, /used up/);
+      assert.match(text, /resets at 2030-01-01/);
+      assert.doesNotMatch(text, /token/i);
+    } else {
+      assert.match(text, /GitHub rejected authentication with your .+\. Renew it on /);
     }
     assert.equal(fake.contentPaths().filter((p) => p.startsWith("docs/backlog/")).length, 0, "no backlog item is read on its own after the failure");
   }
+});
+
+// TST-521201 · level: release · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
+// guards: UC-006; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// given: the product of 1,332 files on GitHub with the reviewer's token stored; the account's hourly limit is used up, which GitHub tells on the impact list's batched queries as 403 with X-RateLimit-Remaining: 0, X-RateLimit-Limit: 5000 and X-RateLimit-Reset: 1893456000 (2030-01-01), after the snapshot has been read
+// input: open the SPEC-entry page of entry 07, as the dashboard opens it
+// expect: opening the page resolves, it does not reject; the page holds exactly one problem paragraph, the last element of the page, which reads that GitHub's request limit for the account these requests are made with is used up and that it resets at 2030-01-01; no word "token" stands in the paragraph, and it offers no link to store a token
+test("TST-521201: a SPEC-entry page whose impact list meets a used-up limit names the limit and its reset, not the token", async () => {
+  const limit = { "Content-Type": "application/json", "x-ratelimit-remaining": "0", "x-ratelimit-limit": "5000", "x-ratelimit-reset": "1893456000" };
+  const fake = fakeGitHub(productFiles(1332), { graphql: () => new Response(JSON.stringify({ message: "API rate limit exceeded" }), { status: 403, headers: limit }) });
+  const page = await openPage(fake, { id: ENTRY_ID });
+
+  const problems = byClass(page, "p", "problem");
+  assert.equal(problems.length, 1, "one problem paragraph on the page");
+  assert.equal(page.children[page.children.length - 1], problems[0], "the paragraph is the last element of the page");
+  const text = problems[0].textContent;
+  assert.match(text, /request limit for the account these requests are made with is used up/);
+  assert.match(text, /resets at 2030-01-01/);
+  assert.doesNotMatch(text, /token/i);
+  assert.equal(byClass(problems[0], "a", "token-step").length, 0, "no link to store a token");
 });

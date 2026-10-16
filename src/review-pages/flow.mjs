@@ -113,6 +113,15 @@ export function reviewRoute(kind) {
       return;
     }
     const where = { host, token, snapshot, context, target };
+    try {
+      await view(where, params);
+    } catch (failure) {
+      target.append(problem(failure, token));
+    }
+  }
+
+  async function view(where, params) {
+    const { target, snapshot } = where;
     if (params.prompt && kind.kind === "requirement" && kind.prompt) await showRequirementsPrompt(where, kind, params);
     else if (kind.edit) await showEdit(where, kind, params);
     else if (params.edit && params.id && kind.save === "file") {
