@@ -64,6 +64,17 @@ function resultsOf(written) {
 }
 
 /**
+ * tabContext(inputs) -> JobContext — the context of a job that runs in this tab, from what its caller has read; it makes no request. Its caller has connected the hosts
+ * already, as the review pages do: `connect(address)` gives the product's host for the product's address and the instance's host for the instance's address
+ * (`instance.snapshot.repository.web`), and `null` for any other address. `now` is the moment of the call and `instance.checkout` is `null`.
+ */
+export function tabContext({ kind, params, product, instance, participants, places, gates, person, agentM, jobId }) {
+  const hosts = new Map([[instance.snapshot.repository.web, instance.host], [product.address, product.host]]);
+  return { kind, params, product, instance: { ...instance, checkout: null }, connect: async (address) => hosts.get(address) ?? null,
+    participants, places, gates, person, now: new Date(), agentM, jobId };
+}
+
+/**
  * runOnTab(prepared, context, connections, hooks) -> Promise<JobResult> — runs the prepared job in this tab with MOD-job-runner, attended unless its record names a
  * run: the drafter's and the reviewers' drivers from their routes (an endpoint's driver from its configuration, `endpointDriver`), a gate reached and the end
  * appended to the job's record through the host, and the result returned for the page. A job that waits at a gate has no end. A failure — a driver's, by its name —
@@ -72,6 +83,7 @@ function resultsOf(written) {
 export async function runOnTab(prepared, context, connections, hooks) {
   const { host, record, refine, onOutput, signal } = hooks;
   const append = async (part) => {
+    if (!record) return; // a conversation of the prompt bar has no record: nothing is appended anywhere
     const { defaultBranch } = await host.repositoryInfo();
     const snapshot = await host.readSnapshot(defaultBranch);
     const text = appendToRecord(await snapshot.read(record.path), part);
@@ -87,7 +99,7 @@ export async function runOnTab(prepared, context, connections, hooks) {
   try {
     const drivers = { drafter: prepared.drafter ? driverOf(prepared.drafter, connections) : null,
       reviewers: prepared.reviewers.map((reviewer) => driverOf(reviewer, connections)) };
-    result = await runJob(prepared, drivers, { attended: !record.run, context, refine, onOutput, onGate, signal });
+    result = await runJob(prepared, drivers, { attended: !record?.run, context, refine, onOutput, onGate, signal });
   } catch (error) {
     if (error.name === "Cancelled") throw error;
     // The job's own failure is what the caller must see: a record that cannot be appended to does not hide it.
