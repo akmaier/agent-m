@@ -80,11 +80,11 @@ built into MOD-job-runner.
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
 | `derive-requirements` | UC-005 | draft text | | `source-excerpt`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
-| `change-requirements` | UC-019, UC-012, UC-049 | draft text | | `instruction`, `conversation`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
+| `change-requirements` | UC-019, UC-012, UC-049 | draft text | | `instruction`, `conversation`, `draft?`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
-| `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
+| `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `draft?`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
-| `change-architecture` | UC-023, UC-049 | draft text | `rests-on-accepted` | `instruction`, `conversation`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
+| `change-architecture` | UC-023, UC-049 | draft text | `rests-on-accepted` | `instruction`, `conversation`, `draft?`, `whole-spec`, `use-cases`, `whole-architecture`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `identifier-kept`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
 | `review-architecture` | UC-022, UC-023 | draft text | | `whole-spec`, `accepted-use-cases`, `draft`, `chapters-for-architecture` | | | | `none` · `return-draft` | findings, each a warning |
 | `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves, each a `GroupMove` of MOD-group-document |
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
@@ -142,6 +142,11 @@ latter for tests that pass before any code exists (UC-024, UC-034); for `write-t
 A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it — the linked
 register entry that MOD-source-register's `personSource` names for their account —, so that every requirement it drafts
 names that person among its sources (`THE PERSON WHO PROMPTS IS A SOURCE`).
+
+A follow-up asked for on the review pages' route `draft` hands `change-requirements`, `change-use-case` and
+`change-architecture` the conversation's draft as it stands as their `draft`, so that the participant changes that
+draft further and its answer is the newer draft (UC-019 step 8). Without a draft, the recipe gives nothing, as
+`instruction?` does for a kind started without one.
 
 A kind whose jobs write or change requirements or use cases, tests or the architecture, review the architecture, or
 implement, names among its recipes the one of MOD-source-register that gives the chapters of the book *Vibe Coding* for
