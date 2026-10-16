@@ -9,9 +9,11 @@ realises:
   - NO COST IS GUESSED
 modules:
   - MOD-endpoint-calls
+  - MOD-desktop-shell
 builds_on:
 tests:
   - unit
+  - system
 origin:
   - the architecture of the prompt bar, accepted by akmaier at 7e893c63 (110d2499)
   - MOD-endpoint-calls, Interfaces: endpointExchange, testEndpoint
@@ -26,6 +28,18 @@ MOD-endpoint-calls' `endpointExchange` sends one request of a tool loop in the e
 OpenAI-compatible endpoint, tool use of an Anthropic one — and returns the endpoint's text, its tool calls and the usage
 it reported, carrying no call out. `testEndpoint` offers the model one harmless tool and says whether it called it —
 `tools` and `toolMessage` (UC-003 step 5, 5a).
+
+Existing tests whose expected result follows the accepted endpoint interface:
+- TST-472213 (TST-260-001) and TST-472214 (TST-260-002), `tests/endpoint-calls.test.mjs`: a text-only `ok` fixture
+  returns `tools: false` and `toolMessage: "ok"` beside `works` and `model`; the request offers the harmless tool rather
+  than asking for a one-word answer with one output token.
+- TST-292001, `tests/system-uc-003-direct-endpoint.test.mjs`: the exact request-body expectation is the tool probe.
+- TST-268001, `tests/desktop-shell-endpoint-composition.test.mjs`: the forwarded answer carries the two new fields,
+  and the captured request body is the tool probe. MOD-desktop-shell is included only for this owned boundary test;
+  no Desktop production code changes.
+
+The authentication, pairing, origin, request-count, storage and secret-boundary assertions remain unchanged. Production
+changes stay in MOD-endpoint-calls' Parts; test expectations are stated literally, never read from a document at runtime.
 
 ## Acceptance
 
