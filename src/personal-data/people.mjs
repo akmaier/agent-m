@@ -25,11 +25,25 @@ function wordAt(text, needle, lead = "") {
   return places;
 }
 
+/**
+ * Any stretch of whole digit groups inside a run whose digits equal a phone's digits: it begins at the run's start (a leading
+ * `+` included) or after a separator, and ends at the run's end or before a separator.
+ */
 function phonesAt(text, phones) {
   const wanted = new Set(phones.map(digitsOf).filter(Boolean));
   const places = [];
-  for (const match of text.matchAll(PHONE_RUN)) {
-    if (wanted.has(digitsOf(match[0]))) places.push({ start: match.index, end: match.index + match[0].length });
+  for (const run of text.matchAll(PHONE_RUN)) {
+    const groups = [...run[0].matchAll(/\d+/g)];
+    for (let first = 0; first < groups.length; first += 1) {
+      let digits = "";
+      for (let last = first; last < groups.length; last += 1) {
+        digits += groups[last][0];
+        if (wanted.has(digits)) {
+          const from = first === 0 ? 0 : groups[first].index;
+          places.push({ start: run.index + from, end: run.index + groups[last].index + groups[last][0].length });
+        }
+      }
+    }
   }
   return places;
 }

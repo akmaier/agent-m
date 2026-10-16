@@ -20,7 +20,8 @@
 //   - The parts of a name are what blanks separate in it, each kept as written, a period included ("Dr." is a part).
 //   - An address is matched whole and by its local part, the text before `@`; an account as given, with or without a leading `@`.
 //   - A phone number is a run of digits that may start with `+` and be separated by blanks (space, tab), hyphens, slashes, dots or
-//     parentheses, within one line; it is a hit where its digits equal the digits of one of `people.phones`.
+//     parentheses, within one line; any stretch of whole digit groups inside such a run is a hit where its digits equal the digits of one of
+//     `people.phones` (it begins at the run's start or after a separator and ends at the run's end or before a separator).
 //   - `line` and `column` count from 1; a line ends at "\n" or "\r\n"; the column counts the text's UTF-16 units from the line's start.
 //   - A part found inside the whole it belongs to (a name part inside the whole name, a local part inside the whole address) is not
 //     a hit of its own: the whole is the hit. Hits that are equal in kind, place and extent are given once.
