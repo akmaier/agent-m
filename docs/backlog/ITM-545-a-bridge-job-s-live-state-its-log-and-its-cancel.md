@@ -33,6 +33,11 @@ Bridge's name (MOD-job-ledger, Data). The CI and tab routes are ITM-535's.
   an error.
 - **`jobLog`.** `{ stream }`, an async iterable that asks `bridgeJobLog(bridge, id, from)` from line 0, yields each
   line, and asks again from `next` until `ended`.
+  - After an answer that brought new lines, it asks again at once.
+  - After an answer that has not ended and brought no new line, it waits one second before asking again.
+  - This settles how often to ask, which the texts leave open. MOD-bridge-client gives the log "from a line on, so that a
+    page can follow it", and the Bridge answers at once. Asking again at once while a job is quiet would send the Bridge
+    requests without a pause.
 - **`cancelJob`.** `cancelOnBridge(bridge, id)`. Where `confirmed`, it appends the end `cancelled` with `appendToRecord` on
   the head read, and returns `cancelled`. Otherwise it returns `cancelling` and appends nothing.
 
