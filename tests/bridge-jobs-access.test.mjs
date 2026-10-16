@@ -59,7 +59,9 @@ function stateOf(folder) {
   const files = [];
   (function walk(dir) {
     for (const name of readdirSync(dir).sort()) {
-      const path = join(dir, name), stat = statSync(path);
+      const path = join(dir, name);
+      if (name.endsWith(".lock") && path.slice(folder.length).startsWith("/.git/")) continue; // git's own locks come and go by themselves
+      const stat = statSync(path);
       if (stat.isDirectory()) walk(path); else files.push(`${path.slice(folder.length)}:${stat.size}:${stat.mtimeMs}`);
     }
   })(folder);
