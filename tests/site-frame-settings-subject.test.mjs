@@ -18,9 +18,11 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { all, installPage, fixtureStorage, FixtureElement } from "./site-frame-start.d/dom.mjs";
 import { openStore, readTabValue, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
+import { renderArtifact } from "../src/markdown-render/index.mjs";
 import { view } from "../src/settings-pages/index.mjs";
 
 const { startPage } = await import("../src/site-frame/index.mjs");
@@ -112,4 +114,27 @@ test("the Settings routes keep the frame's default subject: the settings and the
   }
   assert.equal(seen.length, 2);
   assert.deepEqual(readTabValue(openStore("acme/instance"), "prompt-bar:conversation").map((message) => message.subject), ["settings", "settings", "settings", "settings"]);
+});
+
+// TST-511202 · level: unit · module: MOD-site-frame · MOD-settings-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-042 (every section and line carries a folded What is this?)
+// given: the review page at #settings (the real Settings route), an instance without a switch file, and explanations.md (the data under test, read only to find the topic)
+// input: the Settings page is drawn
+// expect: the line Recording conversations holds one folded explanation — a details of class explain, without the open attribute, with the summary "What is this?" — whose body is
+//   the rendered Markdown of the topic recording-conversations, and not that of the topic prompt-bar (known positive: the two renderings differ)
+test("the line Recording conversations holds the folded explanation of the topic recording-conversations", async () => {
+  const page = await start();
+  const line = one(page.body, "settings-recording");
+  assert.ok(line, "the instance's section holds the line Recording conversations");
+  const folded = byClass(line, "explain");
+  assert.equal(folded.length, 1, "the line holds one folded explanation");
+  assert.equal(folded[0].localName, "details");
+  assert.equal(folded[0].getAttribute("open"), null, "it is folded");
+  const [summary, body] = folded[0].children;
+  assert.equal(summary.textContent, "What is this?");
+  const text = readFileSync(new URL("../src/site-frame/explanations.md", import.meta.url), "utf8");
+  const topic = (name) => text.split(/^## /m).slice(1).find((part) => part.startsWith(`${name}\n`))?.slice(name.length + 1);
+  assert.ok(topic("recording-conversations")?.trim() && topic("prompt-bar")?.trim(), "known positive: explanations.md holds both topics");
+  assert.notEqual(renderArtifact(topic("recording-conversations")).innerHTML, renderArtifact(topic("prompt-bar")).innerHTML, "known positive: the two topics render differently");
+  assert.equal(body.innerHTML, renderArtifact(topic("recording-conversations")).innerHTML, "the body is the topic recording-conversations, rendered");
 });

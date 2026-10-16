@@ -300,16 +300,13 @@ test("a switch file created meanwhile refuses the save and nothing is written", 
 // guards: EVERY STEP EXPLAINS ITSELF; UC-042 (every section and line carries a folded What is this?)
 // given: an instance repository without a switch file
 // input: the Settings page is rendered
-// expect: the line holds a folded What is this? — a details with the summary "What is this?" — whose text says that a repository its server reports as public publishes what is
-//   committed to it, and that records already written stay in the history of the repositories
+// expect: the line holds one folded explanation — a details of class explain — with the summary "What is this?". The fixture DOM of this file renders no Markdown, so the
+//   text of the topic is checked on the line in tests/site-frame-settings-subject.test.mjs, and the topic itself in tests/site-frame-recording-explanations.test.mjs
 test("the line has its folded explanation", async () => {
   const page = await open();
   const folded = descendants(page.line, (node) => node.localName === "details" && node.className.split(" ").includes("explain"));
   assert.equal(folded.length, 1, "the line holds one folded explanation");
   assert.equal(descendants(folded[0], (node) => node.localName === "summary")[0].textContent, "What is this?");
-  const text = folded[0].textContent.replace(/\s+/g, " ");
-  assert.match(text, /A repository that its server reports as public publishes what is committed to it/);
-  assert.match(text, /Records already written stay in the history of the repositories/);
 });
 
 // TST-511009 · level: unit · module: MOD-settings-pages
