@@ -1,6 +1,6 @@
 // The explanation of the prompt bar (ITM-530) — MOD-site-frame's explain("prompt-bar"), the folded What is this? that MOD-prompt-bar's
 // startPromptBar puts into the bar (tests/prompt-bar.test.mjs, "both ask the frame to explain the topic prompt-bar"). The topic says,
-// in a few sentences, five things UC-049 and MOD-prompt-bar state of the bar: it lets a person talk with a participant about the
+// in a few sentences, five things UC-049 and MOD-prompt-bar state of the bar, and the examples UC-019 step 1 names: it lets a person talk with a participant about the
 // page shown; a message goes only to the participant named, at the processing place named before it is sent; the conversation is
 // written to a repository only while recording conversations is switched on in the instance's settings; a draft or an edit the
 // participant proposes changes nothing until the person saves it; work the tab cannot do is handed over only on the person's click;

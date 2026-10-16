@@ -1,6 +1,6 @@
 // The explanations of drafting use cases and of changing one by prompt (ITM-348) — MOD-site-frame's explain, for the steps of UC-007
 // and UC-019 that ask something of the person: the requirements to cover; the participant and where it processes data; the run panel
-// and what is sent; the correction loop, its findings and rounds; drafted use cases, written open; the instruction and its examples;
+// and what is sent; the correction loop, its findings and rounds; drafted use cases, written open;
 // the difference against the current text; Save, which writes a use case open; a CI agent's draft. The drafting and prompt pages
 // (ITM-362, ITM-363) show them folded.
 // Run: node --test tests/site-frame-drafting-explanations.test.mjs
