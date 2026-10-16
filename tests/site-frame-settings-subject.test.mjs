@@ -5,7 +5,7 @@
 // Run: node --test tests/site-frame-settings-subject.test.mjs
 //
 // Module: MOD-site-frame · MOD-settings-pages
-// Guards: A STORED SECRET IS HIDDEN UNTIL SHOWN; UC-049 (3c: the context names the settings and whether each is stored, never a stored token); UC-042
+// Guards: A STORED SECRET IS HIDDEN UNTIL SHOWN; UC-049; UC-042
 // Level: unit
 //
 // Each test names its input and states its expected values in its own text; none reads an expected result from the SPEC, a use case or
