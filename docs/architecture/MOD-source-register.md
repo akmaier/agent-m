@@ -32,6 +32,7 @@ provides:
   - versionCommits
   - linkedVersion
   - personSource
+  - personAccount
   - readContent
   - affectedRequirements
   - sourceFindings
@@ -155,6 +156,9 @@ names no source.
 - `personSource(links: Document, register: Document[], account: string) -> string | null` — the identifier of the
   register entry of kind `person` whose `identifier` is the account `<server>/<account>` and which the product links, or
   `null`: the source of the person who gives an instruction (`THE PERSON WHO PROMPTS IS A SOURCE`).
+- `personAccount(instance: Snapshot) -> string | null` — the account `<server>/<account>` of the person who gives an
+  instruction, which `personSource` takes: the owner of the instance's repository on its server's host, `github.com` on
+  GitHub. It is `null` where the snapshot names no owner. No request is made.
 - `readContent(version: SourceVersion, open: (source: string) => Promise<Host>) -> Promise<{ name: string, bytes:
   Uint8Array }[]>` — reads every stored file of the version from `docs/sources/<source>/<version>/` of the repository that
   holds it, at its default branch, across the network through the host `open` gives for the version's source — its

@@ -62,6 +62,7 @@ uses:
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
   - MOD-source-register.personSource
+  - MOD-source-register.personAccount
   - MOD-source-register.sourceStrategies
   - MOD-reuse-facts.reuseStrategies
   - MOD-participant-list.participantSchema
@@ -251,7 +252,8 @@ and `docs/participants.md` of the instance.
   MOD-artifact-edits.keptIdentifier — a drafted change's identifier restored before the editor opens.
 - MOD-release-evidence.acceptAndRelease — accepting an open release test report.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — the product's links file and register, and its
-  linked sources with their parts; MOD-source-register.personSource — the source of the person who gives an instruction.
+  linked sources with their parts; MOD-source-register.personSource, MOD-source-register.personAccount — the source of
+  the person who gives an instruction.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.
 - MOD-participant-list.participantSchema, MOD-participant-list.eligible, MOD-participant-list.differs — who may draft and
