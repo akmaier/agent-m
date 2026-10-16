@@ -8,6 +8,8 @@ realises:
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 modules:
   - MOD-run-planner
+  - MOD-workflow-entries
+  - MOD-desktop-shell
 builds_on:
 tests:
   - unit
@@ -35,11 +37,45 @@ whose content it carries.
 
 `src/run-planner/` does not exist yet. This is the module's first code, and its other functions are later items.
 
-**Not ready for a sprint yet.** Its readings are settled before it is selected:
-- which of the job's inputs names the step or item, and how its modules are read (the item's `modules`);
-- what makes "the product's coding standards file", and how a test "names" a module (its header's `Module:`);
-- how the views registering strategies, through MOD-site-frame's `start.mjs` and the workflow entries'
-  `registerStrategies`, are given `runStrategies`.
+**The readings, settled at sprint team1/52** from MOD-run-planner (Interfaces, `runStrategies`), UC-024 step 4 and the
+code that registers strategies:
+- **The step or item.** The job's `params.items` names its backlog items, as the prompt bar writes them
+  (`src/prompt-bar/hand-over.mjs:75`), and `params.steps` its plan steps.
+- **Its modules.** An item's modules are its `modules`, read with `artifactSchemas().item`; a step's modules are those
+  of its file under `docs/plan/`.
+- **What it gives for each module.**
+  - its file `docs/architecture/<MOD>.md`;
+  - the decisions it `follows`, the subsystem's, and the decision that states the system, which is the decision that
+    `refines` no other, as the review pages tell it (`src/review-pages/flow.mjs:50`);
+  - `SPEC.md`;
+  - for each module its `uses` names, that module file's `## Interfaces` section alone, not its code;
+  - the code under its `folder`, and the tests that name it: those with a `module` edge to it in MOD-trace-graph's
+    `traceGraph`, which reads each test header's `Module:` line, as ITM-018's graph does.
+- **A subsystem's integration and the system.** A step that names a subsystem's decision and no module gives that
+  decision and the files, code and tests of its modules. A step that names the decision that states the system gives
+  it, the subsystems' decisions and the use cases.
+- **The sources of each part.** A part carries the sources whose content it holds, as a part does elsewhere
+  (MOD-job-runner's `Part`). Each path that `context.places.contents` names for a restricted source carries that
+  source; every other part carries none.
+- **The coding standards file is cut** from this item until akmaier accepts the draft that names it (`AGENTS.md` at the
+  product's root). MOD-run-planner's accepted text says "the product's coding standards file, if it has one" without a
+  path, and no other text names one.
+- **Where it is registered.** MOD-workflow-entries registers it in CI: its `OFFERED` list
+  (`src/workflow-entries/compose.mjs:126`) gains `["MOD-run-planner", runPlanner, "runStrategies"]`. MOD-desktop-shell
+  registers it on a Bridge, through `bridgeStrategyRegistrations()` (`src/desktop-shell/compose.mjs:25`). Both modules'
+  uses name `runStrategies` already.
+- **In the tab** it is not registered by this item. A hand-over of `implement` from the prompt bar is prepared in the
+  tab, and the page's views do not hand it. That is a gap of the texts, ITM-572.
+
+**Existing tests.** No expected result names `runStrategies`. Three tests register their own stand-in under the name
+`implementation-inputs`, which a real registration in the same process would meet as `DuplicateStrategy`:
+- `tests/job-catalogue-instruction.test.mjs:21`;
+- `tests/job-runner-run.test.mjs:71`;
+- `tests/prompt-bar-hand-over.test.mjs:219`.
+
+The real recipe is registered only where an entry composes a product (`registerStrategiesOnce` in
+`src/workflow-entries/compose.mjs`) or a Bridge composes (`src/desktop-shell/compose.mjs:32`). So these tests are run
+with the change, and their expected results stay as long as they import neither.
 
 ## Acceptance
 
