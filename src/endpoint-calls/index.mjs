@@ -158,13 +158,13 @@ function addUsage(total, usage) {
 }
 
 // The execution loop: each request is one endpointExchange; the runner's ToolUse carries every call out.
-async function toolLoop(config, input, signal) {
+async function toolLoop(config, input, signal, exchangeOf) {
   const { definitions, limit } = input.tools;
   const messages = [{ role: "user", text: driverPrompt(input) }];
   let offered = definitions, carriedOut = 0, usage = null;
   for (;;) {
     signal?.throwIfAborted();
-    const answer = await endpointExchange(config, { messages, tools: offered });
+    const answer = await exchangeOf(config, { messages, tools: offered });
     usage = addUsage(usage, answer.usage);
     if (answer.calls.length === 0 || offered.length === 0) return { text: answer.text, usage };
     messages.push({ role: "assistant", text: answer.text, calls: answer.calls });
@@ -182,10 +182,10 @@ async function toolLoop(config, input, signal) {
 }
 
 // endpointDriver(config, participant) -> Driver — one direct exchange for a prepared job prompt, or, where the input offers
-// tools, the requests of the execution loop; no route selection, retries, input cutting, or part duplication belongs here.
-export function endpointDriver(config, participant) {
+// tools, the requests of the execution loop — each one call of `exchange`, which is endpointExchange unless the caller gives its own; no route selection, retries, input cutting, or part duplication belongs here.
+export function endpointDriver(config, participant, exchange = endpointExchange) {
   return { participant, async send(input, options = {}) {
-    if (input.tools?.definitions?.length) return toolLoop(config, input, options.signal);
+    if (input.tools?.definitions?.length) return toolLoop(config, input, options.signal, exchange);
     const where = typeof window === "undefined" ? "node" : "browser";
     const { url, init } = driverRequest(config, driverPrompt(input), options.signal);
     const response = await endpointResponse(config, { url, init }, where);

@@ -79,8 +79,23 @@ not a question. It covers what is read in batches, and what a second load of unc
 - MOD-repository-hosts is changed by this item.
 - `docs/assets/` is code no module owns. `WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS` (SPEC.md:1421) lets a pull
   request between jobs only make old code call a module in place of its own code, among the forms it names.
-- Before the start it is read whether the loading code's fix fits one of those forms, for example a call of
-  `readMany`. If none fits, the draft names how that code may change.
+- **Read at sprint team1/54: no named form fits a fix inside the loading code.**
+  - The rule's forms are these:
+    - making old code call a module in place of its own code;
+    - removing what a module now provides;
+    - naming a test's module;
+    - letting a whole-repository check allow a stated use;
+    - letting a test helper reach the modules' files;
+    - a workflow file that only runs a module's entry.
+  - Adding a call of `readMany` ahead of `fileText`'s reads replaces none of the loading code's own code, so it is none
+    of these. Bringing back the cache of file texts across loads is not one either.
+  - Two forms of the fix stay open, and the bound's draft chooses between them:
+    - `docs/index.html` loads the module-built site through `start.mjs`, in place of `assets/dashboard-app.mjs`. That is
+      the first form. ITM-574's bound then holds for the modules' loading.
+    - A SPEC change that admits the loading code's fix between jobs. That is a draft for akmaier through a SPEC queue.
+- **The cache across loads.** `d8c69b76` (2026-10-10) retired the Cache Storage `agent-m-file-texts`, in the course of
+  "canonical storage". MOD-browser-store's table of keys names no store of file texts. Bringing such a cache back is a
+  change of MOD-browser-store's text, and part of the bound's draft.
 
 **Earlier work.** `docs/backlog` was grepped for "rate limit", "readMany", "GraphQL" and "batched read"; the known
 positive is ITM-479, which batched the trace graph's reads after akmaier's earlier report. The tests were grepped for
