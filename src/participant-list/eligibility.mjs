@@ -12,7 +12,9 @@
  * in the order they are given, and for each one left out every reason: first each capability of the need it lacks,
  * named; then each source or mailbox among the need's places that does not allow its processing place, naming the place
  * and the source or mailbox; then a context smaller than the need's size, or none declared, naming both; then each
- * participant of the need's notLike it does not differ from, naming it. A participant that declares no processing place,
+ * participant of the need's notLike it does not differ from, naming it; then, for a subagent, `reached through itself`
+ * when its starter is itself, or `reached through <name>, which is no CLI agent of the register` when its starter is
+ * none of the participants given or is not of the type CLI agent. A participant that declares no processing place,
  * as a person does, is at no place a source allows. Every participant considered appears in exactly one of the two
  * lists, as the object it was given.
  * @param {Participant[]} participants
@@ -31,11 +33,36 @@ export function eligible(participants, need) {
           : `processes data at "${participant.place}", where the content of ${from} may not go`)),
       ...sizeReasons(participant, need.size),
       ...(need.notLike ?? []).filter((other) => !differs(participant, other)).map((other) => sameReason(participant, other)),
+      ...throughReasons(participant, participants),
     ];
     if (reasons.length) eligibility.leftOut.push({ participant, reasons });
     else eligibility.eligible.push(participant);
   }
   return eligibility;
+}
+
+// Why a subagent cannot be reached: its starter is itself, or no CLI agent among the participants given. Any other
+// participant has none.
+function throughReasons(participant, participants) {
+  const starter = reachedThrough(participant);
+  if (starter === null) return [];
+  if (starter === participant.name) return ["reached through itself"];
+  return participants.some(({ name, type }) => name === starter && type === "CLI agent") ? []
+    : [`reached through ${starter}, which is no CLI agent of the register`];
+}
+
+// A subagent's route: the word `through`, one space and a participant's name.
+const THROUGH = /^through ([a-z0-9-]+)$/;
+
+/**
+ * reachedThrough(participant: Participant) -> string | null — the name of the participant a subagent is reached through,
+ * from a route that is the word `through`, one space and a participant's name (lower-case letters, digits and hyphens);
+ * null for every other route.
+ * @param {Participant} participant
+ * @returns {string | null}
+ */
+export function reachedThrough(participant) {
+  return THROUGH.exec(participant.route ?? "")?.[1] ?? null;
 }
 
 // Why a participant's context does not hold a job of `size` tokens — none when the need names no size.
