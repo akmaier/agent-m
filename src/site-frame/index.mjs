@@ -18,7 +18,7 @@ import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, loadView } from "./routing.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
 
 export { schemaForm } from "./forms.mjs";
@@ -169,19 +169,18 @@ function sharedHeader(section = null) {
  * waits for acceptance, and MOD-prompt-bar's bar in a footer after the route's main, started once with the store, the instance, the
  * chosen product, the subject of the route shown at each moment, `explain` and the navigation; that footer takes the height of the bar
  * it holds (footTakesBarHeight). Throws a TypeError for a page that is
- * none of the three, and for views or menuViews that are no lists.
+ * none of the three, and for views that are no list. A property menuViews, which an earlier setup carried, is ignored.
  */
-export async function startPage({ page, views, menuViews }) {
+export async function startPage({ page, views }) {
   if (!["bridge", "main", "review"].includes(page)) throw new TypeError(`The frame starts the pages bridge, main and review, not ${page}.`);
-  if (!Array.isArray(views) || !Array.isArray(menuViews)) throw new TypeError("PageSetup names views and menuViews as lists.");
+  if (!Array.isArray(views)) throw new TypeError("PageSetup names views as a list.");
   if (page === "bridge") return startBridge({ page, views });
-  return startSite({ page, views, menuViews });
+  return startSite({ page, views });
 }
 
-// The main and the review pages. The menu serves the entries of the routes of `views`; on the main page, which loads no views of
-// the review pages, the entries come from the views `menuViews` names, whose routes are read for their `entry` and neither
-// rendered nor given their strategies.
-async function startSite({ page, views, menuViews }) {
+// The main and the review pages. On the review pages the menu serves the entries of the routes of `views`; on the main page, which
+// loads no view of the review pages, every entry links into the review pages (menuOf).
+async function startSite({ page, views }) {
   const location = globalThis.location ?? {};
   const repository = instanceOf(location);
   const store = openStore(repository);
@@ -191,9 +190,6 @@ async function startSite({ page, views, menuViews }) {
     host: connect(parseAddress(`https://github.com/${repository}`), { token: instanceToken?.value ?? null, tokenName: instanceToken?.name ?? null, secrets }) };
   const routes = views.flatMap((view) => view?.routes ?? []);
   const served = new Set(routes.map((route) => route.entry).filter(Boolean));
-  if (page === "main") {
-    for (const slug of menuViews) for (const route of (await loadView(slug))?.routes ?? []) if (route.entry) served.add(route.entry);
-  }
   const entries = menuOf(page, [...served]);
 
   const header = sharedHeader();

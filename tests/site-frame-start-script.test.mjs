@@ -1,5 +1,5 @@
-// start.mjs, the script both entry pages load (ITM-531): it reads the page's setup from its own script tag (data-page, data-views,
-// data-menu-views), loads the named view modules from ../<slug>/index.mjs, registers their strategies with MOD-job-runner under
+// start.mjs, the script both entry pages load (ITM-531): it reads the page's setup from its own script tag (data-page, data-views),
+// loads the named view modules from ../<slug>/index.mjs, registers their strategies with MOD-job-runner under
 // the slug and calls startPage. The views are fixtures (tests/site-frame-start.d/view-a, view-b), named by a slug that leads out of
 // src/ to them.
 //
@@ -65,17 +65,20 @@ test("TST-531012 start.mjs reads its script tag, loads the named views, register
 
 // TST-531013 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
-// given: a page whose script tag has data-page="main", empty data-views and data-menu-views naming the fixture view view-b (route
-//   beta under tests)
+// given: a page whose script tag has data-page="main", empty data-views and a data-menu-views attribute naming a view module that
+//   does not exist (../tests/site-frame-start.d/not-a-view), which start.mjs would fail on if it imported it
 // input: start.mjs is loaded (a second evaluation of it, under another query)
-// expect: the main page is started: its menu has eight entries, of which only Tests is served, linking into the review pages as
-//   docs/index.html#tests, and its route area reads "This page is not built yet."
-test("TST-531013 start.mjs starts the main page when its script tag says data-page=main, its menu served by the views data-menu-views names", async () => {
-  const page = pageWithScript({ "data-page": "main", "data-views": "", "data-menu-views": VIEW_B });
+// expect: the main page is started and the load does not reject: its menu has eight entries, all links into the review pages,
+//   docs/index.html#requirements, docs/index.html#use-cases, docs/index.html#architecture, docs/index.html#implementation,
+//   docs/index.html#tests, docs/index.html#releases, docs/index.html#maintenance and docs/index.html#settings, in that order, and
+//   its route area reads "This page is not built yet."
+test("TST-531013 start.mjs starts the main page with eight links into the review pages and imports no view for its menu", async () => {
+  const page = pageWithScript({ "data-page": "main", "data-views": "", "data-menu-views": "../tests/site-frame-start.d/not-a-view" });
   await import("../src/site-frame/start.mjs?main");
   const menu = all(page.document.body, "nav")[0];
   assert.equal(menu.children.length, 8);
-  assert.deepEqual(menu.children.map((entry) => entry.getAttribute("href")), [null, null, null, null, "docs/index.html#tests", null, null, null]);
+  assert.deepEqual(menu.children.map((entry) => entry.getAttribute("href")),
+    ["requirements", "use-cases", "architecture", "implementation", "tests", "releases", "maintenance", "settings"].map((key) => `docs/index.html#${key}`));
   assert.equal(all(page.document.body, "main")[0].textContent, "This page is not built yet.");
 });
 

@@ -13,6 +13,7 @@ import { delimiter, join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "node:net";
+import { wait } from "./desktop-shell.d/wait.mjs";
 import test, { after, before } from "node:test";
 
 const root = new URL("..", import.meta.url).pathname;
@@ -28,7 +29,6 @@ let nativeFixtureLockHeld = false;
 let runtimeFailure;
 let virtualDisplayFailure;
 let windowManagerFailure;
-const wait = async (f, fatal = () => {}) => { for (let n = 0; n < 240; n += 1) { fatal(); try { const value = await f(); if (value) return value; } catch {} await new Promise((resolve) => setTimeout(resolve, 125)); } throw new Error("Timed out waiting for real Electron."); };
 const token = (folder) => readFileSync(join(folder, "pairing-token"), "utf8").trim();
 const scrub = (value) => String(value).replace(/[A-Za-z0-9_-]{32,}/g, "[redacted]");
 const within = async (promise, name) => {
@@ -198,14 +198,14 @@ async function launch() {
   const exited = new Promise((resolve) => child.once("exit", resolve));
   const stopped = () => { if (spawnError || child.exitCode !== null || child.signalCode !== null) throw new Error(`Electron exited=${child.exitCode}; signal=${child.signalCode}; error=${spawnError?.code ?? null}`); };
   try {
-    const page = await wait(async () => {
+    const page = await wait("the window page appears among the debugging targets", async () => {
       try {
         const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json();
         debugTargets = JSON.stringify(targets.map(({ type, url }) => ({ type, url })));
         return targets.find((item) => item.url.startsWith("agent-m://"));
       } catch (error) { debugTargets = `${error.name}: ${error.message}`; throw error; }
     }, stopped);
-    const main = await wait(async () => (await (await fetch(`http://127.0.0.1:${inspectPort}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
+    const main = await wait("the main process inspector address answers", async () => (await (await fetch(`http://127.0.0.1:${inspectPort}/json/list`)).json())[0]?.webSocketDebuggerUrl, stopped);
     return { port: apiPort, child, folder: dataFolder, exited, instance, main, origin, page };
   } catch (failure) {
     const processes = process.platform === "linux" ? spawnSync("ps", ["-eo", "pid,ppid,stat,args"], { encoding: "utf8", timeout: 1000 }).stdout?.split("\n").filter((line) => /electron|Xvfb|openbox|agent-m-xvfb/.test(line)).join("\n") : "";
@@ -221,7 +221,7 @@ async function launch() {
 async function stop(app) {
   try {
     try { await click(app.page, "Quit"); } catch {}
-    await wait(async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
+    await wait("the Bridge stops answering on its port", async () => { try { await fetch(`http://127.0.0.1:${app.port}/v1/pair`); return false; } catch { return true; } });
     let timeout;
     try { await Promise.race([app.exited, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error("Electron did not exit after Quit.")), 30000); })]); }
     finally { clearTimeout(timeout); }
@@ -240,9 +240,9 @@ const click = (page, label) => evaluate(page.webSocketDebuggerUrl, `[...document
 test("TST-276901: actual forked Electron source keeps its renderer private and pairs only on configured loopback", { timeout: 60000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const app = await launch();
   try {
-    const pairingToken = await wait(() => existsSync(join(app.folder, "pairing-token")) && token(app.folder));
+    const pairingToken = await wait("the pairing token file exists", () => existsSync(join(app.folder, "pairing-token")) && token(app.folder));
     const expectedAddress = `http://127.0.0.1:${app.port}`;
-    await wait(async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge pairing')"));
+    await wait("the pairing window is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge pairing')"));
     assert.equal(app.page.url, "agent-m://release-fork.github.io/paired-bridge/desktop-shell/window.html");
     assert.deepEqual(await evaluate(app.page.webSocketDebuggerUrl, "({ calls: Object.keys(window.bridge).sort(), node: [typeof window.process, typeof window.require], address: [...document.querySelectorAll('code')][0].textContent })"), {
       calls: ["chooseFolder", "copy", "pairAnew", "pause", "quit", "resume", "retryPort", "state"], node: ["undefined", "undefined"], address: expectedAddress,
