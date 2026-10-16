@@ -31,7 +31,7 @@ function electronCommand(executable, arguments_) {
   assert.equal(display.status, 0, `Linux virtual display unavailable: ${display.stderr}`);
   let openbox = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
   if (openbox.status !== 0) {
-    const install = spawnSync("sudo", ["apt-get", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 40000 });
+    const install = spawnSync("sudo", ["apt-get", "-o", "DPkg::Lock::Timeout=50", "-o", "Acquire::Retries=3", "install", "--yes", "--no-install-recommends", "openbox"], { encoding: "utf8", timeout: 60000 });
     assert.equal(install.status, 0, `Linux Openbox installation failed: ${install.stderr}`);
     openbox = spawnSync("openbox", ["--version"], { encoding: "utf8", timeout: 5000 });
   }
