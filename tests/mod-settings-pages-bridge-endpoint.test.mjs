@@ -5,7 +5,7 @@
 // Level: unit
 // Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER;
 // A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO;
-// A CLEAR IS A REAL CLEAR; THE PAGE STATES WHAT IT SENDS WHERE.
+// A CLEAR IS A REAL CLEAR; THE PAGE NAMES WHERE IT SENDS.
 // Scope: UC-003 alternative 2a, the local-model route through the paired Bridge.
 
 import test from "node:test";
@@ -50,7 +50,7 @@ const json = (status, body, headers = {}) => new Response(JSON.stringify(body), 
 
 // Planted fault: replacing the Bridge probe with testEndpoint makes the Bridge-route assertion fail.
 // TST-269001 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; THE PAGE STATES WHAT IT SENDS WHERE; A CREDENTIAL IS NEVER PLACED IN A URL
+// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; THE PAGE NAMES WHERE IT SENDS; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a paired loopback Bridge and a local endpoint entered on the public endpoints Route
 // input: Save on the endpoints Route
 // expect: Save precedes one disclosed Bridge endpoint-test call, whose canonical args contain the endpoint key only in JSON, then the actual answer marks it working

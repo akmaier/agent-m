@@ -92,7 +92,7 @@ test("explain — drafting-participant: who drafts and where it processes data (
 });
 
 // TST-472809 · level: unit · module: MOD-site-frame
-// guards: THE PAGE STATES WHAT IT SENDS WHERE; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; UC-007 (steps 2 and 3); UC-019 (steps 4, 4a and 5)
+// guards: THE PAGE NAMES WHERE IT SENDS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; UC-007 (steps 2 and 3); UC-019 (steps 4, 4a and 5)
 // given: the topic run-panel
 // input: explain("run-panel")
 // expect: text saying the panel comes before anything is sent; names every participant that will receive something, where it processes data and what it receives part by part with sizes against its context — requirements, every existing use case, a chapter of the book, the prompt —; that when the whole does not fit nothing is sent, the panel says how much there is and how much fits, and nothing is left out silently; and that Run is the one click that sends
