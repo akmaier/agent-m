@@ -6,7 +6,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), listPullRequests(filter), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -18,6 +18,10 @@ const MAINTAINER = 40;
 // A pipeline's status as the run's state ("Create a new pipeline" answers the pipeline: its status, among GitLab's others).
 const STATES = { created: "queued", waiting_for_resource: "queued", preparing: "queued", pending: "queued", scheduled: "queued", running: "running",
   manual: "waiting", success: "success", failed: "failure", canceled: "cancelled", canceling: "cancelled", skipped: "skipped" };
+
+// A pipeline as the run: its sha the commit, its source — "api" where it names none — the event, its status the state, its web_url the address; `workflow` the workflow the caller names.
+const ciRunOf = (p, workflow) => ({ id: String(p.id), workflow, commit: p.sha, event: p.source ?? "api", state: STATES[p.status] ?? "queued", url: p.web_url,
+  started: p.started_at ?? null, ended: p.finished_at ?? null });
 
 // A job's state ("List all jobs by pipeline": created, pending, preparing, waiting_for_resource, waiting_for_callback, scheduled, manual, running, success, failed, canceled, canceling,
 // skipped) and a commit's ci from its newest pipeline's status (those of "List project pipelines"): a pipeline that failed or was cancelled failed, a skipped one says nothing.
@@ -235,9 +239,33 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     // Starts a pipeline ("Create a new pipeline": POST …/pipeline, ref and inputs in the JSON body). The answer is the pipeline, which is the run: its
     // sha the commit, its source — "api" where the answer names none — the event, its status the state, its web_url the address.
     async startWorkflow(workflow, ref, inputs) {
-      const p = await json(await call("POST", `${api}/pipeline`, { body: { ref, inputs } }), address.origin);
-      return { id: String(p.id), workflow, commit: p.sha, event: p.source ?? "api", state: STATES[p.status] ?? "queued", url: p.web_url,
-        started: p.started_at ?? null, ended: p.finished_at ?? null };
+      return ciRunOf(await json(await call("POST", `${api}/pipeline`, { body: { ref, inputs } }), address.origin), workflow);
+    },
+
+    // The pipelines ("List project pipelines": ref and sha from the filter's branch and commit, 100 to a page, read page by page). A project has one pipeline definition, which startWorkflow starts
+    // whatever workflow it is given: the filter's workflow narrows nothing, and is each run's workflow, "" where the filter names none.
+    async listCiRuns({ workflow, branch, commit } = {}) {
+      const query = new URLSearchParams();
+      if (branch) query.set("ref", branch);
+      if (commit) query.set("sha", commit);
+      return (await everyPage(`${api}/pipelines${query.size ? `?${query}` : ""}`, {}, (p) => p.id)).map((p) => ciRunOf(p, workflow ?? ""));
+    },
+
+    // Cancels a pipeline's jobs ("Cancel a pipeline's jobs": POST …/pipelines/:pipeline_id/cancel, which answers the pipeline, one that has finished already included).
+    async cancelCiRun(id) {
+      await call("POST", `${api}/pipelines/${encodeURIComponent(id)}/cancel`, { what: `pipeline ${id} of ${address.web}` });
+    },
+
+    // The jobs of a pipeline in the order the server lists them ("List pipeline jobs", page by page), each with its log ("Get a log file": …/jobs/:job_id/trace) -> [{ name, text }] of the jobs that have
+    // one; a log answered 404 or 410 is not kept.
+    async jobLogs(id) {
+      const options = { what: `pipeline ${id} of ${address.web}` };
+      const logs = [];
+      for (const job of await everyPage(`${api}/pipelines/${encodeURIComponent(id)}/jobs`, options, (j) => j.id)) {
+        const answer = await call("GET", `${api}/jobs/${encodeURIComponent(job.id)}/trace`, { ...options, on: { 404: () => null, 410: () => null } });
+        if (answer !== null) logs.push({ name: job.name, text: await answer.text() });
+      }
+      return logs;
     },
 
     // The merge requests ("List project merge requests": state opened, closed, merged or all, source_branch, 100 to a page, read page by page).

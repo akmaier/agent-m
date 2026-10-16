@@ -307,12 +307,12 @@ test("ciRunLog — a job whose log is answered 404 or 410 has no text; null wher
 // input: ciRunLog("9002") / ciRunLog("62") — the known positive —, then ciRunLog("9999") / ciRunLog("99")
 // expect: the known run gives "build\nbuild line\n"; the unknown run fails NotFound on each server (not null, not Unreachable)
 test("ciRunLog — a run the server does not know fails NotFound", async () => {
-  const github = (id) => serving(ghJobs([[701, "build"]], { 701: "build line\n" }), () => failure(connect(GITHUB, { token: GH_TOKEN }).ciRunLog(id)));
-  const gitlab = (id) => serving(glJobs([[801, "build"]], { 801: "build line\n" }), () => failure(connect(GITLAB, { token: GL_TOKEN }).ciRunLog(id)));
+  const github = (id) => serving(ghJobs([[701, "build"]], { 701: "build line\n" }), () => connect(GITHUB, { token: GH_TOKEN }).ciRunLog(id));
+  const gitlab = (id) => serving(glJobs([[801, "build"]], { 801: "build line\n" }), () => connect(GITLAB, { token: GL_TOKEN }).ciRunLog(id));
   assert.equal((await github("9002")).result, "build\nbuild line\n");
   assert.equal((await gitlab("62")).result, "build\nbuild line\n");
-  assert.equal((await github("9999")).result?.name, "NotFound");
-  assert.equal((await gitlab("99")).result?.name, "NotFound");
+  assert.equal((await failure(github("9999")))?.name, "NotFound");
+  assert.equal((await failure(gitlab("99")))?.name, "NotFound");
 });
 
 // A whole server: the cancel (POST) accepted, the jobs and logs of run 9002 (pipeline 62) with the one job "build", and the list of that one run.

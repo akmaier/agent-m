@@ -1,6 +1,6 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch, startWorkflow and
-// webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch, startWorkflow, listCiRuns,
+// cancelCiRun, ciRunLog and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
 // Module: MOD-repository-hosts
@@ -152,6 +152,9 @@ function throughClone(repository, folder, rest) {
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
+    listCiRuns: rest ? (...a) => rest.listCiRuns(...a) : without("the CI runs"),
+    cancelCiRun: rest ? (...a) => rest.cancelCiRun(...a) : without("cancelling a CI run"),
+    jobLogs: rest ? (...a) => rest.jobLogs(...a) : without("the log of a CI run"),
     listPullRequests: rest ? (...a) => rest.listPullRequests(...a) : without("the pull requests"),
     pullRequestFacts: rest ? (...a) => rest.pullRequestFacts(...a) : without("the facts of a pull request"),
     containsCommit: (...a) => clone.containsCommit(...a),
@@ -353,10 +356,31 @@ export function connect(address, credentials = {}) {
         clone ? "A pull request is opened on the server, not in a clone." : "Opening a pull request is not built yet.");
     },
 
-    // STUB: the three functions exist and do nothing.
-    listCiRuns: async () => [],
-    cancelCiRun: async () => undefined,
-    ciRunLog: async () => null,
+    // listCiRuns({ commit, branch, workflow }) -> CiRun[] — the GitHub Actions runs or GitLab pipelines, every page, optionally only those of a commit, of a branch, and — on GitHub — of a workflow. Crosses the
+    // network; fails as readSnapshot — a failure is never an empty list. Through a clone, the server's answer where a token is given, else NotSupported.
+    async listCiRuns(filter = {}) {
+      if (typeof filter !== "object" || filter === null || Array.isArray(filter)) throw new TypeError("a filter of CI runs is an object");
+      const { workflow, branch, commit } = filter;
+      for (const [key, value] of Object.entries({ workflow, branch, commit })) {
+        if (value !== undefined && (typeof value !== "string" || !value.trim())) throw new TypeError(`the ${key} of a filter of CI runs is a name`);
+      }
+      return adapter.listCiRuns({ workflow, branch, commit });
+    },
+
+    // cancelCiRun(id) -> void — asks the server to cancel a run; one that has ended already is no failure, and its state shows that it has. Crosses the network; fails with TokenRefused, PermissionMissing,
+    // RateLimited, Unreachable. Through a clone, the server's call where a token is given, else NotSupported.
+    async cancelCiRun(id) {
+      if (typeof id !== "string" || !id.trim()) throw new TypeError("a CI run is named by its identifier");
+      return adapter.cancelCiRun(id);
+    },
+
+    // ciRunLog(id) -> string | null — the texts of the run's jobs in the order the server lists them, each preceded by a line with the job's name and ending in a line break; null where the server keeps the log
+    // of none of them. Crosses the network; fails as readSnapshot — a run the server does not know is NotFound. Through a clone, the server's answer where a token is given, else NotSupported.
+    async ciRunLog(id) {
+      if (typeof id !== "string" || !id.trim()) throw new TypeError("a CI run is named by its identifier");
+      const logs = await adapter.jobLogs(id);
+      return logs.length ? logs.map(({ name, text }) => `${name}\n${text === "" || text.endsWith("\n") ? text : `${text}\n`}`).join("") : null;
+    },
 
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.
     webLinks: () => links,
