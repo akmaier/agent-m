@@ -33,6 +33,11 @@ uses of MOD-trace-pages and MOD-review-pages.
 
 No existing test's expected result changes: the account is the same.
 
+**The second copy.** Since ITM-558, the message of the error `NoPersonSource` stands word for word in
+`src/review-pages/subjects.mjs` and `src/trace-pages/subject.mjs`. Before this item is selected, its readings settle
+whether MOD-source-register also gives that refusal, beside `personAccount`, so that one place holds it. That would be a
+further line of the draft.
+
 ## Acceptance
 
 - **The function.** `personAccount` gives `github.com/<owner>` for a GitHub instance, `<host>/<owner>` for a GitLab one,
