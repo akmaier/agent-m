@@ -34,8 +34,34 @@ files and pull request, and leaves the answer in the run's summary and log. An u
 naming `diagnoseEndpoint`'s reason and the routes that would work. `onRecordsChanged` leaves such a job to
 `onDispatch`.
 
+It builds on ITM-495, whose GitHub template declares the inputs `task` and `endpoint`.
+
+What the module file leaves unstated, and what is built:
+- **The inputs.** `task` and `endpoint` are read from the event's inputs, as `onDispatch` reads `job` today
+  (`src/workflow-entries/product.mjs`).
+  - `endpoint` is the JSON text of `{ kind, baseUrl, model }`.
+  - The key is read from the environment variable the participant's route names (` secret <NAME>`), which the template's
+    `AGENT_M_KEY_NAMES` passes.
+- **A record whose task travels with the hand-over, dispatched without `task`.** The run ends failed with the reason
+  `the task travels with its hand-over, and this run was started without it`, and nothing is written but the end.
+- **The task's place.** It is the job's parameter `instruction`, in memory only, as on the Bridge (ITM-492).
+- **The refused branch.** A commit message or the pull request's text holding the task's text, trimmed, as one string
+  refuses the branch by name. The job ends failed, and nothing is merged.
+- **The answer.** It is appended to the file `GITHUB_STEP_SUMMARY` names where it is set, and printed to the log.
+- **An unreachable endpoint.** The run ends failed with `diagnoseEndpoint`'s reason and the routes `routesFor` offers the
+  participant among the instance's participants that are available.
+- **`onRecordsChanged`.** It leaves every record whose `task` is `with the hand-over` queued.
+
+No existing test's expected result changes, release tests included. The tests of `onDispatch` and `onRecordsChanged`
+(`tests/workflow-entries-job-workflow.test.mjs`) use records without `task`, which read as `in parameters`.
+
 ## Acceptance
 
 - Over a fixture checkout, a dispatched hand-over runs a fixture agent with the task and writes it nowhere; a branch
   holding the task's words is refused, nothing merged.
 - `onRecordsChanged` does not take the job.
+- The first commit holds only the tests, and CI is red on it, the stub run recorded where only a missing export makes it
+  red.
+- Each test states its expected values in its own text (`A TEST DOES NOT TAKE ITS EXPECTED RESULT FROM A DOCUMENT`); an
+  existing test that the change turns red is not changed here: the Developer stops and names it.
+- Only `src/workflow-entries/` and the tests that name MOD-workflow-entries change.
