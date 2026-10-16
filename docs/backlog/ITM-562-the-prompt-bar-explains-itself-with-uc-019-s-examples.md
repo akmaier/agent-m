@@ -10,6 +10,7 @@ modules:
 builds_on:
   - ITM-530
   - ITM-514
+  - ITM-551
 tests:
   - unit
 origin:
@@ -28,6 +29,12 @@ removes.
 - `change-instruction` goes where nothing shows it any more.
 
 ITM-514's todo test TST-377116 then passes.
+
+**Order and tests.** `change-instruction` is shown only by the old prompt pages (`src/review-pages/prompt.mjs:28`, through
+`kinds.mjs`' `instruction`), which ITM-551 removes. So this item starts after ITM-551. Two existing tests of
+`tests/site-frame-drafting-explanations.test.mjs` change:
+- TST-472806, whose list of topics drops `change-instruction`;
+- TST-472812, the case of `change-instruction`, which goes with the topic.
 
 ## Acceptance
 

@@ -35,6 +35,12 @@ origin:
 ITM-514's todo tests TST-377012 and TST-418126 then pass, and are turned into plain tests by a developer who implements
 none of this item.
 
+**Cut at sprint team1/48's start.** S11 is built there. S14 stays here and waits for the draft of `formatFinding`'s use.
+- **The address.** The route's own draft route is `draft/subject=<key>`, with the key encoded by `encodeURIComponent`,
+  as `src/review-pages/subjects.mjs:122` writes it. `src/review-pages/conversation-draft.mjs:68` reads it back as
+  `params.subject`.
+- **No existing test changes.**
+
 ## Acceptance
 
 - **S11.** In a small DOM with a fixture draft, the route's subject is the draft's, and a follow-up offers *Review the

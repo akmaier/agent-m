@@ -26,10 +26,14 @@ origin:
 - **S7, the draft route.** MOD-prompt-bar's `Subject.draftRoute` is "the route of the review pages that shows a draft of
   this subject". The specification browser's subject (`src/trace-pages/subject.mjs`) gives `draft`, so the review pages'
   route reads no subject and shows that there is no draft.
-  - It gives `draft/subject=<key>`, with the subject's `key` encoded as a fragment's parameter. That is the form the
-    review pages' own subjects give (ITM-507), so the two modules name the route `draft` in one form.
+  - It gives `draft/subject=<key>`, with the subject's `key` encoded by `encodeURIComponent`. That is the form the review
+    pages' own subjects give (ITM-507), so the two modules name the route `draft` in one form.
+    - The review pages write it at `src/review-pages/subjects.mjs:122`.
+    - `src/review-pages/conversation-draft.mjs:68` reads it back as `params.subject`.
 - **S8, no source.** For a change of requirements without the person's own source, the subject sends nothing and names
-  the missing step (UC-019 4b), as the review pages' subjects do (`NoPersonSource`, ITM-507).
+  the missing step (UC-019 4b), as the review pages' subjects do (`NoPersonSource`, ITM-507). Its `paramsFor` throws an
+  error named `NoPersonSource` that names the two steps, registering the person as a source and linking it to the
+  product, as `src/review-pages/subjects.mjs:104` does. The bar shows such an error and sends nothing.
   - Today `paramsFor` gives `source: null`, and the message is sent.
 
 ITM-514's todo tests TST-418007 and TST-418008 then pass, and are turned into plain tests by a developer who implements
