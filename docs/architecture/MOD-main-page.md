@@ -14,6 +14,7 @@ uses:
   - MOD-site-frame.confirmDecision
   - MOD-browser-store.readSetting
   - MOD-bridge-client.bridgeAt
+  - MOD-bridge-client.settingsOf
   - MOD-repository-hosts.parseAddress
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.readSnapshot
@@ -104,7 +105,8 @@ instance repository through their hosts, and the browser's store for the product
   MOD-site-frame.notice — a refused token, a used-up rate limit, a source not reached; MOD-site-frame.confirmDecision —
   cancel, retry and a gate's decision.
 - MOD-browser-store.readSetting — the products this browser keeps, their tokens, the Bridges' settings.
-- MOD-bridge-client.bridgeAt — a handle for each Bridge this browser keeps.
+- MOD-bridge-client.bridgeAt, MOD-bridge-client.settingsOf — a handle for each Bridge this browser keeps, including one
+  reached through the jump host, whose address `settingsOf` gives.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — each product's host;
   MOD-repository-hosts.readSnapshot — the job records of every product, for the list of jobs;
   MOD-repository-hosts.webLinks — a token's
