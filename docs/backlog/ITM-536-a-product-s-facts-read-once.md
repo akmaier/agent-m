@@ -24,14 +24,24 @@ origin:
 
 ## Outcome
 
-MOD-progress-measures' `Facts` and `productFacts`, as its file states them: everything about a product read once — its
-default branch, the trace graph, the records, the declaration with its model, the plan or backlog and the sprints, the
-gate and job records with their live state, the pull requests (with `containsCommit` for the heads `undecidedHeads`
-names), the CI runs of the head, the tags and the test facts. The work-plan states and holds are computed from them.
-None of it is built (`src/progress-measures/index.mjs`). ITM-505 needs it for `startable`, and the main page's progress
-needs it as well.
+MOD-progress-measures' `Facts` and `productFacts`, cut to what MOD-work-plans' `itemStates` and `startable` and
+MOD-product-process' `holdsRole` need. That is what ITM-505 asks before a hand-over starts (MOD-prompt-bar).
 
-The start decision that selects it may cut it by the facts a caller needs first, naming what each cut leaves.
+`productFacts` reads once, from the product's default branch through its host:
+- the approval statuses (MOD-approvals);
+- the change queues (MOD-spec-changes);
+- the job records as `JobRow`s, through MOD-job-ledger;
+- the pull requests (`listPullRequests`);
+- the gate records and their states (`gateStates`);
+- the declaration's workflow (`workflowOf`);
+- the backlog or plan items and the plan order;
+- the sprint records and the role assignments;
+- the instance's participants.
+It computes `held` with `heldItems`, asking `containsCommit` for exactly the heads `undecidedHeads` names.
+
+Cut off, for later items that need them: the trace graph, the CI runs of the head, the tags, the test facts, the live
+states of running jobs, and the stage measures. The facts it reads carry them as `"unknown"` where `Facts` has the field,
+never a guess.
 
 ## Acceptance
 

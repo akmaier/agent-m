@@ -22,12 +22,38 @@ origin:
 
 ## Outcome
 
-MOD-runtimes' `liveState`, `jobLog` and `cancelJob`, as its file states them:
-- the live state of a job from its record and its route, by asking the CI service or the Bridge;
-- the job's log as it grows;
-- the cancel of a running job, which appends the end `cancelled`.
-None of them is built (`src/runtimes/index.mjs`: "resumeJob, liveState, jobLog, cancelJob, retryJob … are not part of"
-it). ITM-505, which follows a handed-over job until it ends, builds on them.
+MOD-runtimes' `liveState`, `jobLog` and `cancelJob`, as its file states them. None is built yet
+(`src/runtimes/index.mjs`). ITM-505, which follows a handed-over job until it ends, builds on them.
+
+Which CI run belongs to a job, settled from the texts. MOD-job-ledger's Data says a record's `## Taken` holds "`by:` the
+route that took it — a CI run's address, a Bridge's name, this tab". MOD-workflow-entries writes that address when it takes
+a job: `takeJob(…, job.runUrl …)` in `src/workflow-entries/product.mjs`, with `runUrl` built from `GITHUB_RUN_ID`. So:
+- **A job no runtime has taken yet.** No `## Taken` part. Its `liveState` is `{ reachable: true, known: false, running:
+  false, cancelling: false, log: null, usage: null, writtenAfterCancel: [] }`. `cancelJob` ends it at once with the end
+  `cancelled`, and returns `cancelled`.
+- **A job taken on CI.** `taken.by` is the run's address. The run is the `CiRun` among `listCiRuns({ workflow })` whose
+  `url` is that address; `workflow` is the job workflow's file name (`agent-m-jobs.yml` on GitHub, as `handOverJob`
+  names it).
+  - `liveState` is `running` while the run's state is `queued`, `running` or `waiting`. `log` is the run's address, and
+    `usage` is `null`, since a run reports none until the job's end.
+  - `jobLog` gives `{ address }`, the run's address.
+  - `cancelJob` asks `cancelCiRun(run.id)`, then reads the run once. Where it is `cancelled`, it appends the end
+    `cancelled` and returns `cancelled`; otherwise it returns `cancelling` and appends nothing.
+  - A run not found is `{ reachable: true, known: false, … }`.
+  - A failure of the host gives `reachable: false` and its reason, never an error.
+- **A job taken on a Bridge.** `taken.by` is the Bridge's name, among `bridges`.
+  - `liveState` comes from `bridgeJobs` by the job's id.
+  - `jobLog` streams `bridgeJobLog`.
+  - `cancelJob` asks `cancelOnBridge`, and appends the end once it is confirmed.
+  - A Bridge missing from `bridges`, or one that does not answer, gives `reachable: false` and the reason.
+- **A job taken by this tab.** `runOnTab` keeps the abort of each job it runs with a record, by the record's id, until
+  the job ends.
+  - `liveState` is `running` while the tab holds the job, and `known: false` for a job this tab does not run.
+  - `jobLog` is `{ gone: true }`, since the tab keeps no log apart from the page.
+  - `cancelJob` aborts the job and appends the end `cancelled`.
+- **`writtenAfterCancel`.** It is `[]`: MOD-runtimes' Uses gives no way to read a branch's commits.
+
+No existing test's expected result changes. `runOnTab` keeping a job's abort changes nothing it returns or appends.
 
 ## Acceptance
 

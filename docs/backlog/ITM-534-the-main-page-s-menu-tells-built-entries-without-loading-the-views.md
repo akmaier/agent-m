@@ -20,16 +20,15 @@ origin:
 
 ## Outcome
 
-On the main page, MOD-site-frame's menu tells the entries the review pages serve from those not yet built, without
-loading the review pages' views, as its file says of `data-menu-views`. ITM-531 builds the main page's menu by importing
-each view `data-menu-views` names and reading its routes' `entry` (`src/site-frame/index.mjs`, `startSite`). That loads
-them, which the file says the main page does not do.
+It builds against the draft of MOD-site-frame's file committed on `main` for akmaier's acceptance. ITM-531 builds the
+main page's menu by importing each view `data-menu-views` names, which the file says the main page does not do. No reading
+of the file lets the main page tell built entries without some copy of what each view's `Route.entry` says. So the draft
+drops `data-menu-views` and `PageSetup.menuViews`: on the main page every entry links into the review pages, which say
+there when an entry is not built yet.
 
-The start decision that selects this item settles, from MOD-site-frame's file, how the main page knows which entries the
-named views serve without loading them. One reading is that `menu.mjs`, which holds "the eight entries of the menu and the
-links they lead to", names the view that serves each entry. That reading must be checked against `Route.entry`, so that
-the two are not two copies of one fact. If no reading of the texts allows it, a draft of MOD-site-frame's file goes to
-akmaier for acceptance.
+Once the draft is accepted, `startPage` and `start.mjs` take no `menuViews`, and the main page imports no view. The tests
+of ITM-531 that pass `menuViews` change only that call: TST-531001 to TST-531013 where they name it, as the item lists
+them at its start.
 
 ## Acceptance
 

@@ -21,10 +21,15 @@ origin:
 
 ## Outcome
 
-When opencode, working with a hand-over's endpoint, fails, the entry hands `diagnoseEndpoint` the status the endpoint
-answered, so that a refused key, an unknown model and an unreachable address are named as `diagnoseEndpoint` names them.
-Today the entry builds the error from opencode's last output line without a status, so a 401 or a 404 is reported as "not
-reachable". Where opencode reports the status is settled from MOD-agent-processes' file at this item's start.
+When a hand-over run's agent fails working with an endpoint, the entry names the reason as MOD-endpoint-calls'
+`diagnoseEndpoint` gives it. MOD-agent-processes' `agentDriver` throws `AgentFailed { exitCode, lastOutput }` and reports
+no status of the endpoint, so the entry has no status to classify. It builds against the draft of MOD-workflow-entries'
+Uses committed on `main` for akmaier's acceptance, which adds `testEndpoint`.
+- After `AgentFailed` in a run with `endpoint`, the entry calls `testEndpoint` once with that endpoint's configuration and
+  the key.
+- Where `works` is false, the run's summary names its `diagnosis` — a refused key, an unknown model, an unreachable
+  address — and the routes that would work.
+- Where it works, the failure is the agent's, and the summary names `AgentFailed`'s last output, as today.
 
 ## Acceptance
 

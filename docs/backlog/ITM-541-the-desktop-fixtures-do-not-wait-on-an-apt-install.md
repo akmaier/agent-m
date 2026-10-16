@@ -18,17 +18,20 @@ origin:
 
 ## Outcome
 
-TST-276901 (`tests/release-itm-276-desktop-shell.test.mjs`) failed once in CI. Its fixture installs Openbox with
-`sudo apt-get install` inside the test, with a limit of 40 seconds, and the runner's mirror did not answer in time. The
-same install stands in `tests/desktop-shell.test.mjs`, `tests/dashboard-backlog-layout.test.mjs` and
-`tests/release-itm-290-public-settings-layout.test.mjs`, and `tests/component-itm-294-https-reverse-tunnel.test.mjs`
-installs packages the same way. So any pull request's CI may meet the same wait.
+TST-276901 (`tests/release-itm-276-desktop-shell.test.mjs`) failed once in CI. Its fixture's `sudo apt-get install`
+of Openbox, limited to 40 seconds, waited on the runner's mirror.
 
-The start decision that selects this item settles, from the texts, where a package a test needs is installed. One reading
-is that it is installed once per job, before the tests, by the workflow; another, a shared fixture that installs it once
-and tells "could not install" apart from a failure of the behaviour under test. It names what each reading changes —
-a workflow file is changed between jobs (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`) —, and keeps every expected
-result of those tests.
+Settled: the fixture is mended where it stands, in MOD-desktop-shell's two test files that install Openbox
+(`tests/desktop-shell.test.mjs` and `tests/release-itm-276-desktop-shell.test.mjs`).
+- **Why not the workflow.** Installing a package in the workflow is no kind of change between jobs that `WHAT NO MODULE
+  OWNS IS CHANGED BETWEEN JOBS` names: a workflow change only runs an entry a module's file names.
+- **Why no skip.** Skipping on a failed install would leave the release test unseen.
+- **What changes.** The install asks apt to retry a slow mirror (`-o Acquire::Retries=3`), with a limit of 60 seconds,
+  within the job's two minutes. A failed install still fails the fixture, naming the install as now.
+
+The same install in tests of other modules — `tests/dashboard-backlog-layout.test.mjs` and
+`tests/release-itm-290-public-settings-layout.test.mjs` — is theirs, and is mended in the same way when one of them meets
+the wait. No expected result changes.
 
 ## Acceptance
 
