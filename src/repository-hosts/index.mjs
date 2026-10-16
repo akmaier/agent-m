@@ -353,6 +353,11 @@ export function connect(address, credentials = {}) {
         clone ? "A pull request is opened on the server, not in a clone." : "Opening a pull request is not built yet.");
     },
 
+    // STUB: the three functions exist and do nothing.
+    listCiRuns: async () => [],
+    cancelCiRun: async () => undefined,
+    ciRunLog: async () => null,
+
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.
     webLinks: () => links,
   });
