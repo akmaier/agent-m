@@ -89,7 +89,7 @@ test("an address given in the headers and found again in the text, in another ca
 test("a run of seven digits or more is a phone number, with the separators it was written with and a leading +", () => {
   assert.deepEqual(found("Tel: +49-911/123456.").phones, ["+49-911/123456"]);
   assert.deepEqual(found("phone +49 (911) 123.456 please").phones, ["+49 (911) 123.456"]);
-  assert.deepEqual(found("call 0911/1234567 or 09111234567").phones, ["0911/1234567", "09111234567"]);
+  assert.deepEqual(found("call 0911/1234567 or 08001234567").phones, ["0911/1234567", "08001234567"]);
   assert.deepEqual(found("exactly seven: 1234567").phones, ["1234567"]);
 });
 

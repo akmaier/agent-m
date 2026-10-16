@@ -5,7 +5,7 @@
 
 import { loadSchema } from "../documents/index.mjs";
 
-export { personHits } from "./people.mjs";
+export { peopleIn, personHits } from "./people.mjs";
 
 const OWNER = "MOD-personal-data";
 const SETTINGS_SCHEMA_FILE = new URL("./settings.schema.md", import.meta.url);
