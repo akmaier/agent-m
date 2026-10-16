@@ -25,10 +25,10 @@ const DRAFTER = { name: "drafter-a", type: "model endpoint", model: "example-mod
 const CONNECTIONS = { endpoints: { ep1: { config: { name: "ep1", kind: "openai-compatible", baseUrl: "https://ep1.example.test/v1", model: "m", key: null }, bridge: null } },
   bridges: {} };
 
-// A host that answers nothing and keeps the name of every method called on it.
+// A host (not a thenable, as no real host is) that answers nothing and keeps the name of every method called on it.
 function spyHost(label) {
   const calls = [];
-  const host = new Proxy({ label }, { get: (target, name) => (name === "label" ? label : async () => { calls.push(String(name)); throw new Error(`unexpected call ${String(name)}`); }) });
+  const host = new Proxy({ label }, { get: (target, name) => (name === "label" ? label : name === "then" ? undefined : async () => { calls.push(String(name)); throw new Error(`unexpected call ${String(name)}`); }) });
   return { host, calls };
 }
 const snapshotOf = (web, commit) => ({ repository: { server: "github", origin: "https://github.com", path: web.slice(19), web }, ref: "main", commit, paths: [], read: async () => null, blob: () => null });
