@@ -137,7 +137,7 @@ const COVERED_BY_RELEASE = {
 const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 
 function offers(participant, visibility) {
-  return routesFor(participant, { visibility, jobWorkflow: true }, []);
+  return routesFor(participant, [participant], { visibility, jobWorkflow: true }, []);
 }
 
 // TST-375101 · level: release · module: system
