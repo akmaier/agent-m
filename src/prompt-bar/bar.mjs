@@ -230,6 +230,8 @@ export function startPromptBar(target, setup) {
     conversation.replaceChildren(...conversationOf(store).map(line));
     const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, selector, conversation, input, el("div", "buttons", send, stop), status);
     bar.setAttribute("data-page", setup.page);
+    // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
+    bar.setAttribute("style", "position: fixed; bottom: 0; left: 0; right: 0;");
     target.replaceChildren(bar);
   }
 
