@@ -67,24 +67,31 @@ const time = (value) => Date.parse(text(value));
 const mergedAnywhere = (id, pullRequests) => pullRequests.some((pullRequest) => pullRequest?.state === "merged"
   && naming(pullRequest, id));
 
-function reachesDefaultBranch(branch, after, pullRequests, defaultBranch, seen = new Set()) {
+// The default branch a chain of pull requests ends at; a repository whose default branch has another name is decided through
+// `onDefault`.
+const DEFAULT_BRANCH = "main";
+
+function reachesDefaultBranch(branch, after, pullRequests, seen = new Set()) {
   if (!branch) return false;
-  if (branch === defaultBranch) return true;
+  if (branch === DEFAULT_BRANCH) return true;
   if (seen.has(branch)) return false;
   const nextSeen = new Set(seen);
   nextSeen.add(branch);
   return pullRequests.some((pullRequest) => pullRequest?.state === "merged" && text(pullRequest.branch) === branch
     && time(pullRequest.merged) >= after
-    && reachesDefaultBranch(text(pullRequest.base), time(pullRequest.merged), pullRequests, defaultBranch, nextSeen));
+    && reachesDefaultBranch(text(pullRequest.base), time(pullRequest.merged), pullRequests, nextSeen));
 }
 
-// Whether an item's change is merged into the default branch: a merged pull request of the item into the default branch, or
-// into a branch whose later merged pull request reaches the default branch. A merge into another branch that never reaches
-// the default branch does not end the sprint's hold.
-function inDefaultBranch(id, pullRequests, defaultBranch) {
+// Whether a merged pull request's chain of pull requests reaches the default branch.
+const reachingChain = (pullRequest, pullRequests) => reachesDefaultBranch(text(pullRequest.base),
+  time(pullRequest.merged), pullRequests);
+
+// Whether an item's change is on the default branch: a merged pull request of the item into the default branch, or into a
+// branch whose later merged pull request reaches the default branch, or whose head commit is in `onDefault`. A merge into
+// another branch that reaches the default branch in neither way does not end the sprint's hold.
+function inDefaultBranch(id, pullRequests, onDefault) {
   const merged = pullRequests.filter((pullRequest) => pullRequest?.state === "merged" && naming(pullRequest, id));
-  return merged.some((pullRequest) => reachesDefaultBranch(text(pullRequest.base), time(pullRequest.merged),
-    pullRequests, defaultBranch));
+  return merged.some((pullRequest) => reachingChain(pullRequest, pullRequests) || onDefault.has(text(pullRequest.head)));
 }
 
 /**
@@ -93,18 +100,20 @@ function inDefaultBranch(id, pullRequests, defaultBranch) {
  */
 
 /**
- * heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown") ->
- * Held[] — every item a team's sprint holds, in the order of the sprints and of their selections: from its selection until a
- * pull request with its change is merged into the default branch, or until its sprint's close sends it back to the backlog or
+ * heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown",
+ * onDefault?: Set<string>) -> Held[] — every item a team's sprint holds, in the order of the sprints and of their selections: from its selection until a
+ * pull request with its change is merged into the default branch — through the pull requests that merge its base on, or with
+ * its head commit in `onDefault`, the head commits a caller found on the default branch —, or until its sprint's close sends it back to the backlog or
  * on to the next sprint — once the close is recorded, every item none of whose pull requests is merged — (A SPRINT HOLDS ITS
  * ITEMS UNTIL THEY REACH THE DEFAULT BRANCH). With the pull requests "unknown" — a host that could not read them —, a
  * selected item counts as held. An item the backlog lacks is held with no module.
  * @param {object[]} sprints @param {object[]} items @param {object[]} architecture @param {object[] | "unknown"} pullRequests
+ * @param {Set<string>} [onDefault]
  * @returns {Held[]}
  */
-export function heldItems(sprints, items, architecture, pullRequests, options = {}) {
+export function heldItems(sprints, items, architecture, pullRequests, onDefault = new Set()) {
   const known = pullRequests === "unknown" ? null : (pullRequests ?? []);
-  const defaultBranch = text(options?.defaultBranch).trim() || "main";
+  const found = onDefault instanceof Set ? onDefault : new Set();
   const byId = new Map((items ?? []).map((item) => [idOf(item), item]));
   const held = [];
   for (const record of sprints ?? []) {
@@ -113,13 +122,33 @@ export function heldItems(sprints, items, architecture, pullRequests, options = 
     const gone = sentOn(record);
     const closed = closedRecord(record);
     for (const item of selectionOf(record)) {
-      if (gone.has(item) || (known && inDefaultBranch(item, known, defaultBranch))) continue;
+      if (gone.has(item) || (known && inDefaultBranch(item, known, found))) continue;
       if (known && closed && !mergedAnywhere(item, known)) continue;
       const changes = modulesOf(byId.get(item));
       held.push({ item, sprint: of.name, team: of.team, changes, uses: usedBy(changes, architecture) });
     }
   }
   return held;
+}
+
+/**
+ * undecidedHeads(sprints: Document[], pullRequests: PullRequest[]) -> string[] — the head commits of the merged pull requests
+ * that name an item `heldItems(sprints, [], [], pullRequests)` holds and whose chain of pull requests reaches no `main`, in the
+ * order of the pull requests, each once: the only commits a caller needs to ask the host's `containsCommit` about before
+ * calling `heldItems` with `onDefault`. Pure; no request.
+ * @param {object[]} sprints @param {object[]} pullRequests
+ * @returns {string[]}
+ */
+export function undecidedHeads(sprints, pullRequests) {
+  const known = pullRequests ?? [];
+  const held = heldItems(sprints, [], [], known).map((entry) => entry.item);
+  const heads = new Set();
+  for (const pullRequest of known) {
+    // A merged pull request of a held item reaches no main: one that did would end the item's hold.
+    if (pullRequest?.state !== "merged") continue;
+    if (held.some((id) => naming(pullRequest, id))) heads.add(text(pullRequest.head));
+  }
+  return [...heads];
 }
 
 /**
