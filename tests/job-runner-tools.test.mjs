@@ -281,7 +281,7 @@ test("propose-edit holds a document's new text in the draft's edits, the later e
 // guards: A RECORD IS EVIDENCE, NOT A PROPOSAL; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
 // given: the kind of TST-486001
 // input: propose-edit of each path in the table below
-// expect: the answer in the table for each — a refusal naming where the document is changed — and no edit in the draft; counter-proof: docs/backlog/ITM-009-allowed.md, docs/jobs-notes.md and docs/tests-overview.md are held
+// expect: the answer in the table for each — a refusal naming where the document is changed — and no edit in the draft; counter-proof: docs/notes/allowed.md, docs/jobs-notes.md and docs/tests-overview.md are held
 test("propose-edit refuses SPEC.md, use cases, architecture, every record, every change queue, settings and every file outside docs/, naming where each is changed", async () => {
   const requirements = "refused: SPEC.md is changed by a job of change-requirements, from the requirements page";
   const useCases = "refused: docs/use-cases/UC-001-x.md is a use case, changed by a job of change-use-case, from the use case's page";
@@ -308,8 +308,8 @@ test("propose-edit refuses SPEC.md, use cases, architecture, every record, every
   const { answers, result } = await answersTo(REFUSED.map(([path]) => edit(path, "text")));
   assert.deepEqual(answers, REFUSED.map(([, said]) => said));
   assert.equal(result.draft.edits, undefined, "nothing was held");
-  const allowed = await answersTo([edit("docs/backlog/ITM-009-allowed.md", "a"), edit("docs/jobs-notes.md", "b"), edit("docs/tests-overview.md", "c")]);
-  assert.deepEqual(allowed.result.draft.edits.map((held) => held.path), ["docs/backlog/ITM-009-allowed.md", "docs/jobs-notes.md", "docs/tests-overview.md"]);
+  const allowed = await answersTo([edit("docs/notes/allowed.md", "a"), edit("docs/jobs-notes.md", "b"), edit("docs/tests-overview.md", "c")]);
+  assert.deepEqual(allowed.result.draft.edits.map((held) => held.path), ["docs/notes/allowed.md", "docs/jobs-notes.md", "docs/tests-overview.md"]);
 });
 
 const ITEM = `---

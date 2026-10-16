@@ -1,0 +1,148 @@
+// Offering a kind's tools to a drafter and carrying out their calls (MOD-job-runner, Parts: tools.mjs): the `ToolUse` of an
+// exchange, and the built-in tools `list-files`, `read-file`, `search-files`, `propose-edit` and `hand-over`.
+//
+// Module: MOD-job-runner
+//
+// A model endpoint works in the execution loop of the book (Vibe Coding, ch. 11): the model proposes a call, the runner carries it out
+// deterministically and returns a text, which the participant reads — a refusal included. The tools are described in data
+// (MOD-job-catalogue's tools.md); a strategy here only carries a call out. Nothing a tool does writes anywhere: the product is read
+// from the snapshot the job read, and what a participant proposes — the new text of a document, a hand-over — is held in the exchange
+// and put into the draft by `withHeld`, for a person to save or to hand over.
+//
+// A strategy is handed the job's context with `exchange` added: the drafter the exchange is with, and what the exchange holds.
+
+import { kindOf, toolsOf } from "../job-catalogue/index.mjs";
+import { misfit } from "./loop.mjs";
+import { strategyOf } from "./registry.mjs";
+
+const refusal = (why) => `refused: ${why}`;
+
+/**
+ * offerTools(kind, drafter, context) -> Promise<{ use: ToolUse, held } | null> — the ToolUse of one exchange with the drafter, and what the
+ * exchange holds. A drafter whose type is `model endpoint` and that declares `use tools`, for a kind that names tools, is offered the kind's
+ * tools in its order, less every tool whose capability it does not declare and every tool the job's parameter `refuses` names; any other
+ * drafter gets null. `limit` is the kind's `toolLimit`. `call` checks a call's arguments against the tool's schema with the runner's own
+ * `misfit`, and answers a tool not offered, or arguments the schema refuses, with a refusal.
+ */
+export async function offerTools(kind, drafter, context) {
+  const named = kind.tools ?? [];
+  if (!drafter || drafter.type !== "model endpoint" || !drafter.capabilities.includes("use tools") || named.length === 0) return null;
+  const refuses = Array.isArray(context.params.refuses) ? context.params.refuses : [];
+  const definitions = (await toolsOf(named)).filter((tool) => drafter.capabilities.includes(tool.needs) && !refuses.includes(tool.name));
+  const held = { edits: new Map(), handOver: null };
+  const here = { ...context, exchange: { drafter, held } };
+  const call = async (name, args) => {
+    const tool = definitions.find((each) => each.name === name);
+    if (!tool) return refusal(`${name} is not offered here`);
+    const why = misfit(args, tool.input, "the call");
+    return why ? refusal(why) : strategyOf("tools", name)(args, here);
+  };
+  return { use: { definitions: definitions.map(({ name, description, input }) => ({ name, description, input })), call,
+    limit: kind.toolLimit }, held };
+}
+
+/**
+ * withHeld(draft, held) -> unknown — the draft with what its exchange held: the edits proposed by `propose-edit` added to the draft's own
+ * `edits`, the later edit of a path replacing the earlier in its place, and the proposed hand-over as `handOver`. A draft that is not
+ * an object, or an exchange that held nothing, leaves the draft as it is.
+ */
+export function withHeld(draft, held) {
+  if (!held || draft === null || typeof draft !== "object" || Array.isArray(draft)) return draft;
+  const added = {};
+  if (held.edits.size) {
+    const edits = new Map((Array.isArray(draft.edits) ? draft.edits : []).map((edit) => [edit.path, edit]));
+    for (const [path, text] of held.edits) edits.set(path, { path, text });
+    added.edits = [...edits.values()];
+  }
+  if (held.handOver) added.handOver = held.handOver;
+  return { ...draft, ...added };
+}
+
+// ---------------------------------------------------------------- the product's files
+
+const trimmed = (folder) => (folder === "." ? "" : folder.replace(/^\/+/, "").replace(/\/+$/, ""));
+const within = (path, folder) => path === trimmed(folder) || path.startsWith(`${trimmed(folder)}/`);
+
+// The refusal for a path whose content is a restricted source's that does not allow the drafter's place, or null.
+function barred(path, context) {
+  const { place } = context.exchange.drafter;
+  for (const { source, paths } of context.places.contents ?? []) {
+    if (!paths.some((each) => within(path, each))) continue;
+    if (!(context.places.sources?.[source] ?? []).includes(place)) {
+      return refusal(`${path} holds content of ${source}, which may not go to ${place ?? "an unknown place"}`);
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- the paths propose-edit refuses
+
+const outside = (path) => refusal(`${path} is outside docs/; code, tests and workflows reach the default branch by a pull request, through hand-over`);
+const record = (path) => refusal(`${path} is a record, written once as evidence of what happened`);
+const RECORDS = ["docs/approvals/", "docs/gates/", "docs/jobs/", "docs/conversations/", "docs/test-results/", "docs/tests/"];
+const SETTINGS_FILES = ["docs/settings.md", "docs/collaborators.md", "docs/conversation-recording.md"];
+
+// Why a document may not be proposed, naming where it is changed, or null.
+function notProposable(path) {
+  if (path === "SPEC.md") return refusal("SPEC.md is changed by a job of change-requirements, from the requirements page");
+  if (!path.startsWith("docs/") || path.split("/").includes("..")) return outside(path);
+  if (path.startsWith("docs/use-cases/")) return refusal(`${path} is a use case, changed by a job of change-use-case, from the use case's page`);
+  if (path.startsWith("docs/architecture/")) {
+    return refusal(`${path} is architecture, changed by a job of change-architecture, from the architecture page`);
+  }
+  if (RECORDS.some((folder) => path.startsWith(folder))) return record(path);
+  if (path.startsWith("docs/spec-freigaben/")) return refusal(`${path} is a change queue, whose entries a change of requirements writes`);
+  if (SETTINGS_FILES.includes(path)) return refusal(`${path} is a settings file, changed on the settings page, which states a notice first`);
+  return null;
+}
+
+/** The built-in tools, registered by the runner itself: each carries one call out and returns what the participant reads. */
+export const tools = {
+  // The paths of the product's snapshot under a folder, one per line, in the snapshot's order.
+  "list-files": async ({ folder }, context) => {
+    const under = trimmed(folder);
+    return context.product.snapshot.paths.filter((path) => under === "" || path.startsWith(`${under}/`)).join("\n");
+  },
+  // One file's text at the commit the job read, or a refusal.
+  "read-file": async ({ path }, context) => {
+    const why = barred(path, context);
+    if (why) return why;
+    const text = await context.product.snapshot.read(path);
+    return text === null ? refusal(`no file ${path}`) : text;
+  },
+  // Each line of the product's files that holds the text, as <path>:<line number>: <line>; the files of a restricted source the drafter's
+  // place is not allowed are not read, and each is named in a refusal at the end.
+  "search-files": async ({ text }, context) => {
+    const { snapshot } = context.product;
+    const refused = snapshot.paths.map((path) => [path, barred(path, context)]).filter(([, why]) => why);
+    const open = snapshot.paths.filter((path) => !refused.some(([barredPath]) => barredPath === path));
+    await snapshot.readMany?.(open);
+    const found = [];
+    for (const path of open) {
+      const content = await snapshot.read(path);
+      if (content === null) continue;
+      content.split("\n").forEach((line, at) => { if (line.includes(text)) found.push(`${path}:${at + 1}: ${line}`); });
+    }
+    return [...found, ...refused.map(([, why]) => why)].join("\n");
+  },
+  // Holds the new text of one document below docs/ in the exchange — the later edit of a path replaces the earlier — and writes nothing.
+  "propose-edit": async ({ path, text }, context) => {
+    const why = notProposable(path);
+    if (why) return why;
+    context.exchange.held.edits.set(path, text);
+    return `proposed: ${path} is held for the person, who may save it`;
+  },
+  // Holds a proposed hand-over in the exchange and queues nothing: the prompt bar shows it, and the person's click lets it go on.
+  "hand-over": async ({ kind, works_on, task }, context) => {
+    let definition;
+    try {
+      definition = await kindOf(kind);
+    } catch (error) {
+      if (error.name === "UnknownKind") return refusal(`the catalogue holds no kind ${kind}`);
+      throw error;
+    }
+    if (definition.participant === "none") return refusal(`${kind} has no participant`);
+    context.exchange.held.handOver = { kind, works_on, task };
+    return `proposed: a job of ${kind} is held for the person, who may hand it over`;
+  },
+};
