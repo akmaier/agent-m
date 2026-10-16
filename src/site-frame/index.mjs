@@ -1,8 +1,8 @@
 // MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Built: the types View,
-// Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, without the start
-// of the prompt bar; menuOf (menu.mjs); instanceOf; chosenProduct (routing.mjs); explain; runPanel (run-panel.mjs); confirmDecision;
-// notice; schemaForm (forms.mjs), without its options secretKeys and readOnly. Not built yet: embedRoute, the frame's own check
-// of the topics, subject.mjs, and the start of the prompt bar.
+// Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, the last two with the
+// start of the prompt bar (subject.mjs gives it the subject of the route shown); menuOf (menu.mjs); instanceOf; chosenProduct
+// (routing.mjs); explain; runPanel (run-panel.mjs); confirmDecision; notice; schemaForm (forms.mjs), without its options secretKeys
+// and readOnly. Not built yet: embedRoute and the frame's own check of the topics.
 //
 // Module: MOD-site-frame
 //
@@ -16,8 +16,10 @@ import { openStore, readSetting, secretValues } from "../browser-store/index.mjs
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
+import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
 import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, loadView } from "./routing.mjs";
+import { subjectOf } from "./subject.mjs";
 
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
@@ -41,10 +43,12 @@ const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url)
 
 /**
  * One route of a view. `name` is the first part of the address's fragment, the rest are the `params` render is given; a
- * route's `entry` puts it under that entry of the menu, null keeps it out of the menu.
+ * route's `entry` puts it under that entry of the menu, null keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a
+ * message in the prompt bar is about while the route is shown; a route that gives none has the frame's default (subject.mjs).
  * @typedef {{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" | "releases" |
  *   "maintenance" | "settings" | null, title: string,
- *   render(target: Element, context: ViewContext, params: Record<string, string>): Promise<void> }} Route
+ *   render(target: Element, context: ViewContext, params: Record<string, string>): Promise<void>,
+ *   subject?: (params: Record<string, string>, context: ViewContext) => Subject }} Route
  */
 
 /**
@@ -161,8 +165,10 @@ function sharedHeader(section = null) {
 /**
  * startPage(setup: PageSetup) -> Promise<void> — starts a page. The Bridge's window gets the bounded composition below; the main
  * and the review pages get the header, the menu and the product selector, the notices, the instance and the chosen product
- * connected, the route the fragment names rendered again on every change of the fragment, and MOD-notifications' check of what
- * waits for acceptance. Throws a TypeError for a page that is none of the three, and for views or menuViews that are no lists.
+ * connected, the route the fragment names rendered again on every change of the fragment, MOD-notifications' check of what
+ * waits for acceptance, and MOD-prompt-bar's bar in a footer after the route's main, started once with the store, the instance, the
+ * chosen product, the subject of the route shown at each moment, `explain` and the navigation. Throws a TypeError for a page that is
+ * none of the three, and for views or menuViews that are no lists.
  */
 export async function startPage({ page, views, menuViews }) {
   if (!["bridge", "main", "review"].includes(page)) throw new TypeError(`The frame starts the pages bridge, main and review, not ${page}.`);
@@ -199,8 +205,12 @@ async function startSite({ page, views, menuViews }) {
   notices.className = "site-frame-notices";
   const target = document.createElement("main");
   target.className = "site-frame-route";
-  document.body.replaceChildren(header, notices, target);
+  const foot = document.createElement("footer");
+  foot.className = "site-frame-prompt-bar";
+  document.body.replaceChildren(header, notices, target, foot);
 
+  // The route shown now, with the parameters and the context it was rendered with: what the prompt bar's subject is read from.
+  let shown = null;
   let shownName = routes[0]?.name ?? "";
   const drawMenu = (active, product) => {
     menu.replaceChildren(...entries.map((entry) => {
@@ -257,18 +267,20 @@ async function startSite({ page, views, menuViews }) {
     const route = byName ?? (entryKey ? routes.find((candidate) => candidate.entry === entryKey) : routes[0]) ?? null;
     drawSelector(product?.address ?? null);
     drawMenu(route?.entry ?? entryKey, product?.address ?? null);
+    const context = { page, instance, product, store,
+      go: (name, given = {}) => {
+        location.hash = fragmentOf(name, product && !("product" in given) ? { ...given, product: product.address } : given);
+      } };
     if (!route) {
+      shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context };
       const paragraph = document.createElement("p");
       paragraph.textContent = entryKey ? `The ${labelOf(entryKey)} entry is not built yet.` : "This page is not built yet.";
       target.replaceChildren(paragraph);
       return;
     }
     shownName = route.name;
-    const context = { page, instance, product, store,
-      go: (name, given = {}) => {
-        location.hash = fragmentOf(name, product && !("product" in given) ? { ...given, product: product.address } : given);
-      } };
-    await route.render(target, context, route === byName ? params : {});
+    shown = { route, params: route === byName ? params : {}, context };
+    await route.render(target, context, shown.params);
   };
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", show);
@@ -278,6 +290,11 @@ async function startSite({ page, views, menuViews }) {
   watchForAcceptance({ store, instance,
     addressOf: (route, given, forRepository) =>
       addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, given, forRepository) });
+  startPromptBar(foot, { page, store, instance,
+    product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host },
+    subject: () => subjectOf({ ...shown, drawn: () => target.textContent }),
+    explain,
+    go: (name, given) => shown.context.go(name, given) });
 }
 
 // The value of the selector's entry that goes to the add-product route of the settings.

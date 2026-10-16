@@ -68,6 +68,17 @@ export function installPage({ hostname, pathname, hash = "" }) {
   return { window, location, document };
 }
 
+// The network of a fixture page. Loading this file puts `network` in place of the global fetch: it refuses every request at once and
+// records it in `outside.reached`, so a request that gets there has left the fixture. `offline()` puts the fixture's own fetch over it
+// — it refuses every request too and records it in `outside.seen` — unless a test has installed a fetch of its own; a page started
+// after `offline()` therefore never reaches `network`.
+export const outside = { reached: [], seen: [] };
+const network = async (url) => { outside.reached.push(String(url)); throw new TypeError("offline"); };
+globalThis.fetch = network;
+export function offline() {
+  if (globalThis.fetch === network) globalThis.fetch = async (url) => { outside.seen.push(String(url)); throw new TypeError("offline"); };
+}
+
 // A person (or a link) changes the fragment: the location holds it and the window announces it.
 export function changeFragment({ window, location }, hash) {
   location.hash = hash;

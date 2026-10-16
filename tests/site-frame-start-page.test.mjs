@@ -12,13 +12,13 @@
 //
 // Each test names its input and states its expected values in its own text; none reads an expected result from the SPEC, a use
 // case or an architecture file. The page is a small fixture DOM (tests/site-frame-start.d/dom.mjs) with a fixture location and
-// local storage; nothing reaches the network, and the one timer the frame may start — MOD-notifications' minute check — is
+// local storage; the page is given an offline fetch (tests/site-frame-start.d/dom.mjs), so nothing reaches the network, and the one timer the frame may start — MOD-notifications' minute check — is
 // counted instead of started. The counter-proofs (a planted fault in src/site-frame/ and the test's failing result) are recorded
 // in the pull request.
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { all, changeFragment, installPage } from "./site-frame-start.d/dom.mjs";
+import { all, changeFragment, installPage, offline, outside } from "./site-frame-start.d/dom.mjs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 
 const { startPage, menuOf } = await import("../src/site-frame/index.mjs");
@@ -42,6 +42,7 @@ const VIEW = { routes: [route("alpha", "requirements"), route("cases-list", "use
 async function start({ page = "review", fragment = "", views = [VIEW], products = [], tokens = {}, menuViews = [] } = {}) {
   rendered.length = 0;
   const fixture = installPage({ ...REVIEW, hash: fragment });
+  offline();
   const timers = [];
   globalThis.setInterval = (callback, delay) => { timers.push(delay); return timers.length; };
   const store = openStore("acme/instance");
@@ -277,4 +278,17 @@ test("TST-531011 the address writer writes the address of a review route for the
   assert.equal(productOf(fragment(`${docs}#module/id=MOD-x/product=${encoded(WIDGET)}`)), WIDGET);
   assert.equal(productOf(fragment(`${docs}#release/product=${encoded(APP)}`)), APP);
   assert.equal(productOf("#use-case/id=UC-001"), null);
+});
+
+// TST-506008 · level: unit · module: MOD-site-frame
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: the pages started by the tests above, each now with the prompt bar, which reads the instance acme/instance when it is drawn;
+//   every page of this file was given an offline fetch, and the fetch that stands for the network records what reaches it
+// input: the requests the pages made, as the offline fetch and as the network recorded them
+// expect: the pages did ask the instance's API (at least one request, every one of them to https://api.github.com/repos/acme/instance,
+//   so the check can find what it looks for), and no request reached the network: none left the fixture
+test("TST-506008 the pages of this file ask only the offline fetch, and no request leaves the fixture", () => {
+  assert.ok(outside.seen.length > 0, "the bar did read the instance, so the offline fetch saw it");
+  assert.deepEqual([...new Set(outside.seen)], ["https://api.github.com/repos/acme/instance"]);
+  assert.deepEqual(outside.reached, []);
 });
