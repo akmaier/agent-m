@@ -37,7 +37,7 @@ const ARTIFACTS = ["file docs/use-cases/UC-001-traced.md", "file docs/architectu
 
 // CASE ITM-597-SYSTEM-01
 // TST-597201 · level: system · module: MOD-trace-pages
-// guards: UC-020 (steps 5, 6); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the dashboard without a token on a repository holding SPEC.md, a use case, a module file and a test file, which name TRACED RULE
 // input: the real #spec drawn; its requirement opened; closed; opened again
 // expect: drawing requests none of the three artifact files; opening requests each of them (known positive: the page shows UC-001, MOD-traced and TST-601 as links); closing and opening again request nothing
@@ -55,7 +55,7 @@ test("the dashboard reads the artifacts when a requirement is opened, not when #
 
 // CASE ITM-597-SYSTEM-02
 // TST-597202 · level: system · module: MOD-trace-pages
-// guards: UC-020 (steps 5, 6); OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: the dashboard with a stored token on the same repository, whose queue 2026-10-09_traced holds an open entry that changes TRACED RULE
 // input: the real #spec drawn; its requirement opened
 // expect: the page lists the entry as spec-2026-10-09_traced-01 "change proposed (open)" linked to #spec-entry/id=spec-2026-10-09_traced-01; the artifacts were read in batch queries, fewer requests than files

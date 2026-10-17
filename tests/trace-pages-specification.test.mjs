@@ -427,7 +427,7 @@ const TRACE_SPEC = [
   "## Second section", "",
   "**GAMMA RULE** *(Vibe Coding)*", "Gamma rule.", "*Check:* at review.", "",
 ].join("\n");
-const UC1 = doc("UC-001", "First use case", { realises: ["ALPHA RULE"] });
+const UC1 = doc("UC-001", "First use case", { realises: ["ALPHA RULE", "REMOVED RULE"] });
 const UC3 = doc("UC-003", "Third use case", { realises: ["ALPHA RULE"] });
 const REGISTER_ENTRY = [
   "---", "id: SRC-vibe-coding", "title: Vibe Coding", "kind: document", "authority: normative", "licence: may be republished — CC BY 4.0", "---",
@@ -457,7 +457,7 @@ const TRACE_FILES = {
   "docs/use-cases/UC-002-second.md": doc("UC-002", "Second use case", { realises: ["BETA RULE"] }, `It also touches ${TICK}ALPHA RULE${TICK}.`),
   "docs/use-cases/UC-003-third.md": UC3,
   "docs/approvals/UC-003-000000000000.md": "record of an earlier text of UC-003",
-  "docs/use-cases/UC-004-fourth.md": doc("UC-004", "Fourth use case", { realises: ["REMOVED RULE"] }),
+  "docs/use-cases/UC-004-fourth.md": doc("UC-004", "Fourth use case", { realises: ["ORPHAN RULE"] }),
   "docs/architecture/ARC-001-first.md": doc("ARC-001", "First decision", { forced_by: ["ALPHA RULE"] }),
   "docs/architecture/MOD-direct.md": doc("MOD-direct", "Direct module", { folder: "src/direct/", realises: ["ALPHA RULE"] }),
   "docs/architecture/MOD-tested.md": doc("MOD-tested", "Tested module", { folder: "src/tested/", realises: ["BETA RULE"] }),
@@ -513,7 +513,7 @@ const paragraphs = (row, title) => find(traceSection(row, title), (node) => node
 
 // CASE ITM-597-01
 // TST-597001 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 5, 6); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture product, whose links file links SRC-vibe-coding at version 2026-10-05 with the part ch. 9; ALPHA RULE names the item "Vibe Coding, ch. 9" and "Unlinked Source", BETA RULE "Vibe Coding"
 // input: the route rendered at main, ALPHA RULE opened, then BETA RULE
 // expect: ALPHA RULE's Sources are "Vibe Coding — version 2026-10-05, part ch. 9", linked to #library/source=SRC-vibe-coding, and "Unlinked Source — no linked version", not linked; BETA RULE's the first of these alone; the four fields stay in the detail
@@ -529,7 +529,7 @@ test("an opened requirement lists its sources with the version and the part the 
 
 // CASE ITM-597-02
 // TST-597002 · level: component · module: MOD-trace-pages
-// guards: UC-020 (steps 5, 6); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture product: UC-001 has an approval record naming its current text, UC-002 none, UC-003 only a record of an earlier text; UC-001 and UC-003 realise ALPHA RULE, UC-002 names it in its text
 // input: ALPHA RULE opened on the default branch
 // expect: Use cases lists UC-001 "accepted", UC-002 "open", UC-003 "changed since acceptance", each as its title and status, linked to #use-case/id=<id>
@@ -541,7 +541,7 @@ test("an opened requirement lists the use cases that name it with their review s
 
 // CASE ITM-597-03
 // TST-597003 · level: component · module: MOD-trace-pages
-// guards: UC-020 (steps 5, 6); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture product: ARC-001 is forced by ALPHA RULE, MOD-direct realises it, MOD-tested is exercised by TST-501, which guards it
 // input: ALPHA RULE opened, then BETA RULE, which MOD-tested realises and no decision or test names
 // expect: ALPHA RULE — decisions ARC-001 linked to #decision/id=ARC-001; modules MOD-direct and MOD-tested linked to #module/id=<id>; tests TST-501 linked to #trace/key=tests/test=TST-501. BETA RULE — decisions "none", modules MOD-tested, tests "none"
@@ -562,7 +562,7 @@ test("an opened requirement lists the decisions, modules and tests that name it,
 
 // CASE ITM-597-04
 // TST-597004 · level: component · module: MOD-trace-pages
-// guards: UC-020 (steps 2b, 5a); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture product, in which nothing names GAMMA RULE (known positive: ALPHA RULE's lists are full); and a product with a use case and no decision, module or test file at all
 // input: GAMMA RULE opened in the first, ALPHA RULE in the second
 // expect: GAMMA RULE — use cases, decisions, modules and tests each "none". In the second product: use cases list UC-001, and decisions, modules and tests each read "none yet" with a folded note "Which phase produces them?" that says the version holds no architecture decisions, modules or tests yet
@@ -585,7 +585,7 @@ test("a list nothing fills reads none, and where the version holds no artifact o
 
 // CASE ITM-597-05
 // TST-597005 · level: component · module: MOD-trace-pages
-// guards: UC-020 (steps 3, 5, 6); OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: the fixture's queues — 2026-10-09_alpha changes ALPHA RULE and leaves BETA RULE out of its section, 2026-10-09b_alpha-again changes ALPHA RULE and keeps BETA RULE as it is, 2026-10-08_done changes GAMMA RULE and is decided
 // input: ALPHA RULE, BETA RULE and GAMMA RULE opened on the default branch
 // expect: ALPHA RULE lists spec-2026-10-09_alpha-01 and spec-2026-10-09b_alpha-again-01, each "change proposed (open)", linked to #spec-entry/id=<id>; BETA RULE lists spec-2026-10-09_alpha-01 as "removal proposed (open)"; GAMMA RULE "none", since its entry is decided
@@ -603,7 +603,7 @@ test("an opened requirement on the default branch lists the open proposals that 
 
 // CASE ITM-597-06
 // TST-597006 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 5c); OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: the fixture with two open entries that change ALPHA RULE and one that withdraws BETA RULE; then the same with a third queue whose entry changes ALPHA RULE
 // input: ALPHA RULE and BETA RULE opened with two entries, then ALPHA RULE with three
 // expect: with two entries ALPHA RULE notes "2 open proposals touch this requirement: accepting one makes the other stale." and BETA RULE, touched by one, notes nothing; with three, "3 open proposals touch this requirement: accepting one makes the others stale."
@@ -617,7 +617,7 @@ test("two open proposals that touch one requirement are noted, as accepting one 
 
 // CASE ITM-597-07
 // TST-597007 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 1a); OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: a Host that names main the default branch and gives the tag v2026.1.0, whose tree holds the same files, queues included
 // input: the route rendered at main, v2026.1.0 chosen, ALPHA RULE opened
 // expect: the detail lists ALPHA RULE's use cases (known positive) and has no Open proposals section; no file of docs/spec-freigaben is read at all
@@ -634,21 +634,24 @@ test("at a released version the open proposals are hidden and the queues are not
 
 // CASE ITM-597-08
 // TST-597008 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 5, alternative 5b); A REQUIREMENT SHOWS WHAT TRACES TO IT
-// given: the fixture, in which UC-004 realises REMOVED RULE, a name the SPEC does not hold; and a product whose artifacts name only requirements it holds
-// input: ALPHA RULE opened in each
-// expect: Unknown names lists "REMOVED RULE — named by UC-004", UC-004 linked to #use-case/id=UC-004; in the second product it reads "none"
-test("a name that matches no requirement is listed under unknown names with what names it", async () => {
-  const row = await openRequirement(await render(mainOnly(), mainParams), "ALPHA RULE");
-  assert.deepEqual(listed(row, "Unknown names"), ["REMOVED RULE — named by UC-004"]);
-  assert.deepEqual(linksOf(row, "Unknown names"), ["#use-case/id=UC-004"]);
-  const clean = await openRequirement(await render(mainOnly({ "SPEC.md": TRACE_SPEC, "docs/use-cases/UC-001-first.md": UC1 }), mainParams), "ALPHA RULE");
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: the fixture, in which UC-001, a use case of ALPHA RULE, also realises REMOVED RULE, a name the SPEC does not hold, and UC-004, which names neither ALPHA RULE nor BETA RULE, realises ORPHAN RULE, another; and a product whose use case names only the requirement it holds
+// input: ALPHA RULE and BETA RULE opened in the first, ALPHA RULE in the second
+// expect: ALPHA RULE's Unknown names lists "REMOVED RULE — named by UC-001", UC-001 linked to #use-case/id=UC-001, and not ORPHAN RULE, which no artifact listed for ALPHA RULE names; BETA RULE's reads "none"; in the second product ALPHA RULE's reads "none"
+test("the names that match no requirement and that the listed artifacts also name are listed under unknown names with what names them", async () => {
+  const target = await render(mainOnly(), mainParams);
+  const alpha = await openRequirement(target, "ALPHA RULE");
+  assert.deepEqual(listed(alpha, "Unknown names"), ["REMOVED RULE — named by UC-001"]);
+  assert.deepEqual(linksOf(alpha, "Unknown names"), ["#use-case/id=UC-001"]);
+  assert.deepEqual(paragraphs(await openRequirement(target, "BETA RULE"), "Unknown names"), ["none: none"]);
+  const only = doc("UC-001", "First use case", { realises: ["ALPHA RULE"] });
+  const clean = await openRequirement(await render(mainOnly({ "SPEC.md": TRACE_SPEC, "docs/use-cases/UC-001-first.md": only }), mainParams), "ALPHA RULE");
   assert.deepEqual(paragraphs(clean, "Unknown names"), ["none: none"]);
 });
 
 // CASE ITM-597-09
 // TST-597009 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 5); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture on the default branch
 // input: the route drawn; ALPHA RULE opened; BETA RULE opened; ALPHA RULE closed and opened again
 // expect: drawing reads SPEC.md alone and calls readMany never; after ALPHA RULE is opened, UC-001's file has been named to readMany once and read once; after BETA RULE and the second opening both counts are still one
@@ -670,7 +673,7 @@ test("the trace graph is built when a requirement is opened, not when the tree i
 
 // CASE ITM-597-10
 // TST-597010 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 5); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture, in which the first read of UC-001's file fails as an unreachable server does
 // input: ALPHA RULE opened, closed, opened again
 // expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: unreachable" with no list; the second opening reads again and lists UC-001 as "accepted"
@@ -689,7 +692,7 @@ test("a graph that cannot be read is named in place of the traces, the four fiel
 
 // CASE ITM-597-11
 // TST-597011 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 5); A REQUIREMENT SHOWS WHAT TRACES TO IT; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: the fixture, in which every read of docs/sources.md and of the first queue's index fails as an unreachable server does
 // input: ALPHA RULE opened
 // expect: Sources says "The sources could not be read: unreachable" and Open proposals "The open proposals could not be read: unreachable"; the use cases are listed all the same
@@ -703,7 +706,7 @@ test("a part that cannot be read is named in its own section and leaves the othe
 
 // CASE ITM-597-12
 // TST-597012 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 5); OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: the fixture, and a fourth queue 2026-10-09d_elsewhere whose open entry names docs/other.md as its target file and words ALPHA RULE otherwise
 // input: ALPHA RULE opened on the default branch
 // expect: Open proposals lists the same two entries as without that queue (known positive) and the note counts two, since an entry of another file proposes nothing for the SPEC
@@ -716,7 +719,7 @@ test("an open entry whose target is not the SPEC is no proposal for a requiremen
 
 // CASE ITM-597-13
 // TST-597013 · level: component · module: MOD-trace-pages
-// guards: UC-020 (steps 5, 6); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: a product whose files hold the SPEC and the links file, and an instance whose default branch holds the register entry of SRC-vibe-coding; the route is handed both Hosts
 // input: ALPHA RULE opened
 // expect: Sources lists "Vibe Coding — version 2026-10-05, part ch. 9" and "Unlinked Source — no linked version", as when the product holds the register; the product's snapshot is asked for no file of docs/sources/, the instance's snapshot is the one of its default branch
@@ -734,7 +737,7 @@ test("the register of the sources is read from the instance's default branch whe
 
 // CASE ITM-597-14
 // TST-597014 · level: component · module: MOD-trace-pages
-// guards: UC-020 (steps 5a); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: a SPEC whose requirement LONELY RULE names no source, and the fixture's ALPHA RULE for the known positive
 // input: LONELY RULE opened
 // expect: Sources reads "none"
