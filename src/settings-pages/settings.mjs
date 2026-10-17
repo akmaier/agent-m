@@ -133,6 +133,8 @@ function endpointLine(target, context, info) {
   );
 }
 
+const lastTestOf = (store, key) => readSetting(store, `last-test:${key}`);
+
 function bridgeLine(target, context) {
   const setting = readSetting(context.store, "bridge");
   if (!setting) return null;
@@ -140,6 +142,9 @@ function bridgeLine(target, context) {
   const show = el("button", "settings-bridge-show btn small", "Show");
   const change = el("button", "settings-bridge-change btn", "Change");
   const clear = el("button", "settings-bridge-clear btn", "Clear");
+  const test = el("button", "settings-bridge-test btn", "Test");
+  const result = el("p", "settings-bridge-result");
+  const status = el("p", "settings-bridge-status", stateText(lastTestOf(context.store, "bridge")));
   token.type = "password";
   token.value = setting.token ?? "";
   token.autocomplete = "off";
@@ -149,17 +154,33 @@ function bridgeLine(target, context) {
     token.type = hidden ? "text" : "password";
     show.textContent = hidden ? "Hide" : "Show";
   });
+  // The same test as a Bridge kept by name: MOD-bridge-client's testBridge on the Bridge at the stored address, with the stored token.
+  test.addEventListener("click", async () => {
+    let lastTest;
+    try {
+      result.textContent = `Testing the Bridge at ${setting.address}…`;
+      await testBridge(bridgeAt({ address: setting.address, token: setting.token }));
+      lastTest = { at: new Date().toISOString(), outcome: "working" };
+      result.textContent = `✓ The Bridge answers at ${setting.address}.`;
+    } catch (error) {
+      lastTest = { at: new Date().toISOString(), outcome: "refused" };
+      result.textContent = `✗ ${bridgeTestFailure(error)}`;
+    }
+    writeSetting(context.store, "last-test:bridge", lastTest);
+    status.textContent = stateText(lastTest);
+  });
   change.addEventListener("click", () => context.go("bridge", {}));
   clear.addEventListener("click", async () => {
     clearSetting(context.store, "bridge");
+    clearSetting(context.store, "last-test:bridge");
     await route.render(target, context);
   });
   return el("section", "settings-bridge panel",
-    el("h3", null, "Bridge"),
+    el("h3", null, "Bridge"), status,
     el("p", null, `Address: ${setting.address}`),
     el("p", null, el("label", null, "Pairing token ", token, " ", show)),
     explain("settings-bridge-stored"),
-    el("p", null, change, " ", clear),
+    el("p", null, test, " ", change, " ", clear), result,
   );
 }
 
