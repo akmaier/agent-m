@@ -12,7 +12,7 @@
 // Guards: UC-018; A SPEC EDIT IS SAVED AS A PROPOSAL; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; A REQUIREMENT HAS FOUR FIELDS; THE NAME IS THE ID AND IT SURVIVES; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own, which keeps to
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged. The product is a fixture behind a Host of the tests' own, which keeps to
 // MOD-repository-hosts' interface (repositoryInfo with canWrite, readSnapshot, readHistory, commitFiles made only on the head that was read, else `Moved`). The real
 // MOD-markdown-render (its editor), MOD-spec-changes, MOD-spec-document, MOD-trace-graph, MOD-artifact-edits and MOD-text-tools run as they are. Nothing reaches the
 // network. Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
@@ -28,7 +28,7 @@
 //   - Without a token the person of the edit is "anonymous".
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

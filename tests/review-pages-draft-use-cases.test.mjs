@@ -12,7 +12,7 @@
 // Guards: UC-007; ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; THE ROUNDS ARE COUNTED AND SHOWN; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to
 // MOD-repository-hosts' interface (repositoryInfo, readSnapshot, readHistory, commitFiles made only on the head that was read, else `Moved`); the instance is a
 // read-only snapshot of this repository, whose book is on the disk, with the register of participants the test gives. The model endpoint is a fixture standing
 // behind the global `fetch`, which the test replaces and restores. The real MOD-job-runner, MOD-runtimes, MOD-job-ledger, MOD-approvals, MOD-spec-changes,
@@ -29,7 +29,7 @@
 //   - Agent M's version, which the job's record names, is read as the instance's commit, as no text names another source of it.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

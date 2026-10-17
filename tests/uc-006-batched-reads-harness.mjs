@@ -1,10 +1,10 @@
 // The fixture of the UC-006 system and release tests of batched reads (ITM-479), no test of its own: a product of 1,332 files that the
 // trace graph reads, on a fake GitHub that answers as GitHub's REST API and GraphQL API answer, and the SPEC-entry page of
 // MOD-review-pages opened over MOD-repository-hosts' real GitHub host. The page is reached the way tests/system-uc-006-approve-spec-change.test.mjs
-// reaches it: the `spec-entry` route's render, in the DOM of tests/review-pages-use-cases.test.mjs. Nothing reaches the network:
+// reaches it: the `spec-entry` route's render, in the DOM of tests/review-pages-harness.mjs. Nothing reaches the network:
 // `fetch` is replaced for the length of one page and every request is recorded. No expected result is computed here; each test states its own.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import { createHash } from "node:crypto";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";

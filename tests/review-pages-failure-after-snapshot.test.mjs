@@ -5,12 +5,12 @@
 // Guards: UC-006; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged (its document and its localStorage). The repository is a Host of
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged (its document and its localStorage). The repository is a Host of
 // the tests' own over one product in memory: a SPEC of one section and a queue of one entry. The snapshot it returns reads every file but the use case,
 // whose read fails as a used-up limit does, so the failure is raised while the impact list of the entry is built, after the snapshot was read.
 // Nothing reaches the network. The expected values are stated in the test.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
