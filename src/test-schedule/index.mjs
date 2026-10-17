@@ -2,7 +2,7 @@
 // its interface. Of it, ITM-250 builds scheduleSchema and defaultSchedule, as its file states them: the schema of a
 // product's docs/tests/schedule.md in schedule.schema.md, and the book's default in default-schedule.md, marked as the
 // default. They give the complete run of a release candidate the levels it runs, the command that runs them and the
-// runner of each (MOD-release-evidence). scheduleFindings, ciConfiguration, configurationDrift, secretsNeeded,
+// runner of each (MOD-release-evidence). ITM-742 adds scheduleFindings (rules.mjs). ciConfiguration, configurationDrift, secretsNeeded,
 // occasionsOf, proposeSchedule, applyPipelineSchedule and scheduleStrategies are UC-027's, not part of this item, and
 // are not built yet.
 //
@@ -14,6 +14,8 @@
 // reads its schema. A file that cannot be read, or a schema that breaks the language, stops the module's load.
 
 import { loadSchema, readDocument } from "../documents/index.mjs";
+
+export { scheduleFindings } from "./rules.mjs";
 
 const OWNER = "MOD-test-schedule";
 const SCHEMA_FILE = new URL("./schedule.schema.md", import.meta.url);
