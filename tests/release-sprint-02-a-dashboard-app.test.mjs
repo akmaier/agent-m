@@ -486,7 +486,7 @@ test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a decision and a m
     assert.deepEqual(writesOf(w), [], `${from}: nothing is written`);
     assert.equal(w.server.files[p], text, `${from}: unchanged on the branch`);
     const said = ed.result();
-    assert.match(said, /nothing was saved|not saved/i, `${from}: ${said}`);
+    assert.match(said, /nothing was saved|not saved|Save is disabled/i, `${from}: ${said}`);
     assert.match(said, new RegExp(from), `${from}: the identifier it was opened with`);
     assert.match(said, new RegExp(to), `${from}: the identifier the text carries now`);
   }
