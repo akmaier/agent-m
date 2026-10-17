@@ -44,7 +44,7 @@ import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
-import { queueAt, queues } from "./queues.mjs";
+import { queueAt, queuesAt, queues } from "./queues.mjs";
 
 // Whether a requirement stated by the proposal is another than the one the section holds under its name: its source, rule or check.
 const differs = (was, is) => was.source !== is.source || was.rule !== is.rule || was.check !== is.check;
@@ -200,7 +200,9 @@ export async function acceptEntries(host, shown, person, now, sources) {
   const { defaultBranch } = await host.repositoryInfo();
   const head = await host.readSnapshot(defaultBranch);
   const folders = [...new Set(shown.map(({ queue }) => queue))];
-  const loaded = new Map(await Promise.all(folders.map(async (folder) => [folder, await queueAt(head, folder)])));
+  // One read of all the queues, so that a file they share, the target above all, is read once.
+  const read = await queuesAt(head, folders);
+  const loaded = new Map(folders.map((folder, at) => [folder, read[at]]));
   const items = shown.map(({ queue, entry: number, proposalBlob, sectionBlob }) => ({ queue, entry: number, proposalBlob, sectionBlob,
     record: `${APPROVALS}spec-${queue.split("/").pop()}-${pad2(number)}-${String(proposalBlob).slice(0, 12)}.md` }));
   const { files, applied, refused } = await plan(head, loaded, items, { sources, now, verb: "shown", records: true });
