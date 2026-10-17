@@ -9,11 +9,11 @@
 // Guards: UC-005; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A GENERATED ARTIFACT IS A PROPOSAL; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; A CONFLICT IS DECIDED BY A PERSON; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; THE ROUNDS ARE COUNTED AND SHOWN
 // Level: unit
 //
-// The test reuses the browser DOM harness of tests/review-pages-use-cases.test.mjs. The product and the instance are
+// The test reuses the browser DOM harness of tests/review-pages-harness.mjs. The product and the instance are
 // in-memory hosts that keep to MOD-repository-hosts' interface. The source register and the source content are fixture
 // files; the real MOD-source-register recipes check their hashes. The model endpoint is a fixture behind global fetch.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

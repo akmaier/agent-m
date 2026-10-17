@@ -6,7 +6,7 @@
 // saved directly, because it is already a proposal; no second queue is created"); the requirement EXPORT IS A PDF is UC-019's example.
 // Run: node --test tests/review-pages-edit-entry.test.mjs
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own (repositoryInfo with canWrite,
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged. The product is a fixture behind a Host of the tests' own (repositoryInfo with canWrite,
 // readSnapshot, readHistory, commitFiles on the head that was read, else `Moved`); the real MOD-markdown-render (its editor, through openEditor only), MOD-spec-changes,
 // MOD-spec-document and MOD-trace-graph run as they are. Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
 //   - The address is the entry's with the part `edit=1` — #spec-entry/id=spec-2026-03-01_sample-01/edit=1 —; the entry's page offers <a class="edit-link"> there only while the
@@ -14,7 +14,7 @@
 //     view gives), <ul class="impact"> against the section that holds now, and after a save <p class="entry"> linking the commit and the entry.
 //   - A save with an empty Why is not sent. Without a token the person of the edit is "anonymous".
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

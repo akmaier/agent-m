@@ -7,39 +7,24 @@
 // Guards: UC-001; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// This imports the browser harness of tests/settings-pages-add-product.test.mjs unchanged (its document and its modules), as tests/review-pages-edit-requirement-pages.test.mjs
-// imports another test file's. Every request is answered by a fake of fetch of this file's own that answers the status each case names with a JSON body; nothing reaches the
+// This takes the browser harness (the fixture document and its helpers) from tests/settings-pages-harness.mjs, the helper file of the tests of MOD-settings-pages, and imports no
+// test file. Every request is answered by a fake of fetch of this file's own that answers the status each case names with a JSON body; nothing reaches the
 // network. What the explanation says is MOD-site-frame's, pinned in tests/site-frame-new-repository-explanation.test.mjs; here only that the notice carries what the real
 // explain() returns for the topic, and where. Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the
 // pull request.
 
-import "./settings-pages-add-product.test.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
+import { installDocument, elements, byTag, byClass, turn, type, click } from "./settings-pages-harness.mjs";
+
+const document = installDocument();
 
 const { view } = await import("../src/settings-pages/index.mjs");
 const { explain } = await import("../src/site-frame/index.mjs");
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "add-product");
 
-// ---------------------------------------------------------------- the DOM, the store and the server
-
-const document = globalThis.document;
-const elements = (root, match) => {
-  const found = [];
-  (function walk(n) { for (const k of n.childNodes) if (k.nodeType === 1) { if (match(k)) found.push(k); walk(k); } })(root);
-  return found;
-};
-const byTag = (root, name) => elements(root, (e) => e.localName === name);
-const byClass = (root, name) => elements(root, (e) => e.className.split(" ").includes(name));
-const turn = () => new Promise((resolve) => setImmediate(resolve));
-const click = async (button) => {
-  const event = new Event("click");
-  Object.defineProperty(event, "isTrusted", { value: true });
-  button.dispatchEvent(event);
-  await turn();
-};
-const type = (field, text) => { field.value = text; field.dispatchEvent(new Event("input")); };
+// ---------------------------------------------------------------- the store and the server
 
 class FakeStorage {
   constructor() { this.map = new Map(); }

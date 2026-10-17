@@ -9,7 +9,7 @@
 // Guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own, which keeps to
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged. The product is a fixture behind a Host of the tests' own, which keeps to
 // MOD-repository-hosts' interface (repositoryInfo with canWrite, readSnapshot, commitFiles made only on the head that was read). The real MOD-markdown-render (its editor),
 // MOD-spec-changes, MOD-spec-document, MOD-trace-graph, MOD-artifact-edits and MOD-text-tools run as they are. Nothing reaches the network. Where the module file leaves a
 // reading open, the test states the one it takes, and the pull request names it:
@@ -21,7 +21,7 @@
 //   - Without a token the person of the edit is "anonymous"; the entry of the section "## 1. Lending" is written as <queue>/01-lending.md with its rationale <queue>/01-lending.begruendung.md.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

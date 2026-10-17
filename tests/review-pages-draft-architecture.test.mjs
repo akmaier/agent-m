@@ -11,7 +11,7 @@
 // Guards: UC-022; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; NO REVIEWER IS THE DRAFTER; THE PAGE NAMES WHERE IT SENDS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to MOD-repository-hosts'
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to MOD-repository-hosts'
 // interface; the instance is a read-only snapshot of this repository, whose book is on the disk, with the register of participants the test gives. The model endpoints are fixtures
 // standing behind the global `fetch`, which the test replaces and restores. The real MOD-job-runner, MOD-runtimes, MOD-job-ledger, MOD-approvals, MOD-spec-changes, MOD-source-register,
 // MOD-trace-graph, MOD-participant-list and MOD-site-frame run as they are, the strategies registered as the view hands them to the frame; the step `due-diligence`, which no module
@@ -27,7 +27,7 @@
 //   - A linked source is one the product's docs/sources.md holds a row of; its places are those MOD-source-register's permittedPlaces gives its register entry in the instance.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
