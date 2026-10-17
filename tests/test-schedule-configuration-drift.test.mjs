@@ -13,7 +13,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { defaultSchedule, ciConfiguration, configurationDrift } from "../src/test-schedule/index.mjs";
+import { scheduleSchema, defaultSchedule, ciConfiguration, configurationDrift } from "../src/test-schedule/index.mjs";
+import { readDocument } from "../src/documents/index.mjs";
+import { participantSchema } from "../src/participant-list/index.mjs";
+import { resourceSchema } from "../src/resource-list/index.mjs";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const GITHUB = { server: "github", instance: "acme/agent-m", instanceCommit: COMMIT };
@@ -21,7 +24,6 @@ const GITLAB = { server: "gitlab", instance: "https://git.example.org/acme/agent
 const GITHUB_FILE = ".github/workflows/agent-m-tests.yml";
 const GITLAB_FILE = ".gitlab/agent-m-tests.yml";
 const ENTRY = "- local: .gitlab/agent-m-tests.yml";
-// configurationDrift is given no resources and no participants, so the fixtures generate with none.
 const NONE = { sections: [] };
 const generated = (target) => ciConfiguration(defaultSchedule(), target, NONE, NONE).files;
 
@@ -97,3 +99,51 @@ test("configurationDrift — a foreign workflow with push and schedule triggers 
   assert.doesNotMatch(found[0].difference, /pull_request/);
   assert.match(found[0].difference, /\bpaid\b/);
 });
+
+// TST-745005 · level: unit · module: MOD-test-schedule
+// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027 (1b)
+// given: a schedule whose row component runs on the participant lab-runner (a runner route), resources with one endpoint whose secret is ci:ORACLE_KEY (the row paid is ticked nightly), and the files ciConfiguration generates from them for GitHub and for GitLab
+// input: configurationDrift(files, schedule, target) for each; then the same with one line of the generated file edited
+// expect: the unedited files give the empty list and do not throw; the edited ones give exactly one difference with the path of the file
+const HEAD = "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |\n|---|---|---|---|---|---|---|";
+const REAL = readDocument(scheduleSchema, "docs/tests/schedule.md", `---\nnightly: 03:30\n---\n## Levels\n\n${HEAD}
+| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| component | ✓ | ✓ | ✓ | ✓ | ✓ | lab-runner |
+| system | ✓ | ✓ | ✓ | ✓ | ✓ | |
+| paid | | | ✓ | ✓ | ✓ | |
+| release | | | | ✓ | ✓ | |
+| user | | | | ✓ | ✓ | |
+`);
+const PARTICIPANTS = readDocument(participantSchema(), "docs/participants.md", `# Participants of this instance
+
+**REGISTER**
+
+The participants of the test instance.
+
+| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |
+|---|---|---|---|---|---|---|---|
+| lab-runner | CI agent | example-model | 200000 | — | draft text, run code and tests | this machine | ci runner:lab secret LAB_KEY |
+`);
+const RESOURCES = readDocument(resourceSchema(), "docs/resources.md", `# Resources of this product
+
+**REGISTER**
+
+The resources.
+
+| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |
+|---|---|---|---|---|---|---|---|---|---|
+| oracle | endpoint | https://api.example.org/v1 | example-model | — | — | runner:cpu | the vendor | yes | ci:ORACLE_KEY |
+`);
+for (const [server, target, path] of [["github", GITHUB, GITHUB_FILE], ["gitlab", GITLAB, GITLAB_FILE]]) {
+  test(`configurationDrift — ${server}: the files of a schedule with a secret and a runner give no difference`, () => {
+    const { files } = ciConfiguration(REAL, target, RESOURCES, PARTICIPANTS);
+    assert.match(files[path], /ORACLE_KEY/);
+    assert.match(files[path], /lab/);
+    assert.deepEqual(configurationDrift(files, REAL, target), []);
+    const lines = files[path].split("\n");
+    lines[1] += " edited";
+    const found = configurationDrift({ [path]: lines.join("\n") }, REAL, target);
+    assert.equal(found.length, 1);
+    assert.equal(found[0].path, path);
+  });
+}
