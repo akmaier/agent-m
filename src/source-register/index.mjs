@@ -94,7 +94,8 @@ export function permittedPlaces(entry) {
  * and the files. The entry is the one the form builds: its `## Versions` holds the first version's row — version, date, edition,
  * read from —, whose cell Files this function fills with the number of files, `listed below`, the version's hash, and the files
  * only hashed after `not stored:`; under `### Files of <version>` it lists every file with the SHA-256 of its bytes and, in the
- * column `Kept at`, the `note` of a file only hashed (a `|` in it written `\|`) and `—` for a file kept. A file with `keep` goes
+ * column `Kept at`, the `note` of a file only hashed (each line break in it written as one space, a `|` in it written `\|`) and
+ * `—` for a file kept. A file with `keep` goes
  * to `docs/sources/<id>/<version>/<name>` of the instance when the licence permits republishing, of the entry's
  * `content_repository` otherwise; a file without it goes nowhere, since the person only hashed it. The entry goes to the
  * instance, first in the plan. Throws NoteMissing { file } for a file not kept that has no note (a note of blanks is none),
@@ -144,10 +145,11 @@ function requireNotes(files) {
 }
 
 // Each file with the SHA-256 of its bytes and the cell of its row under `### Files of <version>`, `Kept at`: the note of a file
-// that is not kept, with a `|` in it written `\|`, and `—` for a file that is kept.
+// that is not kept, each line break in it written as one space (a row stays one line) and a `|` in it written `\|`, and `—`
+// for a file that is kept.
 async function listedFiles(files) {
   return Promise.all(files.map(async (file) => ({ name: file.name, sha256: await sha256(file.bytes),
-    keptAt: file.keep ? "—" : file.note.replace(/\|/g, "\\|") })));
+    keptAt: file.keep ? "—" : file.note.replace(/\r\n|\r|\n/g, " ").replace(/\|/g, "\\|") })));
 }
 
 function filesCell(files, listed, hash) {
