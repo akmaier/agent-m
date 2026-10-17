@@ -439,11 +439,11 @@ const LINKS = ["# Sources of the fixture", "", "| Source | Version | Hash | Part
 const firstSection = (alpha, withBeta) => ["## First section", "", "**ALPHA RULE** *(Vibe Coding, ch. 9; Unlinked Source)*", alpha, `*Check:* ${TICK}tests/alpha.test.mjs${TICK}`, "",
   ...(withBeta ? ["**BETA RULE** *(Vibe Coding)*", "Beta rule.", "*Check:* at review.", ""] : [])].join("\n");
 // The files of one queue with one entry: its index, its decisions (a row when the entry is decided), the entry and the section it proposes.
-function queue(folder, title, anchor, proposal, decided = false) {
+function queue(folder, title, anchor, proposal, decided = false, target = "SPEC.md") {
   const base = `docs/spec-freigaben/${folder}`;
   return {
-    [`${base}/index.md`]: [`# SPEC approvals — queue ${folder.slice(0, 10)} · ${title}`, "", `**Zieldatei aller Einträge:** ${TICK}SPEC.md${TICK}`, "",
-      "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", `| 01 | ${TICK}SPEC.md${TICK} | ${anchor} | — | — |`, ""].join("\n"),
+    [`${base}/index.md`]: [`# SPEC approvals — queue ${folder.slice(0, 10)} · ${title}`, "", `**Zieldatei aller Einträge:** ${TICK}${target}${TICK}`, "",
+      "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", `| 01 | ${TICK}${target}${TICK} | ${anchor} | — | — |`, ""].join("\n"),
     [`${base}/entscheidungen.md`]: [`# Decisions — queue ${folder.slice(0, 10)} ${title}`, "", "Append-only.", "", ...(decided ? [`| 2026-10-08 10:00 UTC | 1 | uebernommen | ${"c".repeat(40)} |`] : []), ""].join("\n"),
     [`${base}/01-entry.md`]: proposal,
   };
@@ -699,4 +699,48 @@ test("a part that cannot be read is named in its own section and leaves the othe
   assert.deepEqual(paragraphs(row, "Sources"), ["traces-problem: The sources could not be read: unreachable"]);
   assert.deepEqual(paragraphs(row, "Open proposals"), ["traces-problem: The open proposals could not be read: unreachable"]);
   assert.equal(listed(row, "Use cases").length, 3);
+});
+
+// CASE ITM-597-12
+// TST-597012 · level: component · module: MOD-trace-pages
+// guards: UC-020 (step 5); OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// given: the fixture, and a fourth queue 2026-10-09d_elsewhere whose open entry names docs/other.md as its target file and words ALPHA RULE otherwise
+// input: ALPHA RULE opened on the default branch
+// expect: Open proposals lists the same two entries as without that queue (known positive) and the note counts two, since an entry of another file proposes nothing for the SPEC
+test("an open entry whose target is not the SPEC is no proposal for a requirement", async () => {
+  const files = { ...TRACE_FILES, "docs/other.md": "# Other\n", ...queue("2026-10-09d_elsewhere", "elsewhere", "## First section", firstSection("Alpha rule, elsewhere.", true), false, "docs/other.md") };
+  const row = await openRequirement(await render(mainOnly(files), mainParams), "ALPHA RULE");
+  assert.deepEqual(listed(row, "Open proposals").sort(), ["spec-2026-10-09_alpha-01 — change proposed (open)", "spec-2026-10-09b_alpha-again-01 — change proposed (open)"]);
+  assert.deepEqual(paragraphs(row, "Open proposals"), ["stale-note: 2 open proposals touch this requirement: accepting one makes the other stale."]);
+});
+
+// CASE ITM-597-13
+// TST-597013 · level: component · module: MOD-trace-pages
+// guards: UC-020 (steps 5, 6); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: a product whose files hold the SPEC and the links file, and an instance whose default branch holds the register entry of SRC-vibe-coding; the route is handed both Hosts
+// input: ALPHA RULE opened
+// expect: Sources lists "Vibe Coding — version 2026-10-05, part ch. 9" and "Unlinked Source — no linked version", as when the product holds the register; the product's snapshot is asked for no file of docs/sources/, the instance's snapshot is the one of its default branch
+test("the register of the sources is read from the instance's default branch when the route is handed the instance", async () => {
+  const productHost = treeHost({ trees: { main: { "SPEC.md": TRACE_SPEC, "docs/sources.md": LINKS } } });
+  const instanceHost = treeHost({ trees: { main: { "docs/sources/SRC-vibe-coding.md": REGISTER_ENTRY } } });
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, { instance: { host: instanceHost }, product: { host: productHost } }, mainParams);
+  const row = await openRequirement(target, "ALPHA RULE");
+  assert.deepEqual(listed(row, "Sources"), ["Vibe Coding — version 2026-10-05, part ch. 9", "Unlinked Source — no linked version"]);
+  assert.deepEqual(productHost.log.reads.filter((path) => path.startsWith("docs/sources/")), []);
+  assert.ok(instanceHost.log.reads.includes("docs/sources/SRC-vibe-coding.md"));
+});
+
+// CASE ITM-597-14
+// TST-597014 · level: component · module: MOD-trace-pages
+// guards: UC-020 (steps 5a); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: a SPEC whose requirement LONELY RULE names no source, and the fixture's ALPHA RULE for the known positive
+// input: LONELY RULE opened
+// expect: Sources reads "none"
+test("a requirement that names no source reads none under Sources", async () => {
+  const lonely = `${TRACE_SPEC}\n**LONELY RULE**\nLonely rule.\n*Check:* at review.\n`;
+  const target = await render(mainOnly({ ...TRACE_FILES, "SPEC.md": lonely }), mainParams);
+  assert.equal(listed(await openRequirement(target, "ALPHA RULE"), "Sources").length, 2, "known positive: ALPHA RULE names two sources");
+  assert.deepEqual(paragraphs(await openRequirement(target, "LONELY RULE"), "Sources"), ["none: none"]);
 });
