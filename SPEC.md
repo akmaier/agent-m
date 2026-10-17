@@ -119,22 +119,22 @@ An item that no group names is shown at the top level of its hierarchy.
 **THE BROWSER SHOWS ANY RELEASED VERSION** *(PO A. Maier)*
 The specification browser shows a product's requirements as they stand at any released version or
 on the current default branch, as the reader chooses.
-*Check:* `tests/test_spec_browser.py`
+*Check:* `tests/trace-pages-specification.test.mjs`
 
 **A REQUIREMENT SHOWS WHAT TRACES TO IT** *(PO A. Maier)*
 For each requirement, the browser lists its sources and every use case, architecture element, module
 and test that names it, as derived from the version shown.
-*Check:* `tests/test_spec_browser.py`
+*Check:* `tests/trace-graph-guards.test.mjs`, `tests/trace-graph-facts.test.mjs`, `tests/trace-pages-specification.test.mjs`
 
 **OPEN PROPOSALS ARE SHOWN IN THE BROWSER** *(PO A. Maier)*
 Every requirement that an open queue entry would add, change or withdraw is shown in the browser
 with that entry's status and a link to it.
-*Check:* `tests/test_spec_browser.py`
+*Check:* `tests/trace-pages-specification.test.mjs`
 
 **A REQUIREMENT SHOWS ITS HISTORY** *(PO A. Maier)*
 For each requirement, the browser lists every accepted change to its text with date, accepting
 person, and the text before and after.
-*Check:* `tests/test_spec_browser.py`
+*Check:* `tests/trace-pages-specification.test.mjs`
 
 **A REGROUPING IS COMMITTED DIRECTLY** *(PO A. Maier)*
 A change to a group file is the person's own input and is committed to the default branch when they
@@ -669,6 +669,15 @@ server tells the page, and never reports the token as refused or lacking a permi
 5000` yields the account's limit and its reset time, and no token message; counter-proof: a `403` without
 those headers is still reported as a missing permission.
 
+**A PAGE LOAD READS THE REPOSITORY IN BATCHES** *(PO A. Maier)*
+With a token on GitHub, one load of a dashboard page reads its commit and that commit's tree once, and the texts of
+the files it shows in requests of at most 100 files each; a file whose blob the page has read already is not read
+again, and an acceptance reads the head it commits on once.
+*Check:* `tests/load-per-view.test.mjs` — over a counting fake GitHub that serves the batch request, the start page,
+`#arc`, `#spec` and `#backlog` each send their commit and tree once and one batch for every hundred files they show,
+and an acceptance of three files reads its head once; counter-proof: a load that reads each file by itself exceeds
+that count.
+
 **A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY** *(PO A. Maier)*
 Settings that govern how a product is developed — its process model, Definition of Done, test
 schedule, pseudonymisation and collaborators — are kept in files of the product's repository, never only
@@ -1046,7 +1055,9 @@ accepted entry yet, and opens a new queue only if there is none.
 **EVERY STEP EXPLAINS ITSELF** *(PO A. Maier)*
 Every step that asks something of the person carries an explanation that can be expanded, written
 for someone new to GitHub.
-*Check:* `tests/test_step_explanations.py`
+*Check:* `tests/site-frame.test.mjs`, `tests/settings-pages-add-product.test.mjs`, `tests/settings-pages-setup.test.mjs` —
+each step of the add-product page and of *Finish setting up* carries the folded explanation of its topic; counter-proof:
+a topic the explanations file does not hold shows nothing and is reported by the frame's own check.
 
 **A PRODUCT IS NAMED BY ITS ADDRESS** *(PO A. Maier)*
 A product is identified by the web address of its repository, on `github.com` or on a GitLab server.
