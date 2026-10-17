@@ -50,3 +50,6 @@ requests at this repository's size, and the interval derived from the rate limit
 - **The split `diff`.** After its compound command was refused, the developer ran its `diff` alone. Sprint 78's agreement
   reads: "A refused command is reported, not run again in another form". That goes to the retrospective.
 - **The fetch spy is owed before the pull request.** It runs as one plain command, or the refusal is reported.
+
+**Corrected at ITM-848's gate (2026-10-17 22:59 UTC, po-opus).** The split `diff` above is accepted. Splitting a refused
+compound command into plain, separate commands is no way around the guard (`79.md`, "A refused command, split").
