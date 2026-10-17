@@ -7,9 +7,9 @@ realises:
   - OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 modules:
   - MOD-trace-pages
-  - MOD-spec-changes
 builds_on:
   - ITM-597
+  - ITM-677
 tests:
   - unit
   - system
@@ -75,3 +75,10 @@ reads each queue's `index.md` and `entscheidungen.md`, each record, proposal and
 requirement at a version, with a token API calls on the person's budget. `queues` gathers the paths it will read and
 reads them through the snapshot's `readMany` first. `Snapshot.readMany` is MOD-repository-hosts' interface, in
 MOD-spec-changes' Uses, so no draft is needed. A committed test with a fixture of many queues counts the reads.
+
+**Waits for ITM-677 (2026-10-17, po-opus, sprint team1/69).** Its rework's draft of the batching showed that `queues` is
+MOD-spec-changes' shared reader. Batching it changes the notifications, UC-019's requirement page and five release tests.
+So the batching is cut out into ITM-677, with its release tests in ITM-678 by another participant, and this item takes
+MOD-spec-changes out of its modules again. Pull request #715 stays open, its gate rejected
+(`docs/gates/20261017-0930-development-release-testing-91e4.md`). Once ITM-677 is merged, it is merged with the sprint
+branch in new commits, and the gate is decided again with the committed count.
