@@ -1,6 +1,6 @@
 // MOD-settings-pages' route `setup` — finishing the setup of an instance in this browser (UC-014 steps 6 to 8 and 7a), as docs/architecture/MOD-settings-pages.md states it:
 // "then *Finish setting up*: the prefilled token page, *Only select repositories* and the instance named, the shared-origin notice with its tick, the token and its expiry,
-// *Store and check*, and *Import settings* beside it". The route is rendered into a small fixture DOM (tests/settings-pages-setup.d/dom.mjs, a helper file of its own); the
+// *Store and check*, and *Import settings* beside it". The route is rendered into a fixture DOM (tests/settings-pages-setup.d/dom.mjs, a helper file of its own, with the part of a browser that the frame's explain needs); the
 // token page's address is MOD-repository-hosts' own prefilled link; the instance is read through MOD-repository-hosts' connect and repositoryInfo over a fake of fetch that
 // records every request and answers the status a case names; this browser's store is MOD-browser-store's own over a fake localStorage. Nothing reaches the network.
 // Run: node --test tests/settings-pages-setup.test.mjs
@@ -15,10 +15,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installDocument, byClass, byTag, buttonLabelled, press, tick, untick, freshStore, storedKeys, contextOf, withServer } from "./settings-pages-setup.d/dom.mjs";
+import { installDocument, attachedTarget, byClass, byTag, buttonLabelled, press, tick, untick, freshStore, storedKeys, contextOf, withServer } from "./settings-pages-setup.d/dom.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
+const { explain } = await import("../src/site-frame/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "setup");
 
 const REPO = "akmaier/agent-m";
@@ -38,7 +39,7 @@ async function open({ acknowledged = false, extra = {} } = {}) {
   if (acknowledged) globalThis.localStorage.setItem(ACK_KEY, JSON.stringify("2026-10-01"));
   for (const [key, value] of Object.entries(extra)) globalThis.localStorage.setItem(`agent-m:${REPO}:${key}`, JSON.stringify(value));
   const context = contextOf(store);
-  const target = document.createElement("div");
+  const target = attachedTarget();
   await route.render(target, context, {});
   return { target, context };
 }
@@ -85,25 +86,28 @@ test("setup — Step A links GitHub's prefilled token page and spells out Only s
 
 // TST-588002 · level: unit · module: MOD-settings-pages
 // guards: UC-014 steps 7 and 8; EVERY STEP EXPLAINS ITSELF
-// given: a fresh store; the instance akmaier/agent-m
+// given: a fresh store; the instance akmaier/agent-m; known positive — explain("repository") is a folded details of class explain
 // input: render the route `setup`; read the folded explanations
-// expect: exactly two folded explanations, one in each step, each with the summary "What is this?"; Step A's lists, one line each, Contents, Issues, Pull requests, Actions and Workflows "(read and write)" and Metadata "(read)" with what each is for; Step B's says the token stays in this browser, never in a cookie, an address or a repository, and goes only to GitHub's API
-test("setup — each step carries its folded What is this?, Step A with every permission and what it is for", async () => {
+// expect: exactly two <details class="explain">, both folded, one in each step, none built by the route: Step A's has the structure and the text of explain("setup-key"), Step B's of explain("setup-store"); each of the two topics is a non-empty folded details of the frame
+test("setup — each step carries the frame's folded What is this? for its topic, Step A setup-key and Step B setup-store", async () => {
+  assert.equal(explain("repository").localName, "details", "known positive: the frame gives a folded explanation for a topic it holds");
+  for (const topic of ["setup-key", "setup-store"]) {
+    const given = explain(topic);
+    assert.equal(given.localName, "details", `the frame holds the topic ${topic}`);
+    assert.ok(given.textContent.length > "What is this?".length, `the topic ${topic} has a body`);
+  }
   const { target } = await open();
   const folded = byTag(target, "details");
   assert.equal(folded.length, 2, "one in each step");
-  assert.deepEqual(folded.map((details) => byTag(details, "summary")[0].textContent), ["What is this?", "What is this?"]);
-  const [a, b] = ["Step A", "Step B"].map((prefix) => byTag(stepTitled(target, prefix), "details")[0]);
-  assert.deepEqual(byTag(a, "li").map((item) => item.textContent), [
-    "Contents (read and write): to save and accept.",
-    "Issues (read and write): for reports that become issues.",
-    "Pull requests (read and write): for the jobs' changes.",
-    "Actions (read and write): to start a run.",
-    "Workflows (read and write): for a generated CI configuration.",
-    "Metadata (read): to read the repository.",
-  ]);
-  assert.match(b.textContent, /in its localStorage — never in a cookie, never in an address, never in any repository/);
-  assert.match(b.textContent, /It is sent only to GitHub's API, as a header\./);
+  const [a, b] = ["Step A", "Step B"].map((prefix) => byTag(stepTitled(target, prefix), "details"));
+  assert.deepEqual([a.length, b.length], [1, 1]);
+  for (const [found, topic] of [[a[0], "setup-key"], [b[0], "setup-store"]]) {
+    const given = explain(topic);
+    assert.equal(found.className, "explain");
+    assert.equal(found.hasAttribute("open"), false, "folded");
+    assert.equal(byTag(found, "summary")[0].textContent, "What is this?");
+    assert.equal(found.innerHTML, given.innerHTML, `it is the frame's explanation of ${topic}`);
+  }
 });
 
 // TST-588003 · level: unit · module: MOD-settings-pages
@@ -126,7 +130,7 @@ test("setup — Step B shows the shared-origin notice with its box unticked and 
   assert.match(b.textContent, /Store and check sends the token to GitHub's API, to read akmaier\/agent-m, and nowhere else\./);
   const imp = buttonLabelled(target, "Import settings");
   assert.ok(imp, "Import settings is there");
-  assert.equal(imp.parent, buttonLabelled(target, "Store and check").parent, "beside Store and check");
+  assert.equal(imp.parentNode, buttonLabelled(target, "Store and check").parentNode, "beside Store and check");
   await press(imp);
   assert.deepEqual(context.went, [["settings", {}]]);
   assert.deepEqual(storedKeys(), []);
