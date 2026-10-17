@@ -262,7 +262,8 @@ function domElement(localName) {
     },
     addEventListener(type, listener) { listeners.push([type, listener]); },
     fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
-    dispatchEvent(ev) { return node.fire(ev.type, ev); },
+    // An event dispatched through a node is a person's, as a browser marks it; one made with `scripted: true` is a script's.
+    dispatchEvent(ev) { return node.fire(ev.type, { ...ev, isTrusted: !ev.scripted }); },
     // Downloads are observed by the test-specific wrapper where one is installed; the shared browser fixture still
     // performs the anchor activation for settings exports that need only the browser's normal no-return click.
     click() {},
@@ -363,6 +364,19 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   assets = new URL(".", APP_FILE) }) {
   const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
+  // The renderer (MOD-markdown-render) draws only where the browser can sanitise (DOMPurify.isSupported) and, for a Mermaid block, draws
+  // SVG (SVGElement). This fake DOM has no HTML parser, so it sanitises nothing: the HTML of a text that holds a Mermaid block, which the
+  // renderer wrote itself, passes as it is, and any other text is refused as a browser without DOMPurify refuses it, so the renderer shows
+  // its source (what the explanations' tests read).
+  const renderer = (await import("../src/markdown-render/vendor/purify.es.mjs")).default;
+  for (const each of [purify, renderer]) {
+    each.sanitize = (html) => {
+      if (!String(html).includes('class="language-mermaid"')) throw new Error("this browser cannot sanitise HTML");
+      return String(html);
+    };
+    each.isSupported = true;
+  }
+  globalThis.SVGElement ??= class SVGElement {};
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },

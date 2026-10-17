@@ -118,7 +118,7 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   const html = page.main();
   assert.match(html, /<h2>UC-002 Show the status<\/h2><span class="badge open">open<\/span>/);
   assert.match(html, /The dashboard shows the status\./, "the text");
-  assert.match(html, /flowchart LR/, "the diagram, handed to the renderer");
+  assert.match(html, /<code class="language-mermaid">[^]*flowchart LR/, "the diagram, drawn by the renderer as a Mermaid block");
   assert.match(html, /<button class="btn accept" type="button">Accept<\/button>/);
   assert.deepEqual(srv.writes, [], "opening writes nothing");
   const made = await page.click(".accept");
@@ -128,6 +128,10 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   assert.equal(recordText(useCaseRecord(UC2, blob)).trim().split("\n").length, 3, "a three-line record");
   assert.match(srv.writes[0].message, /UC-002/);
   assert.deepEqual(writesOf(made), ["write tree", "write commit", "write ref"]);
+  // The new head is read once to show the page again, and the head before the commit once (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
+  const afterWrite = made.slice(made.indexOf("write ref") + 1);
+  assert.equal(afterWrite.filter((r) => r === "commit").length, 1, `the new head is read once: ${afterWrite}`);
+  assert.equal(made.slice(0, made.indexOf("write tree")).filter((r) => r === "commit").length, 1, `the head is read once before the commit: ${made}`);
   // Under the reviewer's own account: every request of the commit carries the stored token.
   const commitRequests = srv.seen.filter((r) => r.method !== "GET");
   assert.ok(commitRequests.length === 3 && commitRequests.every((r) => r.auth === `Bearer ${TOKEN}`), JSON.stringify(commitRequests));
@@ -135,6 +139,25 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   assert.match(page.main(), /<span class="badge accepted">accepted<\/span>/);
   assert.doesNotMatch(page.main(), /<button class="btn accept"/);
   assert.match(page.main(), /Accepted in commit [0-9a-f]{7}\./);
+});
+
+// TST-680207 · level: component · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: UC-002 open on its page; the list with UC-002 and UC-003 ticked
+// input: a click a script makes (isTrusted false) on Accept, and on Accept ticked
+// expect: no request is made and nothing is written; the person's click on Accept then commits
+test("UC-008 counter-proof: a click a script makes on Accept, and on Accept ticked, writes and reads nothing", async () => {
+  const srv = await ucServer();
+  const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
+  assert.deepEqual(await page.click(".accept", SCRIPTED), []);
+  assert.deepEqual(srv.writes, []);
+  await page.go("#uc");
+  const boxes = globalThis.document.getElementById("main").querySelectorAll(".tick");
+  for (const box of boxes) await tick(srv, box);
+  assert.deepEqual(await page.click(".accept-ticked", SCRIPTED), []);
+  assert.deepEqual(srv.writes, []);
+  await page.click(".accept-ticked");
+  assert.equal(srv.writes.length, 1, "known positive: the person's click on the same button writes");
 });
 
 // TST-474004 · level: component · module: MOD-settings-pages

@@ -195,7 +195,8 @@ function find(root, match) {
   return found;
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
-const click = (node) => node.dispatchEvent(new Event("click"));
+// A person's click: a browser marks it trusted (`isTrusted`); node marks every Event untrusted, as a script's.
+const click = (node) => node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
 async function until(condition, what) {
   for (let turn = 0; turn < 400; turn++) {
     if (condition()) return;

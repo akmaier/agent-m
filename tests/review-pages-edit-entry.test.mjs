@@ -14,7 +14,7 @@
 //     view gives), <ul class="impact"> against the section that holds now, and after a save <p class="entry"> linking the commit and the entry.
 //   - A save with an empty Why is not sent. Without a token the person of the edit is "anonymous".
 
-import "./review-pages-harness.mjs";
+import { scripted } from "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -98,7 +98,8 @@ async function showEdit(fake, params, { token = true, repository = GITHUB } = {}
   if (token) writeSetting(store, repository.server === "gitlab" ? "gitlab-token:gitlab.example.org/alice/thesis-tool" : "github-token:alice/thesis-tool", TOKEN);
   const target = document.createElement("div");
   document.body.append(target);
-  await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go() {},
+  target.went = [];
+  await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go(...where) { target.went.push(where); },
     product: { address: repository.web, kind: repository.server, host: fake.host } }, params);
   return target;
 }
@@ -186,6 +187,25 @@ test("spec-entry/<id>/edit — Save writes the entry in its own queue and makes 
   const hrefs = find(byClass(target, "p", "entry")[0], (node) => node.localName === "a").map((node) => node.getAttribute("href"));
   assert.ok(hrefs.includes(`https://github.com/alice/thesis-tool/commit/${fake.head()}`), String(hrefs));
   assert.ok(hrefs.includes(`#spec-entry/id=${ENTRY}`), String(hrefs));
+  // UC-006 3a: the saved entry is shown again — its page, with the saved proposal and no editor.
+  await until(() => find(target, (node) => node.localName === "textarea").length === 0 && target.textContent.includes("a PDF file, always."), "the entry to be shown again");
+});
+
+// TST-680206 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: the editor on the open entry, the proposal reworded again, and a Why
+// input: a click a script makes (isTrusted false) on Save; then the person's click
+// expect: after the script's click no commit is attempted; after the person's click one commit
+test("spec-entry/<id>/edit — counter-proof: a click a script makes on Save writes nothing", async () => {
+  const fake = fakeHost();
+  const target = await showEdit(fake, EDIT);
+  type(target, PROPOSAL.replace("a PDF file.", "a PDF file, always."));
+  withWhy(target, "Always is what the reviewer wants.");
+  saveOf(target).dispatchEvent(scripted());
+  for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  click(saveOf(target));
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
 });
 
 // TST-397004 · level: unit · module: MOD-review-pages
@@ -259,14 +279,20 @@ test("spec-entry/<id>/edit — a save without a Why is not sent", async () => {
 // guards: UC-006; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product whose host cannot write, the editor with an edit and a Why
 // input: a click on Save
-// expect: nothing written; GitHub's page for each of the entry's two files, none with the text in its address
+// expect: nothing written; the edited proposal on the clipboard and GitHub's editor opened for it; GitHub's page for each of the entry's two files, none with the text in its address
 test("spec-entry/<id>/edit — without a token on GitHub, GitHub's pages open per file", async () => {
   const fake = fakeHost(FILES, { canWrite: false });
   const target = await showEdit(fake, EDIT, { token: false });
   type(target, PROPOSAL.replace("a PDF file.", "a PDF file, always."));
   withWhy(target);
+  const asked = { clipboard: [], opened: [] };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async (written) => { asked.clipboard.push(written); } } }, configurable: true, writable: true });
+  globalThis.open = (url) => { asked.opened.push(url); return null; };
   click(saveOf(target));
   await until(() => byClass(target, "a", "github-page").length === 2, "GitHub's pages");
+  assert.deepEqual(asked.clipboard, [PROPOSAL.replace("a PDF file.", "a PDF file, always.")], "the edited proposal is on the clipboard (UC-006 4b)");
+  assert.equal(asked.opened.length, 1, "GitHub's editor is opened once, for the proposal");
+  assert.match(asked.opened[0], new RegExp(`/edit/main/${QUEUE}/01-lending\\.md$`), "for the proposal's file, with no text in the address");
   assert.equal(fake.writes().length, 0);
   for (const page of byClass(target, "a", "github-page")) assert.ok(!decodeURIComponent(page.getAttribute("href")).includes("always"), "no text in the address");
 });
@@ -283,7 +309,7 @@ test("spec-entry/<id>/edit — on GitLab without a token there is no Save", asyn
   assert.match(find(target, (node) => node.localName === "h2")[0].textContent, /^Edit /, "it is the edit page");
   assert.equal(find(target, (node) => node.localName === "textarea").length, 0);
   assert.equal(find(target, (node) => node.localName === "button" && node.textContent === "Save").length, 0);
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length >= 1, true);
   assert.equal(fake.writes().length, 0);
 });
 

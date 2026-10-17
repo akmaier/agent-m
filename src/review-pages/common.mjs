@@ -6,8 +6,9 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { readProblem } from "../site-frame/index.mjs";
+import { openEditor as openMarkdownEditor } from "../markdown-render/index.mjs";
 
-export const TOKEN_STEP = "#add-product";
+export const TOKEN_STEP = "#add";
 
 export function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -20,21 +21,64 @@ export const link = (href, className, text) => {
   a.setAttribute("href", href);
   return a;
 };
+// A listener that answers only a click the browser marks as a person's (`isTrusted`): the dashboard writes only as the direct result of a
+// person's action (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK), and a click a script makes is none.
+export const byPerson = (listener) => (event) => (event?.isTrusted === true ? listener(event) : undefined);
+// Makes the click listeners added to `node` listeners of a person's click only.
+function answerPersonOnly(node) {
+  const add = node.addEventListener.bind(node);
+  node.addEventListener = (type, listener, ...rest) => add(type, type === "click" ? byPerson(listener) : listener, ...rest);
+  return node;
+}
+// A button of the pages: it answers a person's click only.
 export const button = (className, text) => {
-  const b = el("button", className, text);
+  const b = answerPersonOnly(el("button", className, text));
   b.type = "button";
   return b;
 };
 
+/**
+ * openEditor(target, text, options) — MOD-markdown-render's editor, whose Save answers a person's click only. The editor makes its Save button
+ * itself and calls `save` in that button's click listener, so the buttons it makes while it opens are made to answer a person's click only.
+ */
+export function openEditor(target, text, options) {
+  const make = document.createElement;
+  document.createElement = function (name, ...rest) {
+    const node = make.call(this, name, ...rest);
+    return name === "button" ? answerPersonOnly(node) : node;
+  };
+  try {
+    return openMarkdownEditor(target, text, options);
+  } finally {
+    document.createElement = make;
+  }
+}
+
 // The link to the step that stores the token of the page's product: a link of the route `add-product`, which the frame's `go` reaches — the
 // address of that route is the frame's to write (MOD-site-frame, ViewContext) —, with the product's address when the page shows a product.
 export function tokenStep(context, text = "Store the token") {
-  const a = link(TOKEN_STEP, "token-step", text);
+  const a = link(context.product ? `${TOKEN_STEP}/${encodeURIComponent(context.product.address)}` : TOKEN_STEP, "token-step", text);
   a.addEventListener("click", (event) => {
     event?.preventDefault?.();
     context.go("add-product", context.product ? { address: context.product.address } : {});
   });
   return a;
+}
+
+// Without a token, an edit is made on GitHub: the text goes on the clipboard and GitHub's editor opens for the file, with only the path in the
+// address (WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK, NO TEXT TRAVELS IN A URL). A browser that refuses the clipboard or the window
+// leaves the page's link and text to do it by hand. `page` is one of MOD-artifact-edits' fallback pages: { url, text }.
+export async function openGithubEditor(page) {
+  try { await globalThis.navigator?.clipboard?.writeText?.(page.text); } catch { /* the text is on the page */ }
+  try { globalThis.open?.(page.url, "_blank", "noopener"); } catch { /* the link is on the page */ }
+}
+
+// The job records of a snapshot, asked for in one batch before MOD-job-ledger reads them one by one (A PAGE LOAD READS THE REPOSITORY IN BATCHES):
+// the reads that follow find their texts held. Where a batch cannot be made, they are read one by one as before.
+export async function readJobRecords(snapshot) {
+  const paths = snapshot.paths.filter((path) => /^docs\/jobs\/JOB-[^/]+\.md$/.test(path));
+  if (!paths.length) return;
+  try { await snapshot.readMany?.(paths); } catch { /* read one by one */ }
 }
 
 // The token this browser stores for the page's product — its own, never the instance's (A GITHUB PRODUCT USES A TOKEN OF ITS OWN) —,
