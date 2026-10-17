@@ -31,3 +31,6 @@ its own, or in each module's next item, is read at the start.
 
 - The DOM is in a helper file, `site-frame.test.mjs` imports it, and no expected result changes. It is declared as refactoring.
 - CI is green on every commit.
+
+**One more of its kind (ITM-603's gate):** `tests/markdown-render-343.test.mjs` imports `./markdown-render.test.mjs` as a
+harness, which is MOD-markdown-render's. The start reads it with the others.
