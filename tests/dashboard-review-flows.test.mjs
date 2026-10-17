@@ -128,6 +128,10 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   assert.equal(recordText(useCaseRecord(UC2, blob)).trim().split("\n").length, 3, "a three-line record");
   assert.match(srv.writes[0].message, /UC-002/);
   assert.deepEqual(writesOf(made), ["write tree", "write commit", "write ref"]);
+  // The new head is read once to show the page again, and the head before the commit once (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
+  const afterWrite = made.slice(made.indexOf("write ref") + 1);
+  assert.equal(afterWrite.filter((r) => r === "commit").length, 1, `the new head is read once: ${afterWrite}`);
+  assert.equal(made.slice(0, made.indexOf("write tree")).filter((r) => r === "commit").length, 1, `the head is read once before the commit: ${made}`);
   // Under the reviewer's own account: every request of the commit carries the stored token.
   const commitRequests = srv.seen.filter((r) => r.method !== "GET");
   assert.ok(commitRequests.length === 3 && commitRequests.every((r) => r.auth === `Bearer ${TOKEN}`), JSON.stringify(commitRequests));
