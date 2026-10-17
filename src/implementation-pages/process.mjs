@@ -222,7 +222,13 @@ export const route = {
     async function versionChange() {
       const declaredCommit = String(openedDeclaration.fields.model_version ?? "");
       if (!declaredCommit) return null;
-      const declaredSnapshot = await instance.host.readSnapshot(declaredCommit);
+      let declaredSnapshot;
+      try {
+        declaredSnapshot = await instance.host.readSnapshot(declaredCommit);
+      } catch (e) {
+        // The commit the declaration names cannot be read: the page stands as for an unchanged model, with this one line.
+        return el("p", "warn", `The version the declaration names, commit ${declaredCommit}, cannot be read: ${e?.message ?? String(e)}`);
+      }
       const before = modelAt((await catalogue(declaredSnapshot)).models, declaredModel.path);
       if (!before || before.version === declaredModel.version) return null;
 

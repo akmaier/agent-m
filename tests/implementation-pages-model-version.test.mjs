@@ -6,7 +6,7 @@
 // Run: node --test tests/implementation-pages-model-version.test.mjs
 //
 // Module: MOD-implementation-pages
-// Guards: UC-031 (6a); A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
+// Guards: UC-031; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // Level: unit
 //
 // Each test states its given, its input and its expected result before it runs. Node has no DOM: this file brings the small
@@ -464,4 +464,36 @@ test("process route — an unchanged model shows no comparison", async () => {
   for (const name of ["version-change", "version-before", "version-after", "version-difference", "version-declaration-findings", "version-assignment-findings"]) {
     assert.equal(byClass(target, name).length, 0, name);
   }
+});
+
+// TST-859001 · level: unit · module: MOD-implementation-pages
+// guards: UC-031 (6a: the route does not throw when the commit the declaration names cannot be read)
+// given: the declaration names commit B; the instance's host answers readSnapshot(B) with a rejection "NotFound: no such commit" and the head as usual
+// input: route.render
+// expect: render resolves; the models and the form stand as for an unchanged model; one warn line names commit B and holds the host's message; no version-change section and none of its parts; nothing is written
+test("process route — an unreadable declared commit shows one warning line and no comparison", async () => {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const writes = [];
+  const head = instanceFiles(MODEL_NOW);
+  await route.render(target, {
+    page: "review",
+    instance: { repository: "fixture/instance", host: {
+      async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
+      async readSnapshot(ref) { if (ref === BEFORE_COMMIT) throw new Error("NotFound: no such commit"); return fakeSnapshot(head, NOW_COMMIT); },
+    } },
+    product: { address: "fixture/product", kind: "github", host: productHostOf(productFiles) },
+    store: { async get() { return null; }, async set(...a) { writes.push(a); } },
+    go() {},
+  });
+  assert.ok(byClass(target, "model-card").length > 0 || byClass(target, "phases-panel").length > 0, "known positive: the page rendered");
+  assert.equal(byClass(target, "schema-form").length, 1, "the form stands");
+  const warned = byClass(target, "warn");
+  assert.equal(warned.length, 1, warned.map((w) => w.textContent).join(" | "));
+  assert.ok(warned[0].textContent.includes(BEFORE_COMMIT), warned[0].textContent);
+  assert.ok(warned[0].textContent.includes("NotFound: no such commit"), warned[0].textContent);
+  for (const name of ["version-change", "version-before", "version-after", "version-difference", "version-declaration-findings", "version-assignment-findings"]) {
+    assert.equal(byClass(target, name).length, 0, name);
+  }
+  assert.equal(writes.length, 0);
 });
