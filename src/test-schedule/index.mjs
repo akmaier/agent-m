@@ -2,8 +2,8 @@
 // its interface. Of it, ITM-250 builds scheduleSchema and defaultSchedule, as its file states them: the schema of a
 // product's docs/tests/schedule.md in schedule.schema.md, and the book's default in default-schedule.md, marked as the
 // default. They give the complete run of a release candidate the levels it runs, the command that runs them and the
-// runner of each (MOD-release-evidence). ITM-742 adds scheduleFindings (rules.mjs). ciConfiguration, configurationDrift, secretsNeeded,
-// occasionsOf, proposeSchedule, applyPipelineSchedule and scheduleStrategies are UC-027's, not part of this item, and
+// runner of each (MOD-release-evidence). ITM-742 adds scheduleFindings (rules.mjs). ITM-743 adds occasionsOf and secretsNeeded. ciConfiguration,
+// configurationDrift, proposeSchedule, applyPipelineSchedule and scheduleStrategies are UC-027's, not part of this item, and
 // are not built yet.
 //
 // Module: MOD-test-schedule
@@ -50,4 +50,39 @@ const DEFAULT_TEXT = disk ? disk.readFileSync(DEFAULT_FILE, "utf8") : await ownF
 export function defaultSchedule() {
   const document = readDocument(scheduleSchema, DEFAULT_PATH, DEFAULT_TEXT);
   return { ...document, default: true };
+}
+
+const OCCASIONS = ["every commit", "pull request", "nightly", "release candidate", "on demand"];
+const CI_SECRET = /^ci:([A-Za-z_][A-Za-z0-9_]*)$/;
+const rowsOf = (schedule) => schedule.sections.find((section) => section.heading === "## Levels")?.rows ?? [];
+
+/**
+ * occasionsOf(row: string, schedule: Document) -> string[] — the occasions on which a row runs: the columns the schedule
+ * ticks for the row, in the order of the table (every commit, pull request, nightly, release candidate, on demand); none
+ * for a row the schedule does not hold or ticks nowhere.
+ * @param {string} row
+ * @param {Document} schedule
+ * @returns {string[]}
+ */
+export function occasionsOf(row, schedule) {
+  const found = rowsOf(schedule).find(({ cells }) => cells.Row === row);
+  return found ? OCCASIONS.filter((occasion) => found.cells[occasion] === "✓") : [];
+}
+
+/**
+ * secretsNeeded(schedule: Document, resources: Document) -> Array<{ name: string, for: string }> — the names of the secrets
+ * the scheduled tests need: of each paid endpoint or agent of the product's resources, which the row `paid` calls, the CI
+ * secret its Secret column names (`ci:<NAME>`), once the row is ticked on some occasion. Never a value: a Secret cell that
+ * is no `ci:<NAME>` — a key kept in a browser, left out, or a value written where a name belongs — gives nothing.
+ * @param {Document} schedule
+ * @param {Document} resources the list docs/resources.md read with MOD-resource-list's schema
+ * @returns {Array<{ name: string, for: string }>}
+ */
+export function secretsNeeded(schedule, resources) {
+  if (occasionsOf("paid", schedule).length === 0) return [];
+  return resources.rows.flatMap(({ cells }) => {
+    const named = CI_SECRET.exec(cells.Secret ?? "");
+    const paid = (cells.Kind === "endpoint" || cells.Kind === "agent") && cells.Paid === "yes";
+    return paid && named ? [{ name: named[1], for: cells.Name }] : [];
+  });
 }
