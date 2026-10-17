@@ -32,3 +32,21 @@ requests at this repository's size, and the interval derived from the rate limit
 - While `home` is open, the jobs' states are read again at the stated interval, and nothing else is read. A test pins one
   reading's requests and the interval, with its counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Decided at its draft stop (sprint team1/79, 2026-10-17, po-opus).**
+- **The interval of 60 seconds, and no re-read for a card without a token, are accepted.**
+  - With a token, a re-read costs 2 requests per card, or 120 an hour: 2.4 % of the account's 5,000.
+  - Without a token, the network's 60 an hour would be used up within half an hour.
+  - The notifications check once a minute too.
+  - That is "an interval the repository servers' rate limits allow" (`MOD-main-page.md:71-73`).
+- **Reading 1 is accepted.** A re-read is no page load, so `A PAGE LOAD READS THE REPOSITORY IN BATCHES` does not bind it.
+  A changed record is read by itself, and no copy of the jobs' path is made.
+- **Reading 2 is accepted for now:** the token through MOD-main-page's own `tokenKeyOf`. The frame's `tokenStored`,
+  stated and not built, is ITM-856, after which the copy goes.
+- **A used-up limit waits.** `RateLimited` carries `resetsAt` (`MOD-repository-hosts.md:152`). The re-read waits until then,
+  instead of retrying each minute, with a test.
+- **A hidden tab** keeps re-reading, as the module's text says. Pausing it is a draft first: ITM-858.
+- **Many not-ended CI jobs** each list the runs. That is ITM-857.
+- **The split `diff`.** After its compound command was refused, the developer ran its `diff` alone. Sprint 78's agreement
+  reads: "A refused command is reported, not run again in another form". That goes to the retrospective.
+- **The fetch spy is owed before the pull request.** It runs as one plain command, or the refusal is reported.
