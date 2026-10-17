@@ -48,3 +48,11 @@ is measured at this item's start. The instance's own bar waits for ITM-809.
 **Read at sprint team1/76 (2026-10-17, po-opus), from developer-sonnet-e's count.** The page this item replaces sends
 1006 requests per load. Sprint 73's agreement names eleven parts that no interface draws yet. They are ITM-826 to 829,
 ITM-809 and ITM-655, and this item builds on them. It is not selected before they are done.
+
+**Noted at ITM-827's gate (sprint team1/78, 2026-10-17, po-opus).** The `home` route's links go through `ViewContext.go`,
+which on the main page only sets `location.hash`. The main page loads no other module's view, so *Open* on a use case, a
+SPEC change, a gate or a failed job, *+ Add product* and *Open the token's setting* would land on "This page is not built
+yet". MOD-main-page's `job` route is not built either.
+
+This item switches the live page. It does not switch it until every route `home` links to is served: through the views
+`start.mjs` loads (`data-views`, as ITM-700 sets them), or by the frame. A test opens each link and finds its page.
