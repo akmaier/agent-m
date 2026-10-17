@@ -2,7 +2,8 @@
 // interface. It stores and clears the implemented catalogue keys under the instance's localStorage prefix and lists
 // their metadata without returning stored values. The implemented catalogue includes instance and product tokens,
 // products, notifications, endpoints, the paired Bridge, each Bridge under its name, the jump host, named remote sessions and recorded setting tests.
-// Its canonical settings export is implemented in export.mjs. expiringSoon is not.
+// Its canonical settings export is implemented in export.mjs. expiringSoon names the stored tokens that expire within
+// fourteen days or have expired.
 //
 // Module: MOD-browser-store
 //
@@ -135,6 +136,30 @@ export function listSettings(store) {
     const description = settingDescription(key);
     return { key, ...description, expires: expiryOf(readSetting(store, key)), lastTest: lastTestOf(store, key) };
   });
+}
+
+// The days a token's warning begins before its recorded expiry (A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE).
+const WARN_DAYS = 14;
+const DAY_MS = 864e5;
+
+// The whole days from the UTC date of `now` to the date `expires` ("YYYY-MM-DD"), negative once it is past; null where
+// `expires` is no date.
+function daysUntil(expires, now) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(expires);
+  if (!match) return null;
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) - today) / DAY_MS);
+}
+
+const isTokenKey = (key) => key === "github-token" || key.startsWith("github-token:") || key.startsWith("gitlab-token:");
+
+// expiringSoon(store, now) -> { key, expires }[] — every stored token whose recorded expiry is within fourteen days of
+// `now`, or past. A token with no recorded expiry is not named. It reads only this store and returns no token value.
+export function expiringSoon(store, now) {
+  return listSettings(store)
+    .filter((setting) => isTokenKey(setting.key) && typeof setting.expires === "string")
+    .filter((setting) => { const days = daysUntil(setting.expires, now); return days !== null && days <= WARN_DAYS; })
+    .map((setting) => ({ key: setting.key, expires: setting.expires }));
 }
 
 const text = (value) => typeof value === "string" ? value : null;
