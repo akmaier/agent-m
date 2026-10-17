@@ -40,3 +40,11 @@ UC-020 steps 7, 7a and 7b. `coverageGaps` is built (ITM-308); the view is not.
 - *Gaps* says when there are none.
 - An older version shows what existed at its commit.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Rests on queue `2026-10-17d` (2026-10-17, po-opus).**
+- akmaier rejected the path this item counts on: code no module owns, changed by a pull request between jobs.
+- Under the draft of queue `2026-10-17d`, the module whose file names that code as taken over changes it in its own
+  implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
+  is named in that module's parts.
+- For this item only its reachability reading changes, and it does not wait. The live page reaches `gaps` once the
+  live dashboard's code is moved into MOD-site-frame by its own items, not by a pull request between jobs.

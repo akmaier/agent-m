@@ -77,3 +77,10 @@ opening too.
 **Measured at ITM-598's gate on #697 (`docs/gates/20261017-0634-development-release-testing-3c18.md`).** A requirement's history read through today's interface costs 4 requests
 per commit of `SPEC.md`: 380 per first opening on this repository, 286 of them API calls. ITM-652 holds the interface
 that reads it in batches.
+
+**Rests on queue `2026-10-17d` (2026-10-17, po-opus).**
+- akmaier rejected the path this item counts on: code no module owns, changed by a pull request between jobs.
+- Under the draft of queue `2026-10-17d`, the module whose file names that code as taken over changes it in its own
+  implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
+  is named in that module's parts.
+- This item waits for akmaier's acceptance of that draft, and its fix is read again then.

@@ -38,3 +38,10 @@ the wait. No expected result changes.
 - The tests that need Openbox no longer fail on a slow mirror, and no expected result changes.
 - They are changed by a Developer who implemented none of the desktop shell's behaviour, since one of them is a release
   test.
+
+**Rests on queue `2026-10-17d` (2026-10-17, po-opus).**
+- akmaier rejected the path this item counts on: code no module owns, changed by a pull request between jobs.
+- Under the draft of queue `2026-10-17d`, the module whose file names that code as taken over changes it in its own
+  implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
+  is named in that module's parts.
+- This item waits for akmaier's acceptance of that draft, and its fix is read again then.
