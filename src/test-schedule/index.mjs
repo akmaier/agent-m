@@ -21,8 +21,8 @@ export { occasionsOf, secretsNeeded } from "./occasions.mjs";
 export { ciConfiguration } from "./generate.mjs";
 
 const OWNER = "MOD-test-schedule";
-const SCHEMA_FILE = new URL("./schedule.schema.md", import.meta.url);
-const DEFAULT_FILE = new URL("./default-schedule.md", import.meta.url);
+const SCHEMA_FILE = "schedule.schema.md";
+const DEFAULT_FILE = "default-schedule.md";
 const DEFAULT_PATH = "docs/tests/schedule.md";
 
 /**

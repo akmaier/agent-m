@@ -11,7 +11,7 @@ import { ownText } from "./own-file.mjs";
 
 const NAMES = ["github-head", "github-job", "github-done", "gitlab-head", "gitlab-job", "gitlab-done"];
 const TEMPLATES = Object.fromEntries(await Promise.all(
-  NAMES.map(async (name) => [name, await ownText(new URL(`./templates/${name}.yml`, import.meta.url))])));
+  NAMES.map(async (name) => [name, await ownText(`templates/${name}.yml`)])));
 
 const GITHUB_FILE = ".github/workflows/agent-m-tests.yml";
 const GITLAB_FILE = ".gitlab/agent-m-tests.yml";
