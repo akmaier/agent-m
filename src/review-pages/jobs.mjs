@@ -23,7 +23,7 @@ import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
-import { showCurrent } from "./candidates.mjs";
+import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
 import { defaultSnapshot, el, button, link, problem, TOKEN_STEP } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
@@ -352,7 +352,7 @@ function candidateClass(candidate, classes) {
 
 // One candidate: its class and the requirement it refers to, its rule, the mark when it constrains the process (UC-005 5b), who is normative in a conflict (7a), and the current text of the requirement it
 // refers to beside it. `linked` is its source as the product links it; `parsed` the SPEC of the panel's snapshot, `register` the instance's sources, `onClass` called when its class is changed.
-function candidateItem(candidate, decided, linked, { parsed, register, onClass }) {
+function candidateItem(candidate, decided, linked, { parsed, register, onClass, flagged: named }) {
   const item = el("li", "candidate");
   item.setAttribute("data-name", candidate.name);
   const select = classOptions(decided.class);
@@ -370,17 +370,12 @@ function candidateItem(candidate, decided, linked, { parsed, register, onClass }
     item.append(el("p", "normative", `${linked.source.id} is ${linked.source.fields.authority}.`));
   }
   item.append(current);
+  if (named) {
+    const split = button("btn split", "Split");
+    split.addEventListener("click", () => splitCandidate(item, candidate, onClass));
+    item.append(split);
+  }
   return item;
-}
-
-function classesFrom(panel, classes) {
-  return elementsOf(panel, "li", "candidate").map((item) => {
-    const name = item.getAttribute("data-name");
-    const was = classes.find((each) => each.refs?.includes(name)) ?? { refs: [name], from: [], class: "new", of: null };
-    const select = elementsOf(item, "select", "class")[0];
-    const of = elementsOf(item, "input", "of")[0];
-    return { refs: [name], from: was.from ?? [], class: select.value || was.class, of: of.value.trim() || null };
-  });
 }
 
 async function presentRequirements(outcome, result, run) {
@@ -411,7 +406,7 @@ async function presentRequirements(outcome, result, run) {
   }
   for (const [name, entries] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     const list = el("ul", "candidates");
-    for (const { candidate, decided } of entries) list.append(candidateItem(candidate, decided, linked.byName(candidate.source ?? run.params?.source), { parsed, register: linked.register, onClass: sayDuplicates }));
+    for (const { candidate, decided } of entries) list.append(candidateItem(candidate, decided, linked.byName(candidate.source ?? run.params?.source), { parsed, register: linked.register, onClass: sayDuplicates, flagged: flagged(outcome.remaining, candidate) }));
     const section = el("section", "candidate-group", el("h4", null, name), list);
     section.setAttribute("data-class", name);
     panel.append(section);
@@ -430,11 +425,18 @@ async function presentRequirements(outcome, result, run) {
   write.addEventListener("click", async () => {
     write.disabled = true;
     status.replaceChildren();
+    const unfinished = splitProblem(panel);
+    if (unfinished) {
+      write.disabled = false;
+      status.append(el("p", "result problem", unfinished));
+      return;
+    }
     try {
       const info = await run.host.repositoryInfo();
       const snapshot = await run.host.readSnapshot(info.defaultBranch);
       const context = { ...run.jobContext, product: { ...run.jobContext.product, snapshot } };
-      const written = await writeResult(run.prepared, outcome.draft, { result: { ...outcome, classes: classesFrom(panel, classes) }, context });
+      const edited = editedResult(panel, outcome);
+      const written = await writeResult(run.prepared, edited.draft, { result: { ...outcome, classes: edited.classes }, context });
       status.append(el("p", "written", written.files?.length ? `Written: ${written.files.join(", ")}` : "Nothing changed."));
       if (written.notes?.length) status.append(el("ul", "notes", ...written.notes.map((note) => el("li", "note", note))));
     } catch (failure) {
