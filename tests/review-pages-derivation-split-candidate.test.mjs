@@ -501,3 +501,54 @@ test("spec-entry/draft - a split change candidate is written as the panel shows 
   assert.ok(entry.includes(blockOf("THE RETURN PLACE IS SHOWN", "Every loan shows its return place.")), JSON.stringify(entry));
   assert.ok(!entry.includes(CHANGED_RULE), "the rule that said two things is written nowhere");
 });
+
+// TST-634007 · level: unit · module: MOD-review-pages
+// guards: UC-005 (step 8, alternative flow 6a)
+// given: the `change` candidate of TST-634001 (of A LOAN HAS A DUE DATE), split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `new` and its "of" to A LOAN HAS A DUE DATE
+// input: Write proposals
+// expect: no problem; the entry 01-lending.md holds the block THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.": only a part whose class is `change` counts among the parts that change one requirement
+test("spec-entry/draft - a part of class new naming the candidate's requirement is not refused", async () => {
+  const { panel, product } = await panelOf(changeDraft());
+  click(splitOf(itemOf(panel, CHANGED))[0]);
+  const part = partsOf(panel)[0];
+  fill(part, "THE RETURN PLACE IS SHOWN", "Every loan shows its return place.");
+  setClass(part, "new", LOAN);
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  assert.equal(byClass(panel, "p", "problem").length, 0);
+  assert.ok(lendingEntry(product).includes(blockOf("THE RETURN PLACE IS SHOWN", "Every loan shows its return place.")), JSON.stringify(lendingEntry(product)));
+});
+
+// TST-634008 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a)
+// given: the endpoint answers, in every round, A LOAN STATES TWO THINGS (class `new`, rule says two things) and A MEMBER CAN RENEW ONCE as a `change` of A LOAN HAS A DUE DATE; the first is split, its part named A LOAN SHOWS ITS DATE with a rule
+//   and set to class `change` of A LOAN HAS A DUE DATE
+// input: Write proposals
+// expect: no problem reading "Two parts of ...": the refusal looks at a candidate and its own parts, so a part and another candidate that change one requirement are not refused; the write result is shown
+test("spec-entry/draft - a part and another candidate that change one requirement are not refused", async () => {
+  const { panel } = await panelOf({ candidates: [candidate(TWO, TWO_RULE), { ...candidate(CLEAN, CLEAN_RULE), class: "change", of: LOAN }] });
+  click(splitOf(itemOf(panel, TWO))[0]);
+  const part = partsOf(panel)[0];
+  fill(part, "A LOAN SHOWS ITS DATE", "Every loan states its due date.");
+  setClass(part, "change", LOAN);
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  assert.equal(byClass(panel, "p", "problem").length, 0);
+});
+
+// TST-634009 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a)
+// given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `change` and clears its "of"; the candidate's "of" is cleared too
+// input: Write proposals
+// expect: no problem reading "Two parts of ...": a `change` with an empty "of" names no requirement, so two of them are not "two parts that change one requirement"; the write result is shown
+test("spec-entry/draft - two parts of class change with an empty of are not refused", async () => {
+  const { panel } = await panelOf(changeDraft());
+  click(splitOf(itemOf(panel, CHANGED))[0]);
+  const part = partsOf(panel)[0];
+  fill(part, "THE RETURN PLACE IS SHOWN", "Every loan shows its return place.");
+  setClass(part, "change", "");
+  setClass(itemOf(panel, CHANGED), "change", "");
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  assert.equal(byClass(panel, "p", "problem").length, 0);
+});
