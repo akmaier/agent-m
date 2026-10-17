@@ -40,3 +40,10 @@ against ITM-677's draft.
 - ITM-574 now brings the batch request first, so this item goes before ITM-574's gate.
 - It is verified on ITM-574's draft, and later holds for ITM-677 as well.
 - **The whole release files** are run on ITM-574's draft (sprint 70's agreement), and every changed case is named.
+
+**Readings taken before its gate (2026-10-17, po-opus).** The gate itself waits for ITM-574's pull request, as the start
+asked.
+- **Only `POST https://api.github.com/graphql` counts as a read.** A GraphQL mutation would pass `writes()`, but
+  `server.writes` staying empty still guards that the repository is unchanged, so no write goes unseen.
+- **"14 → 16" is read as queries,** the requests the measurement counts.
+- **`writes()` copied in four release files** is registered as ITM-706, a helper for all of them.
