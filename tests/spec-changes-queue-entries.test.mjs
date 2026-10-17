@@ -371,3 +371,58 @@ test("queue-entries — two queues of one day in one repository get the day and 
   assert.match(folderOf(g.product.host.commits[0])[0], /^docs\/spec-freigaben\/2026-10-12_/);
   assert.match(folderOf(g.instance.host.commits[0])[0], /^docs\/spec-freigaben\/2026-10-12_/, "another repository: no letter");
 });
+
+// ---------------------------------------------------------------- two changes of one requirement (ITM-636)
+
+const SECOND_CHANGE = candidate("A SECOND NAME", { rule: "A reader reads a file whole, or names why not.", check: "`tests/second.test.mjs`", class: "change", of: "A SAMPLE RULE" });
+const GATE_CHANGE = (name, rule) => candidate(name, { rule, check: "`tests/gate.test.mjs`", class: "change", of: "GATES ARE NAMED", constrains: "process" });
+
+// TST-636007 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005 8
+// given: a result with A BETTER NAME and A SECOND NAME, both classed as changes of A SAMPLE RULE of the product; and, to show the same call writing, the result with A BETTER NAME alone
+// input: the writer
+// expect: the one change is written (known positive: one commit to the product); both together reject with an error named TwoChanges, whose requirement is "A SAMPLE RULE" and whose candidates are ["A BETTER NAME", "A SECOND NAME"];
+//   the product's host and the instance's host take no commit
+test("queue-entries — two changes of one requirement are refused and nothing is written", async () => {
+  const known = fixture();
+  await writer(resultOf([CHANGE]), known.context);
+  assert.equal(known.product.host.commits.length, 1, "known positive: one change is written");
+  const f = fixture();
+  await assert.rejects(() => writer(resultOf([CHANGE, SECOND_CHANGE]), f.context), (error) => error.name === "TwoChanges" && error.requirement === "A SAMPLE RULE"
+    && JSON.stringify(error.candidates) === JSON.stringify(["A BETTER NAME", "A SECOND NAME"]));
+  assert.deepEqual([f.product.host.commits.length, f.instance.host.commits.length], [0, 0]);
+});
+
+// TST-636008 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A REQUIREMENT NAMES WHAT IT CONSTRAINS
+// given: a result with a new requirement of the product and two candidates that constrain the process, each classed as a change of GATES ARE NAMED of the instance; and, to show the same call writing both queues, the result with one of the two
+// input: the writer
+// expect: with one process change the product's host and the instance's host take one commit each (known positive); with both, an error named TwoChanges whose requirement is "GATES ARE NAMED" and whose candidates are
+//   ["A JOB NAMES A GATE", "A JOB LISTS A GATE"], and neither host takes a commit: the product's queue, which could be written, is not written before the instance's refusal
+test("queue-entries — two changes in the instance's SPEC leave the product's queue unwritten too", async () => {
+  const first = GATE_CHANGE("A JOB NAMES A GATE", "A job names the gate it stops at.");
+  const second = GATE_CHANGE("A JOB LISTS A GATE", "A job lists the gate it stops at.");
+  const known = fixture();
+  await writer(resultOf([NEW, first]), known.context);
+  assert.deepEqual([known.product.host.commits.length, known.instance.host.commits.length], [1, 1], "known positive");
+  const f = fixture();
+  await assert.rejects(() => writer(resultOf([NEW, first, second]), f.context), (error) => error.name === "TwoChanges" && error.requirement === "GATES ARE NAMED"
+    && JSON.stringify(error.candidates) === JSON.stringify(["A JOB NAMES A GATE", "A JOB LISTS A GATE"]));
+  assert.deepEqual([f.product.host.commits.length, f.instance.host.commits.length], [0, 0]);
+});
+
+// TST-636009 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME
+// given: a result with a change of A SAMPLE RULE and a change of A WRITE RULE of the product
+// input: the writer
+// expect: one commit to the product, whose queue holds the section Reading with the first change's rule and the section Writing with the second's: one change of each requirement is written as before
+test("queue-entries — one change of each requirement is written as before", async () => {
+  const f = fixture();
+  const other = candidate("A WRITER NAME", { rule: "A writer writes a file whole, or says why not.", check: "`tests/writer.test.mjs`", class: "change", of: "A WRITE RULE" });
+  await writer(resultOf([CHANGE, other]), f.context);
+  assert.equal(f.product.host.commits.length, 1);
+  const written = filesOf(f.product.host.commits[0]);
+  const [folder] = folderOf(f.product.host.commits[0]);
+  assert.ok(written[`${folder}/01-reading.md`].includes("**A SAMPLE RULE** *(Product Owner; SRC-fixture-book, ch. 8)*\nA reader reads a file whole, or says why not."));
+  assert.ok(written[`${folder}/02-writing.md`].includes("**A WRITE RULE** *(Product Owner; SRC-fixture-book, ch. 8)*\nA writer writes a file whole, or says why not."));
+});

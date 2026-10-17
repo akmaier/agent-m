@@ -424,7 +424,7 @@ for (const class_ of ["duplicate", "conflict"]) {
 // guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `change` and its "of" to A LOAN HAS A DUE DATE
 // input: Write proposals; then the person sets the part back to `new` with an empty "of" and presses Write proposals again
-// expect: the first press shows a problem reading "Two parts of THE DUE DATE IS SHOWN change A LOAN HAS A DUE DATE: nothing was written."; nothing is written to docs/spec-freigaben; Write proposals is enabled again;
+// expect: the first press shows a problem reading "TwoChanges: THE DUE DATE IS SHOWN and THE RETURN PLACE IS SHOWN change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed."; nothing is written to docs/spec-freigaben; Write proposals is enabled again;
 //   the second press writes one commit whose entry 01-lending.md holds the block THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."
 test("spec-entry/draft - a part set to change what its candidate changes is refused, nothing written", async () => {
   const { panel, product } = await panelOf(changeDraft());
@@ -432,7 +432,7 @@ test("spec-entry/draft - a part set to change what its candidate changes is refu
   const part = partsOf(panel)[0];
   fill(part, "THE RETURN PLACE IS SHOWN", "Every loan shows its return place.");
   setClass(part, "change", LOAN);
-  assert.equal(await problemOf(panel), `Two parts of ${CHANGED} change ${LOAN}: nothing was written.`);
+  assert.equal(await problemOf(panel), `TwoChanges: ${CHANGED} and THE RETURN PLACE IS SHOWN change ${LOAN}: one block would replace the other. Nothing was composed.`);
   assert.equal(proposalsOf(product).length, 0);
   assert.equal(byClass(panel, "button", "write-proposals")[0].disabled, false);
   setClass(part, "new", "");
@@ -446,7 +446,7 @@ test("spec-entry/draft - a part set to change what its candidate changes is refu
 // guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the flagged draft of TST-578001 (A LOAN STATES TWO THINGS, class `new`), split twice; both parts named and given a rule; the person sets both parts' class to `change` and their "of" to A LOAN HAS A DUE DATE
 // input: Write proposals
-// expect: a problem reading "Two parts of A LOAN STATES TWO THINGS change A LOAN HAS A DUE DATE: nothing was written."; nothing is written to docs/spec-freigaben
+// expect: a problem reading "TwoChanges: A LOAN SHOWS ITS DATE and A LOAN SHOWS ITS PLACE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed."; nothing is written to docs/spec-freigaben
 test("spec-entry/draft - two parts that change one requirement are refused, nothing written", async () => {
   const { panel, product } = await panelOf(FLAGGED_DRAFT);
   click(splitOf(itemOf(panel, TWO))[0]);
@@ -456,7 +456,7 @@ test("spec-entry/draft - two parts that change one requirement are refused, noth
   fill(second, "A LOAN SHOWS ITS PLACE", "Every loan states its return place.");
   setClass(first, "change", LOAN);
   setClass(second, "change", LOAN);
-  assert.equal(await problemOf(panel), `Two parts of ${TWO} change ${LOAN}: nothing was written.`);
+  assert.equal(await problemOf(panel), `TwoChanges: A LOAN SHOWS ITS DATE and A LOAN SHOWS ITS PLACE change ${LOAN}: one block would replace the other. Nothing was composed.`);
   assert.equal(proposalsOf(product).length, 0);
 });
 
@@ -524,23 +524,22 @@ test("spec-entry/draft - a part of class new naming the candidate's requirement 
 // given: the endpoint answers, in every round, A LOAN STATES TWO THINGS (class `new`, rule says two things) and A MEMBER CAN RENEW ONCE as a `change` of A LOAN HAS A DUE DATE; the first is split, its part named A LOAN SHOWS ITS DATE with a rule
 //   and set to class `change` of A LOAN HAS A DUE DATE
 // input: Write proposals
-// expect: no problem reading "Two parts of ...": the refusal looks at a candidate and its own parts, so a part and another candidate that change one requirement are not refused; the write result is shown
-test("spec-entry/draft - a part and another candidate that change one requirement are not refused", async () => {
-  const { panel } = await panelOf({ candidates: [candidate(TWO, TWO_RULE), { ...candidate(CLEAN, CLEAN_RULE), class: "change", of: LOAN }] });
+// expect: a problem reading "TwoChanges: A LOAN SHOWS ITS DATE and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed.": the refusal is the writer's, so a part and another candidate that change one requirement are refused as two candidates are; nothing is written to docs/spec-freigaben
+test("spec-entry/draft - a part and another candidate that change one requirement are refused, nothing written", async () => {
+  const { panel, product } = await panelOf({ candidates: [candidate(TWO, TWO_RULE), { ...candidate(CLEAN, CLEAN_RULE), class: "change", of: LOAN }] });
   click(splitOf(itemOf(panel, TWO))[0]);
   const part = partsOf(panel)[0];
   fill(part, "A LOAN SHOWS ITS DATE", "Every loan states its due date.");
   setClass(part, "change", LOAN);
-  click(byClass(panel, "button", "write-proposals")[0]);
-  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
-  assert.equal(byClass(panel, "p", "problem").length, 0);
+  assert.equal(await problemOf(panel), `TwoChanges: A LOAN SHOWS ITS DATE and ${CLEAN} change ${LOAN}: one block would replace the other. Nothing was composed.`);
+  assert.equal(proposalsOf(product).length, 0);
 });
 
 // TST-634009 · level: unit · module: MOD-review-pages
 // guards: UC-005 (alternative flow 6a)
 // given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `change` and clears its "of"; the candidate's "of" is cleared too
 // input: Write proposals
-// expect: no problem reading "Two parts of ...": a `change` with an empty "of" names no requirement, so two of them are not "two parts that change one requirement"; the write result is shown
+// expect: no problem: a `change` with an empty "of" names no requirement, so two of them are not two changes of one requirement; the write result is shown
 test("spec-entry/draft - two parts of class change with an empty of are not refused", async () => {
   const { panel } = await panelOf(changeDraft());
   click(splitOf(itemOf(panel, CHANGED))[0]);
@@ -551,4 +550,25 @@ test("spec-entry/draft - two parts of class change with an empty of are not refu
   click(byClass(panel, "button", "write-proposals")[0]);
   await until(() => byClass(panel, "p", "written").length === 1, "the write result");
   assert.equal(byClass(panel, "p", "problem").length, 0);
+});
+
+// ---------------------------------------------------------------- ITM-636: two candidates that change one requirement are refused by the writer
+
+// TST-636010 · level: unit · module: MOD-review-pages
+// guards: UC-005 (step 8); A CHANGE IS PROPOSED UNDER THE EXISTING NAME; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the endpoint answers, in every round, two different candidates, THE DUE DATE IS SHOWN and A MEMBER CAN RENEW ONCE, each a `change` of A LOAN HAS A DUE DATE; no split
+// input: Write proposals; then the person sets A MEMBER CAN RENEW ONCE to `new` with an empty "of" and presses Write proposals again
+// expect: the first press shows a problem reading "TwoChanges: THE DUE DATE IS SHOWN and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed."; nothing is written to docs/spec-freigaben;
+//   Write proposals is enabled again; the second press writes one commit whose entry 01-lending.md holds the block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date and its return place." and the block A MEMBER CAN RENEW ONCE with its rule
+test("spec-entry/draft - two different candidates that change one requirement are refused, nothing written", async () => {
+  const { panel, product } = await panelOf({ candidates: [{ ...candidate(CHANGED, CHANGED_RULE), class: "change", of: LOAN }, { ...candidate(CLEAN, CLEAN_RULE), class: "change", of: LOAN }] });
+  assert.equal(await problemOf(panel), `TwoChanges: ${CHANGED} and ${CLEAN} change ${LOAN}: one block would replace the other. Nothing was composed.`);
+  assert.equal(proposalsOf(product).length, 0);
+  assert.equal(byClass(panel, "button", "write-proposals")[0].disabled, false);
+  setClass(itemOf(panel, CLEAN), "new", "");
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  assert.equal(proposalsOf(product).length, 1);
+  assert.ok(lendingEntry(product).includes(blockOf(LOAN, CHANGED_RULE)), JSON.stringify(lendingEntry(product)));
+  assert.ok(lendingEntry(product).includes(blockOf(CLEAN, CLEAN_RULE)), JSON.stringify(lendingEntry(product)));
 });
