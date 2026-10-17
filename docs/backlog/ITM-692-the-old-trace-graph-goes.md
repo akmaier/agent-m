@@ -9,6 +9,7 @@ modules:
   - MOD-trace-graph
 builds_on:
   - ITM-680
+  - ITM-735
 tests:
   - unit
 origin:
