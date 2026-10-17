@@ -7,7 +7,7 @@ decision: passed
 on:
   - 7186790eed3ca66f3cf3482476c1300c94c08454
   - https://github.com/akmaier/agent-m/pull/680
-date: 2026-10-17 04:05 UTC
+date: 2026-10-17 03:31 UTC
 ---
 # Development → Release testing: ITM-634, A split part is shown as it is written
 
