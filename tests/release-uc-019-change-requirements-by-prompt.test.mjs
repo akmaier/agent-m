@@ -10,7 +10,7 @@
 // Guards: UC-019
 // Level: release
 // Run: node --test tests/release-uc-019-change-requirements-by-prompt.test.mjs
-// All endpoint and repository traffic is controlled by the harness of tests/system-uc-019-change-requirements-by-prompt.test.mjs, whose global fetch answers
+// All endpoint and repository traffic is controlled by the harness of tests/uc-019-prompt-bar-harness.mjs, whose global fetch answers
 // in-memory servers and refuses every other origin; no paid service is called. Each test states its input and its expected values in its own text.
 
 import test, { after } from "node:test";
@@ -24,7 +24,7 @@ import { createHash } from "node:crypto";
 import { ask, bridgeAt } from "../src/bridge-client/index.mjs";
 import { startRecord } from "../src/job-ledger/index.mjs";
 import { scenario, onRequirementPage, run, send, review, save, goTo, press, rest, statusOf, barOf, keptDraft, sentText, targetsOf, messageLines, all, one, row, namedButton, draft, candidate,
-  SOURCE, LOAN, SHELF, CONFLICT, CHANGED, INSTRUCTION, SPEC, CURRENT_RULE, proposalWrites, proposalTexts, recordTexts, assertProposal } from "./system-uc-019-change-requirements-by-prompt.test.mjs";
+  SOURCE, LOAN, SHELF, CONFLICT, CHANGED, INSTRUCTION, SPEC, CURRENT_RULE, proposalWrites, proposalTexts, recordTexts, assertProposal } from "./uc-019-prompt-bar-harness.mjs";
 
 // UC-only exclusions from this requirements battery:
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT: UC-019 6b applies this to a reviewed use-case file;
@@ -268,7 +268,7 @@ test("TST-418111: stale Save retains the exact edit beside the newer baseline", 
 // module: MOD-review-pages; MOD-job-runner
 // guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; WHAT A PERSON DECIDES IS NOT SENT BACK
 // given: one otherwise valid conflicting requirement beside a valid change
-// input: Send, Review the draft, Save while undecided; in a second page choose change and Save
+// input: Send, Review the draft, Save while undecided; in a second page choose new and Save
 // expect: one endpoint call and one correction round in each, no automatic conflict correction; undecided: the proposal does not hold the conflict's rule; decided: it holds the person's exact decision
 test("TST-418112: the person alone decides a conflict without another participant call", async () => {
   const answers = [draft(candidate(), candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))];
@@ -279,7 +279,7 @@ test("TST-418112: the person alone decides a conflict without another participan
   assert.ok(!assertProposal(undecided).includes("Every loan may hide its due date."));
   assert.equal(undecided.endpointRequests.length, 1);
   const decided = await scenario({ answers }); await run(decided);
-  const choice = one(row(decided, CONFLICT), "select", "class"); choice.value = "change"; choice.dispatchEvent(new Event("change"));
+  const choice = one(row(decided, CONFLICT), "select", "class"); choice.value = "new"; choice.dispatchEvent(new Event("change"));
   await save(decided); assert.match(assertProposal(decided), /Every loan may hide its due date\./); assert.equal(decided.endpointRequests.length, 1);
 });
 
@@ -639,7 +639,7 @@ const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function counterproofs() {
   const temporary = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-418-fault-"))), copied = join(temporary, "agent-m");
   const tests = ["tests/system-uc-019-change-requirements-by-prompt.test.mjs", "tests/system-uc-019-change-by-prompt.test.mjs", "tests/release-uc-019-change-requirements-by-prompt.test.mjs"];
-  const helpers = ["tests/app-harness.mjs", "tests/review-pages-draft-world.mjs", "tests/review-pages-harness.mjs"];
+  const helpers = ["tests/app-harness.mjs", "tests/review-pages-draft-world.mjs", "tests/review-pages-harness.mjs", "tests/uc-019-prompt-bar-harness.mjs"];
   const receipts = [], receiptPath = join(tmpdir(), `agent-m-418-counterproof-${process.pid}.json`);
   try {
     cpSync(join(ROOT, "src"), join(copied, "src"), { recursive: true, filter: (path) => !path.split(/[\\/]/).includes("node_modules") });

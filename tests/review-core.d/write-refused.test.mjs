@@ -1,9 +1,9 @@
-// A write refused for missing write access offers the GitHub path as a link (UC-008 4a, ITM-133): the commit is refused, the
+// A write refused for missing write access offers the GitHub path as a link (UC-008 4a): the commit is refused, the
 // dashboard says so, and offers GitHub's new-file page prefilled with the approval record — the same page as without a token —,
 // where the commit becomes a pull request that counts once a maintainer merges it.
 // Run through tests/review-core.test.mjs, which SPEC.md names for this check: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: UC-008; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; NO TEXT TRAVELS IN A URL
 // Level: component
 //
@@ -18,7 +18,7 @@ import { repoServer, openDashboard, REPO } from "../app-harness.mjs";
 import { gitBlobSha, recordText, useCaseRecord, specRecord, approvalPath, createReviewSession } from "../../docs/assets/review-core.mjs";
 import { newFileUrl, parseProductAddress } from "../../docs/assets/git-host.mjs";
 import { acceptPanel, githubPath } from "../../docs/assets/dashboard/review-views.mjs";
-import * as shell from "../../docs/assets/dashboard-app.mjs";
+import * as shell from "../../src/site-frame/dashboard-app.mjs";
 import { B_SPEC, B_P05, B_INDEX, QD, GL_ADDR } from "./helpers.mjs";
 
 const API = "https://api.github.com";

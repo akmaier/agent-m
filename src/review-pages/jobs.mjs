@@ -20,9 +20,11 @@ import { approvalStrategies, statuses } from "../approvals/index.mjs";
 import { differs, eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { linkedVersion, permittedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
-import { runPanel, explain } from "../site-frame/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
+import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
-import { defaultSnapshot, el, button, link, problem, TOKEN_STEP } from "./common.mjs";
+import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
+import { defaultSnapshot, el, button, link, TOKEN_STEP } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -102,7 +104,7 @@ export async function showDraft(where, kind) {
     graph = await traceGraph(snapshot);
     loaded = await loadStage(where, kind.draft);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
@@ -167,7 +169,7 @@ export async function panelOf(run) {
   try {
     ready = await preparedRun(run);
   } catch (failure) {
-    stage.append(problem(failure, token));
+    stage.append(readProblem(failure, Boolean(token)));
     return;
   }
   const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
@@ -286,7 +288,7 @@ async function showRequirementsDraft(where, kind) {
     loaded = await loadStage(where, kind.draft);
     choices = await requirementSourceChoices(where);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
@@ -340,7 +342,7 @@ function classOptions(value) {
 async function linkedSourceInfo(where) {
   const { links, register } = await sourcesOf(where);
   const byName = (name) => linkedVersion(links, register, name);
-  return { byName };
+  return { byName, register };
 }
 
 function candidateClass(candidate, classes) {
@@ -348,39 +350,53 @@ function candidateClass(candidate, classes) {
   return found ?? { refs: [candidate.name], from: [candidate.passage].filter(Boolean), class: candidate.class, of: candidate.of ?? null };
 }
 
-function candidateItem(candidate, decided, linked) {
+// One candidate: its class and the requirement it refers to, its rule, the mark when it constrains the process (UC-005 5b), who is normative in a conflict (7a), and the current text of the requirement it
+// refers to beside it. `linked` is its source as the product links it; `parsed` the SPEC of the panel's snapshot, `register` the instance's sources, `onClass` called when its class is changed.
+function candidateItem(candidate, decided, linked, { parsed, register, onClass, flagged: named }) {
   const item = el("li", "candidate");
   item.setAttribute("data-name", candidate.name);
-  item.append(el("span", "candidate-name", candidate.name), " ", classOptions(decided.class), " of ");
+  const select = classOptions(decided.class);
+  select.addEventListener("change", onClass);
+  item.append(el("span", "candidate-name", candidate.name), " ", select, " of ");
   const of = el("input", "of");
   of.value = decided.of ?? "";
+  const current = el("section", "current-requirement");
+  const refresh = () => showCurrent(current, parsed.requirements.get(of.value.trim()), register);
+  of.addEventListener("input", refresh);
+  refresh();
   item.append(of, el("p", "candidate-rule", candidate.rule));
-  if (decided.of) item.append(el("p", "refers-to", `Beside ${decided.of}.`));
+  if (candidate.constrains === "process") item.append(el("p", "constrains-process", "Constrains the process."));
   if (decided.class === "conflict" && linked?.source?.fields?.authority) {
     item.append(el("p", "normative", `${linked.source.id} is ${linked.source.fields.authority}.`));
   }
+  item.append(current);
+  if (named) {
+    const split = button("btn split", "Split");
+    split.addEventListener("click", () => splitCandidate(item, candidate, onClass));
+    item.append(split);
+  }
   return item;
-}
-
-function classesFrom(panel, classes) {
-  return elementsOf(panel, "li", "candidate").map((item) => {
-    const name = item.getAttribute("data-name");
-    const was = classes.find((each) => each.refs?.includes(name)) ?? { refs: [name], from: [], class: "new", of: null };
-    const select = elementsOf(item, "select", "class")[0];
-    const of = elementsOf(item, "input", "of")[0];
-    return { refs: [name], from: was.from ?? [], class: select.value || was.class, of: of.value.trim() || null };
-  });
 }
 
 async function presentRequirements(outcome, result, run) {
   const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
   const classes = candidates.map((candidate) => candidateClass(candidate, outcome.classes));
   const linked = await linkedSourceInfo(run);
+  const parsed = parseSpec((await run.snapshot.read("SPEC.md")) ?? "");
   const panel = el("section", "requirements-result", el("h3", null, "Requirement candidates"),
     el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(run.kind.explain.draft.loop));
   const left = el("ul", "left");
   for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} - ${finding.fix}`));
   panel.append(left);
+
+  // UC-005 7b: while every candidate's class is duplicate, the panel says that writing only adds sources.
+  const duplicates = el("div", "duplicates");
+  const sayDuplicates = () => {
+    const classes = elementsOf(panel, "select", "class").map((select) => select.value);
+    duplicates.replaceChildren(...(classes.length && classes.every((name) => name === "duplicate")
+      ? [el("p", "all-duplicates", "Every candidate is a duplicate: writing only adds sources to existing requirements.")] : []));
+  };
+  panel.append(duplicates);
 
   const groups = new Map();
   for (const candidate of candidates) {
@@ -390,11 +406,13 @@ async function presentRequirements(outcome, result, run) {
   }
   for (const [name, entries] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     const list = el("ul", "candidates");
-    for (const { candidate, decided } of entries) list.append(candidateItem(candidate, decided, linked.byName(candidate.source ?? run.params?.source)));
+    for (const { candidate, decided } of entries) list.append(candidateItem(candidate, decided, linked.byName(candidate.source ?? run.params?.source), { parsed, register: linked.register, onClass: sayDuplicates, flagged: flagged(outcome.remaining, candidate) }));
     const section = el("section", "candidate-group", el("h4", null, name), list);
     section.setAttribute("data-class", name);
     panel.append(section);
   }
+
+  sayDuplicates();
 
   const unlinked = candidates.filter((candidate) => candidate.source && !linked.byName(candidate.source));
   if (unlinked.length) {
@@ -407,11 +425,18 @@ async function presentRequirements(outcome, result, run) {
   write.addEventListener("click", async () => {
     write.disabled = true;
     status.replaceChildren();
+    const unfinished = splitProblem(panel);
+    if (unfinished) {
+      write.disabled = false;
+      status.append(el("p", "result problem", unfinished));
+      return;
+    }
     try {
       const info = await run.host.repositoryInfo();
       const snapshot = await run.host.readSnapshot(info.defaultBranch);
       const context = { ...run.jobContext, product: { ...run.jobContext.product, snapshot } };
-      const written = await writeResult(run.prepared, outcome.draft, { result: { ...outcome, classes: classesFrom(panel, classes) }, context });
+      const edited = editedResult(panel, outcome);
+      const written = await writeResult(run.prepared, edited.draft, { result: { ...outcome, classes: edited.classes }, context });
       status.append(el("p", "written", written.files?.length ? `Written: ${written.files.join(", ")}` : "Nothing changed."));
       if (written.notes?.length) status.append(el("ul", "notes", ...written.notes.map((note) => el("li", "note", note))));
     } catch (failure) {
@@ -477,7 +502,7 @@ async function showArchitectureDraft(where, kind) {
     found = await approvalStrategies.preconditions["architecture-ready"]({ product: { snapshot, address: snapshot.repository?.web ?? "" } });
     reviewing = await kindOf(loaded.definition.reviewer);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs } = loaded;

@@ -10,16 +10,17 @@
 import { openEditor, renderArtifact } from "../markdown-render/index.mjs";
 import { entryView, queues, saveEntry } from "../spec-changes/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./edit.mjs";
-import { el, link, parseServer, problem, TOKEN_STEP } from "./common.mjs";
+import { fallbackPages } from "./file-edit.mjs";
+import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
 import { entryId } from "./spec-entries.mjs";
 
 const pad2 = (number) => String(number).padStart(2, "0");
 
 /**
- * showEntryEdit(where, kind, id) — the page that edits the open entry `id` in place.
+ * showEntryEdit(where, kind, id) — the page that edits the open entry `id` in place; the editor it opened, or nothing where it opened none.
  */
 export async function showEntryEdit(where, kind, id) {
   const { target, snapshot, host, token, context } = where;
@@ -32,7 +33,7 @@ export async function showEntryEdit(where, kind, id) {
       graph = await traceGraph(snapshot);
     }
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const back = link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, "Back to the entry");
@@ -68,13 +69,11 @@ export async function showEntryEdit(where, kind, id) {
     const reason = String(why.value ?? "").trim();
     if (!reason) return { kind: "failed", reason: "say why in the Why field." };
     try {
-      const outcome = await saveEntry(host, { queue: queue.folder, entry: item.number, text, why: reason, person: token?.name ?? "anonymous", openedBlob: view.proposal.blob });
+      const outcome = await saveEntry(host, { queue: queue.folder, entry: item.number, text, why: reason, person: token?.name ?? "anonymous", openedBlob: view.proposal.blob, openedHead: snapshot.commit });
       if (outcome.refused === "changed meanwhile") return { kind: "refused", newer: outcome.current ?? "" };
       if (outcome.refused === "not open") return { kind: "failed", reason: `the entry is no longer open: it is ${outcome.state}.` };
       if (outcome.fallback) {
-        const pages = el("ul", "pages");
-        for (const file of outcome.fallback) pages.append(el("li", null, link(file.url, "github-page", `Open GitHub's page for ${file.path}`)));
-        saved.replaceChildren(el("p", null, "There is no token: GitHub's page opens for each file of the entry, and you commit them there."), pages);
+        fallbackPages(saved, outcome.fallback);
         return { kind: "failed", reason: "there is no token, so nothing was committed from here." };
       }
       const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
@@ -86,5 +85,5 @@ export async function showEntryEdit(where, kind, id) {
   }
 
   target.append(editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved);
-  openEditor(editorBox, view.proposal.text, { marks, save });
+  return openEditor(editorBox, view.proposal.text, { marks, save });
 }

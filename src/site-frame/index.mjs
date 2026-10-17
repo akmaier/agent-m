@@ -1,7 +1,7 @@
 // MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Built: the types View,
 // Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, the last two with the
 // start of the prompt bar (subject.mjs gives it the subject of the route shown); menuOf (menu.mjs); instanceOf; chosenProduct
-// (routing.mjs); explain; runPanel (run-panel.mjs); confirmDecision; notice; schemaForm (forms.mjs), without its options secretKeys
+// (routing.mjs); explain; readProblem; runPanel (run-panel.mjs); confirmDecision (decision.mjs); notice (notices.mjs); schemaForm (forms.mjs), without its options secretKeys
 // and readOnly. Not built yet: embedRoute and the frame's own check of the topics.
 //
 // Module: MOD-site-frame
@@ -20,14 +20,16 @@ import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
 import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
+import { notice, noticePlace } from "./notices.mjs";
 
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
 export { menuOf } from "./menu.mjs";
 export { chosenProduct } from "./routing.mjs";
+export { notice } from "./notices.mjs";
+export { confirmDecision } from "./decision.mjs";
 
 const UPSTREAM = "akmaier/agent-m";
-let notices = null;
 const LOOK = new URL("./look.css", import.meta.url).href;
 const PRL_LOGO = new URL("./brand/prl-lettered.png", import.meta.url).href;
 const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;
@@ -44,11 +46,13 @@ const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url)
 /**
  * One route of a view. `name` is the first part of the address's fragment, the rest are the `params` render is given; a
  * route's `entry` puts it under that entry of the menu, null keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a
- * message in the prompt bar is about while the route is shown; a route that gives none, or whose `subject` gives `null`, has the frame's default (subject.mjs).
+ * message in the prompt bar is about while the route is shown; a route that gives none, or whose `subject` gives `null`, has the frame's default (subject.mjs). `leave` is asked
+ * of the route shown before the frame shows another on a change of the address; `false` keeps the route and the frame puts its address back.
  * @typedef {{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" | "releases" |
  *   "maintenance" | "settings" | null, title: string,
  *   render(target: Element, context: ViewContext, params: Record<string, string>): Promise<void>,
- *   subject?: (params: Record<string, string>, context: ViewContext) => Subject | null }} Route
+ *   subject?: (params: Record<string, string>, context: ViewContext) => Subject | null,
+ *   leave?: () => boolean }} Route
  */
 
 /**
@@ -98,21 +102,44 @@ function topicsOf(text) {
 }
 
 /**
- * explain(topic: string) -> Element — the folded "What is this?" of a topic (EVERY STEP EXPLAINS ITSELF): a <details
- * class="explain">, folded, holding the summary "What is this?" and the topic's Markdown from explanations.md, rendered by
- * MOD-markdown-render's renderArtifact. It never throws: for a topic the file does not hold it returns an empty element.
+ * explain(topic: string, label?: string) -> Element — the folded explanation of a topic (EVERY STEP EXPLAINS ITSELF): a <details
+ * class="explain">, folded, holding the summary — "What is this?", or the label a use case names for it, such as "Why these?" — and
+ * the topic's Markdown from explanations.md, rendered by MOD-markdown-render's renderArtifact. It never throws: for a topic the file
+ * does not hold it returns an empty element.
  * @param {string} topic — a lower-case slug, as a heading of explanations.md names it
+ * @param {string} [label] — the summary; "What is this?" without one
  * @returns {Element}
  */
-export function explain(topic) {
+export function explain(topic, label = "What is this?") {
   const text = TOPICS.get(topic);
   if (text === undefined) return document.createElement("div");
   const folded = document.createElement("details");
   folded.className = "explain";
   const summary = document.createElement("summary");
-  summary.textContent = "What is this?";
+  summary.textContent = label;
   folded.append(summary, renderArtifact(text));
   return folded;
+}
+
+/**
+ * readProblem(failure: Error, tokenStored: boolean) -> Element — the problem a failed read of a repository shows on a page: a <p class="problem">. For a NotFound while no
+ * token that reaches the repository is stored, it says that the repository is private or does not exist and that no token reaches it; otherwise it is the host's own
+ * message. While no token is stored, a link "Store a token" to the add-product step follows. It reads nothing and never throws.
+ */
+export function readProblem(failure, tokenStored) {
+  const paragraph = document.createElement("p");
+  paragraph.className = "problem";
+  paragraph.textContent = failure.name === "NotFound" && !tokenStored
+    ? "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload."
+    : failure.message;
+  if (!tokenStored) {
+    const step = document.createElement("a");
+    step.className = "token-step";
+    step.setAttribute("href", fragmentOf("add-product"));
+    step.textContent = "Store a token";
+    paragraph.append(" ", step);
+  }
+  return paragraph;
 }
 
 // The instance whose Pages address this page belongs to. A local Bridge window keeps that Pages location as private shell
@@ -198,8 +225,7 @@ async function startSite({ page, views }) {
   const selector = document.createElement("select");
   selector.className = "product";
   header.getElementsByTagName("div")[0].append(selector, menu);
-  notices = document.createElement("section");
-  notices.className = "site-frame-notices";
+  const notices = noticePlace();
   const target = document.createElement("main");
   target.className = "site-frame-route";
   const foot = document.createElement("footer");
@@ -269,18 +295,18 @@ async function startSite({ page, views }) {
         location.hash = fragmentOf(name, product && !("product" in given) ? { ...given, product: product.address } : given);
       } };
     if (!route) {
-      shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context };
+      shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context, fragment };
       const paragraph = document.createElement("p");
       paragraph.textContent = entryKey ? `The ${labelOf(entryKey)} entry is not built yet.` : "This page is not built yet.";
       target.replaceChildren(paragraph);
       return;
     }
     shownName = route.name;
-    shown = { route, params: route === byName ? params : {}, context };
+    shown = { route, params: route === byName ? params : {}, context, fragment };
     await route.render(target, context, shown.params);
   };
   const browser = globalThis.window ?? globalThis;
-  browser.addEventListener?.("hashchange", show);
+  browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));
   await show();
 
   const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
@@ -314,6 +340,27 @@ function footTakesBarHeight(foot) {
   }).observe(foot, { childList: true });
 }
 
+// The listener of the fragment's changes, for the main, the review and the Bridge pages: before `show` draws another route it asks the route shown with its `leave`
+// (Route). `current()` gives that route with the fragment it was drawn for. On `false` nothing is drawn and the fragment is put back; the browser announces the fragment put back
+// as a change of its own, which is neither asked nor drawn.
+function askBeforeShowing(location, current, show) {
+  let putBack = null;
+  return async () => {
+    if (putBack !== null) {
+      const fragment = putBack;
+      putBack = null;
+      if (location.hash === fragment) return;
+    }
+    const { route, fragment } = current() ?? {};
+    if (route?.leave?.() === false) {
+      putBack = fragment;
+      location.hash = fragment;
+      return;
+    }
+    await show();
+  };
+}
+
 // The value of the selector's entry that goes to the add-product route of the settings.
 const ADD_PRODUCT = "+add";
 
@@ -328,12 +375,13 @@ async function startBridge({ page, views }) {
   const routes = views.flatMap((view) => view?.routes ?? []);
   const first = routes[0] ?? null;
   const header = sharedHeader("Bridge");
-  notices = document.createElement("section");
-  notices.className = "site-frame-notices";
+  const notices = noticePlace();
   const target = document.createElement("main");
   target.className = "site-frame-route";
   document.body.replaceChildren(header, notices, target);
 
+  // The route shown and the fragment it was drawn for, asked by askBeforeShowing before another route is shown.
+  let shown = null;
   const show = async () => {
     const selected = routeOf(location.hash);
     const route = routes.find((candidate) => candidate.name === selected.name) ?? first;
@@ -341,58 +389,12 @@ async function startBridge({ page, views }) {
       target.textContent = "This Bridge page has no view yet.";
       return;
     }
+    shown = { route, fragment: location.hash ?? "" };
     const context = { page, instance: { repository, host }, product: null, store,
       go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
     await route.render(target, context, route.name === selected.name ? selected.params : {});
   };
   const browser = globalThis.window ?? globalThis;
-  browser.addEventListener?.("hashchange", show);
+  browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));
   await show();
-}
-
-// notice(kind, detail) -> void — one supplied message at the frame's notice place. It performs no action beyond drawing the
-// supplied text and optional link.
-export function notice(kind, { text, link } = {}) {
-  if (!notices) throw new Error("Start a page before showing a notice.");
-  const shown = document.createElement("p");
-  shown.className = `notice ${kind}`;
-  shown.append(String(text ?? ""));
-  if (link) {
-    const anchor = document.createElement("a");
-    anchor.setAttribute("href", link.href);
-    anchor.textContent = link.label;
-    shown.append(" ", anchor);
-  }
-  notices.append(shown);
-}
-
-// confirmDecision(decision) -> Promise<{ confirmed: boolean, reason: string | null }> — the single small confirmation
-// surface used by the Bridge frame. The result is produced only by the person's button click.
-export function confirmDecision({ title, lines, confirm, reason = false }) {
-  return new Promise((resolve) => {
-    const dialog = document.createElement("section");
-    dialog.className = "decision";
-    const heading = document.createElement("h2");
-    heading.textContent = title;
-    dialog.append(heading);
-    for (const line of lines ?? []) {
-      const paragraph = document.createElement("p");
-      paragraph.textContent = line;
-      dialog.append(paragraph);
-    }
-    const reasonField = reason ? document.createElement("textarea") : null;
-    if (reasonField) dialog.append(reasonField);
-    const cancel = document.createElement("button");
-    cancel.textContent = "Cancel";
-    const accept = document.createElement("button");
-    accept.textContent = confirm;
-    const answer = (confirmed) => {
-      dialog.remove();
-      resolve({ confirmed, reason: confirmed && reasonField ? reasonField.value : null });
-    };
-    cancel.addEventListener("click", () => answer(false));
-    accept.addEventListener("click", () => answer(true));
-    dialog.append(cancel, accept);
-    document.body.append(dialog);
-  });
 }

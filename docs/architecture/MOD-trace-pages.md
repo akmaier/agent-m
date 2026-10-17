@@ -10,6 +10,7 @@ uses:
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
+  - MOD-site-frame.readProblem
   - MOD-site-frame.confirmDecision
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.renderMermaid
@@ -18,6 +19,7 @@ uses:
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.listTags
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.repositoryInfo
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
   - MOD-spec-document.parseSpec
@@ -32,6 +34,7 @@ uses:
   - MOD-trace-graph.graphFindings
   - MOD-approvals.statuses
   - MOD-spec-changes.queues
+  - MOD-spec-changes.entryView
   - MOD-spec-changes.requirementHistory
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
@@ -81,6 +84,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `views.mjs` — the five descriptors.
 - `diagram.mjs` — the component diagram of the modules view, as Mermaid.
 - `export.mjs` — saving the audit document in the browser.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `tests/trace-pages-edit-links.test.mjs`: its header names this module.
 
 ## Data
 
@@ -128,19 +133,22 @@ instance's host that the frame gives every route, it also reads the instance's p
 
 ## Uses
 
-- MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
+- MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice, MOD-site-frame.readProblem,
   MOD-site-frame.confirmDecision — the frame's parts of every route.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.renderMermaid, MOD-markdown-render.showDifference — rows'
   details, the component diagram, the comparison of versions.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.listTags,
   MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the release tags, a test's code
-  and a run's log on the server; for the audit, the instance at the commit the release's declaration names.
+  and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
+  MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
+  the instance's links are read for the person's own source.
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-spec-document.parseSpec, MOD-group-document.parseGroupFile,
   MOD-group-document.hierarchy, MOD-test-document.testDeclarations — the artifacts of the version.
 - MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
   MOD-trace-graph.moduleRows, MOD-trace-graph.graphFindings — the rows, gaps, unknown names and comparisons.
 - MOD-approvals.statuses — the review status of use cases and architecture files.
-- MOD-spec-changes.queues, MOD-spec-changes.requirementHistory — open proposals and a requirement's history.
+- MOD-spec-changes.queues, MOD-spec-changes.entryView, MOD-spec-changes.requirementHistory — open proposals, what each
+  open entry changes, withdraws or adds (its `impact`), and a requirement's history.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — a requirement's sources with version and part;
   MOD-source-register.affectedRequirements — the requirements marked *source changed*;
   MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a

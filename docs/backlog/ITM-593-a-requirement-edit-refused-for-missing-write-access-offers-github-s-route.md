@@ -36,3 +36,5 @@ UC-018 6b for a requirement: "the dashboard offers the GitHub route". `src/revie
 
 - `PermissionMissing` on a requirement edit offers the GitHub route, as it does for a use case.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-spec-changes' fallback of `proposeSection` on `PermissionMissing` (MOD-spec-changes, accepted blob bfbc5fce5845). It is free of drafts; its readings are read at its start.

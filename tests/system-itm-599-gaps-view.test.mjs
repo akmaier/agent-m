@@ -1,0 +1,117 @@
+// The gaps page through the frame (ITM-599): MOD-site-frame's startPage over the view of MOD-trace-pages, the route `trace` with the key `gaps` named by the address's
+// fragment, the product the fragment names connected by the frame from this browser's store with its own token or without one, against MOD-repository-hosts' real
+// GitHub host, answered by a fake of fetch over a repository that holds files at refs (tests/trace-pages-world.mjs). Nothing reaches the network: every request is recorded.
+//
+// Run: node --test tests/system-itm-599-gaps-view.test.mjs
+//
+// Module: MOD-trace-pages; MOD-site-frame
+// Guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+// Level: system
+//
+// Each case states its input and its expected values in its own text; none reads an expected value from a document. The product is https://github.com/alice/thesis-tool: a SPEC of
+// ALPHA RULE and DELTA RULE, UC-001 and MOD-direct, which realise ALPHA RULE, and the test TST-501, which guards it — so DELTA RULE is the one gap of each kind, and the graph is
+// built from four files. A request of the page to the product's repository is of one of three kinds: `api` (a REST call: the repository's information, its tags, the commit of a ref,
+// that commit's tree and, with a token, a file through the contents API), `graphql` (a batch of files, with a token) and `raw` (a file from the raw host, without a token).
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { doc, document, find, until } from "./trace-pages-harness.mjs";
+import { counted, githubWorld, installBrowser } from "./trace-pages-world.mjs";
+
+const { view } = await import("../src/trace-pages/index.mjs");
+const { startPage } = await import("../src/site-frame/index.mjs");
+const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
+
+const INSTANCE = "akmaier/agent-m";
+const PRODUCT = "https://github.com/alice/thesis-tool";
+const REPO = "alice/thesis-tool";
+const TOKEN = "github_pat_PRODUCT0123456789abcdefghijk";
+const TICK = "`";
+const FILES = {
+  "SPEC.md": ["# Thesis tool — Specification", "", "## Export", "",
+    "**ALPHA RULE** *(Vibe Coding)*", "Alpha rule.", `*Check:* ${TICK}tests/alpha.test.mjs${TICK}`, "",
+    "**DELTA RULE** *(Vibe Coding)*", "Delta rule.", "*Check:* at review.", ""].join("\n"),
+  "docs/use-cases/UC-001-first.md": doc("UC-001", "First use case", { realises: ["ALPHA RULE"] }),
+  "docs/architecture/MOD-direct.md": doc("MOD-direct", "Direct module", { folder: "src/direct/", realises: ["ALPHA RULE"] }),
+  "tests/alpha.test.mjs": ["// TST-501", "// level: unit", "// module: MOD-direct", "// guards: ALPHA RULE", ""].join("\n"),
+};
+const GRAPH_FILES = ["docs/architecture/MOD-direct.md", "docs/use-cases/UC-001-first.md", "tests/alpha.test.mjs"];
+const GAPS = `#trace/key=gaps/ref=main/product=${encodeURIComponent(PRODUCT)}`;
+const OTHER = `#trace/key=modules/ref=main/product=${encodeURIComponent(PRODUCT)}`;
+
+const mainText = () => find(document.body, (node) => node.localName === "main")[0].textContent;
+const lists = () => find(document.body, (node) => node.localName === "section" && node.className === "gaps-list");
+const linesOf = (section) => find(section, (node) => node.localName === "li").map((node) => node.textContent);
+const settle = async () => { await until(() => false, 150); };
+const pageIsGaps = () => /Matrix/.test(mainText());
+
+// A person opens the page at `fragment`, with the product kept in this browser — with its own token where `token` is true — and the frame started on the view of MOD-trace-pages.
+async function visit(t, fragment, { token }) {
+  const world = githubWorld({ [REPO]: { main: FILES }, [INSTANCE]: { main: {} } });
+  const realFetch = globalThis.fetch;
+  const realInterval = globalThis.setInterval;
+  globalThis.fetch = world.fetch;
+  globalThis.setInterval = () => 1;
+  t.after(() => { globalThis.fetch = realFetch; globalThis.setInterval = realInterval; });
+  const browser = installBrowser(fragment);
+  const store = openStore(INSTANCE);
+  writeSetting(store, "products", [PRODUCT]);
+  if (token) writeSetting(store, `github-token:${REPO}`, { value: TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" });
+  await startPage({ page: "review", views: [view] });
+  await settle();
+  return { world, browser, product: () => world.forRepository(REPO) };
+}
+
+// CASE ITM-599-SYSTEM-01
+// TST-599201 · level: system · module: MOD-trace-pages; MOD-site-frame
+// guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+// given: this browser keeps the product https://github.com/alice/thesis-tool without a token; its default branch main holds the four files above
+// input: the address #trace/key=gaps/ref=main/product=<the product> is opened
+// expect: the frame shows the page headed "Gaps" with DELTA RULE under each of the three lists of requirements and the matrix rows ALPHA RULE (UC-001, none, MOD-direct, TST-501) and DELTA RULE (none in all four); the product is asked for 4 REST calls (its information, its tags, main's commit and that commit's tree), 4 files from the raw host — SPEC.md once and the three files of the graph — and for no GraphQL batch; no request carries an authorisation; no request goes anywhere but to the repository's API and raw host
+test("without a token, the gaps page is drawn from the raw files of the version: four REST calls and one request for each file of the graph", async (t) => {
+  const page = await visit(t, GAPS, { token: false });
+  assert.match(mainText(), /Gaps/);
+  assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
+  assert.match(mainText(), /ALPHA RULEUC-001noneMOD-directTST-501DELTA RULEnonenonenonenone/);
+  assert.deepEqual(counted(page.product()), { api: 4, graphql: 0, raw: 4 });
+  assert.deepEqual(page.product().filter((request) => request.authorization !== null), []);
+  assert.deepEqual(page.world.requests.filter((request) => request.kind === "other"), []);
+});
+
+// CASE ITM-599-SYSTEM-02
+// TST-599202 · level: system · module: MOD-trace-pages; MOD-site-frame
+// guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
+// given: the same product, kept in this browser with its own token
+// input: the address #trace/key=gaps/ref=main/product=<the product> is opened
+// expect: the page shows the same lists and rows as without a token; the product is asked for 5 REST calls (the 4 above and SPEC.md through the contents API) and 1 GraphQL batch that names the three files of the graph — MOD-direct's file, UC-001's and the test's, not SPEC.md, which is read already —, and for no file from the raw host; every request carries the product's token
+test("with a token, the gaps page is drawn from one GraphQL batch for the files of the graph: five REST calls and one batch", async (t) => {
+  const page = await visit(t, GAPS, { token: true });
+  assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
+  assert.match(mainText(), /ALPHA RULEUC-001noneMOD-directTST-501DELTA RULEnonenonenonenone/);
+  assert.deepEqual(counted(page.product()), { api: 5, graphql: 1, raw: 0 });
+  assert.deepEqual(page.product().find((request) => request.kind === "graphql").files.sort(), GRAPH_FILES);
+  assert.deepEqual(page.product().filter((request) => request.authorization !== `Bearer ${TOKEN}`), []);
+});
+
+// CASE ITM-599-SYSTEM-03
+// TST-599203 · level: system · module: MOD-trace-pages; MOD-site-frame
+// guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
+// given: the gaps page opened at main, once without and once with a token (the two cases above), then the address of a view the page does not draw, which asks the product for nothing
+// input: the address #trace/key=gaps/ref=main/product=<the product> is opened a second time, at the same commit of main
+// expect: the page shows the same lists; the product is asked for 4 REST calls and the 1 file SPEC.md from the raw host without a token, for 5 REST calls with one — and for no GraphQL batch and no other file: the graph of the commit is kept, not read again
+test("opening the gaps page a second time at the same commit asks for the lists' files no more", async (t) => {
+  for (const token of [false, true]) {
+    const page = await visit(t, GAPS, { token });
+    const first = page.product().length;
+    page.browser.go(OTHER);
+    await settle();
+    assert.equal(page.product().length, first, "the other view asks the product for nothing");
+    assert.equal(pageIsGaps(), false, "known positive: the gaps page is gone");
+    page.browser.go(GAPS);
+    await until(pageIsGaps);
+    await settle();
+    const second = page.product().slice(first);
+    assert.deepEqual(counted(second), token ? { api: 5, graphql: 0, raw: 0 } : { api: 4, graphql: 0, raw: 1 }, token ? "with a token" : "without a token");
+    assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
+  }
+});

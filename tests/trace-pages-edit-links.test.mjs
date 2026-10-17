@@ -49,7 +49,7 @@ Every member holds a card.
 
 // A Host of the test's own: the default branch main, a SPEC at every ref, and no write.
 function host({ defaultBranch = "main", info = true } = {}) {
-  const fake = { async readSnapshot(ref) { return { ref, commit: ref, paths: ["SPEC.md"], read: async (path) => (path === "SPEC.md" ? SPEC : null), blob: () => null }; } };
+  const fake = { async readSnapshot(ref) { return { ref, commit: ref, paths: ["SPEC.md"], read: async (path) => (path === "SPEC.md" ? SPEC : null), blob: () => null }; }, async listTags() { return []; } };
   if (info === true) fake.repositoryInfo = async () => ({ defaultBranch, visibility: "public", canWrite: false, archived: false, description: "" });
   else if (info === "fails") fake.repositoryInfo = async () => { throw Object.assign(new Error("unreachable"), { name: "Unreachable" }); };
   return fake;
@@ -98,7 +98,7 @@ test("TST-360002 + Requirement stands in each section and opens requirements/new
   assert.deepEqual(added.map((node) => node.textContent), ["+ Requirement", "+ Requirement"]);
   assert.deepEqual(added.map((node) => node.getAttribute("href")), ["## 1. Lending", "## 2. Membership"].map((heading) => `#requirements/section=${encodeURIComponent(heading)}`));
   sections.forEach((section, at) => assert.deepEqual(links(section, "requirement-new"), [added[at]], `section ${at + 1} holds its own + Requirement alone`));
-  assert.equal(find(target, (node) => node.localName === "a").length, 6, "four Edit and two + Requirement, nothing else");
+  assert.equal(find(target, (node) => node.localName === "a").length, 7, "four Edit, two + Requirement and the Gaps link, nothing else");
 });
 
 // TST-360003 · level: unit · module: MOD-trace-pages

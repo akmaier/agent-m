@@ -49,7 +49,31 @@ the default branch is no longer what the edit started from".
   - Their expected results hold, since their files exist alike at both commits.
 - **Ready to be selected** once akmaier accepts the draft.
 
+**Settled at sprint team1/71's start. Selectable.**
+- **The modules whose files it changes:**
+  - MOD-spec-changes: `propose.mjs`, where `proposeSection` and `saveEntry` take `openedHead`;
+  - MOD-review-pages: its three callers, `edit.mjs`, `requirements-draft.mjs` and `entry-edit.mjs`. Each passes the
+    commit of the snapshot it opened on.
+  - The accepted text is `b43da779`.
+- **The grep, full output read:** `grep -rln "proposeSection\|saveEntry" src tests`.
+  - In `src`: those files, and `spec-changes/queues.mjs` and `index.mjs`.
+  - The tests that call them gain `openedHead` in their input: `spec-changes-propose-section`, `spec-changes-save-entry`,
+    `spec-changes-entry-view`, `review-pages-edit-requirement`, `review-pages-edit-entry`,
+    `review-pages-fallback-pages-single-list`, `review-pages-conversation-draft`, `specification-and-design-together` and
+    `system-uc-006-approve-spec-change`.
+  - None of them is a release test.
+- **Reads, against the token budget** (sprints 66 and 69): only a save without a token builds the fallback pages, and it
+  reads the snapshot at `openedHead`. That is two requests per save, on a click and not on a page load.
+  - **The measurement asked** (sprint 67): a committed test counting a fallback save's requests on base and head.
+- **Error fields** (sprint 68): no error is added.
+- **Sprints 68 and 70:** a release test among the changed tests stops the developer, who reports it, and the whole release
+  file is run on the draft.
+- **Sprints 64 to 67:** the draft run lists the changed tests; one action per shell command; DOM assertions compare
+  booleans or strings; no refusal is worked around; a header the item touches loses its item history.
+
 ## Acceptance
 
 - A file of the entry that appeared or disappeared on the default branch since the edit began is marked as differing.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-spec-changes' `openedHead` of `proposeSection` and `saveEntry` (MOD-spec-changes, accepted blob bfbc5fce5845). It is free of drafts; its readings are read at its start.

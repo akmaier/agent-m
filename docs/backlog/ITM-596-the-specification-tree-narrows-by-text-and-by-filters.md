@@ -21,6 +21,9 @@ origin:
 
 UC-020 step 4: "narrows the tree by typing … or by filter".
 
+**The reading of 2026-10-17 (sprint team1/63): it waits for ITM-595's merge,** whose tree it narrows. The descriptor's
+`filters` (MOD-trace-pages, Data) is the route's own and is not built yet. It copies no rule.
+
 ## Acceptance
 
 - Typing narrows the tree, and so do the filters by status, source and realised.

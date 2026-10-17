@@ -12,8 +12,8 @@ import { listJobs } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { explain } from "../site-frame/index.mjs";
-import { el, link, button, problem, parseServer, readPlace, TOKEN_STEP } from "./common.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
+import { el, link, button, parseServer, readPlace, TOKEN_STEP } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -99,7 +99,11 @@ export function reviewRoute(kind) {
     .map(([path, file]) => ({ path, ...file })).sort((a, b) => a.id.localeCompare(b.id));
   const idOf = (path, snapshot) => statuses(snapshot).get(path)?.id ?? path;
 
+  // The editor of the page drawn last, or null where that page opened none: what the route's `leave` asks.
+  let editor = null;
+
   async function render(target, context, params) {
+    editor = null;
     beginSubject(context);
     const where = await readPlace(target, context);
     if (where === null) return;
@@ -107,19 +111,19 @@ export function reviewRoute(kind) {
       await view(where, params);
       await rememberSubject(where, kind, params);
     } catch (failure) {
-      target.append(problem(failure, where.token));
+      target.append(readProblem(failure, Boolean(where.token)));
     }
   }
 
   async function view(where, params) {
     const { target, snapshot } = where;
-    if (kind.edit) await showEdit(where, kind, params);
+    if (kind.edit) editor = (await showEdit(where, kind, params)) ?? null;
     else if (params.edit && params.id && kind.save === "file") {
       const file = files(snapshot).find((candidate) => candidate.id === params.id);
       if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
-      else await showFileEdit(where, kind, file);
+      else editor = (await showFileEdit(where, kind, file)) ?? null;
     }
-    else if (params.edit && params.id && kind.save === "entry") await showEntryEdit(where, kind, params.id);
+    else if (params.edit && params.id && kind.save === "entry") editor = (await showEntryEdit(where, kind, params.id)) ?? null;
     else if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
     else if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
     else if (params.id && service.view) await showEntry(where, params.id);
@@ -370,5 +374,13 @@ export function reviewRoute(kind) {
     } else offerGitHub();
   }
 
-  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context) };
+  // The frame asks this before it shows another route: the editor of the page drawn last closes, asking first, or stays.
+  function leave() {
+    if (editor === null) return true;
+    const closed = editor.close();
+    if (closed) editor = null;
+    return closed;
+  }
+
+  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave };
 }

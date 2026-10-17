@@ -59,6 +59,7 @@ provides:
   - writeResult
   - provenanceLines
   - roundsText
+  - sourcesOf
 ---
 # MOD-job-runner The one runner of every job kind
 
@@ -309,6 +310,9 @@ ONLY WHEN RECORDING IS ON`).
   head. Throws what the writer throws by name — `DueDiligenceMissing` from `open-files`, which then writes nothing, while
   a reuse decision carries the mark of a registry that could not be read (UC-022); a refused commit because the branch
   moved.
+- `sourcesOf(context: JobContext, path: string) -> string[]` — the sources of every `context.places.contents` entry that
+  names the path or a folder above it, once each: what a part holding that file carries (`RESTRICTED CONTENT GOES ONLY
+  WHERE ITS SOURCE PERMITS`).
 - `provenanceLines(job: { agentM: { version: string, commit: string }, jobId: string | null, kind: string, participant:
   Participant, rounds: number }) -> string[]` — the trailer lines defined under Data; a job without a record — a
   conversation held in the tab — has no `Agent-M-Job` line.

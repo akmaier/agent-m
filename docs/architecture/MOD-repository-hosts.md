@@ -26,6 +26,7 @@ provides:
   - connect
   - readSnapshot
   - readHistory
+  - readFileAt
   - listTags
   - repositoryInfo
   - createBranch
@@ -72,6 +73,10 @@ computer, with its own git login. Every function that reaches a server or a clon
 - `local-git.mjs` — the adapter for a local clone, through the `git` command; Node only.
 - `failures.mjs` — the failures, told apart from the server's answers.
 - `web-links.mjs` — the addresses of the server's own pages.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `docs/assets/git-host.mjs`, `docs/assets/git-host/pull-requests.mjs`: removed once no file imports them: `connect`, `commitFiles` and `listPullRequests` give the same.
+  - `tests/test_destination_disclosure.py`, `tests/test_no_credential_in_url.py`, `tests/release-sprint-01-git-host.test.mjs`, `tests/release-sprint-02-a-git-host.test.mjs`, `tests/release-sprint-02-c-git-host.test.mjs`, `tests/review-core.d/git-host.test.mjs`, `tests/review-core.d/git-host-pulls.test.mjs`, `tests/review-core.d/rate-limit.test.mjs`: rewritten on this module's interface, or removed with the old host, each with the requirement it guards kept by a test of this module.
+  - `tests/test_no_backend.py`: its header names this module: every request leaves through it (`NO SERVER`).
 
 ## Data
 
@@ -166,8 +171,15 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   identifier, with the clone's own credentials: the access the clone was made with. `NotFound` then means that the origin
   does not hold it either. Crosses the network; fails with `NotFound`, `TokenRefused`, `PermissionMissing`,
   `RateLimited`, `Unreachable`.
-- `readHistory(path: string | null, options: { ref?: string, limit?: number }) -> Promise<HistoryEntry[]>` — the commits
-  that changed a path, or the repository, newest first. Crosses the network; fails as `readSnapshot`.
+- `readHistory(path: string | null, options: { ref?: string, limit?: number, changes?: boolean }) ->
+  Promise<HistoryEntry[]>` — the commits that changed a path, or the repository, newest first. With `changes: false`,
+  each entry's `changes` is empty and the history costs one request per page of commits; otherwise each entry lists its
+  changes. Crosses the network; fails as `readSnapshot`.
+- `readFileAt(path: string, commits: string[]) -> Promise<Map<string, string | null>>` — the text of one file at each
+  of several commits, keyed by commit, `null` where the file does not exist there. It reads in batches, not one snapshot
+  per commit: with a token, one request per batch of commits through the server's batch query, as `readMany` reads;
+  without a token, one read of the file's raw text per commit, outside the server's API. Crosses the network; fails as
+  `readSnapshot`.
 - `listTags(pattern?: string) -> Promise<{ name: string, commit: string }[]>` — the tags, optionally only those matching
   a pattern such as `v*`. Crosses the network; fails as `readSnapshot`.
 - `repositoryInfo() -> Promise<RepositoryInfo>` — the default branch, the visibility the server reports, whether the

@@ -13,8 +13,8 @@ import { parseSpec, renamedRequirements, requirementFindings, sectionText } from
 import { proposeSection, queues } from "../spec-changes/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
-import { explain } from "../site-frame/index.mjs";
-import { el, link, problem, parseServer, TOKEN_STEP } from "./common.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
+import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -34,7 +34,8 @@ export function impactOf(graph, before, after) {
 }
 
 /**
- * showEdit(where, kind, params) — the page of a requirement's edit (`kind.fresh` false, the part `name`) or of a new requirement (`kind.fresh` true, the part `section`).
+ * showEdit(where, kind, params) — the page of a requirement's edit (`kind.fresh` false, the part `name`) or of a new requirement (`kind.fresh` true, the part `section`);
+ * the editor it opened, which the route's `leave` closes, or nothing where it opened none.
  */
 export async function showEdit(where, kind, params) {
   const { target, snapshot, host, token, context } = where;
@@ -55,7 +56,7 @@ export async function showEdit(where, kind, params) {
     graph = await traceGraph(snapshot);
     all = await queues(snapshot);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const openedBlob = await blobSha(section);
@@ -90,7 +91,7 @@ export async function showEdit(where, kind, params) {
     if (!reason) return { kind: "failed", reason: "say why in the Why field." };
     try {
       const outcome = await proposeSection(host, { target: SPEC, anchor: heading, until: null, text, why: reason, origin: "the dashboard",
-        person: token?.name ?? "anonymous", openedBlob });
+        person: token?.name ?? "anonymous", openedBlob, openedHead: snapshot.commit });
       if (outcome.refused) return { kind: "refused", newer: outcome.current ?? "" };
       if (outcome.fallback) {
         return fallbackPages(saved, outcome.fallback) ? { kind: "failed", reason: "there is no token, so nothing was committed from here." }
@@ -108,5 +109,5 @@ export async function showEdit(where, kind, params) {
   }
 
   target.append(el("h3", null, "Other open proposals on this section"), others, editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved);
-  openEditor(editorBox, initial, { marks, save });
+  return openEditor(editorBox, initial, { marks, save });
 }

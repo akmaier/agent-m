@@ -1,7 +1,7 @@
-// The dashboard's texts, steps and views (docs/assets/dashboard-app.mjs, docs/assets/dashboard/) — deterministic, no network.
+// The dashboard's texts, steps and views (src/site-frame/dashboard-app.mjs, docs/assets/dashboard/) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: THE TOKEN LINK IS PREFILLED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE REPOSITORY CHOICE IS SPELLED OUT; EVERY STEP EXPLAINS ITSELF; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-001; UC-014
 // Level: component
 //
@@ -18,15 +18,15 @@ import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitla
 import {
   tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab, productTokenName, productTokenDescription,
 } from "../../docs/assets/dashboard/settings-view.mjs";
-import { createKeyStep } from "../../docs/assets/dashboard/setup-view.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
-import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
-import * as shell from "../../docs/assets/dashboard-app.mjs";
-import { ASSETS, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
+import { stepHtml, gitlabWriteRefusal } from "../../src/site-frame/dashboard-app.mjs";
+import * as shell from "../../src/site-frame/dashboard-app.mjs";
+import { ASSETS, APP, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
 
 // Every module file of the site (vendored libraries excepted), with the modules its Module line names.
-const moduleFiles = () => readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
-  .sort().map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") }));
+const moduleFiles = () => [...readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
+  .map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") })), { file: "dashboard-app.mjs", text: readFileSync(APP, "utf8") }]
+  .sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
 // The adapters (ARC-003 decision 1): the modules that reach the outside, as the code is built.
 function adapterModules() {
   return new Set(["MOD-git-host", "MOD-settings-store", "MOD-participants", "MOD-mailbox", "MOD-bridge-server", "MOD-bridge-tunnel"]);
@@ -230,18 +230,6 @@ test("ONE GITHUB TOKEN SERVES EVERY FEATURE — the link, the steps and the guid
   }
 });
 
-test("UC-014: the setup step explains every permission and why it is needed", () => {
-  const html = createKeyStep({ T: { instance: "r/agent-m" }, stepHtml }, ["r/agent-m"]);
-  const explain = html.slice(html.indexOf('<details class="explain">'));
-  for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
-    assert.match(explain, new RegExp(`<em>${p}</em>`), `the explanation names ${p}`);
-  }
-  for (const why of ["save and accept", "issues", "pull request", "start a run", "CI configuration"]) {
-    assert.ok(explain.toLowerCase().includes(why.toLowerCase()), `the explanation says why: ${why}`);
-  }
-  assert.doesNotMatch(explain, /\bfour\b/i, "no count that another permission would make wrong");
-});
-
 test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be rendered", () => {
   const h = stepHtml({ title: "Step A", body: "<p>x</p>", explain: "A token is a key." });
   assert.match(h, /class="step"/);
@@ -253,7 +241,7 @@ test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be ren
 // ---------------------------------------------------------------- products in the browser (UC-001)
 
 test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
-  for (const u of [new URL("dashboard-app.mjs", ASSETS), ...viewFiles(), new URL("review-core.mjs", ASSETS), new URL("settings-store.mjs", ASSETS)]) {
+  for (const u of [APP, ...viewFiles(), new URL("review-core.mjs", ASSETS), new URL("settings-store.mjs", ASSETS)]) {
     const r = spawnSync(process.execPath, ["--check", u.pathname]);
     assert.equal(r.status, 0, `${u.pathname}: ${r.stderr}`);
   }

@@ -42,6 +42,7 @@ provides:
   - confirmDecision
   - notice
   - schemaForm
+  - readProblem
 ---
 # MOD-site-frame The frame every page shares
 
@@ -75,6 +76,18 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `brand/` — the logo files of the Pattern Recognition Lab, lettered and as a sign, for light and dark backgrounds, the
   page icons, and a `README.md` stating the terms under which the logo is used.
 - `explanations.md` — the folded explanations, as data.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes.
+  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`; removed once `docs/index.html` starts the site through `start.mjs`.
+  - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
+  - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
+  - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
+  - `docs/assets/style.css`: what of it the views' routes still need moves into `look.css`; the rest is removed with the legacy views.
+  - `tests/app-harness.mjs`: moved in as the helper of this module's page tests; it serves the batch request (`POST /graphql`) and, after the switch, loads `start.mjs`.
+  - `tests/load-per-view.test.mjs`: its header names this module: the Check of `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
+  - `tests/dashboard-shell.test.mjs`, `tests/review-page.test.mjs`, `tests/dashboard-shared-layout.test.mjs`, `tests/release-sprint-01-dashboard-app.test.mjs`, `tests/release-sprint-02-a-dashboard-app.test.mjs`, `tests/release-sprint-02-d-dashboard-app.test.mjs`, `tests/review-core.d/dashboard-app.test.mjs`, `tests/review-core.d/refused-save.test.mjs`, `tests/review-core.d/write-refused.test.mjs`, `tests/test_instance_target.py`, `tests/test_progress_derived.py`: their headers name this module while the app is its; each is removed or rewritten on the frame's routes with the part of the app it tests.
+  - `tests/test_step_explanations.py`: removed with `stepHtml`, which no view calls (queue `2026-10-17b`).
+  - `tests/test_pages_layout.py`, `tests/test_home_screen_icon.py`: their headers name this module: the pages' layout and the lab's look are the frame's.
 
 ## Data
 
@@ -112,7 +125,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
-  "gitlab", host: Host }`.
+  "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
+  token, so that a view hands `readProblem` the fact without reading the store's keys itself.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
   notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
@@ -138,7 +152,7 @@ It keeps nothing but what is on the screen. It owns these formats:
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.
 - `chosenProduct(context: { store: Store, fragment: string }) -> Promise<ProductContext | null>` — the product the
   address's fragment or the selector names, among the products this browser keeps, connected with its own token to its
-  own server only; `null` when the fragment or the selector names the instance itself, which the selector offers beside
+  own server only, with `tokenStored` true when that token is kept; `null` when the fragment or the selector names the instance itself, which the selector offers beside
   the products, or when the browser keeps no product — the pages then show the instance itself. Errors: `UnknownProduct`
   — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
   used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
@@ -157,6 +171,10 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `confirmDecision(decision: { title: string, lines: string[], confirm: string, reason?: boolean }) -> Promise<{ confirmed:
   boolean, reason: string | null }>` — the one dialog of a decision: what will happen, in the given lines; with `reason`,
   a field the person fills in, as for rejecting a gate or recording a limitation.
+- `readProblem(failure: Error, tokenStored: boolean) -> Element` — the problem a failed read of a repository shows on a
+  page: for `NotFound` while this browser stores no token that reaches it, that the repository is private or does not
+  exist and no token reaches it, with the link to store one (UC-008 1a, UC-020 2a); otherwise the host's own message,
+  and the link to store a token where none is stored.
 - `notice(kind: "token-expiring" | "token-refused" | "rate-limit" | "unreachable" | "setup" | "moved" | "info", detail:
   { text: string, link?: { label: string, href: string } }) -> void` — shows a notice in the page's one place for them;
   the frame itself shows a token's expiry from fourteen days before it (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`) with

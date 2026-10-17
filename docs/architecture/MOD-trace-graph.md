@@ -43,6 +43,7 @@ provides:
   - moduleRows
   - compareGraphs
   - selfSufficiencyFindings
+  - systemDecisions
 ---
 # MOD-trace-graph The trace graph and everything derived from it
 
@@ -63,6 +64,10 @@ MATRIX IS DERIVED`). It runs in a browser and in Node; it reads only through the
 - `code.mjs` — code files by module folder, and the imports between module folders.
 - `checks.mjs` — the checks across artifacts.
 - `derive.mjs` — traces, gaps, impact lists, module order and rows, comparison.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `docs/assets/traceability.mjs`, `docs/assets/traceability/graph.mjs`: removed once this module gives `moduleRows`, which it states and does not build yet, and no file imports them.
+  - `tests/test_coverage_report.py`: rewritten on `traceGraph` and `graphFindings`: it is the Check of `EVERY CODE FILE BELONGS TO A MODULE`.
+  - `tests/test_impact_list.py`, `tests/test_matrix_derived.py`, `tests/test_references.py`, `tests/release-sprint-02-d-traceability.test.mjs`, `tests/architecture-impact.test.mjs`: rewritten on this module, or removed with the old graph.
 
 ## Data
 
@@ -161,6 +166,8 @@ identifier, and which register entry an item names is MOD-source-register's to s
   tests that exercise those modules and the requirements those tests guard; the requirements and use cases the files name
   and no longer name; the plan steps and backlog items that name an affected module (`AN ARCHITECTURE CHANGE IS NOT
   ACCEPTED WITHOUT AN IMPACT LIST`).
+- `systemDecisions(graph: Graph) -> { system: string[], subsystems: string[] }` — the decisions that refine no other,
+  and the subsystems' decisions: those that refine one of them and design at least one module; each list by identifier.
 - `moduleOrder(graph: Graph) -> { order: string[] } | { cycle: string[] }` — the modules in an order in which every module
   stands after every module whose interfaces it uses, or the modules of a cycle when there is one (`A RUN FOLLOWS THE
   MODULES' INTERFACES`).

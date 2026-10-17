@@ -66,3 +66,12 @@ No existing test's expected result changes. No assertion changes, only header co
 - Only the listed test files change. No red commit is required, since the item adds no behaviour. The two release tests
   record their local run before and after.
 - It is written by a Developer who implemented none of the run panel's behaviour.
+
+**Rests on queue `2026-10-17d` (2026-10-17, po-opus).**
+- akmaier rejected the path this item counts on: code no module owns, changed by a pull request between jobs.
+- Under the draft of queue `2026-10-17d`, the module whose file names that code as taken over changes it in its own
+  implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
+  is named in that module's parts.
+- This item waits for akmaier's acceptance of that draft, and its fix is read again then.
+
+**Read again with the plan (2026-10-17):** its own part, the headers and the counter-proof, changes only tests of its four modules and never rested on a pull request between jobs. It is selectable. Its left-out `tests/test_destination_disclosure.py` goes with ITM-689, after the queue `2026-10-16` names its successors.

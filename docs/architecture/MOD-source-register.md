@@ -143,13 +143,15 @@ names no source.
   where, for the caller to commit with the person's token.
 - `sourceSchemas() -> { entry: Schema, links: Schema }` — the schemas of a register entry and of a product's links file,
   for reading, writing and forms through MOD-documents.
-- `registrationCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean }[], instance: string) ->
-  Promise<CommitPlan>` — the register entry with its first version, and the files: to the instance when the licence
-  permits republishing, to the named repository otherwise, and nowhere when the person only hashed them. Hashes every
-  file. Throws `ContentRepositoryMissing` for restricted files without a named repository.
-- `versionCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean }[], version: { version:
-  string, date: string }) -> Promise<CommitPlan>` — a new version appended to the entry, with its files. Throws
-  `SameBytes { version }` when its files' hashes equal those of an existing version, and nothing is recorded.
+- `registrationCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[],
+  instance: string) -> Promise<CommitPlan>` — the register entry with its first version, and the files: to the instance
+  when the licence permits republishing, to the named repository otherwise, and nowhere when the person only hashed them,
+  each such file recorded with its `note`, where its copy is kept. Hashes every file. Throws `ContentRepositoryMissing`
+  for restricted files without a named repository, and `NoteMissing { file }` for a file not kept that has no note.
+- `versionCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[], version:
+  { version: string, date: string }) -> Promise<CommitPlan>` — a new version appended to the entry, with its files, a
+  file not kept recorded with its `note`. Throws `SameBytes { version }` when its files' hashes equal those of an existing
+  version, and `NoteMissing { file }` for a file not kept that has no note; then nothing is recorded.
 - `linkedVersion(links: Document, register: Document[], source: string) -> LinkedVersion | null` — the version a product
   links of the source that `source` names — an identifier, or an item of a requirement's source —, with the part its
   link names, or `null` when it names no register entry, the product links none, or the entry records no version the link
@@ -168,8 +170,10 @@ names no source.
   and checks each against its recorded SHA-256. Throws `HashMismatch { file, expected, actual }`, so that a changed file is caught
   before anything is derived from it (UC-005), `ContentUnreadable { repository, reason }` when the holder cannot be read
   with the credentials at hand, and what the host names.
-- `affectedRequirements(spec: string, source: string) -> string[]` — the names of the requirements one of whose source
-  items names this source, read with MOD-spec-document.
+- `affectedRequirements(spec: string, register: Document[], source: string) -> string[]` — the names of the requirements
+  one of whose source items names this source, read with MOD-spec-document: an item names it when the register entry
+  the item names, by identifier, title or a standard's designation, is the entry `source` names, as `linkedVersion` and
+  `sourceFindings` read an item.
 - `sourceFindings(requirements: Requirement[], links: Document, register: Document[]) -> Finding[]` — an error under `A
   REQUIREMENT HAS A REGISTERED SOURCE` for each requirement none of whose source items names a source the product links,
   naming the requirement, its line and its items.

@@ -4,10 +4,11 @@
 // Module: MOD-runtimes
 //
 // It reads and writes only through the host of the job's context (`context.product.host`): `readSnapshot` for the branch, `listPullRequests`, `repositoryInfo` and `openPullRequest`
-// for the pull request. The job's own snapshot, `context.product.snapshot`, says what the branch changed. Strategies, JobContext, JobResult and WriteOutcome are MOD-job-runner's types.
+// for the pull request. The job's own snapshot, `context.product.snapshot`, says what the branch changed and, through MOD-trace-graph's `traceGraph`, which modules the plan steps and backlog items the job names change. Strategies, JobContext, JobResult and WriteOutcome are MOD-job-runner's types.
 
 import { provenanceLines } from "../job-runner/index.mjs";
 import { testDeclarations } from "../test-document/index.mjs";
+import { traceGraph } from "../trace-graph/index.mjs";
 
 // A failure of the writer's own, by name.
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
@@ -29,10 +30,17 @@ async function newTests(branch, snapshot, files) {
   return found;
 }
 
-// The description of the pull request: the job, its kind, the plan steps and backlog items it works on, the modules and the requirements the new tests name, then the provenance lines.
-function describe(result, context, tests) {
+// The modules of the plan steps and backlog items the job names: the `changes` edges of their nodes in the trace graph of the job's snapshot, in the order of the names and, within a name, of its edges.
+// The graph is built only where a step or an item is named.
+async function modulesOf(snapshot, work) {
+  if (work.length === 0) return [];
+  const graph = await traceGraph(snapshot);
+  return unique(work.flatMap((name) => graph.edges.filter((edge) => edge.from === name && edge.via === "changes").map((edge) => edge.to)));
+}
+
+// The description of the pull request: the job, its kind, the plan steps and backlog items it works on, their modules and the requirements the new tests guard, then the provenance lines.
+function describe(result, context, modules, tests) {
   const { steps, items } = context.params ?? {};
-  const modules = unique(tests.map((test) => test.module).filter((module) => /^MOD-/.test(module ?? "")));
   const guards = unique(tests.flatMap((test) => test.guards));
   const lines = [`Job: ${context.jobId}`, `Kind: ${context.kind.name}`];
   if (named(steps).length) lines.push(`Plan step: ${named(steps).join(", ")}`);
@@ -77,7 +85,7 @@ async function branchAndPullRequest(result, context) {
   const { defaultBranch } = await host.repositoryInfo();
   const work = [...named(context.params?.steps), ...named(context.params?.items)];
   const opened = await host.openPullRequest({ branch: name, base: defaultBranch, title: `${context.jobId}: ${context.kind.name}${work.length ? ` ${work.join(", ")}` : ""}`,
-    body: describe(result, context, await newTests(branch, snapshot, files)) });
+    body: describe(result, context, await modulesOf(snapshot, work), await newTests(branch, snapshot, files)) });
   return outcome(opened.url);
 }
 

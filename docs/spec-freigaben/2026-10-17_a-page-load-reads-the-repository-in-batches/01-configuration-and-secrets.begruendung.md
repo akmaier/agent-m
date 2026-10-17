@@ -50,5 +50,5 @@ failure, and ITM-479's release tests bound only the SPEC-entry page.
 - A used-up limit is still named, because GraphQL answers `RATE_LIMITED`, which the host names (`github.mjs:234`).
 
 **Impact list.** `tests/load-per-view.test.mjs`, whose header names MOD-dashboard-app, a module the architecture no
-longer holds, so no module owns it. Its counts change with the fix, and entry 02 is what lets a pull request between
-jobs change it.
+longer holds. Its counts change with the fix. The fix is made by the items that move the live dashboard's code into
+the architecture (queue `2026-10-17d`).

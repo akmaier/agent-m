@@ -3,7 +3,7 @@
 // deterministic, no network. Run through tests/review-core.test.mjs, which SPEC.md names for these checks:
 // node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-review-pages
 // Guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // Level: unit
 //
@@ -83,7 +83,7 @@ test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — every write a view start
   assert.equal(handsClickAuthority("{ ...app.writeTarget(), branch: T.ref, token: token(), authority: clickAuthority(ev), list }"), true);
   assert.deepEqual(writeCalls("store.addProduct(x); await addProduct({ a: f(b) }); acceptItems({ c })").map((c) => c.name),
     ["acceptItems"], "a method of another object is not one of the dashboard writes");
-  const dashboard = readFileSync(new URL("../../docs/assets/dashboard-app.mjs", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8");
   assert.match(dashboard, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/,
     "UC-001 enters through the public MOD-settings-pages route, outside the dashboard write path");
 });

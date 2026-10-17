@@ -1,17 +1,14 @@
-// Release tests of the sprint 01 increment — the dashboard, driven like a person (ITM-141). Written by tester-opus
-// (claude-opus-5-5), the Release tester of docs/process.md, who implemented nothing of the increment, from the use cases and
-// the SPEC alone; started on sprint/02 at ef4f619 (main at 385f5cf plus records only), 2026-10-01. Changed by tester-opus
-// (claude-opus-5-5), the Release tester, who implemented none of it, for UC-001 as drafted in 2deaa7f — Step A asks for a key of the
-// product's own, the instance's key unchanged —, on fix/product-token-prefill at ea87df2, 2026-10-06: UC-001 2–5, 4a, 5a and 3b.
+// Release tests of the dashboard, driven like a person. Written by a participant who implemented nothing of what they test, from
+// the use cases and the SPEC alone.
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: UC-001; UC-006; UC-008; UC-014; UC-042; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A TOKEN IS SCOPED TO WHAT IT WRITES; PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 // Level: release
 //
-// The real dashboard (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against fake GitHub and GitLab servers; no
+// The real dashboard (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against fake GitHub and GitLab servers; no
 // request leaves the process. Every case names, above it, the use-case flow or the SPEC rule it was written from and states its
-// expected result before it runs (SOFTWARE_MAINTENANCE.md §4.0a rule 1). A case that fails on the increment is a finding: it
-// stays here marked { todo } with the backlog item that will make it pass (ITM-141, *Kind and level*).
+// expected result before it runs (SOFTWARE_MAINTENANCE.md §4.0a rule 1). A case that fails is a finding: it
+// stays here marked { todo } with the backlog item that will make it pass.
 //
 // What this file adds to the harness, for the person's clicks the harness cannot make by itself (its controls are found only by
 // an attribute selector inside <main>): elements reached by id keep the listeners a view adds and are replaced, like a browser's,
@@ -358,7 +355,9 @@ async function downloaded(page) {
   return Promise.all(page.asked.downloads.map(async (d) => ({ ...d, text: await resolveObjectURL(d.href).text() })));
 }
 
-const writesOf = (w) => w.log.filter((r) => r.method !== "GET");
+// A write is a request that is not a GET, except the batch of reads: a POST to GitHub's /graphql, which answers with file texts and changes nothing.
+const isBatchOfReads = (r) => r.method === "POST" && r.origin === API && new URL(r.url).pathname === "/graphql";
+const writesOf = (w) => w.log.filter((r) => r.method !== "GET" && !isBatchOfReads(r));
 const githubTokenSentOnlyToGitHub = (w) => w.log.filter((r) => r.auth).every((r) => r.origin === API);
 const gitlabTokenSentOnlyToItsProject = (w) => w.log.filter((r) => r.privateToken)
   .every((r) => r.url.startsWith(`${GL_ORIGIN}/api/v4/projects/${encodeURIComponent(GL_PROJECT)}`));
@@ -745,61 +744,6 @@ test("release · UC-014 6, 7a: without a token the start page offers Finish sett
   assert.match(stripTags(main), /Import settings/);
 });
 
-// UC-014 step 7 · THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE · THE REPOSITORY CHOICE IS SPELLED OUT.
-// Expected: Step A's button opens GitHub's page for a new fine-grained token with name, description and the 90-day expiry
-// prefilled, and exactly the permissions every feature needs — Contents, Issues, Pull requests, Actions and Workflows read and
-// write, Metadata read — and no other; a folded explanation says what each is for; underneath: choose "Only select
-// repositories", pick <owner>/agent-m only, Generate token, copy it.
-test("release · UC-014 7: Step A links GitHub's token page prefilled with exactly the permissions every feature needs", async () => {
-  const w = await world();
-  const page = await open(w, { hash: "#setup", token: null });
-  const a = sections(page.main())[0];
-  const link = hrefs(a).find((x) => x.startsWith("https://github.com/settings/personal-access-tokens/new?"));
-  assert.ok(link, "the prefilled token page");
-  const q = new URL(link).searchParams;
-  assert.ok(q.get("name") && q.get("description"), "name and description");
-  assert.equal(q.get("expires_in"), "90");
-  const perms = Object.fromEntries([...q].filter(([k]) => !["name", "description", "expires_in"].includes(k)));
-  assert.deepEqual(perms, PERMISSIONS, "exactly the permissions every feature needs");
-  const why = /<details[\s\S]*<\/details>/.exec(a)[0];
-  for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows"]) assert.match(stripTags(why), new RegExp(p), `why ${p}`);
-  const text = stripTags(a.replace(/<details[\s\S]*<\/details>/, ""));
-  assert.match(text, /Only select repositories/);
-  assert.match(text, new RegExp(INSTANCE));
-  assert.match(text, /Generate token/);
-  assert.match(text, /[Cc]opy/);
-});
-
-// UC-014 steps 8–9 · THE SHARED PAGES ORIGIN IS DISCLOSED · CONFIGURATION LIVES IN THE BROWSER. Expected: before anything is
-// stored, the page states that every other Pages site of the same owner can read what is stored here; nothing is stored before
-// "I have read this" is ticked; the expiry date is preset to 90 days from today; Store and check keeps the token and its date in
-// localStorage and reads the instance with it; the dashboard then shows the instance ready — its use cases and + Add product.
-// Both steps carry a folded "What is this?".
-test("release · UC-014 8–9: Store and check keeps token and expiry after the notice, checks the instance, and shows it ready", async () => {
-  const w = await world();
-  const page = await open(w, { hash: "#setup", token: null });
-  const [a, b] = sections(page.main());
-  for (const s of [a, b]) assert.match(s, /<summary>What is this\?<\/summary>/);
-  assert.match(stripTags(b), /every other GitHub Pages site of akmaier/i);
-  assert.equal(page.byId("key-expires").value, daysFromToday(90), "preset to 90 days");
-  page.byId("key-token").value = TOKEN;
-  await page.fire("key-store");
-  assert.deepEqual(page.storage(), {}, "nothing is stored before the notice is acknowledged");
-  await page.tick("key-ack");
-  page.byId("key-token").value = TOKEN;
-  await page.fire("key-store");
-  const kept = storedSetting(page, "github-token");
-  assert.equal(kept.value, TOKEN, "the token in its canonical browser-store record");
-  assert.equal(kept.expires, daysFromToday(90), "its expiry date in that canonical record");
-  assert.ok(w.log.some((r) => r.url === `${API}/repos/${INSTANCE}` && r.auth === `Bearer ${TOKEN}`), "the instance is read with it");
-  assert.match(stripTags(page.html("key-check")), new RegExp(`✓ ${INSTANCE}`));
-  const done = page.html("setup-done");
-  assert.ok(hrefs(done).includes("#uc") && hrefs(done).includes("#add"), "ready: the use cases and + Add product");
-  await page.go("#uc");
-  assert.doesNotMatch(page.main(), /Finish setting up your instance/);
-  assert.match(page.main(), /UC-001/);
-});
-
 // UC-014 6a — the person only reads public repositories and skips the setup. Expected: the dashboard reads the instance without
 // a token — no request carries one — and accepting goes through GitHub's own page.
 test("release · UC-014 6a: without setup, the dashboard reads public repositories and accepting goes through GitHub's page", async () => {
@@ -1092,20 +1036,6 @@ test("release · UC-042: every line and section of the settings page explains it
     assert.equal(Boolean(details.open), false, "folded by default");
     assert.equal(details.children[0]?.localName, "summary");
     assert.equal(details.children[0]?.textContent, "What is this?");
-  }
-});
-
-// A TOKEN IS SCOPED TO WHAT IT WRITES — "the configuration screen states the minimum scope and why each part is needed".
-// Expected: the settings page's token step names "Only select repositories" — this instance and its products —, and each
-// permission with why it is needed.
-test("release · A TOKEN IS SCOPED TO WHAT IT WRITES: the settings page states the minimum scope and why each part is needed", async () => {
-  const w = await world();
-  const page = await open(w, { hash: "#setup", token: null });
-  const step = stripTags(sections(page.main())[0]);
-  assert.match(step, /Only select repositories/);
-  assert.match(step, new RegExp(INSTANCE));
-  for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
-    assert.match(step, new RegExp(`${p} \\((?:read and write|read)\\): \\w[^.:]{8,}`), `${p} with why`);
   }
 });
 

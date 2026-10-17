@@ -1,5 +1,5 @@
 // candidates.mjs — the candidates of a draft of requirements, as the author reviews them (MOD-review-pages, Parts): each candidate with its class, the requirement it refers to beside it, and its
-// rule and check, which the author may change; and the draft and the classes as the author left them. Used by the page of a draft of the conversation (requirements-draft.mjs).
+// rule and check, which the author may change; and the draft and the classes as the author left them. Used by the page of a draft of the conversation (requirements-draft.mjs); `showCurrent`, `flagged`, `splitCandidate`, `splitProblem` and `editedResult` are also the panel of a derivation's (jobs.mjs): the current text of the requirement, the candidate a finding the loop left names, its split into parts of its own, and the draft as the author left it.
 //
 // Module: MOD-review-pages
 //
@@ -36,12 +36,23 @@ export const classOf = (candidate, classes) => classes?.find((each) => each.refs
   refs: [candidate.name], from: [candidate.passage].filter(Boolean), class: candidate.class, of: candidate.of ?? null,
 };
 
+const sourceText = (item, register) => {
+  const id = item.split(",")[0].trim();
+  const entry = register.find((each) => each.id === id);
+  return `${item} (${entry?.fields.authority ?? "authority not registered"})`;
+};
+
+/**
+ * showCurrent(current, held, register) — fills the section `current` with the current requirement `held` (a requirement of MOD-spec-document's parseSpec, or undefined) as the SPEC holds it:
+ * name, rule, each source with the authority `register` records for it, and check; without `held`, the sentence that the candidate refers to no current requirement. Both pages of a candidate call it.
+ */
+export function showCurrent(current, held, register) {
+  current.replaceChildren(el("h5", null, "Current requirement"), held
+    ? renderArtifact(`**${held.name}**\n\n${held.rule ?? ""}\n\n*Sources:* ${held.sources.map((item) => sourceText(item, register)).join("; ")}\n\n*Check:* ${held.check ?? ""}`)
+    : el("p", "none", "This candidate refers to no current requirement."));
+}
+
 export function candidateRows(panel, outcome, parsed, source, register, onChange) {
-  const sourceText = (item) => {
-    const id = item.split(",")[0].trim();
-    const entry = register.find((each) => each.id === id);
-    return `${item} (${entry?.fields.authority ?? "authority not registered"})`;
-  };
   const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
   for (const candidate of candidates) {
     const decided = classOf(candidate, outcome.classes);
@@ -53,43 +64,106 @@ export function candidateRows(panel, outcome, parsed, source, register, onChange
     const check = el("textarea", "candidate-check");
     check.value = candidate.check ?? "";
     const current = el("section", "current-requirement"), difference = el("section", "candidate-difference");
-    const showCurrent = () => {
+    const refresh = () => {
       const held = parsed.requirements.get(of.value.trim());
-      current.replaceChildren(el("h5", null, "Current requirement"), held
-        ? renderArtifact(`**${held.name}**\n\n${held.rule ?? ""}\n\n*Sources:* ${held.sources.map(sourceText).join("; ")}\n\n*Check:* ${held.check ?? ""}`)
-        : el("p", "none", "This candidate refers to no current requirement."));
+      showCurrent(current, held, register);
       difference.replaceChildren(el("h5", null, "Difference"), showDifference(held?.rule ?? "", rule.value));
     };
-    const changed = () => { showCurrent(); onChange(); };
+    const changed = () => { refresh(); onChange(); };
     select.addEventListener("change", changed);
     of.addEventListener("input", changed);
     rule.addEventListener("input", changed);
     check.addEventListener("input", onChange);
-    showCurrent();
+    refresh();
     const item = el("li", "candidate", el("section", "candidate-draft", el("span", "candidate-name", candidate.name),
       el("label", null, " Class ", select), el("label", null, " of ", of), el("label", null, "Rule", rule),
-      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source)}.`)), current, difference);
+      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source, register)}.`)), current, difference);
     item.setAttribute("data-name", candidate.name);
     panel.append(item);
   }
 }
 
+const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
+
+/**
+ * flagged(remaining, candidate) -> boolean — whether a finding the correction loop left (`remaining` of its result) names the candidate as its artifact: the candidate the panel offers to split.
+ */
+export const flagged = (remaining, candidate) => (remaining ?? []).some((finding) => finding.artifact === folded(candidate.name));
+
+// A part of a split candidate: a candidate of the panel after it, of the class and `of` it is given, with a name and a rule of its own for the person to fill.
+function splitPart(origin, class_, of, onChange) {
+  const select = classSelect(class_);
+  const ofInput = el("input", "of");
+  ofInput.value = of;
+  const name = el("input", "candidate-name"), rule = el("textarea", "candidate-rule");
+  name.value = "";
+  rule.value = "";
+  const part = el("li", "candidate split-part", el("label", null, "Name ", name), el("label", null, " Class ", select), el("label", null, " of ", ofInput), el("label", null, "Rule", rule));
+  part.setAttribute("data-split-of", origin);
+  select.addEventListener("change", onChange);
+  return part;
+}
+
+/**
+ * splitCandidate(item, candidate, onChange) — splits the candidate whose item `item` is in the panel: its rule becomes a field the person may edit, and a part of its own stands after it (after
+ * its parts, if it has some). The part shows the class and `of` the candidate shows, except for a `change`: a second change of one requirement is refused (TwoChanges), so the part shows `new`
+ * with an empty `of`. Nothing is written. `onChange` is called when a class of the panel may have changed.
+ */
+export function splitCandidate(item, candidate, onChange) {
+  const name = item.getAttribute("data-name");
+  const shown = inputsOf(item, "p", "candidate-rule")[0];
+  if (shown) {
+    const rule = el("textarea", "candidate-rule");
+    rule.value = candidate.rule ?? "";
+    item.insertBefore(rule, shown);
+    item.removeChild(shown);
+  }
+  let last = item;
+  while (last.nextSibling?.getAttribute?.("data-split-of") === name) last = last.nextSibling;
+  const class_ = inputsOf(item, "select", "class")[0].value;
+  const part = class_ === "change" ? splitPart(name, "new", "", onChange) : splitPart(name, class_, inputsOf(item, "input", "of")[0].value.trim(), onChange);
+  item.parentNode.insertBefore(part, last.nextSibling);
+  onChange();
+}
+
+/**
+ * splitProblem(panel) -> string | null — what keeps the parts of the panel from being written: a part without a name or a rule, or bearing the name of another candidate; null when none does. Two candidates
+ * that change one requirement are refused by MOD-spec-changes' entrySections (TwoChanges), not here.
+ */
+export function splitProblem(panel) {
+  const items = inputsOf(panel, "li", "candidate");
+  const taken = items.map((item) => item.getAttribute("data-name")).filter(Boolean).map(folded);
+  const parts = items.filter((item) => item.getAttribute("data-split-of"));
+  for (const part of parts) {
+    const name = folded(inputsOf(part, "input", "candidate-name")[0].value), rule = folded(inputsOf(part, "textarea", "candidate-rule")[0].value);
+    if (!name || !rule) return `A split part of ${part.getAttribute("data-split-of")} needs a name and a rule: nothing was written.`;
+    if (taken.includes(name)) return `The split part ${name} has the name of another candidate: nothing was written.`;
+    taken.push(name);
+  }
+  return null;
+}
+
+// The value of a field of a candidate's item; the candidate's own when the item shows none (the panel of a derivation shows the rule of an unsplit candidate as text).
+const fieldOf = (item, name, className, held) => inputsOf(item, name, className)[0]?.value ?? held;
+
 export function editedResult(panel, outcome) {
-  const candidates = (outcome.draft?.candidates ?? []).map((candidate) => {
-    const item = inputsOf(panel, "li", "candidate").find((node) => node.getAttribute("data-name") === candidate.name);
+  const items = inputsOf(panel, "li", "candidate");
+  const candidates = [], classes = [];
+  const take = (candidate, item, from) => {
     const class_ = inputsOf(item, "select", "class")[0].value;
     const of = inputsOf(item, "input", "of")[0].value.trim();
-    const edited = { ...candidate, rule: inputsOf(item, "textarea", "candidate-rule")[0].value,
-      check: inputsOf(item, "textarea", "candidate-check")[0].value, class: class_ };
+    const edited = { ...candidate, rule: fieldOf(item, "textarea", "candidate-rule", candidate.rule), check: fieldOf(item, "textarea", "candidate-check", candidate.check), class: class_ };
     if (of) edited.of = of;
     else delete edited.of;
+    candidates.push(edited);
+    classes.push({ refs: [edited.name], from, class: class_, of: of || null });
     return edited;
-  });
-  const classes = candidates.map((candidate) => {
-    const item = inputsOf(panel, "li", "candidate").find((node) => node.getAttribute("data-name") === candidate.name);
-    const before = classOf(candidate, outcome.classes);
-    return { refs: [candidate.name], from: before.from ?? [], class: inputsOf(item, "select", "class")[0].value,
-      of: inputsOf(item, "input", "of")[0].value.trim() || null };
-  });
+  };
+  for (const candidate of outcome.draft?.candidates ?? []) {
+    const item = items.find((node) => node.getAttribute("data-name") === candidate.name);
+    const from = classOf(candidate, outcome.classes).from ?? [];
+    const edited = take(candidate, item, from);
+    for (const part of items.filter((node) => node.getAttribute("data-split-of") === candidate.name)) take({ ...edited, name: inputsOf(part, "input", "candidate-name")[0].value.trim() }, part, from);
+  }
   return { draft: { candidates }, classes };
 }

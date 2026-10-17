@@ -61,6 +61,9 @@ uses:
   - MOD-source-register.changedPassages
   - MOD-source-register.recogniseLegalText
   - MOD-source-register.permittedPlaces
+  - MOD-source-register.readContent
+  - MOD-text-tools.sha256
+  - MOD-text-tools.finding
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.resourceFindings
   - MOD-resource-list.readPin
@@ -111,6 +114,9 @@ resource on its runner, queued to that runner's route; for its run panel it hand
 - `setup.mjs` — getting one's own Agent M and finishing its setup.
 - `products.mjs` — adding a product.
 - `endpoints.mjs`, `participants.mjs`, `library.mjs`, `resources.mjs`, `mailbox.mjs`, `bridge.mjs` — the guided pages.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `docs/assets/dashboard/settings-view.mjs`, `docs/assets/dashboard/settings/endpoints.mjs`: removed: `#settings` already shows this module's route; the token banner is MOD-site-frame's `notice`.
+  - `tests/test_settings_page.py`, `tests/test_token_scope_documented.py`, `tests/settings-pages-export-import.test.mjs`, `tests/settings-pages-settings-regressions.test.mjs`, `tests/release-itm-290-public-settings-layout.test.mjs`, `tests/release-uc-017-configure-participants.test.mjs`: their headers name this module.
 
 ## Data
 
@@ -237,7 +243,10 @@ reaches.
   products and roles that use a participant.
 - MOD-source-register.sourceSchemas, MOD-source-register.registrationCommits, MOD-source-register.versionCommits,
   MOD-source-register.linkedVersion, MOD-source-register.affectedRequirements, MOD-source-register.changedPassages,
-  MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links.
+  MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links;
+  MOD-source-register.readContent — the contents of two versions, whose changed passages *Move* lists.
+- MOD-text-tools.sha256 — the files of a source hashed in the browser; MOD-text-tools.finding — the findings a form's
+  checks give.
 - MOD-resource-list.resourceSchema, MOD-resource-list.resourceFindings, MOD-resource-list.readPin,
   MOD-resource-list.checkPlan, MOD-resource-list.newerState — resources; MOD-resource-list.resourceStrategies — the
   recipe of a check job, handed to the frame; MOD-reuse-facts.registryFacts, MOD-reuse-facts.hubFacts — what a

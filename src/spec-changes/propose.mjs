@@ -1,5 +1,4 @@
 // propose.mjs — the sections a draft of requirements changes and the writer of classified candidates (MOD-spec-changes, Parts: propose.mjs; Interfaces: entrySections, specStrategies).
-// Of it, ITM-393 builds entrySections, ITM-338 the writer queue-entries, ITM-341 openQueueOf and proposeSection, and ITM-394 saveEntry.
 //
 // Module: MOD-spec-changes
 //
@@ -18,6 +17,10 @@
 //     requirement names already is not added again.
 //   - A candidate without a class, and a `conflict`, are not composed: a conflict is composed as the person resolved it, that is, as the
 //     class they gave it. A section whose text the draft leaves as it is is not returned; the sections come in the order of the SPEC.
+//   - Two candidates change one requirement when two of the classes composed are `change` with one `of`. That is TwoChanges, thrown after
+//     RequirementNotFound: its `candidates` are the names of every such candidate in the order of the classes, its `requirement` the name
+//     they change (the error's own `name` is its kind, as with every error of this module). A `change` and a `duplicate` of one requirement
+//     are not two changes: the duplicate adds its source to the block the change left.
 //   - The line end of a section is that of its first line.
 
 import { classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
@@ -64,7 +67,8 @@ function withSources(block, name, items) {
 
 /**
  * entrySections(spec, draft, classes, source) -> Array<{ anchor, until, text }> — the sections of `spec` that the draft's candidates
- * change, each as the whole section's new text, composed by `classes`. Every other byte of a section stays as it is. Pure.
+ * change, each as the whole section's new text, composed by `classes`. Every other byte of a section stays as it is. Pure. Throws TwoChanges
+ * { requirement, candidates } when two candidates change one requirement, and composes nothing.
  * @param {string} spec
  * @param {unknown} draft
  * @param {Array<{ refs: string[], from: string[], class: string, of: string | null }>} classes
@@ -82,6 +86,15 @@ export function entrySections(spec, draft, classes, source) {
   if (missing.length > 0) {
     const names = [...new Set(missing)];
     throw failure("RequirementNotFound", `the SPEC holds no requirement ${names.join(", ")}`, { requirements: names });
+  }
+
+  const changing = new Map();
+  for (const { each, candidate } of composed) if (each.class === "change") changing.set(each.of, [...(changing.get(each.of) ?? []), candidate.name]);
+  const twice = [...changing].find(([, names]) => names.length > 1);
+  if (twice) {
+    const [requirement, names] = twice;
+    throw failure("TwoChanges", `${names.slice(0, -1).join(", ")} and ${names.at(-1)} change ${requirement}: one block would replace the other. Nothing was composed.`,
+      { requirement, candidates: names });
   }
 
   const texts = new Map();
@@ -231,8 +244,8 @@ export async function queueEntries(result, context) {
     { where: context.product, mine: writable.filter((candidate) => candidate.constrains !== "process"), decide: false },
     { where: context.instance, mine: writable.filter((candidate) => candidate.constrains === "process"), decide: true },
   ];
-  // The folders this call has named for a repository, so that a second queue of the day in it is not given the first's name before the first is written.
-  const named = new Map();
+  // Every target's sections are composed before any commit is made, so that a refusal of the second target (TwoChanges) leaves the first unwritten too.
+  const plans = [];
   for (const { where, mine, decide } of targets) {
     if (mine.length === 0) continue;
     const specText = await where.snapshot.read("SPEC.md");
@@ -257,10 +270,19 @@ export async function queueEntries(result, context) {
       }
     }
     const sections = entrySections(specText, { candidates: mine }, composable, source);
-    if (sections.length === 0) continue;
+    if (sections.length > 0) plans.push({ where, mine, spec, composable, sections });
+  }
 
-    const host = where.host;
-    if (!host) throw Object.assign(new Error("the repository the queue belongs to has no host to commit to"), { name: "NoHost" });
+  // Every refusal that depends only on the draft and the context is raised before the first commit, so that a refusal of the second repository leaves the first unwritten too:
+  // NoHost for every repository that gets a queue, then the composing of each queue, whose rationale breaks its schema or not. Moved is known only by committing and stays in the second loop.
+  for (const { where } of plans) {
+    if (!where.host) throw Object.assign(new Error("the repository the queue belongs to has no host to commit to"), { name: "NoHost" });
+  }
+
+  // The folders this call has named for a repository, so that a second queue of the day in it is not given the first's name before the first is written.
+  const named = new Map();
+  const prepared = [];
+  for (const { where, mine, spec, composable, sections } of plans) {
     const graph = await traceGraph(where.snapshot);
     const taken = named.get(where.snapshot) ?? [];
     const { day, folder } = folderFor([...where.snapshot.paths, ...taken.map((each) => `${each}/index.md`)], date, slug);
@@ -290,10 +312,13 @@ export async function queueEntries(result, context) {
       ...sections.map((section, at) => `| ${pad2(at + 1)} | \`SPEC.md\` | ${section.anchor} | — | — |`), ""].join("\n");
     const decisions = `# Decisions — queue ${day} ${title}\n\nAppend-only.\n`;
     const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId ?? "none", kind: context.kind?.name ?? "none", participant: job.participant, rounds: job.rounds });
-    const { defaultBranch } = await host.repositoryInfo();
     const planned = [{ path: `${folder}/index.md`, text: index }, ...files, { path: `${folder}/entscheidungen.md`, text: decisions }];
-    const committed = await host.commitFiles({ branch: defaultBranch, expectedHead: where.snapshot.commit ?? null, files: planned,
-      message: `Propose ${sections.length} SPEC ${sections.length === 1 ? "change" : "changes"} as queue ${day}\n\n${trailers.join("\n")}` });
+    prepared.push({ where, planned, message: `Propose ${sections.length} SPEC ${sections.length === 1 ? "change" : "changes"} as queue ${day}\n\n${trailers.join("\n")}` });
+  }
+
+  for (const { where, planned, message } of prepared) {
+    const { defaultBranch } = await where.host.repositoryInfo();
+    const committed = await where.host.commitFiles({ branch: defaultBranch, expectedHead: where.snapshot.commit ?? null, files: planned, message });
     outcome.commits.push(committed.commit);
     outcome.files.push(...planned.map((file) => file.path));
   }
@@ -340,6 +365,14 @@ function sectionRationale(change, impact, origin = `${folded(change.origin)}; sa
     `**Why.** ${folded(change.why)}`, "", "**Impact list.**", ...lines, "", `**Origin.** ${origin}`, ""].join("\n");
 }
 
+// The paths the repository held when the edit was opened on the commit `openedHead`: none for an edit opened on no commit (an empty repository), those of `snapshot` — the one the save has
+// read — where it stands at that commit, else those of the repository at that commit, read for the purpose.
+async function pathsWhenOpened(host, snapshot, openedHead) {
+  if (openedHead === null) return new Set();
+  if (openedHead === snapshot.commit) return new Set(snapshot.paths);
+  return new Set((await host.readSnapshot(openedHead)).paths);
+}
+
 export async function proposeSection(host, change) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
@@ -384,8 +417,8 @@ export async function proposeSection(host, change) {
   files.push({ path: proposalPath, text: change.text }, { path: rationalePath, text: rationale });
 
   if (!info.canWrite) {
-    const held = new Set(snapshot.paths);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: held.has(file.path) })), snapshot) };
+    const began = await pathsWhenOpened(host, snapshot, change.openedHead);
+    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
   }
   const trailers = change.trailers?.length ? `\n\n${change.trailers.join("\n")}` : "";
   const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
@@ -420,8 +453,8 @@ export async function saveEntry(host, edit) {
   const files = [{ path: entry.proposal.path, text: edit.text }, { path: entry.rationale, text: rationale }];
 
   if (!info.canWrite) {
-    const present = new Set(snapshot.paths);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: present.has(file.path) })), snapshot) };
+    const began = await pathsWhenOpened(host, snapshot, edit.openedHead);
+    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
   }
   const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
     message: `Save the edit of entry ${pad2(entry.number)} of the queue ${edit.queue.split("/").pop()}` });

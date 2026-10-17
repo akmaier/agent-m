@@ -3,7 +3,8 @@
 // its rationale — the change, the Why, the impact list, the origin — and its index row, into that queue or a new one, `trailers` ending the commit's message; a second edit of the same
 // section in that queue replaces its entry; a rename is proposed as the old name withdrawn and the new one added; the target is never touched; when the section changed meanwhile it refuses
 // and returns the newer text; `alsoReplacing` names other open entries that replace the same section; without a token on GitHub it writes nothing and returns GitHub's pages for each file
-// of the entry; on GitLab it fails with TokenRequired.
+// of the entry, each page's `differs` saying whether its file exists on the default branch otherwise than at `openedHead`, the commit the edit was opened on; on GitLab it fails with
+// TokenRequired.
 // Run: node --test tests/spec-changes-propose-section.test.mjs
 //
 // Module: MOD-spec-changes
@@ -22,6 +23,8 @@
 //   - A host with no token is one whose repositoryInfo says `canWrite: false`; the server is the snapshot's repository.server.
 //   - The files of an entry are its proposal, its rationale and the index (and, in a new queue, entscheidungen.md); the fallback gives one page for each, existing or new.
 //   - A new queue is named `<day><letter>_edits-of-<person>`, the letter the first, none, b, c …, that no queue of the day has.
+//   - The commit the edit was opened on is OPENED. The host answers readSnapshot(OPENED) with the repository as it stood then (`opened`: the paths it lacked and the paths it had besides),
+//     readSnapshot("main") with the default branch now, and records every ref it was asked for in `reads`.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
 import test from "node:test";
@@ -66,21 +69,24 @@ const historyOf = (folder, account, later = []) => ({ [`docs/spec-freigaben/${fo
   ...later.map((who, at) => ({ commit: `${at}`.padEnd(40, "1"), parents: [], author: { account: who, name: who }, date: "2026-10-12T10:00:00Z", message: "a later edit", changes: [{ path: `docs/spec-freigaben/${folder}/index.md`, change: "modified" }] })),
   { commit: "c".repeat(40), parents: [], author: { account, name: account }, date: "2026-10-12T09:00:00Z", message: "queue", changes: [{ path: `docs/spec-freigaben/${folder}/index.md`, change: "added" }] }] });
 
-function repository({ files = {}, history = {}, canWrite = true, server = "github" } = {}) {
+const OPENED = "o".repeat(40);
+function repository({ files = {}, history = {}, canWrite = true, server = "github", opened = {} } = {}) {
   const all = { "SPEC.md": SPEC, "docs/use-cases/UC-001-read-a-file.md": useCase, ...files };
   const commits = [];
   const web = server === "github" ? "https://github.com/alice/product" : "https://gitlab.example.test/alice/product";
   const snapshot = { repository: { server, origin: server === "github" ? "https://github.com" : "https://gitlab.example.test", path: "alice/product", web }, ref: "main", commit: "h".repeat(40),
     paths: Object.keys(all), blob: (path) => (Object.hasOwn(all, path) ? gitBlob(all[path]) : null), read: async (path) => (Object.hasOwn(all, path) ? all[path] : null) };
-  const host = { commits,
+  const reads = [];
+  const began = { ...snapshot, ref: OPENED, commit: OPENED, paths: [...Object.keys(all).filter((path) => !(opened.lacking ?? []).includes(path)), ...(opened.extra ?? [])] };
+  const host = { commits, reads,
     repositoryInfo: async () => ({ defaultBranch: "main", visibility: "private", canWrite, archived: false, description: "" }),
-    readSnapshot: async () => snapshot,
+    readSnapshot: async (ref) => { reads.push(ref); return ref === OPENED ? began : snapshot; },
     readHistory: async (path) => history[path] ?? [],
     commitFiles: async (change) => { commits.push(change); return { commit: "i".repeat(40), url: "https://example.test/commit" }; } };
   return { host, snapshot, commits, all };
 }
 const CHANGE = { target: "SPEC.md", anchor: "## 1. Reading", until: null, text: READING_EDITED, why: "A reader needs to know why a file cannot be read.", origin: "an issue of a reader",
-  person: "alice", openedBlob: gitBlob(READING) };
+  person: "alice", openedBlob: gitBlob(READING), openedHead: OPENED };
 const written = (commit) => Object.fromEntries(commit.files.map((file) => [file.path, file.text]));
 const schemaText = readFileSync(new URL("../src/spec-changes/queue-rationale.schema.md", import.meta.url), "utf8");
 
@@ -301,4 +307,78 @@ test("openQueueOf — the newest of several open queues of the day is the one wi
   assert.equal(await openQueueOf("alice", TODAY, f.host), `docs/spec-freigaben/${names[2]}`);
   const result = await proposeSection(f.host, CHANGE);
   assert.deepEqual([result.queue, result.entry], [`docs/spec-freigaben/${names[2]}`, 2]);
+});
+
+// TST-611001 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: a GitHub product, a host with no token, alice's open queue holding an entry for Reading, and a second edit of Reading, which replaces that entry's proposal and rationale; the proposal did not exist on the default branch at OPENED
+// input: proposeSection
+// expect: two pages in the order proposal, rationale; the proposal's page is GitHub's new-file page and differs is true — it exists now, and did not when the edit began; the rationale's page is GitHub's editor and differs is false
+test("proposeSection — without a token a file that appeared on the default branch since the edit began is marked as differing", async () => {
+  const folder = `${TODAY}_mine`;
+  const base = `docs/spec-freigaben/${folder}`;
+  const files = queueFiles(folder, TODAY, ["## 1. Reading", "## 2. Writing"]);
+  const f = repository({ files, history: historyOf(folder, "alice"), canWrite: false, opened: { lacking: [`${base}/01-reading.md`] } });
+  const result = await proposeSection(f.host, CHANGE);
+  assert.deepEqual(f.commits, []);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[`${base}/01-reading.md`, "alice/product/new", true], [`${base}/01-reading.begruendung.md`, "alice/product/edit", false]]);
+});
+
+// TST-611002 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: a GitHub product, a host with no token and no queue of the person; at OPENED the repository held the index of the queue the edit now starts, which the default branch no longer holds
+// input: proposeSection
+// expect: four pages; the index's is GitHub's editor, since the file existed when the edit began, and differs is true; the other three are new-file pages and differs is false
+test("proposeSection — without a token a file that disappeared from the default branch since the edit began is marked as differing", async () => {
+  const folder = `docs/spec-freigaben/${TODAY}_edits-of-alice`;
+  const f = repository({ canWrite: false, opened: { extra: [`${folder}/index.md`] } });
+  const result = await proposeSection(f.host, CHANGE);
+  assert.deepEqual(result.fallback.map((page) => [page.path.replace(folder, "<queue>"), page.url.split("/").slice(3, 6).join("/"), page.differs]).sort(),
+    [["<queue>/01-reading.begruendung.md", "alice/product/new", false], ["<queue>/01-reading.md", "alice/product/new", false],
+      ["<queue>/entscheidungen.md", "alice/product/new", false], ["<queue>/index.md", "alice/product/edit", true]]);
+});
+
+// TST-611003 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the same edit saved by a host with no token and by one with a token
+// input: proposeSection
+// expect: the refs the host was asked to read are ["main", OPENED] without a token and ["main"] with one: the repository at OPENED is read only to build GitHub's pages
+test("proposeSection — the repository at the commit the edit was opened on is read only without a token", async () => {
+  const without = repository({ canWrite: false });
+  await proposeSection(without.host, CHANGE);
+  assert.deepEqual(without.host.reads, ["main", OPENED]);
+  const withToken = repository();
+  await proposeSection(withToken.host, CHANGE);
+  assert.deepEqual(withToken.host.reads, ["main"]);
+});
+
+// TST-611013 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the setting of TST-611001 (a second edit of Reading, whose proposal OPENED lacked), but the edit was opened on the commit of the snapshot the save reads, "h" repeated forty times
+// input: proposeSection without a token
+// expect: only "main" is read; the files are taken as that snapshot holds them, so both pages are GitHub's editor and differs is false for both, though OPENED lacked the proposal
+test("proposeSection — an edit opened on the commit the save already read reads no other snapshot", async () => {
+  const folder = `${TODAY}_mine`;
+  const base = `docs/spec-freigaben/${folder}`;
+  const f = repository({ files: queueFiles(folder, TODAY, ["## 1. Reading", "## 2. Writing"]), history: historyOf(folder, "alice"), canWrite: false, opened: { lacking: [`${base}/01-reading.md`] } });
+  const result = await proposeSection(f.host, { ...CHANGE, openedHead: "h".repeat(40) });
+  assert.deepEqual(f.host.reads, ["main"]);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[`${base}/01-reading.md`, "alice/product/edit", false], [`${base}/01-reading.begruendung.md`, "alice/product/edit", false]]);
+});
+
+// TST-611014 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the setting of TST-611001, but the edit was opened on no commit (null, an empty repository)
+// input: proposeSection without a token
+// expect: only "main" is read; no file existed when the edit began, so both pages are GitHub's new-file pages and differs is true for both, since both exist now
+test("proposeSection — an edit opened on no commit holds no file and reads no snapshot for it", async () => {
+  const folder = `${TODAY}_mine`;
+  const base = `docs/spec-freigaben/${folder}`;
+  const f = repository({ files: queueFiles(folder, TODAY, ["## 1. Reading", "## 2. Writing"]), history: historyOf(folder, "alice"), canWrite: false });
+  const result = await proposeSection(f.host, { ...CHANGE, openedHead: null });
+  assert.deepEqual(f.host.reads, ["main"]);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[`${base}/01-reading.md`, "alice/product/new", true], [`${base}/01-reading.begruendung.md`, "alice/product/new", true]]);
 });

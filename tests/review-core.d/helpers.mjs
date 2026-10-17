@@ -1,16 +1,18 @@
-// Shared fixtures of tests/review-core.test.mjs and the files of this folder — no test of its own. Moved here, unchanged but for
-// `export` and the paths relative to this folder, when the file was split by module (ITM-004): the fake git servers, the fake
+// Shared fixtures of tests/review-core.test.mjs and the files of this folder — no test of its own: the fake git servers, the fake
 // browser storage, the dashboard's own files, and the constants several modules' tests use.
+//
+// Module: MOD-approvals
 
 import { readFileSync, readdirSync } from "node:fs";
 import { gitBlobSha } from "../../docs/assets/review-core.mjs";
 
-// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and its views and settings sections
+// The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and its views and settings sections
 // under docs/assets/dashboard/. A test that read the one app file reads them all, or — `shell: false` — the views alone.
 export const ASSETS = new URL("../../docs/assets/", import.meta.url);
+export const APP = new URL("../../src/site-frame/dashboard-app.mjs", import.meta.url);
 export const viewFiles = () => readdirSync(new URL("dashboard/", ASSETS), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort()
   .map((f) => new URL(`dashboard/${f}`, ASSETS));
-export const dashboardText = ({ shell = true } = {}) => [...(shell ? [new URL("dashboard-app.mjs", ASSETS)] : []), ...viewFiles()]
+export const dashboardText = ({ shell = true } = {}) => [...(shell ? [APP] : []), ...viewFiles()]
   .map((u) => readFileSync(u, "utf8")).join("\n");
 
 export const click = { isTrusted: true };

@@ -493,6 +493,26 @@ public: the name, kind, authority, licence, versions, identifiers and hashes. Th
 says it may be republished; restricted content goes to the repository you name, and it is public only as far as that repository
 is.
 
+## source-new-version
+
+A new version is a newer edition or revision of a source that is already in the library: a law that was amended, a norm that got its
+next edition, a document that was revised. Choose + New version, give the version a name that tells it apart, such as the edition or
+its date, and select its files; your browser computes each file's SHA-256, a fingerprint of its exact content. The new version is
+added beside the old versions, which are never overwritten: the library keeps every version as it was, so a product can still say
+exactly which one it used. Saving makes a commit to the instance repository under your own account (a commit is GitHub's record of
+one change, kept in the history), and the content goes to the repository the source names where its licence is restricted. Files
+with exactly the same bytes as an existing version are refused, and nothing is recorded. Products stay on the version they link
+until you move them.
+
+## source-move
+
+Moving a product changes which version of the source the product links. Each product keeps a list of the sources that apply to it
+in its file docs/sources.md, with the version it uses; a product that links an earlier version stays on it, for example because it
+was certified against it, until you decide otherwise. When you choose Move to the new version, the requirements that name the source
+and the passages that changed are shown first, so you can see what the move touches before you decide. Then Move makes one commit to
+docs/sources.md of the product's repository under your own account, and nothing else; the commit message names the requirements
+listed, so the history shows the move together with what it affects. Without pressing Move the product stays on its version.
+
 ## mailbox-routes
 
 There are two ways to connect a mailbox, and your mail provider decides which one you use. The *web API* route is for Microsoft
@@ -682,6 +702,10 @@ On a GitLab server the page is the one for a new project and asks for the same c
 
 A *token* is a key you create on GitHub and give to this page, so that it can make commits for you — only in the repositories you select, only with the permissions Agent M's features need, and only until the date you choose. You can delete it on GitHub at any time; it then stops working immediately.
 
+Why *Only select repositories*? GitHub preselects All repositories, which would let this page write to every repository you own. Choosing only the instance limits the key to what Agent M actually needs; each product you add later gets a key of its own.
+
+## setup-key-permissions
+
 One key serves every feature, so the prefilled page asks for these permissions:
 
 - Contents (read and write) — to save and accept.
@@ -691,8 +715,92 @@ One key serves every feature, so the prefilled page asks for these permissions:
 - Workflows (read and write) — for a generated CI configuration.
 - Metadata (read) — to read the repository.
 
-Why *Only select repositories*? GitHub preselects All repositories, which would let this page write to every repository you own. Choosing only the instance limits the key to what Agent M actually needs; each product you add later gets a key of its own.
-
 ## setup-store
 
 The token is kept in this browser only, in its `localStorage` — never in a cookie, never in an address, never in any repository. It is sent only to GitHub's API, as a header, to read the instance. Another computer or browser does not have it: Import settings moves it there from an export. Settings shows the token, tests it and clears it.
+
+## requirement-sources
+
+The rules your product has to meet come from *requirement sources*: a law, a standard, a customer's specification. This page lists which of them apply to this product. Three differences help to read it.
+
+| | The library | This list |
+|---|---|---|
+| answers | which sources exist at all | which sources apply to this product |
+| kept in | the Agent M instance, for every product | this product's repository, in `docs/sources.md` |
+| you decide | when you register a source or a new version of it | which sources to tick, in which version, and to which part |
+
+**A source is not a resource.** A source is a rule the product must meet, such as the EU AI Act or IEC 62304 class B. A resource is something the product is built with or run on, such as a private repository of libraries, a model on Hugging Face, a compute cluster or an endpoint; resources are declared elsewhere and are not linked here, see [UC-040](#use-case/id=UC-040). If a resource comes with terms the product must meet, such as a licence or a usage policy, register those terms in the library as a source and link them here.
+
+**Why the version is fixed.** A law is amended and a standard gets a new edition, and a requirement drawn from an older text may no longer hold. So each link records the exact version of the source the product uses, and the fingerprint (SHA-256) of that version. The product moves to a newer version only when you decide to, and Agent M lists the requirements it affects first.
+
+The *part* says which part of a source applies, such as a safety class, a chapter or a set of articles. Leave it empty when the source applies as a whole; any text is allowed. A source whose content is restricted can be linked like any other: only reading its content needs access.
+
+## settings-bridge-stored
+
+This browser keeps the Bridge address and pairing token so it can reach the Bridge. Anyone able to read this browser's Pages storage can read them.
+
+## settings-bridge-named
+
+This browser keeps the Bridge's address, or its port on the jump host, and its pairing token under the name the Bridge reports. Anyone able to read this browser's Pages storage can read them.
+
+## settings-jump-host
+
+This browser keeps the jump-host connection details so the Bridge can prepare remote sessions. Anyone able to read this browser's Pages storage can read them.
+
+## settings-export-import
+
+Export copies this browser's settings, including secrets, into a file for this person to keep or move. Import reads that file into this browser; whoever holds an unlocked export can read its settings.
+
+## settings-clear-everything
+
+This removes every Agent M setting held in this browser. It changes no repository, and any Pages site under the same owner domain that can read this storage loses access too.
+
+## settings-products-stored
+
+This browser keeps the list of managed product addresses so it can open their repository settings. Any Pages site under the same owner domain can read that browser storage.
+
+## settings-token-stored
+
+This browser keeps this token so Agent M can read and write this repository. Any Pages site under the same owner domain can read it; give it only the minimum repository scope needed.
+
+## settings-product-address
+
+This browser keeps this product address and its optional token so it can test and open the repository. Any Pages site under the same owner domain can read that browser storage.
+
+## settings-managed-products
+
+This browser keeps the managed product list so it can show each repository's settings. Any Pages site under the same owner domain can read that browser storage.
+
+## settings-notifications
+
+Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch. While a dashboard page is open, it checks every five minutes for open SPEC changes, use cases, architecture files, and release test reports waiting for Accept and release. Checks go only to repository servers with the tokens of this browser and nowhere else. Nothing is checked while no dashboard page is open.
+
+## settings-remote-session
+
+This browser keeps the forwarded port and copied Bridge token for this remote session. Any Pages site under the same owner domain can read them; the Bridge reads its own tunnel settings.
+
+## settings-job-workflow
+
+The product repository keeps Agent M's job workflow. The files name this instance commit and the CI secrets by name only: `AGENT_M_TOKEN` for the person's repository token and one key secret for each CI participant. The secret values are entered on the repository server's secrets page, not in Agent M.
+
+## settings-product-none
+
+A chosen product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser reads them to show their current state.
+
+## settings-product-unavailable
+
+This browser keeps the selected product address and token. Its token remains available in the repository settings above.
+
+## settings-product-read-only
+
+This product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser only reads them to show their current state.
+
+## settings-product-records
+
+This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click.
+
+## trace-none-yet
+
+Here a list reads none yet when the version shown holds no artifact of that kind at all. A list that reads none instead means the version holds such artifacts and none of them names this requirement.
+Architecture decisions and module files come when the architecture is derived from the accepted use cases, and tests when the modules are implemented.
+Choose a later version to see them once they exist.

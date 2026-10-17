@@ -10,5 +10,6 @@ import { route as library } from "./library.mjs";
 import { route as participants } from "./participants.mjs";
 import { route as settings } from "./settings.mjs";
 import { route as setup } from "./setup.mjs";
+import { route as sources } from "./sources.mjs";
 
-export const view = { routes: [settings, setup, addProduct, endpoints, participants, bridge, mailbox, library], strategies: [] };
+export const view = { routes: [settings, setup, addProduct, endpoints, participants, bridge, mailbox, library, sources], strategies: [] };

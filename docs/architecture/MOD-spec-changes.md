@@ -12,6 +12,7 @@ uses:
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.commitFiles
   - MOD-documents.Schema
   - MOD-documents.Document
@@ -79,6 +80,9 @@ history. It runs in the browser and in Node.
 - `accept.mjs` — accepting entries in their queue's order, and applying approvals without a token.
 - `history.mjs` — the history of a requirement.
 - `strategies.mjs` — the recipes and writer of `specStrategies`.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `docs/assets/review-core/apply-approvals.mjs`: removed: `applyApproved` gives it.
+  - `tests/review-core.d/apply-approvals.test.mjs`, `tests/test_verbatim.py`, `tests/test_proposal_shows_current.py`, `tests/test_replaced_in_history.py`, `tests/test_spec_gate.py`, `tests/test_prompted_source.py`, `tests/test_artifact_provenance.py`, `tests/test_derivation_context.py`, `tests/test_prompted_change_context.py`: their headers name this module; one of only the old writer is rewritten on `applyApproved`.
 
 ## Data
 
@@ -166,7 +170,8 @@ earlier entry of the queue creates it.
   resolved it, an undecided one not at all (`A CONFLICT IS DECIDED BY A PERSON`). Every requirement names `source`, the
   job's, with the passage it draws on, and, where its candidate points to a rule of another source, that source too.
   `draft` is a draft of `derive-requirements` or `change-requirements`, in the form its kind expects (MOD-job-catalogue).
-  Every other byte of a section stays as it is. Pure.
+  Every other byte of a section stays as it is. Pure. Throws `TwoChanges { requirement, candidates }` when two
+  candidates change the requirement `requirement`, since one block would replace the other, and composes nothing.
 - `entryView(queue: string, entry: number, snapshot: Snapshot) -> { current: { text: string, blob: string } | null,
   proposal: { text: string, blob: string }, difference: LineDiff, rationale: string, impact: Array<{ name: string,
   change: "changed" | "withdrawn" | "added", referencedBy: string[] }>, state: string, createdBy: number | null }` —
@@ -229,7 +234,9 @@ earlier entry of the queue creates it.
 - MOD-approvals.approvalSchema — the record of a SPEC entry is an approval record.
 - MOD-artifact-edits.fallbackEditLinks — GitHub's pages for the files of an entry without a token.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory, commitFiles — reading queues and the head, the author
-  of a queue and the history of a requirement, and the one commit of a proposal or an acceptance.
+  of a queue and the history of a requirement, and the one commit of a proposal or an acceptance;
+  MOD-repository-hosts.readFileAt — `SPEC.md` at every commit that changed it, for the history of a requirement, in
+  batches.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, readRegister, appendSection — the queue's files
   by their schemas, the links and register handed in, and the appended decision row; MOD-documents.classifyCandidates —
   the classes of process candidates against the instance's SPEC; the type MOD-documents.Classified — the classes by which

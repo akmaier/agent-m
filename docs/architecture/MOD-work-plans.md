@@ -15,6 +15,9 @@ uses:
   - MOD-spec-changes.queues
   - MOD-spec-document.parseSpec
   - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.graphFindings
+  - MOD-trace-graph.TextSource
+  - MOD-trace-graph.systemDecisions
   - MOD-trace-graph.moduleOrder
   - MOD-trace-graph.coverageGaps
   - MOD-documents.Schema
@@ -44,6 +47,7 @@ uses:
   - MOD-job-runner.Strategies
   - MOD-job-runner.JobContext
   - MOD-job-runner.Part
+  - MOD-job-runner.sourcesOf
   - MOD-job-runner.JobResult
   - MOD-job-runner.provenanceLines
 provides:
@@ -96,6 +100,9 @@ in the browser and in Node.
 - `sprints.mjs` — the facts of a sprint, the items the sprints hold, and what keeps an item from a team's selection.
 - `saves.mjs` — the commits of a plan, of items and of a sprint.
 - `strategies.mjs` — the recipes, checks and writers of `workStrategies`.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `docs/assets/work-items.mjs`, `docs/assets/work-items/flow.mjs`: removed once this module gives `backlogFindings`, which it states and does not build yet, and no file imports them.
+  - `tests/test_backlog_layout.py`, `tests/test_backlog_item_fields.py`, `tests/release-sprint-02-b-work-items.test.mjs`, `tests/flow_fixture.py`, `tests/test_job_from_backlog.py`, `tests/test_time_box_selection.py`, `tests/test_wip_limit.py`, `tests/test_implementation_job.py`, `tests/test_job_preconditions.py`: their headers name this module; one of only the old items is rewritten on this module.
 
 ## Data
 
@@ -154,10 +161,12 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   string, item: string, module: string }>` — what keeps an item from the team's selection: each item another team's sprint
   holds that is the item itself, changes a module the item changes or uses, or uses a module the item changes, with that
   module (`SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES`).
-- `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow) -> Finding[]` — a
-  module, a subsystem or the system without a step; a module ordered before one whose interface it uses; a step without
-  the tests of its level, or with the tests of another; a step without a phase of the model; a cycle in the modules'
-  uses, naming its modules.
+- `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow, source: TextSource) ->
+  Promise<Finding[]>` — a module, a subsystem or the system without a step; a module ordered before one whose interface
+  it uses; a step without a phase of the model; and the findings MOD-trace-graph's `graphFindings` gives on
+  `traceGraph(source)`, `source` being the product's files with the drafted steps in place, of those steps: a step
+  without the tests of its level, or with the tests of another, and a cycle in the modules' uses, naming its modules.
+  Crosses the network through `source` for the files it has not read; fails with its errors.
 - `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
   no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
   and, as a warning, an item that restates an existing one.
@@ -245,6 +254,9 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - MOD-model-catalogue.Model — the phases a plan's steps belong to.
 - MOD-approvals.statuses, MOD-spec-changes.Queue, queues, MOD-spec-document.parseSpec — whether what an item names is
   accepted.
+- MOD-trace-graph.systemDecisions — the decisions of the system and of its subsystems, for `architecture-and-model`.
+- MOD-trace-graph.graphFindings, TextSource — the findings of a drafted plan's steps that the graph's checks give, on a
+  source of the product's files with the drafted steps in place.
 - MOD-trace-graph.traceGraph, moduleOrder, coverageGaps — the order of modules by their uses, and what no item realises.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, appendSection, classifyCandidates,
   artifactSchemas — the files by their schemas, the item schema, the appended sprint sections, and items that restate
@@ -257,5 +269,6 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   commitFiles — the product's files and history, its pull requests and issues, a sprint's branch, and the saves'
   commits.
 - MOD-text-tools.Finding, finding — the findings.
+- MOD-job-runner.sourcesOf — the sources a part carries.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
   provenance of a drafted commit.

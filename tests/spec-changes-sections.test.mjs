@@ -226,3 +226,90 @@ test("entrySections — a requirement that ends the SPEC keeps its end as it was
   const [added] = compose([duplicate], undefined, JOB, bare);
   assert.equal(added.text, SECTION_2.slice(0, -1).replace("*(Fixture PO)*", "*(Fixture PO; Job Source, ch. 8)*"));
 });
+
+// ---------------------------------------------------------------- two changes of one requirement (ITM-636)
+
+const changeOf = (name, of, rule) => candidate(name, { rule, check: "`tests/changed.test.mjs`", class: "change", of });
+const twice = (...names) => names.map((name) => changeOf(name, "A SAMPLE RULE", `${name} says the rule differently.`));
+
+// TST-636001 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005; UC-019
+// given: two candidates, A BETTER NAME and A SECOND NAME, each classed as a change of A SAMPLE RULE; and, to show the same call composing, each of them alone
+// input: entrySections(SPEC, draft, classes, "Job Source")
+// expect: each alone gives one section (known positive); both together throw an error named TwoChanges, whose requirement is "A SAMPLE RULE", whose candidates are ["A BETTER NAME", "A SECOND NAME"] in the order of the classes, and whose message
+//   reads "A BETTER NAME and A SECOND NAME change A SAMPLE RULE: one block would replace the other. Nothing was composed."
+test("entrySections — two candidates that change one requirement are TwoChanges, nothing composed", () => {
+  const [first, second] = twice("A BETTER NAME", "A SECOND NAME");
+  assert.equal(compose([first]).length, 1, "known positive: the first alone");
+  assert.equal(compose([second]).length, 1, "known positive: the second alone");
+  assert.throws(() => compose([first, second]), (error) => error.name === "TwoChanges" && error.requirement === "A SAMPLE RULE"
+    && JSON.stringify(error.candidates) === JSON.stringify(["A BETTER NAME", "A SECOND NAME"])
+    && error.message === "A BETTER NAME and A SECOND NAME change A SAMPLE RULE: one block would replace the other. Nothing was composed.");
+});
+
+// TST-636002 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME
+// given: three candidates classed as changes of A SAMPLE RULE, listed with a change of A WRITE RULE between the second and the third
+// input: entrySections(SPEC, draft, classes, "Job Source")
+// expect: TwoChanges whose requirement is "A SAMPLE RULE" and whose candidates are the three names in the order of the classes; the change of A WRITE RULE is not among them; the message reads "ONE, TWO and THREE change A SAMPLE RULE: one block would replace the other. Nothing was composed."
+test("entrySections — TwoChanges names every candidate that changes the requirement", () => {
+  const [one, two, three] = twice("ONE", "TWO", "THREE");
+  const other = changeOf("OTHER", "A WRITE RULE", "A writer writes a file whole, or says why not.");
+  assert.throws(() => compose([one, two, other, three]), (error) => error.name === "TwoChanges" && error.requirement === "A SAMPLE RULE"
+    && JSON.stringify(error.candidates) === JSON.stringify(["ONE", "TWO", "THREE"])
+    && error.message === "ONE, TWO and THREE change A SAMPLE RULE: one block would replace the other. Nothing was composed.");
+});
+
+// TST-636003 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005
+// given: one change of A SAMPLE RULE (section 1) and one change of A WRITE RULE (section 2), each with a rule of its own
+// input: entrySections(SPEC, draft, classes, "Job Source")
+// expect: no error; two sections in the order of the SPEC, section 1 with the block of A SAMPLE RULE replaced by the first candidate's rule and check, section 2 with the block of A WRITE RULE replaced by the second's, each naming "Fixture PO; Job Source, ch. 8"
+test("entrySections — one change of each requirement is composed as before", () => {
+  const first = changeOf("A BETTER NAME", "A SAMPLE RULE", "A reader reads a file whole, or says why not.");
+  const second = changeOf("A WRITER NAME", "A WRITE RULE", "A writer writes a file whole, or says why not.");
+  const old = (name, rule, check) => block(name, "Fixture PO", rule, check);
+  const changed = (name, rule) => block(name, "Fixture PO; Job Source, ch. 8", rule, "`tests/changed.test.mjs`");
+  assert.deepEqual(compose([first, second]), [
+    { anchor: "## 1. Reading", until: null, text: SECTION_1.replace(old("A SAMPLE RULE", "A reader reads a file whole.", "`tests/sample.test.mjs`"), changed("A SAMPLE RULE", "A reader reads a file whole, or says why not.")) },
+    { anchor: "## 2. Writing", until: null, text: SECTION_2.replace(old("A WRITE RULE", "A writer writes a file whole.", "no automatic check; at review"), changed("A WRITE RULE", "A writer writes a file whole, or says why not.")) }]);
+});
+
+// TST-636004 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT
+// given: a change of A SAMPLE RULE from "ch. 8" and a duplicate of A SAMPLE RULE from "ch. 9", in that order
+// input: entrySections(SPEC, draft, classes, "Job Source")
+// expect: no error; one section, section 1, whose block of A SAMPLE RULE names "Fixture PO; Job Source, ch. 8; Job Source, ch. 9" and holds the change's rule and check: the duplicate adds its source to the block the change left, and no change is lost
+test("entrySections — a change and a duplicate of one requirement are not two changes", () => {
+  const change = changeOf("A BETTER NAME", "A SAMPLE RULE", "A reader reads a file whole, or says why not.");
+  const duplicate = candidate("RESTATES IT", { class: "duplicate", of: "A SAMPLE RULE", passage: "ch. 9" });
+  const old = block("A SAMPLE RULE", "Fixture PO", "A reader reads a file whole.", "`tests/sample.test.mjs`");
+  const expected = block("A SAMPLE RULE", "Fixture PO; Job Source, ch. 8; Job Source, ch. 9", "A reader reads a file whole, or says why not.", "`tests/changed.test.mjs`");
+  assert.deepEqual(compose([change, duplicate]), [{ anchor: "## 1. Reading", until: null, text: SECTION_1.replace(old, expected) }]);
+});
+
+// TST-636005 · level: unit · module: MOD-spec-changes
+// guards: A CONFLICT IS DECIDED BY A PERSON; A CHANGE IS PROPOSED UNDER THE EXISTING NAME
+// given: a change of A SAMPLE RULE and a conflict with A SAMPLE RULE; once the conflict undecided (class conflict), once as the person resolved it (class change of A SAMPLE RULE)
+// input: entrySections(SPEC, draft, classes, "Job Source") for each
+// expect: undecided: no error, one section holding the change's rule; resolved as a change: TwoChanges whose candidates are the change's name and the conflict's name in the order of the classes
+test("entrySections — a conflict counts as a change only as the person resolved it", () => {
+  const change = changeOf("A BETTER NAME", "A SAMPLE RULE", "A reader reads a file whole, or says why not.");
+  const conflict = candidate("CONTRADICTS IT", { class: "conflict", of: "A SAMPLE RULE", rule: "A reader reads nothing." });
+  const undecided = compose([change, conflict], [classed(change), classed(conflict, "conflict", "A SAMPLE RULE")]);
+  assert.equal(undecided.length, 1);
+  assert.ok(undecided[0].text.includes("A reader reads a file whole, or says why not."));
+  assert.ok(!undecided[0].text.includes("A reader reads nothing."));
+  assert.throws(() => compose([change, conflict], [classed(change), classed(conflict, "change", "A SAMPLE RULE")]),
+    (error) => error.name === "TwoChanges" && JSON.stringify(error.candidates) === JSON.stringify(["A BETTER NAME", "CONTRADICTS IT"]));
+});
+
+// TST-636006 · level: unit · module: MOD-spec-changes
+// guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME
+// given: two changes of a requirement the SPEC does not hold, A MISSING RULE
+// input: entrySections(SPEC, draft, classes, "Job Source")
+// expect: RequirementNotFound naming A MISSING RULE, not TwoChanges: a requirement the SPEC lacks is refused first
+test("entrySections — two changes of a requirement the SPEC lacks are RequirementNotFound", () => {
+  const items = [changeOf("ONE", "A MISSING RULE", "One rule."), changeOf("TWO", "A MISSING RULE", "Two rule.")];
+  assert.throws(() => compose(items), (error) => error.name === "RequirementNotFound" && JSON.stringify(error.requirements) === JSON.stringify(["A MISSING RULE"]));
+});

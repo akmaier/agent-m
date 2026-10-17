@@ -33,8 +33,27 @@ The same install in tests of other modules — `tests/dashboard-backlog-layout.t
 `tests/release-itm-290-public-settings-layout.test.mjs` — is theirs, and is mended in the same way when one of them meets
 the wait. No expected result changes.
 
+**Settled at sprint team1/71's start. Selectable.** Its readings above hold. The fix stays in MOD-desktop-shell's own two
+test files, and no workflow changes.
+- **Reads:** none.
+- **The measurement** is the fixture itself: its install retries and is bounded by 60 seconds, within the job's two
+  minutes.
+- **Sprints 68 and 70:** a release test among the changed tests stops the developer, who reports it, and the whole release
+  file is run on the draft.
+- **Sprints 64 to 67:** the draft run lists the changed tests; one action per shell command; DOM assertions compare
+  booleans or strings; no refusal is worked around; a header the item touches loses its item history.
+
 ## Acceptance
 
 - The tests that need Openbox no longer fail on a slow mirror, and no expected result changes.
 - They are changed by a Developer who implemented none of the desktop shell's behaviour, since one of them is a release
   test.
+
+**Rests on queue `2026-10-17d` (2026-10-17, po-opus).**
+- akmaier rejected the path this item counts on: code no module owns, changed by a pull request between jobs.
+- Under the draft of queue `2026-10-17d`, the module whose file names that code as taken over changes it in its own
+  implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
+  is named in that module's parts.
+- This item waits for akmaier's acceptance of that draft, and its fix is read again then.
+
+**Read again with the plan (2026-10-17):** its fix, in MOD-desktop-shell's own test files, never needed the workflow, and it is selectable. A change of the workflow would now be MOD-test-schedule's, which takes over `tests.yml` and `nightly.yml`.

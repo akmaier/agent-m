@@ -1,13 +1,13 @@
 // MOD-source-register — the register of requirement sources and a product's links (docs/architecture/MOD-source-register.md):
-// its interface. Of it, ITM-217 builds what UC-002 needs: sourceSchemas, with the schema of a register entry, and
-// permittedPlaces, the processing places to which the content of a source may be given. ITM-228 adds to sourceSchemas the
-// schema of a product's links file. readContent, which reads a version's files with their hashes checked (content.mjs),
-// linkedVersion, and sourceStrategies with the recipe source-excerpt and the four recipes of the book's chapters
-// (strategies.mjs) come with the job runner. ITM-315 adds sourceFindings, the requirements that name no source the product
-// links. ITM-313 adds recogniseLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names. ITM-383 adds
-// personSource, the source of the person who gives an instruction, and ITM-552 personAccount, the account personSource takes; both stand in
-// person.mjs and this file re-exports them. ITM-314 adds registrationCommits, the commit plan of a
-// registration. ITM-589 adds affectedRequirements and changedPassages. Fetching a source's content, a new version and the module's other functions are not built yet.
+// its interface. It gives sourceSchemas, the schemas of a register entry and of a product's links file; permittedPlaces, the
+// processing places to which the content of a source may be given; readContent, which reads a version's files with their hashes
+// checked (content.mjs); linkedVersion; sourceStrategies, the recipe source-excerpt and the recipes of the book's chapters
+// (strategies.mjs); sourceFindings, the requirements that name no source the product links; recogniseLegalText and
+// fetchLegalText (legal-text.mjs), the CELEX number or ELI an EUR-Lex or ELI address names and the official text; personSource,
+// the source of the person who gives an instruction, and personAccount, the account personSource takes (person.mjs, which this
+// file re-exports); registrationCommits and versionCommits, the commit plans of a registration and of a new version, a file
+// that was only hashed recorded with the note where its copy is kept; and affectedRequirements and changedPassages. Every
+// function the module file's Interfaces names is built.
 //
 // Module: MOD-source-register
 //
@@ -89,37 +89,37 @@ export function permittedPlaces(entry) {
 }
 
 /**
- * registrationCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean }[], instance: string) ->
- * Promise<CommitPlan> — what to commit where when a source is registered: the register entry with its first version, and the
- * files. The entry is the one the form builds: its `## Versions` holds the first version's row — version, date, edition, read
- * from —, whose cell Files this function fills with the number of files, `listed below`, the version's hash, and the files
- * only hashed after `not stored:`; under `### Files of <version>` it lists every file with the SHA-256 of its bytes. A file
- * with `keep` goes to `docs/sources/<id>/<version>/<name>` of the instance when the licence permits republishing, of the
- * entry's `content_repository` otherwise; a file without it goes nowhere, since the person only hashed it. The entry goes to the
- * instance, first in the plan. Throws ContentRepositoryMissing { source } for a file to keep of a restricted source whose entry
- * names no content repository, and TypeError for an entry whose `## Versions` holds no row.
+ * registrationCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[], instance:
+ * string) -> Promise<CommitPlan> — what to commit where when a source is registered: the register entry with its first version,
+ * and the files. The entry is the one the form builds: its `## Versions` holds the first version's row — version, date, edition,
+ * read from —, whose cell Files this function fills with the number of files, `listed below`, the version's hash, and the files
+ * only hashed after `not stored:`; under `### Files of <version>` it lists every file with the SHA-256 of its bytes and, in the
+ * column `Kept at`, the `note` of a file only hashed (each line break in it written as one space, a `|` in it written `\|`) and
+ * `—` for a file kept. A file with `keep` goes
+ * to `docs/sources/<id>/<version>/<name>` of the instance when the licence permits republishing, of the entry's
+ * `content_repository` otherwise; a file without it goes nowhere, since the person only hashed it. The entry goes to the
+ * instance, first in the plan. Throws NoteMissing { file } for a file not kept that has no note (a note of blanks is none),
+ * ContentRepositoryMissing { source } for a file to keep of a restricted source whose entry names no content repository, and
+ * TypeError for an entry whose `## Versions` holds no row.
  * @param {Document} entry
  */
 export async function registrationCommits(entry, files, instance) {
   const versions = entry.sections.find((section) => section.heading === "## Versions");
   const first = versions?.rows?.[0];
   if (!first) throw new TypeError("registrationCommits: the entry's ## Versions holds the row of its first version");
+  requireNotes(files);
   const kept = files.filter((file) => file.keep);
   const holder = permittedPlaces(entry) === "any" ? instance : entry.fields.content_repository;
   if (kept.length && !holder) {
     throw failure("ContentRepositoryMissing", `${entry.id} is restricted, and its entry names no repository for its files`, { source: entry.id });
   }
-  const listed = await Promise.all(files.map(async (file) => ({ name: file.name, sha256: await sha256(file.bytes) })));
+  const listed = await listedFiles(files);
   const version = unquoted(first.cells.Version);
-  const unstored = files.filter((file) => !file.keep).map((file) => file.name);
-  const count = listed.length === 1 ? "1 file" : `${listed.length} files`;
-  const cell = `${count}, listed below; version hash \`${await versionHash(listed)}\``
-    + (unstored.length ? `; not stored: ${unstored.join(", ")}` : "");
+  const cell = filesCell(files, listed, await versionHash(listed));
   const rows = [{ ...first, cells: { ...first.cells, Files: cell } }];
   const table = ["| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
     `| ${["Version", "Date", "Edition", "Read from", "Files"].map((column) => rows[0].cells[column] ?? "—").join(" | ")} |`];
-  const block = [`### Files of ${version}`, "", "| File | SHA-256 |", "|---|---|",
-    ...listed.map((file) => `| \`${file.name}\` | \`${file.sha256}\` |`)];
+  const block = filesBlock(version, listed);
   const text = `\n${[...table, "", ...block].join("\n")}\n\n`;
   // The first version is being written, not appended to a record that stands: the row as the form gave it is no row of the
   // record yet, so the body is written without the section it stood in.
@@ -136,8 +136,20 @@ export async function registrationCommits(entry, files, instance) {
 
 const versionColumns = ["Version", "Date", "Edition", "Read from", "Files"];
 
+// A file that is not kept goes nowhere, so a note must say where its copy is kept; a file without one is refused by name.
+function requireNotes(files) {
+  const missing = files.find((file) => !file.keep && !(typeof file.note === "string" && file.note.trim() !== ""));
+  if (missing) {
+    throw failure("NoteMissing", `${missing.name} is only hashed, and no note says where its copy is kept`, { file: missing.name });
+  }
+}
+
+// Each file with the SHA-256 of its bytes and the cell of its row under `### Files of <version>`, `Kept at`: the note of a file
+// that is not kept, each line break in it written as one space (a row stays one line) and a `|` in it written `\|`, and `—`
+// for a file that is kept.
 async function listedFiles(files) {
-  return Promise.all(files.map(async (file) => ({ name: file.name, sha256: await sha256(file.bytes) })));
+  return Promise.all(files.map(async (file) => ({ name: file.name, sha256: await sha256(file.bytes),
+    keptAt: file.keep ? "—" : file.note.replace(/\r\n|\r|\n/g, " ").replace(/\|/g, "\\|") })));
 }
 
 function filesCell(files, listed, hash) {
@@ -151,8 +163,8 @@ function rowLine(cells) {
 }
 
 function filesBlock(version, listed) {
-  return [`### Files of ${version}`, "", "| File | SHA-256 |", "|---|---|",
-    ...listed.map((file) => `| \`${file.name}\` | \`${file.sha256}\` |`)];
+  return [`### Files of ${version}`, "", "| File | SHA-256 | Kept at |", "|---|---|---|",
+    ...listed.map((file) => `| \`${file.name}\` | \`${file.sha256}\` | ${file.keptAt} |`)];
 }
 
 function appendVersionSection(text, cells, block) {
@@ -180,17 +192,19 @@ function readFrom(version) {
 }
 
 /**
- * versionCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean }[], version: { version: string,
- * date: string }) -> Promise<CommitPlan> — what to commit when a source receives a new version: the entry with one row
- * appended to `## Versions`, the new version's file hashes under `### Files of <version>`, and the kept files in the
- * repository that holds the content. `version.repository`, when supplied by the caller, names the instance repository
- * that holds the register entry; without it the plan uses the empty string for that current instance. Throws SameBytes
- * { version } when the file set equals an already recorded version.
+ * versionCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[], version: {
+ * version: string, date: string }) -> Promise<CommitPlan> — what to commit when a source receives a new version: the entry
+ * with one row appended to `## Versions`, the new version's file hashes under `### Files of <version>` — with the `note` of
+ * a file not kept in the column `Kept at`, as registrationCommits writes it —, and the kept files in the repository that
+ * holds the content. `version.repository`, when supplied by the caller, names the instance repository that holds the
+ * register entry; without it the plan uses the empty string for that current instance. Throws SameBytes { version } when
+ * the file set equals an already recorded version, and NoteMissing { file } for a file not kept that has no note.
  * @param {Document} entry
  */
 export async function versionCommits(entry, files, version) {
   const versions = entry.sections.find((section) => section.heading === "## Versions");
   if (!versions) throw new TypeError("versionCommits: the entry holds no ## Versions section");
+  requireNotes(files);
   const listed = await listedFiles(files);
   const hash = await versionHash(listed);
   for (const row of versions.rows ?? []) {
@@ -230,7 +244,7 @@ const namesOf = (entry) => [entry.id, entry.fields.title, entry.fields.kind === 
   .filter((name) => typeof name === "string" && name !== "");
 
 // Whether a requirement's source item names the source called `name`: the item begins with it, followed by the end of the item
-// or by `, ` and the part it draws on. The one grammar of entryNamed, sourceFindings and affectedRequirements.
+// or by `, ` and the part it draws on. The one grammar, read through entryNamed by linkedVersion, sourceFindings and affectedRequirements.
 const namesSource = (item, name) => item === name || item.startsWith(`${name}, `);
 
 // The register entry a source item names: the one whose identifier, title or — for a standard — designation the item begins
@@ -270,17 +284,21 @@ export function linkedVersion(links, register, source) {
 }
 
 /**
- * affectedRequirements(spec: string, source: string) -> string[] — the names of the requirements one of whose source items names
- * the source, in the SPEC's order, as MOD-spec-document's parseSpec reads them. `source` is a register entry's identifier; an item
- * names it when it begins with the identifier, followed by the end of the item or by `, ` and the part — the grammar
- * sourceFindings reads. A title or a designation is not matched: the signature carries no register entry.
+ * affectedRequirements(spec: string, register: Document[], source: string) -> string[] — the names of the requirements one of whose
+ * source items names the source, in the SPEC's order, as MOD-spec-document's parseSpec reads them. `source` is read as linkedVersion
+ * reads it: the register entry whose identifier, title or — for a standard — designation it begins with, the longest such match,
+ * followed by the end or by `, ` and a part (entryNamed). An item names the source when the entry the item names, read the same way,
+ * is that entry — the one grammar of linkedVersion and sourceFindings. Empty when `source` names no register entry.
  * @param {string} spec — the text of a SPEC
- * @param {string} source — a register entry's identifier
+ * @param {Document[]} register — the instance's register entries
+ * @param {string} source — an identifier, a title, a designation, or an item of a requirement's source
  * @returns {string[]}
  */
-export function affectedRequirements(spec, source) {
+export function affectedRequirements(spec, register, source) {
+  const entry = entryNamed(register, source);
+  if (!entry) return [];
   return [...parseSpec(spec).requirements.values()]
-    .filter((requirement) => requirement.sources.some((item) => namesSource(item, source)))
+    .filter((requirement) => requirement.sources.some((item) => entryNamed(register, item) === entry))
     .map((requirement) => requirement.name);
 }
 

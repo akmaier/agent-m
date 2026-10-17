@@ -1,27 +1,27 @@
 // The dashboard's Architecture view — its tab, the blocked panel, and the core's functions it calls. Deterministic, no
 // network. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-review-pages
 // Guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; ONE REVIEW LAYOUT FOR EVERY PRODUCT; UC-022
 // Level: component
 //
-// SPEC §11 ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; §10 ONE REVIEW LAYOUT FOR EVERY PRODUCT (UC-022 step 8, 10, 10a). Moved out
-// of tests/architecture.test.mjs, unchanged, when it was split by module. Counter-proofs are listed in
-// docs/measurements/2026-09-30_review-dashboard-mutations.md §8.
+// SPEC §11 ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; §10 ONE REVIEW LAYOUT FOR EVERY PRODUCT (UC-022 step 8, 10, 10a).
+// Counter-proofs are listed in docs/measurements/2026-09-30_review-dashboard-mutations.md §8.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { ARCHITECTURE_FILE } from "../docs/assets/artifacts.mjs";
 import { prerequisitesHtml } from "../docs/assets/dashboard/review-views.mjs";
-import { repoServer, openDashboard } from "./app-harness.mjs";
+import { repoServer, openDashboard, APP_FILE } from "./app-harness.mjs";
 
-// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
+// The dashboard's own files: the shell (APP_FILE of the harness), and every view and settings section
 // under docs/assets/dashboard/ — what a test that read the one app file reads now.
 const dashboardText = () => {
   const assets = new URL("../docs/assets/", import.meta.url);
   const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
-  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
+  return [readFileSync(APP_FILE, "utf8"),
+    ...views.map((f) => readFileSync(new URL(`dashboard/${f}`, assets), "utf8"))].join("\n");
 };
 
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";

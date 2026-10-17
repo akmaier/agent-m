@@ -3,7 +3,7 @@
 // shipped catalogue as data — the book's models in models/ and its practices in practices/, each file naming the chapter
 // it follows. ITM-229 adds a model's `## About` and Model.about: what UC-002 shows beside each model. ITM-258 adds reading
 // a kind's explanation in parentheses in a phase's Produces, and a stated Time box of none as no time box. planGrid gives
-// each accepted requirement every phase of a planned model (plan.mjs). modelDiagram is not built yet.
+// each accepted requirement every phase of a planned model (plan.mjs). modelDiagram draws the supplied model (diagram.mjs).
 //
 // Module: MOD-model-catalogue
 //
@@ -22,6 +22,7 @@ import { documentFindings, loadSchema, readDocument } from "../documents/index.m
 import { validate } from "./validate.mjs";
 
 export { planGrid } from "./plan.mjs";
+export { modelDiagram } from "./diagram.mjs";
 
 /**
  * A process model read by its schema: its name; its kind of work, planned or pulled; the model it was adapted from, or null;

@@ -1,11 +1,10 @@
-# Module: MOD-dashboard-app
+# Module: MOD-settings-pages
 # Guards: EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; THE DASHBOARD WRITES THE TUNNEL COMMANDS; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; UC-042
 # Level: component
 """SPEC §7 EVERY SETTING IS REACHED FROM ONE PAGE · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS
 SHOWN · A STORED SECRET IS HIDDEN UNTIL SHOWN · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE (UC-042).
 A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: changing a product setting commits to the product's repository
-(docs/assets/dashboard/writes.mjs savePseudonymisation), and the browser's store holds none — moved back here, unchanged but for
-the module the write is reached by, from tests/test_settings_in_the_core.py when the writes left the kernel (ITM-124).
+(docs/assets/dashboard/writes.mjs savePseudonymisation), and the browser's store holds none.
 
 The browser section of the settings page is rendered by settingsView.browserSettingsHtml; the page inserts
 that HTML as it is. So "appears on the page" is checked on the HTML the page shows.
@@ -14,16 +13,16 @@ import json
 import re
 import unittest
 
-from jsrun import ASSETS, js
+from jsrun import ASSETS, SRC, js
 
 STORE = ASSETS / "settings-store.mjs"
 
 
 def dashboard_text(shell: bool = True) -> str:
-    """The dashboard's own files (MOD-dashboard-app): the shell, dashboard-app.mjs, and every view and settings section under
+    """The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section under
     docs/assets/dashboard/ — what a test that read the one app file reads now; `shell=False`: the views alone."""
     views = sorted((ASSETS / "dashboard").rglob("*.mjs"))
-    return "\n".join(f.read_text(encoding="utf-8") for f in ([ASSETS / "dashboard-app.mjs"] if shell else []) + views)
+    return "\n".join(f.read_text(encoding="utf-8") for f in ([SRC / "site-frame" / "dashboard-app.mjs"] if shell else []) + views)
 KEY_RE = re.compile(r"""PREFIX\s*\+\s*["']([^"']+)["']""")
 SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop"
 
@@ -139,16 +138,16 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertEqual(b[1], "", "counter-proof: far from expiry, no banner")
         self.assertIn("GitHub token", b[2])
         self.assertIn("Renew", b[2])
-        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
+        app = (SRC / "site-frame" / "dashboard-app.mjs").read_text(encoding="utf-8")
         route = re.search(r"async function route\(\).*?\n}\n", app, re.S).group(0)
         self.assertIn("tokenBannerHtml(", route, "the banner is added in route(), which renders every view")
 
     def test_storing_a_token_asks_for_its_expiry(self):
         app = dashboard_text()
-        for fn in ("viewSettings", "storeKeyStep"):
+        for fn in ("viewSettings",):
             body = re.search(rf"function {fn}\(.*?\n}}\n", app, re.S).group(0)
             self.assertRegex(body, r'<input type="date"[^>]*value="\$\{h\(defaultExpiry\(\)\)\}"', fn)
-        self.assertEqual(len(re.findall(r"store\.setToken\(\w+, \w+", app)), 2, "both places store the date with the token")
+        self.assertEqual(len(re.findall(r"store\.setToken\(\w+, \w+", app)), 1, "the place that stores a token stores the date with it")
 
     def test_the_state_line_names_the_expiry(self):
         html = page(full_entries(), now="2026-12-20")

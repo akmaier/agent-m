@@ -44,6 +44,8 @@ does not answer a browser is named, and the job is offered to a participant that
   fact, as data.
 - `licences.md` — for each product licence, the candidate licences known to be compatible with it, as data.
 - `strategies.mjs` — the step `due-diligence`.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `tests/test_licence.py`: its header names this module: a product's licence is its concern (`AGENT M IS MIT-LICENSED`).
 
 ## Data
 
