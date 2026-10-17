@@ -12,6 +12,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { openDashboard, press, repoServer, richDocument, settle } from "./app-harness.mjs";
 
+const APP_FILE = new URL("../src/site-frame/dashboard-app.mjs", import.meta.url);
 const INSTANCE = "akmaier/agent-m";
 const prefix = `agent-m:${INSTANCE}:`;
 const ENDPOINT = { name: "release", url: "https://release-model.example.test/v1", kind: "openai-compatible", model: "release-model", key: "release-browser-only-key" };
@@ -52,7 +53,7 @@ async function openEndpointDashboard({ entries = {}, handlers = [], pathname = n
     // exist before its own dashboard module starts, and its repoServer must answer for that derived instance.
     globalThis.location.pathname = pathname;
     globalThis.location.hash = "#settings";
-    await import(`../docs/assets/dashboard-app.mjs?itm270-instance=${encodeURIComponent(pathname)}`);
+    await import(`${APP_FILE.href}?itm270-instance=${encodeURIComponent(pathname)}`);
     await settle(server);
   } else await page.go("#settings");
   const endpoints = mounted.find((node) => node.className === "settings-tab-panel" && /Endpoints & Agents/.test(node.textContent));
