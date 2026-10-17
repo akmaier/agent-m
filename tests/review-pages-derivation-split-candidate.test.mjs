@@ -1,0 +1,297 @@
+// MOD-review-pages' panel of a derivation of requirements offers *Split* on a candidate a finding the loop left names, adds a part of its own after it, and *Write proposals* writes the
+// draft as the person left it, through the writer queue-entries of MOD-spec-changes (ITM-578). UC-005 alternative flow 6a: "The author splits a flagged candidate. Each part becomes an entry
+// of its own." Step 6.3: "What is left after the last round is shown flagged in step 7".
+// Run: node --test tests/review-pages-derivation-split-candidate.test.mjs
+//
+// Module: MOD-review-pages
+// Guards: UC-005; ONE STATEMENT PER REQUIREMENT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A GENERATED ARTIFACT IS A PROPOSAL
+// Level: unit
+//
+// The panel is reached the way a person reaches it: the route spec-entry/draft, a participant, Run, and the endpoint's answer — a real job's draft, run in the tab, whose correction loop
+// leaves the finding that flags a candidate (the endpoint answers the same draft each round, so the loop ends "unchanged" with the warning of ONE STATEMENT PER REQUIREMENT left). This
+// imports the browser harness of tests/review-pages-harness.mjs unchanged. The product and the instance are in-memory hosts that keep to MOD-repository-hosts' interface, every commit
+// recorded; the source register and the source file are fixtures whose hashes the real MOD-source-register recipes check; the model endpoint is a fixture behind global fetch, so nothing
+// reaches the network. Each test states its input and its expected result before it runs (given / input / expect), and the texts it expects are written out here, taken from no document.
+
+import "./review-pages-harness.mjs";
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
+const { registerStrategies } = await import("../src/job-runner/index.mjs");
+const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
+const route = pages.view?.routes.find((candidate) => candidate.name === "spec-entry");
+(pages.view?.strategies ?? []).forEach((strategies, at) => registerStrategies(`tests/review-pages-derivation-split-candidate.test.mjs#${at}`, strategies));
+
+// ---------------------------------------------------------------- fixtures
+
+const text = (...lines) => `${lines.join("\n")}\n`;
+const blobOf = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
+const sha256Of = (body) => createHash("sha256").update(body).digest("hex");
+const failure = (name, message) => Object.assign(new Error(message), { name });
+
+const ON_GITHUB = { server: "github", origin: "https://github.com", path: "alice/thesis-tool", web: "https://github.com/alice/thesis-tool" };
+const TOKEN = { value: "github_pat_ALICEthesisTOOL0123456789abcdef", name: "Agent M - thesis-tool", expires: "2027-01-01" };
+const LOAN = "A LOAN HAS A DUE DATE", SHELF = "A BOOK IS SHELVED";
+const SPEC = text("# Thesis tool - Specification", "", "## Lending", "", `**${LOAN}** *(SRC-policy, ch. 1)*`, "Every loan states the date by which the book is returned.",
+  "*Check:* `tests/loan.test.mjs`", "", `**${SHELF}** *(SRC-policy, ch. 1)*`, "Every book stands on a shelf.", "*Check:* `tests/shelf.test.mjs`");
+
+const SOURCE = "SRC-policy", MAIN_FILE = "main.md";
+const MAIN_TEXT = text("# Policy", "", "Chapter 1: loans state their due date.");
+const MAIN_SHA = sha256Of(MAIN_TEXT);
+const VERSION_HASH = sha256Of(`${MAIN_SHA}  ${MAIN_FILE}\n`);
+const LINKS = text("# Requirement sources of the thesis tool", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| ${SOURCE} | 2026-10-01 | ${VERSION_HASH} | Chapter 1 |`);
+const SOURCE_ENTRY = text("---", `id: ${SOURCE}`, "title: Library Policy", "kind: document", "authority: normative", "licence: may be republished - fixture", "---",
+  `# ${SOURCE} Library Policy`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
+  `| 2026-10-01 | 2026-10-01 | fixture | fixture | 1 file, listed below; version hash \`${VERSION_HASH}\` |`, "",
+  "### Files of 2026-10-01", "", "| File | SHA-256 |", "|---|---|", `| \`${MAIN_FILE}\` | \`${MAIN_SHA}\` |`, "", "## Parts", "", "- Chapter 1");
+
+const PRODUCT_FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "docs/sources.md": LINKS };
+const SOURCE_FILES = { [`docs/sources/${SOURCE}.md`]: SOURCE_ENTRY, [`docs/sources/${SOURCE}/2026-10-01/${MAIN_FILE}`]: MAIN_TEXT };
+
+// ---------------------------------------------------------------- hosts
+
+// A commit lands on the head that was read, else `Moved`; every commit is recorded.
+function fakeProduct() {
+  const commits = new Map(), calls = [];
+  let made = 0, head = null;
+  const commitOf = (tree) => {
+    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    commits.set(sha, tree);
+    return sha;
+  };
+  head = commitOf(new Map(Object.entries(PRODUCT_FILES)));
+  const snapshotAt = (sha, ref) => {
+    const tree = commits.get(sha);
+    return { repository: ON_GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+      blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
+  };
+  return { writes: () => calls.map((change) => change.files), host: {
+    async repositoryInfo() { return { defaultBranch: "trunk", visibility: "public", canWrite: true, archived: false, description: "" }; },
+    async readSnapshot(ref) {
+      if (ref === "trunk") return snapshotAt(head, "trunk");
+      if (commits.has(ref)) return snapshotAt(ref, ref);
+      throw failure("NotFound", `${ref} was not found`);
+    },
+    async readHistory() { return []; },
+    async commitFiles(change) {
+      calls.push(structuredClone(change));
+      if (change.branch !== "trunk" || change.expectedHead !== head) throw failure("Moved", "the branch moved");
+      head = commitOf(new Map([...commits.get(head), ...change.files.map((file) => [file.path, file.text])]));
+      return { commit: head, url: `${ON_GITHUB.web}/commit/${head}` };
+    },
+  } };
+}
+
+const ROOT = new URL("../", import.meta.url);
+const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
+const REGISTER_HEAD = onDisk("docs/participants.md").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
+const REGISTER = `${REGISTER_HEAD}\n| drafter-a | model endpoint | model-a | 200000 | - | draft text | this machine | endpoint ep1 |\n`;
+
+function fakeInstance() {
+  const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" },
+    ref: "main", commit: "abc123def4567890abc123def4567890abc123de", paths: Object.keys(SOURCE_FILES).sort(),
+    read: async (path) => (path === "docs/participants.md" ? REGISTER : path in SOURCE_FILES ? SOURCE_FILES[path] : onDisk(path)), blob: () => null };
+  return { async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
+    async readSnapshot() { return snapshot; } };
+}
+
+// ---------------------------------------------------------------- the endpoint's answer
+
+const candidate = (name, rule) => ({ name, rule, check: "`tests/fixture.test.mjs`", constrains: "product", passage: "ch. 1", class: "new", source: SOURCE });
+const TWO = "A LOAN STATES TWO THINGS", TWO_RULE = "Every loan states its due date and its return place.";
+const CLEAN = "A MEMBER CAN RENEW ONCE", CLEAN_RULE = "Every member renews a loan once.";
+const OTHER = "A BOOK STANDS ON A SHELF", OTHER_RULE = "Every book is put on a shelf.";
+const FLAGGED_DRAFT = { candidates: [candidate(TWO, TWO_RULE), candidate(CLEAN, CLEAN_RULE)] };
+const UNFLAGGED_DRAFT = { candidates: [candidate(OTHER, OTHER_RULE), candidate(CLEAN, CLEAN_RULE)] };
+const ENDPOINT = "https://ep1.example.test/v1/chat/completions";
+
+let requests = [];
+const realFetch = globalThis.fetch;
+function endpointAnswers(draft) {
+  requests = [];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ draft, answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }),
+      { status: 200, headers: { "content-type": "application/json" } });
+  };
+}
+test.afterEach(() => { globalThis.fetch = realFetch; });
+
+// ---------------------------------------------------------------- the page
+
+function find(root, match) {
+  const found = [];
+  (function walk(node) { for (const kid of node.childNodes) { if (kid.nodeType === 1) { if (match(kid)) found.push(kid); walk(kid); } } })(root);
+  return found;
+}
+const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
+const click = (node) => node.dispatchEvent(new Event("click"));
+async function until(condition, what) {
+  const limit = Date.now() + 2000;
+  while (Date.now() < limit) {
+    if (condition()) return;
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.fail(`waited for ${what}`);
+}
+
+// The panel of the derivation's draft, reached by a real job: the route, the participant, Show the run panel, Run. Returns the page and the product's host.
+async function panelOf(draft) {
+  endpointAnswers(draft);
+  assert.ok(route, `the route spec-entry: ${pages.error?.message}`);
+  const product = fakeProduct();
+  const store = openStore("alice/agent-m");
+  writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
+  writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance() }, store, go() {},
+    product: { address: ON_GITHUB.web, kind: "github", host: product.host } }, { id: "draft" });
+  for (const file of byClass(target, "input", "source-file")) file.checked = file.value === MAIN_FILE;
+  const box = byClass(target, "input", "participant").find((each) => each.value === "drafter-a");
+  assert.ok(box, "drafter-a is offered");
+  box.checked = true;
+  box.dispatchEvent(new Event("change"));
+  click(byClass(target, "button", "prepare")[0]);
+  await until(() => find(target, (node) => node.localName === "button" && node.textContent === "Run").length === 1, "the Run button");
+  click(find(target, (node) => node.localName === "button" && node.textContent === "Run")[0]);
+  await until(() => byClass(target, "section", "requirements-result").length === 1, "the candidates");
+  assert.ok(requests.length > 0 && requests.every((url) => url === ENDPOINT), `the only requests are the endpoint's: ${requests}`);
+  return { panel: target, product };
+}
+const itemOf = (panel, name) => {
+  const item = byClass(panel, "li", "candidate").find((each) => each.getAttribute("data-name") === name);
+  assert.ok(item, `the candidate ${name} is in the panel`);
+  return item;
+};
+// The candidates of the panel in the order they stand: a candidate by its name, a split part as "part of <name>".
+const orderOf = (panel) => byClass(panel, "li", "candidate").map((item) => item.getAttribute("data-name") ?? `part of ${item.getAttribute("data-split-of")}`);
+const partsOf = (panel) => byClass(panel, "li", "split-part");
+const splitOf = (item) => byClass(item, "button", "split");
+const proposalsOf = (product) => product.writes().filter((files) => files.some((file) => file.path.includes("docs/spec-freigaben/")));
+
+// TST-578001 · level: unit · module: MOD-review-pages
+// guards: UC-005 (step 6.3, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// given: the endpoint answers, in every round, a candidate whose rule says two things (A LOAN STATES TWO THINGS: "... due date and its return place.") and a clean one (A MEMBER CAN RENEW ONCE)
+// input: the route spec-entry/draft, drafter-a, Run; the correction loop ends "unchanged" with the warning of ONE STATEMENT PER REQUIREMENT left on the first candidate
+// expect: the panel reads "Correction rounds: 2"; its list of what is left holds the one finding `ONE STATEMENT PER REQUIREMENT: the rule contains "and" - split it into two requirements, or keep it and give a one-line reason`;
+//   exactly one button "Split" stands in the panel, inside the item of A LOAN STATES TWO THINGS,
+//   and the item of A MEMBER CAN RENEW ONCE holds none; nothing is written to docs/spec-freigaben
+test("spec-entry/draft - a candidate a finding the loop left names offers Split, another does not", async () => {
+  const { panel, product } = await panelOf(FLAGGED_DRAFT);
+  assert.equal(byClass(panel, "p", "rounds")[0].textContent, "Correction rounds: 2");
+  assert.deepEqual(byClass(panel, "li", "left").map((each) => each.textContent),
+    ['ONE STATEMENT PER REQUIREMENT: the rule contains "and" - split it into two requirements, or keep it and give a one-line reason']);
+  assert.equal(byClass(panel, "button", "split").length, 1, "one Split in the panel");
+  assert.deepEqual(splitOf(itemOf(panel, TWO)).map((each) => each.textContent), ["Split"]);
+  assert.equal(splitOf(itemOf(panel, CLEAN)).length, 0);
+  assert.equal(proposalsOf(product).length, 0, "nothing is written by showing the panel");
+});
+
+// TST-578002 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a)
+// given: the endpoint answers two candidates of which no finding is left (A BOOK STANDS ON A SHELF, A MEMBER CAN RENEW ONCE; each rule states one thing)
+// input: the route spec-entry/draft, drafter-a, Run
+// expect: the panel reads "Correction rounds: 1", its list of what is left is empty, and no button "Split" stands anywhere
+test("spec-entry/draft - without a finding left, no candidate offers Split", async () => {
+  const { panel } = await panelOf(UNFLAGGED_DRAFT);
+  assert.equal(byClass(panel, "p", "rounds")[0].textContent, "Correction rounds: 1");
+  assert.equal(byClass(panel, "li", "left").length, 0);
+  assert.equal(byClass(panel, "button", "split").length, 0);
+});
+
+// TST-578003 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the flagged draft of TST-578001
+// input: Split on A LOAN STATES TWO THINGS
+// expect: the candidates stand in the order A LOAN STATES TWO THINGS, part of A LOAN STATES TWO THINGS, A MEMBER CAN RENEW ONCE; the part's class select reads "new", its "of" field is empty, its name
+//   field and its rule field are empty; the first keeps its name and holds its drafted rule in an editable field; nothing is written to docs/spec-freigaben
+test("spec-entry/draft - Split adds a part after the candidate, of the same class and of, with fields of its own", async () => {
+  const { panel, product } = await panelOf(FLAGGED_DRAFT);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  assert.deepEqual(orderOf(panel), [TWO, `part of ${TWO}`, CLEAN]);
+  const part = partsOf(panel)[0];
+  assert.equal(byClass(part, "select", "class")[0].value, "new");
+  assert.equal(byClass(part, "input", "of")[0].value, "");
+  assert.equal(byClass(part, "input", "candidate-name")[0].value, "");
+  assert.equal(byClass(part, "textarea", "candidate-rule")[0].value, "");
+  assert.equal(byClass(itemOf(panel, TWO), "textarea", "candidate-rule")[0].value, TWO_RULE, "the first keeps what it had");
+  assert.equal(proposalsOf(product).length, 0, "the split is the panel's; nothing is written before Write proposals");
+});
+
+// TST-578004 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a)
+// given: the flagged draft of TST-578001
+// input: Split on A LOAN STATES TWO THINGS twice
+// expect: the candidates stand in the order A LOAN STATES TWO THINGS, part of A LOAN STATES TWO THINGS, part of A LOAN STATES TWO THINGS, A MEMBER CAN RENEW ONCE
+test("spec-entry/draft - a second Split adds a second part after the first", async () => {
+  const { panel } = await panelOf(FLAGGED_DRAFT);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  assert.deepEqual(orderOf(panel), [TWO, `part of ${TWO}`, `part of ${TWO}`, CLEAN]);
+});
+
+// TST-578005 · level: unit · module: MOD-review-pages
+// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT; A GENERATED ARTIFACT IS A PROPOSAL
+// given: the flagged draft of TST-578001, split; the part named A LOAN SHOWS ITS DATE with the rule "Every loan states its due date."; the first's rule edited to "Every loan states its return place."
+// input: Write proposals
+// expect: one commit holds docs/spec-freigaben/<queue>/01-lending.md; its text holds, in this order, the blocks of A LOAN STATES TWO THINGS ("Every loan states its return place."), A LOAN SHOWS ITS DATE
+//   ("Every loan states its due date.") and A MEMBER CAN RENEW ONCE, each as "**<name>** *(SRC-policy, ch. 1)*", its rule, "*Check:* `tests/fixture.test.mjs`"; the old rule "Every loan states its due date and its return place." is in no written text; SPEC.md is not written
+test("spec-entry/draft - Write proposals writes each part as a requirement of its own", async () => {
+  const { panel, product } = await panelOf(FLAGGED_DRAFT);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  const part = partsOf(panel)[0];
+  byClass(part, "input", "candidate-name")[0].value = "A LOAN SHOWS ITS DATE";
+  byClass(part, "textarea", "candidate-rule")[0].value = "Every loan states its due date.";
+  byClass(itemOf(panel, TWO), "textarea", "candidate-rule")[0].value = "Every loan states its return place.";
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+
+  const proposals = proposalsOf(product);
+  assert.equal(proposals.length, 1, "one commit holds the queue");
+  const entries = proposals[0].filter((file) => /docs\/spec-freigaben\/[^/]+\/01-lending\.md$/.test(file.path));
+  assert.equal(entries.length, 1, "the entry of the section Lending");
+  const block = (name, rule) => `**${name}** *(SRC-policy, ch. 1)*\n${rule}\n*Check:* \`tests/fixture.test.mjs\``;
+  const first = block(TWO, "Every loan states its return place."), second = block("A LOAN SHOWS ITS DATE", "Every loan states its due date."), third = block(CLEAN, CLEAN_RULE);
+  const entry = entries[0].text;
+  for (const each of [first, second, third]) assert.ok(entry.includes(each), `${each} in ${JSON.stringify(entry)}`);
+  assert.ok(entry.indexOf(first) < entry.indexOf(second) && entry.indexOf(second) < entry.indexOf(third), "in the order the panel stands");
+  assert.ok(!proposals[0].some((file) => file.text.includes(TWO_RULE)), "the rule that said two things is written nowhere");
+  assert.ok(!product.writes().flat().some((file) => file.path === "SPEC.md"), "SPEC.md is not written");
+});
+
+// TST-578006 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the flagged draft of TST-578001, split, the part left without a name or a rule
+// input: Write proposals
+// expect: the panel shows a problem reading "A split part of A LOAN STATES TWO THINGS needs a name and a rule: nothing was written."; nothing is written to docs/spec-freigaben; Write proposals is enabled again
+test("spec-entry/draft - a split part without a name and a rule is not written", async () => {
+  const { panel, product } = await panelOf(FLAGGED_DRAFT);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  const write = byClass(panel, "button", "write-proposals")[0];
+  click(write);
+  await until(() => byClass(panel, "p", "problem").length === 1, "the problem");
+  assert.equal(byClass(panel, "p", "problem")[0].textContent, `A split part of ${TWO} needs a name and a rule: nothing was written.`);
+  assert.equal(proposalsOf(product).length, 0);
+  assert.equal(write.disabled, false);
+});
+
+// TST-578007 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a)
+// given: the flagged draft of TST-578001, split, the part given the rule "Every loan states its due date." and the name A MEMBER CAN RENEW ONCE, which another candidate bears
+// input: Write proposals
+// expect: the panel shows a problem reading "The split part A MEMBER CAN RENEW ONCE has the name of another candidate: nothing was written."; nothing is written to docs/spec-freigaben
+test("spec-entry/draft - a split part bearing another candidate's name is not written", async () => {
+  const { panel, product } = await panelOf(FLAGGED_DRAFT);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  const part = partsOf(panel)[0];
+  byClass(part, "input", "candidate-name")[0].value = CLEAN;
+  byClass(part, "textarea", "candidate-rule")[0].value = "Every loan states its due date.";
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "problem").length === 1, "the problem");
+  assert.equal(byClass(panel, "p", "problem")[0].textContent, `The split part ${CLEAN} has the name of another candidate: nothing was written.`);
+  assert.equal(proposalsOf(product).length, 0);
+});
