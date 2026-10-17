@@ -280,12 +280,12 @@ test("ciConfiguration — after its tests every job hands the JUnit XML report t
   for (const [server, target] of [["github", GITHUB], ["gitlab", GITLAB]]) {
     const plain = jobsOf(generate(defaultSchedule(), target).files[fileOf(server)], server)["unit-pull-request"];
     assert.ok(plain.includes("--test-reporter=junit") && plain.includes("agent-m-report.xml"), plain);
-    assert.ok(plain.indexOf("--test-reporter=junit") < plain.indexOf("onTestsFinished"), "tests, then the report");
-    assert.ok(plain.includes(COMMIT));
+    assert.ok(plain.indexOf("--test-reporter=junit") < plain.indexOf("main.mjs onTestsFinished"), "tests, then the report");
+    assert.ok(plain.includes("main.mjs onTestsFinished") && plain.includes(COMMIT));
     const own = scheduleWith({}, "nightly: 03:30\ncommand: pytest -q\nreport: build/junit.xml");
     const custom = jobsOf(generate(own, target).files[fileOf(server)], server)["unit-pull-request"];
     assert.ok(custom.includes("pytest -q") && !custom.includes("--test-reporter=junit"), custom);
-    assert.ok(custom.indexOf("pytest -q") < custom.indexOf("onTestsFinished") && custom.includes("build/junit.xml"), custom);
+    assert.ok(custom.indexOf("pytest -q") < custom.indexOf("main.mjs onTestsFinished") && custom.includes("build/junit.xml"), custom);
   }
 });
 

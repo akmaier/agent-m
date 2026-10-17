@@ -1,0 +1,14 @@
+{{key}}:
+  stage: test
+{{tags}}
+  variables:
+    AGENT_M_LEVEL: {{row}}
+  rules:
+    - if: {{rule}}
+{{secrets}}
+  script:
+{{guard}}
+    - {{clone}}
+    - {{command}}
+  after_script:
+    - {{handOn}}

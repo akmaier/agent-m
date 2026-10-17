@@ -1,0 +1,15 @@
+  agent-m-done:
+    name: agent-m done
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: {{instance}}
+          ref: {{commit}}
+          path: .agent-m
+      - name: Check the Definition of Done
+        run: node .agent-m/src/workflow-entries/main.mjs onDoneCheck
+        env:
+          AGENT_M_INSTANCE_COMMIT: {{commit}}
