@@ -39,13 +39,17 @@ const LINKS = "docs/sources.md";
 const isRegisterEntry = (path) => /^docs\/sources\/[^/]+\.md$/.test(path);
 const sourcePaths = (snapshot, context) => [LINKS, ...(context.product ? [] : snapshot.paths.filter(isRegisterEntry))];
 
-// The product's links and the instance's register, which acceptEntries checks every requirement's source against.
-export async function sourcesOf({ snapshot, context }) {
+// The product's links and the instance's register, which acceptEntries checks every requirement's source against. A caller that holds the instance's snapshot already
+// passes it as `instanceSnapshot`, and it is not built again; every other caller builds it here.
+export async function sourcesOf({ snapshot, context, instanceSnapshot }) {
   const { entry: entrySchema, links: linksSchema } = sourceSchemas();
   let holder = snapshot;
   if (context.product) {
-    const { defaultBranch } = await context.instance.host.repositoryInfo();
-    holder = await context.instance.host.readSnapshot(defaultBranch);
+    if (instanceSnapshot) holder = instanceSnapshot;
+    else {
+      const { defaultBranch } = await context.instance.host.repositoryInfo();
+      holder = await context.instance.host.readSnapshot(defaultBranch);
+    }
   }
   const links = readDocument(linksSchema, LINKS, (await snapshot.read(LINKS)) ?? "");
   const registerPaths = holder.paths.filter(isRegisterEntry);
