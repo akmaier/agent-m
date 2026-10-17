@@ -1,0 +1,23 @@
+  {{key}}:
+    name: {{key}}
+    if: {{condition}}
+    runs-on: {{runsOn}}
+    env:
+      AGENT_M_LEVEL: {{row}}
+{{secrets}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: {{instance}}
+          ref: {{commit}}
+          path: .agent-m
+      - name: Run the tests of the level {{row}}
+        run: |
+          {{command}}
+      - name: Hand the report to onTestsFinished
+        if: always()
+        run: node .agent-m/src/workflow-entries/main.mjs onTestsFinished
+        env:
+          AGENT_M_REPORT: {{report}}
+          AGENT_M_INSTANCE_COMMIT: {{commit}}

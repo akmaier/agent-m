@@ -1,0 +1,7 @@
+agent-m-done:
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  script:
+    - {{clone}}
+    - AGENT_M_INSTANCE_COMMIT={{commit}} node .agent-m/src/workflow-entries/main.mjs onDoneCheck
