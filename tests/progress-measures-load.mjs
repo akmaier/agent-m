@@ -54,14 +54,16 @@ export const instanceFiles = () => ({ "SPEC.md": "# Instance — Specification\n
 
 /**
  * A fake GitHub serving `repos` ({ "owner/name": { path: text } }) at their branch main, with the requests recorded:
- * `log` one entry per request { kind, files }, where kind is "repository", "commit", "tree", "file", "batch", "pull requests", "tags",
+ * `results` ({ path: text }) gives the product a branch test-results. `log` one entry per request { kind, files }, where kind is "repository", "commit", "tree", "file", "batch", "pull requests", "tags",
  * "other"; `files` the paths the request reads (one for a file, many for a batch). install() puts it in place of fetch; restore() back.
  */
-export function githubServer(repos) {
+export function githubServer(repos, { results = null } = {}) {
   const log = [];
   const state = Object.fromEntries(Object.entries(repos).map(([repo, files]) => [repo, {
     files, head: headOf(repo), shas: new Map(Object.entries(files).map(([path, text]) => [path, blobOf(text)])),
   }]));
+  // `results` ({ path: text }), where given, is the product's branch test-results; without it the repository has none (422).
+  const branch = results && { files: results, head: headOf(`${PRODUCT}@test-results`), shas: new Map(Object.entries(results).map(([path, text]) => [path, blobOf(text)])) };
   const byHead = new Map(Object.entries(state).map(([repo, held]) => [held.head, repo]));
   const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
   const fetchFake = async (input, init = {}) => {
@@ -92,11 +94,13 @@ export function githubServer(repos) {
     if (!held) return new Response("{}", { status: 404 });
     if (rest === "") { entry.kind = "repository"; return json({ private: false, default_branch: "main", visibility: "public", permissions: { push: true } }); }
     if (rest === "/commits/main") { entry.kind = "commit"; return json({ sha: held.head }); }
-    if (rest === "/commits/test-results") { entry.kind = "commit"; return json({ message: "No commit found for SHA: test-results" }, 422); }
-    if (rest === `/git/trees/${held.head}`) {
-      entry.kind = "tree";
-      return json({ sha: "t".repeat(40), truncated: false, tree: Object.keys(held.files).sort().map((path) => ({ path, mode: "100644", type: "blob", sha: held.shas.get(path) })) });
+    if (rest === "/commits/test-results") {
+      entry.kind = "commit";
+      return branch && repo[1] === PRODUCT ? json({ sha: branch.head }) : json({ message: "No commit found for SHA: test-results" }, 422);
     }
+    const tree = (from) => json({ sha: "t".repeat(40), truncated: false, tree: Object.keys(from.files).sort().map((path) => ({ path, mode: "100644", type: "blob", sha: from.shas.get(path) })) });
+    if (rest === `/git/trees/${held.head}`) { entry.kind = "tree"; return tree(held); }
+    if (branch && repo[1] === PRODUCT && rest === `/git/trees/${branch.head}`) { entry.kind = "tree"; return tree(branch); }
     if (rest.startsWith("/contents/")) {
       const path = rest.slice("/contents/".length).split("/").map(decodeURIComponent).join("/");
       entry.kind = "file";

@@ -107,3 +107,22 @@ test("productFacts, scope all — the six facts the scope adds are read, and the
   assert.equal(result.info.defaultBranch, "main");
   for (const field of ["modelSince", "schedule", "ci", "resourceNeeds"]) assert.equal(result[field], "unknown", field);
 });
+
+// TST-826006 · level: unit · module: MOD-progress-measures
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the product and instance of TST-826001, and the product has a branch test-results of two files (runs/aaaa/r1.md, runs/aaaa/r2.md); a token
+// input: productFacts(…, { scope: "all" })
+// expect: results is the Snapshot of that branch — its ref "test-results", its two paths, a commit other than main's — and not null; 20 requests in all, the 19 of TST-826001 with the branch's tree added (its commit was counted there already, answered 422): the commits are 2, the trees 2, the batches 13 as before; no file of the branch is read
+test("productFacts, scope all — a branch test-results is read as a Snapshot, by its commit and its tree, and no file of it", async () => {
+  server.restore();
+  const results = { "runs/aaaa/r1.md": "run one\n", "runs/aaaa/r2.md": "run two\n" };
+  server = githubServer({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() }, { results });
+  server.install();
+  const { result, seen } = await facts("all", true);
+  assert.equal(result.results.ref, "test-results");
+  assert.deepEqual([...result.results.paths], ["runs/aaaa/r1.md", "runs/aaaa/r2.md"]);
+  assert.notEqual(result.results.commit, result.snapshot.commit);
+  assert.equal(seen.total, 20);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 2, "pull requests": 1, tags: 1, batch: 13 });
+  assert.ok(!seen.allFiles.some((path) => path.startsWith("runs/")), "no file of the branch is read");
+});
