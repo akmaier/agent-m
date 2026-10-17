@@ -30,3 +30,8 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - It is declared as refactoring: CI is green on every commit.
+
+**Read at sprint team1/73's start (2026-10-17, po-opus).** `docs/assets/artifacts/identity.mjs` is imported by
+`docs/assets/artifacts/checks.mjs:36` and by `tests/artifacts-checks.test.mjs:23`. `checks.mjs` is MOD-documents' to
+remove, in ITM-694, which builds on this item. So this item rewrites the tests on MOD-identifiers, but `identity.mjs` can
+go only once `checks.mjs` no longer imports it. The order of this item and ITM-694 is read again with ITM-694.

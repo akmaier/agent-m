@@ -8,6 +8,7 @@ realises:
   - UC-008
 modules:
   - MOD-review-pages
+  - MOD-site-frame
 builds_on:
   - ITM-574
 tests:
