@@ -5,7 +5,6 @@ level: module
 realises:
   - UC-020
 modules:
-  - MOD-trace-pages
   - MOD-site-frame
   - MOD-review-pages
 builds_on:
@@ -87,3 +86,13 @@ UC-020 2a: "the browser says so and shows nothing". `flow.mjs:126-136` handles n
 proposals in an opened requirement (`problemLine` in `src/trace-pages/flow.mjs`) become `readProblem`'s.
 
 **The draft it waited for is accepted** (akmaier, `b43da779`): MOD-site-frame's `readProblem`, MOD-review-pages' `common.mjs` without it, and MOD-trace-pages' use of it (accepted blobs 33dee99a46a0, fb1576acca0f, 5c9248d32c4f). It is free of drafts; its readings are read at its start.
+
+**Cut at its stop (2026-10-17, po-opus, sprint team1/67).** The specification view's part needs whether a product's
+token is stored, which MOD-trace-pages cannot know without a third copy of the key rule. That part is cut into ITM-658,
+which waits for the draft committed with the cut (`ProductContext.tokenStored`). This item keeps:
+- `readProblem` in MOD-site-frame;
+- MOD-review-pages' `common.mjs` without `problem`, its five importers calling `readProblem` with the token they already
+  read.
+
+MOD-trace-pages leaves this item's modules for this sprint. The draft run found no expected result of MOD-review-pages
+or MOD-site-frame changing.

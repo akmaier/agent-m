@@ -113,7 +113,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
-  "gitlab", host: Host }`.
+  "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
+  token, so that a view hands `readProblem` the fact without reading the store's keys itself.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
   notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
@@ -139,7 +140,7 @@ It keeps nothing but what is on the screen. It owns these formats:
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.
 - `chosenProduct(context: { store: Store, fragment: string }) -> Promise<ProductContext | null>` — the product the
   address's fragment or the selector names, among the products this browser keeps, connected with its own token to its
-  own server only; `null` when the fragment or the selector names the instance itself, which the selector offers beside
+  own server only, with `tokenStored` true when that token is kept; `null` when the fragment or the selector names the instance itself, which the selector offers beside
   the products, or when the browser keeps no product — the pages then show the instance itself. Errors: `UnknownProduct`
   — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
   used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
