@@ -318,6 +318,9 @@ export async function settle(server) {
   }
 }
 
+// The app: the one place tests and the harness load it from.
+export const APP_FILE = new URL("../src/site-frame/dashboard-app.mjs", import.meta.url);
+
 let loads = 0;
 
 // One page load of the dashboard at `hash`, with a stored GitHub token. caches: the browser's Cache Storage, or null for a
@@ -327,7 +330,7 @@ let loads = 0;
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
 // entries: further settings in this browser when the page opens, { key: raw value } — a product's own token, for one.
 export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "", entries = {},
-  assets = new URL("../src/site-frame/", import.meta.url) }) {
+  assets = new URL(".", APP_FILE) }) {
   const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
   const els = new Map();
