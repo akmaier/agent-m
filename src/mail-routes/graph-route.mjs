@@ -312,12 +312,10 @@ export function graphMailbox(connection) {
     },
     // The reply stored in Drafts and nowhere else; a Draft without a usable reply address is refused before any request.
     async storeDraft(draft) {
-      replyAddressed(draft);
       return createDraft(await token(), connection, draft);
     },
     // An edit: the new draft is stored first, then the old one removed — only if it is the instance's own.
     async updateDraft(ref, draft) {
-      replyAddressed(draft);
       const accessToken = await token();
       if ((await ownDraftBytes(accessToken, ref)) === null) throw draftChanged();
       const stored = await createDraft(accessToken, connection, draft);
