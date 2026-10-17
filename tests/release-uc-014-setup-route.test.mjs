@@ -3,8 +3,8 @@
 // own text (given / input / expect); every expected value is taken from the use case's step or from the requirement's rule as quoted in the test, none from the code and none read from
 // a document when the test runs. The page is found by what the use case names — the headings "Step A · Create your key on GitHub" and "Step B · Give the key to Agent M", the tick
 // "I have read this", the buttons "Store and check", "Import settings" and "+ Add product", the field types password and date — never by the route's class names or ids.
-// The route is rendered as the module's own tests render it, over the helper tests/settings-pages-setup.d/dom.mjs (a fixture DOM, a fake localStorage with the store opened over it,
-// a context as the frame hands it, and a fake of fetch that records every request); nothing reaches the network.
+// The route is rendered as the module's own tests render it, over the helpers tests/settings-pages-harness.mjs (a fixture DOM and finders) and tests/settings-pages-setup.d/dom.mjs
+// (a fake localStorage with the store opened over it, a context as the frame hands it, and a fake of fetch that records every request); nothing reaches the network.
 // Run: node --test tests/release-uc-014-setup-route.test.mjs
 //
 // Module: MOD-settings-pages
@@ -13,7 +13,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installDocument, attachedTarget, byTag, press, tick, freshStore, storedKeys, contextOf, withServer, elements } from "./settings-pages-setup.d/dom.mjs";
+import { byTag, elements } from "./settings-pages-harness.mjs";
+import { installDocument, attachedTarget, press, tick, freshStore, storedKeys, contextOf, withServer } from "./settings-pages-setup.d/dom.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
