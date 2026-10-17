@@ -18,13 +18,7 @@ import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { liveState } from "../runtimes/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
-
-const el = (name, className, ...children) => {
-  const node = document.createElement(name);
-  if (className) node.className = className;
-  node.append(...children);
-  return node;
-};
+import { el, clock } from "./cards.mjs";
 
 // The key a repository's own token is kept under (MOD-browser-store, Data): `github-token:<owner>/<repository>` or `gitlab-token:<server>/<project>`; the instance's is `github-token`.
 const tokenKeyOf = (address) => (address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`);
@@ -55,7 +49,7 @@ async function readSource({ address, token }) {
 }
 
 // A handle for each Bridge a record's `by:` names that this browser keeps under `bridge:<name>`; a name it does not keep, or cannot reach through the jump host, has none.
-function bridgesOf(rows, store) {
+export function bridgesOf(rows, store) {
   const bridges = {};
   for (const { record } of rows) {
     const name = record.taken?.by;
@@ -68,11 +62,16 @@ function bridgesOf(rows, store) {
   return bridges;
 }
 
-// The elapsed time in hours, minutes and seconds.
-const clock = (seconds) => {
-  const whole = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(whole / 3600)}h ${Math.floor((whole % 3600) / 60)}m ${whole % 60}s`;
-};
+// The live state of each job whose record has no end and whose source was read, asked once at its runtime: a Map from the job's identifier. A failure is the state `reachable: false` with its reason.
+export async function liveStatesOf(rows, hostOf, bridges) {
+  const lives = new Map();
+  await Promise.all(rows.filter((row) => !row.record.end && row.source.reachable).map(async (row) => {
+    try { lives.set(row.record.id, await liveState(row.record, { host: hostOf.get(row.product) }, bridges)); } catch (failure) {
+      lives.set(row.record.id, { reachable: false, reason: String(failure?.message ?? failure), known: false });
+    }
+  }));
+  return lives;
+}
 
 const costText = (cost) => (cost.known ? `${cost.amount} ${cost.currency}` : "unknown");
 
@@ -137,12 +136,7 @@ async function render(target, context) {
   const first = await listJobs(products, new Map());
   const bridges = bridgesOf(first, context.store);
   const hostOf = new Map(readable.map((source) => [source.address, source.host]));
-  const lives = new Map();
-  await Promise.all(first.filter((row) => !row.record.end && row.source.reachable).map(async (row) => {
-    try { lives.set(row.record.id, await liveState(row.record, { host: hostOf.get(row.product) }, bridges)); } catch (failure) {
-      lives.set(row.record.id, { reachable: false, reason: String(failure?.message ?? failure), known: false });
-    }
-  }));
+  const lives = await liveStatesOf(first, hostOf, bridges);
   const rows = listOf(await listJobs(products, lives), lives);
   const unreadable = sources.filter((source) => source.reason);
   target.replaceChildren(el("h2", null, "Every job"),
