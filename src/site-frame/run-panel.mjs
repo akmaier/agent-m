@@ -53,8 +53,9 @@ export function runPanel(prepared, handlers) {
 
   if (prepared.blocking.length === 0 && prepared.notFitting.length === 0) {
     const run = make("button", "", "Run");
-    run.addEventListener("click", () => {
-      if (run.hasAttribute("disabled")) return;
+    run.addEventListener("click", (event) => {
+      // Run starts a job: only a click the browser marks as a person's (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
+      if (event?.isTrusted !== true || run.hasAttribute("disabled")) return;
       run.setAttribute("disabled", "");
       handlers.onRun();
     });

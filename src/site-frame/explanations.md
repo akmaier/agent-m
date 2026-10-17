@@ -812,3 +812,9 @@ hangs on it: the modules that follow the decision or use an interface the change
 marked *breaks*; the code files in their folders; the tests that exercise them and the requirements those tests guard; and the
 requirements and use cases the file names now and no longer names. Accepting changes no code: the code still reflects the old
 architecture until an implementation job changes it. In the book *Vibe Coding*: chapter 10, section 3.
+
+## component-diagram
+
+Computed from the module files at the commit shown: one box per module, inside the box of its subsystem — the first decision it follows;
+a module that follows none stands outside every subsystem's box. One arrow from a module to each module it uses, however many of that
+module's interfaces it uses. A used module that has no file is drawn as a box of its own, dashed and marked missing.

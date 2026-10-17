@@ -46,6 +46,9 @@ import { view as reviewPages } from "../review-pages/index.mjs";
 import { view as tracePages } from "../trace-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
+import { renderArtifact } from "../markdown-render/index.mjs";
+import { componentDiagram } from "../trace-pages/diagram.mjs";
 import { routeOf } from "./routing.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -564,6 +567,7 @@ function reviewTargets(kind, a, b) {
 // head, so that the next page shows it.
 let pagesHosts = null; // { of, host }
 let loading = 0; // pages being loaded
+let written = null; // the snapshot read after a commit the pages made, until the page shown again has taken it
 function pagesHost() {
   const real = currentHost();
   if (pagesHosts?.of === real) return pagesHosts.host;
@@ -579,10 +583,18 @@ function pagesHost() {
   const host = Object.freeze({
     ...Object.fromEntries(Object.entries(real).map(([name, member]) => [name, typeof member === "function" ? noted(member) : member])),
     repositoryInfo: noted(() => (info ??= real.repositoryInfo().catch((e) => { info = null; throw e; }))),
-    readSnapshot: noted(async (ref) => (loading > 0 && ref === T.ref && snapshot && snapshotHost === real ? snapshot : real.readSnapshot(ref))),
+    readSnapshot: noted(async (ref) => {
+      if (ref === T.ref && snapshot && snapshotHost === real && (loading > 0 || written === snapshot)) {
+        written = null;
+        return snapshot;
+      }
+      return real.readSnapshot(ref);
+    }),
+    // The head a commit made is read once, for the app; the page shown again after it takes that read (the next one) and does not read it anew.
     commitFiles: noted(async (change) => {
       const made = await real.commitFiles(change);
       await loadSnapshot();
+      written = snapshot;
       return made;
     }),
   });
@@ -636,10 +648,34 @@ async function renderReviewPages(targets, lead = []) {
     for (const [at, { name, params }] of targets.entries()) {
       await reviewPages.routes.find((route) => route.name === name).render(boxes[at], context, params);
       if (name === "spec-entry" && !params.id) await renderSpecification(context);
+      if (name === "module" && !params.id) await renderComponents(context);
     }
   } finally {
     loading -= 1;
   }
+}
+
+// The component diagram under the lists of the architecture (UC-025 step 5): the module files of the page's snapshot, drawn by MOD-trace-pages'
+// diagram as Mermaid in Markdown and handed to MOD-markdown-render. The files are those the lists were drawn from.
+async function renderComponents(context) {
+  const host = (context.product ?? context.instance).host;
+  const snapshot = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+  const schema = artifactSchemas().module;
+  const modules = [];
+  for (const path of snapshot.paths.filter((each) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(each))) {
+    const text = await snapshot.read(path);
+    if (text === null) continue;
+    const found = readDocument(schema, path, text);
+    const uses = (found.fields?.uses ?? []).map((name) => { const [module, ...iface] = String(name).split("."); return { module, iface: iface.join(".") }; });
+    modules.push({ kind: "module", id: found.id, title: found.fields?.title ?? found.title, follows: found.fields?.follows ?? [], uses, provides: found.fields?.provides ?? [] });
+  }
+  if (!modules.length) return;
+  const panel = document.createElement("section");
+  panel.className = "panel components";
+  const heading = document.createElement("h3");
+  heading.textContent = "Components";
+  panel.append(heading, renderArtifact("```mermaid\n" + componentDiagram(modules) + "```\n"), explain("component-diagram"));
+  main().append(panel);
 }
 
 // The specification browser under the open SPEC changes (MOD-trace-pages' route `trace`), read through the same host.

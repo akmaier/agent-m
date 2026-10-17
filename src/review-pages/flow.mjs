@@ -13,7 +13,7 @@ import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, button, parseServer, readPlace, tokenStep } from "./common.mjs";
+import { el, link, button, parseServer, readJobRecords, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -70,6 +70,7 @@ function architectureOrder(entries, texts) {
 async function draftingRounds(where) {
   try {
     const address = where.context.product?.address ?? where.context.instance.repository;
+    await readJobRecords(where.snapshot);
     const rows = await listJobs([{ address, snapshot: where.snapshot }], new Map());
     const row = rows.find((each) => each.record.kind === ARCHITECTURE_JOB && each.record.end);
     if (!row || !row.record.end.rounds.length) return null;

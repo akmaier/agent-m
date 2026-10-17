@@ -10,8 +10,7 @@
 
 import { fallbackEditLinks, keptIdentifier, saveFile } from "../artifact-edits/index.mjs";
 import { statuses } from "../approvals/index.mjs";
-import { openEditor } from "../markdown-render/index.mjs";
-import { el, button, link } from "./common.mjs";
+import { el, button, link, openEditor } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 
 /**
