@@ -34,6 +34,7 @@ uses:
   - MOD-trace-graph.graphFindings
   - MOD-approvals.statuses
   - MOD-spec-changes.queues
+  - MOD-spec-changes.entryView
   - MOD-spec-changes.requirementHistory
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
@@ -144,7 +145,8 @@ instance's host that the frame gives every route, it also reads the instance's p
 - MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
   MOD-trace-graph.moduleRows, MOD-trace-graph.graphFindings — the rows, gaps, unknown names and comparisons.
 - MOD-approvals.statuses — the review status of use cases and architecture files.
-- MOD-spec-changes.queues, MOD-spec-changes.requirementHistory — open proposals and a requirement's history.
+- MOD-spec-changes.queues, MOD-spec-changes.entryView, MOD-spec-changes.requirementHistory — open proposals, what each
+  open entry changes, withdraws or adds (its `impact`), and a requirement's history.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — a requirement's sources with version and part;
   MOD-source-register.affectedRequirements — the requirements marked *source changed*;
   MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a

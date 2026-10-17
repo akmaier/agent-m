@@ -46,3 +46,6 @@ UC-020 2a: "the browser says so and shows nothing". `flow.mjs:126-136` handles n
 - A chosen version that cannot be read, and a failed reading of the tags, are named through `readProblem`. A failed
   reading of the tags never says that no release is tagged.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**One more plain failed read** (found at ITM-597's gate on #690): the lines that name a failed read of the traces or the
+proposals in an opened requirement (`problemLine` in `src/trace-pages/flow.mjs`) become `readProblem`'s.

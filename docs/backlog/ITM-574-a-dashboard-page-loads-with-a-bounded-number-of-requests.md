@@ -68,3 +68,8 @@ were not measured. Bounding them is a later item, after a count.
 - An acceptance of three files reads its head once.
 - The counter-proof: the loading code as it stands exceeds those counts, and the test is seen failing on it first.
 - A used-up limit is still named, never blamed on the token.
+
+**Measured at ITM-597's gate on #690 (`docs/gates/20261017-0533-development-release-testing-7f40.md`).** Opening the first requirement on `#spec` builds the trace graph of
+the version. On this repository that costs 11 GraphQL batches with a token, and 1139 requests without a token: one raw
+file per artifact. Drawing `#spec` stays at 12 and 127 requests. The bound this item gives a page load covers that
+opening too.

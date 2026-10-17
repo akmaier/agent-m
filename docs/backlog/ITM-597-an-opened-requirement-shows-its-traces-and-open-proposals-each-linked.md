@@ -9,6 +9,7 @@ realises:
 modules:
   - MOD-trace-pages
   - MOD-trace-graph
+  - MOD-site-frame
 builds_on:
   - ITM-594
 tests:
@@ -62,3 +63,9 @@ UC-020 step 5 (traces and proposals), step 6 (links), 2b, 5a, 5b and 5c. `traces
 - *none*, *none yet*, unknown names and stale proposals are shown as the use case says.
 - Its tests in `tests/trace-pages-specification.test.mjs` guard `A REQUIREMENT SHOWS WHAT TRACES TO IT` and `OPEN PROPOSALS ARE SHOWN IN THE BROWSER` by name (queue `2026-10-17c`).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Correction (2026-10-17, po-opus, at the gate on #690, `docs/gates/20261017-0533-development-release-testing-7f40.md`).**
+- The open proposals and 5c are cut from this item into ITM-648, because the rule of what an entry changes is
+  MOD-spec-changes' `entryView`.
+- MOD-site-frame joins this item's modules: the folded notes of 2b and 5a are `explain` topics, not a fold of the
+  view's own.
