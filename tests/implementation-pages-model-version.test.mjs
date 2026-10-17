@@ -487,7 +487,7 @@ test("process route — an unreadable declared commit shows one warning line and
     go() {},
   });
   assert.ok(byClass(target, "model-card").length > 0 || byClass(target, "phases-panel").length > 0, "known positive: the page rendered");
-  assert.ok(target.querySelector("form"), "the form stands");
+  assert.equal(byClass(target, "schema-form").length, 1, "the form stands");
   const warned = byClass(target, "warn");
   assert.equal(warned.length, 1, warned.map((w) => w.textContent).join(" | "));
   assert.ok(warned[0].textContent.includes(BEFORE_COMMIT), warned[0].textContent);
