@@ -4,7 +4,7 @@
 // Run: node --test tests/trace-pages-specification.test.mjs
 //
 // Module: MOD-trace-pages
-// Guards: UC-020; A REQUIREMENT HAS FOUR FIELDS; THE BROWSER SHOWS ANY RELEASED VERSION; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// Guards: UC-020; A REQUIREMENT HAS FOUR FIELDS; THE BROWSER SHOWS ANY RELEASED VERSION; A REQUIREMENT SHOWS WHAT TRACES TO IT; A REQUIREMENT SHOWS ITS HISTORY
 // Level: unit
 //
 // This test calls the public trace/specification Route.render with a Host/Snapshot-shaped fake. The fixture has two
@@ -464,10 +464,11 @@ const TRACE_FILES = {
   ...queue("2026-10-08_done", "done", "## Second section", ["## Second section", "", "**GAMMA RULE** *(Vibe Coding)*", "Gamma rule, changed.", "*Check:* at review.", ""].join("\n"), true),
 };
 
-// A Host whose snapshots hold the files of `trees` by ref; `log` records every snapshot asked for, every read and every readMany. `failing(path, nth)` makes the nth
-// read of a path (from 1) fail as an unreachable server does. It has no write method and no repositoryInfo beyond the default branch.
-function treeHost({ trees, tags = [], failing = () => false }) {
-  const log = { snapshots: [], reads: [], manys: [] };
+// A Host whose snapshots hold the files of `trees` by ref; `log` records every snapshot asked for, every read, every readMany and every readHistory.
+// `failing(path, nth)` makes the nth read of a path (from 1) fail as an unreachable server does; `historyFailing(nth)` does so for the nth readHistory.
+// `history` is what readHistory gives, newest first: a list, or a function of (path, options). It has no write method and no repositoryInfo beyond the default branch.
+function treeHost({ trees, tags = [], failing = () => false, history = [], historyFailing = () => false }) {
+  const log = { snapshots: [], reads: [], manys: [], histories: [] };
   const counts = new Map();
   return {
     log,
@@ -486,6 +487,11 @@ function treeHost({ trees, tags = [], failing = () => false }) {
         async readMany(paths) { log.manys.push([...paths]); },
         blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
       };
+    },
+    async readHistory(path, options) {
+      log.histories.push([path, options ?? null]);
+      if (historyFailing(log.histories.length)) throw Object.assign(new Error("unreachable"), { name: "Unreachable" });
+      return typeof history === "function" ? history(path, options ?? {}) : history;
     },
     async listTags() { return tags.map((name) => ({ name, commit: `commit-of-${name}` })); },
     async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
@@ -712,4 +718,146 @@ test("a requirement that names no source reads none under Sources", async () => 
   const target = await render(mainOnly({ ...TRACE_FILES, "SPEC.md": lonely }), mainParams);
   assert.equal(listed(await openRequirement(target, "ALPHA RULE"), "Sources").length, 2, "known positive: ALPHA RULE names two sources");
   assert.deepEqual(paragraphs(await openRequirement(target, "LONELY RULE"), "Sources"), ["none: none"]);
+});
+
+// ---------------------------------------------------------------- the history of an opened requirement (ITM-598)
+//
+// The fixture is the same product with a history of its SPEC: its first commit h1 (2026-09-23, akmaier) wrote the whole SPEC when no approval
+// record existed, ALPHA RULE reading "Alpha rule, first."; its second commit h2 (2026-10-01, akmaier) accepted the first section as the fixture
+// SPEC states it, and added the record of that section. The expected texts are written in each case; none is read from a document. Readings the
+// cases take, each from the sentence quoted:
+// - "lists every accepted change to its text with date, accepting person, and the text before and after" (A REQUIREMENT SHOWS ITS HISTORY): the
+//   History section lists the changes MOD-spec-changes' requirementHistory gives, in its order, oldest first, each as its date, person and
+//   the first twelve digits of its commit, its record, and the text before and after;
+// - "the history shows the commit that introduced it and says that no record names it" (UC-020 5d): that is "No approval record names this commit.";
+// - "the history up to that tag, as `ref` gives it" (ITM-598): the Host's readHistory is given the ref of the version shown.
+const H1 = "1a2b3c4d5e6f".padEnd(40, "0"), H2 = "9f8e7d6c5b4a".padEnd(40, "0");
+const SPEC_H1 = TRACE_SPEC.replace("Alpha rule.", "Alpha rule, first.");
+const FIRST_SECTION = TRACE_SPEC.slice(TRACE_SPEC.indexOf("## First section"), TRACE_SPEC.indexOf("## Second section"));
+const RECORD_H2 = `docs/approvals/spec-2026-10-01_alpha-01-${blobOf(FIRST_SECTION).slice(0, 12)}.md`;
+const AUTHOR = { account: "akmaier", name: "A. Maier" };
+const ENTRY_H1 = { commit: H1, parents: [], author: AUTHOR, date: "2026-09-23T12:17:09Z", message: "", changes: [{ path: "SPEC.md", change: "added" }] };
+const ENTRY_H2 = { commit: H2, parents: [H1], author: AUTHOR, date: "2026-10-01T08:00:00Z", message: "",
+  changes: [{ path: "SPEC.md", change: "modified" }, { path: RECORD_H2, change: "added" }] };
+const HISTORY_TREES = { main: TRACE_FILES, [H1]: { "SPEC.md": SPEC_H1 }, [H2]: { "SPEC.md": TRACE_SPEC, [RECORD_H2]: "kind: spec\n" } };
+const withHistory = (extra = {}) => treeHost({ trees: HISTORY_TREES, history: [ENTRY_H2, ENTRY_H1], ...extra });
+
+// Opens a requirement and waits, by the clock, until its history is drawn. -> the row that holds its detail
+async function openWithHistory(target, name) {
+  const row = await openRequirement(target, name);
+  await until(() => find(row, (node) => node.className === "history-reading").length === 0);
+  return row;
+}
+const historySection = (row) => find(row, (node) => node.localName === "section" && node.className === "requirement-history")[0];
+const changesOf = (row) => find(historySection(row), (node) => node.localName === "li" && node.className === "history-change");
+const partOf = (change, className) => find(change, (node) => node.className === className)[0].textContent;
+const closeRequirement = (target, name) => find(target, (node) => node.localName === "button" && node.textContent === name)[0].dispatchEvent(new Event("click"));
+
+// CASE ITM-598-01
+// TST-598101 · level: component · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT SHOWS ITS HISTORY
+// given: the fixture with its two commits; ALPHA RULE reads "Alpha rule, first." at h1 and "Alpha rule." at h2
+// input: the route rendered at main, ALPHA RULE opened
+// expect: the History section lists two changes, oldest first: "2026-09-23T12:17:09Z — akmaier — commit 1a2b3c4d5e6f" and "2026-10-01T08:00:00Z — akmaier — commit 9f8e7d6c5b4a"; the first has before "none — this commit introduced it" and after "Alpha rule, first.", the second before "Alpha rule, first." and after "Alpha rule." (not "Alpha rule, first.")
+test("an opened requirement lists the accepted changes to its text, oldest first, with date, person, commit and the text before and after", async () => {
+  const row = await openWithHistory(await render(withHistory(), mainParams), "ALPHA RULE");
+  const changes = changesOf(row);
+  assert.deepEqual(changes.map((change) => partOf(change, "history-head")), [
+    "2026-09-23T12:17:09Z — akmaier — commit 1a2b3c4d5e6f", "2026-10-01T08:00:00Z — akmaier — commit 9f8e7d6c5b4a"]);
+  assert.equal(partOf(changes[0], "history-before").includes("none — this commit introduced it"), true);
+  assert.equal(partOf(changes[0], "history-after").includes("Alpha rule, first."), true);
+  assert.equal(partOf(changes[1], "history-before").includes("Alpha rule, first."), true);
+  assert.equal(partOf(changes[1], "history-after").includes("Alpha rule, first."), false);
+  assert.equal(partOf(changes[1], "history-after").includes("Alpha rule."), true);
+});
+
+// CASE ITM-598-02
+// TST-598102 · level: component · module: MOD-trace-pages
+// guards: UC-020 (5d); A REQUIREMENT SHOWS ITS HISTORY
+// given: the fixture; h1 was written before any record, h2 added the record of the first section; ALPHA RULE and BETA RULE stand in the first section and GAMMA RULE in the second, BETA RULE and GAMMA RULE unchanged since h1
+// input: ALPHA RULE, GAMMA RULE and BETA RULE opened
+// expect: ALPHA RULE's changes read "No approval record names this commit." for h1 and "Record <the record's path>" for h2; GAMMA RULE's one change, at h1, reads "No approval record names this commit." and its before "none — this commit introduced it"; BETA RULE's one change, at h1, reads "No approval record names this commit."
+test("a requirement older than its records shows the commit that introduced it and says that no record names it", async () => {
+  const target = await render(withHistory(), mainParams);
+  const records = (row) => changesOf(row).map((change) => partOf(change, "history-record"));
+  assert.deepEqual(records(await openWithHistory(target, "ALPHA RULE")), ["No approval record names this commit.", `Record ${RECORD_H2}`]);
+  const gamma = await openWithHistory(target, "GAMMA RULE");
+  assert.deepEqual(records(gamma), ["No approval record names this commit."]);
+  assert.equal(partOf(changesOf(gamma)[0], "history-before").includes("none — this commit introduced it"), true);
+  assert.deepEqual(records(await openWithHistory(target, "BETA RULE")), ["No approval record names this commit."]);
+});
+
+// CASE ITM-598-03
+// TST-598103 · level: component · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT SHOWS ITS HISTORY
+// given: the fixture on the default branch
+// input: the route drawn; ALPHA RULE opened; closed and opened again; BETA RULE opened
+// expect: drawing asks readHistory never and readSnapshot for main alone; opening ALPHA RULE asks readHistory once, for SPEC.md at the ref main, and readSnapshot for h1 and h2 once each; closing and opening it again asks neither again; opening BETA RULE asks readHistory a second time
+test("the history is read when a requirement is opened, not when the tree is drawn, and kept per requirement", async () => {
+  const productHost = withHistory();
+  const target = await render(productHost, mainParams);
+  assert.deepEqual(productHost.log.histories, []);
+  assert.deepEqual(productHost.log.snapshots, ["main"]);
+  await openWithHistory(target, "ALPHA RULE");
+  assert.deepEqual(productHost.log.histories, [["SPEC.md", { ref: "main" }]]);
+  assert.deepEqual(productHost.log.snapshots.slice(1).sort(), [H1, H2].sort());
+  closeRequirement(target, "ALPHA RULE");
+  await openWithHistory(target, "ALPHA RULE");
+  assert.equal(productHost.log.histories.length, 1);
+  assert.equal(productHost.log.snapshots.length, 3);
+  await openWithHistory(target, "BETA RULE");
+  assert.equal(productHost.log.histories.length, 2);
+});
+
+// CASE ITM-598-04
+// TST-598104 · level: component · module: MOD-trace-pages
+// guards: UC-020 (1a); A REQUIREMENT SHOWS ITS HISTORY
+// given: a Host that names main the default branch and gives the tag v2026.1.0; its readHistory gives h2 and h1 for the ref main and h1 alone for the ref v2026.1.0
+// input: the route rendered at main, v2026.1.0 chosen, ALPHA RULE opened; main chosen again, ALPHA RULE opened
+// expect: at the tag readHistory is asked for SPEC.md at the ref v2026.1.0 and the History lists one change, at h1; at main it is asked at the ref main and lists two
+test("at a tag the history is the one up to that tag", async () => {
+  const history = (path, options) => (options.ref === "v2026.1.0" ? [ENTRY_H1] : [ENTRY_H2, ENTRY_H1]);
+  const productHost = treeHost({ trees: { ...HISTORY_TREES, "v2026.1.0": TRACE_FILES }, tags: ["v2026.1.0"], history });
+  const target = await render(productHost, mainParams);
+  choose(target, "v2026.1.0");
+  await until(() => asOf(target).length === 1);
+  const atTag = await openWithHistory(target, "ALPHA RULE");
+  assert.deepEqual(productHost.log.histories, [["SPEC.md", { ref: "v2026.1.0" }]]);
+  assert.equal(changesOf(atTag).length, 1);
+  choose(target, "main");
+  await until(() => asOf(target).length === 0);
+  const atMain = await openWithHistory(target, "ALPHA RULE");
+  assert.deepEqual(productHost.log.histories.at(-1), ["SPEC.md", { ref: "main" }]);
+  assert.equal(changesOf(atMain).length, 2);
+});
+
+// CASE ITM-598-05
+// TST-598105 · level: component · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT SHOWS ITS HISTORY
+// given: the fixture, in which the first readHistory fails as an unreachable server does
+// input: ALPHA RULE opened, closed, opened again
+// expect: the first opening keeps the four fields and the use cases (UC-001 listed) and says "Its history could not be read: unreachable" with no change listed; the second opening reads again and lists two changes
+test("a history that cannot be read is named in place of the history, the rest stays, and the next opening reads it again", async () => {
+  const target = await render(withHistory({ historyFailing: (nth) => nth === 1 }), mainParams);
+  const row = await openWithHistory(target, "ALPHA RULE");
+  assert.match(row.textContent, /Alpha rule\./);
+  assert.equal(listed(row, "Use cases")[0], "UC-001 First use case — accepted");
+  assert.match(historySection(row).textContent, /Its history could not be read: unreachable/);
+  assert.equal(changesOf(row).length, 0);
+  closeRequirement(target, "ALPHA RULE");
+  const again = await openWithHistory(target, "ALPHA RULE");
+  assert.equal(changesOf(again).length, 2);
+  assert.doesNotMatch(historySection(again).textContent, /could not be read/);
+});
+
+// CASE ITM-598-06
+// TST-598106 · level: component · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT SHOWS ITS HISTORY
+// given: a Host whose history of SPEC.md is empty (known positive: the same fixture with its history lists two changes for ALPHA RULE)
+// input: ALPHA RULE opened
+// expect: the History section reads "none"
+test("a requirement whose history is empty reads none", async () => {
+  assert.equal(changesOf(await openWithHistory(await render(withHistory(), mainParams), "ALPHA RULE")).length, 2, "known positive");
+  const row = await openWithHistory(await render(withHistory({ history: [] }), mainParams), "ALPHA RULE");
+  assert.deepEqual(find(historySection(row), (node) => node.localName === "p").map((node) => `${node.className}: ${node.textContent}`), ["none: none"]);
 });

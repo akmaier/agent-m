@@ -3,7 +3,9 @@
 // the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
 // graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
 // opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
-// and the unknown names they also name, each a link (step 6). It writes nothing. On the default branch it leads to
+// and the unknown names they also name, each a link (step 6). Beside them the history of its accepted changes (step 5, 5d), which
+// MOD-spec-changes' requirementHistory gives and the view draws as it is, read when the requirement is opened and kept per version and
+// name; at a tag it is the history up to that tag. It writes nothing. On the default branch it leads to
 // the review pages' editing: Edit beside each requirement and + Requirement in each section; at any other ref the view says "as of" it
 // and offers neither.
 //
@@ -15,6 +17,7 @@ import { readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { requirementHistory } from "../spec-changes/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { descriptorFor } from "./views.mjs";
 import { opening, personsSource, subjectOf } from "./subject.mjs";
@@ -92,7 +95,44 @@ function factsOf(shown) {
   return shown.facts ??= {
     graph: kept(() => traceGraph(shown.snapshot, { commit: shown.snapshot.commit ?? null })),
     sources: kept(() => sourcesOf(shown)),
+    histories: new Map(),
   };
+}
+
+// The history of one requirement of the version drawn, read when it is first wanted and kept for every later opening. The Host handed to
+// requirementHistory names the version's ref in its readHistory, so that the history is the one up to it; one that failed is read again.
+function historyOf(shown, name) {
+  const { histories } = factsOf(shown);
+  if (!histories.has(name)) {
+    const { host } = shown.context.product;
+    const upToRef = { readHistory: (path, options) => host.readHistory(path, { ...options, ref: shown.ref }), readSnapshot: (ref) => host.readSnapshot(ref) };
+    histories.set(name, kept(() => requirementHistory(name, upToRef)));
+  }
+  return histories.get(name)();
+}
+
+// A requirement's text of a history entry, or what the entry's other side being none means.
+function historyText(text, none) {
+  return text === null ? el("p", "none", none) : renderArtifact(text);
+}
+
+// The history of one opened requirement, drawn into `box` once it is read (UC-020 step 5, 5d): every accepted change, oldest first, with its
+// date, accepting person and commit, its record, and the text before and after. A section written before any record shows the commit that
+// introduced it and says that no record names it.
+async function showHistory(box, requirement, shown) {
+  const section = (...content) => el("section", "requirement-history", el("h4", null, "History"), ...content);
+  let changes;
+  try {
+    changes = await historyOf(shown, requirement.name);
+  } catch (failure) {
+    box.replaceChildren(section(problemLine("Its history", failure)));
+    return;
+  }
+  box.replaceChildren(section(changes.length ? el("ol", "history-list", ...changes.map((change) => el("li", "history-change",
+    el("p", "history-head", `${change.date} — ${change.person} — commit ${change.commit.slice(0, 12)}`),
+    el("p", "history-record", change.record === null ? "No approval record names this commit." : `Record ${change.record}`),
+    el("section", "history-before", el("h5", null, "Before"), historyText(change.before, "none — this commit introduced it")),
+    el("section", "history-after", el("h5", null, "After"), historyText(change.after, "none — this commit withdrew it"))))) : el("p", "none", "none")));
 }
 
 // The sections of one opened requirement, drawn into `box` once the graph is read. A list nothing fills reads `none`; where the version holds no
@@ -167,9 +207,11 @@ function requirementRows(requirement, editable, shown) {
       return;
     }
     const traces = el("div", "requirement-traces", el("p", "traces-reading", "Reading what traces to it…"));
-    const cell = el("td", "panel", requirementDetail(requirement), traces);
+    const history = el("div", "requirement-history-box", el("p", "history-reading", "Reading its history…"));
+    const cell = el("td", "panel", requirementDetail(requirement), traces, history);
     cell.setAttribute("colspan", "1");
     showTraces(traces, requirement, shown);
+    showHistory(history, requirement, shown);
     opened.replaceChildren(cell);
     opening(shown.requirements, requirement.name, true);
   });

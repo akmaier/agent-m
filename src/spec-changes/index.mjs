@@ -1,12 +1,13 @@
 // MOD-spec-changes — SPEC change queues, from proposal to the accepted section (docs/architecture/MOD-spec-changes.md):
 // its interface. Of it, ITM-234 and ITM-339 build Queue and queues, in queues.mjs, ITM-339 entryView, and ITM-340 acceptEntries and
 // applyApproved, in accept.mjs, and ITM-337 the recipes chosen-requirements, named-requirements and spec-with-queues of specStrategies, ITM-438 whole-spec,
-// in strategies.mjs, and ITM-393 entrySections, ITM-338 the writer queue-entries, ITM-341 openQueueOf and proposeSection, and ITM-394 saveEntry, in propose.mjs. requirementHistory
-// is not built yet.
+// in strategies.mjs, and ITM-393 entrySections, ITM-338 the writer queue-entries, ITM-341 openQueueOf and proposeSection, and ITM-394 saveEntry, in propose.mjs, and ITM-598
+// requirementHistory, in history.mjs.
 //
 // Module: MOD-spec-changes
 
 export { queues } from "./queues.mjs";
+export { requirementHistory } from "./history.mjs";
 export { entryView, acceptEntries, applyApproved } from "./accept.mjs";
 export { entrySections, openQueueOf, proposeSection, saveEntry } from "./propose.mjs";
 export { specStrategies } from "./strategies.mjs";
