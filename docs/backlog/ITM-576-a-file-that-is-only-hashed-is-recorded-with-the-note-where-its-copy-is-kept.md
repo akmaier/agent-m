@@ -64,3 +64,29 @@ on MOD-source-register.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
 **The draft it waited for is accepted** (akmaier, `b43da779`): MOD-source-register's `note` of a file not kept and `NoteMissing` (accepted blob de89c5f23334). It is free of drafts; its readings are read at its start.
+
+**Settled after the developer's grep stop (2026-10-17, po-opus, sprint team1/68).**
+- **Where the note stands.** The Files cell stays as it is: "…; not stored: <names>", which `filesOf`
+  (`content.mjs:25-28`) reads by its ", " split.
+  - The note goes into the version's file table under `### Files of <version>`, written by `registrationCommits`
+    (`index.mjs:121`) and `versionCommits` (`index.mjs:154`). That table gains a third column, `Kept at`: the note for a
+    file not stored, and `—` for a stored one.
+  - The table is always written with three columns, one format for every version (KISS). A `|` in a note is written
+    `\|`, and a ", " in it is harmless, since that cell is not split.
+  - `filesOf`'s row pattern reads the first two cells, so old entries with two columns, and new ones with three, read
+    alike. No reader changes, and the note stands beside its file (MOD-source-register's Data: "each file read with its
+    SHA-256 … or a note where a copy that was only hashed is kept").
+  - The format is MOD-source-register's own: its entry's schema and writer are in its folder. No draft is needed.
+- **The hits the item did not name, each with its fate:**
+  - `tests/source-register-registration.test.mjs:160, 197, 204` assert the Files cell, which does not change. Any
+    assertion of the written file table there changes with the third column, and the draft run names it.
+  - `tests/source-register-hashed-only.test.mjs:4, 114, 123`, `tests/source-register-checkout.test.mjs:121, 125` and
+    `tests/source-register-part.test.mjs:161, 165` give `not stored:` cells to the reader. The reader does not change,
+    so they stay.
+  - `tests/settings-pages-library.test.mjs:311` (TST-472755) registers a hash-only file through the form with no note,
+    which `NoteMissing` now refuses. Its setup gains a note, and its assertions stay. Lines :80 and :296 are its
+    fixture and header, and they stay unless the draft run names them.
+  - `tests/dashboard-spec-impact.test.mjs:88` and `tests/test_matrix_derived.py:46` are prose about another matter, and
+    they stay.
+- **The draft run** (sprint 64) runs MOD-source-register's and MOD-settings-pages' tests and their callers', release tests
+  included, and lists every changed one before the tests-only commit.
