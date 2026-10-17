@@ -1,6 +1,6 @@
 // The route `process` — How this product is developed (MOD-implementation-pages, docs/architecture/
-// MOD-implementation-pages.md; Interfaces: view, route process; UC-002). It shows the five catalogue models in their two
-// groups, each with what its `about` holds (step 2); the declared model's roles, each with who may hold it, whether one
+// MOD-implementation-pages.md; Interfaces: view, route process; UC-002). It shows the catalogue's shipped models in their two
+// groups, by their kind, each with what its `about` holds (step 2); the declared model's roles, each with who may hold it, whether one
 // participant fills it or several may, the capabilities it needs (step 4), and a link to the Roles page, where they are
 // filled (UC-048); phases, each with the roles that work in it, transitions,
 // verification pairs, gates and branches; the available practices; what the product's process requirements add, or that
@@ -48,11 +48,14 @@ const SPEC_PATH = "SPEC.md";
 // it.
 let shownBefore = false;
 
-// The book's five models in the two groups UC-002 step 2 names them in.
+// The two groups UC-002 step 2 shows the shipped models in, each the kind of model the catalogue says it is; and where an
+// instance's own models are kept, by which a model of the instance is told from a shipped one (THE CATALOGUE IS DATA: no
+// model is named here).
 const GROUPS = [
-  { label: "Plan-driven", names: ["waterfall", "v-model", "reuse-oriented"] },
-  { label: "Agile", names: ["scrum", "kanban"] },
+  { label: "Plan-driven", kind: "planned" },
+  { label: "Agile", kind: "pulled" },
 ];
+const INSTANCE_MODELS = "docs/process-models/";
 
 // A plain element with a class and children — the module runs in a browser, where `document` is global.
 function el(name, className, ...children) {
@@ -154,14 +157,15 @@ export const route = {
     const lost = el("p", "lost-artifacts");
     const modelsSection = el("section", "models", el("h2", null, "Process model"),
       el("div", "process-vs-rules", processVsRules), lost);
+    const isOwn = (model) => model.path.startsWith(INSTANCE_MODELS);
     for (const group of GROUPS) {
-      const groupModels = group.names.map((name) => cat.models.find((model) => model.name === name)).filter(Boolean);
+      const groupModels = cat.models.filter((model) => !isOwn(model) && model.kind === group.kind);
       const groupEl = el("div", "model-group", el("h3", null, group.label),
         ...groupModels.map((model) => modelCard(model)));
       modelsSection.append(groupEl);
     }
-    // The instance's own models, adapted from a shipped one, offered beside the shipped five.
-    const own = cat.models.filter((model) => !GROUPS.some((group) => group.names.includes(model.name)));
+    // The instance's own models, adapted from a shipped one, offered beside the shipped ones.
+    const own = cat.models.filter(isOwn);
     if (own.length) modelsSection.append(el("div", "model-group", el("h3", null, "This instance"), ...own.map((model) => modelCard(model))));
     page.append(modelsSection);
 
