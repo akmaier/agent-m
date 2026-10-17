@@ -370,8 +370,8 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   // its source (what the explanations' tests read).
   const renderer = (await import("../src/markdown-render/vendor/purify.es.mjs")).default;
   for (const each of [purify, renderer]) {
-    each.sanitize = (html) => {
-      if (!String(html).includes('class="language-mermaid"')) throw new Error("this browser cannot sanitise HTML");
+    each.sanitize = (html, options) => {
+      if (!options?.USE_PROFILES && !String(html).includes('class="language-mermaid"')) throw new Error("this browser cannot sanitise HTML");
       return String(html);
     };
     each.isSupported = true;
