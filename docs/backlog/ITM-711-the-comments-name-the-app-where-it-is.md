@@ -6,8 +6,10 @@ realises:
   - EVERY CODE FILE BELONGS TO A MODULE
 modules:
   - MOD-markdown-render
+  - MOD-artifact-edits
 builds_on:
   - ITM-574
+  - ITM-680
 tests:
   - unit
 origin:
@@ -35,3 +37,12 @@ by the job that moves its file (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`
 ## Acceptance
 
 - MOD-markdown-render's comments name `src/site-frame/dashboard-app.mjs`. Its tests pass unchanged.
+
+**Widened at ITM-680's draft stop (sprint team1/73, 2026-10-17, po-opus).** ITM-680 removes the old review views, and
+these comments then name files that are gone:
+- `src/markdown-render/editor.mjs:2`;
+- `src/artifact-edits/fallback.mjs:9`, `layout.mjs:9` and `save.mjs:10`.
+
+This item corrects them too, so MOD-artifact-edits joins its modules. `docs/assets/review-core.mjs:8, 9, 204 and 536` and
+`src/home/home.mjs:89` belong to no module, and are corrected by the jobs that move them (ITM-690 and ITM-684). The item
+builds on ITM-680 as well.

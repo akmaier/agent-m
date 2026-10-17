@@ -9,6 +9,8 @@ realises:
 modules:
   - MOD-review-pages
   - MOD-site-frame
+  - MOD-trace-pages
+  - MOD-settings-pages
 builds_on:
   - ITM-574
 tests:

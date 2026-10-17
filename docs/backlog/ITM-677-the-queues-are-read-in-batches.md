@@ -7,6 +7,7 @@ realises:
   - UC-006
 modules:
   - MOD-spec-changes
+  - MOD-repository-hosts
 builds_on:
   - ITM-574
 tests:
