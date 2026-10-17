@@ -244,7 +244,7 @@ test("MOD-review-pages use-case/<id>/edit — Save commits the edited use case a
   assert.equal(edit.getAttribute("href"), "#use-case/id=UC-041/edit=1", "one Edit link to the edit route");
 
   const read = fake.head();
-  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  const { target, context } = await show(fake, { id: "UC-041", edit: "1" });
   assert.equal(areaOf(target).value, UC41, "the editor holds the use case byte for byte");
   assert.ok(byClass(target, "ol", "marks")[0].textContent.includes("A USE CASE HAS ACTOR"), "schema marks are shown");
   assert.equal(saveButton(target).disabled, false, "Save is offered while marks remain");
@@ -259,6 +259,8 @@ test("MOD-review-pages use-case/<id>/edit — Save commits the edited use case a
   assert.ok(!change.files.some((file) => file.path.startsWith("docs/approvals/")), "no approval record");
   await until(() => byClass(target, "p", "result")[0].textContent.includes("Saved"), "the saved result");
   assert.ok(byClass(target, "p", "result")[0].textContent.includes(fake.head()), "the commit is linked");
+  await until(() => context.went.length === 1, "the use case to be shown again");
+  assert.deepEqual(context.went, [["use-case", { id: "UC-041" }]], "the saved use case is shown again from its page (UC-008 3a)");
 });
 
 // TST-358002 · level: unit · module: MOD-review-pages
@@ -298,15 +300,20 @@ test("MOD-review-pages use-case/<id>/edit — a changed file refuses Save and ke
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product without a token, and UC-041 opened in the editor
 // input: edit and Save
-// expect: no commit from the dashboard; GitHub's editor page is offered with only the path in the URL, while the edited text is shown for the clipboard
+// expect: no commit from the dashboard; the edited text is put on the clipboard and GitHub's editor is opened for the file with only the path in the URL; the page keeps the link and the text, for a browser that refuses the clipboard
 test("MOD-review-pages use-case/<id>/edit — without a token on GitHub, Save offers GitHub's editor without text in the URL", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
   const { target } = await show(fake, { id: "UC-041", edit: "1" }, { token: false });
   const edited = UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt.");
   type(target, edited);
+  const asked = { clipboard: [], opened: [] };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async (written) => { asked.clipboard.push(written); } } }, configurable: true, writable: true });
+  globalThis.open = (url) => { asked.opened.push(url); return null; };
   click(saveButton(target));
   await until(() => byClass(target, "a", "github-page").length === 1, "GitHub's editor page");
+  assert.deepEqual(asked.clipboard, [edited], "the edited text is on the clipboard (UC-008 3b)");
+  assert.deepEqual(asked.opened, ["https://github.com/alice/thesis-tool/edit/main/" + P41], "GitHub's editor is opened for the file, with no text in the address");
   const page = new URL(byClass(target, "a", "github-page")[0].getAttribute("href"));
   assert.equal(page.origin + page.pathname, "https://github.com/alice/thesis-tool/edit/main/" + P41);
   assert.equal([...page.searchParams.keys()].length, 0, "no text-bearing query");
@@ -348,7 +355,7 @@ test("MOD-review-pages use-case/<id>/edit — on GitLab without a token there is
   assert.match(target.textContent, /The member borrows a book at the desk\./, "the use case is shown");
   assert.equal(find(target, (node) => node.localName === "textarea").length, 0, "no editor");
   assert.equal(saveButton(target), undefined, "no Save");
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length, 1, "the token's step");
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length, 1, "the token's step");
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
@@ -484,13 +491,14 @@ test("MOD-review-pages use-case/<id> — a GitHub product without a token of its
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 // given: a product on a GitLab server, no token of its own stored in this browser — the instance's GitHub token is stored, and is no token for a GitLab server; the list and UC-041
 // input: the route use-case rendered for the list and for UC-041
-// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that stores the project's token, #add-product, which on a click goes through the frame's `go` to the route add-product with the product's address
+// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that stores the project's token, #add, which on a click goes through the frame's `go` to the route add-product with the product's address
 test("MOD-review-pages use-case — a GitLab product without a token: no Accept, and the token's step linked", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost({ repository: ON_GITLAB });
   const shown = await show(fake, { id: "UC-041" }, { token: false, gitlab: true, instanceToken: true });
   const one = shown.target;
-  const step = find(one, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product")[0];
+  const step = find(one, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/"))[0];
+  assert.equal(step.getAttribute("href"), `#add/${encodeURIComponent(ON_GITLAB.web)}`, "the app's own address of the step, with the product's address");
   let prevented = false;
   step.dispatchEvent(Object.assign(new Event("click"), { preventDefault() { prevented = true; } }));
   assert.deepEqual(shown.context.went, [["add-product", { address: ON_GITLAB.web }]], "the click goes to the step that stores the token");
@@ -498,7 +506,7 @@ test("MOD-review-pages use-case — a GitLab product without a token: no Accept,
   assert.match(one.textContent, /The member borrows a book at the desk\./, "the use case is shown");
   assert.equal(byClass(one, "button", "accept").length, 0, "no Accept");
   assert.equal(find(one, (node) => node.localName === "a" && /github\.com/.test(node.getAttribute("href") ?? "")).length, 0, "no GitHub page");
-  assert.equal(find(one, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length, 1, "the token's step");
+  assert.equal(find(one, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length, 1, "the token's step");
   const list = (await show(fake, {}, { token: false, gitlab: true, instanceToken: true })).target;
   assert.equal(find(list, (node) => node.localName === "input").length + byClass(list, "button", "accept-ticked").length, 0, "no tick, no Accept ticked");
   assert.equal(rowOf(list, "UC-041") !== undefined, true, "the list is shown");

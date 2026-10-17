@@ -98,7 +98,8 @@ async function showEdit(fake, params, { token = true, repository = GITHUB } = {}
   if (token) writeSetting(store, repository.server === "gitlab" ? "gitlab-token:gitlab.example.org/alice/thesis-tool" : "github-token:alice/thesis-tool", TOKEN);
   const target = document.createElement("div");
   document.body.append(target);
-  await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go() {},
+  target.went = [];
+  await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go(...where) { target.went.push(where); },
     product: { address: repository.web, kind: repository.server, host: fake.host } }, params);
   return target;
 }
@@ -186,6 +187,8 @@ test("spec-entry/<id>/edit — Save writes the entry in its own queue and makes 
   const hrefs = find(byClass(target, "p", "entry")[0], (node) => node.localName === "a").map((node) => node.getAttribute("href"));
   assert.ok(hrefs.includes(`https://github.com/alice/thesis-tool/commit/${fake.head()}`), String(hrefs));
   assert.ok(hrefs.includes(`#spec-entry/id=${ENTRY}`), String(hrefs));
+  await until(() => target.went.length === 1, "the entry to be shown again");
+  assert.deepEqual(target.went, [["spec-entry", { id: ENTRY }]], "the saved entry is shown again from its page (UC-006 3a)");
 });
 
 // TST-680206 · level: unit · module: MOD-review-pages
@@ -276,14 +279,20 @@ test("spec-entry/<id>/edit — a save without a Why is not sent", async () => {
 // guards: UC-006; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product whose host cannot write, the editor with an edit and a Why
 // input: a click on Save
-// expect: nothing written; GitHub's page for each of the entry's two files, none with the text in its address
+// expect: nothing written; the edited proposal on the clipboard and GitHub's editor opened for it; GitHub's page for each of the entry's two files, none with the text in its address
 test("spec-entry/<id>/edit — without a token on GitHub, GitHub's pages open per file", async () => {
   const fake = fakeHost(FILES, { canWrite: false });
   const target = await showEdit(fake, EDIT, { token: false });
   type(target, PROPOSAL.replace("a PDF file.", "a PDF file, always."));
   withWhy(target);
+  const asked = { clipboard: [], opened: [] };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async (written) => { asked.clipboard.push(written); } } }, configurable: true, writable: true });
+  globalThis.open = (url) => { asked.opened.push(url); return null; };
   click(saveOf(target));
   await until(() => byClass(target, "a", "github-page").length === 2, "GitHub's pages");
+  assert.deepEqual(asked.clipboard, [PROPOSAL.replace("a PDF file.", "a PDF file, always.")], "the edited proposal is on the clipboard (UC-006 4b)");
+  assert.equal(asked.opened.length, 1, "GitHub's editor is opened once, for the proposal");
+  assert.match(asked.opened[0], new RegExp(`/edit/main/${QUEUE}/01-lending\\.md$`), "for the proposal's file, with no text in the address");
   assert.equal(fake.writes().length, 0);
   for (const page of byClass(target, "a", "github-page")) assert.ok(!decodeURIComponent(page.getAttribute("href")).includes("always"), "no text in the address");
 });
@@ -300,7 +309,7 @@ test("spec-entry/<id>/edit — on GitLab without a token there is no Save", asyn
   assert.match(find(target, (node) => node.localName === "h2")[0].textContent, /^Edit /, "it is the edit page");
   assert.equal(find(target, (node) => node.localName === "textarea").length, 0);
   assert.equal(find(target, (node) => node.localName === "button" && node.textContent === "Save").length, 0);
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length >= 1, true);
   assert.equal(fake.writes().length, 0);
 });
 

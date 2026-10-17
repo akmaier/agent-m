@@ -364,6 +364,14 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   assets = new URL(".", APP_FILE) }) {
   const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
+  // The renderer (MOD-markdown-render) draws only where the browser can sanitise (DOMPurify.isSupported) and, for a Mermaid block, draws
+  // SVG (SVGElement); this fake DOM stands for such a browser, so a use case's diagram reaches the page as the renderer writes it.
+  const renderer = (await import("../src/markdown-render/vendor/purify.es.mjs")).default;
+  for (const each of [purify, renderer]) {
+    if (typeof each.sanitize !== "function") each.sanitize = (s) => String(s);
+    if (!each.isSupported) each.isSupported = true;
+  }
+  globalThis.SVGElement ??= class SVGElement {};
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },

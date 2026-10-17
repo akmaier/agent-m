@@ -140,7 +140,8 @@ async function show(fake, route, params = {}, { token = true } = {}) {
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
   const target = document.createElement("div");
   document.body.append(target);
-  await routeOf(route).render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go() {},
+  target.went = [];
+  await routeOf(route).render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go(...where) { target.went.push(where); },
     product: { address: ON_GITHUB.web, kind: "github", host: fake.host } }, params);
   return target;
 }
@@ -313,6 +314,37 @@ test("MOD-review-pages decision/<id> and module/<id> — Accept writes one recor
     assert.match(change.message, new RegExp(`Accepted by ${TOKEN.name}`));
     await until(() => badgeOf(target) === "accepted", `${id} to be shown accepted`);
     assert.equal(byClass(target, "button", "accept").length, 0);
+  }
+});
+
+// TST-680209 · level: unit · module: MOD-review-pages
+// guards: EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-022
+// given: the descriptor table gives architecture decisions and module files Save "file", as it gives use cases; ARC-002 and MOD-writer, open, each opened in the editor on its edit route
+// input: the text edited, then a click on Save; and a click a script makes on Save of the same editor first
+// expect: after the script's click nothing is committed; after the person's click one commit on the head that was read holding only that file with the edited text and no record; the file is shown again from its page
+test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits the edited file, which is shown again", async () => {
+  for (const [route, id, path, body] of [["decision", "ARC-002", A(2, "shelves"), ARC2], ["module", "MOD-writer", M("writer"), MOD_WRITER]]) {
+    const fake = fakeHost();
+    const read = fake.head();
+    const target = await show(fake, route, { id, edit: "1" });
+    const area = find(target, (node) => node.localName === "textarea")[0];
+    const save = find(target, (node) => node.localName === "button" && node.textContent === "Save")[0];
+    assert.ok(area && save, `${id}: the editor with its Save`);
+    assert.equal(area.value, body, `${id}: the editor holds the file byte for byte`);
+    const edited = body.replace("two modules", "two small modules").replace("It lends a book.", "It lends a book to a member.");
+    assert.notEqual(edited, body);
+    area.value = edited;
+    area.dispatchEvent(new Event("input"));
+    save.dispatchEvent(Object.assign(new Event("click"), { scripted: true }));
+    for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(fake.writes().length, 0, `${id}: a script's click commits nothing`);
+    click(save);
+    await until(() => fake.writes().length === 1, `the commit of ${id}`);
+    const [{ change }] = fake.writes();
+    assert.equal(change.expectedHead, read, `${id}: on the head the editor opened`);
+    assert.deepEqual(change.files, [{ path, text: edited }], `${id}: only the file, with the edited text`);
+    await until(() => target.went.length === 1, `${id} to be shown again`);
+    assert.deepEqual(target.went, [[route, { id }]], `${id}: shown again from its page`);
   }
 });
 

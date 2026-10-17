@@ -28,7 +28,7 @@
 //     Accept and says in <p class="waits"> which entry it waits for.
 //   - A refusal is shown in <p class="result problem">, naming every entry refused with its reason; the page is drawn again from the repository.
 //   - Without a token, for the instance's own SPEC — the route given no product —, <a class="github-page"> is the new-file page of the record: its path
-//     and the record, and no text of a proposal; for a product's SPEC there is neither, and <a class="token-step"> links #add-product.
+//     and the record, and no text of a proposal; for a product's SPEC there is neither, and <a class="token-step"> links #add.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import { scripted } from "./review-pages-harness.mjs";
@@ -331,7 +331,7 @@ test("spec-entry/<id> — the instance without a token: a link holding the recor
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-006 (step 4d)
 // given: a product's SPEC — the route given the product — and no token of its own stored
 // input: the page of entry 07
-// expect: no Accept; no link to a GitHub page; the token's step, #add-product, linked
+// expect: no Accept; no link to a GitHub page; the token's step, #add, linked
 test("spec-entry/<id> — a product without a token: no Accept, and the token's step linked", async () => {
   const fake = fakeHost({ ...productFiles(), "docs/sources.md": LINKS });
   const instance = fakeHost({ "README.md": "# Instance\n", "docs/sources/SRC-fixture-po.md": ENTRY_PO });
@@ -339,7 +339,7 @@ test("spec-entry/<id> — a product without a token: no Accept, and the token's 
   assert.match(byClass(target, "section", "proposal")[0].textContent, /entirely\./, "the entry is shown");
   assert.equal(byClass(target, "button", "accept").length, 0, "no Accept");
   assert.equal(byClass(target, "a", "github-page").length, 0, "no GitHub page");
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true, "the token's step");
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length >= 1, true, "the token's step");
   assert.equal(fake.writes().length, 0);
 });
 
@@ -414,14 +414,14 @@ test("spec-entry/<id> — a product's entry is accepted with the instance's regi
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-006 (step 4d)
 // given: a product's SPEC and no token of its own
 // input: the list
-// expect: no tick and no Accept ticked; the token's step, #add-product, linked
+// expect: no tick and no Accept ticked; the token's step, #add, linked
 test("spec-entry — the product's list without a token: no tick, and the token's step linked", async () => {
   const fake = fakeHost({ ...productFiles(), "docs/sources.md": LINKS });
   const instance = fakeHost({ "README.md": "# Instance\n", "docs/sources/SRC-fixture-po.md": ENTRY_PO });
   const target = await show(fake, {}, { token: false, product: true, instanceFake: instance });
   assert.equal(byClass(target, "input", "tick").length, 0);
   assert.equal(byClass(target, "button", "accept-ticked").length, 0);
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length >= 1, true);
 });
 
 // TST-472673 · level: unit · module: MOD-review-pages

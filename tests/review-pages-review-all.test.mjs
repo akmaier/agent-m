@@ -22,7 +22,7 @@
 //   - A click calls MOD-approvals' acceptShown once, with the blob of each text as shown, and the page is drawn again from the
 //     repository, saying the commit and naming each use case left out with its reason and the names it rests on.
 //   - Without a token on GitHub the page offers, for each use case, GitHub's prefilled page for its record, as the page of one use case
-//     does; on GitLab without a token it offers none and links the token's step, #add-product.
+//     does; on GitLab without a token it offers none and links the token's step, #add.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import { scripted } from "./review-pages-harness.mjs";
@@ -327,7 +327,7 @@ test("MOD-review-pages use-case/all — a GitLab product without a token: no Acc
   assert.deepEqual(idsOf(target), ["UC-041", "UC-043", "UC-044"]);
   assert.equal(buttonOf(target), undefined);
   assert.equal(find(target, (node) => node.localName === "a" && /github\.com/.test(node.getAttribute("href") ?? "")).length, 0);
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length, 1);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length, 1);
 });
 
 // ---------------------------------------------------------------- the way to it

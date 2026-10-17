@@ -118,7 +118,7 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   const html = page.main();
   assert.match(html, /<h2>UC-002 Show the status<\/h2><span class="badge open">open<\/span>/);
   assert.match(html, /The dashboard shows the status\./, "the text");
-  assert.match(html, /flowchart LR/, "the diagram, handed to the renderer");
+  assert.match(html, /<code class="language-mermaid">[^]*flowchart LR/, "the diagram, drawn by the renderer as a Mermaid block");
   assert.match(html, /<button class="btn accept" type="button">Accept<\/button>/);
   assert.deepEqual(srv.writes, [], "opening writes nothing");
   const made = await page.click(".accept");
@@ -145,7 +145,7 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
 test("UC-008 counter-proof: a click a script makes on Accept, and on Accept ticked, writes and reads nothing", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
-  assert.deepEqual(await page.click("[data-accept-key], .accept", SCRIPTED), []);
+  assert.deepEqual(await page.click(".accept", SCRIPTED), []);
   assert.deepEqual(srv.writes, []);
   await page.go("#uc");
   const boxes = globalThis.document.getElementById("main").querySelectorAll(".tick");
