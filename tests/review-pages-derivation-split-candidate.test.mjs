@@ -315,17 +315,17 @@ test("spec-entry/draft - a split part bearing another candidate's name is not wr
 // TST-578008 · level: unit · module: MOD-review-pages
 // guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
 // given: the endpoint answers, in every round, a `change` of A LOAN HAS A DUE DATE named THE DUE DATE IS SHOWN, whose rule says two things ("Every loan shows its due date and its return place."); the person splits it,
-//   names the part THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.", leaves the part's class `change` of A LOAN HAS A DUE DATE as the split copied them, and edits the first's rule to "Every loan shows its due date."
+//   names the part THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.", leaves the part's class and "of" as the split showed them, and edits the first's rule to "Every loan shows its due date."
 // input: Write proposals
-// expect: the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND a block THE RETURN PLACE IS SHOWN *(SRC-policy, ch. 1)* with the rule
-//   "Every loan shows its return place.", each followed by "*Check:* `tests/fixture.test.mjs`": neither part is lost
+// expect: right after Split the part's class select reads `new` and its "of" field is empty; the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND
+//   a block THE RETURN PLACE IS SHOWN *(SRC-policy, ch. 1)* with the rule "Every loan shows its return place.", each followed by "*Check:* `tests/fixture.test.mjs`": neither part is lost
 test("spec-entry/draft - a split change candidate is written with both parts", async () => {
   const CHANGE = "THE DUE DATE IS SHOWN";
   const { panel, product } = await panelOf({ candidates: [{ ...candidate(CHANGE, "Every loan shows its due date and its return place."), class: "change", of: LOAN }] });
   click(splitOf(itemOf(panel, CHANGE))[0]);
   const part = partsOf(panel)[0];
-  assert.equal(byClass(part, "select", "class")[0].value, "change");
-  assert.equal(byClass(part, "input", "of")[0].value, LOAN);
+  assert.equal(byClass(part, "select", "class")[0].value, "new");
+  assert.equal(byClass(part, "input", "of")[0].value, "");
   byClass(part, "input", "candidate-name")[0].value = "THE RETURN PLACE IS SHOWN";
   byClass(part, "textarea", "candidate-rule")[0].value = "Every loan shows its return place.";
   byClass(itemOf(panel, CHANGE), "textarea", "candidate-rule")[0].value = "Every loan shows its due date.";
@@ -359,4 +359,145 @@ test("spec-entry/draft - an unsplit write hands the writer the class and the of 
   assert.ok(entry.includes(`**${GATES}** *(PO A. Maier; SRC-policy, ch. 1)*\nEvery gate decision is recorded.\n*Check:* \`tests/fixture.test.mjs\``), JSON.stringify(entry));
   assert.ok(!entry.includes(`**${NEW}**`), "no block under the candidate's own name");
   assert.equal(proposalsOf(product).length, 0, "nothing is written to the product");
+});
+
+// ---------------------------------------------------------------- ITM-634: a split part is shown as it is written
+
+const CHANGED = "THE DUE DATE IS SHOWN", CHANGED_RULE = "Every loan shows its due date and its return place.";
+const changeDraft = () => ({ candidates: [{ ...candidate(CHANGED, CHANGED_RULE), class: "change", of: LOAN }] });
+const classOfItem = (item) => byClass(item, "select", "class")[0].value;
+const ofOfItem = (item) => byClass(item, "input", "of")[0].value;
+const fill = (part, name, rule) => {
+  byClass(part, "input", "candidate-name")[0].value = name;
+  byClass(part, "textarea", "candidate-rule")[0].value = rule;
+};
+const setClass = (item, class_, of) => {
+  const select = byClass(item, "select", "class")[0];
+  select.value = class_;
+  select.dispatchEvent(new Event("change"));
+  byClass(item, "input", "of")[0].value = of;
+};
+const problemOf = async (panel) => {
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "problem").length === 1, "the problem");
+  return byClass(panel, "p", "problem")[0].textContent;
+};
+const lendingEntry = (product) => proposalsOf(product)[0].find((file) => /docs\/spec-freigaben\/[^/]+\/01-lending\.md$/.test(file.path)).text;
+const blockOf = (name, rule) => `**${name}** *(SRC-policy, ch. 1)*\n${rule}\n*Check:* \`tests/fixture.test.mjs\``;
+
+// TST-634001 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// given: the endpoint answers, in every round, a `change` of A LOAN HAS A DUE DATE named THE DUE DATE IS SHOWN, whose rule says two things
+// input: Split on THE DUE DATE IS SHOWN twice
+// expect: after the first Split the candidates stand in the order THE DUE DATE IS SHOWN, part of THE DUE DATE IS SHOWN; the candidate still reads `change` of A LOAN HAS A DUE DATE; the part reads `new` with an empty "of";
+//   after the second Split the second part reads `new` with an empty "of" as well; nothing is written to docs/spec-freigaben
+test("spec-entry/draft - Split of a change candidate adds parts that show new with an empty of", async () => {
+  const { panel, product } = await panelOf(changeDraft());
+  click(splitOf(itemOf(panel, CHANGED))[0]);
+  assert.deepEqual(orderOf(panel), [CHANGED, `part of ${CHANGED}`]);
+  assert.equal(classOfItem(itemOf(panel, CHANGED)), "change");
+  assert.equal(ofOfItem(itemOf(panel, CHANGED)), LOAN);
+  assert.equal(classOfItem(partsOf(panel)[0]), "new");
+  assert.equal(ofOfItem(partsOf(panel)[0]), "");
+  click(splitOf(itemOf(panel, CHANGED))[0]);
+  assert.equal(partsOf(panel).length, 2);
+  assert.equal(classOfItem(partsOf(panel)[1]), "new");
+  assert.equal(ofOfItem(partsOf(panel)[1]), "");
+  assert.equal(proposalsOf(product).length, 0, "nothing is written by splitting");
+});
+
+// TST-634002 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a)
+// given: the endpoint answers, in every round, one candidate of class `duplicate` of A LOAN HAS A DUE DATE, whose rule says two things; and the same with class `conflict`
+// input: Split on the candidate, once for each class
+// expect: for `duplicate` the part's class select reads `duplicate` and its "of" reads A LOAN HAS A DUE DATE; for `conflict` the part reads `conflict` and A LOAN HAS A DUE DATE: every class but `change` is copied
+for (const class_ of ["duplicate", "conflict"]) {
+  test(`spec-entry/draft - Split of a ${class_} candidate adds a part of the same class and of`, async () => {
+    const { panel } = await panelOf({ candidates: [{ ...candidate(TWO, TWO_RULE), class: class_, of: LOAN }] });
+    click(splitOf(itemOf(panel, TWO))[0]);
+    assert.equal(classOfItem(partsOf(panel)[0]), class_);
+    assert.equal(ofOfItem(partsOf(panel)[0]), LOAN);
+  });
+}
+
+// TST-634003 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `change` and its "of" to A LOAN HAS A DUE DATE
+// input: Write proposals; then the person sets the part back to `new` with an empty "of" and presses Write proposals again
+// expect: the first press shows a problem reading "Two parts of THE DUE DATE IS SHOWN change A LOAN HAS A DUE DATE: nothing was written."; nothing is written to docs/spec-freigaben; Write proposals is enabled again;
+//   the second press writes one commit whose entry 01-lending.md holds the block THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."
+test("spec-entry/draft - a part set to change what its candidate changes is refused, nothing written", async () => {
+  const { panel, product } = await panelOf(changeDraft());
+  click(splitOf(itemOf(panel, CHANGED))[0]);
+  const part = partsOf(panel)[0];
+  fill(part, "THE RETURN PLACE IS SHOWN", "Every loan shows its return place.");
+  setClass(part, "change", LOAN);
+  assert.equal(await problemOf(panel), `Two parts of ${CHANGED} change ${LOAN}: nothing was written.`);
+  assert.equal(proposalsOf(product).length, 0);
+  assert.equal(byClass(panel, "button", "write-proposals")[0].disabled, false);
+  setClass(part, "new", "");
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  assert.equal(proposalsOf(product).length, 1);
+  assert.ok(lendingEntry(product).includes(blockOf("THE RETURN PLACE IS SHOWN", "Every loan shows its return place.")), JSON.stringify(lendingEntry(product)));
+});
+
+// TST-634004 · level: unit · module: MOD-review-pages
+// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the flagged draft of TST-578001 (A LOAN STATES TWO THINGS, class `new`), split twice; both parts named and given a rule; the person sets both parts' class to `change` and their "of" to A LOAN HAS A DUE DATE
+// input: Write proposals
+// expect: a problem reading "Two parts of A LOAN STATES TWO THINGS change A LOAN HAS A DUE DATE: nothing was written."; nothing is written to docs/spec-freigaben
+test("spec-entry/draft - two parts that change one requirement are refused, nothing written", async () => {
+  const { panel, product } = await panelOf(FLAGGED_DRAFT);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  click(splitOf(itemOf(panel, TWO))[0]);
+  const [first, second] = partsOf(panel);
+  fill(first, "A LOAN SHOWS ITS DATE", "Every loan states its due date.");
+  fill(second, "A LOAN SHOWS ITS PLACE", "Every loan states its return place.");
+  setClass(first, "change", LOAN);
+  setClass(second, "change", LOAN);
+  assert.equal(await problemOf(panel), `Two parts of ${TWO} change ${LOAN}: nothing was written.`);
+  assert.equal(proposalsOf(product).length, 0);
+});
+
+// TST-634005 · level: unit · module: MOD-review-pages
+// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// given: the `change` candidate of TST-634001 (of A LOAN HAS A DUE DATE), split; the part named THE SHELF IS NAMED with the rule "Every book is put on a named shelf."; the person sets the part's class to `change` and its "of" to A BOOK IS SHELVED;
+//   the first's rule is edited to "Every loan shows its due date."
+// input: Write proposals
+// expect: no problem; the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND the changed block of A BOOK IS SHELVED with the rule "Every book is put on a named shelf.":
+//   two changes of two requirements are not refused
+test("spec-entry/draft - a part that changes another requirement than its candidate is written", async () => {
+  const { panel, product } = await panelOf(changeDraft());
+  click(splitOf(itemOf(panel, CHANGED))[0]);
+  const part = partsOf(panel)[0];
+  fill(part, "THE SHELF IS NAMED", "Every book is put on a named shelf.");
+  setClass(part, "change", SHELF);
+  byClass(itemOf(panel, CHANGED), "textarea", "candidate-rule")[0].value = "Every loan shows its due date.";
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  assert.equal(byClass(panel, "p", "problem").length, 0);
+  const entry = lendingEntry(product);
+  assert.ok(entry.includes(blockOf(LOAN, "Every loan shows its due date.")), JSON.stringify(entry));
+  assert.ok(entry.includes(blockOf(SHELF, "Every book is put on a named shelf.")), JSON.stringify(entry));
+});
+
+// TST-634006 · level: unit · module: MOD-review-pages
+// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place." left as the split showed it (`new`, empty "of"); the first's rule edited to "Every loan shows its due date."
+// input: Write proposals
+// expect: one commit; the entry 01-lending.md holds the block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." and the block THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.";
+//   the entry holds the old rule "Every loan shows its due date and its return place." nowhere
+test("spec-entry/draft - a split change candidate is written as the panel shows it", async () => {
+  const { panel, product } = await panelOf(changeDraft());
+  click(splitOf(itemOf(panel, CHANGED))[0]);
+  fill(partsOf(panel)[0], "THE RETURN PLACE IS SHOWN", "Every loan shows its return place.");
+  byClass(itemOf(panel, CHANGED), "textarea", "candidate-rule")[0].value = "Every loan shows its due date.";
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  assert.equal(proposalsOf(product).length, 1);
+  const entry = lendingEntry(product);
+  assert.ok(entry.includes(blockOf(LOAN, "Every loan shows its due date.")), JSON.stringify(entry));
+  assert.ok(entry.includes(blockOf("THE RETURN PLACE IS SHOWN", "Every loan shows its return place.")), JSON.stringify(entry));
+  assert.ok(!entry.includes(CHANGED_RULE), "the rule that said two things is written nowhere");
 });
