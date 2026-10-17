@@ -222,6 +222,7 @@ export function reviewRoute(kind) {
     const reviewed = [...statuses(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
       .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
     const texts = new Map();
+    await snapshot.readMany?.(reviewed.map((file) => file.path));
     for (const file of reviewed) texts.set(file.path, (await snapshot.read(file.path)) ?? "");
     const shown = kind.whole ? architectureOrder(reviewed, texts) : reviewed.sort((a, b) => a.id.localeCompare(b.id));
     target.append(el("h2", null, kind.whole ? "Review all — the whole architecture" : `Review all — ${kind.title}`), explain(kind.explain.all));
