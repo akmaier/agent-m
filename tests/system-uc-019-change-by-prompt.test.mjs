@@ -13,8 +13,7 @@
 // Precondition: ITM-504, ITM-506, ITM-507 and ITM-508 are merged.
 // Expected result: every flow below is covered by executable evidence that asserts nothing the accepted UC-019 replaced, or is a finding
 // - a todo test below, or in the release file named - that fails now and names what the code does instead. The findings:
-// the participants offered (UC019-S9), the count of requirements and use cases when a context is too small (UC019-S10), and the work
-// handed to GitHub Actions (UC019-S12).
+// the participants offered (UC019-S9) and the count of requirements and use cases when a context is too small (UC019-S10).
 //
 // The page, the servers and the person's actions are the harness of tests/system-uc-019-change-requirements-by-prompt.test.mjs: the real
 // MOD-site-frame, MOD-prompt-bar and MOD-review-pages over GitHub and a drafting endpoint served in memory; no request leaves the process.
@@ -129,7 +128,7 @@ const FLOW_EVIDENCE = {
   },
   "6b-work-handed-to-github-actions": {
     uc: "The work is handed to GitHub Actions",
-    evidence: [[SELF, "TST-377008"]],
+    evidence: [[SELF, "TST-377008"], [SELF, "TST-377013"]],
   },
 };
 
@@ -138,7 +137,6 @@ const FLOW_FINDINGS = {
   "main-2-offers-only-participants-that-can-draft": { uc: "Agent M offers there only participants that can draft text", finding: "UC019-S9", file: SELF, test: "TST-377010" },
   "3a-links-uc-017": { uc: "Agent M says so and links to UC-017", finding: "UC019-S9", file: SELF, test: "TST-377010" },
   "4a-counts-of-requirements-and-use-cases": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: SELF, test: "TST-377011" },
-  "6b-hand-over-from-the-bar": { uc: "The work is handed to GitHub Actions", finding: "UC019-S12", file: SELF, test: "TST-377013" },
   "4a-counts-in-the-bar": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
   "7-limit-named-before-the-first-round": { uc: "named in the conversation (default 5)", finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
 };
@@ -425,15 +423,37 @@ test("TST-377012: UC-019 8 a follow-up instruction repeats steps 5 to 7 and give
 // TST-377013
 // level: system
 // module: MOD-prompt-bar; MOD-runtimes
-// guards: UC-019 (6b); UC-049 (4a)
-// given: the page of a use case, and a participant whose answer proposes handing a task on to GitHub Actions
-// input: the author presses Send, then Hand over
-// expect: the job is queued in the product's repository and the product's workflow is started with the task, the record naming no message of the conversation
-test("TST-377013: UC-019 6b the author hands the work to GitHub Actions from the bar", { todo: "FINDING UC019-S12 - the bar shows the proposed hand-over without a button *Hand over* (MOD-prompt-bar's bar.mjs: \"the hand-over a participant proposes is shown without Hand over\"); MOD-prompt-bar's queueing waits for ITM-505 (MOD-progress-measures' productFacts). TST-377008 shows what the bar does now; the workflow's own entry is exercised from a written record in tests/release-uc-019-change-requirements-by-prompt.test.mjs" }, async () => {
-  const proposal = { answer: "This needs a run of the tests.", handOver: { kind: "implement-item", works_on: ["ITM-001"], task: "Run the tests of UC-007." } };
+// guards: UC-019 (6b); UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: the page of a use case with UC-007 and UC-008 in the product, recording off; the participant answers with a hand-over of the kind change-use-case on UC-007 with the task HANDED_TASK
+// input: the author presses Send on MESSAGE; then a click a script makes on Hand over; then the author's own click on Hand over
+// expect: the bar shows Kind: change-use-case, Works on: UC-007, the task, and a button Hand over; after the script's click nothing is written; after the author's click exactly one job record is written, for the kind change-use-case on UC-007 with the route "ci hosted",
+// and it holds neither the author's message nor the participant's answer nor the words of the task; exactly one start of agent-m-jobs.yml on main carries the task byte for byte, and no conversation record exists
+const HANDED_TASK = "Add the alternative flow 2b to UC-007: when the service fails, Agent M reports the error and writes nothing.";
+const MESSAGE = "please run the correction loop for this change on GitHub Actions";
+const ANSWER = "This is work for GitHub Actions, where the correction loop runs.";
+test("TST-377013: UC-019 6b the author hands the work to GitHub Actions from the bar", async () => {
+  const proposal = { answer: ANSWER, handOver: { kind: "change-use-case", works_on: ["UC-007"], task: HANDED_TASK } };
   const s = await scenario({ extraFiles: useCases, answers: [proposal] });
+  const starts = [];
   await goTo(s, `#use-case/product=${encodeURIComponent(s.address)}`);
-  await send(s, "run the tests");
-  await press(s, namedButton(barOf(s), "Hand over"));
-  assert.equal(recordTexts(s).length, 1);
+  await send(s, MESSAGE, { participant: "drafter" });
+  const hand = one(barOf(s), "section", "hand-over");
+  for (const line of ["Kind: change-use-case", "Works on: UC-007", `Task: ${HANDED_TASK}`]) assert.ok(hand.textContent.includes(line), `${line} in ${hand.textContent}`);
+  const button = namedButton(barOf(s), "Hand over");
+  button.dispatchEvent(new Event("click"));
+  await rest(s);
+  assert.equal(s.product.writes.length, 0, "a click a script makes writes nothing");
+  button.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
+  await rest(s);
+  const records = recordTexts(s);
+  assert.equal(records.length, 1, `one job record: ${statusOf(s).textContent}`);
+  for (const line of ["kind: change-use-case", "route: ci hosted", "  - UC-007"]) assert.ok(records[0].includes(line), `${line} in ${records[0]}`);
+  for (const words of [MESSAGE, ANSWER, HANDED_TASK, "correction loop"]) assert.ok(!records[0].includes(words), `the record holds no ${words}`);
+  assert.equal(s.product.writes.length, 1, "one commit: the job record");
+  assert.equal(conversationRecords(s).length, 0, "recording is off: no conversation record");
+  assert.equal(starts.length, 1, "the workflow is started once");
+  assert.equal(starts[0].ref, "main");
+  assert.equal(starts[0].inputs.task, HANDED_TASK, "the task reaches the workflow byte for byte");
+  assert.match(starts[0].inputs.job, /^JOB-\d{8}-\d{4}-[0-9a-f]{4}$/);
+  assert.ok(Object.keys(s.product.files).includes(`docs/jobs/${starts[0].inputs.job}.md`), "the workflow is started for the job that was recorded");
 });

@@ -197,6 +197,7 @@ const COVERED_BY_RELEASE = {
   "A CI AGENT'S DRAFT ENTERS AS OPEN": [
     ev(RELEASE_REQUIREMENTS, "TST-418120"),
     ev(RELEASE_REQUIREMENTS, "TST-418124"),
+    ev(SYSTEM, "TST-377013"),
   ],
   "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY": [
     ev(SELF, "TST-377104"),
@@ -227,7 +228,6 @@ const COVERED_BY_RELEASE = {
 
 // The parts of a requirement the code does otherwise: each a todo test, in the file named, that fails now and names what the code does instead.
 const FINDINGS = {
-  "A CI AGENT'S DRAFT ENTERS AS OPEN": { finding: "UC019-S12", file: SYSTEM, test: "TST-377013" },
   "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY": { finding: "UC019-S10", file: SYSTEM, test: "TST-377011" },
   "THE PAGE NAMES WHERE IT SENDS": { finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
   "THE CORRECTION LOOP HAS A FIXED LIMIT": { finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
