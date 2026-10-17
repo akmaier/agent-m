@@ -5,11 +5,11 @@
 
 import { fallbackEditLinks, saveFile } from "../artifact-edits/index.mjs";
 import { artifactSchemas, documentFindings, readDocument } from "../documents/index.mjs";
-import { openEditor, renderArtifact } from "../markdown-render/index.mjs";
+import { renderArtifact } from "../markdown-render/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
+import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
 
 const SCHEMA = { "use-case": "useCase", "architecture-decision": "decision", module: "module" };
 const REALISES = "A USE CASE REALISES NAMED REQUIREMENTS";
@@ -67,7 +67,7 @@ export async function showFileEdit(where, kind, file) {
   target.append(el("h2", null, `Edit ${file.id}`), explain(kind.explain.edit ?? kind.explain.one));
   if (!token && parseServer(context) === "gitlab") {
     target.append(renderArtifact(body), el("p", "problem", "A GitLab product is written with the project's own token. ",
-      link(TOKEN_STEP, "token-step", "Store the token")));
+      tokenStep(context)));
     return;
   }
 
@@ -93,8 +93,10 @@ export async function showFileEdit(where, kind, file) {
 
   async function save(text) {
     if (!token) {
-      return fallbackPages(saved, fallbackFor(text)) ? { kind: "failed", reason: "there is no token, so nothing was committed from here." }
-        : { kind: "failed", reason: "a GitLab product is written with the project's own token." };
+      const pages = fallbackFor(text);
+      if (!fallbackPages(saved, pages)) return { kind: "failed", reason: "a GitLab product is written with the project's own token." };
+      await openGithubEditor(pages[0]);
+      return { kind: "failed", reason: "there is no token, so nothing was committed from here: the text is on the clipboard and GitHub's editor is open." };
     }
     try {
       const outcome = await saveFile(host, { path: file.path, text, openedBlob, openedId: file.id });
@@ -102,7 +104,9 @@ export async function showFileEdit(where, kind, file) {
       if (outcome.refused === "identifier changed") {
         return { kind: "failed", reason: `the identifier changed from ${outcome.openedId} to ${outcome.nowId ?? "none"}; keep ${outcome.openedId}.` };
       }
-      return { kind: "saved", link: `${snapshot.repository.web}/commit/${outcome.commit}` };
+      const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
+      await where.shownAgain(file.id, el("p", "saved-note", "Saved in ", link(commit, null, `commit ${outcome.commit.slice(0, 7)}`), "."));
+      return { kind: "saved", link: commit };
     } catch (failure) {
       if (failure.name === "PermissionMissing" && fallbackPages(saved, fallbackFor(text))) {
         return { kind: "failed", reason: failure.message };

@@ -16,6 +16,9 @@
 // Importing it registers the check after each test of the importing file that no request left the fixtures, and starts nothing else; `scenario()` opens a page.
 
 import { afterEach } from "node:test";
+// The tests that use this harness click as a script before they click as a person (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK), so the
+// review pages' document keeps node's untrusted Events here; a person's click is made trusted by the test (tests/review-pages-harness.mjs).
+globalThis.reviewPagesScriptedWithin = ["hand-over"];
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { byClass, buttonsNamed, click, find, until } from "./review-pages-draft-world.mjs";

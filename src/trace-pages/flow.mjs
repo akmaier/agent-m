@@ -1,4 +1,4 @@
-// The public trace Route for the specification and the gaps. Above its page it offers the ref its caller hands (current, when that is the default
+// The public trace Route for the specification, the gaps and the modules (the modules page draws the component diagram, UC-025 step 5). Above its page it offers the ref its caller hands (current, when that is the default
 // branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the page again at it. The specification page
 // reads the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
 // graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
@@ -14,12 +14,13 @@
 // Module: MOD-trace-pages
 
 import { parseSpec } from "../spec-document/index.mjs";
-import { renderArtifact } from "../markdown-render/index.mjs";
-import { readDocument } from "../documents/index.mjs";
+import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
 import { opening, personsSource, subjectOf } from "./subject.mjs";
 
@@ -361,6 +362,48 @@ const OTHER = {
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
+// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md read in one batch and by their schema, nothing else of the
+// repository (the diagram needs no code and no test file, so the graph of the version is not built).
+async function moduleFilesOf(snapshot) {
+  const paths = snapshot.paths.filter((path) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(path));
+  if (paths.length) await snapshot.readMany?.(paths);
+  const schema = artifactSchemas().module;
+  const files = [];
+  for (const path of paths) {
+    const text = await snapshot.read(path);
+    if (text === null) continue;
+    const found = readDocument(schema, path, text);
+    files.push({
+      kind: "module", id: found.id, title: found.fields?.title ?? found.title ?? "", follows: found.fields?.follows ?? [],
+      uses: (found.fields?.uses ?? []).map((name) => { const dot = String(name).indexOf("."); return { module: String(name).slice(0, dot), iface: String(name).slice(dot + 1) }; }),
+      provides: found.fields?.provides ?? [],
+    });
+  }
+  return files;
+}
+
+// The modules page (UC-025 step 5): the component diagram of the modules of the version handed, from the module files of that version, drawn through renderMermaid. It offers no
+// version choice and reads no tag: the view's versions are "branch". Where the version holds no module it says so, and where the graph cannot be read it names that.
+async function drawModules(target, context, host, ref, descriptor) {
+  const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
+  drawn.set(context, shown);
+  const place = el("div", "modules-body", el("p", "traces-reading", "Reading the modules…"));
+  target.replaceChildren(el("section", "modules head", el("h2", null, descriptor.title), place));
+  let files;
+  try {
+    shown.snapshot = await host.readSnapshot(ref);
+    files = await moduleFilesOf(shown.snapshot);
+  } catch (failure) {
+    place.replaceChildren(problemLine("The modules", failure));
+    return;
+  }
+  if (!files.length) {
+    place.replaceChildren(el("p", "gaps-missing", `No modules exist at ${ref}.`));
+    return;
+  }
+  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"));
+}
+
 export const route = {
   name: "trace",
   entry: "requirements",
@@ -377,6 +420,10 @@ export const route = {
       return;
     }
     const host = context.product.host;
+    if (descriptor.key === "modules") {
+      await drawModules(target, context, host, params.ref, descriptor);
+      return;
+    }
     const handed = params.ref;
     const tags = await tagsOf(host);
     let current = false;

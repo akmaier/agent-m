@@ -87,7 +87,7 @@ const STEPS = [
 
 // ---------------------------------------------------------------- the fake host
 
-function fakeHost({ steps = STEPS, refuse = null } = {}) {
+function fakeHost({ steps = STEPS, refuse = null, unreadable = [] } = {}) {
   const calls = [], commits = new Map();
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
@@ -98,7 +98,8 @@ function fakeHost({ steps = STEPS, refuse = null } = {}) {
   for (const files of steps) head = commitOf(new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), head);
   const snapshotAt = (sha) => {
     const { tree } = commits.get(sha);
-    return { repository: ON_GITHUB, ref: sha, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+    return { repository: ON_GITHUB, ref: sha, commit: sha, paths: [...tree.keys()].sort(),
+      read: async (path) => { if (unreadable.includes(path)) throw failure("Unreachable", `${path} cannot be read`); return tree.has(path) ? tree.get(path) : null; },
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
   return {
@@ -139,7 +140,8 @@ async function show(fake, route, params = {}, { token = true } = {}) {
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
   const target = document.createElement("div");
   document.body.append(target);
-  await routeOf(route).render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go() {},
+  target.went = [];
+  await routeOf(route).render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go(...where) { target.went.push(where); },
     product: { address: ON_GITHUB.web, kind: "github", host: fake.host } }, params);
   return target;
 }
@@ -149,7 +151,8 @@ function find(root, match) {
   return found;
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
-const click = (node) => node.dispatchEvent(new Event("click"));
+// A person's click: a browser marks it trusted (`isTrusted`); node marks every Event untrusted, as a script's.
+const click = (node) => node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
 async function until(condition, what) {
   for (let turn = 0; turn < 400; turn++) {
     if (condition()) return;
@@ -248,6 +251,48 @@ test("MOD-review-pages decision/<id> — a changed decision is shown with its di
   assert.equal(byClass(accepted, "section", "rests-on").length, 0);
 });
 
+// TST-680101 · level: unit · module: MOD-review-pages
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
+// given: ARC-003 and MOD-lister, each accepted at an earlier text and edited since; ARC-001 accepted, MOD-writer never accepted
+// input: the routes decision and module rendered for each
+// expect: for each changed file a section "Impact of this change" between the difference and Accept, with its folded explanation; for MOD-lister the module itself as affected, changed; for ARC-003 that no module follows it; none for the accepted ARC-001 and none for the open MOD-writer
+test("MOD-review-pages decision/<id> and module/<id> — a change to an accepted file shows its impact list beside the difference, before Accept", async () => {
+  const fake = fakeHost();
+  const decision = await show(fake, "decision", { id: "ARC-003" });
+  const [impact] = byClass(decision, "section", "change-impact");
+  assert.ok(impact, "the impact list of ARC-003");
+  assert.match(impact.textContent, /Impact of this change/);
+  assert.match(impact.textContent, /none — no module follows this decision/);
+  assert.equal(byClass(impact, "details", "explain").length, 1, "its folded What is this?");
+  const order = decision.textContent;
+  assert.ok(order.indexOf("Changed since it was last accepted") < order.indexOf("Impact of this change"), "beside the difference, after it");
+  assert.equal(byClass(decision, "button", "accept").length, 1, "Accept, once the list is shown");
+
+  const module = await show(fake, "module", { id: "MOD-lister" });
+  const [moduleImpact] = byClass(module, "section", "change-impact");
+  assert.ok(moduleImpact, "the impact list of MOD-lister");
+  assert.match(moduleImpact.textContent, /MOD-lister — changed/);
+  assert.equal(byClass(module, "button", "accept").length, 1);
+
+  assert.equal(byClass(await show(fake, "decision", { id: "ARC-001" }), "section", "change-impact").length, 0, "an accepted file has none");
+  assert.equal(byClass(await show(fake, "module", { id: "MOD-writer" }), "section", "change-impact").length, 0, "an open file is no change");
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-680102 · level: unit · module: MOD-review-pages
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
+// given: MOD-lister changed since acceptance, and a host that cannot read a use case the graph of the impact list reads
+// input: the route module rendered for MOD-lister
+// expect: the page says that the impact list could not be derived and that the change cannot be accepted without it; no Accept; counter-proof: the same page on a host that reads it offers Accept
+test("MOD-review-pages module/<id> — a change whose impact list cannot be derived is not offered for acceptance", async () => {
+  const good = await show(fakeHost(), "module", { id: "MOD-lister" });
+  assert.equal(byClass(good, "button", "accept").length, 1, "known positive: Accept with the list");
+  const target = await show(fakeHost({ unreadable: ["docs/use-cases/UC-001-borrow-a-book.md"] }), "module", { id: "MOD-lister" });
+  assert.match(target.textContent, /The impact list could not be derived: [^]*cannot be read — without it, this change cannot be accepted\./);
+  assert.equal(byClass(target, "button", "accept").length, 0);
+  assert.equal(byClass(target, "section", "change-impact").length, 0);
+});
+
 // ---------------------------------------------------------------- accepting
 
 // TST-472609 · level: unit · module: MOD-review-pages
@@ -270,6 +315,38 @@ test("MOD-review-pages decision/<id> and module/<id> — Accept writes one recor
     assert.match(change.message, new RegExp(`Accepted by ${TOKEN.name}`));
     await until(() => badgeOf(target) === "accepted", `${id} to be shown accepted`);
     assert.equal(byClass(target, "button", "accept").length, 0);
+  }
+});
+
+// TST-680209 · level: unit · module: MOD-review-pages
+// guards: EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-022
+// given: the descriptor table gives architecture decisions and module files Save "file", as it gives use cases; ARC-002 and MOD-writer, open, each opened in the editor on its edit route
+// input: the text edited, then a click on Save; and a click a script makes on Save of the same editor first
+// expect: after the script's click nothing is committed; after the person's click one commit on the head that was read holding only that file with the edited text and no record; the file is shown again from its page
+test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits the edited file, which is shown again", async () => {
+  for (const [route, id, path, body] of [["decision", "ARC-002", A(2, "shelves"), ARC2], ["module", "MOD-writer", M("writer"), MOD_WRITER]]) {
+    const fake = fakeHost();
+    const read = fake.head();
+    const target = await show(fake, route, { id, edit: "1" });
+    const area = find(target, (node) => node.localName === "textarea")[0];
+    const save = find(target, (node) => node.localName === "button" && node.textContent === "Save")[0];
+    assert.ok(area && save, `${id}: the editor with its Save`);
+    assert.equal(area.value, body, `${id}: the editor holds the file byte for byte`);
+    const edited = body.replace("two modules", "two small modules").replace("It lends a book.", "It lends a book to a member.");
+    assert.notEqual(edited, body);
+    area.value = edited;
+    area.dispatchEvent(new Event("input"));
+    save.dispatchEvent(new Event("click")); // a script's click: node's Event is untrusted
+    for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(fake.writes().length, 0, `${id}: a script's click commits nothing`);
+    click(save);
+    await until(() => fake.writes().length === 1, `the commit of ${id}`);
+    const [{ change }] = fake.writes();
+    assert.equal(change.expectedHead, read, `${id}: on the head the editor opened`);
+    assert.deepEqual(change.files, [{ path, text: edited }], `${id}: only the file, with the edited text`);
+    await until(() => find(target, (node) => node.localName === "textarea").length === 0 && target.textContent.includes(route === "decision" ? "two small modules" : "to a member"), `${id} to be shown again`);
+    assert.equal(badgeOf(target), "open", `${id}: shown again from its page, open`);
+    assert.ok(find(target, (node) => node.localName === "a" && (node.getAttribute("href") ?? "").endsWith(`/commit/${fake.head()}`)).length >= 1, `${id}: the commit is linked`);
   }
 });
 

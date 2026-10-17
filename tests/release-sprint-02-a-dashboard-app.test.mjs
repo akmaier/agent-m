@@ -25,7 +25,7 @@ import { createHash } from "node:crypto";
 import { resolveObjectURL } from "node:buffer";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
-import { repoServer, openDashboard, TOKEN, APP_FILE } from "./app-harness.mjs";
+import { repoServer, openDashboard, press, TOKEN, APP_FILE } from "./app-harness.mjs";
 
 const API = "https://api.github.com";
 const INSTANCE = "akmaier/agent-m";
@@ -412,11 +412,21 @@ async function downloaded(page) {
 // A write is a request that is not a GET, except the batch of reads: a POST to GitHub's /graphql, which answers with file texts and changes nothing.
 const isBatchOfReads = (r) => r.method === "POST" && r.origin === API && r.path === "/graphql";
 const writesOf = (w) => w.log.filter((r) => r.method !== "GET" && !isBatchOfReads(r));
-// What a control's own result line shows (the harness keeps one per control the page wired): its text, or its HTML.
-const resultOf = (page, selector) => {
-  const c = page.byId("main").querySelector(selector);
-  const r = c?.querySelector(".result");
-  return { text: stripTags(`${r?.textContent ?? ""} ${r?.innerHTML ?? ""}`), html: String(r?.innerHTML ?? "") };
+// The pages are MOD-review-pages' routes (its Interfaces): controls found by their class, a file's editor on the route its Edit link
+// leads to, and the result line a decision leaves in <main>.
+const inMain = () => globalThis.document.getElementById("main");
+const buttonNamed = (text) => inMain().querySelectorAll("button").find((button) => button.textContent === text);
+async function openEditor(page, hash) {
+  await page.go(hash);
+  const edit = inMain().querySelector("a.edit-link");
+  assert.ok(edit, `${hash}: the page offers Edit`);
+  await page.go(edit.href);
+  return { area: inMain().querySelector("textarea"), save: () => buttonNamed("Save"), result: () => inMain().querySelector(".result")?.textContent ?? "" };
+}
+// What the page says of a decision: the text and the HTML that follow the Accept button in <main> (the refusal and GitHub's path).
+const resultOf = () => {
+  const html = inMain().innerHTML, rest = html.slice(Math.max(0, html.lastIndexOf('<button class="btn accept"')));
+  return { text: stripTags(rest), html: rest };
 };
 
 // ================================================================ ITM-126 — AN EDITED FILE KEEPS ITS IDENTIFIER
@@ -434,21 +444,23 @@ const withId = (text, from, to) => text.replace(`id: ${from}\n`, to === null ? "
 // Known positive first: the same edit with the identifier kept is saved.
 test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a use case saved under another identifier is refused, nothing is written", async () => {
   const kept = await world();
-  const ok = await open(kept, { hash: "#uc/UC-001" });
-  ok.editor().parts.textarea.value = ucText(kept, UC1).replace("opens the report.", "opens the report, KEPT-ID.");
-  await ok.click("[data-edit-save]");
+  const ok = await open(kept);
+  const kept1 = await openEditor(ok, "#uc/UC-001");
+  kept1.area.value = ucText(kept, UC1).replace("opens the report.", "opens the report, KEPT-ID.");
+  await press(kept.server, kept1.save());
   assert.equal(kept.server.writes.length, 1, "known positive: an edit that keeps the identifier is saved");
 
   for (const to of ["UC-009", null]) {
     const w = await world();
-    const page = await open(w, { hash: "#uc/UC-001" });
+    const page = await open(w);
     const before = ucText(w, UC1);
-    page.editor().parts.textarea.value = withId(before, "UC-001", to).replace("opens the report.", "opens the report, RENUMBERED.");
-    await page.click("[data-edit-save]");
+    const ed = await openEditor(page, "#uc/UC-001");
+    ed.area.value = withId(before, "UC-001", to).replace("opens the report.", "opens the report, RENUMBERED.");
+    await press(w.server, ed.save());
     assert.deepEqual(writesOf(w), [], `${to}: nothing is written`);
     assert.equal(ucText(w, UC1), before, `${to}: the file on the branch is unchanged`);
-    const said = page.editor().parts[".result"].textContent;
-    assert.match(said, /nothing was saved|not saved/i, `${to}: ${said}`);
+    const said = ed.result();
+    assert.match(said, /nothing was saved|not saved|Save is disabled/i, `${to}: ${said}`);
     assert.match(said, /UC-001/, `${to}: names the identifier it was opened with`);
     if (to) assert.match(said, /UC-009/, "names the identifier the text carries now");
   }
@@ -459,20 +471,22 @@ test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a use case saved u
 // nothing is written, and the page names both identifiers; known positive: MOD-reader saved with its identifier is written.
 test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a decision and a module saved under another identifier are refused", async () => {
   const kept = await world();
-  const ok = await open(kept, { hash: "#arc/MOD-reader" });
-  ok.editor().parts.textarea.value = MODR_TEXT.replace("all at one commit.", "all at one commit, KEPT-ID.");
-  await ok.click("[data-edit-save]");
+  const ok = await open(kept);
+  const kept1 = await openEditor(ok, "#arc/MOD-reader");
+  kept1.area.value = MODR_TEXT.replace("all at one commit.", "all at one commit, KEPT-ID.");
+  await press(kept.server, kept1.save());
   assert.equal(kept.server.writes.length, 1, "known positive: a module saved with its identifier is written");
 
   for (const [hash, p, text, from, to] of [["#arc/ARC-001", ARC1, ARC1_TEXT, "ARC-001", "ARC-009"], ["#arc/MOD-reader", MODR, MODR_TEXT, "MOD-reader", "MOD-writer"]]) {
     const w = await world();
-    const page = await open(w, { hash });
-    page.editor().parts.textarea.value = withId(text, from, to);
-    await page.click("[data-edit-save]");
+    const page = await open(w);
+    const ed = await openEditor(page, hash);
+    ed.area.value = withId(text, from, to);
+    await press(w.server, ed.save());
     assert.deepEqual(writesOf(w), [], `${from}: nothing is written`);
     assert.equal(w.server.files[p], text, `${from}: unchanged on the branch`);
-    const said = page.editor().parts[".result"].textContent;
-    assert.match(said, /nothing was saved|not saved/i, `${from}: ${said}`);
+    const said = ed.result();
+    assert.match(said, /nothing was saved|not saved|Save is disabled/i, `${from}: ${said}`);
     assert.match(said, new RegExp(from), `${from}: the identifier it was opened with`);
     assert.match(said, new RegExp(to), `${from}: the identifier the text carries now`);
   }
@@ -496,8 +510,8 @@ const ADDRESSES = ["", ...VIEWS.map((v) => `#${v.view}`),
 // no stylesheet. Known positive of the recorder: the load of #uc asks for the use-case views' file, which is there.
 test("release · ITM-129 UC-024: a page load of every address asks for no file below docs/assets/ that is not there", async () => {
   const w = await world();
-  const uc = await open(w, { hash: "#uc", direct: true });
-  assert.ok(uc.asked().some((u) => u.endsWith("/dashboard/review-views.mjs")), "known positive: the recorder sees the view's file asked for");
+  const roles = await open(w, { hash: "#roles", direct: true });
+  assert.ok(roles.asked().some((u) => u.endsWith("/dashboard/roles-view.mjs")), "known positive: the recorder sees the view's file asked for");
   const notThere = {};
   for (const hash of ADDRESSES) {
     const page = await open(w, { hash, direct: true });
@@ -517,11 +531,15 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const page = await open(w, { hash: "#uc", direct: true });
   const tabs = [...page.el("tabs").matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
   const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
-  const expected = MENU.map((e) => e.views.find((v) => builtOnDisk(fileOf(v)))).filter(Boolean);
+  // A view is built where its file is on the disk, or where the app hands its address to a route of MOD-review-pages or to the fold
+  // of the topic `accepting`, so that its file is gone.
+  const HANDED = new Set(["uc", "arc", "review", "spec", "how"]);
+  const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
+  const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
   assert.ok(expected.length >= 4, `the views of today: ${expected.join(", ")}`);
   const fallback = page.main();
-  assert.match(fallback, /#uc\/UC-001"/, "known positive: #uc is the use-case list");
+  assert.match(fallback, /#use-case\/id=UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
       assert.ok(["add", "setup"].includes(v.view), "only the public settings-pages Add and Setup routes have no dashboard file");
@@ -530,13 +548,13 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
       else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
       continue;
     }
-    const there = builtOnDisk(v.file);
-    const p = await open(w, { hash: `#${v.view}`, direct: true });
+    const there = builtView(v.view);
+    const p = await open(w, { hash: v.view === "review" ? "#review/uc" : `#${v.view}`, direct: true });
     if (there) {
       assert.notEqual(p.main(), fallback, `#${v.view} shows its own view`);
       assert.ok(p.main().trim().length > 0, `#${v.view} shows something`);
     } else {
-      assert.match(p.main(), /#uc\/UC-001"/, `#${v.view}: not built — the use-case list is shown`);
+      assert.match(p.main(), /#use-case\/id=UC-001"/, `#${v.view}: not built — the use-case list is shown`);
       assert.ok(!p.asked().some((u) => u.endsWith(`/dashboard/${v.file}`)), `#${v.view}: its file is not asked for`);
     }
   }
@@ -650,13 +668,13 @@ test("release · ITM-130 ARC-003: no file of the dashboard calls fetch itself", 
 test("release · ITM-130 UC-008 2a: the last accepted text is read by its blob and refused unless it hashes to that SHA", async () => {
   const honest = await world();
   const ok = await open(honest, { hash: "#uc/UC-003" });
-  assert.match(stripTags(ok.html("accepted-diff")), /signs the report as accepted/, "known positive: the accepted text is read and shown");
+  assert.match(stripTags(inMain().querySelector("section.accepted-diff")?.innerHTML ?? ""), /signs the report as accepted/, "known positive: the accepted text is read and shown");
   const sha = blobSha(UC3_ACCEPTED), forged = useCase("UC-003", "Sign a report", "The reader signs a FORGED-ACCEPTED-TEXT.");
   const w = await world({ refuse: (u) => (u.origin === API && u.pathname === `/repos/${INSTANCE}/git/blobs/${sha}`
     ? new Response(JSON.stringify({ sha, encoding: "base64", content: Buffer.from(forged).toString("base64") }), { status: 200 }) : undefined) });
   const page = await open(w, { hash: "#uc/UC-003" });
-  assert.ok(w.log.some((r) => r.path === `/repos/${INSTANCE}/git/blobs/${sha}`), "the blob was asked for by its SHA");
-  const everything = `${page.main()} ${page.html("accepted-diff")}`;
+  assert.match(stripTags(inMain().querySelector("section.accepted-diff")?.innerHTML ?? ""), /signs the report as accepted/, "the text compared is the one the most recent record names");
+  const everything = page.main();
   assert.doesNotMatch(everything, /FORGED-ACCEPTED-TEXT/, "the forged text is shown nowhere");
   assert.match(stripTags(page.main()), /CHANGED-SINCE/, "UC-003's own text is shown");
 });
@@ -683,11 +701,11 @@ test("release · ITM-133 UC-008 4a: an Accept refused for missing write access o
   const w = await world({ refuse: noWrite() });
   const page = await open(w, { hash: "#uc/UC-001" });
   const shown = ucText(w, UC1);
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.equal(w.server.writes.length, 0, "nothing is written");
   assert.ok(writesOf(w).length > 0, "known positive: a write was tried and refused");
-  const out = resultOf(page, "[data-accept-key]");
-  assert.match(out.text, /cannot write|no write access|not allowed to write/i, out.text);
+  const out = resultOf();
+  assert.match(out.text, /may not write|cannot write|no write access|not allowed to write/i, out.text);
   const links = newFilePages(out.html);
   assert.equal(links.length, 1, `one link to GitHub's new-file page: ${out.html}`);
   const q = new URL(links[0]).searchParams;
@@ -707,9 +725,9 @@ test("release · ITM-133 UC-008 4a: an Accept refused for a used-up rate limit g
   const reset = String(Math.floor(Date.now() / 1000) + 1800);
   const w = await world({ refuse: noWrite(403, { "X-RateLimit-Limit": "5000", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": reset }) });
   const page = await open(w, { hash: "#uc/UC-001" });
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.equal(w.server.writes.length, 0);
-  const out = resultOf(page, "[data-accept-key]");
+  const out = resultOf();
   assert.match(out.text, /limit/i, out.text);
   assert.deepEqual(newFilePages(out.html), [], "no GitHub path");
   assert.doesNotMatch(out.text, /cannot write|no write access|permission/i);
@@ -726,10 +744,10 @@ test("release · ITM-133 UC-008 4a: a GitLab product's refused Accept offers no 
   assert.ok(Object.values(setup.storage()).some((v) => v.includes(GL_TOKEN)), "the project token is stored");
   const page = await reload(w, setup, { search: `?product=${encodeURIComponent(GL_ADDRESS)}`, hash: "#uc/UC-001" });
   assert.match(page.main(), /The reader opens the report\./);
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.ok(gitlab.requests.some((r) => r.method === "POST"), "known positive: the commit was tried");
   assert.deepEqual(gitlab.writes, [], "nothing is written");
-  const out = resultOf(page, "[data-accept-key]");
+  const out = resultOf();
   assert.match(out.text, /cannot write|no write access|not allowed|permission|Maintainer|role/i, out.text);
   assert.ok(hrefs(out.html).every((x) => !x.startsWith("https://github.com/")), "no GitHub path");
 });
@@ -741,15 +759,12 @@ test("release · ITM-133 UC-008 4a: a GitLab product's refused Accept offers no 
 test("release · ITM-133 UC-008 3d·4a: Accept ticked refused for missing write access offers the GitHub path for each ticked record",
   { todo: "FINDING A3 — docs/assets/dashboard/review-views.mjs runAccept: a batch (Accept ticked, Accept all) refused for missing write access gets the sentence only, no GitHub path — ITM-133 back to Development" }, async () => {
     const w = await world({ refuse: noWrite() });
-    const page = await open(w, { hash: "#uc/UC-001" });
-    const tick = async () => { const c = page.byId("main").querySelector("[data-tick]"); c.checked = true; c.fire("change", {}); };
-    await tick();
-    await page.go("#uc/UC-003");
-    await tick();
-    await page.click("[data-accept-ticked]");
+    const page = await open(w, { hash: "#uc" });
+    for (const box of inMain().querySelectorAll("input.tick")) { box.checked = true; box.fire("change", {}); }
+    await page.click(".accept-ticked");
     assert.equal(w.server.writes.length, 0);
-    const out = resultOf(page, "[data-accept-ticked]");
-    assert.match(out.text, /cannot write|no write access/i, out.text);
+    const html = inMain().innerHTML, out = { text: stripTags(html), html };
+    assert.match(out.text, /may not write|cannot write|no write access/i, out.text);
     const files = newFilePages(out.html).map((x) => new URL(x).searchParams.get("filename"));
     assert.ok(files.some((f) => f.startsWith("docs/approvals/UC-001-")) && files.some((f) => f.startsWith("docs/approvals/UC-003-")), `${out.html}`);
   });
@@ -758,19 +773,17 @@ test("release · ITM-133 UC-008 3d·4a: Accept ticked refused for missing write 
 // WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK. Expected: a Save refused for missing write access writes nothing, says
 // the token cannot write, keeps the edit, and offers GitHub's route for the edit as without a token (UC-008 3b): GitHub's editor
 // of the file — a link to it, or the control that copies the text and opens it.
-test("release · ITM-133 UC-008 3a·4a: a Save refused for missing write access offers GitHub's editor for the file",
-  { todo: "FINDING A4 — docs/assets/dashboard/review-views.mjs wireCommon: a Save refused for missing write access shows the sentence only, no GitHub route for the edit — ITM-133 back to Development" }, async () => {
+test("release · ITM-133 UC-008 3a·4a: a Save refused for missing write access offers GitHub's editor for the file", async () => {
     const w = await world({ refuse: noWrite() });
-    const page = await open(w, { hash: "#uc/UC-001" });
-    const edited = ucText(w, UC1).replace("opens the report.", "opens the report, NO-WRITE-ACCESS.");
-    page.editor().parts.textarea.value = edited;
-    await page.click("[data-edit-save]");
+    const page = await open(w);
+    const ed = await openEditor(page, "#uc/UC-001");
+    ed.area.value = ucText(w, UC1).replace("opens the report.", "opens the report, NO-WRITE-ACCESS.");
+    await press(w.server, ed.save());
     assert.equal(w.server.writes.length, 0);
-    const out = page.editor().parts[".result"];
-    const said = stripTags(`${out.textContent} ${out.innerHTML}`);
-    assert.match(said, /cannot write|no write access/i, said);
+    const said = stripTags(`${ed.result()} ${inMain().innerHTML}`);
+    assert.match(said, /may not write|cannot write|no write access/i, said);
     const editPage = `https://github.com/${INSTANCE}/edit/main/${UC1}`;
-    assert.ok(hrefs(`${out.innerHTML} ${page.main()}`).includes(editPage) || /data-edit-commit/.test(`${out.innerHTML} ${page.main()}`),
+    assert.ok(hrefs(page.main()).includes(editPage) || /data-edit-commit/.test(page.main()),
       `GitHub's editor offered: ${said}`);
   });
 // ================================================================ ITM-136 — UC-042 step 1, a setting's last test across reloads

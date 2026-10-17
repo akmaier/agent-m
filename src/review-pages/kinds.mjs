@@ -19,11 +19,11 @@ export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-case
     written: "drafted-use-cases", ci: "ci-agent-draft" } }, draft: "derive-use-cases", save: "file",
   change: { kind: "change-use-case", parameter: "useCase" } };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
-  plural: "architecture decisions", noun: "architecture decision", heading, restsOn: true, whole: ["architecture-decision", "module"], draft: "derive-architecture",
+  plural: "architecture decisions", noun: "architecture decision", heading, restsOn: true, whole: ["architecture-decision", "module"], draft: "derive-architecture", save: "file",
   change: { kind: "change-architecture", parameter: "target" },
   explain: { ...explain, draft: { whole: "what-is-an-architecture", participant: "drafting-participant", reviewer: "architecture-reviewer", panel: "run-panel", ci: "ci-agent-draft" } } };
 export const MODULES = { kind: "module", route: "module", entry: "architecture", title: "Module files", plural: "module files",
-  noun: "module file", heading, explain, restsOn: true, change: { kind: "change-architecture", parameter: "target" } };
+  noun: "module file", heading, explain, restsOn: true, save: "file", change: { kind: "change-architecture", parameter: "target" } };
 
 // The descriptor of the SPEC change entries (ITM-357): a file of a change queue, not a reviewed file with a record of its own kind; its files are
 // the entries of docs/spec-freigaben/<queue>/, accepted through MOD-spec-changes.

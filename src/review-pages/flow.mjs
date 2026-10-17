@@ -13,15 +13,19 @@ import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, button, parseServer, readPlace, TOKEN_STEP } from "./common.mjs";
+import { el, link, button, parseServer, readJobRecords, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
 import { queueService } from "./spec-entries.mjs";
-import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause } from "./sections.mjs";
+import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, impactSection } from "./sections.mjs";
+import { traceGraph, architectureImpact } from "../trace-graph/index.mjs";
 
+// What the status approved means (UC-006 4c): the record is committed, the section is not yet written into the SPEC.
+const APPROVED_NOTE = "Approval recorded, not yet written into the SPEC — the apply workflow writes it after an approval committed on GitHub's page; " +
+  "accepted here with a token, record and SPEC section are one commit.";
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 // The id of the page that shows every file not yet accepted: #<route>/id=all.
 const REVIEW_ALL = "all";
@@ -66,12 +70,27 @@ function architectureOrder(entries, texts) {
 async function draftingRounds(where) {
   try {
     const address = where.context.product?.address ?? where.context.instance.repository;
+    await readJobRecords(where.snapshot);
     const rows = await listJobs([{ address, snapshot: where.snapshot }], new Map());
     const row = rows.find((each) => each.record.kind === ARCHITECTURE_JOB && each.record.end);
     if (!row || !row.record.end.rounds.length) return null;
     return { rounds: row.record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(row.record.path)) };
   } catch { return null; }
 }
+
+// The impact list of a change to an accepted decision or module (AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST), from the graph of the
+// snapshot shown, the text accepted last and the text shown: { shown } the section to show, or { problem } a paragraph saying why it could not be
+// derived, in which case the change is not offered for acceptance. graphOf() gives the graph, built once for a page.
+async function changeImpact(file, last, body, graphOf) {
+  try {
+    const shown = impactSection(architectureImpact(await graphOf(), [{ path: file.path, before: last.text, after: body }]));
+    shown.append(explain("impact-of-a-change"));
+    return { shown };
+  } catch (failure) {
+    return { problem: el("p", "problem", `The impact list could not be derived: ${failure.message} — without it, this change cannot be accepted.`) };
+  }
+}
+const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= traceGraph(snapshot)); };
 
 // The service a descriptor names for its decisions (`accept`): the approvals of reviewed files, or the entries of a change queue through
 // MOD-spec-changes. Each gives the flow the groups of files to list, whether a kind has a Review all, whether a product without a token
@@ -107,6 +126,8 @@ export function reviewRoute(kind) {
     beginSubject(context);
     const where = await readPlace(target, context);
     if (where === null) return;
+    // After a save the page shows the item again (UC-008 3a, UC-006 3a): drawn anew from the repository, with what the save came to.
+    where.shownAgain = (id, message) => redraw(where, { id }, message);
     try {
       await view(where, params);
       await rememberSubject(where, kind, params);
@@ -187,7 +208,7 @@ export function reviewRoute(kind) {
         }
       });
     } else if (context.product && service.tokenRequired(context)) {
-      target.append(el("p", "problem", service.tokenNote, link(TOKEN_STEP, "token-step", "Store the token")));
+      target.append(el("p", "problem", service.tokenNote, tokenStep(context)));
     }
     target.append(...tables);
     if (bar) target.append(bar);
@@ -208,22 +229,28 @@ export function reviewRoute(kind) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
       return;
     }
-    const records = [];
+    const records = [], graphOf = graphOnce(snapshot);
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
-      records.push({ file, record: recordOf(file.id, file.kind, file.path, blob), blob });
       const section = el("section", "review-file", el("h3", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]));
       section.setAttribute("data-id", file.id);
+      let withImpact = true;
       if (file.status === "changed") {
         const diff = el("section", "accepted-diff", el("h4", null, "Changed since it was last accepted"));
+        let last = null;
         try {
-          const last = await lastAcceptedText(file.id, host);
+          last = await lastAcceptedText(file.id, host);
           if (last) diff.append(showDifference(last.text, body));
         } catch (failure) {
           diff.append(el("p", "problem", failure.message));
         }
         section.append(diff);
+        if (kind.restsOn && last) {
+          const impact = await changeImpact(file, last, body, graphOf);
+          withImpact = !impact.problem;
+          section.append(impact.problem ?? impact.shown);
+        }
       } else {
         const { rest, section: diligence } = kind.whole && file.kind === "architecture-decision" ? splitDueDiligence(shortBody(body)) : { rest: shortBody(body), section: null };
         section.append(renderArtifact(rest));
@@ -237,6 +264,7 @@ export function reviewRoute(kind) {
           section.append(el("section", "rests-on", el("h4", null, "Rests on what is not accepted"), names));
         }
       }
+      if (withImpact) records.push({ file, record: recordOf(file.id, file.kind, file.path, blob), blob });
       target.append(section);
     }
     if (kind.whole) {
@@ -258,7 +286,7 @@ export function reviewRoute(kind) {
       });
       target.append(accept);
     } else if (parseServer(context) === "gitlab") {
-      target.append(el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+      target.append(el("p", "problem", "A GitLab product is written with the project's own token. ", tokenStep(context)));
     } else {
       for (const { file, record } of records) {
         const offered = fallbackAcceptLink(record, snapshot);
@@ -268,10 +296,10 @@ export function reviewRoute(kind) {
   }
 
   // Without a token: the record alone on GitHub's page for the instance's own SPEC; a GitLab product, or a record there is none of, is sent to the token's step.
-  function offerRecord(target, record, snapshot) {
+  function offerRecord(target, record, snapshot, context) {
     const offered = record ? fallbackAcceptLink(record, snapshot) : { refused: true };
     if (offered.refused) {
-      target.append(el("p", "problem", service.tokenNote, link(TOKEN_STEP, "token-step", "Store the token")));
+      target.append(el("p", "problem", service.tokenNote, tokenStep(context)));
       return;
     }
     const copy = (text) => { const b = button("btn copy", "Copy"); b.addEventListener("click", () => globalThis.navigator?.clipboard?.writeText?.(text)); return b; };
@@ -289,11 +317,12 @@ export function reviewRoute(kind) {
       target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
-    target.append(el("h2", null, entry.title), el("span", `badge ${entry.status}`, entry.label), explain(kind.explain.one), ...entry.nodes);
+    target.append(el("h2", null, entry.title), el("span", `badge ${entry.status}`, entry.label),
+      ...(entry.status === "approved" ? [el("p", "approved-note", APPROVED_NOTE)] : []), explain(kind.explain.one), ...entry.nodes);
     if (entry.edit) target.append(link(`#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
     if (entry.hold) { target.append(entry.hold); return; }
     if (!entry.shown) return;
-    if (!token) { offerRecord(target, entry.record, snapshot); return; }
+    if (!token) { offerRecord(target, entry.record, snapshot, where.context); return; }
     const accept = button("btn accept", "Accept");
     accept.addEventListener("click", async () => {
       accept.disabled = true;
@@ -302,7 +331,7 @@ export function reviewRoute(kind) {
       } catch (failure) {
         accept.disabled = false;
         target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));
-        if (failure.name === "PermissionMissing") offerRecord(target, entry.record, snapshot);
+        if (failure.name === "PermissionMissing") offerRecord(target, entry.record, snapshot, where.context);
       }
     });
     target.append(accept);
@@ -319,10 +348,11 @@ export function reviewRoute(kind) {
     const blob = snapshot.blob(file.path);
     target.append(el("h2", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]),
       el("p", "shown", `Text shown: blob ${blob.slice(0, 12)}`), explain(kind.explain.one));
+    let last = null;
     if (file.status === "changed") {
       const diff = el("section", "accepted-diff", el("h3", null, "Changed since it was last accepted"), explain(kind.explain.changed));
       try {
-        const last = await lastAcceptedText(file.id, host);
+        last = await lastAcceptedText(file.id, host);
         if (last) diff.append(showDifference(last.text, body));
       } catch (failure) {
         diff.append(el("p", "problem", failure.message));
@@ -342,6 +372,11 @@ export function reviewRoute(kind) {
       }
     }
     if (file.status === "accepted") return;
+    if (kind.restsOn && last) {
+      const impact = await changeImpact(file, last, body, graphOnce(snapshot));
+      if (impact.problem) { target.append(impact.problem); return; }
+      target.append(impact.shown);
+    }
     if (kind.restsOn) {
       const open = await acceptanceBlockers(file.path, snapshot);
       if (open.length) {
@@ -355,7 +390,7 @@ export function reviewRoute(kind) {
     }
     const record = recordOf(file.id, kind.kind, file.path, blob);
     const result = el("p", "result");
-    const offerGitHub = () => offerRecord(target, record, snapshot);
+    const offerGitHub = () => offerRecord(target, record, snapshot, where.context);
     if (token) {
       const accept = button("btn accept", "Accept");
       accept.addEventListener("click", async () => {

@@ -29,10 +29,24 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
   for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
   const requests = [], writes = [], batches = [];
   let pending = 0, head = empty ? null : HEAD, seq = 0;
+  // The commit that added an approval record: the head, or, for a record that names a text its file no longer holds, an earlier commit
+  // whose tree is the head's with that text at the file's path — the history that readHistory lists and the reads at that commit find
+  // (A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT). eras: sha -> { files, date }; added: record path -> its commit, null for the head.
+  const eras = new Map(), added = new Map();
+  for (const [path, text] of Object.entries(files)) {
+    if (!/^docs\/approvals\/[^/]+\.md$/.test(path) || path.endsWith("README.md")) continue;
+    const file = /^file: (.+)$/m.exec(text)?.[1], blob = /^blob: ([0-9a-f]{40})$/m.exec(text)?.[1];
+    if (!file || !blob || shas[file] === blob || !(blob in bySha)) { added.set(path, null); continue; }
+    const sha = `d${String(eras.size + 1).padStart(6, "0")}`.padEnd(40, "0");
+    eras.set(sha, { files: { ...files, [file]: bySha[blob] }, date: dates[path] ?? "2026-09-01T10:00:00Z" });
+    added.set(path, sha);
+  }
+  const eraOf = (sha) => (sha === null ? { files, date: "2026-10-01T10:00:00Z" } : eras.get(sha));
   const trees = new Map(), commits = new Map();
   const next = (c) => `${c}${String(++seq).padStart(6, "0")}`.padEnd(40, "0");
   const put = async (path, text) => { files[path] = text; shas[path] = await gitBlobSha(text); bySha[shas[path]] = text; };
   const api = `/repos/${repo}`;
+  const blobShaOf = (text) => Object.keys(bySha).find((sha) => bySha[sha] === text) ?? "0".repeat(40);
   const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
   const fetchMock = async (u, init = {}) => {
     const url = new URL(String(u)), p = url.pathname, method = (init.method || "GET").toUpperCase();
@@ -49,8 +63,9 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
         && new RegExp(`^/${repo}/[0-9a-f]{40}/(.+)$`).exec(p);
       if (rawFile) {
         const path = rawFile[1].split("/").map(decodeURIComponent).join("/");
-        what = `file ${path}`;
-        return path in files ? new Response(files[path], { status: 200 }) : new Response("404: Not Found", { status: 404 });
+        const sha = p.split("/")[3], at = eras.get(sha)?.files ?? files;
+        what = at === files ? `file ${path}` : `era file ${path}`;
+        return path in at ? new Response(at[path], { status: 200 }) : new Response("404: Not Found", { status: 404 });
       }
       if (url.origin !== "https://api.github.com") return new Response("{}", { status: 500 });
       if (head === null && (p === `${api}/commits` || p.startsWith(`${api}/commits/`) || p.startsWith(`${api}/git/`))) {
@@ -100,12 +115,24 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
         for (const [alias, expression] of asks) {
           const at = expression.indexOf(":"), commit = expression.slice(0, at), path = expression.slice(at + 1);
           named.push(path);
-          repository[alias] = commit === head && path in files ? { text: files[path], isTruncated: false } : null;
+          const held = commit === head ? files : eras.get(commit)?.files;
+          repository[alias] = held && path in held ? { text: held[path], isTruncated: false } : null;
         }
         batches.push(named);
         return json({ data: { repository } });
       }
       if (method !== "GET") return new Response("{}", { status: 500 });
+      const era = new RegExp(`^${api}/(commits|git/trees)/(d\\d{6}0*)$`).exec(p);
+      if (era && eras.has(era[2])) {
+        // An earlier commit: its own requests are counted apart from the head's.
+        if (era[1] === "commits" && url.searchParams.has("per_page")) { what = "era changes"; return json({ sha: era[2], files: [] }); }
+        if (era[1] === "commits") { what = "era commit"; return json({ sha: era[2] }); }
+        what = "era tree";
+        const at = eras.get(era[2]).files;
+        return json({ sha: "t".repeat(40), truncated: false, tree: Object.keys(at).sort().map((path) => ({ path, mode: "100644", type: "blob", sha: blobShaOf(at[path]) })) });
+      }
+      // The files a commit changed: the head's, read to list a record's history, changed none.
+      if (p === `${api}/commits/${head}` && url.searchParams.has("per_page")) { what = "changes"; return json({ sha: head, files: [] }); }
       if (p === `${api}/commits/main` || p === `${api}/commits/${head}`) { what = "commit"; return json({ sha: head }); }
       if (p === `${api}/git/ref/heads/main`) { what = "ref"; return json({ object: { sha: head } }); }
       if (p === `${api}/git/commits/${head}`) { what = "commit object"; return json({ sha: head, tree: { sha: "t".repeat(40) } }); }
@@ -116,8 +143,9 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
       }
       if (p.startsWith(`${api}/contents/`)) {
         const path = p.slice(`${api}/contents/`.length).split("/").map(decodeURIComponent).join("/");
-        what = `file ${path}`;
-        return path in files ? new Response(files[path], { status: 200 }) : new Response('{"message":"Not Found"}', { status: 404 });
+        const at = eras.get(url.searchParams.get("ref"))?.files ?? files;
+        what = at === files ? `file ${path}` : `era file ${path}`;
+        return path in at ? new Response(at[path], { status: 200 }) : new Response('{"message":"Not Found"}', { status: 404 });
       }
       const blob = /^\/repos\/[^/]+\/[^/]+\/git\/blobs\/([0-9a-f]{40})$/.exec(p);
       if (blob) {
@@ -128,7 +156,9 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
       if (p === `${api}/commits`) {
         const path = url.searchParams.get("path");
         what = `history ${path}`;
-        return json(dates[path] ? [{ sha: "d".repeat(40), commit: { committer: { date: dates[path] } } }] : []);
+        const item = (sha, date) => ({ sha, parents: [], author: null, commit: { author: { name: "A person" }, committer: { date }, message: "a commit" } });
+        if (added.has(path)) return json([item(added.get(path) ?? head, eraOf(added.get(path)).date)]);
+        return json(dates[path] ? [item("d".repeat(40), dates[path])] : []);
       }
       if (p === api) { what = "repository"; return json({ private: false, default_branch: "main" }); }
       return new Response("{}", { status: 404 });
@@ -232,7 +262,8 @@ function domElement(localName) {
     },
     addEventListener(type, listener) { listeners.push([type, listener]); },
     fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
-    dispatchEvent(ev) { return node.fire(ev.type, ev); },
+    // An event dispatched through a node is a person's, as a browser marks it; one made with `scripted: true` is a script's.
+    dispatchEvent(ev) { return node.fire(ev.type, { ...ev, isTrusted: !ev.scripted }); },
     // Downloads are observed by the test-specific wrapper where one is installed; the shared browser fixture still
     // performs the anchor activation for settings exports that need only the browser's normal no-return click.
     click() {},
@@ -333,6 +364,19 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   assets = new URL(".", APP_FILE) }) {
   const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
+  // The renderer (MOD-markdown-render) draws only where the browser can sanitise (DOMPurify.isSupported) and, for a Mermaid block, draws
+  // SVG (SVGElement). This fake DOM has no HTML parser, so it sanitises nothing: the HTML of a text that holds a Mermaid block, which the
+  // renderer wrote itself, passes as it is, and any other text is refused as a browser without DOMPurify refuses it, so the renderer shows
+  // its source (what the explanations' tests read).
+  const renderer = (await import("../src/markdown-render/vendor/purify.es.mjs")).default;
+  for (const each of [purify, renderer]) {
+    each.sanitize = (html, options) => {
+      if (!options?.USE_PROFILES && !String(html).includes('class="language-mermaid"')) throw new Error("this browser cannot sanitise HTML");
+      return String(html);
+    };
+    each.isSupported = true;
+  }
+  globalThis.SVGElement ??= class SVGElement {};
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },

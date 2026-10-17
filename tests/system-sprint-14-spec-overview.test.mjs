@@ -68,7 +68,7 @@ test("#spec reads fresh current SPEC bytes and keeps queue history for empty or 
     const server = await repoServer({ files: files(spec) });
     const page = await openDashboard({ server, hash: "#spec" });
     assert.match(page.main(), /No current requirements are recorded in SPEC\.md\./, `${label} SPEC states the explicit empty result`);
-    assert.match(page.main(), new RegExp(`id="queue-${QUEUE}"`), `${label} SPEC preserves the queue history`);
+    assert.match(page.main(), new RegExp(`href="#spec-entry/id=spec-${QUEUE}-01"`), `${label} SPEC preserves the queue history`);
     assert.equal(writes(server).length, 0, `${label} overview writes nothing`);
   }
 });

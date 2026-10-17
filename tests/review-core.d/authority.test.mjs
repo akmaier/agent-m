@@ -50,9 +50,10 @@ test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — the click authority is w
 
 // ---------------------------------------------------------------- the buttons that name a write (the views)
 
-// The dashboard writes of dashboard/writes.mjs and every call of one in a view: the text of its argument list. UC-001 now
-// reaches MOD-settings-pages through its public route and no longer calls the dashboard's removed addProduct write.
-const WRITES = ["acceptItems", "saveReviewedFile", "savePseudonymisation", "saveCollaborators"];
+// The dashboard writes of dashboard/writes.mjs that a view still starts, and every call of one in a view: the text of its argument
+// list. UC-001 reaches MOD-settings-pages through its public route; the review pages' writes are MOD-approvals', MOD-spec-changes' and
+// MOD-artifact-edits' own, made on a click of MOD-review-pages' buttons.
+const WRITES = ["savePseudonymisation", "saveCollaborators"];
 function writeCalls(text) {
   const out = [];
   for (const m of text.matchAll(new RegExp(`(?<![.\\w$])(${WRITES.join("|")})\\(`, "g"))) {
@@ -81,8 +82,8 @@ test("THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK — every write a view start
     assert.equal(handsClickAuthority(bad), false, bad);
   }
   assert.equal(handsClickAuthority("{ ...app.writeTarget(), branch: T.ref, token: token(), authority: clickAuthority(ev), list }"), true);
-  assert.deepEqual(writeCalls("store.addProduct(x); await addProduct({ a: f(b) }); acceptItems({ c })").map((c) => c.name),
-    ["acceptItems"], "a method of another object is not one of the dashboard writes");
+  assert.deepEqual(writeCalls("store.addProduct(x); await addProduct({ a: f(b) }); saveCollaborators({ c })").map((c) => c.name),
+    ["saveCollaborators"], "a method of another object is not one of the dashboard writes");
   const dashboard = readFileSync(new URL("../../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8");
   assert.match(dashboard, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/,
     "UC-001 enters through the public MOD-settings-pages route, outside the dashboard write path");

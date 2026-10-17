@@ -413,7 +413,7 @@ test("use-case/draft — without a token the run panel is not offered, and the t
   const target = await show(fake, { id: "draft" }, { token: false });
   assert.equal(byClass(target, "input", "requirement").length, 2, "known positive: the page is drawn");
   assert.equal(byClass(target, "button", "prepare").length, 0);
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length >= 1, true);
   assert.equal(fake.writes().length, 0);
 });
 

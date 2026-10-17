@@ -1,9 +1,10 @@
 // The SPEC change entry shows the impact list of the requirements it changes or withdraws (UC-006 3b): the use cases, decisions,
 // modules and tests that name each one, derived with MOD-traceability (linkGraph, requirementImpact) from the files of the commit
-// shown, beside the current section, the proposal and the difference, before Accept. The real app (docs/assets/dashboard-app.mjs)
+// shown, beside the current section, the proposal and the difference, before Accept. The real app (src/site-frame/dashboard-app.mjs) shows the entry through MOD-review-pages' route `spec-entry`; its impact list is the one
+// MOD-spec-changes' entryView derives. The real app
 // runs in tests/app-harness.mjs against a GitHub fake that records every request. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-review-pages
 // Guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
 // Level: component
 //
@@ -29,7 +30,7 @@ const SPEC = `# S\n\n**VERBINDLICH (SPEC)**\n\n${S1}\n${S2}\n${S3}`;
 const P01 = `## 1. One\n\n${rule("RULE ONE", "The first rule, reworded.", "`tests/one.test.mjs`")}`;
 const P02 = `## 3. Three\n\n${rule("RULE THREE", "The third rule.")}\n${rule("RULE NEW", "A rule nobody names yet.")}`;
 const P03 = "## 2. Two\n\n**RULE TWO** *(PO, 2026-09-30 — withdrawn 2026-10-01)*\n*Withdrawn:* folded into `RULE ONE`. The name is not reused.\n";
-const INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n"
+const INDEX = "# SPEC approvals — queue fixture\n\n**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n"
   + "| 01 | `SPEC.md` | ## 1. One | — | — |\n| 02 | `SPEC.md` | ## 3. Three | — | — |\n| 03 | `SPEC.md` | ## 2. Two | — | — |\n";
 
 const uc = (id, realises) => `---\nid: ${id}\ntitle: Case ${id}\narea: review\nactors:\n  - Reviewer\nrealises:\n${realises.map((r) => `  - ${r}\n`).join("")}---\n`
@@ -42,7 +43,10 @@ const ARC1_TEXT = "---\nid: ARC-001\ntitle: Static\nforced_by:\n  - RULE TWO\n--
 const MODR_TEXT = "---\nid: MOD-reader\ntitle: Reads files\nrealises:\n  - RULE TWO\nfollows:\n  - ARC-001\nuses:\nprovides:\n  - readFile\n---\n"
   + "# MOD-reader Reads files\n\n## Responsibility\n\nReads files.\n\n## Interfaces\n\n- `readFile(path) -> text` — one file.\n";
 const T1 = "tests/one.test.mjs", T3 = "tests/three.test.mjs";
-const testText = (guards) => `// A test.\n//\n// Module: MOD-reader\n// Guards: ${guards}\n// Level: unit\n\nimport test from "node:test";\n`;
+// A test is named by the identifier of its declaration (MOD-test-document).
+const TST1 = "TST-900001", TST3 = "TST-900003";
+const testText = (guards, n) => `// A test.\n//\n// Module: MOD-reader\n// Guards: ${guards}\n// Level: unit\n\nimport test from "node:test";\n\n` +
+  `// TST-90000${n} · level: unit · module: MOD-reader\n// guards: ${guards}\ntest("a", () => {});\n`;
 
 const FILES = {
   "SPEC.md": SPEC,
@@ -51,19 +55,19 @@ const FILES = {
   [`${QD}/02-new.md`]: P02, [`${QD}/03-two.md`]: P03,
   [UC1]: uc("UC-001", ["RULE ONE"]), [UC2]: uc("UC-002", ["RULE ONE", "RULE TWO"]), [UC3]: uc("UC-003", ["RULE THREE"]),
   [ARC1]: ARC1_TEXT, [MODR]: MODR_TEXT,
-  [T1]: testText("RULE ONE"), [T3]: testText("RULE THREE"),
+  [T1]: testText("RULE ONE", 1), [T3]: testText("RULE THREE", 3),
   "src/reader.mjs": "// Module: MOD-reader\nexport const read = () => '';\n",
 };
 
 // ---------------------------------------------------------------- reading the page
 
-// The impact section of the entry page, or null.
-const impactOf = (html) => /<section class="panel impact" id="spec-impact">[^]*?<\/section>/.exec(html)?.[0] ?? null;
+// The impact section of the entry page, or null: the list items of `section.impact-list`.
+const impactOf = (html) => /<section class="impact-list"><h3>Impact list<\/h3><ul class="impact">([^]*?)<\/ul><\/section>/.exec(html)?.[1] ?? null;
 // The artifacts the section lists, per requirement it names: { [name]: { change, ids } }.
 function listed(section) {
   const out = {};
-  for (const m of section.matchAll(/<div class="impact-req" data-requirement="([^"]+)" data-change="([^"]+)">([^]*?)<\/div>/g)) {
-    out[m[1].replace(/&#39;/g, "'")] = { change: m[2], ids: [...m[3].matchAll(/<li data-impact="([^"]+)"/g)].map((x) => x[1]) };
+  for (const m of section.matchAll(/<li>([^<]+?) — (changed|withdrawn|added)(?:, named by ([^<]+))?<\/li>/g)) {
+    out[m[1]] = { change: m[2], ids: m[3] ? m[3].split(", ") : [] };
   }
   return out;
 }
@@ -77,47 +81,41 @@ test("UC-006 3b: an entry changing a requirement that two use cases and one test
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/01` });
   const html = page.main(), section = impactOf(html);
   assert.ok(section, "the entry shows an impact list");
-  assert.deepEqual(listed(section), { "RULE ONE": { change: "change", ids: ["UC-001", "UC-002", T1] } });
-  assert.match(section, new RegExp(`${UC1.replace(/[.]/g, "\\.")}`), "each artifact with its file");
+  assert.deepEqual(listed(section), { "RULE ONE": { change: "changed", ids: ["UC-001", "UC-002", TST1] } });
   // Beside the current section, the proposal and the difference — and before Accept.
-  const at = html.indexOf('id="spec-impact"');
-  assert.ok(html.indexOf("In the SPEC now") < at && html.indexOf("<h3>Proposed</h3>") < at && html.indexOf("<h3>Difference</h3>") < at);
-  const accept = html.indexOf("data-accept-key");
+  const at = html.indexOf('<section class="impact-list">');
+  assert.ok(html.indexOf("<h3>Now in the SPEC</h3>") < at && html.indexOf("<h3>The proposal</h3>") < at && html.indexOf("<h3>Difference</h3>") < at);
+  const accept = html.indexOf('<button class="btn accept"');
   assert.ok(accept > at, "Accept comes after the impact list");
   assert.deepEqual(srv.writes, [], "opening writes nothing");
   // Derived from the commit shown, not stored: a later commit with a fourth artifact naming RULE ONE, read by a new page load.
   await srv.change(UC4, uc("UC-004", ["RULE ONE"]));
   const later = await openDashboard({ server: srv, hash: `#spec/${QNAME}/01` });
-  assert.deepEqual(listed(impactOf(later.main()))["RULE ONE"].ids, ["UC-001", "UC-002", "UC-004", T1]);
+  assert.deepEqual(listed(impactOf(later.main()))["RULE ONE"].ids, ["UC-001", "UC-002", "UC-004", TST1]);
 });
 
-test("UC-006 3b counter-proof: an entry that only adds a requirement shows no impact list and reads no use case, architecture file or test", async () => {
+test("UC-006 3b counter-proof: an entry that only adds a requirement lists it as added, named by nothing", async () => {
   const srv = await repoServer({ files: FILES });
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/02` });
-  assert.equal(impactOf(page.main()), null, "no list: the entry touches no existing requirement");
-  assert.match(page.main(), /data-accept-key/, "Accept is offered as before");
-  assert.deepEqual(graphReads(page.requests), [], "nothing read for a list that is not shown");
+  assert.equal(impactOf(page.main()), "<li>RULE NEW — added</li>", "the one requirement the entry adds, and nothing names it");
+  assert.match(page.main(), /<button class="btn accept"/, "Accept is offered as before");
 });
 
-test("UC-006 3b: a withdrawn requirement's entry lists what still names it", async () => {
+test("UC-006 3b: an entry that marks a requirement withdrawn, keeping its name, lists what names it", async () => {
   const srv = await repoServer({ files: FILES });
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/03` });
   const section = impactOf(page.main());
   assert.ok(section, "the entry shows an impact list");
-  assert.deepEqual(listed(section), { "RULE TWO": { change: "withdraw", ids: ["UC-002", "ARC-001", "MOD-reader"] } });
-  assert.match(section, /withdraw/i);
+  assert.deepEqual(listed(section), { "RULE TWO": { change: "changed", ids: ["UC-002", "ARC-001", "MOD-reader"] } });
 });
 
-test("UC-006 3b: an entry whose impact list cannot be derived is not offered for acceptance, and says why", async () => {
-  // The server fails on one of the tests the list reads.
-  const failing = (url) => (url.pathname.endsWith(`/contents/${T3}`) ? new Response("{}", { status: 500 }) : undefined);
+test("UC-006 3b: an entry whose impact list cannot be read is not offered for acceptance; the page says the read failed", async () => {
+  // The server fails on the batch and on one of the use cases the list reads.
+  const failing = (url) => (url.pathname === "/graphql" || url.pathname.endsWith(`/contents/${UC3}`) ? new Response("{}", { status: 500 }) : undefined);
   const srv = await repoServer({ files: FILES, handlers: [failing] });
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/01` });
-  const section = impactOf(page.main());
-  assert.ok(section, "the place of the list is shown");
-  assert.match(section, /<p class="warn">The impact list could not be derived:[^]*cannot be\s+accepted/);
-  assert.doesNotMatch(page.main(), /data-accept-key/, "no Accept without the list");
-  assert.match(page.main(), /In the SPEC now[^]*<h3>Proposed<\/h3>/, "the entry itself is still shown");
+  assert.doesNotMatch(page.main(), /<button class="btn accept"/, "no Accept without the list");
+  assert.match(page.main(), /<p class="problem">GitHub answered 500<\/p>/, "the read that failed is said");
 });
 
 // ---------------------------------------------------------------- an entry that takes a requirement out of its section
@@ -136,11 +134,12 @@ test("UC-006 3b: an entry that renames a requirement in place or leaves it out o
     const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/01` });
     const html = page.main(), section = impactOf(html);
     assert.ok(section, `${what}: the entry shows an impact list`);
-    assert.deepEqual(listed(section), { "RULE ONE": { change: "withdraw", ids: ["UC-001", "UC-002", T1] } }, what);
-    const at = html.indexOf('id="spec-impact"');
-    assert.ok(html.indexOf("data-accept-key") > at, `${what}: Accept comes after the impact list`);
-    // The index is the one the queue view read: one read per load, none of the list's own.
-    assert.equal(fileReads(page.requests).filter((r) => r === `file ${QD}/index.md`).length, 1, `${what}: the index is read once`);
+    assert.equal(listed(section)["RULE ONE"]?.change, "withdrawn", what);
+    assert.deepEqual(listed(section)["RULE ONE"]?.ids, ["UC-001", "UC-002", TST1], what);
+    const at = html.indexOf('<section class="impact-list">');
+    assert.ok(html.indexOf('<button class="btn accept"') > at, `${what}: Accept comes after the impact list`);
+    const reads = srv.batches.flat().filter((p) => p === `${QD}/index.md`).length + fileReads(page.requests).filter((r) => r === `file ${QD}/index.md`).length;
+    assert.equal(reads, 1, `${what}: the index is read once`);
     assert.deepEqual(srv.writes, [], `${what}: opening writes nothing`);
   }
 });
@@ -152,14 +151,13 @@ const P05 = "## 3a. Sub\n\nNothing is required here any more.\n";
 const SPLIT = { ...FILES, [`${QD}/04-split.md`]: P04, [`${QD}/05-sub.md`]: P05,
   [`${QD}/index.md`]: `${INDEX}| 04 | \`SPEC.md\` | ## 3. Three | — | — |\n| 05 | \`SPEC.md\` | ## 3a. Sub | — | — |\n` };
 
-test("UC-006 3b: an entry whose heading another entry of its queue creates lists what names a requirement it leaves out", async () => {
+test("UC-006 3b: an entry whose heading another entry of its queue creates names that entry, and lists nothing until it is accepted", async () => {
   const srv = await repoServer({ files: SPLIT });
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
-  const html = page.main(), section = impactOf(html);
-  assert.match(html, /after entry 04|created by entry 04/, "the entry waits for entry 04, as before");
-  assert.ok(section, "the entry shows an impact list");
-  assert.deepEqual(listed(section), { "RULE THREE": { change: "withdraw", ids: ["UC-003", T3] } });
-  assert.ok(html.indexOf("Accept entry 05") > html.indexOf('id="spec-impact"'), "the list stands before the accept panel");
+  const html = page.main();
+  assert.match(html, /entry 04/, "the entry waits for entry 04, as before");
+  assert.deepEqual(listed(impactOf(html) ?? ""), {}, "the section that holds now has no such heading, so it has no requirement to list");
+  assert.doesNotMatch(html, /<button class="btn accept" type="button">Accept<\/button>/, "no Accept of its own");
 });
 
 // ---------------------------------------------------------------- the requests a load of an entry makes
@@ -170,16 +168,15 @@ test("UC-006 3b: the requests one load of an entry makes, with an empty and with
   const count = async (nn) => {
     const cold = (await openDashboard({ server: srv, hash: `#spec/${QNAME}/${nn}`, caches })).requests;
     const warm = (await openDashboard({ server: srv, hash: `#spec/${QNAME}/${nn}`, caches })).requests;
-    t.diagnostic(`SPEC entry ${nn}: cold ${cold.length} requests (${fileReads(cold).length} files, ${graphReads(cold).length} of them `
-      + `use cases, architecture or tests); warm ${warm.length} (${warm.join(", ")})`);
+    t.diagnostic(`SPEC entry ${nn}: cold ${cold.length} requests (${fileReads(cold).length} files, ${cold.filter((r) => r.startsWith("batch ")).length} batches); warm ${warm.length} (${warm.join(", ")})`);
     return { cold, warm };
   };
-  const two = await count("02");
   const one = await count("01");
-  // A new dashboard load has a fresh in-memory file cache, so it reads the same files again.
-  assert.deepEqual(fileReads(one.warm).sort(), fileReads(one.cold).sort());
-  assert.deepEqual(fileReads(two.warm).sort(), fileReads(two.cold).sort());
-  // The list reads the use cases, the architecture files and the tests of the commit, each once — and no other code file.
-  assert.deepEqual(graphReads(one.cold).sort(), [UC1, UC2, UC3, ARC1, MODR, T1, T3].map((p) => `file ${p}`).sort());
-  assert.ok(!one.cold.includes("file src/reader.mjs"), "a code file that is no test names no requirement and is not read");
+  // A new dashboard load has a fresh in-memory file cache, so it reads the same requests again.
+  assert.deepEqual(one.warm, one.cold);
+  // The list reads the use cases, the architecture files and the tests of the commit, in one batch, each once — and no other code file.
+  const batch = srv.batches.at(-1);
+  for (const p of [UC1, UC2, UC3, ARC1, MODR, T1, T3]) assert.ok(srv.batches.flat().includes(p), p);
+  assert.ok(!srv.batches.flat().includes("src/reader.mjs"), "a code file that is no test names no requirement and is not read");
+  assert.ok(batch.length > 0);
 });

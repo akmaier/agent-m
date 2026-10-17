@@ -9,7 +9,9 @@
 // Level: component
 //
 // The expected requests are written here from the requirement, for the fixture product of tests/fixtures/architecture: the files a
-// page shows are listed by name, and the requests that carry them are `batch <n>`, n the files in it.
+// page shows are listed by name, and the requests that carry them are `batch <n>`, n the files in it. The pages are MOD-review-pages'
+// routes, which the app's addresses lead to; each load also reads the repository's information once (`repository`), which MOD-review-pages'
+// readPlace needs to find the default branch, and a second such read within a load fails the case.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -44,7 +46,7 @@ const README = "docs/use-cases/README.md";
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";
 const PAGE = "docs/architecture/MOD-page.md", REVIEW = "docs/architecture/MOD-review.md";
 const DONE = "docs/spec-freigaben/2026-09-01_done", OPEN = "docs/spec-freigaben/2026-09-02_open";
-const INDEX = (anchor) => "# Queue\n\n**Zieldatei aller Einträge:** `products/fixture/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n" +
+const INDEX = (anchor) => "# Queue\n\n**Zieldatei aller Einträge:** `products/fixture/SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n" +
   `|---|---|---|---|---|\n| 01 | \`SPEC.md\` | ${anchor} | — | — |\n`;
 
 // The texts accepted earlier, which the server still holds by their blob SHA.
@@ -92,36 +94,49 @@ const count = (requests, what) => requests.filter((r) => r === what).length;
 // ---------------------------------------------------------------- the start page, #arc, #spec, #backlog: the Check
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the fixture product — two use cases and the README, with the record of UC-002's earlier text
+// given: the fixture product — two use cases, one of them with a record of an earlier text
 // input: open the start page with a token
-// expect: the commit and the tree once, then one batch of the 4 files it shows, and no file by itself
+// expect: the commit and the tree once, then one batch of the 2 files it shows, the repository's information once, and no file by
+//         itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of
+//         the records, so that no record is read
 test("the start page sends its commit and tree once and one batch of the files it shows", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv });
   assert.match(page.main(), /UC-001/);
   assert.match(page.main(), /UC-002/);
-  assert.match(page.main(), /The overview\./);
-  assert.match(page.main(), /b-accepted/);
-  assert.match(page.main(), /b-changed/);
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 4"]);
-  // UC-002 has a record of an earlier text only: whether it is changed or open is read from that record. UC-001's record is
-  // named by its current blob — accepted, without reading it.
-  assert.deepEqual(srv.batches.map(sorted), [sorted([README, UC1, UC2, ...recordOf(repo, "UC-002")])]);
+  assert.match(page.main(), /<span class="badge accepted">accepted<\/span>/);
+  assert.match(page.main(), /<span class="badge changed">changed since acceptance<\/span>/);
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 2", "repository"]);
+  assert.deepEqual(srv.batches.map(sorted), [sorted([UC1, UC2])]);
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the fixture product, whose architecture files, SPEC and records decide the statuses of #arc
+// given: the fixture product, whose architecture files decide #arc
 // input: open #arc with a token
-// expect: the commit and the tree once, then one batch of the 7 files it shows — the four architecture files, the SPEC the
-//         requirements are read from, and the 2 records that decide a status — and no use case, no queue file, no file by itself
+// expect: the commit and the tree once, then one batch of the 4 architecture files, the repository's information once, and no use
+//         case, no queue file, no file by itself
 test("#arc sends its commit and tree once and one batch of the files it shows — no use case and no queue file", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#arc" });
   for (const id of ["ARC-001", "MOD-page", "MOD-reader", "MOD-review"]) assert.match(page.main(), new RegExp(id));
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 7"]);
-  assert.deepEqual(srv.batches.map(sorted), [sorted([ARC, PAGE, READER, REVIEW, "SPEC.md", ...recordOf(repo, "MOD-reader"), ...recordOf(repo, "UC-002")])]);
-  // Counter-proof of the gate: MOD-review realises UC-002, which is changed — the list says what it waits for.
-  assert.match(page.main(), /waits for UC-002/);
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 4", "repository"]);
+  assert.deepEqual(srv.batches.map(sorted), [sorted([ARC, PAGE, READER, REVIEW])]);
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
+// given: MOD-review, which realises UC-002, a use case whose current text is not accepted
+// input: open #arc/MOD-review with a token
+// expect: the page names UC-002 as what it rests on and offers no Accept; the counter-proof is MOD-page, which names nothing open and is
+//         offered for acceptance
+test("#arc/<id>: a module that names what is not accepted says so, and is not offered for acceptance", async () => {
+  const repo = await product();
+  const waiting = await openDashboard({ server: await server(repo), hash: "#arc/MOD-review" });
+  assert.match(waiting.main(), /Rests on what is not accepted/);
+  assert.match(waiting.main(), /<li class="open-name">UC-002<\/li>/);
+  assert.doesNotMatch(waiting.main(), /<button class="btn accept"/);
+  const free = await openDashboard({ server: await server(repo), hash: "#arc/MOD-page" });
+  assert.doesNotMatch(free.main(), /Rests on what is not accepted/);
+  assert.match(free.main(), /<button class="btn accept" type="button">Accept<\/button>/);
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -129,7 +144,8 @@ test("#arc sends its commit and tree once and one batch of the files it shows �
 // input: open #spec with a token
 // expect: the app reads in two waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
 //         being the same blob —, then the proposals of the open queue — 1 file; no file twice, the accepted queue's proposal
-//         not at all. The specification route reads through hosts of its own, which this case leaves out (ITM-680).
+//         not at all, and no file by itself. Both queues are listed with their entry's status: the open entry open, the written one
+//         in SPEC.
 test("#spec: the app reads the SPEC and the queues' heads in one batch and the open queue's proposals in a second", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
@@ -140,22 +156,32 @@ test("#spec: the app reads the SPEC and the queues' heads in one batch and the o
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(files(page.requests).filter((p) => p !== "SPEC.md"), [], "the app reads no file by itself");
   const main = page.main();
-  // Only open changes: the queue with an open entry is listed, the accepted queue is not.
-  assert.match(main, /id="queue-2026-09-02_open"/);
-  assert.doesNotMatch(main, /id="queue-2026-09-01_done"/);
-  assert.doesNotMatch(main, /closed queue/);
+  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-02_open-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge open">open<\/span>/);
+  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-01_done-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge in-SPEC">in SPEC<\/span>/);
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product
 // input: open #spec with a token
-// expect: the whole load — the specification route's reads included — sends its commit and tree once and reads no file by itself
-test("#spec: the whole load sends its commit and tree once, and every file in a batch", { todo: "ITM-680 makes the specification route read through the app's host" }, async () => {
+// expect: the whole load — the specification route's reads included — sends its commit and tree once, reads the repository's
+//         information once, and reads no file by itself
+test("#spec: the whole load sends its commit and tree once, and every file in a batch", async () => {
   const srv = await server(await product());
   const page = await openDashboard({ server: srv, hash: "#spec" });
   assert.equal(count(page.requests, "commit"), 1);
   assert.equal(count(page.requests, "tree"), 1);
+  assert.equal(count(page.requests, "repository"), 1);
   assert.deepEqual(files(page.requests), []);
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product, opened on #uc
+// input: go on to #arc, #uc/UC-001 and #spec within the same load of the page
+// expect: none of the three reads the repository's information again
+test("the repository's information is read once for as long as the page is open", async () => {
+  const page = await openDashboard({ server: await server(await product()) });
+  assert.equal(count(page.requests, "repository"), 1);
+  for (const hash of ["#arc", "#uc/UC-001", "#spec"]) assert.equal(count(await page.go(hash), "repository"), 0, hash);
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -190,70 +216,88 @@ const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "l
   `What item ${n} delivers.`, "", "## Acceptance", "", "- a unit test.", ""].join("\n");
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: a start page that shows 209 files: 207 use cases and the README, with the one record that decides UC-002's status
+// given: a start page that shows 207 use cases
 // input: open the start page with a token
-// expect: 3 batches in all, never more than 100 files in one: batch 100, batch 100, batch 9
+// expect: 3 batches in all, never more than 100 files in one: batch 100, batch 100, batch 7, and the repository's information once
 test("a page that shows more than a hundred files sends one batch for every hundred of them", async () => {
   const repo = await product(extraUseCases(100, 205)), srv = await server(repo);
   const page = await openDashboard({ server: srv });
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 100", "batch 100", "batch 9"]);
-  assert.equal(new Set(srv.batches.flat()).size, 209, "each of the 209 files once");
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 100", "batch 100", "batch 7", "repository"]);
+  assert.equal(new Set(srv.batches.flat()).size, 207, "each of the 207 files once");
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a stored token; the fixture product
 // input: open the start page without a token
-// expect: GitHub's batch request needs the token: none is sent, and each file is read by its own request
+// expect: GitHub's batch request needs the token: none is sent, and each of the 2 files is read by its own request
 test("without a token no batch is sent; each file is read by itself", async () => {
   const srv = await server(await product());
   const page = await openDashboard({ server: srv, token: null });
   assert.deepEqual(batchesOf(page.requests), []);
-  assert.deepEqual(files(page.requests).length, 4);
+  assert.deepEqual(files(page.requests), [UC1, UC2]);
+  assert.equal(count(page.requests, "repository"), 1);
   assert.match(page.main(), /UC-002/);
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open — shown on the review page
 // input: press Accept all 3 shown
-// expect: before it writes, the click reads the head it commits on once — one commit, one tree — and no file, since the three
-//         texts were read when the page was shown and their blobs are unchanged
+// expect: before it writes, the click reads the head it commits on once — one commit, one tree — and, once, the SPEC that the
+//         requirements the use cases name are looked up in (MOD-approvals' acceptShown); no use case, since the three texts were
+//         read when the page was shown and their blobs are unchanged; the repository's information is not read again
 test("an acceptance of three files reads its head once", async () => {
   const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
   const srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#review/uc" });
   assert.match(page.main(), /Accept all 3 shown/);
-  const made = await page.click("[data-accept-all]");
+  const made = await page.click(".accept-all");
   assert.equal(srv.writes.length, 1, "one commit");
   assert.equal(Object.keys(srv.writes[0].files).length, 3, "one record for each of the three files");
   const before = made.slice(0, made.indexOf("write tree"));
   assert.equal(count(before, "commit"), 1, before.join(" | "));
   assert.equal(count(before, "tree"), 1, before.join(" | "));
-  assert.deepEqual(before.filter((r) => r.startsWith("file ") || r.startsWith("batch ")), [], before.join(" | "));
+  assert.equal(count(made, "repository"), 0, made.join(" | "));
+  assert.deepEqual(before.filter((r) => r.startsWith("file ") || r.startsWith("batch ")), ["file SPEC.md"], before.join(" | "));
 });
 
 // ---------------------------------------------------------------- one view, what it reads
 
-test("opening one use case reads that use case and its records — no other file", async () => {
+// guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
+// given: UC-002, accepted in an earlier text, edited since
+// input: open #uc/UC-002 with a token
+// expect: the file once, the record's history once and the text the record names as the repository stood when the record was added —
+//         that commit's tree and that file —, each once; the page shows the difference to the text accepted before
+test("opening one use case reads that use case, the history of its record and the text the record names — no other file", async () => {
   const repo = await product();
   const page = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
-  assert.deepEqual(files(page.requests), [UC2, ...recordOf(repo, "UC-002")].sort());
-  // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT: the accepted text, read by the blob its record names.
-  assert.deepEqual(page.requests.filter((r) => r.startsWith("blob ")), [`blob ${await gitBlobSha(repo[UC2].replace("Show the status", "Show a status"))}`]);
+  assert.deepEqual(files(page.requests), [...recordOf(repo, "UC-002"), UC2].sort());
+  assert.deepEqual(page.requests.filter((r) => r.startsWith("history ")), [`history ${recordOf(repo, "UC-002")[0]}`]);
+  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era changes", "era commit", "era tree", `era file ${UC2}`]);
+  assert.equal(count(page.requests, "commit"), 1);
+  assert.equal(count(page.requests, "tree"), 1);
   assert.match(page.main(), /Show the status/);
-  assert.match(page.el("accepted-diff"), /- title: Show a status/, "the difference to the text accepted before");
+  assert.match(page.main(), /<section class="accepted-diff"><h3>Changed since it was last accepted<\/h3>/);
+  assert.match(page.main(), /<span class="ddel">- title: Show a status/, "the difference to the text accepted before");
 });
 
-test("opening a changed module reads what its impact list needs: its records, its last accepted text, every module, the code's headers", async () => {
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
+// given: MOD-reader, accepted in an earlier text, edited since
+// input: open #arc/MOD-reader with a token
+// expect: the difference to its last accepted text, the impact list beside it — the affected modules —, Accept offered with it; the
+//         graph the list is derived from is read in one batch, and no use case and no queue file by itself
+test("opening a changed module shows its impact list beside the difference, and offers Accept with it", async () => {
   const repo = await product();
-  const page = await openDashboard({ server: await server(repo), hash: "#arc/MOD-reader" });
+  const srv = await server(repo);
+  const page = await openDashboard({ server: srv, hash: "#arc/MOD-reader" });
   assert.match(page.main(), /MOD-reader/);
-  assert.match(page.el("accepted-diff"), /Changed since it was last accepted/);
-  assert.match(page.el("impact"), /Affected modules/, page.el("impact"));
-  assert.match(page.el("arc-accept"), /data-accept-key=/, "Accept, once the impact list is shown");
+  assert.match(page.main(), /Changed since it was last accepted/);
+  assert.match(page.main(), /<section class="change-impact"><h3>Impact of this change<\/h3>/);
+  assert.match(page.main(), /Affected modules/);
+  assert.match(page.main(), /<button class="btn accept" type="button">Accept<\/button>/, "Accept, once the impact list is shown");
   assert.deepEqual(under(page.requests, "docs/use-cases/"), []);
   assert.deepEqual(under(page.requests, "docs/spec-freigaben/"), []);
-  assert.ok(recordOf(repo, "MOD-reader").every((p) => files(page.requests).includes(p)));
-  assert.ok(["src/reader.js", "src/review.py", "tests/reader.test.js"].every((p) => files(page.requests).includes(p)), "the code's module headers");
+  assert.equal(batchesOf(page.requests).length, 1, "the graph in one batch");
+  assert.ok(srv.batches[0].includes("SPEC.md") && srv.batches[0].includes(ARC), "the SPEC and the architecture files");
 });
 
 test("settings read the product's settings, and no use case, architecture file, record or queue", async () => {
@@ -265,20 +309,19 @@ test("settings read the product's settings, and no use case, architecture file, 
 
 // ---------------------------------------------------------------- the texts held during one dashboard load
 
-test("a second load on an unchanged tree sends the same requests as the first; an edited file adds its record to the batch", async () => {
+test("a second load on an unchanged tree sends the same requests as the first; an edited file is read in the same batch", async () => {
   const repo = await product(), caches = fakeCaches();
   const first = await openDashboard({ server: await server(repo), caches });
-  assert.deepEqual(first.requests, ["commit", "tree", "batch 4"]);
+  assert.deepEqual(first.requests, ["commit", "tree", "batch 2", "repository"]);
   const again = await openDashboard({ server: await server(repo), caches });
-  assert.deepEqual(again.requests, ["commit", "tree", "batch 4"]);
+  assert.deepEqual(again.requests, ["commit", "tree", "batch 2", "repository"]);
   assert.equal(again.main(), first.main(), "the same page");
-  // A file whose blob changed is shown with its new text — that one, and its record: no record is named by its new text, so the
-  // record of the earlier one says whether it is changed or open.
-  const edited = { ...repo, [UC1]: repo[UC1].replace("Read a file", "Read one file") };
+  // A file whose blob changed is shown with its new text, from the same batch: a status is told by the names of the records alone.
+  const edited = { ...repo, [UC1]: repo[UC1].replaceAll("Read a file", "Read one file") };
   const srv = await server(edited);
   const third = await openDashboard({ server: srv, caches });
-  assert.deepEqual(third.requests, ["commit", "tree", "batch 5"]);
-  assert.deepEqual(srv.batches.map(sorted), [sorted([README, UC1, UC2, ...recordOf(repo, "UC-002"), ...recordOf(repo, "UC-001")])]);
+  assert.deepEqual(third.requests, ["commit", "tree", "batch 2", "repository"]);
+  assert.deepEqual(srv.batches.map(sorted), [sorted([UC1, UC2])]);
   assert.match(third.main(), /Read one file/);
 });
 
@@ -292,18 +335,18 @@ test("without Cache Storage the page still works; it sends the same requests", a
 
 // ---------------------------------------------------------------- the record decides where it is read
 
-test("counter-proof: a record named for the current text whose content names another blob does not accept the opened file", async () => {
+// guards: STATUS IS DERIVED FROM THE RECORDS
+// given: UC-001 with its record, and UC-002 whose only record names an earlier text
+// input: open #uc/UC-001 and #uc/UC-002 with a token
+// expect: UC-001 accepted, with no Accept; UC-002 changed since acceptance, with Accept — a file is accepted exactly when a record names its current blob
+test("a use case is accepted exactly when a record names its current text", async () => {
   const repo = await product();
-  const name = approvalPath("UC-001", await gitBlobSha(repo[UC1]));
-  const forged = { ...repo, [name]: recordText(useCaseRecord(UC1, "e".repeat(40))) };
-  const page = await openDashboard({ server: await server(forged), hash: "#uc/UC-001" });
-  assert.ok(files(page.requests).includes(name), "opened, the file's records are read");
-  assert.doesNotMatch(page.main(), /<h2>[^<]*UC-001[^<]*<span class="badge b-accepted"/);
-  assert.match(page.main(), /data-accept-key=/, "Accept is offered: no record names this text");
-  // Counter-proof of the counter-proof: the true record accepts it, and no Accept is offered.
   const honest = await openDashboard({ server: await server(repo), hash: "#uc/UC-001" });
-  assert.match(honest.main(), /b-accepted/);
-  assert.doesNotMatch(honest.main(), /data-accept-key=/);
+  assert.match(honest.main(), /<span class="badge accepted">accepted<\/span>/);
+  assert.doesNotMatch(honest.main(), /<button class="btn accept"/);
+  const changed = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
+  assert.match(changed.main(), /<span class="badge changed">changed since acceptance<\/span>/);
+  assert.match(changed.main(), /<button class="btn accept" type="button">Accept<\/button>/);
 });
 
 test("Clear everything also removes the kept file texts (A CLEAR IS A REAL CLEAR)", () => {

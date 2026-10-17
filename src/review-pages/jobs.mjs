@@ -24,7 +24,7 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
-import { defaultSnapshot, el, button, link, TOKEN_STEP } from "./common.mjs";
+import { defaultSnapshot, el, button, link, readJobRecords, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -125,7 +125,7 @@ export async function showDraft(where, kind) {
 
   const stage = el("section", "stage");
   if (!token) {
-    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", link(TOKEN_STEP, "token-step", "Store the token")), stage);
+    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", tokenStep(context)), stage);
     return;
   }
   const prepare = button("btn prepare", "Show the run panel");
@@ -222,6 +222,7 @@ async function presentDraft(outcome, result, run) {
  * drafting job did to a use case it wrote — a realised name it removed, a use case that realises none.
  */
 export async function jobNotes(snapshot, id) {
+  await readJobRecords(snapshot);
   const rows = await listJobs([{ address: snapshot.repository?.web ?? "", snapshot }], new Map());
   return rows.flatMap((row) => row.record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
 }
@@ -304,7 +305,7 @@ async function showRequirementsDraft(where, kind) {
 
   const stage = el("section", "stage");
   if (!token) {
-    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", link(TOKEN_STEP, "token-step", "Store the token")), stage);
+    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", tokenStep(context)), stage);
     return;
   }
   const prepare = button("btn prepare", "Show the run panel");
@@ -534,7 +535,7 @@ async function showArchitectureDraft(where, kind) {
 
   const stage = el("section", "stage");
   if (!token) {
-    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", link(TOKEN_STEP, "token-step", "Store the token")), stage);
+    target.append(el("p", "problem", "A job is recorded and its result written with your token. ", tokenStep(context)), stage);
     return;
   }
   const prepare = button("btn prepare", "Show the run panel");
