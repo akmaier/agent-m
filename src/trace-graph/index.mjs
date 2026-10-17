@@ -6,9 +6,9 @@
 // MOD-group-document, so that its graph holds every requirement, test, document and group with the edges it states and the facts
 // the checks across artifacts need, and lists a file it cannot read with the reason. graphFindings decides from the graph alone the
 // checks across artifacts, and selfSufficiencyFindings the links that reach a path the product repository does not hold, or the
-// instance's repository or dashboard; both are in checks.mjs. tracesTo gives a requirement the sources its node keeps and the tests
-// that guard it, requirementImpact every place an artifact names it, and coverageGaps the requirements and use cases that lack a
-// counterpart and the names that match nothing. architectureImpact derives the architecture-change list from those facts and
+// instance's repository or dashboard; both are in checks.mjs. tracesTo gives a requirement the sources its node keeps and the use
+// cases, decisions, modules, tests and items that name it, requirementImpact every place an artifact names it, and coverageGaps the
+// requirements and use cases that lack a counterpart and the names that match nothing. architectureImpact derives the architecture-change list from those facts and
 // supplied before/after texts. The code files and their imports, moduleOrder, moduleRows and
 // compareGraphs are not built yet.
 //
@@ -86,8 +86,9 @@
 
 /**
  * For a requirement, the items of its source its node keeps, and every use case, decision, module, test and item that names
- * it (A REQUIREMENT SHOWS WHAT TRACES TO IT). tracesTo reads the node and the `guards` edges, so `sources` and `tests` are the
- * lists it fills; the rest stay empty until a later item gives each its rule.
+ * it (A REQUIREMENT SHOWS WHAT TRACES TO IT). tracesTo reads the node and the edges that point at the name: `sources` come from the
+ * node, `tests` from the `guards` edges, and `useCases`, `decisions`, `modules` and `items` from the edges of artifacts of their kind,
+ * a module also through the tests of it that guard the requirement.
  * @typedef {{
  *   sources: string[],
  *   useCases: string[],

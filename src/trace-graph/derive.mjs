@@ -1,8 +1,9 @@
 // Derive — what traceGraph's graph alone answers (MOD-trace-graph, Parts). Built so far: tracesTo, which gives a requirement the
-// sources its node keeps and the tests that guard it, read through `guards` edges, requirementImpact, which lists every place an
-// artifact names a requirement, read through the edges that point at it, and coverageGaps, which lists the requirements and use
-// cases that lack a counterpart and the names that match nothing. architectureImpact derives the architecture-change list from
-// the graph's facts and the caller's before/after texts. The module order and rows and the comparison of two graphs are not built yet.
+// sources its node keeps and the use cases, decisions, modules, tests and items that name it, read through the edges that point at
+// it, requirementImpact, which lists every place an artifact names a requirement, read through the edges that point at it, and
+// coverageGaps, which lists the requirements and use cases that lack a counterpart and the names that match nothing.
+// architectureImpact derives the architecture-change list from the graph's facts and the caller's before/after texts. The module order
+// and rows and the comparison of two graphs are not built yet.
 //
 // Module: MOD-trace-graph
 
@@ -15,15 +16,19 @@ const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 // tracesTo(graph: Graph, name: string) -> Traces — for a requirement, the items of its source its node keeps, and every use case,
 // decision, module, test and item that names it (A REQUIREMENT SHOWS WHAT TRACES TO IT) — a module also through the tests of it that
 // guard the requirement, as the module file states. `sources` are the items of the source as the SPEC writes it, from the node
-// of the requirement, so that a name that is no requirement has none; `tests` names every test whose `guards` edge points at `name`,
-// by identifier, sorted. It reads nothing else, so every other list stays empty; a later item that reads the others gives each its
-// own rule — `modules`' own is more than a direct edge (the module file, above), so it is not a lookup this shape can be stretched
-// to.
+// of the requirement, so that a name that is no requirement has none; `tests` names every test whose `guards` edge points at `name`;
+// `useCases`, `decisions` and `items` name each artifact of that kind with an edge — its front matter's or a line of its text — that
+// points at `name`; `modules` names each module with such an edge and, besides, each module a test that guards `name` exercises. Each
+// list is by identifier, sorted, without repeats, and holds only artifacts the graph has a node for.
 export function tracesTo(graph, name) {
   const node = graph.nodes.get(name);
   const sources = node?.kind === "requirement" ? [...(node.sources ?? [])] : [];
   const tests = graph.edges.filter((edge) => edge.via === "guards" && edge.to === name).map((edge) => edge.from).sort(byText);
-  return { sources, useCases: [], decisions: [], modules: [], tests, items: [] };
+  const naming = (kind) => graph.edges.filter((edge) => edge.to === name && graph.nodes.get(edge.from)?.kind === kind).map((edge) => edge.from);
+  const exercised = graph.edges.filter((edge) => edge.via === "exercises" && tests.includes(edge.from) && graph.nodes.get(edge.to)?.kind === "MOD")
+    .map((edge) => edge.to);
+  return { sources, useCases: unique(naming("UC")), decisions: unique(naming("ARC")), modules: unique([...naming("MOD"), ...exercised]), tests,
+    items: unique(naming("ITM")) };
 }
 
 // requirementImpact(graph: Graph, name: string) -> ImpactEntry[] — every artifact that names the requirement, to be listed beside a

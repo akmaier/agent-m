@@ -776,3 +776,9 @@ This product repository keeps its pseudonymisation setting and collaborator cons
 ## settings-product-records
 
 This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click.
+
+## trace-none-yet
+
+Here a list reads none yet when the version shown holds no artifact of that kind at all. A list that reads none instead means the version holds such artifacts and none of them names this requirement.
+Architecture decisions and module files come when the architecture is derived from the accepted use cases, and tests when the modules are implemented.
+Choose a later version to see them once they exist.
