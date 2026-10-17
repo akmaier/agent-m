@@ -41,10 +41,18 @@ It waits for akmaier's acceptance of the draft committed with ITM-627's gate, wh
 - **The topics.** `setup-key` holds now both what a token is and the list of the permissions. It is cut in two topics of
   `src/site-frame/explanations.md` (sprint 65's agreement: MOD-site-frame for every new topic). `setup-key` says what a
   token is, under *What is this?*. `setup-key-permissions` names what each permission is for, under *Why these?*.
-- **The release test that changes:** TST-627006, which asks for exactly one fold per step. It is ITM-679's, by another
-  participant, merged before this item's gate (sprint 68's agreement).
-- **Other tests:** TST-588002 (`tests/settings-pages-setup.test.mjs`) asserts Step A's folds, and changes. The draft run
-  lists every other changed test, and stops at a release test.
+- **The release tests that change:** TST-627006, which asks for exactly one fold per step, and TST-627004, which counts
+  Step A's folds and reads `folded[0]`. Both are ITM-679's, by another participant, merged before this item's gate
+  (sprint 68's agreement). TST-627004 was found by the draft runs of both developers.
+- **Other tests:** both change:
+  - TST-588002 (`tests/settings-pages-setup.test.mjs`) asserts Step A's folds;
+  - TST-588016 (`tests/site-frame-setup-explanations.test.mjs:56`, a unit test of MOD-site-frame) asserts that
+    `setup-key` holds the six permission lines, which move to `setup-key-permissions`.
+- **Readings confirmed at the developer's stop:**
+  - "Why *Only select repositories*?" stays in `setup-key`, since it is about the token and its limits, not the
+    permissions.
+  - The JSDoc of `explain` in `src/site-frame/index.mjs` follows the code, as the accepted module text already gives
+    `explain(topic, label?)`.
 - **Error fields** (sprint 68): no error is added.
 - **Reads, against the token budget** (sprints 66 and 69): none. No shared reader is called anew.
 - **Reachable:** the live `#setup`, which calls MOD-settings-pages' route.
