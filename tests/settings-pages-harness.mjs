@@ -240,4 +240,12 @@ export const click = async (button) => {
   button.dispatchEvent(event);
   await turn();
 };
+// Waits for a host's answer: polls `condition()` by the clock until it holds, for at most `ms` milliseconds; throws `never: <what>` otherwise.
+export async function until(condition, what, ms = 5000) {
+  const end = Date.now() + ms;
+  while (!condition()) {
+    if (Date.now() > end) throw new Error(`never: ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
 
