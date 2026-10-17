@@ -46,9 +46,6 @@ import { view as reviewPages } from "../review-pages/index.mjs";
 import { view as tracePages } from "../trace-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
-import { artifactSchemas, readDocument } from "../documents/index.mjs";
-import { renderArtifact } from "../markdown-render/index.mjs";
-import { componentDiagram } from "../trace-pages/diagram.mjs";
 import { routeOf } from "./routing.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -655,27 +652,12 @@ async function renderReviewPages(targets, lead = []) {
   }
 }
 
-// The component diagram under the lists of the architecture (UC-025 step 5): the module files of the page's snapshot, drawn by MOD-trace-pages'
-// diagram as Mermaid in Markdown and handed to MOD-markdown-render. The files are those the lists were drawn from.
+// The component diagram under the lists of the architecture (UC-025 step 5): MOD-trace-pages' route `trace` with its view `modules`, read through the same host.
 async function renderComponents(context) {
-  const host = (context.product ?? context.instance).host;
-  const snapshot = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
-  const schema = artifactSchemas().module;
-  const modules = [];
-  for (const path of snapshot.paths.filter((each) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(each))) {
-    const text = await snapshot.read(path);
-    if (text === null) continue;
-    const found = readDocument(schema, path, text);
-    const uses = (found.fields?.uses ?? []).map((name) => { const [module, ...iface] = String(name).split("."); return { module, iface: iface.join(".") }; });
-    modules.push({ kind: "module", id: found.id, title: found.fields?.title ?? found.title, follows: found.fields?.follows ?? [], uses, provides: found.fields?.provides ?? [] });
-  }
-  if (!modules.length) return;
-  const panel = document.createElement("section");
-  panel.className = "panel components";
-  const heading = document.createElement("h3");
-  heading.textContent = "Components";
-  panel.append(heading, renderArtifact("```mermaid\n" + componentDiagram(modules) + "```\n"), explain("component-diagram"));
-  main().append(panel);
+  const box = document.createElement("div");
+  main().append(box);
+  await tracePages.routes.find((route) => route.name === "trace").render(box,
+    { instance: { host: context.instance.host }, product: { host: (context.product ?? context.instance).host } }, { key: "modules", ref: T.ref });
 }
 
 // The specification browser under the open SPEC changes (MOD-trace-pages' route `trace`), read through the same host.

@@ -382,7 +382,7 @@ async function drawModules(target, context, host, ref, descriptor) {
     place.replaceChildren(el("p", "gaps-missing", `No modules exist at ${ref}.`));
     return;
   }
-  place.replaceChildren(await renderMermaid(componentDiagram(files)));
+  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"));
 }
 
 export const route = {
