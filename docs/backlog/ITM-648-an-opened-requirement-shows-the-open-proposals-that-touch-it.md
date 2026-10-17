@@ -32,6 +32,32 @@ would diverge from it, and already did on `until` (sprint 60's agreement).
 So the view takes each open entry's `impact` from `entryView`. It waits for akmaier's acceptance of the draft committed
 with ITM-597's gate, which adds `MOD-spec-changes.entryView` to MOD-trace-pages' Uses.
 
+**Settled at sprint team1/69's start. Selectable.**
+- **The module whose files it changes:** MOD-trace-pages, `flow.mjs`. An opened requirement on the default branch lists
+  every open entry whose `impact` names it, with the entry's state, the impact's kind and a link to the entry. Two such
+  entries carry 5c's note. At a tag, no proposal is shown (UC-020 1a). No topic is added.
+- **The rule is MOD-spec-changes'** `entryView(queue, entry, snapshot).impact`, in MOD-trace-pages' accepted Uses
+  (`b43da779`). The view classifies nothing itself, as the cut from ITM-597 asks.
+- **The grep, full output read:** `grep -rn "Open proposals\|queues(\|entryView" src/trace-pages tests` finds three
+  tests whose expected results change:
+  - `tests/trace-pages-specification.test.mjs:589-597`: no Open proposals section, known positive its use cases;
+  - `:602-611` (TST-597015): no section, no stale note and no queue read;
+  - `tests/system-itm-597-spec-traces.test.mjs:77`: no "Open proposals" in the page.
+  No release test is among them.
+- **Reads, against the token budget** (sprint 66). On the first opening at the default branch, `queues` and one
+  `entryView` per open entry read through the version's snapshot.
+  - ITM-597's first draft measured the queues' files at 110 raw reads without a token, with a token batched.
+  - **The measurement asked** (sprint 67): a committed test counting the snapshot's reads on a fixture with two open
+    entries. It shows one `queues` read per version, one `entryView` per open entry, and none on reopening.
+- **No error is added**, so sprint 68's reading of error fields has nothing to check.
+- **Reachable:** the live `#spec`.
+- **Sprint 68:** no release test is among the tests it is known to change. If the draft run finds one, the developer stops
+  and reports it, and a separate item by another participant changes it first.
+- **Sprint 64:** the developer's draft run over the modules' tests and their callers' lists every changed test before the
+  tests-only commit.
+- **Sprints 65 to 67:** DOM assertions compare booleans or strings, each shell command does one action, no refusal is
+  worked around, and a module header the item touches loses its item history.
+
 ## Acceptance
 
 - An opened requirement lists every open entry whose `impact` names it, with the entry's state, the impact's kind and a link to the entry.

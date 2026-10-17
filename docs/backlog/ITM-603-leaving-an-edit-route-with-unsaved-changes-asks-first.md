@@ -44,6 +44,30 @@ holds. No frame test asserts a route's replacement against a `leave`.
 
 **Ready to be selected** once akmaier accepts the draft.
 
+**Settled at sprint team1/69's start. Selectable.**
+- **The modules whose files it changes:**
+  - MOD-site-frame: `index.mjs`. Before it shows another route on a `hashchange` (`:305` for the review and main
+    pages), it asks the route shown through its optional `leave()`. `false` keeps the route and puts its address back.
+  - MOD-markdown-render: `editor.mjs:105`, where `close()` returns whether the editor closed, and asks first when the
+    text holds unsaved changes.
+  - MOD-review-pages: its edit routes give `leave` that calls their editor's `close`.
+  - All three texts are accepted (`b43da779`). No topic is added.
+- **The grep, full output read:**
+  - `grep -n hashchange src/site-frame/index.mjs` finds :305 and :370. :370 is the Bridge's window, whose routes have no
+    editor. It gets the same call, since `leave` is optional for every route (no special first case).
+  - `grep -n "close()" src/markdown-render/editor.mjs src/review-pages/*.mjs` finds the editor's definition alone, so no
+    route calls `close` today.
+  - `tests/markdown-render-343.test.mjs:119-148` calls `close()` and ignores its result, and it holds.
+- **Reads, against the token budget:** none.
+- **No error is added.**
+- **Reachable:** the review pages' edit routes, live.
+- **Sprint 68:** no release test is among the tests it is known to change. If the draft run finds one, the developer stops
+  and reports it, and a separate item by another participant changes it first.
+- **Sprint 64:** the developer's draft run over the modules' tests and their callers' lists every changed test before the
+  tests-only commit.
+- **Sprints 65 to 67:** DOM assertions compare booleans or strings, each shell command does one action, no refusal is
+  worked around, and a module header the item touches loses its item history.
+
 ## Acceptance
 
 - Leaving an edit route with unsaved changes calls the editor's `close()`, which asks.
