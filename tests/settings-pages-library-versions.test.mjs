@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { installDocument, byClass, byTag, click, elements, type, turn, until } from "./settings-pages-harness.mjs";
 import { attachedTarget, freshStore } from "./settings-pages-setup.d/dom.mjs";
-import { githubWorld, installWorld, registerEntry } from "./settings-pages-sources.d/github.mjs";
+import { githubWorld, installWorld, isWrite, registerEntry } from "./settings-pages-sources.d/github.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
@@ -97,8 +97,8 @@ async function open(t, { instance = INSTANCE_FILES, products = [THESIS, OTHER], 
 const one_ = (root, name) => { const found = byClass(root, name); assert.equal(found.length, 1, `exactly one .${name}`); return found[0]; };
 const text = (root, name) => one_(root, name).textContent;
 const commitsOf = (page, web) => page.world.commits(web === INSTANCE ? INSTANCE : repoOf(web));
-const requestsTo = (page, repository) => page.world.requests.filter((request) => request.url.pathname.startsWith(`/repos/${repository}`) || request.url.pathname.startsWith(`/${repository}/`));
-const writes = (page) => page.world.requests.filter((request) => request.method !== "GET");
+const requestsTo = (page, repository) => page.world.requests.filter((request) => request.repository === repository);
+const writes = (page) => page.world.requests.filter(isWrite);
 
 async function chooseFiles(page, files) {
   const input = one_(page.target, "library-version-files");
@@ -319,8 +319,8 @@ test("move — passages are listed only when both versions are text that is stor
   await until(() => byClass(page.target, "library-move-confirm").length === 1, "the move is prepared");
   assert.equal(text(page.target, "library-move-requirements"), "Requirements that name SRC-iec-62304: TITLE PAGE NAMES THE AUTHOR.");
   assert.equal(text(page.target, "library-move-passages-none"), "The passages are not listed: iec.pdf is not stored.");
-  assert.equal(page.world.requests.some((request) => /\/SRC-iec-62304\//.test(request.url.pathname)), false);
-  assert.equal(page.world.requests.some((request) => request.url.pathname.endsWith("/docs/sources/SRC-iec-62304.md")), true, "known positive: the entry is read");
+  assert.equal(page.world.requests.some((request) => /\/SRC-iec-62304\//.test(request.url.pathname) || request.named.some((path) => /^docs\/sources\/SRC-iec-62304\//.test(path))), false);
+  assert.equal(page.world.requests.some((request) => request.url.pathname.endsWith("/docs/sources/SRC-iec-62304.md") || request.named.includes("docs/sources/SRC-iec-62304.md")), true, "known positive: the entry is read, by its own request or in a batch");
   assert.equal(one_(page.target, "library-move-confirm").disabled, false);
 });
 
@@ -368,21 +368,21 @@ test("move — the passages of a restricted source are read where its content li
   await until(() => byClass(page.target, "library-move-confirm").length === 1, "the move is prepared");
   assert.deepEqual(byClass(page.target, "library-passage").map((node) => node.textContent), ["+ Chapter 2"]);
   assert.equal(requestsTo(page, repoOf(NAMED)).some((request) => request.authorization === `Bearer ${NAMED_TOKEN}` && request.url.pathname.endsWith("/handbook.md")), true);
-  assert.equal(requestsTo(page, INSTANCE).some((request) => /\/SRC-handbook\//.test(request.url.pathname)), false);
+  assert.equal(requestsTo(page, INSTANCE).some((request) => /\/SRC-handbook\//.test(request.url.pathname) || request.named.some((path) => /^docs\/sources\/SRC-handbook\//.test(path))), false);
 });
 
 // TST-591313 · level: unit · module: MOD-settings-pages
 // guards: UC-016 3, 4, 5; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the instance's register of two entries (as the repository holds), two products that the browser keeps and that link SRC-ai-act (thesis-tool on v1, other-tool on v2), each with its docs/sources.md; once with a token stored and once with none
 // input: render library/SRC-ai-act; press "Move to the new version" of thesis-tool; (with a token) press Move
-// expect: opening sends 14 requests, with a token and without one: 6 to the instance (the repository's information 1, its snapshot 2, its two entries 2, the list of the fetch workflow's runs 1), 4 to thesis-tool and 4 to other-tool (information 1, snapshot 2, docs/sources.md 1); no request to a product asks for its SPEC.md or a source's content; the press of "Move to the new version" sends 6 requests, 1 to thesis-tool (SPEC.md) and 5 to the instance (information 1, snapshot 2, the two versions' files 2); the press of Move sends 8, all to thesis-tool (information 1, snapshot 2, the branch's head 1, its commit 1, the tree 1, the new commit 1, the move of the branch 1); with no token stored the press of Move is refused by the server, writes nothing, and its result begins with ✗
+// expect: opening sends, with a token, 13 requests: 5 to the instance (the repository's information 1, its snapshot 2, its two entries in one query of GitHub's GraphQL API 1, the list of the fetch workflow's runs 1), 4 to thesis-tool and 4 to other-tool (information 1, snapshot 2, docs/sources.md 1), and, without one, 14: 6 to the instance (the two entries 2, one request each), 4 and 4; no request to a product asks for its SPEC.md or a source's content; the press of "Move to the new version" sends 6 requests, 1 to thesis-tool (SPEC.md) and 5 to the instance (information 1, snapshot 2, the two versions' files 2); the press of Move sends 8, all to thesis-tool (information 1, snapshot 2, the branch's head 1, its commit 1, the tree 1, the new commit 1, the move of the branch 1); with no token stored the press of Move is refused by the server, writes nothing, and its result begins with ✗
 test("budget — opening a source reads each kept product's docs/sources.md once; Move reads two versions' files; both counted with a token and without", async (t) => {
   for (const token of [true, false]) {
     const page = await open(t, { token });
     const label = token ? "with a token" : "without a token";
     const by = () => [INSTANCE, repoOf(THESIS), repoOf(OTHER)].map((repository) => requestsTo(page, repository).length);
-    assert.equal(page.world.requests.length, 14, `${label}: opening`);
-    assert.deepEqual(by(), [6, 4, 4], `${label}: opening, by repository`);
+    assert.equal(page.world.requests.length, token ? 13 : 14, `${label}: opening`);
+    assert.deepEqual(by(), token ? [5, 4, 4] : [6, 4, 4], `${label}: opening, by repository`);
     assert.equal(page.world.requests.some((request) => request.url.pathname.endsWith("/SPEC.md")), false, `${label}: no SPEC.md is read on opening`);
     page.world.requests.length = 0;
     await click(one_(page.target, "library-move-open"));

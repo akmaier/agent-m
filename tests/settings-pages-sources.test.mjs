@@ -22,7 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installDocument, byTag, click as clickOnce, turn } from "./settings-pages-harness.mjs";
 import { attachedTarget, buttonLabelled, freshStore, tick, untick } from "./settings-pages-setup.d/dom.mjs";
-import { githubWorld, installWorld, registerEntry, sectionOf, settled, withClass } from "./settings-pages-sources.d/github.mjs";
+import { githubWorld, installWorld, isWrite, registerEntry, sectionOf, settled, withClass } from "./settings-pages-sources.d/github.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
@@ -269,10 +269,11 @@ test("sources — a restricted source links like any other: only its content nee
   assert.equal(productCommits(page)[0].files["docs/sources.md"], links(`| SRC-handbook | 1 | ${H.handbook} | — |`));
   for (const request of page.world.requests) {
     assert.equal(request.url.origin, "https://api.github.com");
-    assert.ok(request.url.pathname.startsWith(`/repos/${INSTANCE}`) || request.url.pathname.startsWith(`/repos/${PRODUCT_REPO}`), `${request.method} ${request.url.pathname}`);
+    assert.ok([INSTANCE, PRODUCT_REPO].includes(request.repository), `${request.method} ${request.url.pathname}`);
     assert.doesNotMatch(request.url.pathname, /\/contents\/docs\/sources\/SRC-[^/]+\//, "no content of a source is read");
+    assert.equal(request.named.some((path) => /^docs\/sources\/SRC-[^/]+\//.test(path)), false, "no content of a source is asked for in a batch");
   }
-  assert.ok(page.world.requests.some((request) => request.url.pathname.endsWith("/contents/docs/sources/SRC-handbook.md")), "known positive: the entry of the register is read");
+  assert.ok(page.world.requests.some((request) => request.url.pathname.endsWith("/contents/docs/sources/SRC-handbook.md") || request.named.includes("docs/sources/SRC-handbook.md")), "known positive: the entry of the register is read, by its own request or in a batch");
 });
 
 // TST-590311 · level: unit · module: MOD-settings-pages
@@ -378,7 +379,7 @@ test("sources — the page names the repository Save writes to, and rendering wr
   const page = await open(t);
   assert.equal(withClass(page.target, "sources-where")[0].textContent, `Save writes docs/sources.md in ${PRODUCT} as your own commit, and writes nothing else.`);
   assert.ok(withClass(page.target, "muted").some((node) => node.textContent === `Product: ${PRODUCT}`));
-  assert.deepEqual(page.world.requests.filter((request) => request.method !== "GET"), []);
+  assert.deepEqual(page.world.requests.filter(isWrite), []);
 });
 
 // TST-590317 · level: unit · module: MOD-settings-pages

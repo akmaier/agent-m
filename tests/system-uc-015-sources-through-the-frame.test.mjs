@@ -17,7 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installDocument, byTag, click as clickOnce, turn } from "./settings-pages-harness.mjs";
 import { freshStore, tick, untick } from "./settings-pages-setup.d/dom.mjs";
-import { githubWorld, installWorld, registerEntry, sectionOf, settled, withClass } from "./settings-pages-sources.d/github.mjs";
+import { githubWorld, installWorld, isWrite, registerEntry, sectionOf, settled, withClass } from "./settings-pages-sources.d/github.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
@@ -84,7 +84,7 @@ const result = (page) => withClass(page.main(), "sources-result")[0].textContent
 const labelled = (page, text) => byTag(page.main(), "button").find((button) => button.textContent === text);
 const productCommits = (page) => page.world.commits(PRODUCT_REPO);
 const leftTheRepositories = (page) => page.world.requests.filter((request) => request.url.origin !== "https://api.github.com"
-  || !(request.url.pathname.startsWith(`/repos/${INSTANCE}`) || request.url.pathname.startsWith(`/repos/${PRODUCT_REPO}`)));
+  || ![INSTANCE, PRODUCT_REPO].includes(request.repository));
 
 // TST-590401 · level: system · module: MOD-settings-pages; MOD-site-frame
 // guards: UC-015 steps 1 to 4; A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
@@ -169,8 +169,8 @@ test("UC-015 3a — through the frame, a restricted source is linked like any ot
   assert.equal(productCommits(page)[0].files["docs/sources.md"],
     links(`| SRC-handbook | 1 | ${H.handbook} | — |`, `| SRC-iec-62304 | IEC 62304:2006+AMD1:2015 | ${H.iec} | — |`));
   // The content of a version lies in docs/sources/<source>/<version>/; the entries of the register, docs/sources/<source>.md, are read.
-  assert.deepEqual(page.world.requests.filter((request) => /\/contents\/docs\/sources\/SRC-[^/]+\//.test(request.url.pathname)), [], "no content of a source is read");
-  assert.ok(page.world.requests.some((request) => request.url.pathname.endsWith("/contents/docs/sources/SRC-handbook.md")), "known positive: the entry of the register is read");
+  assert.deepEqual(page.world.requests.filter((request) => /\/contents\/docs\/sources\/SRC-[^/]+\//.test(request.url.pathname) || request.named.some((path) => /^docs\/sources\/SRC-[^/]+\//.test(path))), [], "no content of a source is read");
+  assert.ok(page.world.requests.some((request) => request.url.pathname.endsWith("/contents/docs/sources/SRC-handbook.md") || request.named.includes("docs/sources/SRC-handbook.md")), "known positive: the entry of the register is read, by its own request or in a batch");
   assert.deepEqual(leftTheRepositories(page), []);
 });
 
@@ -205,5 +205,5 @@ test("UC-015 step 1 — through the frame, without a product the page asks for o
   const unknown = await visit(t, `#sources/product=${encodeURIComponent("https://github.com/alice/other")}`);
   assert.equal(withClass(unknown.main(), "sources-no-product")[0].textContent, sentence);
   assert.ok(withClass(document.body, "notice").some((notice) => notice.textContent.includes("This browser does not keep the product https://github.com/alice/other")));
-  assert.deepEqual(unknown.world.requests.filter((request) => request.method !== "GET"), []);
+  assert.deepEqual(unknown.world.requests.filter(isWrite), []);
 });
