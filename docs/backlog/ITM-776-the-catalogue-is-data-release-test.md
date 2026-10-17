@@ -8,6 +8,7 @@ realises:
 modules:
   - MOD-model-catalogue
 builds_on:
+  - ITM-812
 tests:
   - release
 origin:
