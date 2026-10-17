@@ -40,3 +40,7 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Found at ITM-574's gate (2026-10-17, po-opus).** `src/site-frame/dashboard-app.mjs:12` still reads
+`// Module: MOD-dashboard-app`, a module with no file. `tests/review-core.d/dashboard-app.test.mjs:113` and `:146` select
+files by that line. This item removes the line and re-points that selection.

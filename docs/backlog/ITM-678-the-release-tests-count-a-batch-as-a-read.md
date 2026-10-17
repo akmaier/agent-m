@@ -8,6 +8,9 @@ realises:
 modules:
   - MOD-spec-changes
   - MOD-trace-pages
+  - MOD-review-pages
+  - MOD-trace-graph
+  - MOD-repository-hosts
 builds_on:
 tests:
   - release

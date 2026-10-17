@@ -215,3 +215,9 @@ page load with a token to 3 requests for the start page and `#arc`, 15 for `#spe
 - **The release tests** are ITM-707's: `release-sprint-01-dashboard-app` (UC-008 3 and UC-006 4a, through its `writes()`),
   `release-sprint-02-a-dashboard-app` (ITM-126) and `release-uc-003-direct-endpoint` (TST-292005).
   `release-uc-019-change-requirements-by-prompt` is not among them.
+
+**Corrected at its gate (2026-10-17 12:39 UTC, po-opus,
+`docs/gates/20261017-1239-development-release-testing-eb82.md`).** For `#backlog`'s process model, two lines of the
+second stop are withdrawn: "the batch of the process model (the second wave)" and "no file is read by itself".
+backlog-view reads the model itself, in one request, as the second wave also took one. Whether `tests/dashboard-backlog-teams.test.mjs:224`
+keeps its 5 requests is measured by the rework, not assumed.
