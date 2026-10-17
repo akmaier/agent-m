@@ -8,7 +8,8 @@
 // It reads and writes text only: no service is called, paid or free.
 
 import { readRegister } from "../documents/index.mjs";
-import { testDeclarations } from "../test-document/index.mjs";
+import { testDeclarations, isTestFile } from "../test-document/index.mjs";
+import { finding } from "../text-tools/index.mjs";
 import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { paidServices, resourceSchema } from "../resource-list/index.mjs";
 
@@ -80,5 +81,45 @@ async function testSelection(context, params) {
   return [{ name: "test-selection", text, sources: [], required: true, artifacts: [] }];
 }
 
-// resultStrategies: MOD-job-runner's Partial<Strategies> with the recipe.
-export const resultStrategies = { recipes: { "test-selection": testSelection } };
+const normal = (text) => String(text ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+const blank = (value) => typeof value !== "string" || value.trim() === "";
+
+// The declarations of every test file of the product's snapshot.
+async function existingTests(snapshot) {
+  const found = [];
+  for (const path of snapshot.paths.filter(isTestFile)) {
+    const text = await snapshot.read(path);
+    if (typeof text === "string") found.push(...testDeclarations(path, text));
+  }
+  return found;
+}
+
+/**
+ * The check test-proposals(draft, context) -> Finding[], for the kind `propose-tests` (the draft's `cases`): an error for a case without an expected result, a model-dependent
+ * case (one with `phrasings`) judged on fewer than two runs, and a case that guards nothing; an error for a case not classed `duplicate` that shares a guarded name, its input
+ * and its expected result with an existing test. A draft without `cases` has no finding. It calls no model.
+ */
+async function testProposals(draft, context) {
+  const cases = Array.isArray(draft?.cases) ? draft.cases : [];
+  const existing = cases.length ? await existingTests(context.product.snapshot) : [];
+  const findings = [];
+  cases.forEach((one, index) => {
+    const at = { artifact: one.identifier ?? `case ${index + 1}`, line: index + 1, kind: "error" };
+    if (blank(one.expected)) findings.push(finding({ ...at, rule: "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS",
+      what: `case ${at.artifact} names no expected result`, fix: "state the result the case expects before it runs" }));
+    if (Array.isArray(one.phrasings) && one.phrasings.length > 0 && !(one.runs >= 2)) findings.push(finding({ ...at, rule: "A MODEL-DEPENDENT TEST IS MEASURED AS A RATE",
+      what: `model-dependent case ${at.artifact} is judged on ${one.runs === undefined ? "no number of runs" : `${one.runs} run`}`, fix: "fix a number of runs of at least 2 before the first run" }));
+    const guards = Array.isArray(one.guards) ? one.guards : [];
+    if (guards.length === 0) findings.push(finding({ ...at, rule: "EVERY ARTIFACT NAMES ITS ORIGIN",
+      what: `case ${at.artifact} guards no requirement, use case or module`, fix: "name the identifiers the case guards, or drop the case" }));
+    const same = one.class === "duplicate" ? null : existing.find((test) => (test.guards ?? []).some((name) => guards.includes(name))
+      && normal(test.input) === normal(one.input) && normal(test.expect) === normal(one.expected));
+    if (same) findings.push(finding({ ...at, rule: "TEST GENERATION SEES THE EXISTING TESTS",
+      what: `case ${at.artifact} has the guarded identifier, input and expected result of the existing test ${same.id} but is classed ${one.class ?? "unclassed"}`,
+      fix: `class it duplicate of ${same.id}` }));
+  });
+  return findings;
+}
+
+// resultStrategies: MOD-job-runner's Partial<Strategies> with the recipe and the check.
+export const resultStrategies = { recipes: { "test-selection": testSelection }, checks: { "test-proposals": testProposals } };

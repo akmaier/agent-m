@@ -75,9 +75,9 @@ test("test-proposals — a case that guards nothing is an error", async () => {
 
 // TST-753104 · level: unit · module: MOD-result-records
 // guards: TEST GENERATION SEES THE EXISTING TESTS; UC-026 (6)
-// given: an existing test TST-901 guarding A SELECTED RULE, input "its shape", expect "round"; a proposal of five cases: (1) class new with the same guard, input and expected result (input in other case and spacing), (2) class duplicate with the same, (3) class new with the same guard and input but expected "square", (4) class new with the same input and expected result but guarding ANOTHER RULE, (5) class extends with the same guard, input and expected result
+// given: an existing test TST-901 guarding A SELECTED RULE, input "its shape", expect "round"; a proposal of six cases: (1) class new with the same guard, input and expected result (input in other case and spacing), (2) class duplicate with the same, (3) class new with the same guard and input but expected "square", (4) class new with the same input and expected result but guarding ANOTHER RULE, (5) class extends with the same guard, input and expected result, (6) class new with the same guard and expected result but another input
 // input: the check test-proposals on the proposal
-// expect: error findings under TEST GENERATION SEES THE EXISTING TESTS for case 1 (line 1) and case 5 (line 5), each naming TST-901 in what or fix; none for cases 2, 3 and 4
+// expect: error findings under TEST GENERATION SEES THE EXISTING TESTS for case 1 (line 1) and case 5 (line 5), each naming TST-901 in what or fix; none for cases 2, 3, 4 and 6
 test("test-proposals — a case equal to an existing test in guard, input and expected result is reclassified a duplicate, whatever its participant said", async () => {
   const same = { ...CASE, guards: ["A SELECTED RULE"], input: "its shape", expected: "round" };
   const found = await check({ cases: [
@@ -86,6 +86,7 @@ test("test-proposals — a case equal to an existing test in guard, input and ex
     { ...same, identifier: "TST-943", expected: "square" },
     { ...same, identifier: "TST-944", guards: ["ANOTHER RULE"] },
     { ...same, identifier: "TST-945", class: "extends", of: "TST-901" },
+    { ...same, identifier: "TST-946", input: "its colour" },
   ] });
   const RULE = "TEST GENERATION SEES THE EXISTING TESTS";
   assert.deepEqual(rules(found), [["TST-941", 1, "error", RULE], ["TST-945", 5, "error", RULE]]);
