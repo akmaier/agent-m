@@ -25,6 +25,9 @@ const PAGE = Symbol("the Settings page's own context");
 // chose; Settings opened anew, with a context of its own, shows its first tab.
 const chosenTabs = new WeakMap();
 
+// The page keeps the instance and the product it was given in objects of its own, so that connecting their hosts again changes nothing its caller holds.
+const pageContext = (given) => ({ ...given, instance: given.instance && { ...given.instance }, product: given.product && { ...given.product } });
+
 function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
@@ -405,6 +408,14 @@ function exportImportControls(context, signIn) {
   );
 }
 
+// A host keeps the token it was connected with. After a token is cleared, the page connects its instance and its product again with what the
+// store holds (MOD-repository-hosts.connect, as repositoryLine's Test does with the stored token), so that no later request carries the cleared one.
+function reconnectHosts(context) {
+  const reconnect = (address) => connect(address, credentialsFor(context.store, address) ?? {});
+  if (context.instance?.host) context.instance.host = reconnect(parseAddress(`https://github.com/${context.instance.repository}`));
+  if (context.product?.host) context.product.host = reconnect(parseAddress(context.product.address));
+}
+
 function browserClearControls(context) {
   const clear = el("button", "settings-clear-everything btn", "Clear everything in this browser");
   const acknowledgement = el("input", "settings-clear-ack");
@@ -414,6 +425,7 @@ function browserClearControls(context) {
   acknowledgement.addEventListener("change", () => { clear.disabled = !acknowledgement.checked; });
   clear.addEventListener("click", () => {
     clearEverything(context.store);
+    reconnectHosts(context);
     clear.disabled = true;
     acknowledgement.checked = false;
     result.textContent = "Every Agent M setting for this instance is cleared from this browser.";
@@ -537,6 +549,7 @@ function repositoryLine(target, context, info) {
     if (!globalThis.confirm(`Clear this token from this browser? ${consequence}`)) return;
     clearSetting(context.store, info.key);
     clearSetting(context.store, `last-test:${info.key}`);
+    reconnectHosts(context);
     value.value = "";
     status.textContent = `Cleared from this browser. ${consequence}`;
   });
@@ -596,7 +609,6 @@ const RECORDING_STATEMENTS = [
 // click, and the page says that written records stay.
 function recordingControls(context) {
   const schema = recordingSchema();
-  const host = context.instance?.host;
   const state = el("p", "settings-recording-state", "Recording conversations is not read yet.");
   const switchOn = el("button", "settings-recording-on btn", "Switch on");
   const switchOff = el("button", "settings-recording-off btn", "Switch off");
@@ -620,6 +632,7 @@ function recordingControls(context) {
   const load = async () => {
     if (loaded) return;
     loaded = true;
+    const host = context.instance?.host;
     if (!host) { controls.replaceChildren(); state.textContent = "The instance repository is not connected, so the switch cannot be read."; return; }
     try {
       const snapshot = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
@@ -633,7 +646,7 @@ function recordingControls(context) {
     const text = writeDocument(schema, { kind: schema.schema, path: schema.path, id: null, title: null,
       fields: { recording: next }, sections: [], appended: [], body: `${schema.title}\n` });
     try {
-      const saved = await saveFile(host, { path: schema.path, text, openedBlob });
+      const saved = await saveFile(context.instance?.host, { path: schema.path, text, openedBlob });
       if (saved.refused) { result.textContent = "The switch changed meanwhile; nothing was written."; return false; }
       openedBlob = saved.blob;
       return true;
@@ -1066,7 +1079,7 @@ export const route = {
   title: "Settings",
   async render(target, given) {
     // A line that renders the page again hands back the context of its tab; the page keeps its own.
-    const context = given[PAGE] ?? given;
+    const context = given[PAGE] ?? pageContext(given);
     // UC-042 steps 2 and 3, UC-011 step 1, UC-044 step 4: the forms that set up a model endpoint or the Bridge open in
     // place, in the tab Endpoints & Agents under its buttons, one at a time; Add a product opens in the tab Repositories,
     // under the product list. Every other route, and these from other pages, go through the page's own context.
