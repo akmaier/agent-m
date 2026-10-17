@@ -6,11 +6,11 @@
 // Guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged. The product is a fixture behind a Host of the tests' own, which keeps to MOD-repository-hosts'
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged. The product is a fixture behind a Host of the tests' own, which keeps to MOD-repository-hosts'
 // interface (repositoryInfo with canWrite false, readSnapshot, commitFiles refused). The real MOD-markdown-render (its editor), MOD-spec-changes, MOD-artifact-edits and MOD-text-tools run as
 // they are. Nothing reaches the network. Each test states its input and its expected result before it runs (given / input / expect). The counter-proof is recorded in the pull request.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

@@ -5,12 +5,12 @@
 // Module: MOD-review-pages
 // Level: unit
 //
-// This file holds inputs only — no expected result: every test states its own. It imports the browser harness of tests/review-pages-use-cases.test.mjs
+// This file holds inputs only — no expected result: every test states its own. It imports the browser harness of tests/review-pages-harness.mjs
 // unchanged (its document and its localStorage). The product is a repository in memory with a history, a Host that keeps to MOD-repository-hosts' interface
 // (repositoryInfo, readSnapshot, readHistory, commitFiles on the head that was read, else `Moved`), every call recorded. The instance is a read-only
 // snapshot with the register of participants and the register entry of the person alice. Nothing reaches the network: `fetch` is a spy that refuses.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
