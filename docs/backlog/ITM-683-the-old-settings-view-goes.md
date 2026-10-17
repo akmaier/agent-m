@@ -10,6 +10,7 @@ modules:
   - MOD-site-frame
 builds_on:
   - ITM-574
+  - ITM-807
 tests:
   - unit
 origin:
