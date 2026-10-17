@@ -3,11 +3,11 @@
 // request handlers a view's tests bring to the harness.
 // Run: node --test tests/
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: EVERY SETTING IS REACHED FROM ONE PAGE; THE MENU FOLLOWS THE PROCESS; UC-001; UC-006; UC-008; UC-014; UC-022; UC-023; UC-024; UC-042
 // Level: component
 //
-// The real dashboard (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock. The counter-proofs
+// The real dashboard (the harness's APP_FILE) runs in tests/app-harness.mjs against a GitHub API mock. The counter-proofs
 // are recorded in docs/measurements/2026-10-01_dashboard-shell.md and docs/measurements/2026-10-01_no-request-for-a-view-not-built.md.
 
 import test from "node:test";
@@ -17,9 +17,10 @@ import { existsSync, mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, r
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { repoServer, openDashboard } from "./app-harness.mjs";
-import { DASHBOARD } from "../docs/assets/dashboard-app.mjs";
+import { repoServer, openDashboard, APP_FILE } from "./app-harness.mjs";
 import { MENU } from "../src/site/menu.mjs";
+
+const { DASHBOARD } = await import(APP_FILE.href);
 
 // What a page asks the server for below docs/assets/dashboard/: in a browser every import of a view or section file is a request
 // to GitHub Pages, and one for a file that is not there is answered 404. Under node the harness's fetch does not see imports, so
@@ -151,13 +152,13 @@ test("a view may link a stylesheet of its own beside style.css — once, when it
     cpSync(new URL("../src/", import.meta.url), join(root, "src"), { recursive: true });
     const view = join(dir, "dashboard", "how-view.mjs");
     writeFileSync(view, readFileSync(view, "utf8") + '\nexport const stylesheet = "how-view.css";\n');
-    const assets = pathToFileURL(dir + "/");
+    const assets = pathToFileURL(join(root, "src", "site-frame") + "/");
     const page = await openDashboard({ server: await repoServer({ files: FILES }), assets });
     assert.deepEqual(page.stylesheets(), [], "the use cases bring none");
     await page.go("#how");
     await page.go("#uc");
     await page.go("#how");
-    assert.deepEqual(page.stylesheets(), [new URL("dashboard/how-view.css", assets).href]);
+    assert.deepEqual(page.stylesheets(), [new URL("dashboard/how-view.css", pathToFileURL(dir + "/")).href]);
     // Counter-proof: the real how-view.mjs names none, and nothing is linked.
     const real = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#how" });
     assert.deepEqual(real.stylesheets(), []);

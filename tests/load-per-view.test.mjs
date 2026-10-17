@@ -1,15 +1,15 @@
-// Load per view — the dashboard reads the commit and the tree on a page load, and each view only what it shows; a file's text
-// is kept in the browser by its blob SHA and not read again while that blob is unchanged. Deterministic, no network: the real
-// app (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that counts every request.
+// A PAGE LOAD READS THE REPOSITORY IN BATCHES — the Check of that requirement. With a token on GitHub, one load of a dashboard
+// page sends its commit and that commit's tree once, and the texts of the files it shows in requests of at most 100 files each;
+// a file whose blob the page has read is not read again, and an acceptance reads the head it commits on once. Deterministic, no
+// network: the real app (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that counts every
+// request and serves GitHub's batch request (POST /graphql), one aliased field for each file.
 //
-// Module: MOD-dashboard-app
-// Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A CLEAR IS A REAL CLEAR
+// Module: MOD-site-frame
+// Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A CLEAR IS A REAL CLEAR
 // Level: component
 //
-// Why: on 2026-10-01 the PO's account used up its 5,000 requests per hour. With a token, every page load read every use case,
-// every architecture file, every approval record and every queue file through the contents API — about 450 requests.
-// SPEC §10 STATUS IS DERIVED FROM THE RECORDS · AN APPROVAL NAMES THE EXACT TEXT · A CHANGED FILE IS SHOWN AGAINST ITS LAST
-// ACCEPTED TEXT; §7 A CLEAR IS A REAL CLEAR — kept, with fewer reads.
+// The expected requests are written here from the requirement, for the fixture product of tests/fixtures/architecture: the files a
+// page shows are listed by name, and the requests that carry them are `batch <n>`, n the files in it.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -18,14 +18,15 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gitBlobSha, recordText, useCaseRecord, reviewedRecord, specRecord, extractSection, sectionText, approvalPath }
   from "../docs/assets/review-core.mjs";
-import { repoServer, fakeCaches, openDashboard } from "./app-harness.mjs";
+import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
 
-// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
+// The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section
 // under docs/assets/dashboard/ — what a test that read the one app file reads now.
 const dashboardText = () => {
   const assets = new URL("../docs/assets/", import.meta.url);
   const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
-  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
+  return [readFileSync(new URL("../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8"),
+    ...views.map((f) => readFileSync(new URL(`dashboard/${f}`, assets), "utf8"))].join("\n");
 };
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues
@@ -39,17 +40,19 @@ const base = {};
   }
 })(FIX);
 const UC1 = "docs/use-cases/UC-001-read-a-file.md", UC2 = "docs/use-cases/UC-002-show-the-status.md";
+const README = "docs/use-cases/README.md";
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";
+const PAGE = "docs/architecture/MOD-page.md", REVIEW = "docs/architecture/MOD-review.md";
 const DONE = "docs/spec-freigaben/2026-09-01_done", OPEN = "docs/spec-freigaben/2026-09-02_open";
 const INDEX = (anchor) => "# Queue\n\n**Zieldatei aller Einträge:** `products/fixture/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n" +
   `|---|---|---|---|---|\n| 01 | \`SPEC.md\` | ${anchor} | — | — |\n`;
 
 // The texts accepted earlier, which the server still holds by their blob SHA.
 const EARLIER = [];
-const server = async (files) => repoServer({ files, history: EARLIER });
+const server = async (files, handlers = []) => repoServer({ files, history: EARLIER, handlers });
 
 async function product(over = {}) {
-  const f = { ...base, "docs/use-cases/README.md": "# Use cases\n\nThe overview.\n", "docs/approvals/README.md": "# Approval records\n" };
+  const f = { ...base, [README]: "# Use cases\n\nThe overview.\n", "docs/approvals/README.md": "# Approval records\n" };
   const rec = async (id, path, text, blob = null) => {
     const b = blob ?? await gitBlobSha(text);
     if (text !== f[path]) EARLIER.push(text);
@@ -75,49 +78,160 @@ async function product(over = {}) {
   return { ...f, ...over };
 }
 
+const useCase = (n, title) => `---\nid: UC-${n}\ntitle: ${title}\narea: 1\nactors:\n  - Reader\nrealises: []\n---\n# UC-${n} ${title}\n`;
+const extraUseCases = (from, count) => Object.fromEntries(Array.from({ length: count }, (_, i) =>
+  [`docs/use-cases/UC-${from + i}-extra-${from + i}.md`, useCase(from + i, `Extra ${from + i}`)]));
+
 const files = (requests) => requests.filter((r) => r.startsWith("file ")).map((r) => r.slice(5)).sort();
 const under = (requests, prefix) => files(requests).filter((p) => p.startsWith(prefix));
 const recordOf = (repo, id) => Object.keys(repo).filter((p) => p.startsWith(`docs/approvals/${id}-`));
+const sorted = (list) => [...list].sort();
+const batchesOf = (requests) => requests.filter((r) => r.startsWith("batch "));
+const count = (requests, what) => requests.filter((r) => r === what).length;
 
-// ---------------------------------------------------------------- one view, what it reads
+// ---------------------------------------------------------------- the start page, #arc, #spec, #backlog: the Check
 
-test("the use-case list reads the commit, the tree, the use cases and only the records it must — no architecture or queue file", async () => {
-  const repo = await product();
-  const page = await openDashboard({ server: await server(repo) });
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product — two use cases and the README, with the record of UC-002's earlier text
+// input: open the start page with a token
+// expect: the commit and the tree once, then one batch of the 4 files it shows, and no file by itself
+test("the start page sends its commit and tree once and one batch of the files it shows", async () => {
+  const repo = await product(), srv = await server(repo);
+  const page = await openDashboard({ server: srv });
   assert.match(page.main(), /UC-001/);
   assert.match(page.main(), /UC-002/);
   assert.match(page.main(), /The overview\./);
-  assert.deepEqual(page.requests.filter((r) => !r.startsWith("file ")), ["commit", "tree"]);
-  // UC-002 has a record of an earlier text only: whether it is changed or open is read from that record. UC-001's record is
-  // named by its current blob — accepted, without reading it.
-  assert.deepEqual(files(page.requests), ["docs/use-cases/README.md", UC1, UC2, ...recordOf(repo, "UC-002")].sort());
   assert.match(page.main(), /b-accepted/);
   assert.match(page.main(), /b-changed/);
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 4"]);
+  // UC-002 has a record of an earlier text only: whether it is changed or open is read from that record. UC-001's record is
+  // named by its current blob — accepted, without reading it.
+  assert.deepEqual(srv.batches.map(sorted), [sorted([README, UC1, UC2, ...recordOf(repo, "UC-002")])]);
 });
 
-test("the architecture view reads no use case and no queue file", async () => {
-  const repo = await product();
-  const page = await openDashboard({ server: await server(repo), hash: "#arc" });
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product, whose architecture files, SPEC and records decide the statuses of #arc
+// input: open #arc with a token
+// expect: the commit and the tree once, then one batch of the 7 files it shows — the four architecture files, the SPEC the
+//         requirements are read from, and the 2 records that decide a status — and no use case, no queue file, no file by itself
+test("#arc sends its commit and tree once and one batch of the files it shows — no use case and no queue file", async () => {
+  const repo = await product(), srv = await server(repo);
+  const page = await openDashboard({ server: srv, hash: "#arc" });
   for (const id of ["ARC-001", "MOD-page", "MOD-reader", "MOD-review"]) assert.match(page.main(), new RegExp(id));
-  assert.deepEqual(under(page.requests, "docs/use-cases/"), []);
-  assert.deepEqual(under(page.requests, "docs/spec-freigaben/"), []);
-  assert.deepEqual(under(page.requests, "docs/architecture/"), [ARC, "docs/architecture/MOD-page.md", READER, "docs/architecture/MOD-review.md"]);
-  assert.ok(files(page.requests).includes("SPEC.md"), "the requirements the files name are read from the SPEC");
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 7"]);
+  assert.deepEqual(srv.batches.map(sorted), [sorted([ARC, PAGE, READER, REVIEW, "SPEC.md", ...recordOf(repo, "MOD-reader"), ...recordOf(repo, "UC-002")])]);
   // Counter-proof of the gate: MOD-review realises UC-002, which is changed — the list says what it waits for.
   assert.match(page.main(), /waits for UC-002/);
 });
 
-test("the SPEC view lists only the open SPEC changes; an accepted queue's proposals are not read", async () => {
-  const repo = await product();
-  const page = await openDashboard({ server: await server(repo), hash: "#spec" });
-  assert.deepEqual(files(page.requests), ["SPEC.md", "SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/01-more.md`,
-    `${OPEN}/entscheidungen.md`].sort());
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product with a queue whose one entry is accepted and written, and a queue with an open entry
+// input: open #spec with a token
+// expect: the app reads in two waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
+//         being the same blob —, then the proposals of the open queue — 1 file; no file twice, the accepted queue's proposal
+//         not at all. The specification route reads through hosts of its own, which this case leaves out (ITM-680).
+test("#spec: the app reads the SPEC and the queues' heads in one batch and the open queue's proposals in a second", async () => {
+  const repo = await product(), srv = await server(repo);
+  const page = await openDashboard({ server: srv, hash: "#spec" });
+  const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
+  const wave2 = [`${OPEN}/01-more.md`];
+  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 1"]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1, wave2]);
+  assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
+  assert.deepEqual(files(page.requests).filter((p) => p !== "SPEC.md"), [], "the app reads no file by itself");
   const main = page.main();
   // Only open changes: the queue with an open entry is listed, the accepted queue is not.
   assert.match(main, /id="queue-2026-09-02_open"/);
   assert.doesNotMatch(main, /id="queue-2026-09-01_done"/);
   assert.doesNotMatch(main, /closed queue/);
 });
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product
+// input: open #spec with a token
+// expect: the whole load — the specification route's reads included — sends its commit and tree once and reads no file by itself
+test("#spec: the whole load sends its commit and tree once, and every file in a batch", { todo: "ITM-680 makes the specification route read through the app's host" }, async () => {
+  const srv = await server(await product());
+  const page = await openDashboard({ server: srv, hash: "#spec" });
+  assert.equal(count(page.requests, "commit"), 1);
+  assert.equal(count(page.requests, "tree"), 1);
+  assert.deepEqual(files(page.requests), []);
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a product that declares its process model, with one team, its sprint and two items
+// input: open #backlog with a token
+// expect: the commit and the tree once, one batch of the 7 files it shows — the declaration, the SPEC, the team's role
+//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the view reads the process
+//         model the declaration names itself, in one request of its own, since one file meets "requests of at most 100 files
+//         each"; no use case, no module file (one team), and no other file by itself
+test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
+  const repo = await product({
+    "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"a".repeat(40)}`,
+      "---", "# How the fixture product is developed", ""].join("\n"),
+    "docs/process-models/fixture.md": readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8"),
+    "docs/role-assignments/team1.md": "# team1\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | alice |\n| Builders | dev-a |\n| Checker | dev-a |\n",
+    "docs/backlog/sprints/team1/01.md": "---\nsprint: 1\ngoal: Read\nstart: 2026-09-14\nend:\ncloser: alice\nbranch:\nselection:\n  - ITM-001\n---\n# team1 Sprint 01\n",
+    "docs/backlog/ITM-001-item-1.md": item(1), "docs/backlog/ITM-002-item-2.md": item(2),
+  });
+  const pulls = (url) => (url.origin === "https://api.github.com" && url.pathname === `/repos/${REPO}/pulls`
+    ? new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }) : undefined);
+  const srv = await server(repo, [pulls]);
+  const page = await openDashboard({ server: srv, hash: "#backlog" });
+  assert.match(page.main(), /ITM-001/);
+  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", "file docs/process-models/fixture.md"]);
+  const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
+    "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1]);
+});
+
+const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "level: module", "realises:", "  - RULE ONE", "modules:", "  - MOD-reader",
+  "builds_on: []", "tests:", "  - unit", "origin:", "  - RULE ONE", "---", `# ITM-00${n} The work of item ${n}`, "", "## Outcome", "",
+  `What item ${n} delivers.`, "", "## Acceptance", "", "- a unit test.", ""].join("\n");
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a start page that shows 209 files: 207 use cases and the README, with the one record that decides UC-002's status
+// input: open the start page with a token
+// expect: 3 batches in all, never more than 100 files in one: batch 100, batch 100, batch 9
+test("a page that shows more than a hundred files sends one batch for every hundred of them", async () => {
+  const repo = await product(extraUseCases(100, 205)), srv = await server(repo);
+  const page = await openDashboard({ server: srv });
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 100", "batch 100", "batch 9"]);
+  assert.equal(new Set(srv.batches.flat()).size, 209, "each of the 209 files once");
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a stored token; the fixture product
+// input: open the start page without a token
+// expect: GitHub's batch request needs the token: none is sent, and each file is read by its own request
+test("without a token no batch is sent; each file is read by itself", async () => {
+  const srv = await server(await product());
+  const page = await openDashboard({ server: srv, token: null });
+  assert.deepEqual(batchesOf(page.requests), []);
+  assert.deepEqual(files(page.requests).length, 4);
+  assert.match(page.main(), /UC-002/);
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open — shown on the review page
+// input: press Accept all 3 shown
+// expect: before it writes, the click reads the head it commits on once — one commit, one tree — and no file, since the three
+//         texts were read when the page was shown and their blobs are unchanged
+test("an acceptance of three files reads its head once", async () => {
+  const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
+  const srv = await server(repo);
+  const page = await openDashboard({ server: srv, hash: "#review/uc" });
+  assert.match(page.main(), /Accept all 3 shown/);
+  const made = await page.click("[data-accept-all]");
+  assert.equal(srv.writes.length, 1, "one commit");
+  assert.equal(Object.keys(srv.writes[0].files).length, 3, "one record for each of the three files");
+  const before = made.slice(0, made.indexOf("write tree"));
+  assert.equal(count(before, "commit"), 1, before.join(" | "));
+  assert.equal(count(before, "tree"), 1, before.join(" | "));
+  assert.deepEqual(before.filter((r) => r.startsWith("file ") || r.startsWith("batch ")), [], before.join(" | "));
+});
+
+// ---------------------------------------------------------------- one view, what it reads
 
 test("opening one use case reads that use case and its records — no other file", async () => {
   const repo = await product();
@@ -145,31 +259,34 @@ test("opening a changed module reads what its impact list needs: its records, it
 test("settings read the product's settings, and no use case, architecture file, record or queue", async () => {
   const page = await openDashboard({ server: await server(await product()), hash: "#settings" });
   assert.deepEqual(files(page.requests), []);
+  assert.deepEqual(batchesOf(page.requests), []);
   assert.ok(page.requests.includes("tree"));
 });
 
 // ---------------------------------------------------------------- the texts held during one dashboard load
 
-test("a second load on an unchanged tree reads its displayed files again", async () => {
+test("a second load on an unchanged tree sends the same requests as the first; an edited file adds its record to the batch", async () => {
   const repo = await product(), caches = fakeCaches();
   const first = await openDashboard({ server: await server(repo), caches });
-  assert.ok(files(first.requests).length > 0);
+  assert.deepEqual(first.requests, ["commit", "tree", "batch 4"]);
   const again = await openDashboard({ server: await server(repo), caches });
-  assert.deepEqual(files(again.requests), files(first.requests));
+  assert.deepEqual(again.requests, ["commit", "tree", "batch 4"]);
   assert.equal(again.main(), first.main(), "the same page");
-  // A file whose blob changed is read again — that one, and its record: no record is named by its new text, so the record of
-  // the earlier one says whether it is changed or open.
+  // A file whose blob changed is shown with its new text — that one, and its record: no record is named by its new text, so the
+  // record of the earlier one says whether it is changed or open.
   const edited = { ...repo, [UC1]: repo[UC1].replace("Read a file", "Read one file") };
-  const third = await openDashboard({ server: await server(edited), caches });
-  assert.deepEqual(files(third.requests), [...files(first.requests), ...recordOf(repo, "UC-001")].sort());
+  const srv = await server(edited);
+  const third = await openDashboard({ server: srv, caches });
+  assert.deepEqual(third.requests, ["commit", "tree", "batch 5"]);
+  assert.deepEqual(srv.batches.map(sorted), [sorted([README, UC1, UC2, ...recordOf(repo, "UC-002"), ...recordOf(repo, "UC-001")])]);
   assert.match(third.main(), /Read one file/);
 });
 
-test("without Cache Storage the page still works; it reads every file it shows", async () => {
+test("without Cache Storage the page still works; it sends the same requests", async () => {
   const repo = await product();
   const first = await openDashboard({ server: await server(repo), caches: null });
   const again = await openDashboard({ server: await server(repo), caches: null });
-  assert.deepEqual(files(again.requests), files(first.requests));
+  assert.deepEqual(again.requests, first.requests);
   assert.match(again.main(), /UC-002/);
 });
 

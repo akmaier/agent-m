@@ -24,7 +24,7 @@ const controls = (root, className, found = []) => {
   return found;
 };
 
-async function publicSettings({ entries = {}, handlers = [], selectedProduct = null, assets = process.env.AGENT_M_290_ACTIONS_ROOT ? new URL(`file://${process.env.AGENT_M_290_ACTIONS_ROOT}/docs/assets/`) : undefined } = {}) {
+async function publicSettings({ entries = {}, handlers = [], selectedProduct = null, assets = process.env.AGENT_M_290_ACTIONS_ROOT ? new URL(`file://${process.env.AGENT_M_290_ACTIONS_ROOT}/src/site-frame/`) : undefined } = {}) {
   const server = await repoServer({ files: {}, handlers });
   const page = await openDashboard({ server, search: selectedProduct ? `?product=${encodeURIComponent(selectedProduct)}` : "", hash: "#uc", entries, ...(assets ? { assets } : {}) });
   const dom = richDocument();

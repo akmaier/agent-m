@@ -1,17 +1,14 @@
-// Release tests of sprint 02, strand A — the dashboard's hub chain, driven like a person (ITM-142). Written by tester-opus
-// (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of ITM-126, ITM-129, ITM-130, ITM-133 and
-// ITM-136, from the use cases and the SPEC alone; started on sprint/02 at 3ba86fb (the merge of ITM-136, the strand's last
-// item), 2026-10-01.
+// Release tests of the dashboard's hub chain, driven like a person. Written by a participant who implemented nothing of what
+// they test, from the use cases and the SPEC alone.
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: UC-008; UC-024; UC-042; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; NO TEXT TRAVELS IN A URL; EVERY ARTIFACT NAMES ITS ORIGIN; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
 // Level: release
 //
-// The real dashboard (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against fake GitHub and GitLab servers; no
-// request leaves the process. Every case names, above it, the use-case flow or the SPEC rule it was written from, the item of
-// strand A that realised it, and its expected result before it runs (SOFTWARE_MAINTENANCE.md §4.0a rule 1). A case that fails
-// on sprint/02 is a finding: it stays here marked { todo } with the item it sends back to Development (ITM-142, *Kind and
-// level*).
+// The real dashboard (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against fake GitHub and GitLab servers; no
+// request leaves the process. Every case names, above it, the use-case flow or the SPEC rule it was written from, and its
+// expected result before it runs (SOFTWARE_MAINTENANCE.md §4.0a rule 1). A case that fails is a finding: it stays here marked
+// { todo } with the item it sends back to Development.
 //
 // What this file adds to the harness, for what a browser does and the harness does not show by itself:
 //  - every module the page imports below docs/assets/ is recorded (a resolve hook of node:module), so that a page load's
@@ -28,7 +25,7 @@ import { createHash } from "node:crypto";
 import { resolveObjectURL } from "node:buffer";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
-import { repoServer, openDashboard, TOKEN } from "./app-harness.mjs";
+import { repoServer, openDashboard, TOKEN, APP_FILE } from "./app-harness.mjs";
 
 const API = "https://api.github.com";
 const INSTANCE = "akmaier/agent-m";
@@ -412,7 +409,9 @@ async function downloaded(page) {
   return Promise.all(page.shown.downloads.map(async (d) => ({ ...d, text: await resolveObjectURL(d.href).text() })));
 }
 
-const writesOf = (w) => w.log.filter((r) => r.method !== "GET");
+// A write is a request that is not a GET, except the batch of reads: a POST to GitHub's /graphql, which answers with file texts and changes nothing.
+const isBatchOfReads = (r) => r.method === "POST" && r.origin === API && r.path === "/graphql";
+const writesOf = (w) => w.log.filter((r) => r.method !== "GET" && !isBatchOfReads(r));
 // What a control's own result line shows (the harness keeps one per control the page wired): its text, or its HTML.
 const resultOf = (page, selector) => {
   const c = page.byId("main").querySelector(selector);
@@ -485,7 +484,7 @@ test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a decision and a m
 // The addresses of today are the routes of the shell's one table (DASHBOARD) and the detail addresses of the views built; which
 // view is built is read here from the disk — the files under docs/assets/dashboard/ —, not from the shell's own list of them.
 
-const { DASHBOARD } = await import("../docs/assets/dashboard-app.mjs");
+const { DASHBOARD } = await import(APP_FILE.href);
 const { MENU } = await import("../src/site/menu.mjs");
 const builtOnDisk = (file) => typeof file === "string" && fs.existsSync(path.join(ROOT, "docs/assets/dashboard", file));
 const VIEWS = DASHBOARD.filter((v) => v.view);
@@ -526,7 +525,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
       assert.ok(["add", "setup"].includes(v.view), "only the public settings-pages Add and Setup routes have no dashboard file");
-      const dispatched = fs.readFileSync(path.join(ROOT, "docs/assets/dashboard-app.mjs"), "utf8");
+      const dispatched = fs.readFileSync(APP_FILE, "utf8");
       if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
       else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
       continue;
