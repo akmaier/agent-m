@@ -218,8 +218,10 @@ test("jobWorkflowFiles — an inline inputs: says the inputs: case and nothing a
 // given: a product's .gitlab-ci.yml whose include: is a list holding the job file as a plain string
 // input: jobWorkflowFiles("gitlab", …, that text)
 // expect: a GitlabCiNotList whose whole message is `.gitlab-ci.yml: the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.` followed by the
-// include: ending, as it stands (ITM-604 changes only the inputs: messages)
-test("jobWorkflowFiles — the job file as a plain string in the include: keeps the include: ending", () => {
+// entry ending: ` Agent M passes its inputs only through an entry written with local: and inputs:, and rewrites no line of the product's own — write the entry so, then install again.`
+// (the include: ending, which says the include: must be a list, is not in it)
+const ENTRY_ENDING = " Agent M passes its inputs only through an entry written with local: and inputs:, and rewrites no line of the product's own — write the entry so, then install again.";
+test("jobWorkflowFiles — the job file as a plain string in the include: says its own case, the entry", () => {
   assert.equal(messageOf('include:\n  - ".gitlab/agent-m-jobs.yml"\nbuild:\n  script: make\n'),
-    ".gitlab-ci.yml: the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on." + INCLUDE_ENDING);
+    ".gitlab-ci.yml: the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on." + ENTRY_ENDING);
 });
