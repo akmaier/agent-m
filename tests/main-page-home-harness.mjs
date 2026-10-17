@@ -1,0 +1,162 @@
+// The browser, the repositories and the network of the tests of MOD-main-page's route `home` — a helper, no test of its own. It installs the small browser fixture of
+// tests/site-frame-start.d/dom.mjs (a document, a location, a local storage), opens the store of the instance alice/agent-m with the products and tokens a test gives, and puts a spy in
+// place of `fetch` over the counting fake of GitHub of tests/progress-measures-load.mjs (a helper too): the spy keeps every request with the authorisation it carried, answers the Bridges
+// lab-pc-4 (which lists the job it runs) and lab-pc-5 (which refuses the connection), and passes every other request to the fake. Nothing reaches the network; nothing sleeps.
+//
+// Module: MOD-main-page
+// Level: unit
+
+import { createHash } from "node:crypto";
+import { installPage, fixtureStorage } from "./site-frame-start.d/dom.mjs";
+import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
+import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
+import { INSTANCE, PRODUCT, githubServer, instanceFiles, productFiles } from "./progress-measures-load.mjs";
+
+export { INSTANCE, PRODUCT, instanceFiles, productFiles };
+export const INSTANCE_TOKEN = "github_pat_HOME827INSTANCE0123456789abcdef";
+export const PRODUCT_TOKEN = "github_pat_HOME827PRODUCT0123456789abcdefg";
+export const INSTANCE_URL = `https://github.com/${INSTANCE}`;
+export const PRODUCT_URL = `https://github.com/${PRODUCT}`;
+export const OTHER = "bob/other";
+export const OTHER_URL = `https://github.com/${OTHER}`;
+export const MISSING_URL = "https://github.com/carol/missing";
+
+// ---------------------------------------------------------------- the clock: one moment for every `new Date()` and Date.now() while a page is drawn
+
+export const NOW = Date.parse("2026-10-16T12:00:00Z");
+const RealDate = globalThis.Date;
+class FixedDate extends RealDate {
+  constructor(...given) { if (given.length === 0) super(NOW); else super(...given); }
+  static now() { return NOW; }
+}
+export async function atNow(run) {
+  globalThis.Date = FixedDate;
+  try { return await run(); } finally { globalThis.Date = RealDate; }
+}
+
+// ---------------------------------------------------------------- the files of a small product
+
+const blobOf = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest("hex");
+const front = (fields) => ["---", ...Object.entries(fields).flatMap(([key, value]) => (Array.isArray(value)
+  ? [`${key}:`, ...value.map((entry) => `  - ${entry}`)] : [`${key}: ${value}`])), "---"].join("\n");
+
+const SPEC = ["# Product — Specification", "", "## 1. Section", "",
+  "**FIRST RULE** *(Product Owner)*", "The first rule holds.", "*Check:* `tests/unit.test.mjs`", "",
+  "**SECOND RULE** *(Product Owner)*", "The second rule holds.", "*Check:* no automatic check; at review.", ""].join("\n");
+
+const useCase = (id, title) => [front({ id, title, area: "fixture", actors: ["Reader"], realises: ["FIRST RULE"] }), `# ${id} ${title}`, ""].join("\n");
+const item = (id) => [front({ id, title: "The work", level: "module", realises: ["UC-001"], modules: ["MOD-store"] }), `# ${id} The work`, ""].join("\n");
+
+const at = (text) => new RealDate(`${text}:00Z`);
+/** The same job as runningJob, ended as failed. */
+export function failedJob({ id, by, start = "2026-10-16T10:00" }) {
+  const { path, text } = runningJob({ id, by, start });
+  return { path, text: appendToRecord(text, { part: "end", at: at("2026-10-16T11:00"), state: "failed", results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: "tests red", log: null }) };
+}
+
+/** A job record of the kind implement-item for ITM-0900, taken by `by` (a Bridge's name) at the start given, with no end. */
+export function runningJob({ id, by, start = "2026-10-16T10:00" }) {
+  const { path, text } = startRecord({ id, kind: "implement-item", worksOn: ["ITM-0900"], participant: "dev-cli", model: "model-x", route: `bridge ${by}`, run: null, retries: null,
+    startedBy: "alice", start: at(start), agentM: { version: "2026.1.0", commit: "abc1234" }, inputs: [], limit: 5, task: "in parameters", conversation: null, destinations: [], params: {} });
+  return { path, text: appendToRecord(text, { part: "taken", at: at(start), by }) };
+}
+
+/**
+ * The files of a product of two requirements, a test file, two use cases of which `accepted` ones carry an approval record, one backlog item ITM-0900 that builds on UC-001 (accepted in every
+ * test that uses it), and the job records given.
+ */
+export function smallProduct({ accepted = ["UC-001"], jobs = [], queue = false } = {}) {
+  const files = { "SPEC.md": SPEC, "tests/unit.test.mjs": "// TST-001 · level: unit · module: MOD-store\n// guards: FIRST RULE\ntest(\"a store reads\", () => {});\n",
+    "docs/use-cases/UC-001-first.md": useCase("UC-001", "First"), "docs/use-cases/UC-002-second.md": useCase("UC-002", "Second"), "docs/backlog/ITM-0900-work.md": item("ITM-0900") };
+  for (const id of accepted) {
+    const path = Object.keys(files).find((candidate) => candidate.startsWith(`docs/use-cases/${id}-`));
+    files[`docs/approvals/${id}-${blobOf(files[path]).slice(0, 12)}.md`] = `kind: use-case\nfile: ${path}\nblob: ${blobOf(files[path])}\n`;
+  }
+  for (const { path, text } of jobs) files[path] = text;
+  if (queue) {
+    const folder = "docs/spec-freigaben/2026-10-01a_fixture";
+    files[`${folder}/index.md`] = "# SPEC approvals — queue 2026-10-01a · fixture\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 1 | `SPEC.md` | ## 1. Section | — | |\n";
+    files[`${folder}/entscheidungen.md`] = "# Decisions\n\nAppend-only.\n";
+    files[`${folder}/01-rules.md`] = "## 1. Section\n\n**FIRST RULE** *(PO)*\nThe first rule holds.\n*Check:* `tests/unit.test.mjs`\n";
+    files[`${folder}/01-rules.begruendung.md`] = "# Reason\n\nWhy.\n";
+  }
+  return files;
+}
+
+// ---------------------------------------------------------------- the spy
+
+const text = (body) => new Response(body, { status: 200, headers: { "content-type": "text/plain" } });
+const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+function headerOf(init, name) {
+  const given = init?.headers ?? {};
+  const found = Object.entries(given instanceof Headers ? Object.fromEntries(given.entries()) : given).find(([key]) => key.toLowerCase() === name.toLowerCase());
+  return found ? String(found[1]) : null;
+}
+
+/**
+ * A fake GitHub serving `repos` ({ "owner/name": { path: text } }), with a spy over it. `bridgeLists` is the job identifier the Bridge lab-pc-4 lists as running (none lists no job).
+ * `requests` keeps every request { url, host, authorization }; `server.log` is the fake's own record of what each request read (tests/progress-measures-load.mjs). install() puts the spy in
+ * place of `fetch`; restore() puts the earlier one back.
+ */
+export function network(repos, { bridgeLists = null } = {}) {
+  const server = githubServer(repos);
+  const requests = [];
+  const real = globalThis.fetch;
+  return { server, requests, bridgeAsked: () => requests.filter((request) => request.host === "127.0.0.1:4711").length,
+    install() {
+      server.install();
+      const fake = globalThis.fetch;
+      globalThis.fetch = async (input, init) => {
+        const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
+        requests.push({ url: url.href, host: url.host, authorization: headerOf(init, "authorization") });
+        if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: bridgeLists ? [{ id: bridgeLists, state: "running", usage: null }] : [] });
+        if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
+        return fake(input, init);
+      };
+    },
+    restore() { server.restore(); globalThis.fetch = real; } };
+}
+
+// ---------------------------------------------------------------- the page
+
+/**
+ * The browser of the instance alice/agent-m: its store with the `products` given and a token for the instance and for each product named in `tokens`, and the Bridges lab-pc-4 and
+ * lab-pc-5. Returns the ViewContext a route is given on the main page: the instance connected with `instanceToken` (none with null).
+ */
+export function browser({ products = [PRODUCT_URL], tokens = { [PRODUCT]: PRODUCT_TOKEN }, instanceToken = INSTANCE_TOKEN } = {}) {
+  installPage({ hostname: "alice.github.io", pathname: "/agent-m/" });
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: fixtureStorage() });
+  const store = openStore(INSTANCE);
+  writeSetting(store, "products", products);
+  if (instanceToken) writeSetting(store, "github-token", { value: instanceToken, name: "instance token", expires: "2027-01-01" });
+  for (const [repository, value] of Object.entries(tokens)) if (value) writeSetting(store, `github-token:${repository}`, { value, name: `${repository} token`, expires: "2027-01-01" });
+  writeSetting(store, "bridge:lab-pc-4", { address: "http://127.0.0.1:4711", token: "pairing-token-four" });
+  writeSetting(store, "bridge:lab-pc-5", { address: "http://127.0.0.1:4712", token: "pairing-token-five" });
+  const went = [];
+  return { page: "main", instance: { repository: INSTANCE, host: connect(parseAddress(INSTANCE_URL), instanceToken ? { token: instanceToken } : {}) }, product: null, store,
+    go: (route, params = {}) => { went.push([route, params]); }, went };
+}
+
+/** Draws a route into a new element at the fixed clock and returns the element. */
+export async function draw(route, context) {
+  const target = document.createElement("div");
+  document.body.append(target);
+  await atNow(() => route.render(target, context, {}));
+  return target;
+}
+
+// ---------------------------------------------------------------- reading the drawn page
+
+export const find = (root, match) => {
+  const found = [];
+  (function walk(node) { for (const child of node.children) { if (typeof child !== "string") { if (match(child)) found.push(child); walk(child); } } })(root);
+  return found;
+};
+export const byClass = (root, name) => find(root, (node) => node.className.split(/\s+/).includes(name));
+export const cardsOf = (target) => byClass(target, "card");
+export const stagesOf = (card) => byClass(card, "stage").map((stage) => [stage.getAttribute("data-stage"), byClass(stage, "stage-share")[0].textContent, byClass(stage, "stage-detail")[0].textContent]);
+export const currentOf = (card) => byClass(card, "is-current").map((stage) => stage.getAttribute("data-stage"));
+export const buildOf = (card) => byClass(card, "build-row").map((row) => ["build-item", "build-job", "build-participant", "build-state", "build-elapsed"].map((name) => byClass(row, name)[0].textContent));
+export const click = (node) => node.dispatchEvent(new Event("click"));
+export const waitsOf = (target) => byClass(target, "wait").map((line) => line.textContent.replace(/ Open$/, ""));
