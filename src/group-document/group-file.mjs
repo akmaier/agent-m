@@ -1,5 +1,5 @@
-// group-file.mjs — reading a group file (MOD-group-document, Parts; Data: the group file `docs/groups/<kind>.md`). Of it,
-// ITM-300 builds parseGroupFile; the writing of a group file is not built yet.
+// group-file.mjs — reading and writing a group file (MOD-group-document, Parts; Data: the group file `docs/groups/<kind>.md`):
+// parseGroupFile and groupFileText.
 //
 // Module: MOD-group-document
 //
@@ -49,4 +49,35 @@ export function parseGroupFile(path, text) {
     }
   });
   return tree;
+}
+
+// What the title line and the line below it of the group file of each kind say: the kind as a title, what the file arranges,
+// and what a member is named by.
+const FILE_OF_KIND = {
+  requirements: { title: "Requirements", arranges: "requirements", by: "name" },
+  "use-cases": { title: "Use cases", arranges: "use cases", by: "identifier" },
+  architecture: { title: "Architecture decisions", arranges: "architecture decisions", by: "identifier" },
+  modules: { title: "Modules", arranges: "modules", by: "identifier" },
+  tests: { title: "Tests", arranges: "tests", by: "identifier" },
+};
+
+// groupFileText(tree: GroupTree) -> string — the group file in its canonical form: the title line `# <Kind> — groups`, a blank
+// line, the line saying what the file arranges and, unless the tree is empty, a blank line and the nested list, two spaces to a
+// level, a group's members before its groups, each in the order they stand in the tree; a final newline ends it. The lines of
+// the tree are not written, and the tree given is not changed.
+export function groupFileText(tree) {
+  const { title, arranges, by } = FILE_OF_KIND[tree.kind];
+  const list = [];
+  const write = (node, depth) => {
+    const indent = "  ".repeat(depth);
+    for (const member of node.members) list.push(`${indent}- ${member.id}`);
+    for (const group of node.groups) {
+      list.push(`${indent}- ${group.title}`);
+      write(group, depth + 1);
+    }
+  };
+  write(tree, 0);
+  const lines = [`# ${title} — groups`, "", `The hierarchy of the ${arranges}, each member by its ${by}.`];
+  if (list.length) lines.push("", ...list);
+  return `${lines.join("\n")}\n`;
 }
