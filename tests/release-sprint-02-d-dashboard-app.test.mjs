@@ -1,10 +1,7 @@
-// Release tests of sprint 02, strand D — the dashboard's review findings: the export notice (ITM-125), a refused save beside the
-// newer version (ITM-131), Add product for a missing repository and a key that already reaches it (ITM-132), and the impact list
-// on a SPEC change entry (ITM-134) (ITM-145). Written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md, who
-// implemented none of the strand's items, from the SPEC rules and use-case flows they realise; started on sprint/02 at a22de0a,
-// 2026-10-02.
+// Release tests of the dashboard's review findings: a refused save beside the newer version, and the impact list on a SPEC change
+// entry. Written by a participant who implemented nothing of what they test, from the SPEC rules and use-case flows they realise.
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: AN EXPORT STATES THAT IT CONTAINS SECRETS; ONE GITHUB TOKEN SERVES EVERY FEATURE; A REFUSED SAVE KEEPS THE EDIT; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-001; UC-006; UC-008; UC-042
 // Level: release
 //
@@ -13,7 +10,6 @@
 // requirement, one change queue, use cases, a decision, a module and tests with their header lines. A product repository to add
 // is served beside it. GitHub's contents API answers a request for JSON with the file's blob SHA, as GitHub documents it. No
 // request leaves the process. Every expectation is stated before its case runs, from the rule or the use-case step it names.
-// Known findings are not re-tested: R1 (Add product writes no docs/architecture/), R2 and R3 — see the measurement record.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -41,7 +37,7 @@ const P = {
 };
 const INDEX = `# SPEC approvals — queue ${QN}\n\n**Zieldatei aller Einträge:** \`SPEC.md\`\n\n` +
   "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n" +
-  Object.entries(P).map(([n, [path, anchor]]) => `| 0${n} | \`${path.split("/").pop()}\` | ${anchor} | — | — |\n`).join("");
+  Object.entries(P).map(([n, [, anchor]]) => `| 0${n} | \`SPEC.md\` | ${anchor} | — | — |\n`).join("");
 
 const uc = (id, title, realises) => `---\nid: ${id}\ntitle: ${title}\nrealises:\n${realises.map((n) => `  - ${n}\n`).join("")}---\n` +
   `# ${id} ${title}\n\nThe author does it.\n`;
@@ -52,7 +48,10 @@ const ARC_TEXT = `---\nid: ARC-001\ntitle: Export through the browser's print\nf
   "## Context\n\nReaders print.\n\n## Decision\n\nThe browser prints.\n\n## Alternatives\n\nA PDF library.\n\n## Consequences\n\nNo library.\n";
 const mod = (id, realises, iface) => `---\nid: ${id}\ntitle: ${id.slice(4)}\nrealises:\n  - ${realises}\nfollows:\n  - ARC-001\nuses: []\n` +
   `provides:\n  - ${iface}\n---\n# ${id}\n\n## Responsibility\n\nIt does one thing.\n\n## Interfaces\n\n- \`${iface}(thesis) -> x\` — what it gives.\n`;
-const testFile = (module, guards) => `// A test of the fixture.\n// Module: ${module}\n// Guards: ${guards.join("; ")}\n// Level: unit\n\nimport test from "node:test";\n`;
+// A test is named by the identifier of its declaration (MOD-test-document).
+const TST_TITLE = "TST-134001", TST_EXPORT = "TST-134002", TST_SERIF = "TST-134003";
+const testFile = (id, module, guards) => `// A test of the fixture.\n// Module: ${module}\n// Guards: ${guards.join("; ")}\n// Level: unit\n\nimport test from "node:test";\n\n` +
+  `// ${id} · level: unit · module: ${module}\n// guards: ${guards.join("; ")}\ntest("a", () => {});\n`;
 
 function instanceFiles() {
   return {
@@ -63,9 +62,9 @@ function instanceFiles() {
     // A name that begins like TITLE is another name.
     [UC3]: uc("UC-003", "Date the title page", [`${TITLE} AND THE DATE`]),
     [ARC1]: ARC_TEXT, [MODX]: mod("MOD-exporter", PDF, "exportPdf"), [MODC]: mod("MOD-cover", TITLE, "cover"),
-    "tests/title.test.mjs": testFile("MOD-cover", [TITLE]),
-    "tests/export.test.mjs": testFile("MOD-exporter", [PDF]),
-    "tests/serif.test.mjs": testFile("MOD-cover", [SERIF]),
+    "tests/title.test.mjs": testFile(TST_TITLE, "MOD-cover", [TITLE]),
+    "tests/export.test.mjs": testFile(TST_EXPORT, "MOD-exporter", [PDF]),
+    "tests/serif.test.mjs": testFile(TST_SERIF, "MOD-cover", [SERIF]),
     "docs/approvals/README.md": "# Approvals\n",
   };
 }
@@ -88,24 +87,30 @@ async function instance({ files = instanceFiles(), handlers = [] } = {}) {
 
 const EDIT_LINE = "Edited on the dashboard by the reviewer.", THEIR_LINE = "Committed meanwhile by somebody else.";
 
-// One editor of a review view, driven as a person drives it: open the file, open the editor, type, and — when `meanwhile` — someone
-// commits to the same file on the branch before Save is clicked. -> what the page shows and what was written.
+// One editor of a review view, driven as a person drives it: open the file, follow its Edit link to the editor, type, and — when
+// `meanwhile` — someone commits to the same file on the branch before Save is clicked. An open SPEC entry's editor also has a Why
+// field (MOD-review-pages: the entry is saved with its reason), filled before Save. -> what the page shows and what was written.
 async function saveInEditor(hash, path, { meanwhile = true } = {}) {
   const server = await instance();
   const page = await openDashboard({ server, hash: "" });
-  const rich = richDocument();
   await page.go(hash);
-  assert.ok(page.main().includes("data-edit-save"), `${hash}: the editor offers Save`);
+  const main = globalThis.document.getElementById("main");
+  const edit = main.querySelector("a.edit-link");
+  assert.ok(edit, `${hash}: the page offers Edit`);
+  await page.go(edit.href);
+  const saveButton = () => main.querySelectorAll("button").find((button) => button.textContent === "Save");
+  assert.ok(saveButton(), `${hash}: the editor offers Save`);
   const original = server.files[path];
   const edited = `${original.replace(/\n$/, "")}\n\n${EDIT_LINE}\n`;
-  rich.edit().querySelector("textarea").value = edited;
+  main.querySelector("textarea").value = edited;
+  const why = main.querySelector("textarea.why");
+  if (why) why.value = "The wording is clearer.";
   const newer = `${original.replace(/\n$/, "")}\n\n${THEIR_LINE}\n`;
   if (meanwhile) await server.change(path, newer);
   const writes = server.writes.length;
-  await page.click("[data-edit-save]");
-  const ed = rich.edit();
-  return { server, page, edited, newer, written: server.writes.slice(writes), textarea: ed?.querySelector("textarea")?.value,
-    beside: ed?.querySelector(".edit-newer")?.innerHTML ?? "", result: ed?.querySelector(".result")?.textContent ?? "" };
+  await press(server, saveButton());
+  return { server, page, edited, newer, written: server.writes.slice(writes), textarea: main.querySelector("textarea")?.value,
+    beside: main.querySelector(".newer")?.innerHTML ?? "", result: main.querySelector(".result")?.textContent ?? "" };
 }
 
 // A REFUSED SAVE KEEPS THE EDIT · A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE · UC-008 3a, UC-006 3a: after the file changed
@@ -182,26 +187,27 @@ async function entryPage(nr, { token, files = instanceFiles() } = {}) {
   const page = await openDashboard({ server, hash: "", ...(token === undefined ? {} : { token }) });
   await page.go(`#spec/${QN}/0${nr}`);
   const main = page.main();
-  const accept = Math.max(main.indexOf("data-accept-key"), main.indexOf("Open in GitHub to commit"));
+  const accept = Math.max(main.indexOf('class="btn accept"'), main.indexOf("Open GitHub's page to commit the record"));
   return { main, accept };
 }
-const IMPACT_OF_TITLE = ["UC-001", "UC-002", "MOD-cover", "tests/title.test.mjs"];
+const IMPACT_OF_TITLE = ["UC-001", "UC-002", "MOD-cover", TST_TITLE];
 
 test("ITM-134 · an entry that adds a new requirement shows no impact list", async () => {
   const { main, accept } = await entryPage(2);
   assert.ok(accept > 0);
-  for (const id of ["UC-001", "UC-002", "UC-003", "MOD-cover", "MOD-exporter", "ARC-001", "tests/title.test.mjs", "tests/serif.test.mjs"]) {
+  for (const id of ["UC-001", "UC-002", "UC-003", "MOD-cover", "MOD-exporter", "ARC-001", TST_TITLE, TST_SERIF]) {
     assert.ok(!main.includes(id), `${id} is not listed`);
   }
-  assert.doesNotMatch(main, /impact/i, "no impact list, not even an empty one");
+  // MOD-spec-changes' impact list covers the names a proposal changes, withdraws or adds; a name nothing names is listed as added.
+  assert.match(main, /<ul class="impact"><li>THE MARGINS ARE WIDE — added<\/li><\/ul>/, "the impact list names the added requirement and nothing that names it");
 });
 
 // UC-006 3b for a withdrawal, which changes an existing requirement too. Expected for entry 03, which withdraws EXPORT IS A PDF:
-// what still names it — UC-001, ARC-001, MOD-exporter, tests/export.test.mjs — before Accept; not UC-002.
+// what still names it — UC-001, ARC-001, MOD-exporter, the export test's TST identifier — before Accept; not UC-002.
 test("ITM-134 · an entry withdrawing a requirement lists what still names it", async () => {
   const { main, accept } = await entryPage(3);
   assert.ok(accept > 0);
-  for (const id of ["UC-001", "ARC-001", "MOD-exporter", "tests/export.test.mjs"]) {
+  for (const id of ["UC-001", "ARC-001", "MOD-exporter", TST_EXPORT]) {
     const at = main.indexOf(id);
     assert.ok(at > 0 && at < accept, `${id} is listed before Accept`);
   }
@@ -210,7 +216,7 @@ test("ITM-134 · an entry withdrawing a requirement lists what still names it", 
 
 // UC-006 3b when the entry takes a requirement out of its section without naming it again: entry 01 replaces "## 2. Title page"
 // (step 6: byte for byte) with a text that states THE TITLE PAGE NAMES THE AUTHOR AND THE SUPERVISOR — TITLE renamed in place —
-// or no requirement at all. Accepted, either takes TITLE out of the SPEC while UC-001, UC-002, MOD-cover and tests/title.test.mjs
+// or no requirement at all. Accepted, either takes TITLE out of the SPEC while UC-001, UC-002, MOD-cover and the title test's TST identifier
 // still name it. Expected: those four listed before Accept, as for any change of TITLE.
 // FINDING D1 (back to Development: ITM-134) — the page shows no list; see the measurement record.
 test("ITM-134 · an entry that takes a requirement out of its section lists what references it", async () => {
