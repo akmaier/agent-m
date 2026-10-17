@@ -57,7 +57,15 @@ function fakeGitHub({ push }) {
       return body === undefined ? json({ message: "Not Found" }, 404) : new Response(body);
     }
     if (url.origin !== "https://api.github.com") return json({ message: "Not Found" }, 404);
-    if (url.pathname === "/graphql") return json({ data: { rateLimit: { cost: 1, remaining: 4999 }, repository: {} } });
+    if (url.pathname === "/graphql") {
+      // The batch request, as GitHub answers it: one aliased field for each path asked for, the whole text of the file it holds.
+      const repository = {};
+      for (const [, alias, expression] of JSON.parse(init.body).query.matchAll(/(\w+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
+        const held = FILES[JSON.parse(expression).slice(41)];
+        repository[alias] = held === undefined ? null : { text: held, isTruncated: false };
+      }
+      return json({ data: { rateLimit: { cost: 1, remaining: 4999 }, repository } });
+    }
     if (url.pathname === prefix) return json({ default_branch: "main", visibility: "public", private: false, permissions: { push }, archived: false, description: "" });
     if (url.pathname === `${prefix}/commits/main`) return json({ sha: HEAD, commit: { tree: { sha: "t" } } });
     if (url.pathname === `${prefix}/commits/${OPENED}`) return json({ sha: OPENED, commit: { tree: { sha: "t" } } });
@@ -134,11 +142,11 @@ test("saveEntry — a save without a token sends two requests at the commit the 
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
 // given: the fake GitHub as in TST-611009
 // input: one click each of proposeSection and saveEntry, without a token for an edit opened on an earlier commit, on the current head and on no commit (null, an empty repository), and with a token
-// expect: without a token for an earlier commit 9 requests for proposeSection and 11 for saveEntry — the 7 and 9 of the edit opened on the current head, which reads nothing more, and the 2 for the earlier commit and its tree; for null 7 and 9, as nothing is read; with a token 13 and 15
+// expect: without a token for an earlier commit 9 requests for proposeSection and 11 for saveEntry — the 7 and 9 of the edit opened on the current head, which reads nothing more, and the 2 for the earlier commit and its tree; for null 7 and 9, as nothing is read; with a token 11 and 13: the repository's information, commit and tree (3), `SPEC.md` by its own read (1) in the click of proposeSection, the queue's two files in one batch (1) and the trace graph's use case in one batch (1), and the 5 requests of the commit (ref, commit, tree, new commit, ref update) for proposeSection (13 for saveEntry, which instead reads the target `SPEC.md` in a batch of the queue read, and its entry's two files by their own reads)
 test("proposeSection and saveEntry — the requests of a whole click, without a token and with one", async () => {
   const counts = async (token, openedHead) => ({ section: (await click(section(openedHead), { token })).requests.length, entry: (await click(entry(openedHead), { token })).requests.length });
   assert.deepEqual({ earlier: await counts(false, OPENED), current: await counts(false, HEAD), empty: await counts(false, null), withToken: await counts(true, OPENED) },
-    { earlier: { section: 9, entry: 11 }, current: { section: 7, entry: 9 }, empty: { section: 7, entry: 9 }, withToken: { section: 13, entry: 15 } });
+    { earlier: { section: 9, entry: 11 }, current: { section: 7, entry: 9 }, empty: { section: 7, entry: 9 }, withToken: { section: 11, entry: 13 } });
 });
 
 // TST-611012 · level: unit · module: MOD-spec-changes
