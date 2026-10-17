@@ -65,8 +65,8 @@ function recording(host, requests, { paths = [], snapshotFails = false } = {}) {
 const SITES = [
   { site: "common.mjs readPlace", route: "use-case", params: {}, product: { snapshotFails: true }, message: "main was not found", requests: 2 },
   { site: "flow.mjs", route: "spec-entry", params: { id: ENTRY_ID }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 15 },
-  { site: "edit.mjs", route: "requirement", params: { name: LOAN }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 14 },
-  { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 26 },
+  { site: "edit.mjs", route: "requirement", params: { name: LOAN }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 12 },
+  { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 24 },
   { site: "conversation-draft.mjs", route: "draft", params: { subject: UC7_KEY }, draft: true, instance: { paths: [REGISTER_PATH] }, message: NO_REGISTER, requests: 5 },
   { site: "jobs.mjs showDraft", route: "use-case", params: { id: "draft" }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 6 },
   { site: "jobs.mjs showRequirementsDraft", route: "spec-entry", params: { id: "draft" }, instance: { paths: [REGISTER_PATH] }, message: NO_REGISTER, requests: 5 },
