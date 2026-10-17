@@ -4,6 +4,7 @@
 // requirements); and UC-004 1a, the offer of a new version for a source already in the library. The route is rendered into the fixture DOM of tests/settings-pages-harness.mjs over MOD-repository-hosts' real
 // GitHub host (connect) for the instance and for each product, answered by a fake of fetch over repositories that hold files (tests/settings-pages-sources.d/github.mjs); nothing reaches the network.
 // Run: node --test tests/settings-pages-library-versions.test.mjs
+// The two steps fold their explanations (MOD-site-frame's topics source-new-version and source-move, called through explain).
 //
 // Module: MOD-settings-pages
 // Guards: UC-016; UC-004; A SOURCE VERSION IS NEVER OVERWRITTEN; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A PRODUCT LINKS THE SOURCES THAT APPLY; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED; EVERY STEP EXPLAINS ITSELF; THE PAGE NAMES WHERE IT SENDS
@@ -30,6 +31,7 @@ const { openStore, writeSetting } = await import("../src/browser-store/index.mjs
 const { connect, parseAddress } = await import("../src/repository-hosts/index.mjs");
 const { readDocument } = await import("../src/documents/index.mjs");
 const { sourceSchemas, versionCommits } = await import("../src/source-register/index.mjs");
+const { explain } = await import("../src/site-frame/index.mjs");
 const library = view.routes.find((candidate) => candidate.name === "library");
 
 const INSTANCE = "akmaier/agent-m";
@@ -443,4 +445,33 @@ test("new version — the panel's explanations are folded", async (t) => {
     assert.equal(found !== undefined, true, `the explanation of ${name}`);
     assert.equal(found.hasAttribute("open"), false, `${name}: folded`);
   }
+});
+
+// TST-591316 · level: unit · module: MOD-settings-pages
+// guards: EVERY STEP EXPLAINS ITSELF
+// given: the entry of a source; + New version pressed
+// input: the panel
+// expect: it holds the folded What is this? of the topic source-new-version — a closed details whose body is the topic's rendered text, the same as explain("source-new-version") gives
+test("new version — the panel folds the explanation source-new-version", async (t) => {
+  const page = await open(t, { products: [] });
+  await click(one_(page.target, "library-new-version"));
+  const wanted = explain("source-new-version");
+  const found = byClass(one_(page.target, "library-new-version-panel"), "explain").filter((node) => node.children[1]?.innerHTML === wanted.children[1].innerHTML);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].hasAttribute("open"), false);
+});
+
+// TST-591317 · level: unit · module: MOD-settings-pages
+// guards: EVERY STEP EXPLAINS ITSELF
+// given: a product on an older version
+// input: the Move to the new version of the product pressed
+// expect: its panel holds the folded What is this? of the topic source-move — a closed details whose body is the topic's rendered text, the same as explain("source-move") gives
+test("move — the panel folds the explanation source-move", async (t) => {
+  const page = await open(t, { products: [THESIS] });
+  await click(one_(page.target, "library-move-open"));
+  await until(() => byClass(page.target, "library-move-confirm").length === 1, "the move is prepared");
+  const wanted = explain("source-move");
+  const found = byClass(one_(page.target, "library-move-panel"), "explain").filter((node) => node.children[1]?.innerHTML === wanted.children[1].innerHTML);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].hasAttribute("open"), false);
 });
