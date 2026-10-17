@@ -1,8 +1,17 @@
-// stages.mjs — waitingForAcceptance: what waits for the person's acceptance in one repository, derived from the
-// snapshot and, for a release-test report, its host through MOD-release-evidence (MOD-progress-measures, Interfaces).
-// stageShares, currentStage, the build in progress and waitingForAPerson are not built yet (index.mjs).
+// stages.mjs — the six stages of a product's progress, the stage it is in, the build in progress, what waits for a person, and what
+// waits for the person's acceptance in one repository (MOD-progress-measures, Interfaces: stageShares, currentStage,
+// buildInProgress, waitingForAPerson, waitingForAcceptance). The first four derive from a product's Facts alone, as the Facts hold
+// them; waitingForAcceptance derives from a snapshot and, for a release-test report, its host through MOD-release-evidence.
 //
 // Module: MOD-progress-measures
+//
+// Where the module file leaves a reading open, this file takes the one it names:
+//   - A SPEC change entry is decided when its state is `approved` or `in SPEC` (MOD-spec-changes): a person's acceptance names it.
+//   - The tests stage has no share: it needs the commits of the default branch, which Facts does not hold.
+//   - A gate waits for a person when it is pending and its deciding role is held, in some role assignment, by a participant of the
+//     type `person`; a gate decided by a check has no holder. The path of such a gate is the record of the job waiting at it, else the
+//     product's declaration, where its gates are declared.
+//   - stageShares is async.
 
 import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
@@ -20,17 +29,18 @@ const WAITING_STATUSES = new Set(["open", "changed"]);
 // identifier, spec-<slug>-<NN> (MOD-approvals, Data: the approval record's path for an entry of a change queue).
 const QUEUE_FOLDER_PREFIX = "docs/spec-freigaben/";
 
-/**
- * waitingForAcceptance(host, snapshot) -> Promise<Array<{ kind, id, path, blob }>> — what waits for the person's
- * acceptance in one repository (MOD-progress-measures, Interfaces): every entry of a change queue in the state open
- * (MOD-spec-changes' queues), and every use case, architecture decision and module file whose status is open or
- * changed (MOD-approvals' statuses), and a completed release candidate's report (MOD-release-evidence).
- * @param {{ listTags: (pattern: string) => Promise<Array<{ name: string, commit: string }>> }} host
- * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
- * @returns {Promise<Array<{ kind: string, id: string, path: string, blob: string }>>}
- */
-export async function waitingForAcceptance(host, snapshot) {
-  const specChanges = (await queues(snapshot)).flatMap((queue) => {
+// The states of a SPEC change entry that a person's acceptance has decided (MOD-spec-changes, Data).
+const DECIDED_ENTRIES = new Set(["approved", "in SPEC"]);
+
+// A release is tagged vYYYY.MINOR.PATCH (A RELEASE IS TAGGED AND LOGGED); a candidate's tag carries a suffix and is none.
+const RELEASE_TAG = /^v\d{4}\.\d+\.\d+$/;
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const unknown = (what) => ({ share: null, detail: `the ${what} unknown` });
+
+// The entries of the queues that are open — the SPEC changes that wait for a person: { kind, id, path, blob }.
+function openSpecChanges(queueList) {
+  return queueList.flatMap((queue) => {
     const slug = queue.folder.slice(QUEUE_FOLDER_PREFIX.length);
     return queue.entries
       .filter((entry) => entry.state === "open")
@@ -41,11 +51,153 @@ export async function waitingForAcceptance(host, snapshot) {
         blob: entry.proposal.blob,
       }));
   });
+}
 
-  const reviewed = [...statuses(snapshot)]
-    .filter(([, status]) => Object.hasOwn(REVIEWED_KINDS, status.kind) && WAITING_STATUSES.has(status.status))
-    .map(([path, status]) => ({ kind: REVIEWED_KINDS[status.kind], id: status.id, path, blob: snapshot.blob(path) }));
+// The reviewed files of the kinds given whose status is open or changed: { kind, id, path }.
+function waitingReviewed(statusMap, kinds) {
+  return [...statusMap]
+    .filter(([, status]) => Object.hasOwn(kinds, status.kind) && WAITING_STATUSES.has(status.status))
+    .map(([path, status]) => ({ kind: kinds[status.kind], id: status.id, path }));
+}
 
+// ---------------------------------------------------------------- the six stages
+
+function requirementsStage(facts) {
+  const entries = facts.queues.flatMap((queue) => queue.entries);
+  const open = entries.filter((entry) => !DECIDED_ENTRIES.has(entry.state));
+  if (open.length) return { share: (entries.length - open.length) / entries.length, detail: `${plural(open.length, "change", "changes")} open` };
+  if (facts.requirements === "unknown") return unknown("requirements are");
+  return facts.requirements.length
+    ? { share: 1, detail: `${plural(facts.requirements.length, "requirement", "requirements")}, no change open` }
+    : { share: 0, detail: "no requirement yet" };
+}
+
+// The share of the files of the kinds given that are accepted, with the detail `none` when there is no file.
+function acceptedStage(facts, kinds, text) {
+  const files = [...facts.statuses.values()].filter((status) => kinds.has(status.kind));
+  const accepted = files.filter((status) => status.status === "accepted").length;
+  return files.length ? { share: accepted / files.length, detail: `${accepted} of ${files.length} ${text.of}` } : { share: 0, detail: text.none };
+}
+
+function implementationStage(facts) {
+  if (facts.model === "unknown") return unknown("declared model is");
+  if (facts.model === null) return { share: null, detail: "the process is configured when implementation starts" };
+  const states = facts.plan.states;
+  if (states.some((state) => state.state === "unknown")) return unknown("pull requests are");
+  if (!states.length) return { share: 0, detail: "not planned yet" };
+  const done = states.filter((state) => state.state === "done").length;
+  const steps = facts.plan.order !== null || facts.plan.items.some((item) => item.path.startsWith("docs/plan/"));
+  return { share: done / states.length, detail: `${done} of ${states.length} ${steps ? "steps" : "items"} done` };
+}
+
+// A test passes “by the newest result record of a commit of the default branch that ran it”; Facts holds no list of the commits of
+// the default branch, so the share is not told.
+function testsStage() {
+  return unknown("commits of the default branch are");
+}
+
+function releaseStage(facts) {
+  if (facts.tags === "unknown") return unknown("tags are");
+  const released = facts.tags.map((tag) => tag.name).filter((name) => RELEASE_TAG.test(name));
+  if (!released.length) return { share: 0, detail: "no release yet" };
+  return { share: 1, detail: released.length === 1 ? `${released[0]} tagged` : `${released.length} releases tagged` };
+}
+
+/**
+ * stageShares(facts) -> Promise<Array<{ stage: string, share: number | null, detail: string }>> — the six stages of the main
+ * page's bar, in their order: Requirements, Use cases, Architecture, Implementation, Tests, Release. A share is between 0 and 1;
+ * a stage whose share needs an unknown fact has none (null), and its detail says which. Reads nothing.
+ * @param {object} facts MOD-progress-measures' Facts
+ */
+export async function stageShares(facts) {
+  const stages = [
+    ["Requirements", requirementsStage(facts)],
+    ["Use cases", acceptedStage(facts, new Set(["use-case"]), { of: "accepted", none: "no use case yet" })],
+    ["Architecture", acceptedStage(facts, new Set(["architecture-decision", "module"]), { of: "files accepted", none: "not designed yet" })],
+    ["Implementation", implementationStage(facts)],
+    ["Tests", testsStage()],
+    ["Release", releaseStage(facts)],
+  ];
+  return stages.map(([stage, { share, detail }]) => ({ stage, share, detail }));
+}
+
+/**
+ * currentStage(shares) -> string | null — the first stage that is not full: a share below 1, or none. Null when every stage is full.
+ * @param {Array<{ stage: string, share: number | null }>} shares
+ */
+export function currentStage(shares) {
+  return shares.find(({ share }) => share === null || share < 1)?.stage ?? null;
+}
+
+// ---------------------------------------------------------------- the build
+
+/**
+ * buildInProgress(facts) -> Array<{ item, job, participant, state, elapsed, reachable }> — the steps or items in progress that a job
+ * works on, in the plan's order: the job's participant, its state as its record and the live state give it, its elapsed time in
+ * seconds, and whether its runtime answers. An item whose pull request is merged is done and is not listed.
+ * @param {object} facts MOD-progress-measures' Facts
+ */
+export function buildInProgress(facts) {
+  const rows = new Map(facts.jobs.map((row) => [row.record.id, row]));
+  return facts.plan.states.filter((state) => state.state === "in progress" && rows.has(state.job)).map((state) => {
+    const row = rows.get(state.job);
+    return { item: state.item, job: state.job, participant: row.record.participant, state: row.state, elapsed: row.elapsed,
+      reachable: row.source.reachable };
+  });
+}
+
+// ---------------------------------------------------------------- what waits for a person
+
+// The participants that hold each role, by role, in the role assignments of the facts.
+function holdersByRole(assignments) {
+  const holders = new Map();
+  for (const row of assignments.flatMap((assignment) => assignment.sections.flatMap((section) => section.rows ?? []))) {
+    holders.set(row.cells.Role, [...(holders.get(row.cells.Role) ?? []), ...row.cells.Participants]);
+  }
+  return holders;
+}
+
+// The pending gates a person decides: { kind: "gate", id, path }.
+function gatesOfAPerson(facts) {
+  if (!facts.workflow || facts.workflow === "unknown") return [];
+  const people = new Set(facts.participants.filter((participant) => participant.type === "person").map((participant) => participant.name));
+  const holders = holdersByRole(facts.assignments);
+  const pending = new Set(facts.gateStates.filter((state) => state.state === "pending").map((state) => state.gate));
+  return facts.workflow.gates
+    .filter((gate) => pending.has(gate.name) && (holders.get(gate.decider) ?? []).some((holder) => people.has(holder)))
+    .map((gate) => {
+      const waiting = facts.jobs.find((row) => row.state === "waiting at a gate"
+        && row.record.gates.some((reached) => reached.gate === gate.name && reached.resumedBy === null));
+      return { kind: "gate", id: gate.name, path: waiting ? waiting.record.path : facts.declaration.path };
+    });
+}
+
+/**
+ * waitingForAPerson(facts) -> Array<{ kind: "use case" | "SPEC change" | "gate" | "failed job", id, path }> — what waits for a
+ * person in the product: its open or changed use cases, its open SPEC change entries, its pending gates whose deciding role a person
+ * holds, and its failed jobs; `path` is the file or record each concerns.
+ * @param {object} facts MOD-progress-measures' Facts
+ */
+export function waitingForAPerson(facts) {
+  const changes = openSpecChanges(facts.queues).map(({ kind, id, path }) => ({ kind, id, path }));
+  const failed = facts.jobs.filter((row) => row.state === "failed").map((row) => ({ kind: "failed job", id: row.record.id, path: row.record.path }));
+  return [...waitingReviewed(facts.statuses, { "use-case": "use case" }), ...changes, ...gatesOfAPerson(facts), ...failed];
+}
+
+// ---------------------------------------------------------------- what waits for acceptance
+
+/**
+ * waitingForAcceptance(host, snapshot) -> Promise<Array<{ kind, id, path, blob }>> — what waits for the person's
+ * acceptance in one repository (MOD-progress-measures, Interfaces): every entry of a change queue in the state open
+ * (MOD-spec-changes' queues), and every use case, architecture decision and module file whose status is open or
+ * changed (MOD-approvals' statuses), and a completed release candidate's report (MOD-release-evidence).
+ * @param {{ listTags: (pattern: string) => Promise<Array<{ name: string, commit: string }>> }} host
+ * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
+ * @returns {Promise<Array<{ kind: string, id: string, path: string, blob: string }>>}
+ */
+export async function waitingForAcceptance(host, snapshot) {
+  const specChanges = openSpecChanges(await queues(snapshot));
+  const reviewed = waitingReviewed(statuses(snapshot), REVIEWED_KINDS).map((file) => ({ ...file, blob: snapshot.blob(file.path) }));
   const report = await reportsAwaitingAcceptance(host, snapshot);
   const releaseReport = report ? [{
     kind: "release test report", id: `release-v${report.version}`, path: report.record, blob: report.blob,
