@@ -4,7 +4,7 @@
 // Run: node --test tests/trace-pages-specification.test.mjs
 //
 // Module: MOD-trace-pages
-// Guards: UC-020; A REQUIREMENT HAS FOUR FIELDS; THE BROWSER SHOWS ANY RELEASED VERSION; A REQUIREMENT SHOWS WHAT TRACES TO IT; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// Guards: UC-020; A REQUIREMENT HAS FOUR FIELDS; THE BROWSER SHOWS ANY RELEASED VERSION; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // Level: unit
 //
 // This test calls the public trace/specification Route.render with a Host/Snapshot-shaped fake. The fixture has two
@@ -405,14 +405,11 @@ test("of two choices made in a row, the later one stays when the earlier answers
 //
 // The fixture is a small product of its own: a SPEC of three requirements in two sections; three use cases that name ALPHA RULE and one
 // that realises a name the SPEC no longer has; a decision and two modules; a test; the product's links file and the register entry of the one
-// source it links; and four queues — two open entries that change ALPHA RULE (one of them also leaves BETA RULE out of its section), one
-// decided entry that changes GAMMA RULE, and, for the cases that need it, a third open entry that changes ALPHA RULE. The expected texts are
+// source it links; and three queues of change entries, which this view does not read. The expected texts are
 // written in each case; none is read from a document. Readings the cases take, each from the sentence quoted:
 // - "lists its sources and every use case, architecture element, module and test that names it" (A REQUIREMENT SHOWS WHAT TRACES TO IT): the
 //   lists are the sources the product links with version and part, the use cases with their review status, the decisions, modules and tests;
-// - "with that entry's status and a link to it" (OPEN PROPOSALS ARE SHOWN IN THE BROWSER): an open entry is one no decision has put into the
-//   SPEC; it touches a requirement it changes (source, rule or check differ) or leaves out of the section it replaces;
-// - UC-020 1a: "open proposals ... are hidden" at a released version; 5c: "the browser notes that accepting one makes the other stale".
+// - the open proposals and the note of 5c are not part of this view yet (ITM-648).
 const TICK = "`";
 const blobOf = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0${text}`).digest("hex");
 function doc(id, title, keys = {}, body = "") {
@@ -466,7 +463,6 @@ const TRACE_FILES = {
   ...queue("2026-10-09b_alpha-again", "alpha again", "## First section", firstSection("Alpha rule, again.", true)),
   ...queue("2026-10-08_done", "done", "## Second section", ["## Second section", "", "**GAMMA RULE** *(Vibe Coding)*", "Gamma rule, changed.", "*Check:* at review.", ""].join("\n"), true),
 };
-const THIRD_QUEUE = queue("2026-10-09c_alpha-third", "alpha third", "## First section", firstSection("Alpha rule, third.", true));
 
 // A Host whose snapshots hold the files of `trees` by ref; `log` records every snapshot asked for, every read and every readMany. `failing(path, nth)` makes the nth
 // read of a path (from 1) fail as an unreachable server does. It has no write method and no repositoryInfo beyond the default branch.
@@ -544,7 +540,7 @@ test("an opened requirement lists the use cases that name it with their review s
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture product: ARC-001 is forced by ALPHA RULE, MOD-direct realises it, MOD-tested is exercised by TST-501, which guards it
 // input: ALPHA RULE opened, then BETA RULE, which MOD-tested realises and no decision or test names
-// expect: ALPHA RULE — decisions ARC-001 linked to #decision/id=ARC-001; modules MOD-direct and MOD-tested linked to #module/id=<id>; tests TST-501 linked to #trace/key=tests/test=TST-501. BETA RULE — decisions "none", modules MOD-tested, tests "none"
+// expect: ALPHA RULE — decisions ARC-001 linked to #decision/id=ARC-001; modules MOD-direct and MOD-tested linked to #module/id=<id>; tests TST-501 linked to #trace/key=tests/row=TST-501. BETA RULE — decisions "none", modules MOD-tested, tests "none"
 test("an opened requirement lists the decisions, modules and tests that name it, each linked, and none where nothing does", async () => {
   const target = await render(mainOnly(), mainParams);
   const alpha = await openRequirement(target, "ALPHA RULE");
@@ -553,7 +549,7 @@ test("an opened requirement lists the decisions, modules and tests that name it,
   assert.deepEqual(listed(alpha, "Modules"), ["MOD-direct Direct module", "MOD-tested Tested module"]);
   assert.deepEqual(linksOf(alpha, "Modules"), ["#module/id=MOD-direct", "#module/id=MOD-tested"]);
   assert.deepEqual(listed(alpha, "Tests"), ["TST-501"]);
-  assert.deepEqual(linksOf(alpha, "Tests"), ["#trace/key=tests/test=TST-501"]);
+  assert.deepEqual(linksOf(alpha, "Tests"), ["#trace/key=tests/row=TST-501"]);
   const beta = await openRequirement(target, "BETA RULE");
   assert.deepEqual(paragraphs(beta, "Architecture decisions"), ["none: none"]);
   assert.deepEqual(listed(beta, "Modules"), ["MOD-tested Tested module"]);
@@ -565,7 +561,7 @@ test("an opened requirement lists the decisions, modules and tests that name it,
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture product, in which nothing names GAMMA RULE (known positive: ALPHA RULE's lists are full); and a product with a use case and no decision, module or test file at all
 // input: GAMMA RULE opened in the first, ALPHA RULE in the second
-// expect: GAMMA RULE — use cases, decisions, modules and tests each "none". In the second product: use cases list UC-001, and decisions, modules and tests each read "none yet" with a folded note "Which phase produces them?" that says the version holds no architecture decisions, modules or tests yet
+// expect: GAMMA RULE — use cases, decisions, modules and tests each "none". In the second product: use cases list UC-001, and decisions, modules and tests each read "none yet" with the folded "What is this?" of MOD-site-frame (a details of the class explain) whose text says a list reads none yet when the version shown holds no artifact of that kind at all, and that architecture decisions and module files come when the architecture is derived from the accepted use cases
 test("a list nothing fills reads none, and where the version holds no artifact of the kind it reads none yet with a folded note", async () => {
   const full = await render(mainOnly(), mainParams);
   assert.equal(listed(await openRequirement(full, "ALPHA RULE"), "Use cases").length, 3, "known positive: the same version fills ALPHA RULE's lists");
@@ -575,60 +571,45 @@ test("a list nothing fills reads none, and where the version holds no artifact o
   const bare = { "SPEC.md": TRACE_SPEC, "docs/use-cases/UC-001-first.md": UC1 };
   const row = await openRequirement(await render(mainOnly(bare), mainParams), "ALPHA RULE");
   assert.deepEqual(listed(row, "Use cases"), ["UC-001 First use case — open"]);
-  for (const [title, noun] of [["Architecture decisions", "architecture decisions"], ["Modules", "modules"], ["Tests", "tests"]]) {
+  for (const title of ["Architecture decisions", "Modules", "Tests"]) {
     assert.equal(paragraphs(row, title)[0], "none-yet: none yet", title);
     const note = find(traceSection(row, title), (node) => node.localName === "details")[0];
-    assert.equal(find(note, (node) => node.localName === "summary")[0].textContent, "Which phase produces them?");
-    assert.match(note.textContent, new RegExp(`This version holds no ${noun} yet\\.`), title);
+    assert.equal(note.className, "explain", title);
+    assert.equal(find(note, (node) => node.localName === "summary")[0].textContent, "What is this?");
+    assert.match(note.textContent, /a list reads none yet when the version shown holds no artifact of that kind at all/, title);
+    assert.match(note.textContent, /Architecture decisions and module files come when the architecture is derived from the accepted use cases/, title);
   }
-});
-
-// CASE ITM-597-05
-// TST-597005 · level: component · module: MOD-trace-pages
-// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
-// given: the fixture's queues — 2026-10-09_alpha changes ALPHA RULE and leaves BETA RULE out of its section, 2026-10-09b_alpha-again changes ALPHA RULE and keeps BETA RULE as it is, 2026-10-08_done changes GAMMA RULE and is decided
-// input: ALPHA RULE, BETA RULE and GAMMA RULE opened on the default branch
-// expect: ALPHA RULE lists spec-2026-10-09_alpha-01 and spec-2026-10-09b_alpha-again-01, each "change proposed (open)", linked to #spec-entry/id=<id>; BETA RULE lists spec-2026-10-09_alpha-01 as "removal proposed (open)"; GAMMA RULE "none", since its entry is decided
-test("an opened requirement on the default branch lists the open proposals that change or withdraw it with their status, each linked", async () => {
-  const target = await render(mainOnly(), mainParams);
-  const alpha = await openRequirement(target, "ALPHA RULE");
-  assert.deepEqual(listed(alpha, "Open proposals").sort(), ["spec-2026-10-09_alpha-01 — change proposed (open)", "spec-2026-10-09b_alpha-again-01 — change proposed (open)"]);
-  assert.deepEqual(linksOf(alpha, "Open proposals").sort(), ["#spec-entry/id=spec-2026-10-09_alpha-01", "#spec-entry/id=spec-2026-10-09b_alpha-again-01"]);
-  const beta = await openRequirement(target, "BETA RULE");
-  assert.deepEqual(listed(beta, "Open proposals"), ["spec-2026-10-09_alpha-01 — removal proposed (open)"]);
-  assert.deepEqual(linksOf(beta, "Open proposals"), ["#spec-entry/id=spec-2026-10-09_alpha-01"]);
-  const gamma = await openRequirement(target, "GAMMA RULE");
-  assert.deepEqual(paragraphs(gamma, "Open proposals"), ["none: none"]);
-});
-
-// CASE ITM-597-06
-// TST-597006 · level: component · module: MOD-trace-pages
-// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
-// given: the fixture with two open entries that change ALPHA RULE and one that withdraws BETA RULE; then the same with a third queue whose entry changes ALPHA RULE
-// input: ALPHA RULE and BETA RULE opened with two entries, then ALPHA RULE with three
-// expect: with two entries ALPHA RULE notes "2 open proposals touch this requirement: accepting one makes the other stale." and BETA RULE, touched by one, notes nothing; with three, "3 open proposals touch this requirement: accepting one makes the others stale."
-test("two open proposals that touch one requirement are noted, as accepting one makes the other stale", async () => {
-  const two = await render(mainOnly(), mainParams);
-  assert.deepEqual(paragraphs(await openRequirement(two, "ALPHA RULE"), "Open proposals"), ["stale-note: 2 open proposals touch this requirement: accepting one makes the other stale."]);
-  assert.deepEqual(paragraphs(await openRequirement(two, "BETA RULE"), "Open proposals"), []);
-  const three = await render(mainOnly({ ...TRACE_FILES, ...THIRD_QUEUE }), mainParams);
-  assert.deepEqual(paragraphs(await openRequirement(three, "ALPHA RULE"), "Open proposals"), ["stale-note: 3 open proposals touch this requirement: accepting one makes the others stale."]);
 });
 
 // CASE ITM-597-07
 // TST-597007 · level: component · module: MOD-trace-pages
-// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: a Host that names main the default branch and gives the tag v2026.1.0, whose tree holds the same files, queues included
 // input: the route rendered at main, v2026.1.0 chosen, ALPHA RULE opened
-// expect: the detail lists ALPHA RULE's use cases (known positive) and has no Open proposals section; no file of docs/spec-freigaben is read at all
-test("at a released version the open proposals are hidden and the queues are not read", async () => {
+// expect: the detail lists ALPHA RULE's use cases (known positive) and has no Open proposals section; no file of docs/spec-freigaben is read at all; a fault fails the case within 10 s of the clock
+test("at a released version the traces are shown, no open proposals, and the queues are not read", { timeout: 10000 }, async () => {
   const productHost = treeHost({ trees: { main: TRACE_FILES, "v2026.1.0": TRACE_FILES }, tags: ["v2026.1.0"] });
   const target = await render(productHost, mainParams);
   choose(target, "v2026.1.0");
   await until(() => productHost.log.snapshots.length === 2 && asOf(target).length === 1);
   const row = await openRequirement(target, "ALPHA RULE");
   assert.equal(listed(row, "Use cases").length, 3, "known positive: the traces are shown at the tag");
-  assert.equal(traceSection(row, "Open proposals"), undefined);
+  assert.equal(traceSection(row, "Open proposals") === undefined, true, "no Open proposals section");
+  assert.deepEqual(productHost.log.reads.filter((path) => path.startsWith("docs/spec-freigaben/")), []);
+});
+
+// CASE ITM-597-15
+// TST-597015 · level: component · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: the fixture on the default branch, whose queues hold open entries that change ALPHA RULE (known positive: its use cases are listed)
+// input: ALPHA RULE opened
+// expect: the detail has no Open proposals section and no stale note, and no file of docs/spec-freigaben is read: the open proposals wait for ITM-648
+test("an opened requirement shows no open proposals and reads no queue", { timeout: 10000 }, async () => {
+  const productHost = mainOnly();
+  const row = await openRequirement(await render(productHost, mainParams), "ALPHA RULE");
+  assert.equal(listed(row, "Use cases").length, 3, "known positive: the traces are shown");
+  assert.equal(traceSection(row, "Open proposals") === undefined, true, "no Open proposals section");
+  assert.equal(find(row, (node) => node.className === "stale-note").length, 0);
   assert.deepEqual(productHost.log.reads.filter((path) => path.startsWith("docs/spec-freigaben/")), []);
 });
 
@@ -683,7 +664,7 @@ test("a graph that cannot be read is named in place of the traces, the four fiel
   const row = await openRequirement(target, "ALPHA RULE");
   assert.match(row.textContent, /Alpha rule\./);
   assert.match(row.textContent, /What traces to this requirement could not be read: unreachable/);
-  assert.equal(traceSection(row, "Use cases"), undefined);
+  assert.equal(traceSection(row, "Use cases") === undefined, true, "no lists beside the problem");
   find(target, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0].dispatchEvent(new Event("click"));
   const again = await openRequirement(target, "ALPHA RULE");
   assert.deepEqual(listed(again, "Use cases")[0], "UC-001 First use case — accepted");
@@ -692,29 +673,14 @@ test("a graph that cannot be read is named in place of the traces, the four fiel
 
 // CASE ITM-597-11
 // TST-597011 · level: component · module: MOD-trace-pages
-// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
-// given: the fixture, in which every read of docs/sources.md and of the first queue's index fails as an unreachable server does
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: the fixture, in which every read of docs/sources.md fails as an unreachable server does
 // input: ALPHA RULE opened
-// expect: Sources says "The sources could not be read: unreachable" and Open proposals "The open proposals could not be read: unreachable"; the use cases are listed all the same
+// expect: Sources says "The sources could not be read: unreachable"; the use cases are listed all the same
 test("a part that cannot be read is named in its own section and leaves the others", async () => {
-  const bad = new Set(["docs/sources.md", "docs/spec-freigaben/2026-10-09_alpha/index.md"]);
-  const row = await openRequirement(await render(treeHost({ trees: { main: TRACE_FILES }, failing: (path) => bad.has(path) }), mainParams), "ALPHA RULE");
+  const row = await openRequirement(await render(treeHost({ trees: { main: TRACE_FILES }, failing: (path) => path === "docs/sources.md" }), mainParams), "ALPHA RULE");
   assert.deepEqual(paragraphs(row, "Sources"), ["traces-problem: The sources could not be read: unreachable"]);
-  assert.deepEqual(paragraphs(row, "Open proposals"), ["traces-problem: The open proposals could not be read: unreachable"]);
   assert.equal(listed(row, "Use cases").length, 3);
-});
-
-// CASE ITM-597-12
-// TST-597012 · level: component · module: MOD-trace-pages
-// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
-// given: the fixture, and a fourth queue 2026-10-09d_elsewhere whose open entry names docs/other.md as its target file and words ALPHA RULE otherwise
-// input: ALPHA RULE opened on the default branch
-// expect: Open proposals lists the same two entries as without that queue (known positive) and the note counts two, since an entry of another file proposes nothing for the SPEC
-test("an open entry whose target is not the SPEC is no proposal for a requirement", async () => {
-  const files = { ...TRACE_FILES, "docs/other.md": "# Other\n", ...queue("2026-10-09d_elsewhere", "elsewhere", "## First section", firstSection("Alpha rule, elsewhere.", true), false, "docs/other.md") };
-  const row = await openRequirement(await render(mainOnly(files), mainParams), "ALPHA RULE");
-  assert.deepEqual(listed(row, "Open proposals").sort(), ["spec-2026-10-09_alpha-01 — change proposed (open)", "spec-2026-10-09b_alpha-again-01 — change proposed (open)"]);
-  assert.deepEqual(paragraphs(row, "Open proposals"), ["stale-note: 2 open proposals touch this requirement: accepting one makes the other stale."]);
 });
 
 // CASE ITM-597-13
