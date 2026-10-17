@@ -57,12 +57,15 @@ export const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, ""
 const today = () => new Date().toISOString().slice(0, 10);
 const bytesToText = (bytes) => new TextDecoder().decode(bytes);
 
-// The register of the instance: its entries in the order of their files.
+// The register of the instance: its entries in the order of their files. The entries' texts are told to the snapshot first (Snapshot.readMany), which reads them in batches of a hundred
+// where the host can (GitHub, with a token) and reads nothing ahead elsewhere; a snapshot without readMany is read file by file.
 export async function readRegisterOf(host) {
   const { defaultBranch } = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(defaultBranch);
   const entries = [];
-  for (const path of snapshot.paths.filter((each) => REGISTER_PATH.test(each)).sort()) {
+  const paths = snapshot.paths.filter((each) => REGISTER_PATH.test(each)).sort();
+  await snapshot.readMany?.(paths);
+  for (const path of paths) {
     const text = await snapshot.read(path);
     if (text !== null && text !== undefined) entries.push(readDocument(ENTRY, path, text));
   }
