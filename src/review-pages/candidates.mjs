@@ -90,7 +90,7 @@ const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
  */
 export const flagged = (remaining, candidate) => (remaining ?? []).some((finding) => finding.artifact === folded(candidate.name));
 
-// A part of a split candidate: a candidate of the panel after it, of its class and `of` as the candidate stands, with a name and a rule of its own for the person to fill.
+// A part of a split candidate: a candidate of the panel after it, of the class and `of` it is given, with a name and a rule of its own for the person to fill.
 function splitPart(origin, class_, of, onChange) {
   const select = classSelect(class_);
   const ofInput = el("input", "of");
@@ -106,7 +106,8 @@ function splitPart(origin, class_, of, onChange) {
 
 /**
  * splitCandidate(item, candidate, onChange) — splits the candidate whose item `item` is in the panel: its rule becomes a field the person may edit, and a part of its own stands after it (after
- * its parts, if it has some). Nothing is written. `onChange` is called when a class of the panel may have changed.
+ * its parts, if it has some). The part shows the class and `of` the candidate shows, except for a `change`: a second change of one requirement would replace the first's block, so the part shows `new`
+ * with an empty `of`. Nothing is written. `onChange` is called when a class of the panel may have changed.
  */
 export function splitCandidate(item, candidate, onChange) {
   const name = item.getAttribute("data-name");
@@ -119,21 +120,34 @@ export function splitCandidate(item, candidate, onChange) {
   }
   let last = item;
   while (last.nextSibling?.getAttribute?.("data-split-of") === name) last = last.nextSibling;
-  item.parentNode.insertBefore(splitPart(name, inputsOf(item, "select", "class")[0].value, inputsOf(item, "input", "of")[0].value.trim(), onChange), last.nextSibling);
+  const class_ = inputsOf(item, "select", "class")[0].value;
+  const part = class_ === "change" ? splitPart(name, "new", "", onChange) : splitPart(name, class_, inputsOf(item, "input", "of")[0].value.trim(), onChange);
+  item.parentNode.insertBefore(part, last.nextSibling);
   onChange();
 }
 
 /**
- * splitProblem(panel) -> string | null — what keeps the parts of the panel from being written: a part without a name or a rule, or bearing the name of another candidate; null when none does.
+ * splitProblem(panel) -> string | null — what keeps the parts of the panel from being written: a part without a name or a rule, or bearing the name of another candidate, or two of a candidate and its parts that
+ * are both `change` with one `of` (the second would replace the first's block); null when none does. A `change` with an empty `of` names no requirement and is not counted.
  */
 export function splitProblem(panel) {
   const items = inputsOf(panel, "li", "candidate");
   const taken = items.map((item) => item.getAttribute("data-name")).filter(Boolean).map(folded);
-  for (const part of items.filter((item) => item.getAttribute("data-split-of"))) {
+  const parts = items.filter((item) => item.getAttribute("data-split-of"));
+  for (const part of parts) {
     const name = folded(inputsOf(part, "input", "candidate-name")[0].value), rule = folded(inputsOf(part, "textarea", "candidate-rule")[0].value);
     if (!name || !rule) return `A split part of ${part.getAttribute("data-split-of")} needs a name and a rule: nothing was written.`;
     if (taken.includes(name)) return `The split part ${name} has the name of another candidate: nothing was written.`;
     taken.push(name);
+  }
+  for (const candidate of new Set(parts.map((part) => part.getAttribute("data-split-of")))) {
+    const changed = new Set();
+    for (const item of items.filter((each) => each.getAttribute("data-name") === candidate || each.getAttribute("data-split-of") === candidate)) {
+      const of = inputsOf(item, "input", "of")[0].value.trim();
+      if (inputsOf(item, "select", "class")[0].value !== "change" || !of) continue;
+      if (changed.has(of)) return `Two parts of ${candidate} change ${of}: nothing was written.`;
+      changed.add(of);
+    }
   }
   return null;
 }
@@ -144,11 +158,9 @@ const fieldOf = (item, name, className, held) => inputsOf(item, name, className)
 export function editedResult(panel, outcome) {
   const items = inputsOf(panel, "li", "candidate");
   const candidates = [], classes = [];
-  const take = (candidate, item, from, origin = null) => {
-    let class_ = inputsOf(item, "select", "class")[0].value;
-    let of = inputsOf(item, "input", "of")[0].value.trim();
-    // A part that would change the requirement its candidate changes is written as a requirement of its own: a second change of one name would replace the first's block.
-    if (origin && class_ === "change" && of === origin.of) { class_ = "new"; of = ""; }
+  const take = (candidate, item, from) => {
+    const class_ = inputsOf(item, "select", "class")[0].value;
+    const of = inputsOf(item, "input", "of")[0].value.trim();
     const edited = { ...candidate, rule: fieldOf(item, "textarea", "candidate-rule", candidate.rule), check: fieldOf(item, "textarea", "candidate-check", candidate.check), class: class_ };
     if (of) edited.of = of;
     else delete edited.of;
@@ -160,7 +172,7 @@ export function editedResult(panel, outcome) {
     const item = items.find((node) => node.getAttribute("data-name") === candidate.name);
     const from = classOf(candidate, outcome.classes).from ?? [];
     const edited = take(candidate, item, from);
-    for (const part of items.filter((node) => node.getAttribute("data-split-of") === candidate.name)) take({ ...edited, name: inputsOf(part, "input", "candidate-name")[0].value.trim() }, part, from, edited);
+    for (const part of items.filter((node) => node.getAttribute("data-split-of") === candidate.name)) take({ ...edited, name: inputsOf(part, "input", "candidate-name")[0].value.trim() }, part, from);
   }
   return { draft: { candidates }, classes };
 }
