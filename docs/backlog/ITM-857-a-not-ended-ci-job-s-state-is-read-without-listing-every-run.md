@@ -28,3 +28,7 @@ it.
 
 - The requests for N not-ended CI jobs do not grow with N beyond one listing, and a test counts it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Noted at ITM-847's gate (sprint team1/79, 2026-10-17, po-opus).** When the run listing meets a used-up limit,
+MOD-main-page's `liveStatesOf` shows the job as not reachable. A used-up limit is named as such (`A USED-UP RATE LIMIT IS
+NAMED`), not as an unreachable runtime. This item names it so, with a test.
