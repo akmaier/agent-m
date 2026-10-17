@@ -1,4 +1,4 @@
-// The private descriptors of the trace views this module draws: the current specification and the gaps. A TraceView descriptor
+// The private descriptors of the trace views this module draws: the current specification, the gaps and the modules. A TraceView descriptor
 // belongs to MOD-trace-pages; the public Site-frame Route is `trace/<key>`.
 //
 // Module: MOD-trace-pages
@@ -19,6 +19,14 @@ export const gaps = {
   shape: "table",
 };
 
-const descriptors = new Map([[specification.key, specification], [gaps.key, gaps]]);
+export const modules = {
+  key: "modules",
+  entry: "architecture",
+  title: "Modules",
+  versions: "branch",
+  shape: "table",
+};
+
+const descriptors = new Map([[specification.key, specification], [gaps.key, gaps], [modules.key, modules]]);
 
 export const descriptorFor = (key) => descriptors.get(key) ?? null;

@@ -6,6 +6,19 @@
 //
 // Module: MOD-trace-pages
 
+// moduleFiles(graph) -> the module files componentDiagram takes, read from MOD-trace-graph's Graph: for each node of kind MOD, { kind: "module", id,
+// title, follows, uses, provides }, with follows the decisions its `follows` edges name, in the order its file writes them, uses [{ module, iface }] its
+// `uses` edges (`to` is `MOD-<slug>.<interface>`, `interface` the interface), and provides the interfaces its node keeps.
+export function moduleFiles(graph) {
+  const from = (id, via) => graph.edges.filter((edge) => edge.from === id && edge.via === via);
+  return [...graph.nodes.values()].filter((node) => node.kind === "MOD").map((node) => ({
+    kind: "module", id: node.id, title: node.title ?? "",
+    follows: from(node.id, "follows").map((edge) => edge.to),
+    uses: from(node.id, "uses").map((edge) => ({ module: edge.to.slice(0, edge.to.length - edge.interface.length - 1), iface: edge.interface })),
+    provides: node.provides ?? [],
+  }));
+}
+
 // The Mermaid node of an identifier: its letters and digits, every other character an underscore.
 const nodeId = (id) => String(id).replace(/[^A-Za-z0-9]/g, "_");
 // Text inside a quoted Mermaid label, on one line, with no quote that could end the label and no angle bracket of a tag.
