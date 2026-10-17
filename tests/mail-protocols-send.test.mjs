@@ -138,7 +138,7 @@ async function imapServer() {
       }
       if (command === "APPEND") {
         const size = /\{(\d+)\+?\}$/.exec(line);
-        literal = { tag, folder: quoted[0], size: Number(size[1]) };
+        literal = { tag, folder: rest[0].replace(/^"|"$/g, ""), size: Number(size[1]) };
         if (!line.endsWith("+}")) write("+ Ready for literal data");
         return;
       }

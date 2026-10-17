@@ -5,6 +5,7 @@
 
 import { createRequire } from "node:module";
 import { mailId } from "../mail-records/index.mjs";
+import { sha256 } from "../text-tools/index.mjs";
 
 const requireBridgePackage = createRequire(new URL("../bridge-build/package.json", import.meta.url));
 const { ImapFlow } = requireBridgePackage("imapflow");
@@ -49,7 +50,7 @@ function errorText(error) {
 }
 
 export function mapMailFailure(error, kind, server, folder) {
-  if (["no-encryption", "login-refused", "not-found", "upstream-failed"].includes(error?.code)) throw error;
+  if (["no-encryption", "login-refused", "not-found", "upstream-failed", "confirmation-refused"].includes(error?.code)) throw error;
   const said = errorText(error);
   if (folder && (error?.mailboxMissing || MISSING.test(said))) throw bridgeFailure("not-found", `${folder}: ${said}`);
   if (LOGIN.test(said) || error?.code === "AUTHENTICATIONFAILED" || error?.code === "EAUTH") throw bridgeFailure("login-refused", said);
@@ -195,5 +196,66 @@ export function markedFolder(connection, Flow, use, since) {
     const folder = (await client.list({ listOnly: true })).find((each) => each.specialUse === use || each.flags?.has?.(use));
     if (!folder) throw bridgeFailure("not-found", `${use}: the mailbox marks no such folder`);
     return mailsOf(client, folder.path, imap, since);
+  });
+}
+
+const draftRef = (uid, uidValidity) => ({ route: "bridge", uid: Number(uid), uidValidity: Number(uidValidity) });
+
+async function folderMarked(client, use) {
+  const folder = (await client.list({ listOnly: true })).find((each) => each.specialUse === use || each.flags?.has?.(use));
+  if (!folder) throw bridgeFailure("not-found", `${use}: the mailbox marks no such folder`);
+  return folder.path;
+}
+
+// The bytes of the draft a ref names, the folder opened read-only; a ref of another UIDVALIDITY or without a message is not found.
+async function draftBytes(client, imap, path, ref) {
+  const opened = await open(client, path, imap);
+  const message = Number(opened.uidValidity) === ref?.uidValidity && opened.exists
+    ? await client.fetchOne(String(ref.uid), { source: true }, { uid: true }) : false;
+  if (!message?.source) throw bridgeFailure("not-found", `${path}: no draft ${ref?.uid} of validity ${ref?.uidValidity}`);
+  return message.source;
+}
+
+async function removeDraft(client, imap, path, ref) {
+  try {
+    await client.mailboxOpen(path);
+    await client.messageDelete(String(ref.uid), { uid: true });
+  } catch (error) {
+    mapMailFailure(error, "IMAP", imap, path);
+  }
+}
+
+// Appends the bytes to the Drafts folder, and removes the draft `replacing` when one is given.
+export function storeDraft(connection, Flow, bytes, replacing) {
+  const { imap, account, password } = connection;
+  return withClient(imap, account, password, Flow, async (client) => {
+    const path = await folderMarked(client, "\\Drafts");
+    const stored = await client.append(path, bytes, ["\\Draft"]);
+    if (replacing) await removeDraft(client, imap, path, replacing);
+    return draftRef(stored.uid, stored.uidValidity);
+  });
+}
+
+// The draft a ref names, as stored: its bytes and its SHA-256, and the parsed mail.
+export function showDraft(connection, Flow, ref) {
+  const { imap, account, password } = connection;
+  return withClient(imap, account, password, Flow, async (client) => {
+    const bytes = await draftBytes(client, imap, await folderMarked(client, "\\Drafts"), ref);
+    return { bytes, sha256: await sha256(bytes), mail: await parseMail(bytes, "Drafts") };
+  });
+}
+
+// Reads the draft again, hands its bytes and recipients to `transmit` only when their SHA-256 is `expected`, then copies the bytes to
+// Sent and removes the draft. When `transmit` fails nothing else happens.
+export function sendDraft(connection, Flow, ref, expected, transmit) {
+  const { imap, account, password } = connection;
+  return withClient(imap, account, password, Flow, async (client) => {
+    const drafts = await folderMarked(client, "\\Drafts");
+    const bytes = await draftBytes(client, imap, drafts, ref);
+    if ((await sha256(bytes)) !== expected) throw bridgeFailure("confirmation-refused", "The draft is not the mail that was confirmed; nothing was sent.");
+    const { to, cc } = await parseMail(bytes, "Drafts");
+    await transmit(bytes, [...to, ...cc].map((each) => each.address));
+    await client.append(await folderMarked(client, "\\Sent"), bytes, ["\\Seen"]);
+    await removeDraft(client, imap, drafts, ref);
   });
 }
