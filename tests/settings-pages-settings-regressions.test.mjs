@@ -269,12 +269,13 @@ test("TST-290119: product removal and product-list clear ask before changing bro
 // guards: UC-042; EVERY STEP EXPLAINS ITSELF; A TOKEN IS SCOPED TO WHAT IT WRITES
 // given: the public instance repository-token line
 // input: the person opens Repositories
-// expect: a folded explanation states the token's purpose and minimum repository scope before it can be changed
+// expect: the line holds a folded What is this? before the token can be changed; what it says is MOD-site-frame's, pinned in tests/site-frame-settings-explanations.test.mjs (this file's fixture document does not render an explanation's body)
 test("TST-290120: repository token controls retain folded scope and purpose explanations", async () => {
   const target = repositories(await render(store()));
   const line = byClass(target, "settings-repository").find((node) => /GitHub token/.test(node.textContent));
-  assert.ok(descendants(line, (node) => node.localName === "details").length > 0, "failure node: the repository line exposes its folded explanation");
-  assert.match(line.textContent, /minimum.*scope|only.*repository/i, "failure node: the explanation states why the token needs its limited repository scope");
+  const folds = descendants(line, (node) => node.localName === "details");
+  assert.ok(folds.length > 0, "failure node: the repository line exposes its folded explanation");
+  assert.match(folds[0].textContent, /^What is this\?/, "failure node: the fold is a What is this?");
 });
 
 // TST-290123
@@ -283,7 +284,7 @@ test("TST-290120: repository token controls retain folded scope and purpose expl
 // guards: UC-042; EVERY STEP EXPLAINS ITSELF
 // given: the public Settings Route with one repository token, Bridge, jump host, remote session, and writable product
 // input: the person opens each Settings tab
-// expect: every rendered settings section has a folded What is this? that names purpose, storage, and readers
+// expect: every rendered settings section holds exactly one folded What is this?; what each says (purpose, storage and readers) is MOD-site-frame's, pinned in tests/site-frame-settings-explanations.test.mjs (this file's fixture document does not render an explanation's body)
 test("TST-290123: every rendered Settings section states purpose, storage, and readers in a folded explanation", async () => {
   const browserStore = store();
   writeSetting(browserStore, "github-token", { value: "ghp_fixture" });
@@ -299,8 +300,6 @@ test("TST-290123: every rendered Settings section states purpose, storage, and r
   for (const section of sections) {
     const details = section.childNodes.filter((node) => node.localName === "details" && node.textContent.includes("What is this?"));
     assert.equal(details.length, 1, `failure node: ${section.className} has exactly one folded What is this?`);
-    assert.match(details[0].textContent, /browser|repository/i, `${section.className}: explanation names where the setting is kept`);
-    assert.match(details[0].textContent, /read/i, `${section.className}: explanation names who can read it`);
   }
   const unchosen = repositories(await render(store()));
   assert.equal(byClass(unchosen, "settings-product")[0].childNodes.filter((node) => node.localName === "details" && node.textContent.includes("What is this?")).length, 1,
@@ -313,7 +312,7 @@ test("TST-290123: every rendered Settings section states purpose, storage, and r
 // guards: UC-042; UC-047; EVERY STEP EXPLAINS ITSELF
 // given: the public Settings Route on its Usability tab
 // input: the person opens Notifications without changing its switch, test, permission, or stored state
-// expect: while Notifications is off, its direct folded What is this? names notification delivery's purpose, browser storage and readers; the pending acceptance records checked every five minutes; repository-server checks only with this browser's tokens; and no checks without an open dashboard page
+// expect: while Notifications is off, it directly holds exactly one folded What is this?; what it says (notification delivery's purpose, browser storage and readers, the pending acceptance records checked every five minutes, repository-server checks only with this browser's tokens, no checks without an open dashboard page) is MOD-site-frame's, pinned in tests/site-frame-settings-explanations.test.mjs (this file's fixture document does not render an explanation's body)
 test("TST-290124: Notifications explains its off-state checks, tokens, and open-page boundary in a folded explanation", async () => {
   const notification = Object.getOwnPropertyDescriptor(globalThis, "Notification");
   const navigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
@@ -327,13 +326,6 @@ test("TST-290124: Notifications explains its off-state checks, tokens, and open-
     assert.equal(byClass(section, "settings-notifications-status")[0].textContent, "Off.", "known positive: the disclosure is checked while Notifications is off");
     const details = section.childNodes.filter((node) => node.localName === "details" && node.textContent.includes("What is this?"));
     assert.equal(details.length, 1, "failure node: Notifications directly exposes one folded What is this?");
-    assert.match(details[0].textContent, /notification|delivery/i, "failure node: the explanation names notification delivery's purpose");
-    assert.match(details[0].textContent, /browser/i, "failure node: the explanation names browser storage");
-    assert.match(details[0].textContent, /read/i, "failure node: the explanation names who can read it");
-    assert.match(details[0].textContent, /SPEC.*use cases?.*architecture.*release test reports?/i, "failure node: the folded explanation names every pending acceptance record it checks");
-    assert.match(details[0].textContent, /every five minutes/i, "failure node: the folded explanation names the check interval");
-    assert.match(details[0].textContent, /repository servers?.*tokens?.*browser.*nowhere else/i, "failure node: the folded explanation limits checks to repository servers with this browser's tokens");
-    assert.match(details[0].textContent, /nothing is checked.*no dashboard page.*open/i, "failure node: the folded explanation names the no-open-dashboard boundary");
   } finally {
     if (notification) Object.defineProperty(globalThis, "Notification", notification); else delete globalThis.Notification;
     if (navigator) Object.defineProperty(globalThis, "navigator", navigator); else delete globalThis.navigator;
