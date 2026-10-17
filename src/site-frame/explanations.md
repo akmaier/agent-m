@@ -682,6 +682,10 @@ On a GitLab server the page is the one for a new project and asks for the same c
 
 A *token* is a key you create on GitHub and give to this page, so that it can make commits for you — only in the repositories you select, only with the permissions Agent M's features need, and only until the date you choose. You can delete it on GitHub at any time; it then stops working immediately.
 
+Why *Only select repositories*? GitHub preselects All repositories, which would let this page write to every repository you own. Choosing only the instance limits the key to what Agent M actually needs; each product you add later gets a key of its own.
+
+## setup-key-permissions
+
 One key serves every feature, so the prefilled page asks for these permissions:
 
 - Contents (read and write) — to save and accept.
@@ -690,8 +694,6 @@ One key serves every feature, so the prefilled page asks for these permissions:
 - Actions (read and write) — to start a run.
 - Workflows (read and write) — for a generated CI configuration.
 - Metadata (read) — to read the repository.
-
-Why *Only select repositories*? GitHub preselects All repositories, which would let this page write to every repository you own. Choosing only the instance limits the key to what Agent M actually needs; each product you add later gets a key of its own.
 
 ## setup-store
 
