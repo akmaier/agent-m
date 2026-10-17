@@ -34,6 +34,11 @@ const tickOf = async (queue, item, readOnce) => {
   return { queue: queue.folder, entry: item.number, proposalBlob: item.proposal.blob, sectionBlob: heldNow === null ? "" : await blobSha(heldNow) };
 };
 
+// The files the entry page reads from `snapshot` for its sources: the product's links file and, on a page that shows the instance itself, the register beside it.
+const LINKS = "docs/sources.md";
+const isRegisterEntry = (path) => /^docs\/sources\/[^/]+\.md$/.test(path);
+const sourcePaths = (snapshot, context) => [LINKS, ...(context.product ? [] : snapshot.paths.filter(isRegisterEntry))];
+
 // The product's links and the instance's register, which acceptEntries checks every requirement's source against.
 export async function sourcesOf({ snapshot, context }) {
   const { entry: entrySchema, links: linksSchema } = sourceSchemas();
@@ -42,8 +47,8 @@ export async function sourcesOf({ snapshot, context }) {
     const { defaultBranch } = await context.instance.host.repositoryInfo();
     holder = await context.instance.host.readSnapshot(defaultBranch);
   }
-  const links = readDocument(linksSchema, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? "");
-  const register = await Promise.all(holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path))
+  const links = readDocument(linksSchema, LINKS, (await snapshot.read(LINKS)) ?? "");
+  const register = await Promise.all(holder.paths.filter(isRegisterEntry)
     .map(async (path) => readDocument(entrySchema, path, (await holder.read(path)) ?? "")));
   return { links, register };
 }
@@ -76,6 +81,8 @@ export const queueService = {
     const queue = all.find((candidate) => candidate.entries.some((item) => idOf(candidate, item.number) === id));
     const item = queue?.entries.find((each) => idOf(queue, each.number) === id);
     if (!item) return null;
+    // The files the entry's page and its subject read, asked for in one batch: the target, the proposal, the rationale, and the sources the subject needs.
+    await snapshot.readMany?.([item.file, item.proposal.path, item.rationale, ...sourcePaths(snapshot, context)].filter(Boolean));
     const view = await entryView(queue.folder, item.number, snapshot);
     const others = all.flatMap((other) => other.entries.filter((each) => idOf(other, each.number) !== id && each.anchor === item.anchor && each.state !== "in SPEC")
       .map((each) => ({ id: idOf(other, each.number), state: each.state })));
