@@ -45,3 +45,5 @@ the wait. No expected result changes.
   implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
   is named in that module's parts.
 - This item waits for akmaier's acceptance of that draft, and its fix is read again then.
+
+**Read again with the plan (2026-10-17):** its fix, in MOD-desktop-shell's own test files, never needed the workflow, and it is selectable. A change of the workflow would now be MOD-test-schedule's, which takes over `tests.yml` and `nightly.yml`.

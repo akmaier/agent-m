@@ -47,3 +47,5 @@ No expected result changes. A failed install still fails the fixture, naming the
   implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
   is named in that module's parts.
 - This item waits for akmaier's acceptance of that draft, and its fix is read again then.
+
+**Read again with the plan (2026-10-17):** as ITM-541, its fixtures are MOD-desktop-shell's own, and it is selectable.

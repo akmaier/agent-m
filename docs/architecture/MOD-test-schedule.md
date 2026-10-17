@@ -65,6 +65,9 @@ project's pipeline schedule once that pull request is merged. It runs in the bro
 - `templates/` — the fixed parts of both configurations, as data.
 - `propose.mjs` — the pull request of a schedule, and the pipeline schedule after its merge.
 - `strategies.mjs` — the writer of `scheduleStrategies`.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `.github/workflows/tests.yml`, `.github/workflows/nightly.yml`: named here, since GitHub fixes their place, until this module generates `agent-m-tests.yml`; they read a test's level through MOD-test-document's `testDeclarations`.
+  - `tests/test_ci_budget.py`: its header names this module.
 
 ## Data
 

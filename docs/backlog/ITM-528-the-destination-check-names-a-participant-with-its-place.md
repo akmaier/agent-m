@@ -73,3 +73,5 @@ No existing test's expected result changes. No assertion changes, only header co
   implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
   is named in that module's parts.
 - This item waits for akmaier's acceptance of that draft, and its fix is read again then.
+
+**Read again with the plan (2026-10-17):** its own part, the headers and the counter-proof, changes only tests of its four modules and never rested on a pull request between jobs. It is selectable. Its left-out `tests/test_destination_disclosure.py` goes with ITM-689, after the queue `2026-10-16` names its successors.

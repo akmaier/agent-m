@@ -35,3 +35,5 @@ UC-012 step 6 and its second postcondition. `backlogItemFrom` and `moveToBacklog
   implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
   is named in that module's parts.
 - This item waits for akmaier's acceptance of that draft, and its fix is read again then.
+
+**Read again with the plan (2026-10-17):** `itemFromIssue` in `docs/assets/work-items.mjs` goes with ITM-688. This item builds `backlogItemFrom` and `moveToBacklog` in its own modules, and no pull request between jobs is needed. It no longer waits for queue `2026-10-17d`.

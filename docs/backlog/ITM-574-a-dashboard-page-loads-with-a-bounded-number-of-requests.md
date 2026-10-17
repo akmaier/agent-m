@@ -6,7 +6,7 @@ realises:
   - A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
   - UC-006
 modules:
-  - MOD-repository-hosts
+  - MOD-site-frame
 builds_on:
   - ITM-479
 tests:
@@ -88,3 +88,16 @@ that reads it in batches.
 **Measured at ITM-648's gate on #715 (`docs/gates/20261017-0930-development-release-testing-91e4.md`).** The live `#spec` page load reads every queue's `index.md` and
 `entscheidungen.md`, and the specification route reads them again for an opened requirement. The page load's reads are
 in the live dashboard's code (`docs/assets/`), which this item bounds once queue `2026-10-17d` is decided.
+
+**The first item of the plan of moving the code outside the architecture into it (2026-10-17, po-opus, sprint team1/70).**
+akmaier accepted queue `2026-10-17` (`e513ce62`), so `A PAGE LOAD READS THE REPOSITORY IN BATCHES` is binding. The fix
+form of its entry 02 was rejected, and queue `2026-10-17d` was accepted in its place.
+- So MOD-site-frame takes over the live loading code: `docs/assets/dashboard-app.mjs` moves into its folder, as its
+  module-file draft of the plan names.
+- In this item the moved app reads one host and one snapshot per load, and the files it shows through
+  `Snapshot.readMany` ahead of their reads. `readAt` reads the head once per acceptance.
+- `tests/load-per-view.test.mjs` and `tests/app-harness.mjs` become MOD-site-frame's. The harness serves the batch
+  request (`POST /graphql`), which also unblocks ITM-677.
+- MOD-repository-hosts leaves its modules: its interface is called, and its file and code do not change.
+
+It waits for akmaier's acceptance of the module-file draft committed with the plan, which names these files as taken over in the module's Parts.

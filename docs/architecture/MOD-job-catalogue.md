@@ -41,6 +41,8 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 - `kinds/<name>/answer.schema.json` — the shape of the draft it expects back; none for a kind without a participant.
 - `tools.md` — the tools a kind may offer its drafter, as a register: one row per tool.
 - `tools.schema.md` — the schema of that register, in the schema language of MOD-documents.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `docs/assets/jobs/propose-backlog-items/job.json`: removed: the kind `propose-items` gives it.
 
 ## Data
 

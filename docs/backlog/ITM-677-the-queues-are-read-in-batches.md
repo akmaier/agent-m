@@ -8,6 +8,7 @@ realises:
 modules:
   - MOD-spec-changes
 builds_on:
+  - ITM-574
 tests:
   - unit
 origin:
@@ -62,3 +63,5 @@ SPEC requirement's.
 - **So the harness must serve the batch request.** Its header names no module. Under queue `2026-10-17d`, accepted in
   `45dbf4d8`, it is changed only by the implementation job of the module whose file names it as taken over. That module
   is settled in the migration plan of the code outside the architecture, which this item waits for.
+
+**Plan (2026-10-17):** builds on ITM-574, whose `app-harness.mjs` serves the batch request.

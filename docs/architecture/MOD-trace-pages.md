@@ -84,6 +84,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `views.mjs` — the five descriptors.
 - `diagram.mjs` — the component diagram of the modules view, as Mermaid.
 - `export.mjs` — saving the audit document in the browser.
+- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
+  - `tests/trace-pages-edit-links.test.mjs`: its header names this module.
 
 ## Data
 
