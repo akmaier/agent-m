@@ -62,6 +62,11 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     if (on[answer.status]) return on[answer.status](answer);
     throw await refusal(answer, { ...context, write: method !== "GET", ...more });
   }
+  const notMergeable = async (answer) => {
+    const said = await answer.json().catch(() => null);
+    const reason = said?.message ?? `${answer.status} ${answer.statusText}`.trim();
+    throw new HostError("NotMergeable", { reason }, `${host} refuses the merge: ${reason}`);
+  };
   const read = async (url, options) => {
     const answer = await call("GET", url, options);
     return answer instanceof Response ? json(answer, address.origin) : answer;
@@ -280,6 +285,17 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     async openPullRequest({ branch, base, title, body, draft }) {
       const made = await call("POST", `${api}/merge_requests`, { body: { source_branch: branch, target_branch: base, title: draft === true ? `Draft: ${title}` : title, description: body } });
       return pullOf(await json(made, address.origin));
+    },
+
+    // Merges a merge request at the head that was read ("Get single MR" for the head, then "Merge a merge request": PUT …/merge_requests/:iid/merge, sha — the head the source branch must still
+    // have —; 200 with merge_commit_sha; 405 and 422 the merge cannot be performed; 409 the sha did not match). See github.mjs.
+    async mergePullRequest(number, expectedHead) {
+      const what = `merge request !${number} of ${address.web}`;
+      const now = (await read(`${api}/merge_requests/${number}`, { what })).sha;
+      if (now !== expectedHead) throw new HostError("Moved", { head: now }, `Merge request !${number} has moved on to ${now.slice(0, 12)} since it was read — nothing was merged; read it again.`);
+      const made = await call("PUT", `${api}/merge_requests/${number}/merge`, { body: { sha: expectedHead }, what,
+        on: { 405: notMergeable, 422: notMergeable, 409: async () => { throw new HostError("Moved", { head: null }, `Merge request !${number} has moved on since it was read — nothing was merged; read it again.`); } } });
+      return { commit: (await json(made, address.origin)).merge_commit_sha };
     },
 
     // Whether the branch's history holds the commit ("Get a merge base": GET …/repository/merge_base?refs[]=…&refs[]=…): the common ancestor of

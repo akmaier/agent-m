@@ -157,6 +157,7 @@ function throughClone(repository, folder, rest) {
     jobLogs: rest ? (...a) => rest.jobLogs(...a) : without("the log of a CI run"),
     listPullRequests: rest ? (...a) => rest.listPullRequests(...a) : without("the pull requests"),
     openPullRequest: rest ? (...a) => rest.openPullRequest(...a) : without("a pull request"),
+    mergePullRequest: rest ? (...a) => rest.mergePullRequest(...a) : without("a merge"),
     pullRequestFacts: rest ? (...a) => rest.pullRequestFacts(...a) : without("the facts of a pull request"),
     containsCommit: (...a) => clone.containsCommit(...a),
     snapshot: (ref) => clone.snapshot(ref),
@@ -364,6 +365,18 @@ export function connect(address, credentials = {}) {
           "A pull request is opened on the server, with a token that may write to the repository; store one first.");
       }
       return adapter.openPullRequest({ branch, base, title, body, draft });
+    },
+
+    // mergePullRequest(number, expectedHead) -> { commit } — merges the pull request only while its head is still expectedHead, and the server allows it (its branch protection stays in force). Crosses the
+    // network; fails with Moved, TokenRefused, PermissionMissing, RateLimited, Unreachable, NotMergeable { reason }, and NotSupported without a token, before any request. Through a clone, the server's call where a token is given.
+    async mergePullRequest(number, expectedHead) {
+      if (!Number.isSafeInteger(number) || number < 1) throw new TypeError(`a pull request is named by its number: ${String(number)}`);
+      if (typeof expectedHead !== "string" || !expectedHead.trim()) throw new TypeError("mergePullRequest names the head it expects");
+      if (!token) {
+        throw new HostError("NotSupported", { what: clone ? "a merge through a local clone without a token" : "a merge without a token" },
+          "A pull request is merged on the server, with a token that may write to the repository; store one first.");
+      }
+      return adapter.mergePullRequest(number, expectedHead);
     },
 
     // listCiRuns({ commit, branch, workflow }) -> CiRun[] — the GitHub Actions runs or GitLab pipelines, every page, optionally only those of a commit, of a branch, and — on GitHub — of a workflow. Crosses the
