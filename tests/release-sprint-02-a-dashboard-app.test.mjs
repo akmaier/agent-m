@@ -1,17 +1,14 @@
-// Release tests of sprint 02, strand A — the dashboard's hub chain, driven like a person (ITM-142). Written by tester-opus
-// (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of ITM-126, ITM-129, ITM-130, ITM-133 and
-// ITM-136, from the use cases and the SPEC alone; started on sprint/02 at 3ba86fb (the merge of ITM-136, the strand's last
-// item), 2026-10-01.
+// Release tests of the dashboard's hub chain, driven like a person. Written by a participant who implemented nothing of what
+// they test, from the use cases and the SPEC alone.
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: UC-008; UC-024; UC-042; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; NO TEXT TRAVELS IN A URL; EVERY ARTIFACT NAMES ITS ORIGIN; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; EVERY SETTING IS REACHED FROM ONE PAGE; A CLEAR IS A REAL CLEAR; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
 // Level: release
 //
 // The real dashboard (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against fake GitHub and GitLab servers; no
-// request leaves the process. Every case names, above it, the use-case flow or the SPEC rule it was written from, the item of
-// strand A that realised it, and its expected result before it runs (SOFTWARE_MAINTENANCE.md §4.0a rule 1). A case that fails
-// on sprint/02 is a finding: it stays here marked { todo } with the item it sends back to Development (ITM-142, *Kind and
-// level*).
+// request leaves the process. Every case names, above it, the use-case flow or the SPEC rule it was written from, and its
+// expected result before it runs (SOFTWARE_MAINTENANCE.md §4.0a rule 1). A case that fails is a finding: it stays here marked
+// { todo } with the item it sends back to Development.
 //
 // What this file adds to the harness, for what a browser does and the harness does not show by itself:
 //  - every module the page imports below docs/assets/ is recorded (a resolve hook of node:module), so that a page load's
