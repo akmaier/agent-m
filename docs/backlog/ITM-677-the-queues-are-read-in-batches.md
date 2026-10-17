@@ -51,3 +51,14 @@ in one view.
 - A call of `queues` on a snapshot of about 60 queues reads in one batch per 100 paths with a token, and the committed test pins it.
 - The notifications and UC-019's requirement page behave as on the base.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**At sprint team1/70's start (2026-10-17, po-opus).** akmaier accepted queue `2026-10-17` (`e513ce62`), so
+`A PAGE LOAD READS THE REPOSITORY IN BATCHES` is binding. `queues`' reads one by one now break it, and this item is a
+SPEC requirement's.
+- **The harness question, read.** `tests/app-harness.mjs:90` answers every non-GET it does not handle with status 500.
+  The GitHub adapter reads a 500 as `Unreachable`, which `readMany` passes on
+  (`src/repository-hosts/index.mjs:133`, `KNOWN_FAILURES`). So on that harness a batch fails the read instead of falling
+  back, which is what broke the notifications and TST-418106 in ITM-648's draft.
+- **So the harness must serve the batch request.** Its header names no module. Under queue `2026-10-17d`, accepted in
+  `45dbf4d8`, it is changed only by the implementation job of the module whose file names it as taken over. That module
+  is settled in the migration plan of the code outside the architecture, which this item waits for.
