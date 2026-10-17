@@ -29,3 +29,10 @@ the item stops for a draft of MOD-notifications.
 
 - While notifications are on, the line names how many files were notified, and a test pins it, with its counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped (sprint team1/76, 2026-10-17, po-opus): it waits for a draft of MOD-notifications.** `NotificationState` is `{ on,
+permission, available }`, with no count (`src/notifications/permission.mjs:61-67`). The stored `notified` key holds every
+file that waits, which is not the files notified, so counting it would be a reading the text does not make. The draft for
+akmaier settles what the count counts and how `notificationState` gives it.
+
+The other states of `MOD-settings-pages.md:135-137` are compared with the live strings at this item's next start.

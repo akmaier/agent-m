@@ -9,6 +9,12 @@ modules:
   - MOD-main-page
 builds_on:
   - ITM-685
+  - ITM-826
+  - ITM-827
+  - ITM-828
+  - ITM-829
+  - ITM-809
+  - ITM-655
 tests:
   - unit
 origin:
@@ -37,3 +43,7 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 scope `work`. With it, `requirements`, `graph`, `tests`, `results`, `tags` and `modelSince` are `"unknown"`, so the
 Requirements, Tests and Release stages have no share. The main page calls it with the scope `all`, and its request count
 is measured at this item's start. The instance's own bar waits for ITM-809.
+
+**Read at sprint team1/76 (2026-10-17, po-opus), from developer-sonnet-e's count.** The page this item replaces sends
+1006 requests per load. Sprint 73's agreement names eleven parts that no interface draws yet. They are ITM-826 to 829,
+ITM-809 and ITM-655, and this item builds on them. It is not selected before they are done.
