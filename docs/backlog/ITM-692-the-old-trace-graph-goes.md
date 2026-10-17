@@ -33,3 +33,7 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Noted at ITM-714's gate (sprint team1/73, 2026-10-17, po-opus).** ITM-714 removed `tests/architecture-impact.test.mjs`,
+so this item no longer moves it. `docs/architecture/MOD-trace-graph.md:70` still names it among the files taken over.
+Taking it out is a module-file change for akmaier, drafted with this item's start.

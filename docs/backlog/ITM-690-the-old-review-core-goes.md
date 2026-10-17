@@ -34,3 +34,7 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - It is declared as refactoring: CI is green on every commit.
+
+**Noted at ITM-714's gate (sprint team1/73, 2026-10-17, po-opus).** The comment at `tests/architecture.test.mjs:10` names
+`tests/architecture-impact.test.mjs`, which ITM-714 removed. MOD-approvals takes that test over, so this item corrects the
+comment when it moves the test.
