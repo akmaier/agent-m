@@ -229,8 +229,8 @@ test("runPanel — pressing Run calls onRun once, and not before", async () => {
   assert.equal(calls, 0, "nothing is sent before Run is pressed");
   assert.equal(run.hasAttribute("disabled"), false);
 
-  run.dispatchEvent(new Event("click"));
-  run.dispatchEvent(new Event("click"));
+  run.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
+  run.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(calls, 1);
@@ -245,11 +245,11 @@ test("runPanel — pressing Run calls onRun once, and not before", async () => {
 test("runPanel — counter-proof: a click a script makes on Run calls nothing", async () => {
   let calls = 0;
   const run = buttonNamed(panel(prepared(), { onRun: async () => { calls += 1; } }), "Run");
-  run.dispatchEvent(Object.assign(new Event("click"), { scripted: true }));
+  run.dispatchEvent(new Event("click"));
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls, 0, "onRun is not called");
   assert.equal(run.hasAttribute("disabled"), false, "Run stays pressable");
-  run.dispatchEvent(new Event("click"));
+  run.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls, 1, "the person's click calls it");
 });

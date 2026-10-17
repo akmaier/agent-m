@@ -61,12 +61,6 @@ class Node extends EventTarget {
     super();
     Object.assign(this, { _doc: doc, _type: type, _name: name, _parent: null, _kids: [] });
   }
-  // The events a test dispatches are a person's, as a browser marks them (`isTrusted`; node marks every Event untrusted); an event made
-  // with `scripted: true` stays a script's.
-  dispatchEvent(event) {
-    if (!event.scripted) Object.defineProperty(event, "isTrusted", { value: true });
-    return super.dispatchEvent(event);
-  }
   get nodeType() { return this._type; }
   get nodeName() { return this._name; }
   get ownerDocument() { return this._type === 9 ? null : this._doc; }
