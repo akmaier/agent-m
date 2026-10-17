@@ -1,6 +1,6 @@
 // MOD-settings-pages' route `setup` — finishing the setup of an instance in this browser (UC-014 steps 6 to 8 and 7a), as docs/architecture/MOD-settings-pages.md states it:
 // "then *Finish setting up*: the prefilled token page, *Only select repositories* and the instance named, the shared-origin notice with its tick, the token and its expiry,
-// *Store and check*, and *Import settings* beside it". The route is rendered into a fixture DOM (tests/settings-pages-setup.d/dom.mjs, a helper file of its own, with the part of a browser that the frame's explain needs); the
+// *Store and check*, and *Import settings* beside it". The route is rendered into a fixture DOM (the document of tests/settings-pages-harness.mjs, with the part of a browser that the frame's explain needs, and the helpers of tests/settings-pages-setup.d/dom.mjs); the
 // token page's address is MOD-repository-hosts' own prefilled link; the instance is read through MOD-repository-hosts' connect and repositoryInfo over a fake of fetch that
 // records every request and answers the status a case names; this browser's store is MOD-browser-store's own over a fake localStorage. Nothing reaches the network.
 // Run: node --test tests/settings-pages-setup.test.mjs
@@ -15,7 +15,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installDocument, attachedTarget, byClass, byTag, buttonLabelled, press, tick, untick, freshStore, storedKeys, contextOf, withServer } from "./settings-pages-setup.d/dom.mjs";
+import { installDocument, byClass, byTag } from "./settings-pages-harness.mjs";
+import { attachedTarget, buttonLabelled, press, tick, untick, freshStore, storedKeys, contextOf, withServer } from "./settings-pages-setup.d/dom.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
