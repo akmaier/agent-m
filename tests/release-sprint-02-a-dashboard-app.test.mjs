@@ -525,9 +525,10 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   assert.match(fallback, /#uc\/UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
-      assert.equal(v.view, "add", "only the public settings-pages Add route has no dashboard file");
-      assert.match(fs.readFileSync(path.join(ROOT, "docs/assets/dashboard-app.mjs"), "utf8"),
-        /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
+      assert.ok(["add", "setup"].includes(v.view), "only the public settings-pages Add and Setup routes have no dashboard file");
+      const dispatched = fs.readFileSync(path.join(ROOT, "docs/assets/dashboard-app.mjs"), "utf8");
+      if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
+      else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
       continue;
     }
     const there = builtOnDisk(v.file);

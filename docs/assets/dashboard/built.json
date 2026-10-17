@@ -7,6 +7,5 @@
   "roles-view.mjs",
   "settings/endpoints.mjs",
   "settings-view.mjs",
-  "setup-view.mjs",
   "spec-changes-view.mjs"
 ]

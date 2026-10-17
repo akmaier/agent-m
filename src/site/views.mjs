@@ -43,7 +43,8 @@ export const DASHBOARD = [
   { view: "settings", file: "settings-view.mjs", useCases: ["UC-042"] },
   // UC-001 is rendered by MOD-settings-pages through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "add", builtIn: true, useCases: ["UC-001"] },
-  { view: "setup", file: "setup-view.mjs", useCases: ["UC-014"] },
+  // UC-014 is rendered by MOD-settings-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "setup", builtIn: true, useCases: ["UC-014"] },
   { view: "get-your-own", file: "get-your-own-view.mjs", useCases: ["UC-014"] },
   { section: "browser", builtIn: true, useCases: ["UC-042"] },
   { section: "endpoints", file: "settings/endpoints.mjs", useCases: ["UC-003"] },

@@ -145,10 +145,10 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
 
     def test_storing_a_token_asks_for_its_expiry(self):
         app = dashboard_text()
-        for fn in ("viewSettings", "storeKeyStep"):
+        for fn in ("viewSettings",):
             body = re.search(rf"function {fn}\(.*?\n}}\n", app, re.S).group(0)
             self.assertRegex(body, r'<input type="date"[^>]*value="\$\{h\(defaultExpiry\(\)\)\}"', fn)
-        self.assertEqual(len(re.findall(r"store\.setToken\(\w+, \w+", app)), 2, "both places store the date with the token")
+        self.assertEqual(len(re.findall(r"store\.setToken\(\w+, \w+", app)), 1, "the place that stores a token stores the date with it")
 
     def test_the_state_line_names_the_expiry(self):
         html = page(full_entries(), now="2026-12-20")
