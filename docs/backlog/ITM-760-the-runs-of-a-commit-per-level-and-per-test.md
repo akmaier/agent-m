@@ -34,7 +34,9 @@ MOD-test-pages' routes `runs` and `runs/<commit>`, the reading part (UC-028 step
 - **A failed test** shows its expected result beside the observed one, with its log through `ciRunLog`. A log the
   server no longer keeps is marked unavailable (2a).
 - **A worse rate** is shown with both rates (7a).
-- **A private repository without a token** gets the link to `test-results` and to the run (2b).
+- **Records that cannot be read from the browser** (2b), for example a private repository without a token: the page
+  says so, from the failure of reading `test-results`, and links the server's page of runs, `webLinks().actions`. The
+  link to the branch `test-results` and to the run itself is ITM-855.
 - **A record marked `uncommitted`** is shown and not counted (6a).
 
 Running on the commit is ITM-761.
