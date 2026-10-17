@@ -365,6 +365,14 @@ function sectionRationale(change, impact, origin = `${folded(change.origin)}; sa
     `**Why.** ${folded(change.why)}`, "", "**Impact list.**", ...lines, "", `**Origin.** ${origin}`, ""].join("\n");
 }
 
+// The paths the repository held when the edit was opened on the commit `openedHead`: none for an edit opened on no commit (an empty repository), those of `snapshot` — the one the save has
+// read — where it stands at that commit, else those of the repository at that commit, read for the purpose.
+async function pathsWhenOpened(host, snapshot, openedHead) {
+  if (openedHead === null) return new Set();
+  if (openedHead === snapshot.commit) return new Set(snapshot.paths);
+  return new Set((await host.readSnapshot(openedHead)).paths);
+}
+
 export async function proposeSection(host, change) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
@@ -409,7 +417,7 @@ export async function proposeSection(host, change) {
   files.push({ path: proposalPath, text: change.text }, { path: rationalePath, text: rationale });
 
   if (!info.canWrite) {
-    const began = new Set((await host.readSnapshot(change.openedHead)).paths);
+    const began = await pathsWhenOpened(host, snapshot, change.openedHead);
     return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
   }
   const trailers = change.trailers?.length ? `\n\n${change.trailers.join("\n")}` : "";
@@ -445,7 +453,7 @@ export async function saveEntry(host, edit) {
   const files = [{ path: entry.proposal.path, text: edit.text }, { path: entry.rationale, text: rationale }];
 
   if (!info.canWrite) {
-    const began = new Set((await host.readSnapshot(edit.openedHead)).paths);
+    const began = await pathsWhenOpened(host, snapshot, edit.openedHead);
     return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
   }
   const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
