@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 
 from jsrun import ASSETS, SRC, js
+from settings_pages_page import live
 
 
 def dashboard_text(shell: bool = True) -> str:
@@ -26,21 +27,38 @@ def mailbox_text() -> str:
     return (SRC / "settings-pages" / "mailbox.mjs").read_text(encoding="utf-8")
 
 
+TOKEN_LINE = """
+const l = lines(await render()).find((x) => x.title === "GitHub token");
+const one = (name) => elements(l.node, (e) => e.className.split(" ").includes(name))[0];
+const order = elements(l.node, () => true);
+"""
+
+
 class SettingsDisclosure(unittest.TestCase):
     def test_notice_names_the_owner_domain(self):
-        n = js("return settingsView.sharedOriginNotice('akmaier');")
+        n = live("const t = await render(); return byClass(t, 'settings-shared-origin')[0].textContent;")
         self.assertIn("akmaier.github.io", n)
-        self.assertIn("every", n.lower())
+        self.assertIn("every github pages site", n.lower())
 
-    def test_settings_view_shows_the_notice_before_the_input(self):
-        app = dashboard_text()
-        m = re.search(r"function viewSettings\(.*?\n}\n", app, re.S)
-        self.assertIsNotNone(m, "viewSettings missing")
-        body = m.group(0)
-        self.assertLess(body.index("sharedOriginNotice("), body.index('id="token-input"'))
-        tag = re.search(r'<input\b[^>]*id="token-input"[^>]*>', body, re.S)
-        self.assertIsNotNone(tag, "token input missing")
-        self.assertRegex(tag.group(0), r"\bdisabled\b", "the token input must start disabled")
+    def test_the_page_shows_the_notice_before_the_input(self):
+        r = live(TOKEN_LINE + """
+const secret = one("settings-repository-secret"), notice = one("settings-repository-shared-origin"), ack = one("settings-repository-ack"), save = one("settings-repository-save");
+const closed = { secretDisabled: secret.disabled, saveDisabled: save.disabled };
+await pressed(elements(l.node, (e) => e.localName === "button" && e.textContent === "Change")[0]);
+const opened = { noticeHidden: notice.hidden, secretDisabled: secret.disabled, saveDisabled: save.disabled };
+const before = { notice: order.indexOf(notice), ack: order.indexOf(ack), save: order.indexOf(save) };
+ack.checked = true; ack.dispatchEvent(new Event("change"));
+return { closed, opened, before, ticked: { secretDisabled: secret.disabled, saveDisabled: save.disabled } };
+""")
+        self.assertTrue(r["closed"]["secretDisabled"], "the token input must start disabled")
+        self.assertTrue(r["closed"]["saveDisabled"])
+        self.assertFalse(r["opened"]["noticeHidden"], "Change shows the notice")
+        self.assertTrue(r["opened"]["secretDisabled"], "still disabled until the notice is acknowledged")
+        self.assertTrue(r["opened"]["saveDisabled"])
+        self.assertLess(r["before"]["notice"], r["before"]["ack"])
+        self.assertLess(r["before"]["notice"], r["before"]["save"])
+        self.assertFalse(r["ticked"]["secretDisabled"], "counter-proof: acknowledged, the input opens")
+        self.assertFalse(r["ticked"]["saveDisabled"])
 
 
 def store_test_handler() -> str:
@@ -129,60 +147,82 @@ if __name__ == "__main__":
     unittest.main()
 
 
+PRODUCT = """
+const productHost = (visibility, writes) => ({
+  async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility }; },
+  async readSnapshot() { return { commit: "1".repeat(40), paths: [], blob: () => null, async read() { return null; } }; },
+  async commitFiles(change) { writes.push(change); return { commit: "2".repeat(40), url: "https://github.com/alice/thesis/commit/" + "2".repeat(40) }; },
+});
+async function productPage(visibility) {
+  const writes = [];
+  const t = await render("settings", { product: { address: "https://github.com/alice/thesis", kind: "github", host: productHost(visibility, writes), tokenStored: true } });
+  const section = elements(t, (e) => e.localName === "section" && e.className.split(" ").includes("settings-product"))[0];
+  const one = (name) => elements(section, (e) => e.className.split(" ").includes(name))[0];
+  return { t, section, writes, one, notices: elements(section, (e) => e.className.split(" ").includes("notice")).map((e) => e.textContent) };
+}
+"""
+SETUP = {"github-token": {"value": "github_pat_11SECRETVALUEabcdefghijklmnop", "name": "GitHub token", "expires": "2027-12-29", "stored": "2026-09-01"}}
+
+
 class PseudonymisationOffDisclosure(unittest.TestCase):
-    """SPEC §14 SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS."""
+    """SPEC §14 SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS: the product section of the Settings page."""
 
     def test_the_notice_states_what_follows(self):
-        n = js("return settingsView.pseudonymisationOffNotice({ repo: 'alice/thesis', isPublic: false });")
+        n = live(PRODUCT + "const p = await productPage('private'); return p.notices.join(' ');", SETUP)
         self.assertIn("unchanged", n)
         self.assertIn("issues", n)
         self.assertIn("protected, non-public", n)
         self.assertNotIn("published", n, "a private repository is not warned of publication")
 
     def test_a_public_repository_is_warned_of_publication(self):
-        n = js("return settingsView.pseudonymisationOffNotice({ repo: 'alice/thesis', isPublic: true });")
+        n = live(PRODUCT + "const p = await productPage('public'); return p.notices.join(' ');", SETUP)
         self.assertIn("public", n)
         self.assertIn("will be published", n)
 
     def test_the_page_shows_the_notice_before_saving(self):
-        app = dashboard_text()
-        self.assertLess(app.index("pseudonymisationOffNotice("), app.index('id="pseudo-save"'))
+        r = live(PRODUCT + """
+const p = await productPage('private');
+const order = elements(p.section, () => true);
+const off = p.one("settings-pseudonymisation-off"), ack = p.one("settings-pseudonymisation-ack"), save = p.one("settings-pseudonymisation-save");
+const notice = order.find((e) => e.className === "notice" && e.textContent.includes("With pseudonymisation off"));
+off.checked = true;
+await pressed(save);
+const unticked = p.writes.length;
+ack.checked = true;
+await pressed(save);
+return { notice: order.indexOf(notice), save: order.indexOf(save), unticked, ticked: p.writes.length };
+""", SETUP)
+        self.assertLess(r["notice"], r["save"])
+        self.assertEqual(r["unticked"], 0, "Save before the tick writes nothing")
+        self.assertEqual(r["ticked"], 1, "known positive: Save after the tick commits once")
 
 
 # Guards: EVERY STEP EXPLAINS ITSELF; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; UC-042
 class PseudonymisationExplained(unittest.TestCase):
-    """The folded explanation of the product setting *Pseudonymisation* (UC-042): what the setting does since the SPEC of
-    2026-09-30 — report data from mails reaches the product only as a participant's rewriting that mentions no person and
-    keeps its technical content, checked by three LLMs of three other models — and no longer stand-ins (surrogates were
-    withdrawn the same day)."""
+    """The product setting *Pseudonymisation* (UC-042 step 4) states what follows from switching it off, and no longer speaks of
+    stand-ins (surrogates were withdrawn)."""
 
     STALE = re.compile(r"stand-?ins?\b|surrogat", re.I)
 
-    def test_the_explanation_names_the_rewriting_without_persons(self):
-        e = js("return settingsView.PSEUDONYMISATION_EXPLANATION ?? null;")
-        self.assertIsInstance(e, str, "settings-view.mjs exports the explanation as one text")
-        low = e.lower()
-        self.assertIn("rewriting", low)
-        self.assertIn("mentions no person", low)
-        self.assertIn("technical content", low)
-        self.assertIn("three", low)
-        self.assertIn("different models", low)
-        self.assertIn("default", low, "on unless the product switches it off")
-        self.assertIn("protected, non-public", low)
+    def test_the_section_states_what_the_requirement_says_and_no_stand_ins(self):
+        # SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS: unchanged into the issues and the repository; advisable only on a
+        # protected, non-public data space; and for a public repository, published. The words of the old explanation text
+        # ("three", "different models", "default", "mentions no person") are in no sentence of the requirement.
+        e = live(PRODUCT + "const p = await productPage('private'); return p.section.textContent;", SETUP).lower()
+        self.assertIn("unchanged", e)
+        self.assertIn("issues and the repository", e)
+        self.assertIn("advisable only on a protected, non-public data space", e)
         self.assertIsNone(self.STALE.search(e), "no stand-ins: surrogates are withdrawn")
 
     def test_the_dashboard_says_neither_stand_in_nor_surrogate(self):
-        hit = self.STALE.search(dashboard_text())
+        pages = "\n".join(f.read_text(encoding="utf-8") for f in sorted((SRC / "settings-pages").glob("*.mjs")))
+        hit = self.STALE.search(dashboard_text() + pages + (SRC / "site-frame" / "explanations.md").read_text(encoding="utf-8"))
         self.assertIsNone(hit, f"the dashboard still says {hit.group(0)!r}" if hit else "")
 
-    def test_the_setting_shows_that_explanation(self):
-        app = dashboard_text()
-        start, end = app.index("<h4>Pseudonymisation"), app.index("<h4>Collaborators")
-        section = app[start:end]
-        explain = re.search(r'<details class="explain"><summary>What is this\?</summary><div>(.*?)</div></details>', section, re.S)
-        self.assertIsNotNone(explain, "the setting has a folded explanation")
-        self.assertEqual(explain.group(1).strip(), "${h(PSEUDONYMISATION_EXPLANATION)}",
-                         "the fold shows the one exported text, not a second copy of it")
+    def test_the_setting_shows_a_folded_explanation(self):
+        r = live(PRODUCT + "const p = await productPage('private');"
+                 " return elements(p.section, (e) => e.localName === 'details' && e.className === 'explain').map((e) => e.textContent);", SETUP)
+        self.assertTrue(any(t.startswith("What is this?") for t in r), "the setting has a folded explanation")
 
 
 # The Settings page in a small DOM, as tests/settings-pages-recording.test.mjs renders it (its fixture shapes, written again here):
