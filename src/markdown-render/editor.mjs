@@ -103,8 +103,9 @@ export function openEditor(target, text, { marks, save, disabledReason = () => n
       newer.replaceChildren(element("h4", null, "Difference — from the current text to the draft"), difference(against, draft));
     },
     close() {
-      if (area.value !== lastSaved && !confirm("Discard unsaved changes?")) return;
+      if (area.value !== lastSaved && !confirm("Discard unsaved changes?")) return false;
       target.replaceChildren();
+      return true;
     },
   };
 }

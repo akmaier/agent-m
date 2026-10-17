@@ -56,6 +56,7 @@ export function fallbackPages(target, pages) {
   return true;
 }
 
+// showFileEdit(where, kind, file) — the page that edits `file`; the editor it opened, or nothing where it opened none.
 export async function showFileEdit(where, kind, file) {
   const { target, snapshot, token, host, context } = where;
   const body = await snapshot.read(file.path);
@@ -110,5 +111,5 @@ export async function showFileEdit(where, kind, file) {
     }
   }
 
-  openEditor(editorBox, body, { marks, save, disabledReason });
+  return openEditor(editorBox, body, { marks, save, disabledReason });
 }

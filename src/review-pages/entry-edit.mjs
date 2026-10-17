@@ -20,7 +20,7 @@ import { entryId } from "./spec-entries.mjs";
 const pad2 = (number) => String(number).padStart(2, "0");
 
 /**
- * showEntryEdit(where, kind, id) — the page that edits the open entry `id` in place.
+ * showEntryEdit(where, kind, id) — the page that edits the open entry `id` in place; the editor it opened, or nothing where it opened none.
  */
 export async function showEntryEdit(where, kind, id) {
   const { target, snapshot, host, token, context } = where;
@@ -85,5 +85,5 @@ export async function showEntryEdit(where, kind, id) {
   }
 
   target.append(editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved);
-  openEditor(editorBox, view.proposal.text, { marks, save });
+  return openEditor(editorBox, view.proposal.text, { marks, save });
 }
