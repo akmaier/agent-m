@@ -433,8 +433,19 @@ const MESSAGE = "please run the correction loop for this change on GitHub Action
 const ANSWER = "This is work for GitHub Actions, where the correction loop runs.";
 test("TST-377013: UC-019 6b the author hands the work to GitHub Actions from the bar", async () => {
   const proposal = { answer: ANSWER, handOver: { kind: "change-use-case", works_on: ["UC-007"], task: HANDED_TASK } };
-  const s = await scenario({ extraFiles: useCases, answers: [proposal] });
-  const starts = [];
+  // The register gives the drafter the route "endpoint fixture secret FIXTURE_KEY", which a hand-over takes as "ci hosted"; the product answers its pull requests with [] and records each start of the workflow.
+  const rows = read("docs/participants.md").split("\n");
+  const register = `${rows.slice(0, rows.findIndex((line) => line.startsWith("|---")) + 1).join("\n")}\n`
+    + "| drafter | model endpoint | fixture-model | 200000 | - | draft text | this machine | endpoint fixture secret FIXTURE_KEY |\n"
+    + "| observer | model endpoint | observer-model | 200000 | - | read repository | Anthropic, USA | endpoint fixture |\n";
+  const s = await scenario({ extraFiles: useCases, answers: [proposal], instanceFiles: { "docs/participants.md": register } });
+  const starts = [], served = s.product.fetch;
+  s.product.fetch = async (url, init = {}) => {
+    const method = (init.method ?? "GET").toUpperCase();
+    if (method === "GET" && url.pathname === `/repos/${s.repo}/pulls`) return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    if (method === "POST" && url.pathname === `/repos/${s.repo}/actions/workflows/agent-m-jobs.yml/dispatches`) { starts.push(JSON.parse(init.body)); return new Response(null, { status: 204 }); }
+    return served(url, init);
+  };
   await goTo(s, `#use-case/product=${encodeURIComponent(s.address)}`);
   await send(s, MESSAGE, { participant: "drafter" });
   const hand = one(barOf(s), "section", "hand-over");
@@ -443,12 +454,19 @@ test("TST-377013: UC-019 6b the author hands the work to GitHub Actions from the
   button.dispatchEvent(new Event("click"));
   await rest(s);
   assert.equal(s.product.writes.length, 0, "a click a script makes writes nothing");
-  button.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
-  await rest(s);
+  assert.equal(starts.length, 0, "a click a script starts no workflow");
+  // The bar follows the handed-over job by a poll every 15 seconds until its record has an end; the fixture's record has none, so the test lets that timer not hold the process.
+  const setTimer = globalThis.setTimeout;
+  globalThis.setTimeout = (callback, delay, ...more) => { const timer = setTimer(callback, delay, ...more); if (delay >= 10000) timer.unref?.(); return timer; };
+  try {
+    button.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
+    await rest(s);
+  } finally { globalThis.setTimeout = setTimer; }
   const records = recordTexts(s);
   assert.equal(records.length, 1, `one job record: ${statusOf(s).textContent}`);
   for (const line of ["kind: change-use-case", "route: ci hosted", "  - UC-007"]) assert.ok(records[0].includes(line), `${line} in ${records[0]}`);
   for (const words of [MESSAGE, ANSWER, HANDED_TASK, "correction loop"]) assert.ok(!records[0].includes(words), `the record holds no ${words}`);
+  assert.doesNotMatch(records[0], /^conversation:[ \t]*\S/m, "the record names no conversation");
   assert.equal(s.product.writes.length, 1, "one commit: the job record");
   assert.equal(conversationRecords(s).length, 0, "recording is off: no conversation record");
   assert.equal(starts.length, 1, "the workflow is started once");
