@@ -1,6 +1,6 @@
 // MOD-progress-measures — a product's facts gathered once, and its progress in every measure
-// (docs/architecture/MOD-progress-measures.md): its interface. Built: productFacts with the scope `work` (facts.mjs; the scope `all`
-// is refused, and every fact the scope `work` does not name is "unknown"), progressIn for a model with sprints (measures.mjs; its
+// (docs/architecture/MOD-progress-measures.md): its interface. Built: productFacts with the scopes `work` and `all` (facts.mjs; a fact
+// neither scope reads is "unknown"), progressIn for a model with sprints (measures.mjs; its
 // grid of a planned model and the board's flow are null), and stageShares, currentStage, buildInProgress, waitingForAPerson and
 // waitingForAcceptance (stages.mjs). gateOverview, blocked and whoWorksOnWhat are not built yet.
 //
