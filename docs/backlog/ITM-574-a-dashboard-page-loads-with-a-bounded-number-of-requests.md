@@ -7,7 +7,14 @@ realises:
   - UC-006
 modules:
   - MOD-site-frame
+  - MOD-review-pages
+  - MOD-approvals
+  - MOD-implementation-pages
+  - MOD-settings-pages
+  - MOD-repository-hosts
+  - MOD-documents
 builds_on:
+  - ITM-707
   - ITM-479
 tests:
   - component
@@ -149,3 +156,42 @@ form of its entry 02 was rejected, and queue `2026-10-17d` was accepted in its p
 - MOD-repository-hosts leaves its modules: its interface is called, and its file and code do not change.
 
 It waits for akmaier's acceptance of the module-file draft committed with the plan, which names these files as taken over in the module's Parts.
+
+**Decided at its stop before the tests-only commit (2026-10-17, po-opus, sprint team1/72).** The draft already brings a
+page load with a token to 3 requests for the start page and `#arc`, 15 for `#spec` and 12 for `#backlog`, where it was
+51, 74, 125 and 691.
+
+1. **No change in place.** `CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT` (SPEC.md:1441) reads: "A code file, test or
+   test helper that belongs to no module is changed only by an implementation job of the module whose file names it as
+   taken over, which moves it into that module, or removes it once the module provides what it did".
+   - The job that changes the file moves it or removes it. Batching it where it stands would be a third thing the
+     sentence does not name.
+   - Its approval package says so in words: "An old file is moved or removed, never changed in place"
+     (`docs/spec-freigaben/2026-10-17d_every-code-file-belongs-to-a-module/01-architecture-and-implementation.begruendung.md:51`).
+   - So the cut "batch in place now, move later" is not open, and the move stays in this item.
+2. **The tests the move breaks** are taken into this item, since its job may change a test that names one of its modules
+   or that its modules' accepted Parts take over (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`).
+   - That is why MOD-review-pages, MOD-approvals, MOD-implementation-pages, MOD-settings-pages, MOD-repository-hosts and
+     MOD-documents join its modules.
+   - It covers `dashboard-shell`, `architecture-view`, `review-core.d/authority` and `helpers`, `dashboard-backlog-teams`,
+     `dashboard-review-flows`, `test_no_backend.py`, `test_release_sprint_02_d.py`, `test_instance_target.py`,
+     `test_settings_disclosure.py` and `test_settings_page.py`.
+   - Each reaches the app at its new place, through `tests/app-harness.mjs` where it can. No expected value changes.
+   - A failure whose cause is not traced yet (`dashboard-review-flows`, UC-008 3, UC-006 4a) is traced before the
+     tests-only commit, and if an expected value would change, the developer stops again.
+3. **The release tests the move breaks** are ITM-707's: `release-sprint-01-dashboard-app`, `release-sprint-02-a-dashboard-app`
+   and, if the draft confirms it, TST-292005 of `release-uc-019-change-requirements-by-prompt`.
+   - ITM-707 is written by a participant who builds none of this item, before its gate (sprint 68's agreement).
+   - Those tests reach the app through `app-harness.mjs`, so they pass on the base and on this item's head.
+4. **`#spec`.** `docs/assets/dashboard/spec-changes-view.mjs:19-25` connects hosts of its own for the trace route, whose
+   reads the app cannot batch.
+   - That view is MOD-review-pages' to take over, and it may only move or go, which is ITM-680.
+   - So this item meets the Check for the start page, `#arc` and `#backlog`, and for the app's own reads on `#spec`.
+   - `load-per-view.test.mjs`'s case for `#spec`'s reads through the trace route is a todo naming ITM-680, which makes
+     `#spec` read through the app's host.
+5. **Two waves are read as the requirement allows.** `A PAGE LOAD READS THE REPOSITORY IN BATCHES` asks for "the texts of
+   the files it shows in requests of at most 100 files each".
+   - A page whose list of files depends on files it has read, such as an open queue's proposals or `#backlog`'s
+     process model, reads them in a second `readMany`.
+   - Every request then still holds at most 100 files, no file is read by itself, and none is read twice.
+   - The Check counts batches by those waves: one per hundred files of each wave.
