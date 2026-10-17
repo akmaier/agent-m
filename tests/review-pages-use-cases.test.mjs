@@ -82,11 +82,13 @@ function fakeHost({ steps = STEPS, repository = ON_GITHUB, refuse = null, unread
   for (const files of steps) head = commitOf(new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), head);
   const snapshotAt = (sha) => {
     const { tree } = commits.get(sha);
-    return { repository, ref: sha, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+    return { repository, ref: sha, commit: sha, paths: [...tree.keys()].sort(),
+      readMany: async (paths) => { calls.push({ fn: "readMany", paths: [...paths] }); }, read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
   const fake = {
     head: () => head,
+    calls: () => calls,
     files: () => Object.fromEntries(commits.get(head).tree),
     writes: () => calls.filter((call) => call.fn === "commitFiles"),
     // Another writer's commit on `main`: each path of `changed` set to its text.
@@ -553,6 +555,27 @@ test("MOD-review-pages use-case — nothing is written without the person's clic
   await show(fake, { id: "UC-043" });
   assert.ok(byClass(list, "button", "accept-ticked").length === 1, "known positive: the button that would write stands on the page");
   assert.equal(fake.writes().length, 0, "no commit attempted");
+});
+
+// ---------------------------------------------------------------- the job records of an open file
+
+// TST-680210 · level: unit · module: MOD-review-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a product whose `main` holds the four use cases and three job records under docs/jobs/, a token stored
+// input: the page of UC-041, which is open, rendered; and the page of UC-042, which is accepted
+// expect: the job records, which the notes of the job that wrote the use case are read from, are asked for in one batch (Snapshot.readMany) with every path of them; an accepted use case's page asks for none
+test("MOD-review-pages use-case/<id> — the job records an open file's notes are read from are read in one batch", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const jobs = ["JOB-20261001-1000-aaaa", "JOB-20261001-1100-bbbb", "JOB-20261001-1200-cccc"].map((name) => `docs/jobs/${name}.md`);
+  const steps = [...STEPS, Object.fromEntries(jobs.map((path) => [path, "not a job record\n"]))];
+  const fake = fakeHost({ steps });
+  await show(fake, { id: "UC-041" });
+  const batches = fake.calls().filter((call) => call.fn === "readMany");
+  assert.equal(batches.length, 1, "one batch");
+  assert.deepEqual([...batches[0].paths].sort(), jobs, "every job record, and nothing else");
+  const accepted = fakeHost({ steps });
+  await show(accepted, { id: "UC-042" });
+  assert.equal(accepted.calls().filter((call) => call.fn === "readMany").length, 0, "an accepted use case reads no job record");
 });
 
 // ---------------------------------------------------------------- a click a script makes
