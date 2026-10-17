@@ -1,11 +1,14 @@
-// The public trace Route for the current SPEC slice. Above the tree it offers the ref its caller hands (current, when that is the default
-// branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the SPEC again at it. Drawing reads
-// the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
+// The public trace Route for the specification and the gaps. Above its page it offers the ref its caller hands (current, when that is the default
+// branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the page again at it. The specification page
+// reads the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
 // graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
 // opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
-// and the unknown names they also name, each a link (step 6). It writes nothing. On the default branch it leads to
-// the review pages' editing: Edit beside each requirement and + Requirement in each section; at any other ref the view says "as of" it
-// and offers neither.
+// and the unknown names they also name, each a link (step 6). The gaps page (step 7) draws, from the graph of the version drawn, the matrix of
+// every requirement against the use cases, decisions, modules and tests that name it, and the gaps as MOD-trace-graph's coverageGaps finds them;
+// it says so when there are none (7a) and says which kinds of artifact the version does not hold (7b), and a requirement or use case in a list
+// opens as it read in that version. The graph of one version is built once and kept, in memory, for every page drawn at it while the page of the frame
+// stays loaded. It writes nothing. On the default branch the specification leads to the review pages' editing: Edit beside each requirement and
+// + Requirement in each section; at any other ref the view says "as of" it and offers neither.
 //
 // Module: MOD-trace-pages
 
@@ -87,13 +90,26 @@ const REVIEW = { open: "open", accepted: "accepted", changed: "changed since acc
 const problemLine = (what, failure) => el("p", "traces-problem", `${what} could not be read: ${failure?.message ?? failure}`);
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
 
+// The graph of a commit is built once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
+// often the version is drawn again: a commit does not change. It is kept in memory only, under the commit.
+const graphsOf = new WeakMap();
+function graphKept(shown) {
+  const { snapshot, context } = shown;
+  const make = () => traceGraph(snapshot, { commit: snapshot.commit ?? null });
+  if (typeof snapshot.commit !== "string") return kept(make);
+  const holder = context.store ?? context.product.host;
+  const graphs = graphsOf.get(holder) ?? graphsOf.set(holder, new Map()).get(holder);
+  if (!graphs.has(snapshot.commit)) graphs.set(snapshot.commit, kept(make));
+  return graphs.get(snapshot.commit);
+}
+
 // The facts of the version drawn, each read on its first opening.
 function factsOf(shown) {
-  return shown.facts ??= {
-    graph: kept(() => traceGraph(shown.snapshot, { commit: shown.snapshot.commit ?? null })),
-    sources: kept(() => sourcesOf(shown)),
-  };
+  return shown.facts ??= { graph: graphKept(shown), sources: kept(() => sourcesOf(shown)) };
 }
+
+// Whether the graph holds an artifact of the kind at all.
+const holds = (graph, kind) => [...graph.nodes.values()].some((node) => node.kind === kind);
 
 // The sections of one opened requirement, drawn into `box` once the graph is read. A list nothing fills reads `none`; where the version holds no
 // artifact of the kind at all — no decision, module or test —, it reads `none yet` and a folded note says which phase produces them (UC-020 2b, 5a).
@@ -109,7 +125,6 @@ async function showTraces(box, requirement, shown) {
     return;
   }
   const traces = tracesTo(graph, requirement.name);
-  const held = (kind) => [...graph.nodes.values()].some((node) => node.kind === kind);
   const reviewOf = statuses(shown.snapshot);
 
   try {
@@ -129,7 +144,7 @@ async function showTraces(box, requirement, shown) {
   })) : el("p", "none", "none")));
   for (const [title, kind, ids] of [["Architecture decisions", "ARC", traces.decisions], ["Modules", "MOD", traces.modules], ["Tests", "TST", traces.tests]]) {
     if (ids.length) sections.push(section(title, listOf(ids.map((id) => linked(id, `${id} ${graph.nodes.get(id)?.title ?? ""}`.trim())))));
-    else if (!held(kind)) {
+    else if (!holds(graph, kind)) {
       sections.push(section(title, el("p", "none-yet", "none yet"),
         explain("trace-none-yet")));
     } else sections.push(section(title, el("p", "none", "none")));
@@ -143,6 +158,79 @@ async function showTraces(box, requirement, shown) {
   sections.push(section("Unknown names", unknown.length ? listOf(unknown.map(({ name, namedBy }) =>
     el("span", null, `${name} — named by `, ...namedBy.flatMap((id, at) => [...(at ? [", "] : []), linked(id, id)])))) : el("p", "none", "none")));
   box.replaceChildren(...sections);
+}
+
+// ---------------------------------------------------------------- the gaps (UC-020 step 7)
+
+// A line of a list that opens, by a click and in place, onto what `detail` makes: a requirement or a use case as it read in the version drawn.
+function openable(text, detail) {
+  const button = el("button", "gap-open btn small", text);
+  button.type = "button";
+  const opened = el("div", "gap-opened");
+  let open = false;
+  button.addEventListener("click", async () => {
+    open = !open;
+    if (!open) { opened.replaceChildren(); return; }
+    opened.replaceChildren(el("p", "traces-reading", "Reading…"));
+    try {
+      const made = await detail();
+      if (open) opened.replaceChildren(made);
+    } catch (failure) {
+      if (open) opened.replaceChildren(problemLine(text, failure));
+    }
+  });
+  return el("li", null, button, opened);
+}
+
+const KINDS = [["UC", "use cases"], ["ARC", "architecture decisions"], ["MOD", "modules"], ["TST", "tests"]];
+
+// The matrix of the version drawn, in the order of the SPEC: each requirement against the artifacts that name it, as tracesTo finds them.
+function matrixOf(graph, spec) {
+  const cell = (ids) => ids.length ? el("td", null, ...ids.flatMap((id, at) => [...(at ? [", "] : []), linked(id, id)])) : el("td", "none", "none");
+  const rows = [...spec.requirements.keys()].map((name) => {
+    const traces = tracesTo(graph, name);
+    return el("tr", null, el("td", null, name), cell(traces.useCases), cell(traces.decisions), cell(traces.modules), cell(traces.tests));
+  });
+  return el("table", "list gaps-matrix", el("thead", null, el("tr", null, ...["Requirement", "Use cases", "Architecture decisions", "Modules", "Tests"].map((title) => el("th", null, title)))),
+    el("tbody", null, ...rows));
+}
+
+// The gaps page, drawn into `box` once the graph is read. The lists are coverageGaps' and nothing is decided here: a list is the gaps of its kind, or reads
+// `none`; where every list is empty and the version holds every kind of artifact, the page says there are no gaps (7a); where it holds no requirement or no
+// artifact of a kind, it says so (7b), since the lists do not look for what the version cannot hold. A requirement or a use case in a list opens as the
+// version drawn holds it.
+async function showGaps(box, shown) {
+  let graph;
+  try {
+    graph = await factsOf(shown).graph();
+  } catch (failure) {
+    box.replaceChildren(problemLine("The gaps", failure));
+    return;
+  }
+  const found = coverageGaps(graph);
+  const { ref, spec, snapshot } = shown;
+  const missing = [...(spec.requirements.size ? [] : [`SPEC.md holds no requirements at ${ref}.`]),
+    ...KINDS.filter(([kind]) => !holds(graph, kind)).map(([, name]) => `No ${name} exist at ${ref}.`)];
+  const requirementLine = (name) => openable(name, () => requirementDetail(spec.requirements.get(name)));
+  const useCaseLine = (id) => {
+    const node = graph.nodes.get(id);
+    const title = `${id} ${node.title ?? ""}`.trim();
+    return openable(title, async () => el("section", "gap-artifact", el("h4", null, title), renderArtifact((await snapshot.read(node.path)) ?? "")));
+  };
+  const section = (title, items) => el("section", "gaps-list", el("h3", null, title), items.length ? el("ul", "trace-list", ...items) : el("p", "none", "none"));
+  const unknown = found.unknownNames.map(({ name, namedBy }) =>
+    el("li", null, `${name} — named by `, ...[...new Set(namedBy.map((place) => place.id))].flatMap((id, at) => [...(at ? [", "] : []), linked(id, id)])));
+  const none = !found.requirementsWithoutUseCase.length && !found.requirementsWithoutModule.length && !found.requirementsWithoutTest.length
+    && !found.useCasesWithoutRequirement.length && !unknown.length;
+  box.replaceChildren(...missing.map((line) => el("p", "gaps-missing", line)),
+    ...(none && !missing.length ? [el("p", "no-gaps", `There are no gaps at ${ref}.`)] : [
+      section("Requirements realised by no use case", found.requirementsWithoutUseCase.map(requirementLine)),
+      ...(holds(graph, "MOD") ? [section("Requirements named by no module", found.requirementsWithoutModule.map(requirementLine))] : []),
+      ...(holds(graph, "TST") ? [section("Requirements named by no test", found.requirementsWithoutTest.map(requirementLine))] : []),
+      section("Use cases that realise no requirement", found.useCasesWithoutRequirement.map(useCaseLine)),
+      section("Unknown names", unknown),
+    ]),
+    ...(spec.requirements.size ? [el("h3", null, "Matrix"), matrixOf(graph, spec)] : []));
 }
 
 // An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded.
@@ -268,7 +356,7 @@ export const route = {
   entry: "requirements",
   title: "Current requirements",
 
-  subject: (params, context) => subjectOf({ title: route.title, params, context, shown: drawn.get(context) ?? null }),
+  subject: (params, context) => subjectOf({ title: descriptorFor(params.key)?.title ?? route.title, params, context, shown: drawn.get(context) ?? null }),
 
   async render(target, context, params = {}) {
     target.replaceChildren();
@@ -291,14 +379,21 @@ export const route = {
       const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
       drawn.set(context, shown);
       let body;
+      let fill = null;
       try {
         const snapshot = await host.readSnapshot(ref);
         shown.snapshot = snapshot;
         const text = await snapshot.read(SPEC_PATH);
         shown.onDefaultBranch = await onDefaultBranch(host, ref);
         shown.spec = parseSpec(text ?? "");
-        if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
-        body = overview(shown.spec, shown.onDefaultBranch, shown);
+        if (descriptor.key === "gaps") {
+          const place = el("div", "gaps-body", el("p", "traces-reading", "Reading the gaps…"));
+          body = el("section", "gaps head", el("h2", null, descriptor.title), place);
+          fill = () => showGaps(place, shown);
+        } else {
+          if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
+          body = overview(shown.spec, shown.onDefaultBranch, shown);
+        }
       } catch (error) {
         if (!chosen) throw error;
         body = el("p", "version-problem", `${ref} could not be read: ${error?.message ?? error}`);
@@ -306,6 +401,7 @@ export const route = {
       if (mine !== latest) return;
       if (!chosen) current = shown.onDefaultBranch;
       target.replaceChildren(versionChoice({ shown, handed, current, tags, choose: (next) => draw(next, true) }), body);
+      if (fill) await fill();
     };
     await draw(handed, false);
   },
