@@ -287,7 +287,7 @@ async function showRequirementsDraft(where, kind) {
   let loaded, choices;
   try {
     loaded = await loadStage(where, kind.draft);
-    choices = await requirementSourceChoices(where);
+    choices = await requirementSourceChoices({ ...where, instanceSnapshot: loaded.instanceSnapshot });
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));
     return;
@@ -499,7 +499,7 @@ async function showArchitectureDraft(where, kind) {
   try {
     graph = await traceGraph(snapshot);
     loaded = await loadStage(where, kind.draft);
-    places = await placesOf(where);
+    places = await placesOf({ ...where, instanceSnapshot: loaded.instanceSnapshot });
     found = await approvalStrategies.preconditions["architecture-ready"]({ product: { snapshot, address: snapshot.repository?.web ?? "" } });
     reviewing = await kindOf(loaded.definition.reviewer);
   } catch (failure) {
