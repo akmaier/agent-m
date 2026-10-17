@@ -22,6 +22,12 @@ origin:
 
 UC-020: "explains the statuses … what a release tag is". `src/trace-pages` calls no `explain`.
 
+**The reading of 2026-10-17 (sprint team1/63): it waits for ITM-594, ITM-595 and ITM-598.** Those draw the release tags,
+the statuses and the history that UC-020 asks to be explained.
+- The accepted `explain(topic)` of MOD-site-frame is enough. No label is named, so the draft `4ecbabdf` is not needed.
+- The topics go into `src/site-frame/explanations.md`.
+- "The frame's check" is not built (`src/site-frame/index.mjs:5`). Whether this item builds it is read at its start.
+
 ## Acceptance
 
 - Each view's statuses, versions and gaps carry their folded explanations, and the frame's check finds their topics.

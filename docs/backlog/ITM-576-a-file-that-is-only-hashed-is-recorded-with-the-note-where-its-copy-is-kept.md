@@ -23,6 +23,18 @@ origin:
 
 UC-004 4a: "only designation and hash are recorded, with a note where the copy is kept". Hash-only registration is built (ITM-455), but the note has no field. MOD-source-register, Data, `## Versions`: "or a note where a copy that was only hashed is kept".
 
+**The reading of 2026-10-17 (sprint team1/63): it waits for akmaier's acceptance of the draft committed with it,**
+on MOD-source-register.
+- Today the only note is the list of the files not stored (`filesCell`, `src/source-register/index.mjs:142-146`).
+- The interface's `files` (`registrationCommits`, `versionCommits`) has no field for where a copy is kept.
+- Giving the note a field in the form alone would leave the module unable to write it, and a refusal in the form alone
+  would be missing from *+ New version*. So the draft gives both functions the note and the refusal, once (nothing
+  twice):
+  - a file with `keep: false` carries `note`, written beside its name in the Files cell;
+  - without a note, the function throws `NoteMissing { name }`.
+- **Reached** through MOD-site-frame's route `library`. The live page dispatches no `library`. It reaches it with the
+  switch to `start.mjs`, as ITM-599 reads it.
+
 ## Acceptance
 
 - The library form asks for the note when a file is only hashed, and the register entry holds it.

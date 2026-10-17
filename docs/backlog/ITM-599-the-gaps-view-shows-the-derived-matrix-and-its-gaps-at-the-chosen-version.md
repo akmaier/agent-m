@@ -24,6 +24,16 @@ origin:
 
 UC-020 steps 7, 7a and 7b. `coverageGaps` is built (ITM-308); the view is not.
 
+**The reading of 2026-10-17 (sprint team1/63): it waits for ITM-594's merge,** since both change `flow.mjs` and
+`views.mjs`.
+- **`coverageGaps`** of MOD-trace-graph is built (`src/trace-graph/derive.mjs:150`), and MOD-trace-pages' Uses names it.
+  The view adds the `gaps` descriptor. It copies nothing from the old `docs/assets/traceability/graph.mjs:218`.
+- **Reached** through MOD-site-frame's route `trace/gaps`. The live page renders only `specification`, under `#spec`, so
+  it reaches `gaps` once `docs/index.html` starts the site through `start.mjs`.
+  - That change is a pull request between jobs (SPEC.md, `WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
+  - It waits until the module-built site holds what the live page shows, and this view is one of those things.
+  - So "the real host" for this item is the frame's route, on a product's real repository host.
+
 ## Acceptance
 
 - The view shows the matrix and the gaps at the version shown.

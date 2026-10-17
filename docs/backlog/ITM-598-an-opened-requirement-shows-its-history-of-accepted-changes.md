@@ -24,6 +24,13 @@ origin:
 
 UC-020 step 5 (history) and 5d. `requirementHistory` is in MOD-spec-changes' file but not built (`src/spec-changes/index.mjs:4-5`).
 
+**The reading of 2026-10-17 (sprint team1/63): it waits for ITM-597's merge,** whose opened requirement shows the history.
+- `requirementHistory(name, host)` is stated in MOD-spec-changes' file, and its part `history.mjs` is not built.
+- It reads through `MOD-repository-hosts.readHistory`, which MOD-spec-changes' Uses names. That call is built with real
+  calls on both hosts (`github.mjs:202-219`, `gitlab.mjs:162-179`).
+- `readHistory` gives a file's commits, not a section's. So the history reads `SPEC.md` at each commit through
+  `readSnapshot` and keeps the commits where the requirement's text changed.
+
 ## Acceptance
 
 - Every accepted change of a requirement's text is shown with its commit.

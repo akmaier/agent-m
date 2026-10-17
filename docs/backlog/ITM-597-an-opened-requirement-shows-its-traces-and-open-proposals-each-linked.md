@@ -8,6 +8,7 @@ realises:
   - OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 modules:
   - MOD-trace-pages
+  - MOD-trace-graph
 builds_on:
   - ITM-594
 tests:
@@ -24,6 +25,21 @@ origin:
 ## Outcome
 
 UC-020 step 5 (traces and proposals), step 6 (links), 2b, 5a, 5b and 5c. `tracesTo`, `statuses`, `queues` and `linkedVersion` are built, but the view does not call them.
+
+**The readings, settled on 2026-10-17 during sprint team1/63. It waits for ITM-594's merge,** since both change
+`flow.mjs`.
+- **MOD-trace-graph joins the modules.** `tracesTo` (`src/trace-graph/derive.mjs:22-26`) fills only `sources` and
+  `tests`. Its comment leaves the other lists "to a later item that reads the others".
+  - MOD-trace-graph's file (`tracesTo`, Interfaces) states their rule: every use case, decision, module, test and item
+    that names the requirement, and a module also through its tests that guard it.
+  - So this item builds them there, from the module's own text.
+  - It copies nothing from the old `docs/assets/traceability/graph.mjs:186-200`.
+- **Uses:** `MOD-trace-graph.traceGraph` and `tracesTo`, `MOD-approvals.statuses`, `MOD-spec-changes.queues` and
+  `MOD-source-register.linkedVersion`, all in MOD-trace-pages' Uses and built.
+- **5c, "accepting one makes the other stale":** a note the view writes when two of the `queues` entries touch the one
+  requirement. MOD-spec-changes' `stale` state is another fact, of a record whose blob changed, and is not reused for it.
+- **At a tag,** open proposals are hidden (UC-020 1a).
+- **Reachable:** the live `#spec`.
 
 ## Acceptance
 

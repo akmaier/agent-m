@@ -24,6 +24,13 @@ origin:
 
 UC-016 steps 1, 3, 4 and 5, with 4a and 1a, on the page; its second postcondition; and UC-004 1a: "offers to add a new version instead". `versionCommits` and `SameBytes` are built (ITM-385). The page part is not (`src/settings-pages/library.mjs:3-4`).
 
+**The reading of 2026-10-17 (sprint team1/63): it waits for ITM-590's merge.**
+- *Move* changes a link's version in a product's `docs/sources.md`, which ITM-590's route writes. It calls that code, so
+  the link's write is not built twice.
+- `versionCommits` with `SameBytes`, `affectedRequirements` and `changedPassages` are built and in MOD-settings-pages'
+  Uses.
+- **Reached** as ITM-590 reads it.
+
 ## Acceptance
 
 - *+ New version* is refused when its bytes equal an existing version's.
