@@ -1,5 +1,5 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch, startWorkflow, listCiRuns,
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch, startWorkflow, setPipelineSchedule, listCiRuns,
 // cancelCiRun, ciRunLog and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
@@ -152,6 +152,7 @@ function throughClone(repository, folder, rest) {
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
+    setPipelineSchedule: rest ? (...a) => rest.setPipelineSchedule(...a) : without("a pipeline schedule"),
     listCiRuns: rest ? (...a) => rest.listCiRuns(...a) : without("the CI runs"),
     cancelCiRun: rest ? (...a) => rest.cancelCiRun(...a) : without("cancelling a CI run"),
     jobLogs: rest ? (...a) => rest.jobLogs(...a) : without("the log of a CI run"),
@@ -313,6 +314,32 @@ export function connect(address, credentials = {}) {
         }
       }
       return adapter.startWorkflow(workflow, ref, inputs);
+    },
+
+    // setPipelineSchedule(schedule) -> { id, url } — on a GitLab server, creates the project's pipeline schedule with this description or updates the one that has it, so that saving again
+    // never adds a second; its variables hold no credential: one that holds the token or a configured secret is SecretRefused before any request. On GitHub NotSupported (a workflow's
+    // schedule is part of its file), and without a token before any request. Crosses the network; fails with TokenRefused, PermissionMissing, RateLimited, Unreachable.
+    async setPipelineSchedule(schedule) {
+      const { description, cron, timezone, ref, active, variables = {} } = schedule ?? {};
+      const text = (v) => typeof v === "string" && v.trim() !== "";
+      if (!text(description) || !text(cron) || !text(timezone) || !text(ref) || typeof active !== "boolean") {
+        throw new TypeError("setPipelineSchedule names a schedule by its description, cron, timezone and ref, and whether it is active");
+      }
+      if (!variables || typeof variables !== "object" || Array.isArray(variables) || Object.values(variables).some((v) => typeof v !== "string")) {
+        throw new TypeError("the variables of a schedule are texts, by name");
+      }
+      if (github) {
+        throw new HostError("NotSupported", { what: "a pipeline schedule on GitHub" }, "A workflow's schedule is part of the workflow's file, not a setting of the server.");
+      }
+      if (!token) {
+        throw new HostError("NotSupported", { what: "a pipeline schedule without a token" }, "A pipeline schedule is set only with a token that may do so; store one first.");
+      }
+      for (const [key, value] of Object.entries(variables)) {
+        if (refused.some((s) => value.includes(s))) {
+          throw new HostError("SecretRefused", { path: `variables.${key}` }, `variables.${key} holds a configured secret — nothing was set.`);
+        }
+      }
+      return adapter.setPipelineSchedule(schedule);
     },
 
     // listPullRequests(filter) -> PullRequest[] — the pull requests of GitHub or the merge requests of GitLab, every page, optionally only those of a state (open, merged, closed, all — the
