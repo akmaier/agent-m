@@ -6,6 +6,7 @@ realises:
   - A PAGE LOAD READS THE REPOSITORY IN BATCHES
 modules:
   - MOD-site-frame
+  - MOD-review-pages
 builds_on:
   - ITM-574
 tests:
@@ -31,3 +32,8 @@ At the start, these are measured on this repository with a token, before and aft
 
 - Each route reads its commit and tree once, and the files it shows in as few waves as the files they depend on allow.
 - Its count is in `load-per-view.test.mjs`, with a counter-proof that reads each file by itself.
+
+**Narrowed at its draft stop (sprint team1/76, 2026-10-17, po-opus).** It keeps the `showAll` batch on `#review/…`
+(`src/review-pages/flow.mjs`). The SPEC entry page's batch is ITM-830: it changes a system test that names
+MOD-repository-hosts and MOD-trace-graph, which sprint 76 left free for team 2. `#uc/<id>` and `#arc/<id>` read one file
+each, and stay as they are.
