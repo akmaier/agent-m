@@ -875,7 +875,8 @@ test("release · UC-042 2: Clear asks once, says what stops working, and removes
 });
 
 // UC-042 1a · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a token expires within fourteen days. Expected: every dashboard page
-// shows "Your GitHub token expires on <date>" with Renew to GitHub's token page; the settings line shows ⚠ expires on <date>.
+// shows, in the frame's notice place, "Your token Agent M · akmaier/agent-m expires on <date>." with Renew to GitHub's token page;
+// the settings line shows ⚠ expires on <date>.
 test("release · UC-042 1a: a token expiring within fourteen days is warned of on every page, with Renew", async () => {
   const w = await world();
   const page = await open(w), panes = await settingsPanes(page), row = githubRow(panes);
@@ -889,7 +890,7 @@ test("release · UC-042 1a: a token expiring within fourteen days is warned of o
   for (const hash of ["#uc", "#spec", "#uc/UC-001"]) {
     await page.go(hash);
     const banner = page.el("token-banner");
-    assert.match(stripTags(banner), new RegExp(`Your GitHub token expires on ${soon}`), hash);
+    assert.match(stripTags(banner), new RegExp(`Your token Agent M · akmaier/agent-m expires on ${soon}\\.`), hash);
     assert.ok(hrefs(banner).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), `${hash}: Renew`);
   }
 });
@@ -912,8 +913,8 @@ test("release · UC-042 1a: the expiry line offers the paste field for the renew
   });
 
 // UC-042 1b · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a server refused a token. Expected: the GitHub token's line shows
-// ✗ refused, and the line at the top names the GitHub token with Renew to GitHub's token page; for a GitLab project token, its
-// line shows ✗ refused and links the project's Access tokens page.
+// ✗ refused, and the frame's notice at the top says "The server refused your token Agent M · akmaier/agent-m." with Renew to
+// GitHub's token page; for a GitLab project token, its line shows ✗ refused and links the project's Access tokens page.
 test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a GitLab project's with its Access tokens page", async () => {
   let refused = false;
   const gitlab = gitlabServer();
@@ -928,7 +929,7 @@ test("release · UC-042 1b: a refused token is named, GitHub's with Renew, a Git
   assert.match(statusOf(githubRow(panes)), /Refused/);
   await page.go("#uc");
   const banner = page.el("token-banner");
-  assert.match(stripTags(banner), /GitHub token/);
+  assert.match(stripTags(banner), /The server refused your token Agent M · akmaier\/agent-m\./);
   assert.ok(hrefs(banner).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "Renew");
   panes = await settingsPanes(page);
   const line = gitlabRow(panes);
@@ -1091,10 +1092,11 @@ test("release · A USED-UP RATE LIMIT IS NAMED: the account's or the network's l
 });
 
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — Expected: when GitHub refuses the stored token (401) on a page load, the
-// page names the GitHub token and links GitHub's token page on which it is renewed, and the line at the top says so too.
+// page names the GitHub token and links GitHub's token page on which it is renewed, and the frame's notice at the top says "The
+// server refused your token Agent M · akmaier/agent-m."
 test("release · AN EXPIRED TOKEN IS NAMED: a refused token is named with the link to renew it", async () => {
   const page = await open(await world({ refuse: limitOn(401, {}) }));
   assert.match(stripTags(page.main()), /GitHub token/);
   assert.ok(hrefs(page.main()).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), "the renewal link");
-  assert.match(stripTags(page.el("token-banner")), /GitHub token/);
+  assert.match(stripTags(page.el("token-banner")), /The server refused your token Agent M · akmaier\/agent-m\./);
 });
