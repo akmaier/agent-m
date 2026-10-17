@@ -447,3 +447,20 @@ test("TST-823009: an expired confirmation sends nothing", async (t) => {
     assert.equal(imap.folders.Drafts.length, 1);
   });
 });
+
+// TST-823010 · level: unit · module: MOD-mail-protocols
+// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER
+// given: the fixture of TST-823001 whose Drafts holds, besides the draft of the Bridge, the person's own draft at uid 50 (UIDVALIDITY 7) written by hand
+// input: `update-draft` with args { ref: { route: "bridge", uid: 50, uidValidity: 99 }, draft } (a stale ref), then the same with uidValidity 7 (a ref to a draft the Bridge did not write)
+// expect: both fail with code `not-found`; the person's draft is still in Drafts byte for byte; no draft was added
+test("TST-823010: update-draft removes only the Bridge's own draft; a stale ref answers not-found", async () => {
+  await withMailbox(async (imap, smtp) => {
+    const own = Buffer.from(raw(["Message-ID: <p1@example.org>", "From: reports@example.org", "To: bo@example.net", "Subject: My own draft", "", "Not written by the Bridge."]));
+    imap.folders.Drafts.push({ uid: 50, raw: own });
+    for (const uidValidity of [99, 7]) {
+      await assert.rejects(call("update-draft", connection(imap, smtp), { ref: { route: "bridge", uid: 50, uidValidity }, draft: DRAFT }), refused("not-found"));
+    }
+    assert.ok(imap.logs.logins.length > 0, "positive: the Drafts were reached");
+    assert.deepEqual(imap.folders.Drafts.map((message) => [message.uid, message.raw]), [[50, own]]);
+  });
+});

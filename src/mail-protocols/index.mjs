@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { connectionParts, testImap, readMails, findMail, markedFolder, storeDraft, showDraft, sendDraft } from "./imap.mjs";
+import { OWN_DRAFT_MARK, connectionParts, testImap, readMails, findMail, markedFolder, storeDraft, showDraft, sendDraft } from "./imap.mjs";
 import { testSmtp, sendBytes } from "./smtp.mjs";
 import { confirm, spend } from "./confirmations.mjs";
 
@@ -21,6 +21,7 @@ async function replyBytes({ account }, mailer, { replyTo, to, subject, body }) {
     to: { name: to.name ?? "", address: to.address },
     subject,
     text: body,
+    headers: { [OWN_DRAFT_MARK]: "1" },
     inReplyTo: replyTo.messageId,
     references: [...replyTo.references, replyTo.messageId],
   });

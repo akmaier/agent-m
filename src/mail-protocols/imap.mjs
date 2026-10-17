@@ -216,6 +216,17 @@ async function draftBytes(client, imap, path, ref) {
   return message.source;
 }
 
+// The Bridge marks every draft it writes; only a draft with this mark, of the ref's UIDVALIDITY, is the Bridge's own.
+export const OWN_DRAFT_MARK = "X-Agent-M-Draft";
+
+async function ownDraftBytes(client, imap, path, ref) {
+  const bytes = await draftBytes(client, imap, path, ref);
+  if (!new RegExp(`^${OWN_DRAFT_MARK}:`, "mi").test(Buffer.from(bytes).toString("utf8").split(/\r?\n\r?\n/)[0])) {
+    throw bridgeFailure("not-found", `${path}: draft ${ref.uid} is not a draft of the Bridge`);
+  }
+  return bytes;
+}
+
 async function removeDraft(client, imap, path, ref) {
   try {
     await client.mailboxOpen(path);
@@ -230,6 +241,7 @@ export function storeDraft(connection, Flow, bytes, replacing) {
   const { imap, account, password } = connection;
   return withClient(imap, account, password, Flow, async (client) => {
     const path = await folderMarked(client, "\\Drafts");
+    if (replacing) await ownDraftBytes(client, imap, path, replacing);
     const stored = await client.append(path, bytes, ["\\Draft"]);
     if (replacing) await removeDraft(client, imap, path, replacing);
     return draftRef(stored.uid, stored.uidValidity);
@@ -251,7 +263,7 @@ export function sendDraft(connection, Flow, ref, expected, transmit) {
   const { imap, account, password } = connection;
   return withClient(imap, account, password, Flow, async (client) => {
     const drafts = await folderMarked(client, "\\Drafts");
-    const bytes = await draftBytes(client, imap, drafts, ref);
+    const bytes = await ownDraftBytes(client, imap, drafts, ref);
     if ((await sha256(bytes)) !== expected) throw bridgeFailure("confirmation-refused", "The draft is not the mail that was confirmed; nothing was sent.");
     const { to, cc } = await parseMail(bytes, "Drafts");
     await transmit(bytes, [...to, ...cc].map((each) => each.address));
