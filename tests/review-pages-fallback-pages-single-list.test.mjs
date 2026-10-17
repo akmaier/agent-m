@@ -48,6 +48,15 @@ function watching(fake) {
   return state;
 }
 
+// The repository as it stood when the edit began: a read of the commit the page opened on — any ref but "main" — names the paths without `lacking` and with `extra`. Set on the fake's host before the page is drawn.
+function beganWith(fake, { lacking = [], extra = [] }) {
+  const read = fake.host.readSnapshot;
+  fake.host.readSnapshot = async (ref) => {
+    const snapshot = await read(ref);
+    return ref === "main" ? snapshot : Object.create(snapshot, { paths: { value: [...snapshot.paths.filter((path) => !lacking.includes(path)), ...extra].sort() } });
+  };
+}
+
 // ---------------------------------------------------------------- the page
 
 const listed = (target) => byClass(target, "ul", "pages")[0].childNodes.filter((node) => node.nodeType === 1).map((item) => ({
@@ -65,9 +74,10 @@ const areaIn = (root) => find(root, (node) => node.localName === "textarea" && !
 const EDITED_ENTRY = LENDING.replace("Every book stands on a shelf.", "Every book stands on one shelf.");
 const WHY = "Because it is clearer.";
 // The open entry 01 of the sample queue, edited in place with a Why, saved without a token.
-async function savedEntry(state = null) {
+async function savedEntry(state = null, began = null) {
   const fake = fakeProduct(PRODUCT_FILES, { canWrite: false });
   const watch = watching(fake);
+  if (began) beganWith(fake, began);
   const { target } = await draw(fake, "spec-entry", { id: ENTRY_ID, edit: "1" }, { token: false });
   areaIn(target).value = EDITED_ENTRY;
   areaIn(target).dispatchEvent(new Event("input"));
@@ -98,9 +108,10 @@ const OVERDUE = "Every loan states the date by which the book is returned, and s
 const REQUIREMENTS = { candidates: [{ name: LOAN, rule: OVERDUE, check: "`tests/fixture.test.mjs`", constrains: "product", passage: "overdue", class: "change", of: LOAN }] };
 const REQUIREMENTS_KEY = `requirement/name=${encodeURIComponent(LOAN)}/product=${PRODUCT}`;
 // The draft of requirements — the rule of A LOAN HAS A DUE DATE changed —, saved without a token.
-async function savedRequirements(state = null) {
+async function savedRequirements(state = null, began = null) {
   const fake = fakeProduct(PRODUCT_FILES, { canWrite: false });
   const watch = watching(fake);
+  if (began) beganWith(fake, began);
   const context = contextOf(fake, { token: false });
   keepDraft(context, { subject: REQUIREMENTS_KEY, kind: "change-requirements", params: { requirements: [LOAN], source: SOURCE, version: blobOf(LENDING), instruction: "state the overdue rule" },
     result: resultOf(REQUIREMENTS, { rounds: [ROUND_ONE] }) });
@@ -231,6 +242,40 @@ test("draft — without a token the index of a draft of requirements that alread
   assert.ok(last > 0, "known positive: the unwarned save read the paths");
   const index = listed(counting.target).find((page) => page.path.endsWith("/index.md")).path;
   const { target } = await savedRequirements({ at: last, extra: [index] });
+  const found = listed(target);
+  const warned = found.find((page) => page.path === index);
+  assert.deepEqual(warned.warnings, [WARNING], "the index is warned about");
+  assert.equal(warned.clipboard.length, 1, "its text is beside the warning");
+  for (const page of found.filter((each) => each !== warned)) {
+    assert.deepEqual(page.warnings, [], `${page.path}: no warning`);
+    assert.equal(page.clipboard.length, 1, `${page.path}: its text`);
+  }
+});
+
+// ---------------------------------------------------------------- what the edit began from
+
+// TST-611007 · level: unit · module: MOD-review-pages
+// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// given: the product of TST-622001, whose repository at the commit the entry's editor was opened on lacked the entry's proposal that the default branch holds now
+// input: a click on Save
+// expect: the page of the proposal carries the warning "The file differs on the default branch; compare before committing." beside its text; the page of the rationale carries no warning and still its text
+test("spec-entry/<id>/edit — without a token a file that appeared on the default branch since the editor was opened is warned about on its page", async () => {
+  const { target } = await savedEntry(null, { lacking: [`${QUEUE}/01-lending.md`] });
+  const [proposal, rationale] = listed(target);
+  assert.deepEqual(proposal.warnings, [WARNING], "the proposal is warned about");
+  assert.equal(proposal.clipboard.length, 1, "its text is beside the warning");
+  assert.deepEqual(rationale.warnings, [], "the rationale is not");
+  assert.equal(rationale.clipboard.length, 1, "its text");
+});
+
+// TST-611008 · level: unit · module: MOD-review-pages
+// guards: UC-019 (steps 8, 9); UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// given: the product of TST-622005, whose repository at the commit the draft was opened on held the index of the queue the draft starts, which the default branch no longer holds
+// input: a click on Save
+// expect: the page of the index carries the warning "The file differs on the default branch; compare before committing." beside its text; no other page carries a warning, and each other page still carries its text
+test("draft — without a token the index of a draft of requirements that the default branch lost since the draft was opened is warned about on its page", async () => {
+  const index = `docs/spec-freigaben/${new Date().toISOString().slice(0, 10)}_edits-of-anonymous/index.md`;
+  const { target } = await savedRequirements(null, { extra: [index] });
   const found = listed(target);
   const warned = found.find((page) => page.path === index);
   assert.deepEqual(warned.warnings, [WARNING], "the index is warned about");

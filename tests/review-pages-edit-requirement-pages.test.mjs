@@ -53,7 +53,7 @@ const WHY = "Because it is clearer.";
 // `moves`, once armed, makes the last reading of `paths` name the index of the queue as well: { at: <the number of the reading> }.
 function fakeHost(files = FILES) {
   const calls = [], tree = new Map(Object.entries(files)), head = createHash("sha1").update("commit 1").digest("hex");
-  const state = { armed: false, readings: 0, at: null };
+  const state = { armed: false, readings: 0, at: null, began: { lacking: [], extra: [] } };
   const snapshot = (ref) => ({ repository: GITHUB, ref, commit: head, read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
     get paths() {
       const held = [...tree.keys()].sort();
@@ -67,6 +67,9 @@ function fakeHost(files = FILES) {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
       async readSnapshot(ref) {
         if (ref === "main") return snapshot("main");
+        // The commit the edit was opened on is the head; the repository as it stood then lacks `began.lacking` and holds `began.extra` besides, and its paths are not counted.
+        if (ref === head) return { repository: GITHUB, ref, commit: head, read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: () => null,
+          paths: [...[...tree.keys()].filter((path) => !state.began.lacking.includes(path)), ...state.began.extra].sort() };
         throw failure("NotFound", `${ref} was not found`);
       },
       async readHistory() { return []; },
@@ -171,4 +174,18 @@ test("requirement/<name> — without a token a file that already differs is warn
     assert.deepEqual(page.warnings, [], `${page.path}: no warning`);
     assert.equal(page.clipboard.length, 1, `${page.path}: its text`);
   }
+});
+
+// TST-611006 · level: unit · module: MOD-review-pages
+// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// given: the product of TST-592001, whose repository at the commit the editor was opened on held the index of the queue the edit starts, which the default branch no longer holds
+// input: a click on Save
+// expect: the page of the index carries one warning that the file differs on the default branch, beside its text; no other page carries a warning
+test("requirement/<name> — without a token a file the default branch lost since the edit began is warned about on its page", async () => {
+  const fake = fakeHost();
+  fake.state.began.extra = [`${QUEUE}/index.md`];
+  const found = listed(await saveWithoutToken(fake));
+  assert.deepEqual(found.filter((page) => page.warnings.length > 0).map((page) => page.path), [`${QUEUE}/index.md`]);
+  assert.match(found.find((page) => page.path === `${QUEUE}/index.md`).warnings[0], /differs on the default branch/);
+  assert.equal(found.find((page) => page.path === `${QUEUE}/index.md`).clipboard.length, 1, "its text is beside the warning");
 });

@@ -1,7 +1,8 @@
 // An open SPEC entry saved in place (ITM-394) — MOD-spec-changes' `saveEntry`, as docs/architecture/MOD-spec-changes.md states it: "saveEntry(host, edit: { queue, entry, text, why, person,
 // openedBlob }) -> { commit } | { refused: "changed meanwhile", current } | { refused: "not open", state } | { fallback }" — an edited entry saved in its own queue, in one commit under the
 // person's account: its proposal replaced by `text`, its rationale's impact list computed anew; no second queue is made (UC-006 3a, UC-018 1a). Refused when the proposal's blob on the default
-// branch differs from `openedBlob`, returning the newer text, and when the entry is no longer open, naming its state. Without a token, as `proposeSection`.
+// branch differs from `openedBlob`, returning the newer text, and when the entry is no longer open, naming its state. Without a token, as `proposeSection`: GitHub's pages, each page's
+// `differs` saying whether its file exists on the default branch otherwise than at `openedHead`, the commit the edit was opened on.
 // Run: node --test tests/spec-changes-save-entry.test.mjs
 //
 // Module: MOD-spec-changes
@@ -62,21 +63,24 @@ const historyOf = (folder, account, later = []) => ({ [`docs/spec-freigaben/${fo
   ...later.map((who, at) => ({ commit: `${at}`.padEnd(40, "1"), parents: [], author: { account: who, name: who }, date: "2026-10-12T10:00:00Z", message: "a later edit", changes: [{ path: `docs/spec-freigaben/${folder}/index.md`, change: "modified" }] })),
   { commit: "c".repeat(40), parents: [], author: { account, name: account }, date: "2026-10-12T09:00:00Z", message: "queue", changes: [{ path: `docs/spec-freigaben/${folder}/index.md`, change: "added" }] }] });
 
-function repository({ files = {}, history = {}, canWrite = true, server = "github" } = {}) {
+const OPENED = "o".repeat(40);
+function repository({ files = {}, history = {}, canWrite = true, server = "github", opened = {} } = {}) {
   const all = { "SPEC.md": SPEC, "docs/use-cases/UC-001-read-a-file.md": useCase, ...files };
   const commits = [];
   const web = server === "github" ? "https://github.com/alice/product" : "https://gitlab.example.test/alice/product";
   const snapshot = { repository: { server, origin: server === "github" ? "https://github.com" : "https://gitlab.example.test", path: "alice/product", web }, ref: "main", commit: "h".repeat(40),
     paths: Object.keys(all), blob: (path) => (Object.hasOwn(all, path) ? gitBlob(all[path]) : null), read: async (path) => (Object.hasOwn(all, path) ? all[path] : null) };
-  const host = { commits,
+  const reads = [];
+  const began = { ...snapshot, ref: OPENED, commit: OPENED, paths: [...Object.keys(all).filter((path) => !(opened.lacking ?? []).includes(path)), ...(opened.extra ?? [])] };
+  const host = { commits, reads,
     repositoryInfo: async () => ({ defaultBranch: "main", visibility: "private", canWrite, archived: false, description: "" }),
-    readSnapshot: async () => snapshot,
+    readSnapshot: async (ref) => { reads.push(ref); return ref === OPENED ? began : snapshot; },
     readHistory: async (path) => history[path] ?? [],
     commitFiles: async (change) => { commits.push(change); return { commit: "i".repeat(40), url: "https://example.test/commit" }; } };
   return { host, snapshot, commits, all };
 }
 const CHANGE = { target: "SPEC.md", anchor: "## 1. Reading", until: null, text: READING_EDITED, why: "A reader needs to know why a file cannot be read.", origin: "an issue of a reader",
-  person: "alice", openedBlob: gitBlob(READING) };
+  person: "alice", openedBlob: gitBlob(READING), openedHead: OPENED };
 const written = (commit) => Object.fromEntries(commit.files.map((file) => [file.path, file.text]));
 const schemaText = readFileSync(new URL("../src/spec-changes/queue-rationale.schema.md", import.meta.url), "utf8");
 
@@ -84,16 +88,16 @@ const schemaText = readFileSync(new URL("../src/spec-changes/queue-rationale.sch
 const { saveEntry } = specChanges;
 
 // A queue of alice's made by proposeSection from the first edit of Reading, and a host over a repository that holds it. `decisions` is appended to its entscheidungen.md.
-async function withQueue({ canWrite = true, server = "github", decisions = "", provenance = "" } = {}) {
+async function withQueue({ canWrite = true, server = "github", decisions = "", provenance = "", opened = {} } = {}) {
   const first = repository();
   const made = await proposeSection(first.host, CHANGE);
   const files = written(first.commits[0]);
   if (decisions) { const path = Object.keys(files).find((p) => p.endsWith("entscheidungen.md")); files[path] += decisions; }
   if (provenance) { const path = Object.keys(files).find((p) => p.endsWith(".begruendung.md")); files[path] = `${files[path]}\n${provenance}\n`; }
-  const second = repository({ files, canWrite, server });
+  const second = repository({ files, canWrite, server, opened });
   return { ...second, queue: made.queue, files };
 }
-const EDIT = (queue, more = {}) => ({ queue, entry: 1, text: READING_RENAMED, why: "The name should say what is read.", person: "alice", openedBlob: gitBlob(READING_EDITED), ...more });
+const EDIT = (queue, more = {}) => ({ queue, entry: 1, text: READING_RENAMED, why: "The name should say what is read.", person: "alice", openedBlob: gitBlob(READING_EDITED), openedHead: OPENED, ...more });
 const proposalPath = (queue) => `${queue}/01-reading.md`;
 
 // TST-473025 · level: unit · module: MOD-spec-changes
@@ -206,4 +210,34 @@ test("saveEntry — the origin and the provenance of a drafted entry are kept", 
   assert.ok(rationale.includes("The name should say what is read."));
   const schema = loadSchema(schemaText, "MOD-spec-changes");
   assert.deepEqual(documentFindings(schema, readDocument(schema, `${f.queue}/01-reading.begruendung.md`, rationale)), []);
+});
+
+// TST-611004 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: a GitHub product, a host with no token and an open entry whose proposal did not exist on the default branch at OPENED
+// input: saveEntry
+// expect: two pages in the order proposal, rationale; the proposal's page is GitHub's new-file page and differs is true; the rationale's page is GitHub's editor and differs is false
+test("saveEntry — without a token a file that appeared on the default branch since the edit began is marked as differing", async () => {
+  const probe = await withQueue({ canWrite: false });
+  const f = await withQueue({ canWrite: false, opened: { lacking: [proposalPath(probe.queue)] } });
+  const result = await saveEntry(f.host, EDIT(f.queue));
+  assert.deepEqual(f.commits, []);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[proposalPath(f.queue), "alice/product/new", true], [`${f.queue}/01-reading.begruendung.md`, "alice/product/edit", false]]);
+});
+
+// TST-611005 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the same entry saved by a host with no token and by one with a token
+// input: saveEntry
+// expect: the refs the host was asked to read, after the queue was made, are ["main", OPENED] without a token and ["main"] with one
+test("saveEntry — the repository at the commit the edit was opened on is read only without a token", async () => {
+  const without = await withQueue({ canWrite: false });
+  without.host.reads.length = 0;
+  await saveEntry(without.host, EDIT(without.queue));
+  assert.deepEqual(without.host.reads, ["main", OPENED]);
+  const withToken = await withQueue();
+  withToken.host.reads.length = 0;
+  await saveEntry(withToken.host, EDIT(withToken.queue));
+  assert.deepEqual(withToken.host.reads, ["main"]);
 });
