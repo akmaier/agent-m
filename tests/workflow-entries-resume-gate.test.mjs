@@ -89,16 +89,17 @@ function repository(root, name, files, folder) {
   git(root, "clone", "-q", origin, folder);
   git(folder, "config", "user.name", "Alice Agent M token");
   git(folder, "config", "user.email", "alice@example.org");
+  return origin;
 }
-// The workspace of a job workflow: product/ and instance/; `files(agentM)` are the product's files beyond its README.
+// The workspace of a job workflow: product/ and instance/ (`product` is the product's origin, where the entry pushes); `files(agentM)` are the product's files beyond its README.
 async function withWorkspace(files, run) {
   const root = mkdtempSync(join(tmpdir(), "agent-m-resume-"));
   const workspace = join(root, "ws");
   try {
     repository(root, "instance", { "README.md": "# Instance\n", "SPEC.md": "# Spec\n", "docs/participants.md": PARTICIPANTS }, join(workspace, "instance"));
     const agentM = { version: "2026.10.0", commit: git(join(workspace, "instance"), "rev-parse", "HEAD") };
-    repository(root, "product", { "README.md": "# Thesis tool\n", "docs/process.md": declaration(agentM.commit), ...files(agentM) }, join(workspace, "product"));
-    return await run({ workspace, head: git(join(workspace, "product"), "rev-parse", "HEAD"), productDir: join(workspace, "product"), product: join(workspace, "product") });
+    const product = repository(root, "product", { "README.md": "# Thesis tool\n", "docs/process.md": declaration(agentM.commit), ...files(agentM) }, join(workspace, "product"));
+    return await run({ workspace, head: git(join(workspace, "product"), "rev-parse", "HEAD"), productDir: join(workspace, "product"), product });
   } finally { rmSync(root, { recursive: true, force: true }); }
 }
 const environment = (w) => ({ GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "push", GITHUB_WORKSPACE: w.workspace, GITHUB_SERVER_URL: "https://github.com",

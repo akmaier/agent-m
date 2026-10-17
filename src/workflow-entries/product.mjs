@@ -1,6 +1,6 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
-// leaves queued. Resuming after a gate, the runs' next actions, onDoneCheck, onPullRequestClosed, onCheckCompleted,
+// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions, onDoneCheck, onPullRequestClosed, onCheckCompleted,
 // onSchedule and onTestsFinished are other items'.
 //
 // Module: MOD-workflow-entries
@@ -16,6 +16,7 @@ import { endpointDriver, testEndpoint } from "../endpoint-calls/index.mjs";
 import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
+import { productFacts } from "../progress-measures/index.mjs";
 import { composeProduct } from "./compose.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -187,6 +188,33 @@ async function queuedOf(env, snapshot, { handedOver = false } = {}) {
   return rows.reverse();
 }
 
+// The jobs of this route waiting at a gate that is now passed, each with the gate record that passed it: the product's facts, read once (scope `work`), give the
+// jobs and the states of the gates (gateStates). A gate record whose decider is the job's own participant — whose work the gate checks — does not resume the job.
+async function resumable(env, composed) {
+  const { instance, product } = composed;
+  // The facts are read through the clone alone: the gates and jobs need no pull request, and the server's answer is not asked for (productFacts takes a refusal as `unknown`).
+  const clone = { ...product.host, listPullRequests: async () => { throw Object.assign(new Error("pull requests are not read here"), { name: "NotSupported" }); } };
+  const facts = await productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, {}, { scope: "work" });
+  const wanted = routeOf(env.job.runner);
+  const rows = [];
+  for (const { record, state } of facts.jobs) {
+    if (state !== "waiting at a gate" || record.route !== wanted) continue;
+    const reached = record.gates.at(-1)?.gate;
+    const passed = facts.gateStates.find((each) => each.gate === reached && each.state === "passed");
+    const decided = passed && facts.gates.find((each) => each.path === passed.record);
+    if (decided && decided.fields.decider !== record.participant) rows.push({ record, path: record.path, gateRecord: passed.record });
+  }
+  return rows;
+}
+
+// Resumes a job: the `Resumed` part naming the gate record, committed on the current head.
+async function resume(host, branch, now, { record, path, gateRecord }) {
+  const head = await host.readSnapshot("HEAD");
+  await host.commitFiles({ branch, expectedHead: head.commit, files: [{ path, text: appendToRecord(await head.read(path), { part: "resumed", at: now, gateRecord }) }],
+    message: `resume ${record.id}: ${gateRecord}` });
+  return `${record.id} resumed by ${gateRecord}`;
+}
+
 // The participants of the instance's register, read from its checkout.
 async function participantsOfInstance(snapshot) {
   const register = await snapshot.read("docs/participants.md");
@@ -225,7 +253,11 @@ export async function onRecordsChanged(env) {
   const rows = await queuedOf(env, await composed.product.host.readSnapshot("HEAD"));
   const missing = missingSecret(env, participants, rows);
   if (missing) return notRun(missing);
-  return runRows(env, composed, participants, rows);
+  const resumed = [];
+  for (const row of await resumable(env, composed)) resumed.push(await resume(composed.product.host, env.branch, env.now, row));
+  const status = await runRows(env, composed, participants, rows);
+  if (resumed.length === 0) return status;
+  return { ...status, outcome: status.outcome === "nothing to do" ? "done" : status.outcome, summary: [...resumed, ...(status.outcome === "nothing to do" ? [] : [status.summary])].join("; ") };
 }
 
 /**
