@@ -38,3 +38,6 @@ Each file is changed by the job of its module. A file that belongs to no module 
 **Found at ITM-704's gate (2026-10-17, po-opus).** `tests/settings-pages-sources.d/github.mjs`, the fake of
 MOD-settings-pages' three tests, now answers the batch request as GitHub does (#733, `cf904ec0`). The shared fake of
 this item takes its place, or this one becomes it.
+
+**Noted at ITM-841's gate (sprint team1/78, 2026-10-17, po-opus).** `tests/model-catalogue-load.mjs` is a further counting
+fake of GitHub's batch request, beside `tests/progress-measures-load.mjs`. The shared fake takes both places.
