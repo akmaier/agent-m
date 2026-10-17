@@ -15,6 +15,7 @@
 
 import { readDocument } from "../documents/index.mjs";
 import { kindOfIdentifier } from "../identifiers/index.mjs";
+import { blobSha } from "../text-tools/index.mjs";
 import { HostError } from "../repository-hosts/index.mjs";
 // The schema is loaded by index.mjs, once, and used here only when a function is called: that is after both have loaded.
 import { approvalSchema } from "./index.mjs";
@@ -90,8 +91,9 @@ export function statuses(snapshot) {
  * it, in its own offset; two records committed at the same instant are not told apart. The text is read in the repository as
  * it stood at the commit that added that record, where the file still has the path the record names. Crosses the network,
  * through the host; fails with its failures, unchanged — TokenRefused, RateLimited, NotFound, Unreachable —, and with
- * NotFound { what: the file } when the file did not hold the text the record names at the commit that added the record: no
- * other text is given for it.
+ * NotFound { what: the file } when the file did not hold the text the record names at the commit that added the record, and
+ * when the text the host gave for it is not that text — the blob SHA of the text read (MOD-text-tools.blobSha) is not the
+ * record's: no other text is given for it. The check hashes the text already read and makes no request.
  * @param {string} id
  * @param {object} host
  * @returns {Promise<{ text: string, blob: string, path: string } | null>}
@@ -111,5 +113,9 @@ export async function lastAcceptedText(id, host) {
   if (then.blob(file) !== blob) {
     throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);
   }
-  return { text: await then.read(file), blob, path: file };
+  const text = await then.read(file);
+  if (typeof text !== "string" || await blobSha(text) !== blob) {
+    throw new HostError("NotFound", { what: file }, `${file} did not give the text ${last.path} names when the record was added`);
+  }
+  return { text, blob, path: file };
 }
