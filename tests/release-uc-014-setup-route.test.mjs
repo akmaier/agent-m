@@ -151,17 +151,25 @@ test("release · A TOKEN IS SCOPED TO WHAT IT WRITES: the step states Only selec
 // guards: UC-014 step 8; EVERY STEP EXPLAINS ITSELF
 // given: the page of TST-627001
 // input: read the details elements of Step A and of Step B
-// expect: UC-014 "Both steps carry a folded What is this?": each step holds exactly one details, folded (no open attribute), whose summary reads "What is this?" and which has a body of
-//   more than forty characters beyond the summary
-test("release · UC-014 7–8: both steps carry a folded What is this?", async () => {
+// expect: UC-014 "Both steps carry a folded What is this?": among its details each step holds one whose summary reads "What is this?", folded (no open attribute), with a body of more
+//   than forty characters beyond the summary. UC-014 step 7 "A folded Why these? says what each is for": among its details Step A also holds one whose summary reads "Why these?",
+//   folded, whose body names Contents, Issues, Pull requests, Actions, Workflows and Metadata; that part is a todo until ITM-628 gives Step A that fold
+test("release · UC-014 7–8: both steps carry a folded What is this?, and Step A a folded Why these?", async (t) => {
   const { target } = await open();
+  const foldedTitled = (step, summary) => foldedIn(step).find((folded) => byTag(folded, "summary")[0]?.textContent === summary);
   for (const [title, step] of [["Step A", stepA(target)], ["Step B", stepB(target)]]) {
-    const folded = foldedIn(step);
-    assert.equal(folded.length, 1, `${title} holds one folded explanation`);
-    assert.equal(folded[0].hasAttribute("open"), false, `${title}: folded`);
-    assert.equal(byTag(folded[0], "summary")[0]?.textContent, "What is this?", `${title}: summary`);
-    assert.ok(folded[0].textContent.length > "What is this?".length + 40, `${title}: a body`);
+    const folded = foldedTitled(step, "What is this?");
+    assert.ok(folded, `${title} holds a folded What is this?`);
+    assert.equal(folded.hasAttribute("open"), false, `${title}: folded`);
+    assert.ok(folded.textContent.length > "What is this?".length + 40, `${title}: a body`);
   }
+  await t.test("Step A holds a folded Why these? that names the permissions", { todo: "ITM-628" }, () => {
+    const folded = foldedTitled(stepA(target), "Why these?");
+    assert.ok(folded, "Step A holds a folded Why these?");
+    assert.equal(folded.hasAttribute("open"), false, "Why these?: folded");
+    const missing = WHY.map(([name]) => name).filter((name) => !folded.textContent.includes(name));
+    assert.deepEqual(missing, [], "Why these? names every permission");
+  });
 });
 
 // TST-627007 · level: release · module: MOD-settings-pages
