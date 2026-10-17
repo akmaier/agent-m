@@ -286,7 +286,7 @@ const readAt = async (head, path) => {
 
 // A page load reads the files a route shows in batches, ahead of the reads of the views (Snapshot.readMany): each route's
 // paths are taken from the tree, so no view changes. A route whose list of files depends on files it has read — the open
-// queues' proposals, the process model a declaration names — reads them in a second wave. Each wave is one batch per hundred
+// queues' proposals — reads them in a second wave. Each wave is one batch per hundred
 // files; a path the tree does not hold is left out, and a file the batch could not give is read by its own fileText.
 const USE_CASE_PATH = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
 const QUEUE_INDEX_PATH = /^docs\/spec-freigaben\/[^/]+\/index\.md$/;
@@ -338,8 +338,6 @@ async function readAhead(kind) {
     const teams = new Set([...pathsOf(ASSIGNMENT_PATH).map((p) => ASSIGNMENT_PATH.exec(p)[1]), ...pathsOf(SPRINT_PATH).map((p) => SPRINT_PATH.exec(p)[1])]);
     await readWave(["docs/process.md", "SPEC.md", ...pathsOf(ITEM_PATH, SPRINT_PATH, ASSIGNMENT_PATH), ...(teams.size > 1 ? pathsOf(MODULE_PATH) : []),
       ...await recordsOfAll(pathsOf(USE_CASE_PATH))]);
-    const model = /^model_file:\s*(\S+)\s*$/m.exec(state.byPath.has("docs/process.md") ? await fileText("docs/process.md") : "")?.[1];
-    if (model) await readWave([model]);
   }
 }
 
