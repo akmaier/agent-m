@@ -35,7 +35,8 @@ const storedOf = (version) => Object.fromEntries(version.files.map((file) => [fi
 
 const CHAPTER = { name: "chapter-1.md", bytes: encode("# Chapter 1\n"), keep: true };
 const APPENDIX = { name: "appendix.md", bytes: encode("# Appendix\n"), keep: true };
-const HASHED = { name: "paid.pdf", bytes: encode("the publisher's bytes"), keep: false };
+// A file only hashed carries the `note` where its copy is kept, which registrationCommits requires; what is written of it is not looked at here.
+const HASHED = { name: "paid.pdf", bytes: encode("the publisher's bytes"), keep: false, note: "cabinet 3, shelf B" };
 
 // The entry of a registration as registrationCommits plans it, read back from the text of its plan.
 async function registered(files, licence = "may be republished — CC BY 4.0") {

@@ -268,7 +268,7 @@ test("TST-418111: stale Save retains the exact edit beside the newer baseline", 
 // module: MOD-review-pages; MOD-job-runner
 // guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; WHAT A PERSON DECIDES IS NOT SENT BACK
 // given: one otherwise valid conflicting requirement beside a valid change
-// input: Send, Review the draft, Save while undecided; in a second page choose new (the valid change already changes the requirement the conflict names, and a second change of it is refused) and Save
+// input: Send, Review the draft, Save while undecided; in a second page choose new and Save
 // expect: one endpoint call and one correction round in each, no automatic conflict correction; undecided: the proposal does not hold the conflict's rule; decided: it holds the person's exact decision
 test("TST-418112: the person alone decides a conflict without another participant call", async () => {
   const answers = [draft(candidate(), candidate({ name: CONFLICT, class: "conflict", rule: "Every loan may hide its due date." }))];
