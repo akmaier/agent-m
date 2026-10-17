@@ -23,23 +23,40 @@ const FILES = {
   "docs/architecture/MOD-writer.md": module_("MOD-writer", "Writing", []),
 };
 
+// Mermaid as a recorder: the text of every diagram the page hands it (MOD-markdown-render's renderMermaid runs the library on a node holding it).
+function recorder() {
+  const drawn = { texts: [] };
+  globalThis.mermaid = {
+    initialize() {},
+    mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) },
+    run: async ({ nodes }) => { drawn.texts.push(...nodes.map((node) => node.textContent)); },
+  };
+  return drawn;
+}
+
 // TST-680210 · level: component · module: MOD-site-frame
 // guards: UC-025; A MODULE BELONGS TO ONE SUBSYSTEM; DIAGRAMS ARE MERMAID IN MARKDOWN
 // given: ARC-001 and two module files that follow it, MOD-reader using MOD-writer and MOD-ghost, which has no file
 // input: the dashboard opened at #arc, with a token; and at #arc/MOD-reader
-// expect: the list page holds one Mermaid block with a box for each of the two module files inside ARC-001's box, the arrow from MOD-reader to MOD-writer, MOD-ghost marked missing, and a folded explanation; the page of one file holds no component diagram
+// expect: the list page hands Mermaid one diagram, with a box for each of the two module files inside ARC-001's box, the arrow from MOD-reader to MOD-writer and MOD-ghost marked missing, and folds an explanation of what it draws under it; the page of one file draws none
 test("#arc draws the component diagram of the modules; the page of one module file does not", async () => {
-  const page = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#arc" });
-  const main = page.main();
-  assert.equal(main.split('class="language-mermaid"').length - 1, 1, "one Mermaid block");
-  const diagram = /<code class="language-mermaid">([^]*?)<\/code>/.exec(main)[1];
-  assert.match(diagram, /subgraph S_ARC_001/, "the subsystem's box");
-  assert.match(diagram, /MOD_reader\[&quot;MOD-reader&lt;br\/&gt;Reading&quot;\]|MOD_reader\["MOD-reader<br\/>Reading"\]/, "a box for MOD-reader");
-  assert.match(diagram, /MOD_writer/, "a box for MOD-writer");
-  assert.match(diagram, /MOD_reader --(&gt;|>) MOD_writer/, "one arrow from the user to the module it uses");
-  assert.match(diagram, /MOD_ghost/, "the used module without a file is a box");
-  assert.match(diagram, /missing/i, "and marked missing");
-  assert.match(main, /<details class="explain"><summary>What is this\?<\/summary>[^]*one box[^]*per module/i, "the folded explanation of what the diagram draws");
-  const one = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#arc/MOD-reader" });
-  assert.equal(one.main().includes("language-mermaid"), false, "the page of one file draws none");
+  const drawn = recorder();
+  try {
+    const page = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#arc" });
+    const main = page.main();
+    assert.equal(drawn.texts.length, 1, "one Mermaid diagram");
+    const diagram = drawn.texts[0];
+    assert.match(diagram, /subgraph S_ARC_001/, "the subsystem's box");
+    assert.match(diagram, /MOD_reader\["MOD-reader<br\/>Reading"\]/, "a box for MOD-reader");
+    assert.match(diagram, /MOD_writer\["MOD-writer<br\/>Writing"\]/, "a box for MOD-writer");
+    assert.match(diagram, /MOD_reader --> MOD_writer/, "one arrow from the user to the module it uses");
+    assert.match(diagram, /MOD_ghost\["MOD-ghost — missing"\]/, "the used module without a file is a box marked missing");
+    assert.match(main, /class="mermaid"[^]*<details class="explain"><summary>What is this\?<\/summary>[^]*one box[^]*per module/i, "the folded explanation under the diagram");
+    drawn.texts.length = 0;
+    const one = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#arc/MOD-reader" });
+    assert.equal(drawn.texts.length, 0, "the page of one file draws none");
+    assert.equal(one.main().includes("class=\"mermaid\""), false);
+  } finally {
+    delete globalThis.mermaid;
+  }
 });

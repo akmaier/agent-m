@@ -186,3 +186,18 @@ test("the subject of the modules page is the page, titled Modules", async () => 
   const page = subject.paramsFor({}).page;
   for (const part of ["Modules", ADDRESS, "Version: main"]) assert.ok(page.includes(part), part);
 });
+
+// TST-680212 · level: component · module: MOD-trace-pages
+// guards: UC-025; EVERY STEP EXPLAINS ITSELF
+// given: the fixture product at main
+// input: Route.render with the key "modules" at main
+// expect: after the diagram's block, a folded explanation ("What is this?") says what the diagram draws — one box per module, in the box of its subsystem, one arrow to each module it uses, a used module without a file marked missing
+test("the modules page folds an explanation of what the diagram draws under it", async () => {
+  const { target } = await render(hostOf());
+  const kids = find(target, (node) => node.localName === "div" && node.className === "modules-body")[0].childNodes;
+  const explained = [...kids].filter((node) => node.nodeType === 1 && node.className === "explain");
+  assert.equal(explained.length, 1, "one folded explanation");
+  assert.ok([...kids].indexOf(explained[0]) > [...kids].findIndex((node) => node.className === "mermaid"), "under the diagram");
+  assert.match(explained[0].textContent, /What is this\?/);
+  assert.match(explained[0].textContent, /one box per module[^]*one arrow[^]*missing/i);
+});
