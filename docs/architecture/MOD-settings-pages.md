@@ -61,6 +61,8 @@ uses:
   - MOD-source-register.changedPassages
   - MOD-source-register.recogniseLegalText
   - MOD-source-register.permittedPlaces
+  - MOD-text-tools.sha256
+  - MOD-text-tools.finding
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.resourceFindings
   - MOD-resource-list.readPin
@@ -238,6 +240,8 @@ reaches.
 - MOD-source-register.sourceSchemas, MOD-source-register.registrationCommits, MOD-source-register.versionCommits,
   MOD-source-register.linkedVersion, MOD-source-register.affectedRequirements, MOD-source-register.changedPassages,
   MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links.
+- MOD-text-tools.sha256 — the files of a source hashed in the browser; MOD-text-tools.finding — the findings a form's
+  checks give.
 - MOD-resource-list.resourceSchema, MOD-resource-list.resourceFindings, MOD-resource-list.readPin,
   MOD-resource-list.checkPlan, MOD-resource-list.newerState — resources; MOD-resource-list.resourceStrategies — the
   recipe of a check job, handed to the frame; MOD-reuse-facts.registryFacts, MOD-reuse-facts.hubFacts — what a

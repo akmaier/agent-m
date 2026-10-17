@@ -170,8 +170,10 @@ names no source.
   and checks each against its recorded SHA-256. Throws `HashMismatch { file, expected, actual }`, so that a changed file is caught
   before anything is derived from it (UC-005), `ContentUnreadable { repository, reason }` when the holder cannot be read
   with the credentials at hand, and what the host names.
-- `affectedRequirements(spec: string, source: string) -> string[]` — the names of the requirements one of whose source
-  items names this source, read with MOD-spec-document.
+- `affectedRequirements(spec: string, register: Document[], source: string) -> string[]` — the names of the requirements
+  one of whose source items names this source, read with MOD-spec-document: an item names it when the register entry
+  the item names, by identifier, title or a standard's designation, is the entry `source` names, as `linkedVersion` and
+  `sourceFindings` read an item.
 - `sourceFindings(requirements: Requirement[], links: Document, register: Document[]) -> Finding[]` — an error under `A
   REQUIREMENT HAS A REGISTERED SOURCE` for each requirement none of whose source items names a source the product links,
   naming the requirement, its line and its items.
