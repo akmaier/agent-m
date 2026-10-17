@@ -278,7 +278,7 @@ export const route = {
       try {
         const plan = state.route === "legal-text"
           ? [{ repository: instanceRepo, files: [{ path: `docs/sources/${id}.md`, content: text }] }]
-          : await registrationCommits(entry, state.files.map((file) => ({ name: file.name, bytes: file.bytes, keep: !file.onlyHashed })), instanceRepo);
+          : await registrationCommits(entry, state.files.map((file) => ({ name: file.name, bytes: file.bytes, keep: !file.onlyHashed, note: file.note })), instanceRepo);
         const ordered = [...plan.filter((item) => item.repository !== instanceRepo), ...plan.filter((item) => item.repository === instanceRepo)];
         const done = [];
         for (const item of ordered) {
@@ -331,8 +331,15 @@ export const route = {
         state.files.push(entryFile);
         const only = el("input", "library-file-only-hashed");
         only.type = "checkbox";
-        only.addEventListener("change", () => { entryFile.onlyHashed = only.checked; buildForm(); });
-        fileRows.append(el("p", null, el("span", "library-file-hash", `${file.name}: ${entryFile.sha}`), " ", el("label", null, only, " Only hash it — store it nowhere")));
+        const keptAt = el("input", "library-file-kept-at");
+        keptAt.autocomplete = "off"; keptAt.spellcheck = false;
+        const keptAtLabel = el("label", "library-file-kept-at-label", " Where your copy is kept ", keptAt);
+        keptAtLabel.hidden = true;
+        only.addEventListener("change", () => { entryFile.onlyHashed = only.checked; keptAtLabel.hidden = !only.checked; buildForm(); });
+        const rememberNote = () => { entryFile.note = keptAt.value; };
+        keptAt.addEventListener("input", rememberNote);
+        keptAt.addEventListener("change", rememberNote);
+        fileRows.append(el("p", null, el("span", "library-file-hash", `${file.name}: ${entryFile.sha}`), " ", el("label", null, only, " Only hash it — store it nowhere"), " ", keptAtLabel));
       }
       buildForm();
     });
