@@ -14,13 +14,13 @@
 // ACCEPTED IN ONE CLICK
 // Level: system
 //
-// The browser is the DOM harness of tests/review-pages-use-cases.test.mjs, imported unchanged. The product repository,
+// The browser is the DOM harness of tests/review-pages-harness.mjs, imported unchanged. The product repository,
 // the instance source-register repository and GitHub are fixtures: the review page uses in-memory Host objects, and the
 // instance workflow path uses a temporary git origin plus checkout. Each test states its input, precondition and
 // expected result before it runs. Counter-proof notes are recorded in the sprint review; fixture counter-proofs are
 // included here as known positives and stale/refused flows.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

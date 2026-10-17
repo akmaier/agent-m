@@ -11,7 +11,7 @@
 // Guards: UC-006; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; A QUEUE IS ACCEPTED IN ITS ORDER; A STALE APPROVAL IS NOT APPLIED; A REQUIREMENT HAS A REGISTERED SOURCE; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged (its document and its localStorage). The repository is a Host
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged (its document and its localStorage). The repository is a Host
 // of the tests' own over one repository in memory with a history, keeping to MOD-repository-hosts' interface; every call recorded. The real
 // MOD-spec-changes, MOD-approvals, MOD-source-register, MOD-documents and MOD-browser-store run as they are. Nothing reaches the network. The product
 // is the small one tests/spec-changes-accept.test.mjs holds: a SPEC of two sections, a queue whose entries are 05 (replaces section 1 and creates the
@@ -31,7 +31,7 @@
 //     and the record, and no text of a proposal; for a product's SPEC there is neither, and <a class="token-step"> links #add-product.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
