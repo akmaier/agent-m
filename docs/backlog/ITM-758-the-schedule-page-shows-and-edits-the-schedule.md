@@ -26,19 +26,20 @@ origin:
 
 ## Outcome
 
-MOD-test-pages' route `schedule`, the part before *Save*, as its file states it (UC-027 steps 1 to 4, 3b). It shows:
+MOD-test-pages' route `schedule`, the part before *Save*, as its file states it (UC-027 steps 1 to 4). It shows:
 - the table of levels by occasion, from a form of the schedule's schema, with each row's number of tests;
 - the book's default, marked as such until one is saved;
 - a folded *What is this?* per row and column, naming the book's chapter;
 - the *release candidate* column, which cannot be cleared, and the commit and pull request cells of `paid`, which
   refuse, each with its reason (`scheduleFindings`);
 - the nightly time and the test command;
-- the runner per row, among the participants with *run code and tests*, and the registration page of an unregistered
-  self-hosted runner (3b);
+- the runner per row, among the participants with *run code and tests* (`eligible`);
 - the secrets needed, by name (`secretsNeeded`), with the server's secrets page and its explanation, never asking for
   a value.
 
-`src/test-pages/index.mjs` builds only `release`. Saving is ITM-759.
+`src/test-pages/index.mjs` builds only `release`. Saving is ITM-759. UC-027 3b — whether a chosen self-hosted runner is
+registered, the server's runner registration page, the command to run on that machine, and rows waiting until a runner
+is online — is ITM-850: no accepted interface gives a runner's state or that page.
 
 ## Acceptance
 
