@@ -1,7 +1,8 @@
-// facts.mjs — productFacts with the scope `work`: one product's facts, read once from its default branch through its host
+// facts.mjs — productFacts: one product's facts, read once from its default branch through its host
 // (docs/architecture/MOD-progress-measures.md, Interfaces: Facts, productFacts; STATUS IS DERIVED FROM THE RECORDS, PROGRESS AND
-// JOB STATE ARE DERIVED, NOT STORED). The scope `all` is not built yet (index.mjs); every fact the scope `work` does not name is
-// "unknown".
+// JOB STATE ARE DERIVED, NOT STORED). The scope `work` reads what is listed below; the scope `all` adds the requirements, the trace
+// graph, the tests, the branch `test-results`, the tags and `info`. Every other fact is "unknown". The files are read ahead through
+// Snapshot.readMany, in batches of a hundred where the host can.
 //
 // Module: MOD-progress-measures
 //
@@ -25,10 +26,16 @@ import { declarationSchema, gateSchema, gateStates, roleAssignmentSchema, workfl
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { heldItems, itemStates, planSchemas, undecidedHeads } from "../work-plans/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
+import { testDeclarations } from "../test-document/index.mjs";
+import { traceGraph } from "../trace-graph/index.mjs";
 
 const DECLARATION = "docs/process.md";
 const PARTICIPANTS = "docs/participants.md";
 const INSTANCE_SPEC = "SPEC.md";
+const SPEC = "SPEC.md";
+const JOB_RECORDS = "docs/jobs/";
+const RESULTS_BRANCH = "test-results";
 const ORDER = "docs/plan/order.md";
 const PLAN_STEP = /^docs\/plan\/ITM-\d{3,}-[^/]+\.md$/;
 const BACKLOG_ITEM = /^docs\/backlog\/ITM-\d{3,}-[^/]+\.md$/;
@@ -106,10 +113,33 @@ function checkedBlobs(records, snapshot) {
   return blobs;
 }
 
+// The branch `test-results`: its snapshot, null while the repository has none, "unknown" where the host does no server operations.
+async function resultsBranch(host) {
+  try {
+    return await host.readSnapshot(RESULTS_BRANCH);
+  } catch (error) {
+    if (error?.name === "NotFound") return null;
+    if (error?.name === "NotSupported") return "unknown";
+    throw error;
+  }
+}
+
+// The facts only the scope `all` reads: the requirements of the SPEC, the trace graph, the declarations of the tests the graph found
+// (the paths of its test nodes; their texts are read already), the branch `test-results` and the tags.
+async function allFacts(host, snapshot) {
+  const specText = await snapshot.read(SPEC);
+  const requirements = specText === null ? [] : [...parseSpec(specText).requirements.keys()];
+  const [graph, results, tags] = await Promise.all([traceGraph(snapshot, { commit: snapshot.commit }), resultsBranch(host), orUnknown(() => host.listTags())]);
+  const testFiles = [...new Set([...graph.nodes.values()].filter((node) => node.kind === "TST").map((node) => node.path))];
+  const tests = (await Promise.all(testFiles.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
+  return { graph, requirements, tags, results, tests };
+}
+
 /**
  * productFacts(host, instance, instanceAt, now, bridges, options?) -> Promise<Facts> — with the scope `work`, what
  * MOD-progress-measures' file lists for it, read once from the product's default branch through `host`; every other field is
- * "unknown". The scope `all` is not built: a call for it, or with no options, is refused before anything is read.
+ * "unknown". With the scope `all`, the default, it adds the requirements of SPEC.md, the trace graph, the tests the graph found, the
+ * branch `test-results`, the tags and the repository's information; modelSince, schedule, ci and resourceNeeds stay "unknown".
  * @param {object} host MOD-repository-hosts' Host of the product
  * @param {object} instance the instance's Snapshot, for its participants and SPEC
  * @param {(commit: string) => Promise<object>} instanceAt the instance's Snapshot at a commit, for the commit a declaration names
@@ -120,8 +150,8 @@ function checkedBlobs(records, snapshot) {
  */
 export async function productFacts(host, instance, instanceAt, now, bridges, options = { scope: "all" }) {
   const scope = options?.scope ?? "all";
-  if (scope === "all") throw new Error('productFacts: the scope "all" is not built yet; ask for the scope "work"');
-  if (scope !== "work") throw new TypeError(`a scope is "all" or "work": ${String(scope)}`);
+  if (scope !== "all" && scope !== "work") throw new TypeError(`a scope is "all" or "work": ${String(scope)}`);
+  const all = scope === "all";
 
   const info = await orUnknown(() => host.repositoryInfo());
   const branch = info === "unknown" ? CHECKED_OUT : info.defaultBranch;
@@ -131,10 +161,17 @@ export async function productFacts(host, instance, instanceAt, now, bridges, opt
   const pathsOf = (pattern) => snapshot.paths.filter((path) => pattern.test(path)).sort();
 
   const planned = snapshot.paths.includes(ORDER) || snapshot.paths.some((path) => PLAN_STEP.test(path));
+  const itemPaths = pathsOf(planned ? PLAN_STEP : BACKLOG_ITEM);
+  // Both scopes tell the snapshot every file they read themselves — and the job records listJobs reads — before the first read, so
+  // that the snapshot fetches them in batches of a hundred where the host can (Snapshot.readMany); the instance's two files likewise.
+  await snapshot.readMany?.([DECLARATION, ORDER, ...(all ? [SPEC] : []), ...itemPaths, ...pathsOf(SPRINT), ...pathsOf(ASSIGNMENT),
+    ...pathsOf(GATE_RECORD), ...pathsOf(MODULE_FILE), ...snapshot.paths.filter((path) => path.startsWith(JOB_RECORDS))]
+    .filter((path) => snapshot.paths.includes(path)));
+  await instance.readMany?.([PARTICIPANTS, ...(snapshot.paths.includes(DECLARATION) ? [INSTANCE_SPEC] : [])].filter((path) => instance.paths?.includes(path)));
   const [declaration, order, items, sprints, assignments, gates, modules] = await Promise.all([
     snapshot.paths.includes(DECLARATION) ? readDocument(declarationSchema, DECLARATION, (await snapshot.read(DECLARATION)) ?? "") : null,
     snapshot.paths.includes(ORDER) ? readDocument(planSchemas.planOrder, ORDER, (await snapshot.read(ORDER)) ?? "") : null,
-    readAll(snapshot, pathsOf(planned ? PLAN_STEP : BACKLOG_ITEM), artifactSchemas().item),
+    readAll(snapshot, itemPaths, artifactSchemas().item),
     readAll(snapshot, pathsOf(SPRINT), planSchemas.sprint),
     readAll(snapshot, pathsOf(ASSIGNMENT), roleAssignmentSchema),
     readAll(snapshot, pathsOf(GATE_RECORD), gateSchema),
@@ -159,11 +196,12 @@ export async function productFacts(host, instance, instanceAt, now, bridges, opt
     }
   }
 
+  const more = all ? await allFacts(host, snapshot) : { graph: "unknown", requirements: "unknown", tags: "unknown", results: "unknown", tests: "unknown" };
   return {
-    address, info: "unknown", snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues,
+    address, info: all ? info : "unknown", snapshot, graph: more.graph, requirements: more.requirements, statuses: approvals, queues: changeQueues,
     declaration, workflow, model, modelUnread, modelSince: "unknown", participants,
     plan: { order, items, states: planStates }, sprints, assignments, held: heldItems(sprints, items, modules, pullRequests, onDefault),
-    gates, gateStates: states, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: "unknown", results: "unknown",
-    tests: "unknown", resourceNeeds: "unknown",
+    gates, gateStates: states, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: more.tags, results: more.results,
+    tests: more.tests, resourceNeeds: "unknown",
   };
 }

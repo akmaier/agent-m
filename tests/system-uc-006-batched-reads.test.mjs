@@ -17,16 +17,15 @@ import assert from "node:assert/strict";
 import { productFiles, fakeGitHub, openPage, byClass, ENTRY_ID } from "./uc-006-batched-reads-harness.mjs";
 
 const QUEUE = "docs/spec-freigaben/2026-03-01_sample";
-// The two files the page reads by their own reads, outside the batches: the entry's proposal and rationale. The queue's index and decisions
-// come in one batch, and the SPEC (which the page needs before the graph is built) in the next one, both before the trace graph's.
-const OWN_READS = [`${QUEUE}/07-entry-7.begruendung.md`, `${QUEUE}/07-entry-7.md`];
+// The page reads no file on its own: the queue's index and decisions come in one batch, the SPEC (which the page needs before the graph is
+// built) in the next one, the entry's proposal and rationale in a third, all before the trace graph's.
 
 // TST-479101 · level: system · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
 // guards: UC-006 main flow steps 1 and 2; UC-006 3b; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
 // given: a product on GitHub with 1,332 files (SPEC.md, 2 use cases, 1,329 backlog items) and one open entry 07 that changes "A WRITE RULE", which UC-002 realises; the reviewer's token is stored
 // input: open the SPEC-entry page of entry 07
-// expect: the page shows the current text, the proposal, the difference, the rationale and the impact list "A WRITE RULE — changed, named by UC-002", as before; in all at most 21 requests (1 repository + 2 snapshot + 16 GraphQL queries: one of the queue's 2 files, one of SPEC.md, and the trace graph's 13 of 100 files and one of 31 + the 2 own reads), of which the GETs of file contents are exactly those 2 files; nothing is written
-test("TST-479101: UC-006 3b opens an entry with its impact list over 1,332 files in at most 21 requests", async () => {
+// expect: the page shows the current text, the proposal, the difference, the rationale and the impact list "A WRITE RULE — changed, named by UC-002", as before; in all at most 20 requests (1 repository + 2 snapshot + 17 GraphQL queries: one of the queue's 2 files, one of SPEC.md, one of the entry's 2 files (proposal and rationale), and the trace graph's 13 of 100 files and one of 31), of which the GETs of file contents are none; nothing is written
+test("TST-479101: UC-006 3b opens an entry with its impact list over 1,332 files in at most 20 requests", async () => {
   const fake = fakeGitHub(productFiles(1332));
   const page = await openPage(fake, { id: ENTRY_ID });
 
@@ -37,11 +36,11 @@ test("TST-479101: UC-006 3b opens an entry with its impact list over 1,332 files
   assert.match(byClass(page, "section", "rationale")[0].textContent, /fixture reviewer needs a proposed wording/);
   assert.equal(byClass(page, "ul", "impact")[0].textContent, "A WRITE RULE — changed, named by UC-002");
 
-  // 1,332 files, of which SPEC.md is read before the graph; 1,331 left, in queries of 100: 13 of 100 and one of 31.
-  assert.deepEqual(fake.namedPerQuery(), [2, 1, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 31]);
-  assert.deepEqual(fake.contentPaths().sort(), OWN_READS);
-  assert.ok(fake.requests.length <= 21, `${fake.requests.length} requests, at most 21`);
-  assert.deepEqual(fake.requests.filter((r) => r.method !== "GET").map((r) => `${r.method} ${r.url.pathname}`), Array(16).fill("POST /graphql"), "only the 16 queries are POSTs: nothing is written");
+  // 1,332 files, of which SPEC.md is read before the graph; 1,331 left, in queries of 100: 13 of 100 and one of 31. The entry's proposal and rationale are the 2 of the third query.
+  assert.deepEqual(fake.namedPerQuery(), [2, 1, 2, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 31]);
+  assert.deepEqual(fake.contentPaths(), []);
+  assert.ok(fake.requests.length <= 20, `${fake.requests.length} requests, at most 20`);
+  assert.deepEqual(fake.requests.filter((r) => r.method !== "GET").map((r) => `${r.method} ${r.url.pathname}`), Array(17).fill("POST /graphql"), "only the 17 queries are POSTs: nothing is written");
 });
 
 // TST-479102 · level: system · module: MOD-review-pages; MOD-spec-changes; MOD-repository-hosts
@@ -64,23 +63,23 @@ test("TST-479102: UC-006 1 opens the SPEC entries list over 1,332 files in at mo
 // guards: UC-006 3b; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the product of 1,332 files; GraphQL answers UC-002 (the file that names "A WRITE RULE") as truncated, backlog item 1 as binary and backlog item 2 as not given
 // input: open the SPEC-entry page of entry 07
-// expect: the impact list still reads "A WRITE RULE — changed, named by UC-002", since the three files the batch could not give are fetched by their own reads: the GETs of file contents are the 2 own reads and those 3 files, 5 in all; the queries are the queue's 2 and the trace graph's 14
+// expect: the impact list still reads "A WRITE RULE — changed, named by UC-002", since the three files the batch could not give are fetched by their own reads: the GETs of file contents are those 3 files, 3 in all; the queries are the queue's 2, the entry's 1 and the trace graph's 14, 17 in all
 test("TST-479103: UC-006 3b still names the use case whose file the batch could not give whole", async () => {
   const items = ["docs/backlog/ITM-0001-item.md", "docs/backlog/ITM-0002-item.md"], uc2 = "docs/use-cases/UC-002-write-a-file.md";
   const fake = fakeGitHub(productFiles(1332), { special: { [uc2]: "truncated", [items[0]]: "binary", [items[1]]: "absent" } });
   const page = await openPage(fake, { id: ENTRY_ID });
 
   assert.equal(byClass(page, "ul", "impact")[0].textContent, "A WRITE RULE — changed, named by UC-002");
-  assert.deepEqual(fake.contentPaths().sort(), [...OWN_READS, ...items, uc2].sort());
-  assert.equal(fake.contentPaths().length, 5);
-  assert.equal(fake.graphqlRequests().length, 16);
+  assert.deepEqual(fake.contentPaths().sort(), [...items, uc2].sort());
+  assert.equal(fake.contentPaths().length, 3);
+  assert.equal(fake.graphqlRequests().length, 17);
 });
 
 // TST-479104 · level: system · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
 // guards: UC-006 3b; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the product of 1,332 files on a GitHub whose /graphql answers 404 (a server that serves none); the reviewer's token
 // input: open the SPEC-entry page of entry 07
-// expect: the page is the same as with GraphQL (impact list "A WRITE RULE — changed, named by UC-002", the five sections); the batch is tried once by each of the three reads ahead (3 requests to /graphql: the queue's two files, SPEC.md, the trace graph's first 100), then every file is read on its own: 1,331 backlog and use-case files + the 5 files of the page = 1,336 GETs of file contents
+// expect: the page is the same as with GraphQL (impact list "A WRITE RULE — changed, named by UC-002", the five sections); the batch is tried once by each of the four reads ahead (4 requests to /graphql: the queue's two files, SPEC.md, the entry's proposal and rationale, the trace graph's first 100), then every file is read on its own: 1,331 backlog and use-case files + the 5 files of the page = 1,336 GETs of file contents
 test("TST-479104: UC-006 3b is unchanged on a server that serves no /graphql", async () => {
   const fake = fakeGitHub(productFiles(1332), { graphql: () => new Response(JSON.stringify({ message: "Not Found" }), { status: 404, headers: { "Content-Type": "application/json" } }) });
   const page = await openPage(fake, { id: ENTRY_ID });
@@ -89,7 +88,7 @@ test("TST-479104: UC-006 3b is unchanged on a server that serves no /graphql", a
   assert.match(byClass(page, "section", "current")[0].textContent, /A writer writes a file whole/);
   assert.match(byClass(page, "section", "proposal")[0].textContent, /A writer writes a file entirely/);
   assert.match(byClass(page, "section", "rationale")[0].textContent, /fixture reviewer needs a proposed wording/);
-  assert.equal(fake.graphqlRequests().length, 3, "the batch is tried once by each read ahead and no more");
+  assert.equal(fake.graphqlRequests().length, 4, "the batch is tried once by each read ahead and no more");
   assert.equal(fake.contentPaths().length, 1336);
 });
 

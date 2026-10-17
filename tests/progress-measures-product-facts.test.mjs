@@ -5,8 +5,8 @@
 // the declaration with its model and workflow, the participants, the plan or the backlog, the sprints, the role assignments, the
 // gate records with their states, the job records without asking their live state, and the pull requests with `held` —, and every
 // other fact is `"unknown"`." and, of the scope `all`, "for the head commits MOD-work-plans' `undecidedHeads` names, whether the
-// default branch contains them, through the host's `containsCommit`, which `held` is computed with". The scope `all` is not built:
-// a call for it is refused (index.mjs).
+// default branch contains them, through the host's `containsCommit`, which `held` is computed with". The scope `all` adds the
+// requirements, the graph, the tests, the branch test-results, the tags and the repository's information.
 // Run: node --test tests/progress-measures-product-facts.test.mjs
 //
 // Module: MOD-progress-measures
@@ -140,7 +140,12 @@ function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, se
       if (!serverOperations) throw named("NotSupported");
       return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" };
     },
-    async readSnapshot(ref) { calls.push(["readSnapshot", ref]); return product; },
+    async readSnapshot(ref) {
+      calls.push(["readSnapshot", ref]);
+      if (ref === "test-results") throw named("NotFound", "no branch test-results");
+      return product;
+    },
+    async listTags(...pattern) { calls.push(["listTags", ...pattern]); return [{ name: "v2026.1.0", commit: H1 }]; },
     async listPullRequests(...filter) {
       calls.push(["listPullRequests", ...filter]);
       if (!serverOperations) throw named("NotSupported");
@@ -407,14 +412,24 @@ test("productFacts, scope work — a product with a plan has its steps and order
 
 // TST-536015 · level: unit · module: MOD-progress-measures
 // guards: UC-049
-// given: the fixture product; known positive first — the scope work resolves
-// input: productFacts(…) with the scope "all", and with no options (the default, "all")
-// expect: both reject with an error whose message names the scope all as not built; the host is not called
-test("productFacts — the scope all is not built and is refused before the host is called", async () => {
+// given: the fixture product, whose SPEC.md holds no requirement and which has no branch test-results (readSnapshot("test-results") fails with NotFound) and one tag v2026.1.0; known positive first — the scope work resolves
+// input: productFacts(…) with the scope "all", and with no options (the default, "all"); and with the scope "everything"
+// expect: both of the first resolve; requirements [] (SPEC.md holds none); tags [v2026.1.0 on the commit H1]; results null; graph.commit the snapshot's commit; tests []; info.defaultBranch "main"; modelSince, schedule, ci and resourceNeeds "unknown"; the host is asked once for the repository's information, for the snapshot of "main", for the pull requests, for the snapshot of "test-results" and for the tags; the scope "everything" rejects with a TypeError before the host is called
+test("productFacts — the scope all adds the requirements, graph, tests, results, tags and information; another scope is refused", async () => {
   assert.ok(await work(fixture()));
   for (const options of [{ scope: "all" }, undefined]) {
     const f = fixture();
-    await assert.rejects(productFacts(f.host, f.instance, f.instanceAt, NOW, {}, options), /scope "all".*not built/);
-    assert.deepEqual(f.calls, []);
+    const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, {}, options);
+    assert.deepEqual(facts.requirements, []);
+    assert.deepEqual(facts.tags, [{ name: "v2026.1.0", commit: H1 }]);
+    assert.equal(facts.results, null);
+    assert.equal(facts.graph.commit, "c".repeat(40));
+    assert.deepEqual(facts.tests, []);
+    assert.equal(facts.info.defaultBranch, "main");
+    for (const field of ["modelSince", "schedule", "ci", "resourceNeeds"]) assert.equal(facts[field], "unknown", field);
+    assert.deepEqual(f.calls, [["repositoryInfo"], ["readSnapshot", "main"], ["listPullRequests"], ["readSnapshot", "test-results"], ["listTags"]]);
   }
+  const f = fixture();
+  await assert.rejects(productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "everything" }), { name: "TypeError" });
+  assert.deepEqual(f.calls, []);
 });

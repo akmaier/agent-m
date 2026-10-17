@@ -269,6 +269,7 @@ const ITEM_PATH = /^docs\/backlog\/ITM-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/\d+\.md$/;
 const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_PATH = /^docs\/architecture\/MOD-[^/]+\.md$/;
+const DECISION_PATH = /^docs\/architecture\/ARC-\d{3}-[^/]+\.md$/;
 const pathsOf = (...res) => state.tree.map((e) => e.path).filter((p) => res.some((re) => re.test(p)));
 // The approval records a status of `path` reads: statusByNames run with a reader that notes what it is asked.
 async function recordsRead(path, blob) {
@@ -302,6 +303,12 @@ async function readAhead(kind) {
     await readWave(pathsOf(USE_CASE_PATH));
   } else if (kind === "arc") {
     await readWave(pathsOf(ARCHITECTURE_FILE));
+  } else if (kind === "use-case") {
+    await readWave(pathsOf(USE_CASE_PATH));
+  } else if (kind === "decision") {
+    await readWave(pathsOf(DECISION_PATH));
+  } else if (kind === "module") {
+    await readWave(pathsOf(MODULE_PATH));
   } else if (kind === "spec") {
     await readWave(["SPEC.md", ...pathsOf(QUEUE_HEAD_PATH)]);
     await readWave(await openProposals());
@@ -727,7 +734,7 @@ async function route() {
     await available;
     loadProducts();
     renderProductSelector();
-    if (state.commit && !a && ["", "uc", "arc", "spec", "backlog"].includes(kind || "")) await readAhead(kind || "");
+    if (state.commit && !a && ["", "uc", "arc", "spec", "backlog", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");
     const reviewed = reviewTargets(kind, a, b);
     if (reviewed) {
       await renderReviewPages(reviewed, showsSetup(kind, a) ? [setupBanner()] : []);
