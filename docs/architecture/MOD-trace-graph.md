@@ -43,6 +43,7 @@ provides:
   - moduleRows
   - compareGraphs
   - selfSufficiencyFindings
+  - systemDecisions
 ---
 # MOD-trace-graph The trace graph and everything derived from it
 
@@ -161,6 +162,8 @@ identifier, and which register entry an item names is MOD-source-register's to s
   tests that exercise those modules and the requirements those tests guard; the requirements and use cases the files name
   and no longer name; the plan steps and backlog items that name an affected module (`AN ARCHITECTURE CHANGE IS NOT
   ACCEPTED WITHOUT AN IMPACT LIST`).
+- `systemDecisions(graph: Graph) -> { system: string[], subsystems: string[] }` — the decisions that refine no other,
+  and the subsystems' decisions: those that refine one of them and design at least one module; each list by identifier.
 - `moduleOrder(graph: Graph) -> { order: string[] } | { cycle: string[] }` — the modules in an order in which every module
   stands after every module whose interfaces it uses, or the modules of a cycle when there is one (`A RUN FOLLOWS THE
   MODULES' INTERFACES`).

@@ -12,6 +12,7 @@ uses:
   - MOD-product-process.holdsRole
   - MOD-progress-measures.Facts
   - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.systemDecisions
   - MOD-trace-graph.moduleOrder
   - MOD-job-ledger.JobRecord
   - MOD-job-ledger.JobRow
@@ -30,6 +31,7 @@ uses:
   - MOD-job-runner.Strategies
   - MOD-job-runner.JobContext
   - MOD-job-runner.Part
+  - MOD-job-runner.sourcesOf
 provides:
   - Run
   - Action
@@ -134,7 +136,8 @@ MOD-repository-hosts'.
 - MOD-work-plans.ItemState, startable — which steps or items may start, and why not.
 - MOD-product-process.Workflow, holdsRole — the phases, gates and roles of the product.
 - MOD-progress-measures.Facts — the facts of the product, gathered once.
-- MOD-trace-graph.traceGraph, moduleOrder — the order of modules by their uses, and a cycle.
+- MOD-trace-graph.traceGraph, moduleOrder — the order of modules by their uses, and a cycle; MOD-trace-graph.systemDecisions —
+  the decisions of the system and of its subsystems.
 - MOD-job-ledger.JobRecord, JobRow, appendToRecord, RecordPart — the run's record, its jobs with their states and
   costs, and the part a person's raised limits append.
 - MOD-runtimes.routesFor — the routes of a participant.
@@ -143,4 +146,4 @@ MOD-repository-hosts'.
 - MOD-documents.Document, readDocument — the module files and decisions of the inputs.
 - MOD-repository-hosts.Host, Snapshot, commitFiles — the product's files, and the commit of raised limits.
 - MOD-text-tools.Finding, finding — the finding of a refused run.
-- MOD-job-runner.Strategies, JobContext, Part — the form of the recipe.
+- MOD-job-runner.Strategies, JobContext, Part — the form of the recipe; MOD-job-runner.sourcesOf — the sources a part carries.

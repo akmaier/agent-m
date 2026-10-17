@@ -15,6 +15,7 @@ uses:
   - MOD-spec-changes.queues
   - MOD-spec-document.parseSpec
   - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.systemDecisions
   - MOD-trace-graph.moduleOrder
   - MOD-trace-graph.coverageGaps
   - MOD-documents.Schema
@@ -44,6 +45,7 @@ uses:
   - MOD-job-runner.Strategies
   - MOD-job-runner.JobContext
   - MOD-job-runner.Part
+  - MOD-job-runner.sourcesOf
   - MOD-job-runner.JobResult
   - MOD-job-runner.provenanceLines
 provides:
@@ -245,6 +247,7 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - MOD-model-catalogue.Model — the phases a plan's steps belong to.
 - MOD-approvals.statuses, MOD-spec-changes.Queue, queues, MOD-spec-document.parseSpec — whether what an item names is
   accepted.
+- MOD-trace-graph.systemDecisions — the decisions of the system and of its subsystems, for `architecture-and-model`.
 - MOD-trace-graph.traceGraph, moduleOrder, coverageGaps — the order of modules by their uses, and what no item realises.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, appendSection, classifyCandidates,
   artifactSchemas — the files by their schemas, the item schema, the appended sprint sections, and items that restate
@@ -257,5 +260,6 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   commitFiles — the product's files and history, its pull requests and issues, a sprint's branch, and the saves'
   commits.
 - MOD-text-tools.Finding, finding — the findings.
+- MOD-job-runner.sourcesOf — the sources a part carries.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
   provenance of a drafted commit.
