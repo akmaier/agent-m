@@ -69,3 +69,11 @@ UC-020 step 5 (history) and 5d. `requirementHistory` is in MOD-spec-changes' fil
 - A requirement older than its records shows the commit that introduced it.
 - Its tests in `tests/trace-pages-specification.test.mjs` guard `A REQUIREMENT SHOWS ITS HISTORY` by name (queue `2026-10-17c`).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**At its gate on #697 (`docs/gates/20261017-0634-development-release-testing-3c18.md`): it waits for ITM-652.**
+- The history cost 380 requests per first opening of a requirement on this repository, 286 of them API calls on the
+  person's token. Without a token it cannot load.
+- ITM-652 gives MOD-repository-hosts `readFileAt` and `readHistory(…, { changes: false })`, after akmaier accepts their
+  draft.
+- `requirementHistory` then reads `SPEC.md`'s commits in one request per page, and their texts in batches. MOD-spec-changes'
+  Uses gain `readFileAt` in the same draft.

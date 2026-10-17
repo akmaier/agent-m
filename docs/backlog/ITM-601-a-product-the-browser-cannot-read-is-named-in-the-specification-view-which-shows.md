@@ -6,6 +6,8 @@ realises:
   - UC-020
 modules:
   - MOD-trace-pages
+  - MOD-site-frame
+  - MOD-review-pages
 builds_on:
 tests:
   - unit
@@ -40,6 +42,40 @@ UC-020 2a: "the browser says so and shows nothing". `flow.mjs:126-136` handles n
   sentence is wrong when the tags could not be read. The failure is named with `readProblem`, and only the handed ref
   is offered.
 
+**Settled at sprint team1/67's start. Selectable.**
+- **The modules whose files it changes** (sprint 65's agreement):
+  - MOD-site-frame: `index.mjs`, where `readProblem` stands beside `explain`, since its Parts name `index.mjs` "the
+    interface" and no other part for it;
+  - MOD-review-pages: `common.mjs` loses `problem`, and its five importers call `readProblem`: `edit.mjs:17`,
+    `entry-edit.mjs:17`, `conversation-draft.mjs:18`, `flow.mjs:16` and `jobs.mjs:27`;
+  - MOD-trace-pages: `flow.mjs`, its three failure lines and `tagsOf`.
+  - No topic is added, so `explanations.md` is not changed.
+- **The grep, full output read.**
+  - `grep -rn "problem(\|function problem" src/review-pages` finds the definition at `common.mjs:47` and its calls at
+    `edit.mjs:58`, `conversation-draft.mjs:98`, `common.mjs:76`, `entry-edit.mjs:36`, `flow.mjs:110`, and `jobs.mjs:107`,
+    `172`, `291` and `505`.
+  - Its text "is private or does not exist" is found in `src/review-pages/common.mjs` alone, and in no test.
+  - In MOD-trace-pages, `problemLine` (`flow.mjs:87`, used at :108 and :123), the chosen ref's line (:304) and
+    `tagsOf` (:232, used at :283).
+  - Tests that read those lines: `tests/trace-pages-specification.test.mjs` at :247 and :295 ("No release is tagged
+    yet"), :370 and :682 (`traces-problem`).
+  - The class `problem` is also read in `tests/prompt-bar.test.mjs:445`, `tests/release-uc-006-batched-reads.test.mjs:73,
+    99` and `tests/review-pages-derivation-split-candidate.test.mjs`. The last one's `problem` is the split panel's own
+    paragraph, not a failed read, and stays.
+- **The rule is MOD-site-frame's** (`readProblem`, accepted). For `NotFound` with no token stored, the private-or-missing
+  sentence and the link to store one. Otherwise the host's own message, and the link where no token is stored. Nothing of
+  it is written again in MOD-review-pages or MOD-trace-pages.
+- **The two failed reads ITM-594 left plain:**
+  - a chosen version that cannot be read is named by `readProblem`;
+  - a failed `listTags` is named by `readProblem`, never as "No release is tagged yet". Only the handed ref is offered.
+- **Reads, against the token budget** (sprint 66's agreement): it adds no request. Every failure it names is one the
+  code already catches.
+- **The expected results that change** (sprint 64): the developer runs the three modules' tests and their callers',
+  release tests included, on a draft, and lists every changed one before the tests-only commit.
+- **DOM assertions** (sprint 65): compare a boolean or a string, never a node.
+- **Reachable:** the live `#spec` for MOD-trace-pages. The review pages' failed reads are reached through their routes,
+  as today.
+
 ## Acceptance
 
 - A refused or missing read is named by the host's error, and no tree is shown.
@@ -49,3 +85,5 @@ UC-020 2a: "the browser says so and shows nothing". `flow.mjs:126-136` handles n
 
 **One more plain failed read** (found at ITM-597's gate on #690): the lines that name a failed read of the traces or the
 proposals in an opened requirement (`problemLine` in `src/trace-pages/flow.mjs`) become `readProblem`'s.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-site-frame's `readProblem`, MOD-review-pages' `common.mjs` without it, and MOD-trace-pages' use of it (accepted blobs 33dee99a46a0, fb1576acca0f, 5c9248d32c4f). It is free of drafts; its readings are read at its start.

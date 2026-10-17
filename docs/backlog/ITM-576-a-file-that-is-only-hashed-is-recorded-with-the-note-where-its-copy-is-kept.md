@@ -40,3 +40,5 @@ on MOD-source-register.
 - The library form asks for the note when a file is only hashed, and the register entry holds it.
 - A hash-only file without a note is refused by name.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-source-register's `note` of a file not kept and `NoteMissing` (accepted blob de89c5f23334). It is free of drafts; its readings are read at its start.

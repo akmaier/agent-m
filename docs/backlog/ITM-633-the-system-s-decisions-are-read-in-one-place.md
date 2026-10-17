@@ -43,3 +43,5 @@ It waits for akmaier's acceptance of the draft committed with ITM-610's gate. Th
   the system and designs no module is in neither.
 - Both recipes call it and copy no rule of their own, and their parts stay as they are.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-trace-graph's `systemDecisions`, in the Uses of MOD-run-planner and MOD-work-plans (accepted blobs fdf09307f871, 919c92fd15c1, eb9c90e38eb9). It is free of drafts; its readings are read at its start.

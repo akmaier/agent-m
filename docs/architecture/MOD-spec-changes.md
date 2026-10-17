@@ -12,6 +12,7 @@ uses:
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.commitFiles
   - MOD-documents.Schema
   - MOD-documents.Document
@@ -230,7 +231,9 @@ earlier entry of the queue creates it.
 - MOD-approvals.approvalSchema — the record of a SPEC entry is an approval record.
 - MOD-artifact-edits.fallbackEditLinks — GitHub's pages for the files of an entry without a token.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory, commitFiles — reading queues and the head, the author
-  of a queue and the history of a requirement, and the one commit of a proposal or an acceptance.
+  of a queue and the history of a requirement, and the one commit of a proposal or an acceptance;
+  MOD-repository-hosts.readFileAt — `SPEC.md` at every commit that changed it, for the history of a requirement, in
+  batches.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, readRegister, appendSection — the queue's files
   by their schemas, the links and register handed in, and the appended decision row; MOD-documents.classifyCandidates —
   the classes of process candidates against the instance's SPEC; the type MOD-documents.Classified — the classes by which

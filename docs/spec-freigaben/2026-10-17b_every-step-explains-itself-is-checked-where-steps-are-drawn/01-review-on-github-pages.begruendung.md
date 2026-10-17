@@ -22,6 +22,7 @@ explanations it expects in its own text (`A TEST DOES NOT TAKE ITS EXPECTED RESU
 
 **Impact list.**
 - `tests/test_step_explanations.py` and `stepHtml` (`docs/assets/dashboard-app.mjs:82`) stay until this entry is
-  accepted. A pull request between jobs then removes both, together with the tests of what it removes:
+  accepted. The item that moves the live dashboard's code into the architecture (queue `2026-10-17d`) then removes
+  both, together with the tests of what it removes:
   - `test_a_step_without_explanation_is_refused`;
   - the test of `stepHtml` in `tests/review-core.d/dashboard-app.test.mjs:233-237`.

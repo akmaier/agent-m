@@ -53,3 +53,5 @@ the default branch is no longer what the edit started from".
 
 - A file of the entry that appeared or disappeared on the default branch since the edit began is marked as differing.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-spec-changes' `openedHead` of `proposeSection` and `saveEntry` (MOD-spec-changes, accepted blob bfbc5fce5845). It is free of drafts; its readings are read at its start.

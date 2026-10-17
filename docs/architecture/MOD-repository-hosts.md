@@ -26,6 +26,7 @@ provides:
   - connect
   - readSnapshot
   - readHistory
+  - readFileAt
   - listTags
   - repositoryInfo
   - createBranch
@@ -166,8 +167,15 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   identifier, with the clone's own credentials: the access the clone was made with. `NotFound` then means that the origin
   does not hold it either. Crosses the network; fails with `NotFound`, `TokenRefused`, `PermissionMissing`,
   `RateLimited`, `Unreachable`.
-- `readHistory(path: string | null, options: { ref?: string, limit?: number }) -> Promise<HistoryEntry[]>` — the commits
-  that changed a path, or the repository, newest first. Crosses the network; fails as `readSnapshot`.
+- `readHistory(path: string | null, options: { ref?: string, limit?: number, changes?: boolean }) ->
+  Promise<HistoryEntry[]>` — the commits that changed a path, or the repository, newest first. With `changes: false`,
+  each entry's `changes` is empty and the history costs one request per page of commits; otherwise each entry lists its
+  changes. Crosses the network; fails as `readSnapshot`.
+- `readFileAt(path: string, commits: string[]) -> Promise<Map<string, string | null>>` — the text of one file at each
+  of several commits, keyed by commit, `null` where the file does not exist there. It reads in batches, not one snapshot
+  per commit: with a token, one request per batch of commits through the server's batch query, as `readMany` reads;
+  without a token, one read of the file's raw text per commit, outside the server's API. Crosses the network; fails as
+  `readSnapshot`.
 - `listTags(pattern?: string) -> Promise<{ name: string, commit: string }[]>` — the tags, optionally only those matching
   a pattern such as `v*`. Crosses the network; fails as `readSnapshot`.
 - `repositoryInfo() -> Promise<RepositoryInfo>` — the default branch, the visibility the server reports, whether the
