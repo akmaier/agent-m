@@ -65,3 +65,44 @@ export function listedMailIds(issue) {
 export function undecided(ids, listed, marked) {
   return ids.filter((id) => !listed.has(id) && !marked.has(id));
 }
+
+const mailNotes = [
+  ["mail-added", new RegExp("^Mail `(" + identifierPattern + ")` added on (\\d{4}-\\d{2}-\\d{2})\\.$")],
+  ["reply-sent", new RegExp("^Reply sent to `(" + identifierPattern + ")` on (\\d{4}-\\d{2}-\\d{2})\\.$")],
+  ["question-sent", new RegExp("^Question sent to `(" + identifierPattern + ")` on (\\d{4}-\\d{2}-\\d{2})\\.$")],
+  ["no-reply", new RegExp("^No reply to `(" + identifierPattern + ")`, decided on (\\d{4}-\\d{2}-\\d{2})\\.$")],
+];
+const itemAdded = /^Backlog item `(ITM-\d{3})` added: \S.*$/;
+const closedWith = /^Closed with \S.*?(?:; item `(ITM-\d{3})`)?\.$/;
+
+/**
+ * The texts of item-added and closed-with carry no date; their note takes the date of the comment's createdAt.
+ * A closed-with text without an item names none; its subject is then the empty string.
+ * @param {{number: number, body: string, comments: {body: string, createdAt: string}[]}} issue
+ * @returns {{kind: "mail-added" | "reply-sent" | "question-sent" | "no-reply" | "item-added" | "closed-with", subject: string, date: string}[]}
+ */
+export function notesOf(issue) {
+  const notes = [];
+  for (const comment of issue.comments) {
+    const created = comment.createdAt.slice(0, 10);
+    let found = null;
+    for (const [kind, pattern] of mailNotes) {
+      const match = pattern.exec(comment.body);
+      if (match) { found = { kind, subject: match[1], date: match[2] }; break; }
+    }
+    const item = itemAdded.exec(comment.body);
+    if (!found && item) found = { kind: "item-added", subject: item[1], date: created };
+    const closed = closedWith.exec(comment.body);
+    if (!found && closed) found = { kind: "closed-with", subject: closed[1] ?? "", date: created };
+    if (found) notes.push(found);
+  }
+  return notes;
+}
+
+export const issueLabels = Object.freeze({
+  defect: "defect",
+  change: "change",
+  notReproducible: "not-reproducible",
+  waitingForReporter: "waiting-for-reporter",
+  backlog: "backlog",
+});

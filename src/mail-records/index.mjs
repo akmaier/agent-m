@@ -2,5 +2,5 @@
 // Module: MOD-mail-records
 
 export { mailId } from "./identifier.mjs";
-export { withMailIds, noteText, listedMailIds, undecided } from "./issue-marks.mjs";
+export { withMailIds, noteText, listedMailIds, notesOf, issueLabels, undecided } from "./issue-marks.mjs";
 export { threadMatch } from "./threads.mjs";
