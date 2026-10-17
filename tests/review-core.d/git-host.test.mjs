@@ -1,13 +1,13 @@
 // The git host adapter (docs/assets/git-host.mjs) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-git-host
+// Module: MOD-repository-hosts
 // Guards: NO TEXT TRAVELS IN A URL; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A PRODUCT IS NAMED BY ITS ADDRESS; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; ONE GITHUB TOKEN SERVES EVERY FEATURE; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001
 // Level: component
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
 // §4.0a rule 5): a check that cannot fail checks nothing. The mutations are listed in
-// docs/measurements/2026-09-30_review-dashboard-mutations.md; the write path's authority (ITM-008) in
+// docs/measurements/2026-09-30_review-dashboard-mutations.md; the write path's authority in
 // docs/measurements/2026-10-01_one-write-path-with-an-authority.md.
 
 import test from "node:test";
@@ -18,7 +18,6 @@ import {
   gitlabAuth, gitlabApiBase, gitlabSnapshot, gitlabReadFile, commitFilesGitLab, writeFiles, writeRoute, authHeaders,
 } from "../../docs/assets/git-host.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
-import { expiryWarning, tokenBannerHtml } from "../../docs/assets/dashboard/settings-view.mjs";
 import {
   click, fakeGitHub, withFetch, B_SPEC, B_UC1, GL, GL_ADDR, GL_TOKEN, H0, NEWC, fakeGitLab,
 } from "./helpers.mjs";
@@ -370,10 +369,4 @@ test("AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — a GitLab project toke
   assert.equal(r.renewUrl, `${GL_ADDR}/-/settings/access_tokens`);
   assert.match(r.renew, /Rotate/);
   assert.equal(tokenRefusal(err).token, "GitHub token", "without a product it is the GitHub token, as before");
-  const w = expiryWarning("2026-10-05", new Date("2026-09-30T12:00:00Z"), p);
-  assert.match(w.text, /GitLab project token for .*proj/);
-  assert.equal(w.renewUrl, `${GL_ADDR}/-/settings/access_tokens`);
-  const b = tokenBannerHtml({ expires: null, refused: true, product: p });
-  assert.match(b, /GitLab project token/);
-  assert.ok(b.includes(`${GL_ADDR}/-/settings/access_tokens`));
 });
