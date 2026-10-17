@@ -9,6 +9,8 @@ modules:
   - MOD-trace-pages
 builds_on:
   - ITM-203
+  - ITM-692
+  - ITM-720
 tests:
   - unit
 origin:
@@ -33,3 +35,6 @@ provide is drawn as an arrow ending in a box marked *missing*. The diagram is gi
 - The first commit holds only these tests, and CI is red on it; every new test's counter-proof — a fault planted in the
   code it guards, and the test failing on it — is recorded in the pull request.
 - Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+
+**Noted at ITM-720's stop (sprint team1/73, 2026-10-17, po-opus).** The gaps the boxes are marked by come from
+MOD-trace-graph's `moduleRows`, which ITM-692 builds. The diagram is drawn by the `modules` view, which ITM-720 builds.

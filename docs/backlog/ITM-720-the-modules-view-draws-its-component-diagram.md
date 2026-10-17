@@ -41,3 +41,15 @@ stops. The component diagram with the table's rows is the slice, and the rest is
   arrow as UC-025 5a describes.
 - The diagram's text equals what `componentDiagram` gives today on the same product.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Narrowed at its stop (sprint team1/73, 2026-10-17, po-opus): the component diagram only.**
+- MOD-trace-graph's `moduleRows` is stated and not built (`src/trace-graph/index.mjs`'s header). ITM-692 builds it, so
+  the table, the gaps and the row pages cannot be derived through the interface yet. They are ITM-721.
+- This item builds the `modules` descriptor and its drawing through `renderMermaid`, from `traceGraph`'s MOD nodes and
+  their `follows` and `uses` edges. It changes MOD-trace-pages only, and leaves `componentDiagram` as it is.
+- The developer's probe on this repository's 54 modules gave the same text as `componentDiagram` over each module file,
+  23126 characters each. The acceptance's equality is pinned by a test on a fixture.
+- **Versions** are "branch" in the module's table, so the view offers the default branch only. That reading is
+  accepted.
+- The acceptance's table and its UC-025 5a arrow move to ITM-721 and ITM-210. What remains is the diagram, its
+  equality with `componentDiagram`, and tests first.
