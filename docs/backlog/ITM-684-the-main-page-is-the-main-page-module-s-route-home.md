@@ -15,6 +15,7 @@ builds_on:
   - ITM-829
   - ITM-809
   - ITM-655
+  - ITM-842
 tests:
   - unit
 origin:

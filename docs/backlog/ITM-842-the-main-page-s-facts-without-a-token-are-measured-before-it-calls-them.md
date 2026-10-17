@@ -32,3 +32,9 @@ stated: with a token and without.
 
 - The main page's requests without a token are stated and pinned by a test, and are no more than the old page's
   1,006, or akmaier is asked through a draft.
+
+**Decided at ITM-827's start (sprint team1/78, 2026-10-17, po-opus).** ITM-827 builds the `home` route without switching
+the live page, so its no-token cost reaches no reader before ITM-684. The scope `all` without a token costs 3,330 requests
+against the old page's 1,006. `productFacts` offers only the scopes `all` and `work`, so reading only what `stageShares`
+needs would be a change of `MOD-progress-measures.md`. This item is therefore a draft for akmaier first. ITM-684 builds on
+it, so the live page is not switched before the no-token count is settled.
