@@ -1,11 +1,13 @@
 // The browser, the repositories and the network of the tests of MOD-main-page's route `home` — a helper, no test of its own. It installs the small browser fixture of
 // tests/site-frame-start.d/dom.mjs (a document, a location, a local storage), opens the store of the instance alice/agent-m with the products and tokens a test gives, and puts a spy in
 // place of `fetch` over the counting fake of GitHub of tests/progress-measures-load.mjs (a helper too): the spy keeps every request with the authorisation it carried, answers the Bridges
-// lab-pc-4 (which lists the job it runs) and lab-pc-5 (which refuses the connection), and passes every other request to the fake. Nothing reaches the network; nothing sleeps.
+// lab-pc-4 (which lists the job it runs) and lab-pc-5 (which refuses the connection), and passes every other request to the fake. A test changes the files a repository holds with `change`, makes
+// GitHub refuse its API with `refusing` ({ how: "limit" | "limit, no reset time" | "error", repository?: the one repository refused, every one where none is given }), and fires the timers a page sets itself (`timers`) at a clock it names. Nothing reaches the network; nothing sleeps.
 //
 // Module: MOD-main-page
 // Level: unit
 
+import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { installPage, fixtureStorage } from "./site-frame-start.d/dom.mjs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
@@ -16,6 +18,7 @@ import { INSTANCE, PRODUCT, githubServer, instanceFiles, productFiles } from "./
 export { INSTANCE, PRODUCT, instanceFiles, productFiles };
 export const INSTANCE_TOKEN = "github_pat_HOME827INSTANCE0123456789abcdef";
 export const PRODUCT_TOKEN = "github_pat_HOME827PRODUCT0123456789abcdefg";
+export const OTHER_TOKEN = "github_pat_HOME847OTHER000123456789abcdefghijk";
 export const INSTANCE_URL = `https://github.com/${INSTANCE}`;
 export const PRODUCT_URL = `https://github.com/${PRODUCT}`;
 export const OTHER = "bob/other";
@@ -26,14 +29,39 @@ export const MISSING_URL = "https://github.com/carol/missing";
 
 export const NOW = Date.parse("2026-10-16T12:00:00Z");
 const RealDate = globalThis.Date;
+let heldAt = NOW;
 class FixedDate extends RealDate {
-  constructor(...given) { if (given.length === 0) super(NOW); else super(...given); }
-  static now() { return NOW; }
+  constructor(...given) { if (given.length === 0) super(heldAt); else super(...given); }
+  static now() { return heldAt; }
 }
-export async function atNow(run) {
+/** Runs `run` while every `new Date()` and Date.now() give `at` (milliseconds since 1970; NOW where none is given). */
+export async function atNow(run, at = NOW) {
   globalThis.Date = FixedDate;
-  try { return await run(); } finally { globalThis.Date = RealDate; }
+  heldAt = at;
+  try { return await run(); } finally { globalThis.Date = RealDate; heldAt = NOW; }
 }
+
+// ---------------------------------------------------------------- the timers: nothing waits for the clock, a test fires a timer itself
+
+const realTimers = { setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout };
+const fakeTimers = {
+  setTimeout: (run, delay) => { const timer = { run, delay }; timers.waiting.push(timer); return timer; },
+  clearTimeout: (timer) => { timers.waiting = timers.waiting.filter((held) => held !== timer); },
+};
+/**
+ * The timers a page sets while a test runs. install() puts them in place of setTimeout and clearTimeout (draw() installs them); restore() puts the real ones back and forgets the waiting ones.
+ * `waiting` are the timers set and neither fired nor cleared, { run, delay } in the order set; fire(at) runs the oldest one at the clock `at` and resolves once what it started has ended.
+ */
+export const timers = {
+  waiting: [],
+  install() { globalThis.setTimeout = fakeTimers.setTimeout; globalThis.clearTimeout = fakeTimers.clearTimeout; },
+  restore() { globalThis.setTimeout = realTimers.setTimeout; globalThis.clearTimeout = realTimers.clearTimeout; timers.waiting = []; },
+  async fire(at = NOW) {
+    const [timer] = timers.waiting.splice(0, 1);
+    assert.ok(timer, "the page has set no timer to fire");
+    await atNow(() => timer.run(), at);
+  },
+};
 
 // ---------------------------------------------------------------- the files of a small product
 
@@ -49,11 +77,18 @@ const useCase = (id, title) => [front({ id, title, area: "fixture", actors: ["Re
 const item = (id) => [front({ id, title: "The work", level: "module", realises: ["UC-001"], modules: ["MOD-store"] }), `# ${id} The work`, ""].join("\n");
 
 const at = (text) => new RealDate(`${text}:00Z`);
-/** The same job as runningJob, ended as failed. */
-export function failedJob({ id, by, start = "2026-10-16T10:00" }) {
+/** A job record's text with its end appended, in `state` ("done", "failed" or "cancelled"), at 11:00 UTC. */
+export const withEnd = (text, state) => appendToRecord(text, { part: "end", at: at("2026-10-16T11:00"), state, results: [], draft: null, rounds: [], usage: null,
+  cost: { known: false, usage: null }, reason: state === "failed" ? "tests red" : null, log: null });
+
+/** The same job as runningJob, ended in `state`. */
+export function endedJob({ id, by, state, start = "2026-10-16T10:00" }) {
   const { path, text } = runningJob({ id, by, start });
-  return { path, text: appendToRecord(text, { part: "end", at: at("2026-10-16T11:00"), state: "failed", results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: "tests red", log: null }) };
+  return { path, text: withEnd(text, state) };
 }
+
+/** The same job as runningJob, ended as failed. */
+export const failedJob = ({ id, by, start }) => endedJob({ id, by, state: "failed", start });
 
 /** A job record of the kind implement-item for ITM-0900, taken by `by` (a Bridge's name) at the start given, with no end. */
 export function runningJob({ id, by, start = "2026-10-16T10:00" }) {
@@ -95,28 +130,53 @@ function headerOf(init, name) {
 }
 
 /**
- * A fake GitHub serving `repos` ({ "owner/name": { path: text } }), with a spy over it. `bridgeLists` is the job identifier the Bridge lab-pc-4 lists as running (none lists no job).
+ * A fake GitHub serving `repos` ({ "owner/name": { path: text } }), with a spy over it. `bridgeLists` is the job identifier the Bridge lab-pc-4 lists as running (none lists no job); a test may set
+ * `net.bridgeLists` later. `net.ciRuns` are the workflow runs (GitHub's answer, one page) that the job workflow's run list gives, none at first.
  * `requests` keeps every request { url, host, authorization }; `server.log` is the fake's own record of what each request read (tests/progress-measures-load.mjs). install() puts the spy in
  * place of `fetch`; restore() puts the earlier one back.
  */
 export function network(repos, { bridgeLists = null } = {}) {
-  const server = githubServer(repos);
+  const servers = [githubServer(repos)];
   const requests = [];
   const real = globalThis.fetch;
-  return { server, requests, bridgeAsked: () => requests.filter((request) => request.host === "127.0.0.1:4711").length,
+  let held = repos, fake = null, spy = null;
+  const net = { requests, bridgeLists, refusing: null, ciRuns: [],
+    // the fake's own record of what each request read: those of every state the repositories have been in
+    server: { get log() { return servers.flatMap((server) => server.log); } },
+    bridgeAsked: () => requests.filter((request) => request.host === "127.0.0.1:4711").length,
     install() {
-      server.install();
-      const fake = globalThis.fetch;
-      globalThis.fetch = async (input, init) => {
+      servers[0].install();
+      fake = globalThis.fetch;
+      spy = async (input, init) => {
         const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
         requests.push({ url: url.href, host: url.host, authorization: headerOf(init, "authorization") });
-        if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: bridgeLists ? [{ id: bridgeLists, state: "running", usage: null }] : [] });
+        if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: net.bridgeLists ? [{ id: net.bridgeLists, state: "running", usage: null }] : [] });
         if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
+        if (net.refusing && url.host === "api.github.com" && (!net.refusing.repository || url.pathname.startsWith(`/repos/${net.refusing.repository}/`))) {
+          if (net.refusing.how === "error") return new Response("{}", { status: 500, headers: { "content-type": "application/json" } });
+          const reset = net.refusing.how === "limit" ? { "x-ratelimit-reset": String(RATE_RESET / 1000) } : {};
+          return new Response("{}", { status: 403, headers: { "content-type": "application/json", "x-ratelimit-remaining": "0", "x-ratelimit-limit": "5000", ...reset } });
+        }
+        if (url.host === "api.github.com" && /\/actions\/workflows\/[^/]+\/runs$/.test(url.pathname)) return json(200, { workflow_runs: net.ciRuns });
         return fake(input, init);
       };
+      globalThis.fetch = spy;
     },
-    restore() { server.restore(); globalThis.fetch = real; } };
+    /** The files `repository` holds from now on: its blobs are new where its files are, its commit is the commit it was. */
+    change(repository, files) {
+      held = { ...held, [repository]: files };
+      const next = githubServer(held);
+      servers.push(next);
+      next.install();
+      fake = globalThis.fetch;
+      globalThis.fetch = spy;
+    },
+    restore() { for (const server of servers.toReversed()) server.restore(); globalThis.fetch = real; } };
+  return net;
 }
+
+/** When GitHub's limit of the account is given back, in the answers the spy gives while `refusing`. */
+export const RATE_RESET = Date.parse("2026-10-16T13:00:00Z");
 
 // ---------------------------------------------------------------- the page
 
@@ -138,10 +198,11 @@ export function browser({ products = [PRODUCT_URL], tokens = { [PRODUCT]: PRODUC
     go: (route, params = {}) => { went.push([route, params]); }, went };
 }
 
-/** Draws a route into a new element at the fixed clock and returns the element. */
+/** Draws a route into a new element at the fixed clock, with the timers of `timers` in place of the real ones, and returns the element. */
 export async function draw(route, context) {
   const target = document.createElement("div");
   document.body.append(target);
+  timers.install();
   await atNow(() => route.render(target, context, {}));
   return target;
 }

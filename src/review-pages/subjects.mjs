@@ -83,7 +83,7 @@ async function ownSource(where) {
   try {
     const { snapshot, context } = where;
     const instanceSnapshot = context.product ? await defaultSnapshot(context.instance.host) : snapshot;
-    const { links, register } = await sourcesOf(where);
+    const { links, register } = await sourcesOf({ ...where, instanceSnapshot });
     return personSource(links, register, personAccount(instanceSnapshot));
   } catch {
     return null;
