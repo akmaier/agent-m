@@ -16,7 +16,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { blobOf, doc, document, find, treeHost, until } from "./trace-pages-harness.mjs";
+import { addressParts, blobOf, doc, document, find, treeHost, until } from "./trace-pages-harness.mjs";
 
 const { view } = await import("../src/trace-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "trace");
@@ -150,11 +150,11 @@ test("a requirement name toggles its row-local detail closed and open again", as
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a Host whose pinned snapshot has no SPEC.md, no tags, and no default branch it can name
 // input: the same public specification route
-// expect: the version choice offers only the handed ref (UC-020 1c) and says "as of" it; the page then states that the current requirements are empty; no write operation is called
+// expect: the version choice offers only the handed ref (UC-020 1c), the Gaps link follows it, and the bar says "as of" the ref; the page then states that the current requirements are empty; no write operation is called
 test("an absent or empty SPEC has an explicit empty state and rendering offers no write", async () => {
   const productHost = host(null);
   const target = await render(productHost, { key: "specification", ref: "pinned-empty" });
-  assert.equal(target.textContent, "Version pinned-emptyNo release is tagged yet (UC-013); only the current text can be shown.as of pinned-emptyCurrent requirementsNo current requirements are recorded in SPEC.md.");
+  assert.equal(target.textContent, "Version pinned-emptyGapsNo release is tagged yet (UC-013); only the current text can be shown.as of pinned-emptyCurrent requirementsNo current requirements are recorded in SPEC.md.");
   assert.equal(Object.hasOwn(productHost, "commitFiles"), false);
 });
 
@@ -589,4 +589,82 @@ test("a requirement that names no source reads none under Sources", async () => 
   const target = await render(mainOnly({ ...TRACE_FILES, "SPEC.md": lonely }), mainParams);
   assert.equal(listed(await openRequirement(target, "ALPHA RULE"), "Sources").length, 2, "known positive: ALPHA RULE names two sources");
   assert.deepEqual(paragraphs(await openRequirement(target, "LONELY RULE"), "Sources"), ["none: none"]);
+});
+
+// The Gaps link (ITM-668): "UC-020 step 7: The tab Gaps shows ... the traceability matrix"; MOD-trace-pages: its links lead "to its own or the review pages' routes". The link is an anchor in the
+// frame's address form, `#trace/key=gaps/ref=<the ref shown, encoded>`, beside the version choice; it is offered at every ref, and the reading it takes is that the ref shown is the ref chosen last.
+const gapsLinks = (target) => find(target, (node) => node.localName === "a" && node.className.split(/\s+/).includes("trace-gaps-link"));
+const backLinks = (target) => find(target, (node) => node.localName === "a" && node.className.split(/\s+/).includes("trace-specification-link"));
+
+// CASE ITM-668-01
+// TST-668001 · level: unit · module: MOD-trace-pages
+// guards: UC-020
+// given: main is the default branch and has OUTSIDE, FIRST and SECOND REQUIREMENT; the tag v2026.1.0 exists
+// input: the specification route rendered at main
+// expect: exactly one Gaps link, whose text is "Gaps" and whose href is "#trace/key=gaps/ref=main"; no link back to the specification; the Edit and + Requirement links are still five; readSnapshot was asked main alone
+test("the specification view offers Gaps at the version it shows", async () => {
+  const productHost = tagged();
+  const target = await render(productHost, mainParams);
+  assert.deepEqual(gapsLinks(target).map((node) => [node.textContent, node.getAttribute("href")]), [["Gaps", "#trace/key=gaps/ref=main"]]);
+  assert.equal(backLinks(target).length, 0);
+  assert.equal(editLinks(target).length, 5, "known positive: the Edit and + Requirement links are found as before");
+  assert.deepEqual(productHost.calls, ["main"]);
+});
+
+// CASE ITM-668-02
+// TST-668002 · level: unit · module: MOD-trace-pages
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
+// given: main is the default branch; the tag v2026.1.0 exists
+// input: the route rendered at main, then v2026.1.0 chosen
+// expect: after the choice the one Gaps link has the href "#trace/key=gaps/ref=v2026.1.0", and its address read by the frame's form names the route "trace" with key "gaps" and ref "v2026.1.0"; readSnapshot was asked main and v2026.1.0 and nothing else
+test("the Gaps link leads to the version chosen", async () => {
+  const productHost = tagged();
+  const target = await render(productHost, mainParams);
+  choose(target, "v2026.1.0");
+  await until(() => asOf(target).length === 1);
+  assert.deepEqual(gapsLinks(target).map((node) => node.getAttribute("href")), ["#trace/key=gaps/ref=v2026.1.0"]);
+  assert.deepEqual(addressParts(gapsLinks(target)[0].getAttribute("href")), { route: "trace", params: { key: "gaps", ref: "v2026.1.0" } });
+  assert.deepEqual(productHost.calls, ["main", "v2026.1.0"]);
+});
+
+// CASE ITM-668-03
+// TST-668003 · level: unit · module: MOD-trace-pages
+// guards: UC-020
+// given: a Host that reads any ref and names main the default branch
+// input: the route rendered at the ref "release/1 a"
+// expect: the Gaps link has the href "#trace/key=gaps/ref=release%2F1%20a", and read back by the frame's form its ref is "release/1 a"
+test("the Gaps link encodes the ref it leads to", async () => {
+  const target = await render(host(SPEC, { defaultBranch: "main" }), { key: "specification", ref: "release/1 a" });
+  assert.deepEqual(gapsLinks(target).map((node) => node.getAttribute("href")), ["#trace/key=gaps/ref=release%2F1%20a"]);
+  assert.equal(addressParts(gapsLinks(target)[0].getAttribute("href")).params.ref, "release/1 a");
+});
+
+// CASE ITM-668-04
+// TST-668004 · level: unit · module: MOD-trace-pages
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
+// given: main is the default branch and holds OUTSIDE, FIRST and SECOND REQUIREMENT; the tag v2026.1.0 has a SPEC that cannot be read (its snapshot is unreachable)
+// input: the route rendered at main; v2026.1.0 chosen
+// expect: the page says "v2026.1.0 could not be read: unreachable" in place of the tree, and the one Gaps link, still beside the choice, has the href "#trace/key=gaps/ref=v2026.1.0"
+test("a chosen version that cannot be read keeps the choice and its Gaps link at that version", async () => {
+  const target = await render(tagged({ unreadable: ["v2026.1.0"] }), mainParams);
+  choose(target, "v2026.1.0");
+  await until(() => find(target, (node) => node.className === "version-problem").length === 1);
+  assert.deepEqual(find(target, (node) => node.className === "version-problem").map((node) => node.textContent), ["v2026.1.0 could not be read: unreachable"]);
+  assert.deepEqual(gapsLinks(target).map((node) => node.getAttribute("href")), ["#trace/key=gaps/ref=v2026.1.0"]);
+});
+
+// CASE ITM-668-05
+// TST-668005 · level: unit · module: MOD-trace-pages
+// guards: UC-020; UC-049
+// given: the specification drawn at main with the context the frame handed the route
+// input: route.subject for the key "specification" with that context, nothing open
+// expect: the page text the subject sends holds "Gaps" (the link's text) and the requirement name OUTSIDE REQUIREMENT
+test("the page text the specification gives the prompt bar names the Gaps link", async () => {
+  const context = { product: { host: tagged() } };
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, context, mainParams);
+  const page = route.subject(mainParams, context).paramsFor({}).page;
+  assert.equal(page.includes("Gaps"), true);
+  assert.equal(page.includes("OUTSIDE REQUIREMENT"), true);
 });

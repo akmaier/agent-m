@@ -98,7 +98,7 @@ test("TST-360002 + Requirement stands in each section and opens requirements/new
   assert.deepEqual(added.map((node) => node.textContent), ["+ Requirement", "+ Requirement"]);
   assert.deepEqual(added.map((node) => node.getAttribute("href")), ["## 1. Lending", "## 2. Membership"].map((heading) => `#requirements/section=${encodeURIComponent(heading)}`));
   sections.forEach((section, at) => assert.deepEqual(links(section, "requirement-new"), [added[at]], `section ${at + 1} holds its own + Requirement alone`));
-  assert.equal(find(target, (node) => node.localName === "a").length, 6, "four Edit and two + Requirement, nothing else");
+  assert.equal(find(target, (node) => node.localName === "a").length, 7, "four Edit, two + Requirement and the Gaps link, nothing else");
 });
 
 // TST-360003 · level: unit · module: MOD-trace-pages
