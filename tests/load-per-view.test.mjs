@@ -162,9 +162,10 @@ test("#spec: the whole load sends its commit and tree once, and every file in a 
 // given: a product that declares its process model, with one team, its sprint and two items
 // input: open #backlog with a token
 // expect: the commit and the tree once, one batch of the 7 files it shows — the declaration, the SPEC, the team's role
-//         assignment and sprint, the 2 items, and the record that decides UC-002's status —, then the process model the
-//         declaration names, alone in the second batch; no use case, no module file (one team), no file by itself
-test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model in a second", async () => {
+//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the view reads the process
+//         model the declaration names itself, in one request of its own, since one file meets "requests of at most 100 files
+//         each"; no use case, no module file (one team), and no other file by itself
+test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
   const repo = await product({
     "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"a".repeat(40)}`,
       "---", "# How the fixture product is developed", ""].join("\n"),
@@ -178,10 +179,10 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const srv = await server(repo, [pulls]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", "batch 1"]);
+  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", "file docs/process-models/fixture.md"]);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
     "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1, ["docs/process-models/fixture.md"]]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1]);
 });
 
 const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "level: module", "realises:", "  - RULE ONE", "modules:", "  - MOD-reader",
