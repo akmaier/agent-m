@@ -14,7 +14,7 @@ import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 
 const QUEUE = "2026-10-08_current";
 const SPEC = `# Fixture\n\n**CURRENT REQUIREMENT** *(Source)*\nCurrent rule.\n*Check:* \`tests/current.test.mjs\`\n`;
-const INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | # Fixture | — | — |\n";
+const INDEX = "# SPEC approvals — queue fixture\n\n**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | # Fixture | — | — |\n";
 const FILES = {
   "SPEC.md": SPEC,
   [`docs/spec-freigaben/${QUEUE}/index.md`]: INDEX,
@@ -53,10 +53,10 @@ test("#spec composes the pinned requirements view with the open SPEC changes", a
   const page = await openDashboard({ server, hash: "#spec" });
   const html = page.main();
   const overview = html.indexOf("Current requirements"), history = html.indexOf("SPEC changes");
-  const requirement = html.indexOf("CURRENT REQUIREMENT"), queue = html.indexOf(`id=\"queue-${QUEUE}\"`);
+  const requirement = html.indexOf("CURRENT REQUIREMENT"), queue = html.indexOf(`href="#spec-entry/id=spec-${QUEUE}-01"`);
   assert.ok(overview >= 0 && requirement >= 0, "known positive: the public overview is present");
   assert.ok(history >= 0 && queue >= 0, "known positive: the preserved queue history is present");
   assert.deepEqual(server.writes, [], "opening the composed page writes nothing");
-  await page.click("[data-accept-ticked]");
+  await page.click(".accept-ticked");
   assert.deepEqual(server.writes, [], "the preserved queue control remains reachable without writing");
 });

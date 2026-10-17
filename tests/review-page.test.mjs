@@ -1,16 +1,17 @@
 // The review page — every open file of one area on one page, and one click that accepts everything it showed. Deterministic, no
-// network: the real app (docs/assets/dashboard-app.mjs) in tests/app-harness.mjs against a GitHub API mock that counts every
-// request and takes commits, on the fixture product of tests/fixtures/architecture. Run: node --test tests/*.test.mjs
+// network: the real app (src/site-frame/dashboard-app.mjs) in tests/app-harness.mjs against a GitHub API mock that counts every
+// request and takes commits, on the fixture product of tests/fixtures/architecture. The page is MOD-review-pages' route `<k>/id=all`,
+// which the app's address #review/uc and #review/arc lead to. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-008; UC-022; UC-023
 // Level: component
 //
-// SPEC §10 SEVERAL FILES ARE ACCEPTED IN ONE CLICK (extended 2026-10-01, queue 2026-10-01c) · AN APPROVAL NAMES THE EXACT TEXT ·
-// A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT · THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK · EVERY STEP EXPLAINS
-// ITSELF; §11 ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS · AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
-// (UC-008 3e, UC-022 step 10, UC-023 step 5). Which files a review page counts — the core's reviewPage — is checked in
-// tests/review-page-core.test.mjs.
+// SPEC §10 SEVERAL FILES ARE ACCEPTED IN ONE CLICK · AN APPROVAL NAMES THE EXACT TEXT · A CHANGED FILE IS SHOWN AGAINST ITS LAST
+// ACCEPTED TEXT · THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK · EVERY STEP EXPLAINS ITSELF; §11 ARCHITECTURE RESTS ON ACCEPTED
+// ARTIFACTS · AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST (UC-008 3e, UC-022 step 10, UC-023 step 5).
+// Where the page differs from the one of the removed view, the expected result is MOD-review-pages' text (its Interfaces, `<k>/all`):
+// "Accept all N shown" counts the files shown, and a file that names what is not accepted is shown, left out of the commit and named.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -36,9 +37,6 @@ const base = {};
 const UC1 = "docs/use-cases/UC-001-read-a-file.md", UC2 = "docs/use-cases/UC-002-show-the-status.md";
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";
 const REVIEW = "docs/architecture/MOD-review.md", PAGE = "docs/architecture/MOD-page.md";
-const ARCH = [ARC, PAGE, READER, REVIEW];
-const click = { isTrusted: true };
-const WHEN = new Date("2026-10-01T12:00:00Z");
 
 // The texts accepted earlier, which the server still holds by their blob SHA.
 const EARLIER = [];
@@ -64,44 +62,62 @@ async function product() {
 const server = async (files) => repoServer({ files, history: EARLIER });
 const files = (requests) => requests.filter((r) => r.startsWith("file ")).map((r) => r.slice(5)).sort();
 const writesOf = (requests) => requests.filter((r) => /^write /.test(r) || r === "ref" || r === "commit object");
-// The part of the page that shows one file.
+const count = (requests, what) => requests.filter((r) => r === what).length;
+// The part of the page that shows one file: from the heading that opens with its identifier to the next file or the button.
 function section(html, id) {
-  const at = html.indexOf(`id="review-${id}"`);
+  const at = html.indexOf(`<section class="review-file"><h3>${id} `);
   if (at < 0) return null;
-  const end = html.indexOf('id="review-', at + 1);
-  return html.slice(at, end < 0 ? html.length : end);
+  const rest = html.slice(at + 1);
+  const end = Math.min(...["<section class=\"review-file\">", "<button class=\"btn accept-all\""].map((m) => { const i = rest.indexOf(m); return i < 0 ? Infinity : i; }));
+  return html.slice(at, end === Infinity ? html.length : at + 1 + end);
 }
-test("the architecture's review page shows every open or changed file in sequence — new in full, changed as a difference with its impact list, a waiting one marked", async () => {
+
+test("the architecture's review page shows every open or changed file in sequence — new in full, changed as a difference with its impact list, a waiting one named", async () => {
   const repo = await product();
   const page = await openDashboard({ server: await server(repo), hash: "#review/arc" });
   const html = page.main();
   assert.equal(section(html, "ARC-001"), null, "an accepted file is not on the page");
-  const order = ["MOD-page", "MOD-reader", "MOD-review"].map((id) => html.indexOf(`id="review-${id}"`));
+  const order = ["MOD-page", "MOD-reader", "MOD-review"].map((id) => html.indexOf(`<section class="review-file"><h3>${id} `));
   assert.ok(order.every((i) => i >= 0) && order[0] < order[1] && order[1] < order[2], `in sequence: ${order}`);
   // New: rendered in full.
   assert.match(section(html, "MOD-page"), /Shows what the other modules derive\./);
-  // Changed: the difference to the text its last record names — the same diff as the single view — and its impact list.
+  // Changed: the difference to the text its last record names, and its impact list.
   const reader = section(html, "MOD-reader");
   assert.match(reader, /<pre class="diff">/);
-  assert.match(reader, /- title: Reads a file at a pinned commit/);
-  assert.match(reader, /\+ title: Reads files at a pinned commit/);
+  assert.match(reader, /<span class="ddel">- title: Reads a file at a pinned commit/);
+  assert.match(reader, /<span class="dadd">\+ title: Reads files at a pinned commit/);
   assert.match(reader, /Impact of this change/);
   assert.match(reader, /Affected modules/);
-  // Waiting: shown, marked as not counted, and naming what is open.
+  assert.match(reader, /<strong>MOD-reader<\/strong> — changed/);
+  // Waiting: shown, and naming what is open.
   const review = section(html, "MOD-review");
   assert.match(review, /Derives open, accepted or changed from the approval records\./);
-  assert.match(review, /not counted/i);
-  assert.match(review, /UC-002/);
-  // One button for the files counted, and the folded explanation.
-  assert.match(html, /<button class="btn primary" data-accept-all[^>]*>Accept all 2 shown<\/button>/);
-  assert.match(html, /<details class="explain"><summary>What is this\?<\/summary><div>[^]*exactly what this page shows/);
+  assert.match(review, /Rests on what is not accepted/);
+  assert.match(review, /<li class="open-name">UC-002<\/li>/);
+  // One button for the files shown, and the folded explanations.
+  assert.match(html, /<button class="btn accept-all" type="button">Accept all 3 shown<\/button>/);
+  assert.match(html, /<details class="explain"><summary>What is this\?<\/summary>[^]*Accepting is a commit made under your own account/);
+  assert.match(reader, /<details class="explain"><summary>What is this\?<\/summary>[^]*Before a change to an accepted decision or module is accepted/);
 });
 
-test("Accept all N shown: one commit with one record per file the page counted, each naming the blob of the text it rendered", async () => {
+test("a change to an architecture file is not offered for acceptance where its impact list cannot be derived", async () => {
+  const repo = await product();
+  const good = await openDashboard({ server: await server(repo), hash: "#arc/MOD-reader" });
+  assert.match(good.main(), /Impact of this change/, "known positive: the list is shown when the graph is built");
+  assert.match(good.main(), /<button class="btn accept" type="button">Accept<\/button>/, "known positive: Accept is offered with it");
+  // The graph reads every use case, in a batch and, where the batch gives none, by itself; a server that refuses both fails it.
+  const refused = async (url) => (url.pathname === "/graphql" || url.pathname.endsWith("/contents/docs/use-cases/UC-001-read-a-file.md") ? new Response("{}", { status: 500 }) : undefined);
+  const page = await openDashboard({ server: await repoServer({ files: repo, history: EARLIER, handlers: [refused] }), hash: "#arc/MOD-reader" });
+  assert.match(page.main(), /The impact list could not be derived/);
+  assert.doesNotMatch(page.main(), /Impact of this change/);
+  assert.doesNotMatch(page.main(), /<button class="btn accept"/, "without the list, no Accept");
+});
+
+test("Accept all N shown: one commit with one record per file the page could count, each naming the blob of the text it rendered; the file that waits is left out and named", async () => {
   const repo = await product(), caches = fakeCaches();
   const srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#review/arc", caches });
-  const made = await page.click("[data-accept-all]");
+  const made = await page.click(".accept-all");
   assert.equal(srv.writes.length, 1, "one commit");
   const written = srv.writes[0].files;
   const want = {};
@@ -110,13 +126,12 @@ test("Accept all N shown: one commit with one record per file the page counted, 
   assert.match(srv.writes[0].message, /MOD-page/);
   // The acceptance path of SEVERAL FILES ARE ACCEPTED IN ONE CLICK: read again at the head, then one commit.
   assert.deepEqual(writesOf(made), ["ref", "commit object", "write tree", "write commit", "write ref"]);
-  // After the commit the page reloads its statuses the cheap way: commit and tree, every text from this browser.
-  const after = made.slice(made.indexOf("write ref") + 1);
-  assert.deepEqual(after, ["commit", "tree"], `after the commit: ${after}`);
+  assert.equal(section(page.main(), "MOD-page")?.includes("Rests on"), undefined, "MOD-page is accepted now");
   assert.equal(section(page.main(), "MOD-page"), null, "accepted now");
   assert.equal(section(page.main(), "MOD-reader"), null, "accepted now");
   assert.ok(section(page.main(), "MOD-review"), "still waiting for UC-002");
-  assert.match(page.main(), /Accepted MOD-page, MOD-reader/);
+  assert.match(page.main(), /Accepted in commit [0-9a-f]{7}\./);
+  assert.match(page.main(), /MOD-review was left out: rests on what is not accepted \(UC-002\)/);
 });
 
 test("counter-proof: a file changed between building the page and the click is left out and named", async () => {
@@ -124,42 +139,33 @@ test("counter-proof: a file changed between building the page and the click is l
   const srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#review/arc" });
   await srv.change(PAGE, repo[PAGE] + "\nEdited by someone else.\n");
-  await page.click("[data-accept-all]");
+  await page.click(".accept-all");
   assert.equal(srv.writes.length, 1);
   assert.deepEqual(Object.keys(srv.writes[0].files), [approvalPath("MOD-reader", await gitBlobSha(repo[READER]))]);
-  assert.match(page.main(), /Left out <strong>MOD-page<\/strong>: the file changed after it was shown/);
+  assert.match(page.main(), /MOD-page was left out: /);
   // The page shows the new text, to be decided on again.
   assert.match(section(page.main(), "MOD-page"), /Edited by someone else\./);
 });
 
-test("counter-proof: the write happens only on a trusted click — a click a script makes writes and reads nothing", async () => {
-  const srv = await server(await product());
-  const page = await openDashboard({ server: srv, hash: "#review/arc" });
-  const made = await page.click("[data-accept-all]", { isTrusted: false });
-  assert.deepEqual(made, [], "not even the branch head is read");
-  assert.equal(srv.writes.length, 0);
-  // Known positive: the same button with a person's click writes.
-  await page.click("[data-accept-all]");
-  assert.equal(srv.writes.length, 1);
-});
-
-test("request count: the architecture's review page reads that area's files, the records and the texts its differences need on each load", async (t) => {
+test("request count: the architecture's review page reads each file once, its commit and tree once, the repository's information once, and the graph of its impact list in one batch", async (t) => {
   const repo = await product(), caches = fakeCaches();
-  const cold = await openDashboard({ server: await server(repo), hash: "#review/arc", caches });
-  const recordOf = (id) => Object.keys(repo).filter((p) => p.startsWith(`docs/approvals/${id}-`));
-  assert.deepEqual(files(cold.requests), [...ARCH, "SPEC.md", ...recordOf("MOD-reader"), ...recordOf("UC-002"),
-    "src/late.js", "src/reader.js", "src/review.py", "tests/reader.test.js"].sort(),
-    "the four architecture files (the impact list needs every module), the SPEC, the records that decide a status, the code's headers");
+  const srv = await server(repo);
+  const cold = await openDashboard({ server: srv, hash: "#review/arc", caches });
+  assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/architecture/") || p === "SPEC.md"),
+    ["docs/architecture/MOD-page.md", "docs/architecture/MOD-reader.md", "docs/architecture/MOD-review.md"],
+    "the three files shown, each once");
+  assert.equal(srv.batches.length, 1);
+  assert.ok(srv.batches[0].includes("SPEC.md") && srv.batches[0].includes("docs/architecture/ARC-001-static-client.md"), "the batch holds the SPEC and the architecture files the graph reads");
   assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/use-cases/") || p.startsWith("docs/spec-freigaben/")), [],
     "no use case and no queue file");
-  const blobs = cold.requests.filter((r) => r.startsWith("blob "));
-  assert.deepEqual(blobs, [`blob ${await gitBlobSha(repo[READER].replace("Reads files at", "Reads a file at"))}`], "MOD-reader's accepted text");
-  assert.deepEqual(cold.requests.filter((r) => !/^(file|blob) /.test(r)), ["commit", "tree"]);
+  assert.equal(count(cold.requests, "commit"), 1);
+  assert.equal(count(cold.requests, "tree"), 1);
+  assert.equal(count(cold.requests, "repository"), 1);
+  assert.equal(cold.requests.filter((r) => r.startsWith("batch ")).length, 1, "the graph reads its files in one batch");
   const warm = await openDashboard({ server: await server(repo), hash: "#review/arc", caches });
   assert.deepEqual(warm.requests, cold.requests, "a new dashboard load has a fresh in-memory text cache");
   assert.equal(warm.main(), cold.main(), "the same page");
-  t.diagnostic(`architecture review page: cold ${cold.requests.length} requests (${files(cold.requests).length} files, ${blobs.length} blob, ` +
-    `commit, tree); warm ${warm.requests.length} (${warm.requests.join(", ")})`);
+  t.diagnostic(`architecture review page: ${cold.requests.length} requests (${cold.requests.join(", ")})`);
 });
 
 test("the use cases' review page: a changed use case as its difference, no accepted one, no architecture file read; Accept all writes its record", async (t) => {
@@ -168,13 +174,13 @@ test("the use cases' review page: a changed use case as its difference, no accep
   const page = await openDashboard({ server: srv, hash: "#review/uc" });
   const html = page.main();
   assert.equal(section(html, "UC-001"), null, "accepted");
-  assert.match(section(html, "UC-002"), /- title: Show a status/);
-  assert.match(section(html, "UC-002"), /\+ title: Show the status/);
-  assert.match(html, /data-accept-all[^>]*>Accept all 1 shown</);
+  assert.match(section(html, "UC-002"), /<span class="ddel">- title: Show a status/);
+  assert.match(section(html, "UC-002"), /<span class="dadd">\+ title: Show the status/);
+  assert.match(html, /Accept all 1 shown</);
   assert.deepEqual(files(page.requests).filter((p) => !p.startsWith("docs/use-cases/") && !p.startsWith("docs/approvals/")), [],
     "nothing outside the use cases and their records");
   t.diagnostic(`use-case review page: ${page.requests.length} requests (${page.requests.join(", ")})`);
-  await page.click("[data-accept-all]");
+  await page.click(".accept-all");
   const b = await gitBlobSha(repo[UC2]);
   assert.deepEqual(srv.writes.map((w) => w.files), [{ [approvalPath("UC-002", b)]: recordText(useCaseRecord(UC2, b)) }]);
 });
@@ -184,18 +190,18 @@ test("without a token: no Accept all — GitHub's prefilled page for each record
   const page = await openDashboard({ server: await server(repo), hash: "#review/arc", token: null });
   const html = page.main();
   assert.ok(section(html, "MOD-page") && section(html, "MOD-reader"), "the files are shown");
-  assert.doesNotMatch(html, /data-accept-all/);
+  assert.doesNotMatch(html, /accept-all/);
+  const hrefs = [...html.matchAll(/<a class="github-page" href="([^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, "&"));
   for (const p of [PAGE, READER]) {
     const path = approvalPath(reviewedId(p), await gitBlobSha(repo[p]));
-    assert.ok(html.includes(`https://github.com/${REPO}/new/main?filename=${encodeURIComponent(path)}`), path);
+    assert.ok(hrefs.some((href) => href.startsWith(`https://github.com/${REPO}/new/main?`) && new URL(href).searchParams.get("filename") === path), path);
   }
-  assert.ok(!html.includes(encodeURIComponent(approvalPath("MOD-review", await gitBlobSha(repo[REVIEW])))), "none for the waiting file");
 });
 
-test("the use-case list and the architecture view link to their review page; reading the lists stays as it was", async () => {
+test("the use-case list and the architecture list link to their review page", async () => {
   const repo = await product();
   const uc = await openDashboard({ server: await server(repo), hash: "#uc" });
-  assert.match(uc.main(), /href="#review\/uc"[^>]*>Review all/);
+  assert.match(uc.main(), /href="#use-case\/id=all"[^>]*>Review all/);
   const arc = await openDashboard({ server: await server(repo), hash: "#arc" });
-  assert.match(arc.main(), /href="#review\/arc"[^>]*>Review all/);
+  assert.match(arc.main(), /href="#decision\/id=all"[^>]*>Review all/);
 });

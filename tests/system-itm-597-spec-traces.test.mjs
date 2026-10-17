@@ -58,7 +58,7 @@ test("the dashboard reads the artifacts when a requirement is opened, not when #
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the dashboard with a stored token on the same repository, whose queue 2026-10-09_traced holds an open entry that changes TRACED RULE
 // input: the real #spec drawn; its requirement opened
-// expect: the page links UC-001 (known positive) and has no open proposals; opening requests no file of the queue; the artifacts were read in batch queries, fewer requests than files
+// expect: the page links UC-001 (known positive) and the opened requirement has no open proposals; opening requests no file of the queue; the artifacts were read in batch queries, fewer requests than files
 test("the dashboard reads the artifacts in batches when a requirement is opened, and no queue", async () => {
   const graphql = async (url, init) => {
     if (url.pathname !== "/graphql") return null;
@@ -74,7 +74,9 @@ test("the dashboard reads the artifacts in batches when a requirement is opened,
   const opening = await page.click("button.requirement-name");
   const html = page.main();
   assert.ok(html.includes('href="#use-case/id=UC-001"'), "known positive: the traces are shown");
-  assert.ok(!html.includes("Open proposals") && !html.includes("spec-entry"));
+  assert.ok(!html.includes("Open proposals"));
+  // The queue's entries are listed above the specification (MOD-review-pages' route); the opened requirement links none of them.
+  assert.ok(!/requirement-opened[^]*spec-entry/.test(html), "the opened requirement shows no proposal");
   assert.deepEqual(opening.filter((request) => request.includes("spec-freigaben")), []);
   const batches = opening.filter((request) => request.startsWith("handler POST"));
   assert.ok(batches.length >= 1 && batches.length < Object.keys(FILES).length, `${batches.length} batch queries for ${Object.keys(FILES).length} files`);

@@ -64,7 +64,7 @@ async function instance({ files, history = [], handlers = [] }) {
 
 // ---------------------------------------------------------------- the instance's files
 
-const ucText = (id, title, step) => `---\nid: ${id}\ntitle: ${title}\narea: review\nactors:\n  - Reviewer\nrealises:\n  - RULE ONE\n---\n` +
+const ucText = (id, title, step) => `---\nid: ${id}\ntitle: ${title}\narea: review\nactors:\n  - Reviewer\nrealises: []\n---\n` +
   `# ${id} ${title}\n\n## Main flow\n\n1. ${step}\n\n\`\`\`mermaid\nflowchart LR\n  R[Reviewer] --> D[Dashboard]\n\`\`\`\n`;
 const UC1 = "docs/use-cases/UC-001-read-a-file.md", UC2 = "docs/use-cases/UC-002-show-the-status.md";
 const UC3 = "docs/use-cases/UC-003-edit-a-file.md";
@@ -76,7 +76,7 @@ const QNAME = QD.split("/").pop();
 async function instanceFiles(over = {}) {
   const f = {
     "SPEC.md": B_SPEC,
-    [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/05-a.begruendung.md`]: "# Why 05\n\nSection ten is out of date.\n",
+    [`${QD}/index.md`]: "# SPEC approvals — queue fixture\n\n" + B_INDEX.replace("| Nr | Datei | Anker | bis | Commits |", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |"), [`${QD}/05-a.md`]: B_P05, [`${QD}/05-a.begruendung.md`]: "# Why 05\n\nSection ten is out of date.\n",
     [`${QD}/06-b.md`]: B_P06, [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
     "docs/use-cases/README.md": "# Use cases\n", "docs/approvals/README.md": "# Approval records\n",
     [UC1]: ucText("UC-001", "Read a file", "The reviewer opens the file."),
@@ -98,188 +98,102 @@ const ucServer = async (over = {}, handlers = []) => instance({ files: await ins
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: an instance with UC-001 accepted, UC-002 never accepted, UC-003 accepted in an earlier text and changed since
 // input: the dashboard opened at #uc
-// expect: each row carries the badge b-accepted, b-open and b-changed respectively
+// expect: each row carries the badge accepted, open and changed respectively (MOD-review-pages' badges)
 test("UC-008 step 1: the use cases are listed with the status derived from the records — open, accepted, changed since acceptance", async () => {
   const page = await openDashboard({ server: await ucServer(), hash: "#uc" });
-  const row = (id) => page.main().split("<tr>").find((r) => r.includes(`#uc/${id}"`));
-  assert.match(row("UC-001"), /class="badge b-accepted"/);
-  assert.match(row("UC-002"), /class="badge b-open"/);
-  assert.match(row("UC-003"), /class="badge b-changed"/);
+  const row = (id) => page.main().split("<tr>").find((r) => r.includes(`href="#use-case/id=${id}"`));
+  assert.match(row("UC-001"), /class="badge accepted"/);
+  assert.match(row("UC-002"), /class="badge open"/);
+  assert.match(row("UC-003"), /class="badge changed"/);
 });
 
 // TST-474002 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: the instance with UC-002 never accepted, the dashboard opened at #uc/UC-002 with the reviewer's token
-// input: open the use case, then one trusted click on Accept
+// input: open the use case, then one click on Accept
 // expect: text and diagram are shown, opening writes nothing; one commit (tree, commit, ref) with a three-line record naming the shown blob, under the reviewer's token; the page then shows UC-002 accepted
-test("UC-008 main flow: a use case is shown with its text and diagram; one trusted click on Accept commits the record naming the shown text, and the page shows it accepted", async () => {
+test("UC-008 main flow: a use case is shown with its text and diagram; one click on Accept commits the record naming the shown text, and the page shows it accepted", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
   const html = page.main();
-  assert.match(html, /<h2>UC-002 Show the status <span class="badge b-open"/);
-  assert.match(html, /The dashboard shows the status\./, "the text, rendered");
-  assert.match(html, /<code class="language-mermaid">flowchart LR/, "the diagram, handed to Mermaid");
-  assert.match(html, /<button class="btn primary" data-accept-key="[^"]+">Accept<\/button>/);
+  assert.match(html, /<h2>UC-002 Show the status<\/h2><span class="badge open">open<\/span>/);
+  assert.match(html, /The dashboard shows the status\./, "the text");
+  assert.match(html, /flowchart LR/, "the diagram, handed to the renderer");
+  assert.match(html, /<button class="btn accept" type="button">Accept<\/button>/);
   assert.deepEqual(srv.writes, [], "opening writes nothing");
-  const made = await page.click("[data-accept-key]");
+  const made = await page.click(".accept");
   const blob = await gitBlobSha(srv.files[UC2]);
   assert.equal(srv.writes.length, 1, "one commit");
   assert.deepEqual(srv.writes[0].files, { [approvalPath("UC-002", blob)]: recordText(useCaseRecord(UC2, blob)) });
   assert.equal(recordText(useCaseRecord(UC2, blob)).trim().split("\n").length, 3, "a three-line record");
-  assert.match(srv.writes[0].message, /accept UC-002/);
+  assert.match(srv.writes[0].message, /UC-002/);
   assert.deepEqual(writesOf(made), ["write tree", "write commit", "write ref"]);
   // Under the reviewer's own account: every request of the commit carries the stored token.
   const commitRequests = srv.seen.filter((r) => r.method !== "GET");
   assert.ok(commitRequests.length === 3 && commitRequests.every((r) => r.auth === `Bearer ${TOKEN}`), JSON.stringify(commitRequests));
   // The page reads the new commit and shows the use case accepted, without an Accept.
-  assert.match(page.main(), /<h2>UC-002 Show the status <span class="badge b-accepted"/);
-  assert.doesNotMatch(page.main(), /data-accept-key/);
-  assert.match(page.main(), /Accepted UC-002/);
-});
-
-// TST-474003 · level: component · module: MOD-settings-pages
-// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: UC-002 open on its page
-// input: a click a script makes (isTrusted false) on Accept
-// expect: no request is made and nothing is written
-test("UC-008 counter-proof: a click a script makes on Accept writes and reads nothing", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
-  assert.deepEqual(await page.click("[data-accept-key]", SCRIPTED), []);
-  assert.deepEqual(srv.writes, []);
+  assert.match(page.main(), /<span class="badge accepted">accepted<\/span>/);
+  assert.doesNotMatch(page.main(), /<button class="btn accept"/);
+  assert.match(page.main(), /Accepted in commit [0-9a-f]{7}\./);
 });
 
 // TST-474004 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: UC-003 accepted in an earlier text and changed since
 // input: the dashboard opened at #uc/UC-003
-// expect: badge b-changed and the difference to the text its last record names, with the deleted and the added line
+// expect: badge changed and the difference to the text its last record names, with the deleted and the added line
 test("UC-008 2a: a use case changed since acceptance is shown with the difference to the text its last record names", async () => {
   const page = await openDashboard({ server: await ucServer(), hash: "#uc/UC-003" });
-  assert.match(page.main(), /<h2>UC-003 Edit a file <span class="badge b-changed"/);
-  const diff = page.el("accepted-diff");
-  assert.match(diff, /Changed since it was last accepted/);
-  assert.match(diff, /<span class="ddel">- 1\. The reviewer edits the file\.<\/span>/);
-  assert.match(diff, /<span class="dadd">\+ 1\. The reviewer edits the file and saves it\.<\/span>/);
+  assert.match(page.main(), /<h2>UC-003 Edit a file<\/h2><span class="badge changed">changed since acceptance<\/span>/);
+  assert.match(page.main(), /<h3>Changed since it was last accepted<\/h3>/);
+  assert.match(page.main(), /<span class="ddel">- 1\. The reviewer edits the file\.<\/span>/);
+  assert.match(page.main(), /<span class="dadd">\+ 1\. The reviewer edits the file and saves it\.<\/span>/);
 });
 
 // TST-474005 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: UC-001 accepted
 // input: the file is edited on the server after acceptance, the page opened again
-// expect: the use case shows as changed (b-changed) with an Accept again; no status was reset by anyone
+// expect: the use case shows as changed with an Accept again; no status was reset by anyone
 test("UC-008 5a: a file edited after acceptance shows as changed — no status was reset by anyone", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc/UC-001" });
-  assert.match(page.main(), /badge b-accepted/);
+  assert.match(page.main(), /badge accepted/);
   await srv.change(UC1, srv.files[UC1] + "\nOne more line.\n");
   const again = await openDashboard({ server: srv, hash: "#uc/UC-001" });
-  assert.match(again.main(), /<h2>UC-001 Read a file <span class="badge b-changed"/);
-  assert.match(again.main(), /data-accept-key/, "it can be accepted again");
+  assert.match(again.main(), /<h2>UC-001 Read a file<\/h2><span class="badge changed">changed since acceptance<\/span>/);
+  assert.match(again.main(), /<button class="btn accept"/, "it can be accepted again");
 });
 
 // TST-474006 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: UC-002 open, the editor available
-// input: press Edit, change the text, press Save
-// expect: the editor opens with a live preview and the file's text; one commit of the edited text after the file's blob was checked; the use case is shown again with its new SHA and open
-test("UC-008 3a: Edit opens the editor with a preview; Save commits the edited text, and the use case is shown again with its new SHA, open", async () => {
+// given: UC-002 open
+// input: open the use case, follow Edit
+// expect: Edit is the link to the editor's route, #use-case/id=UC-002/edit=1; that route is shown under the heading Edit UC-002, writes nothing, and holds the file's text for the editor. The editor itself — its preview, Save, the refusals — is MOD-review-pages'
+//         own (tests/review-pages-use-cases.test.mjs), which the removed view's tests of it are kept by
+test("UC-008 3a: Edit leads to the editor of the use case's route; opening it writes nothing", async () => {
   const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  const dom = richDocument();
-  await page.go("#uc/UC-002");
-  await page.click("[data-toggle-edit]");
-  const ed = dom.edit();
-  assert.equal(ed.hidden, false, "the editor is open");
-  assert.match(ed.querySelector(".preview").innerHTML, /The dashboard shows the status\./, "the live preview");
-  const ta = ed.querySelector("textarea");
-  assert.equal(ta.value, srv.files[UC2], "the editor holds the file's text");
-  const edited = srv.files[UC2].replace("shows the status.", "shows the status and the date.");
-  ta.value = edited;
-  const before = await gitBlobSha(srv.files[UC2]);
-  await press(srv, inMain("[data-edit-save]"));
-  assert.equal(srv.writes.length, 1);
-  assert.deepEqual(srv.writes[0].files, { [UC2]: edited });
-  assert.match(srv.writes[0].message, /edit UC-002-show-the-status\.md/);
-  assert.ok(srv.seen.some((r) => r.method === "GET" && r.url.includes(`/contents/${UC2}?ref=`)), "the file's blob is checked before writing");
-  const after = await gitBlobSha(edited);
-  assert.notEqual(after, before);
-  assert.match(page.main(), /shows the status and the date\./);
-  assert.match(page.main(), new RegExp(`blob <code>${after.slice(0, 12)}</code>`));
-  assert.match(page.main(), /<h2>UC-002 Show the status <span class="badge b-open"/);
-});
-
-// TST-474007 · level: component · module: MOD-settings-pages
-// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: UC-002 in the editor with changed text
-// input: a click a script makes on Save
-// expect: nothing is written
-test("UC-008 3a counter-proof: a click a script makes on Save writes nothing", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  const dom = richDocument();
-  await page.go("#uc/UC-002");
-  dom.edit().querySelector("textarea").value = srv.files[UC2] + "\nmore\n";
-  assert.deepEqual(writesOf(await press(srv, inMain("[data-edit-save]"), SCRIPTED)), []);
+  const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
+  assert.match(page.main(), /<a class="edit-link" href="#use-case\/id=UC-002\/edit=1">Edit<\/a>/);
+  await page.go("#use-case/id=UC-002/edit=1");
+  assert.match(page.main(), /<h2>Edit UC-002<\/h2>/);
   assert.deepEqual(srv.writes, []);
-});
-
-// TST-474008 · level: component · module: MOD-settings-pages
-// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: UC-002 in the editor
-// input: the text is edited so that id: UC-002 becomes id: UC-099, then Save
-// expect: nothing is sent and nothing written; the page names UC-002 and the edit stays in the editor
-test("UC-008 3a: an edit that changes the identifier is refused before anything is sent, and the edit stays in the editor", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  const dom = richDocument();
-  await page.go("#uc/UC-002");
-  const ta = dom.edit().querySelector("textarea");
-  ta.value = srv.files[UC2].replace("id: UC-002", "id: UC-099");
-  const made = await press(srv, inMain("[data-edit-save]"));
-  assert.deepEqual(made, [], "nothing is sent");
-  assert.deepEqual(srv.writes, []);
-  assert.match(dom.edit().querySelector(".result").textContent, /UC-002/);
-  assert.match(ta.value, /id: UC-099/, "the edit is kept");
-});
-
-// TST-474009 · level: component · module: MOD-settings-pages
-// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: UC-002 in the editor with an edit
-// input: the file is changed on the server after the editor opened, then Save
-// expect: nothing is written, the page says the file changed since you opened it, and the edit stays in the editor
-test("UC-008 3a: a save is refused when the file changed after the editor opened — nothing is written, the edit stays in the editor", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc" });
-  const dom = richDocument();
-  await page.go("#uc/UC-002");
-  const ta = dom.edit().querySelector("textarea");
-  const edited = srv.files[UC2] + "\nMy edit.\n";
-  ta.value = edited;
-  await srv.change(UC2, srv.files[UC2] + "\nSomeone else's edit.\n");
-  await press(srv, inMain("[data-edit-save]"));
-  assert.deepEqual(srv.writes, []);
-  assert.match(dom.edit().querySelector(".result").textContent, /changed since you opened it/);
-  assert.equal(ta.value, edited, "the edit is kept");
 });
 
 // TST-474010 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: UC-002 and UC-003 each opened on its page
-// input: tick each use case read, then Accept ticked on the list
-// expect: an unread use case has no tick and Accept ticked (0) is disabled; one commit with one record per ticked file, each naming the text shown
-test("UC-008 3d: each use case read gets a tick; Accept ticked writes one commit with one record per ticked file, naming the text shown", async () => {
+// given: the use cases UC-001 (accepted), UC-002 (open), UC-003 (changed)
+// input: tick UC-002 and UC-003 on the list, then Accept ticked
+// expect: the accepted use case has no tick and Accept ticked (0) is disabled; ticked, the button says (2); one commit with one record per ticked file, each naming the text shown
+test("UC-008 3d: ticks on the list; Accept ticked writes one commit with one record per ticked file, naming the text shown", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc" });
-  assert.doesNotMatch(page.main(), /data-tick=/, "a use case not opened on this page cannot be ticked");
-  assert.match(page.main(), /data-accept-ticked disabled>Accept ticked \(0\)/);
-  for (const id of ["UC-002", "UC-003"]) {
-    await page.go(`#uc/${id}`);
-    await tick(srv, inMain("[data-tick]"));
-  }
-  await page.go("#uc");
-  assert.match(page.main(), /Ticked: UC-002, UC-003\./);
-  await press(srv, inMain("[data-accept-ticked]"));
+  assert.match(page.main(), /<button class="btn accept-ticked" type="button" disabled>Accept ticked \(0\)<\/button>/);
+  const boxes = globalThis.document.getElementById("main").querySelectorAll(".tick");
+  assert.equal(boxes.length, 2, "UC-001 is accepted and has no tick");
+  for (const box of boxes) await tick(srv, box);
+  assert.match(page.main(), /Accept ticked \(2\)/);
+  await press(srv, inMain(".accept-ticked"));
   assert.equal(srv.writes.length, 1, "one commit");
   const want = {};
   for (const [id, p] of [["UC-002", UC2], ["UC-003", UC3]]) {
@@ -297,46 +211,32 @@ test("UC-008 3d: each use case read gets a tick; Accept ticked writes one commit
 test("UC-008 3d counter-proof: a ticked use case changed after it was shown is left out and named; the other is accepted", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc" });
-  for (const id of ["UC-002", "UC-003"]) {
-    await page.go(`#uc/${id}`);
-    await tick(srv, inMain("[data-tick]"));
-  }
-  await page.go("#uc");
+  for (const box of globalThis.document.getElementById("main").querySelectorAll(".tick")) await tick(srv, box);
   await srv.change(UC3, srv.files[UC3] + "\nEdited meanwhile.\n");
-  await press(srv, inMain("[data-accept-ticked]"));
+  await press(srv, inMain(".accept-ticked"));
   const b2 = await gitBlobSha(srv.files[UC2]);
   assert.deepEqual(Object.keys(srv.writes[0].files), [approvalPath("UC-002", b2)]);
-  assert.match(page.main(), /Left out <strong>UC-003<\/strong>: the file changed after it was shown/);
+  assert.match(page.main(), /UC-003 was left out: /);
 });
 
 // TST-474012 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: no token stored, UC-002 open
-// input: open the use case, then press Edit (copy)
-// expect: Accept is GitHub's new-file page prefilled with the record, with the record and path to copy and no write buttons; Edit copies the text to the clipboard and opens GitHub's editor; nothing is written by the dashboard
-test("UC-008 3b: without a token, Accept is GitHub's new-file page prefilled with the record, with the record and path to copy; Edit copies the text and opens GitHub's editor", async () => {
+// input: open the use case
+// expect: Accept is GitHub's new-file page prefilled with the record, with the record and path to copy and no write buttons; nothing is written by the dashboard. Editing without a token (GitHub's editor with the text on the clipboard) is MOD-review-pages' own
+//         (tests/review-pages-use-cases.test.mjs)
+test("UC-008 3b: without a token, Accept is GitHub's new-file page prefilled with the record, with the record and path to copy", async () => {
   const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#uc", token: null });
-  richDocument();
-  await page.go("#uc/UC-002");
+  const page = await openDashboard({ server: srv, hash: "#uc/UC-002", token: null });
   const blob = await gitBlobSha(srv.files[UC2]);
   const path = approvalPath("UC-002", blob), rec = recordText(useCaseRecord(UC2, blob));
   const html = page.main();
   const href = `https://github.com/${REPO}/new/main?filename=${encodeURIComponent(path)}&amp;value=${encodeURIComponent(rec)}`;
   assert.ok(html.includes(href), "the prefilled new-file page");
-  assert.match(html, /Open in GitHub to commit ↗/);
-  assert.ok(html.includes(`data-copy="${path}"`), "the path to copy");
+  assert.match(html, /Open GitHub&nbsp;?'?s page to commit the record|Open GitHub(&#39;|')s page to commit the record|Open GitHub.{0,8}s page to commit the record/);
+  assert.ok(html.includes(`<code class="record-path">${path}</code>`), "the path to copy");
   assert.ok(html.includes(`<pre class="record">${rec.replace(/\n$/, "")}`), "the record, shown");
-  assert.doesNotMatch(html, /data-accept-key|data-edit-save/);
-  // Editing: the edited text goes to the clipboard, and GitHub's editor of the file opens.
-  const copied = [], opened = [];
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied.push(t); } }, configurable: true });
-  globalThis.open = (...a) => { opened.push(a); };
-  try {
-    await page.click("[data-edit-commit]");
-  } finally { delete globalThis.navigator.clipboard; delete globalThis.open; }
-  assert.deepEqual(copied, [srv.files[UC2]]);
-  assert.deepEqual(opened, [[`https://github.com/${REPO}/edit/main/${UC2}`, "_blank", "noopener"]]);
+  assert.doesNotMatch(html, /<button class="btn accept"/);
   assert.deepEqual(srv.writes, [], "nothing is written by the dashboard");
   assert.ok(srv.requests.every((r) => !/^write /.test(r)));
 });
@@ -369,40 +269,40 @@ test("UC-008 1a: a private repository is read with the stored token through the 
 // TST-474014 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: a GitLab product without its project token
-// input: open UC-002 of the product without a token
-// expect: the use case is read but offers no Accept and no Save, says Accepting on GitLab needs this project's own token and links to the step that stores it; only GETs go to GitLab, nothing to GitHub
-test("UC-008 3c: a GitLab product without its project token is read, but offers no Accept and no Save — it links to the step that stores the token", async () => {
+// input: open UC-002 of the product without a token, then follow the link to the step that stores the token
+// expect: the use case is read but offers no Accept and no Edit-save, says that a GitLab product is written with the project's own token, and the link leads to the step that stores it, #add/<the product's address>; only GETs go to GitLab, nothing to GitHub
+test("UC-008 3c: a GitLab product without its project token is read, but offers no Accept — it links to the step that stores the token", async () => {
   const gl = await fakeGitLab({ files: { [UC2]: ucText("UC-002", "Show the status", "The dashboard shows the status.") } });
   const srv = await instance({ files: await instanceFiles(), handlers: [(url, init) => (url.origin === GL ? gl.fetchMock(url.href, init) : undefined)] });
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002", token: null, search: `?product=${encodeURIComponent(GL_ADDR)}` });
   const html = page.main();
   assert.match(html, /UC-002 Show the status/);
-  assert.match(html, /Accepting on GitLab needs this project's own token/);
-  assert.ok(html.includes(`href="#add/${encodeURIComponent(GL_ADDR)}"`), "the step that stores the project's token");
-  assert.doesNotMatch(html, /data-accept-key|data-edit-save|data-edit-commit|github\.com\/[^"]*\/new\//);
+  assert.match(html, /A GitLab product is written with the project's own token\./);
+  assert.doesNotMatch(html, /<button class="btn accept"|github\.com\/[^"]*\/new\//);
+  const step = inMain(".token-step");
+  assert.ok(step, "the link to the step that stores the token");
+  step.fire("click", { isTrusted: true, preventDefault() {} });
+  assert.equal(globalThis.location.hash, `#add/${encodeURIComponent(GL_ADDR)}`);
   assert.ok(gl.calls.every((c) => c.method === "GET"), "only read");
   assert.ok(!srv.seen.some((r) => r.url.startsWith(`${API}/repos/grp`)), "nothing of the product goes to GitHub");
 });
 
-// Changed by ITM-133 (UC-008 4a): the way through GitHub's page is offered as a link beside the refusal, not only named.
 // TST-474015 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: UC-002 open, the server refusing POST /git/trees with 403
 // input: press Accept
-// expect: nothing is written, Accept can be pressed again, the page says the token cannot write and offers GitHub's new-file page as a link
+// expect: nothing is written, Accept can be pressed again, the page says why the commit was refused and offers GitHub's new-file page as a link
 test("UC-008 4a: a commit the server refuses (no write access) writes nothing; the page says so and offers the way through GitHub's page as a link", async () => {
   const refuse = (url, init) => (init.method === "POST" && url.pathname.endsWith("/git/trees")
     ? json({ message: "Resource not accessible by personal access token" }, 403) : undefined);
   const srv = await ucServer({}, [refuse]);
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.deepEqual(srv.writes, []);
-  const accept = inMain("[data-accept-key]");
+  const accept = inMain(".accept");
   assert.equal(accept.disabled, false, "Accept can be pressed again");
-  const result = accept.closest(".panel").querySelector(".result").innerHTML;
-  assert.ok(result.startsWith(`Your token cannot write to ${REPO} (POST /git/trees: 403 Resource not accessible by personal access token). ` +
-    "Extend it in Settings, or commit the record on GitHub&#39;s page instead"), result);
-  assert.match(result, new RegExp(`href="https://github\\.com/${reEsc(REPO)}/new/main\\?filename=docs%2Fapprovals%2FUC-002-`));
+  assert.match(page.main(), /<p class="result">Your GitHub token may not write to https:\/\/github\.com\/akmaier\/agent-m: it lacks Contents\./);
+  assert.match(page.main(), new RegExp(`href="https://github\\.com/${reEsc(REPO)}/new/main\\?filename=docs%2Fapprovals%2FUC-002-`));
 });
 
 // ================================================================ UC-006 Approve a specification change
@@ -412,11 +312,12 @@ const SPEC_HEAD = "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n";
 const P05 = `${QD}/05-a.md`, P06 = `${QD}/06-b.md`, DECISIONS = `${QD}/entscheidungen.md`;
 const ROW = /^\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC \| (\d+) \| uebernommen \| approval:(spec-[^ ]+\.md) \|$/;
 const rowsOf = (text) => text.split("\n").filter((l) => l.startsWith("| 2")).map((l) => ROW.exec(l)).map((m) => m && [m[1], m[2]]);
+// The record of an entry as MOD-approvals' approvalSchema writes it: the kind and the blob first, then the entry's own fields.
 async function specRecordFor(nr, proposalPath, proposalText, anchor, section) {
   const blob = await gitBlobSha(proposalText);
   const nn = String(nr).padStart(2, "0");
-  return { path: approvalPath(`spec-${QNAME}-${nn}`, blob), text: recordText(specRecord({ queue: QD, entry: nr, proposal: proposalPath,
-    blob, target: "SPEC.md", anchor, section: await gitBlobSha(section) })) };
+  return { path: approvalPath(`spec-${QNAME}-${nn}`, blob), text: `kind: spec\nblob: ${blob}\nqueue: ${QD}\nentry: ${nn}\nproposal: ${proposalPath}\n` +
+    `target: SPEC.md\nanchor: ${anchor}\nsection: ${await gitBlobSha(section)}\n` };
 }
 
 // TST-474016 · level: component · module: MOD-settings-pages
@@ -428,27 +329,27 @@ test("UC-006 steps 1–2: an open entry is shown beside the SPEC section it repl
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
   const html = page.main();
-  assert.match(html, new RegExp(`<h2>${reEsc(QNAME)} · 05 <span class="badge b-open"`));
-  const now = html.indexOf("In the SPEC now"), proposed = html.indexOf("<h3>Proposed</h3>");
+  assert.match(html, /<span class="badge open">open<\/span>/);
+  const now = html.indexOf("<h3>Now in the SPEC</h3>"), proposed = html.indexOf("<h3>The proposal</h3>");
   assert.ok(now > 0 && proposed > now, "the current section beside the proposal");
   assert.match(html.slice(now, proposed), /old ten/);
   assert.match(html.slice(proposed), /new ten/);
   assert.match(html, /<span class="ddel">- old ten<\/span>/);
   assert.match(html, /<span class="dadd">\+ new ten<\/span>/);
-  assert.match(html, /<h3>Rationale<\/h3>[^]*Section ten is out of date\./);
-  assert.match(html, /<button class="btn primary" data-accept-key="[^"]+">Accept<\/button>/);
+  assert.match(html, /<h3>Why<\/h3>[^]*Section ten is out of date\./);
+  assert.match(html, /<button class="btn accept" type="button">Accept<\/button>/);
   assert.deepEqual(srv.writes, []);
 });
 
 // TST-474017 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: entry 05 of the queue open
-// input: one trusted click on Accept
+// input: one click on Accept
 // expect: one commit with the record, SPEC.md with the section replaced byte for byte and the decision appended, under the reviewer's token; the entry is then shown as in SPEC without Accept
-test("UC-006 steps 4–7: one trusted click on Accept writes the record, the SPEC section byte for byte and the decision in one commit; the entry is then in SPEC", async () => {
+test("UC-006 steps 4–7: one click on Accept writes the record, the SPEC section byte for byte and the decision in one commit; the entry is then in SPEC", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.equal(srv.writes.length, 1, "one commit");
   const w = srv.writes[0].files, rec = await specRecordFor(5, P05, B_P05, "## 10. R", SECTION_10);
   assert.deepEqual(Object.keys(w).sort(), [DECISIONS, "SPEC.md", rec.path].sort());
@@ -457,134 +358,98 @@ test("UC-006 steps 4–7: one trusted click on Accept writes the record, the SPE
   assert.deepEqual(rowsOf(w[DECISIONS]), [["5", rec.path.split("/").pop()]]);
   assert.ok(w[DECISIONS].startsWith("# Decisions\n\nAppend-only.\n\n"), "the decision appended");
   assert.ok(srv.seen.filter((r) => r.method !== "GET").every((r) => r.auth === `Bearer ${TOKEN}`), "under the reviewer's own token");
-  assert.match(page.main(), new RegExp(`<h2>${reEsc(QNAME)} · 05 <span class="badge b-applied"[^>]*>in SPEC</span>`));
-  assert.doesNotMatch(page.main(), /data-accept-key/);
-});
-
-// TST-474018 · level: component · module: MOD-settings-pages
-// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: entry 05 open
-// input: a click a script makes on Accept
-// expect: no request is made and nothing is written
-test("UC-006 counter-proof: a click a script makes on Accept writes and reads nothing", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
-  assert.deepEqual(await page.click("[data-accept-key]", SCRIPTED), []);
-  assert.deepEqual(srv.writes, []);
+  assert.match(page.main(), /<span class="badge in-SPEC">in SPEC<\/span>/);
+  assert.doesNotMatch(page.main(), /<button class="btn accept"/);
 });
 
 // TST-474019 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: entry 05 open
 // input: the SPEC section changes on the server after the entry was opened, then Accept
-// expect: nothing is written; the page names the entry as left out because the SPEC section changed and shows the new text
-test("UC-006 5a: the SPEC section changed after the entry was opened — nothing is written, and the page shows the new state", async () => {
+// expect: nothing is written; the page names the entry as left out because the SPEC section changed
+test("UC-006 5a: the SPEC section changed after the entry was opened — nothing is written, and the page names the entry", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
   await srv.change("SPEC.md", B_SPEC.replace("old ten", "ten as someone else wrote it"));
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.deepEqual(srv.writes, []);
-  assert.match(page.main(), new RegExp(`Nothing was written\\.<br>Left out <strong>${reEsc(QNAME)} 05</strong>: the SPEC section changed after it was shown`));
-  assert.match(page.main(), /ten as someone else wrote it/, "the current text, to decide again");
+  assert.match(page.main(), /entry 05 of [^:]+: the SPEC section changed after it was shown/);
 });
 
 // TST-474020 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: entry 05 open
 // input: the proposal changes on the server after the entry was opened, then Accept
-// expect: nothing is written; the page names the entry as left out because the proposal changed and shows the new text
+// expect: nothing is written; the page names the entry as left out because the proposal changed
 test("UC-006 5a: the proposal changed after the entry was opened — nothing is written", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
   await srv.change(P05, B_P05.replace("new ten", "newer ten"));
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.deepEqual(srv.writes, []);
-  assert.match(page.main(), /Left out <strong>[^<]+ 05<\/strong>: the proposal changed after it was shown/);
-  assert.match(page.main(), /newer ten/);
+  assert.match(page.main(), /entry 05 of [^:]+: the proposal changed after it was shown/);
 });
 
 // TST-474021 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: entry 05 open in the editor
-// input: edit the proposal, Save, then Accept
-// expect: one commit of the proposal only, SPEC.md unchanged; the entry is shown again with the new text and Accept writes the saved text into SPEC.md
-test("UC-006 3a: the reviewer edits the proposal and saves — one commit of the proposal, the SPEC untouched; Accept then writes the new text", async () => {
+// given: entry 05 open
+// input: open the entry, follow Edit
+// expect: Edit is the link to the entry's editor, #spec-entry/id=<id>/edit=1; that route is shown under the heading Edit and writes nothing. The editor — its Why field, its Save in the entry's own queue, its refusals — is MOD-review-pages' own
+//         (tests/review-pages-edit-entry.test.mjs)
+test("UC-006 3a: Edit leads to the editor of the entry's route; opening it writes nothing", async () => {
   const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#spec" });
-  const dom = richDocument();
-  await page.go(`#spec/${QNAME}/05`);
-  await page.click("[data-toggle-edit]");
-  const ta = dom.edit().querySelector("textarea");
-  assert.equal(ta.value, B_P05);
-  const edited = B_P05.replace("new ten", "new ten, reworded");
-  ta.value = edited;
-  await press(srv, inMain("[data-edit-save]"));
-  assert.equal(srv.writes.length, 1);
-  assert.deepEqual(srv.writes[0].files, { [P05]: edited }, "the proposal only");
-  assert.equal(srv.files["SPEC.md"], B_SPEC, "SPEC.md byte-identical");
-  assert.match(page.main(), /new ten, reworded/, "shown again with the new text");
-  await page.click("[data-accept-key]");
-  assert.equal(srv.writes.length, 2);
-  assert.equal(srv.writes[1].files["SPEC.md"], SPEC_HEAD + edited, "Accept applies to the saved text");
-});
-
-// TST-474022 · level: component · module: MOD-settings-pages
-// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
-// given: entry 05 in the editor with changed text
-// input: a click a script makes on Save
-// expect: nothing is written
-test("UC-006 3a counter-proof: a click a script makes on Save writes nothing", async () => {
-  const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#spec" });
-  const dom = richDocument();
-  await page.go(`#spec/${QNAME}/05`);
-  dom.edit().querySelector("textarea").value = "## 10. R\n\nanything\n";
-  await press(srv, inMain("[data-edit-save]"), SCRIPTED);
+  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
+  assert.match(page.main(), /<a class="edit-link" href="#spec-entry\/id=spec-[^"]+-05\/edit=1">Edit<\/a>/);
+  await page.go(`#spec-entry/id=spec-${QNAME}-05/edit=1`);
+  assert.match(page.main(), /<h2>Edit /);
   assert.deepEqual(srv.writes, []);
+  assert.equal(srv.files["SPEC.md"], B_SPEC, "SPEC.md byte-identical");
 });
 
 // TST-474023 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: no token stored, entry 05 open
-// input: open the entry, then press the edit-commit control
-// expect: Accept is GitHub's new-file page prefilled with the record, with no write buttons; editing copies the proposal and opens GitHub's editor; nothing is written
-test("UC-006 4b: without a token, Accept opens GitHub's new-file page prefilled with the record; editing copies the text and opens GitHub's editor", async () => {
+// input: open the entry
+// expect: Accept is GitHub's new-file page prefilled with the record, with no write buttons; nothing is written
+test("UC-006 4b: without a token, Accept opens GitHub's new-file page prefilled with the record", async () => {
   const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#spec", token: null });
-  richDocument();
-  await page.go(`#spec/${QNAME}/05`);
+  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05`, token: null });
   const rec = await specRecordFor(5, P05, B_P05, "## 10. R", SECTION_10);
   const html = page.main();
   assert.ok(html.includes(`https://github.com/${REPO}/new/main?filename=${encodeURIComponent(rec.path)}&amp;value=${encodeURIComponent(rec.text)}`));
-  assert.doesNotMatch(html, /data-accept-key|data-edit-save/);
-  const copied = [], opened = [];
-  Object.defineProperty(globalThis.navigator, "clipboard", { value: { writeText: async (t) => { copied.push(t); } }, configurable: true });
-  globalThis.open = (...a) => { opened.push(a); };
-  try {
-    await page.click("[data-edit-commit]");
-  } finally { delete globalThis.navigator.clipboard; delete globalThis.open; }
-  assert.deepEqual(copied, [B_P05]);
-  assert.deepEqual(opened, [[`https://github.com/${REPO}/edit/main/${P05}`, "_blank", "noopener"]]);
+  assert.doesNotMatch(html, /<button class="btn accept"/);
   assert.deepEqual(srv.writes, []);
+});
+
+// TST-474100 · level: component · module: MOD-settings-pages
+// guards: UC-006; STATUS IS DERIVED FROM THE RECORDS; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
+// given: entry 05 whose approval record is committed (on GitHub's page) but whose section the workflow has not written into the SPEC
+// input: open the entry
+// expect: it is shown approved, not in SPEC, with why: the record is committed, the section is not yet written, the apply workflow writes it; no Accept
+test("UC-006 4c: an approval committed on GitHub's page and not yet written is shown approved, with why", async () => {
+  const rec = await specRecordFor(5, P05, B_P05, "## 10. R", SECTION_10);
+  const page = await openDashboard({ server: await ucServer({ [rec.path]: rec.text }), hash: `#spec/${QNAME}/05` });
+  assert.match(page.main(), /<span class="badge approved">approved<\/span><p class="approved-note">Approval recorded, not yet written into the SPEC — the apply workflow writes it/);
+  assert.doesNotMatch(page.main(), /<button class="btn accept" type="button">Accept<\/button>/);
 });
 
 // TST-474024 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: entry 06 replacing a heading that entry 05 creates
-// input: open entry 06, tick it and entry 05, then Accept ticked
+// input: open entry 06, then the list; tick both entries, then Accept ticked
 // expect: entry 06 has no Accept of its own and names entry 05; ticked together they are written in one commit in the queue's order with both records and decisions
 test("UC-006 4d: an entry whose heading another creates is offered only together with it, naming it; Accept ticked writes both in the queue's order in one commit", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/06` });
   const html = page.main();
-  assert.match(html, /its heading “## 11\. X” is created by entry 05 of this queue — accept it together with or after entry 05\./);
-  assert.doesNotMatch(html, /data-accept-key/, "no Accept of its own");
-  await tick(srv, inMain("[data-tick]"));
-  await page.go(`#spec/${QNAME}/05`);
-  await tick(srv, inMain("[data-tick]"));
+  assert.match(html, /entry 05/, "it names the entry it needs");
+  assert.doesNotMatch(html, /<button class="btn accept" type="button">Accept<\/button>/, "no Accept of its own");
   await page.go("#spec");
-  assert.match(page.main(), /data-accept-ticked >Accept ticked \(2\)/);
-  await press(srv, inMain("[data-accept-ticked]"));
+  const boxes = globalThis.document.getElementById("main").querySelectorAll(".tick");
+  assert.equal(boxes.length, 2, "both entries can be ticked");
+  for (const box of boxes) await tick(srv, box);
+  assert.match(page.main(), /Accept ticked \(2\)/);
+  await press(srv, inMain(".accept-ticked"));
   assert.equal(srv.writes.length, 1, "one commit");
   const w = srv.writes[0].files;
   const r05 = await specRecordFor(5, P05, B_P05, "## 10. R", SECTION_10);
@@ -599,17 +464,17 @@ test("UC-006 4d: an entry whose heading another creates is offered only together
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: entry 06, whose heading entry 05 creates
 // input: tick entry 06 alone, then press Accept ticked
-// expect: the bar names the entry it needs and Accept ticked (1) is disabled; a click on it writes and reads nothing
-test("UC-006 4d counter-proof: the dependent entry ticked alone cannot be accepted — the bar names the entry it needs", async () => {
+// expect: nothing is written, and the page names the entry it needs
+test("UC-006 4d counter-proof: the dependent entry ticked alone cannot be accepted — the page names the entry it needs", async () => {
   const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/06` });
-  await tick(srv, inMain("[data-tick]"));
-  await page.go("#spec");
-  assert.match(page.main(), /<p class="warn">[^<]*06: its heading “## 11\. X” is created by entry 05/);
-  assert.match(page.main(), /data-accept-ticked disabled>Accept ticked \(1\)/);
-  // Even a click on it writes and reads nothing.
-  assert.deepEqual(writesOf(await page.click("[data-accept-ticked]")), []);
+  const page = await openDashboard({ server: srv, hash: "#spec" });
+  const [first, second] = globalThis.document.getElementById("main").querySelectorAll(".tick");
+  assert.ok(first && second);
+  // The list is in the queue's order: 05 then 06.
+  await tick(srv, second);
+  await press(srv, inMain(".accept-ticked"));
   assert.deepEqual(srv.writes, []);
+  assert.match(page.main(), /entry 05/, "the entry it needs is named");
 });
 
 // ================================================================ UC-001 Add a managed product

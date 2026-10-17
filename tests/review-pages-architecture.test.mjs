@@ -87,7 +87,7 @@ const STEPS = [
 
 // ---------------------------------------------------------------- the fake host
 
-function fakeHost({ steps = STEPS, refuse = null } = {}) {
+function fakeHost({ steps = STEPS, refuse = null, unreadable = [] } = {}) {
   const calls = [], commits = new Map();
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
@@ -98,7 +98,8 @@ function fakeHost({ steps = STEPS, refuse = null } = {}) {
   for (const files of steps) head = commitOf(new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), head);
   const snapshotAt = (sha) => {
     const { tree } = commits.get(sha);
-    return { repository: ON_GITHUB, ref: sha, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+    return { repository: ON_GITHUB, ref: sha, commit: sha, paths: [...tree.keys()].sort(),
+      read: async (path) => { if (unreadable.includes(path)) throw failure("Unreachable", `${path} cannot be read`); return tree.has(path) ? tree.get(path) : null; },
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
   return {
@@ -246,6 +247,48 @@ test("MOD-review-pages decision/<id> — a changed decision is shown with its di
   assert.equal(byClass(accepted, "section", "accepted-diff").length, 0);
   assert.equal(byClass(accepted, "button", "accept").length, 0);
   assert.equal(byClass(accepted, "section", "rests-on").length, 0);
+});
+
+// TST-680101 · level: unit · module: MOD-review-pages
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
+// given: ARC-003 and MOD-lister, each accepted at an earlier text and edited since; ARC-001 accepted, MOD-writer never accepted
+// input: the routes decision and module rendered for each
+// expect: for each changed file a section "Impact of this change" between the difference and Accept, with its folded explanation; for MOD-lister the module itself as affected, changed; for ARC-003 that no module follows it; none for the accepted ARC-001 and none for the open MOD-writer
+test("MOD-review-pages decision/<id> and module/<id> — a change to an accepted file shows its impact list beside the difference, before Accept", async () => {
+  const fake = fakeHost();
+  const decision = await show(fake, "decision", { id: "ARC-003" });
+  const [impact] = byClass(decision, "section", "change-impact");
+  assert.ok(impact, "the impact list of ARC-003");
+  assert.match(impact.textContent, /Impact of this change/);
+  assert.match(impact.textContent, /none — no module follows this decision/);
+  assert.equal(byClass(impact, "details", "explain").length, 1, "its folded What is this?");
+  const order = decision.textContent;
+  assert.ok(order.indexOf("Changed since it was last accepted") < order.indexOf("Impact of this change"), "beside the difference, after it");
+  assert.equal(byClass(decision, "button", "accept").length, 1, "Accept, once the list is shown");
+
+  const module = await show(fake, "module", { id: "MOD-lister" });
+  const [moduleImpact] = byClass(module, "section", "change-impact");
+  assert.ok(moduleImpact, "the impact list of MOD-lister");
+  assert.match(moduleImpact.textContent, /MOD-lister — changed/);
+  assert.equal(byClass(module, "button", "accept").length, 1);
+
+  assert.equal(byClass(await show(fake, "decision", { id: "ARC-001" }), "section", "change-impact").length, 0, "an accepted file has none");
+  assert.equal(byClass(await show(fake, "module", { id: "MOD-writer" }), "section", "change-impact").length, 0, "an open file is no change");
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-680102 · level: unit · module: MOD-review-pages
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
+// given: MOD-lister changed since acceptance, and a host that cannot read a use case the graph of the impact list reads
+// input: the route module rendered for MOD-lister
+// expect: the page says that the impact list could not be derived and that the change cannot be accepted without it; no Accept; counter-proof: the same page on a host that reads it offers Accept
+test("MOD-review-pages module/<id> — a change whose impact list cannot be derived is not offered for acceptance", async () => {
+  const good = await show(fakeHost(), "module", { id: "MOD-lister" });
+  assert.equal(byClass(good, "button", "accept").length, 1, "known positive: Accept with the list");
+  const target = await show(fakeHost({ unreadable: ["docs/use-cases/UC-001-borrow-a-book.md"] }), "module", { id: "MOD-lister" });
+  assert.match(target.textContent, /The impact list could not be derived: [^]*cannot be read — without it, this change cannot be accepted\./);
+  assert.equal(byClass(target, "button", "accept").length, 0);
+  assert.equal(byClass(target, "section", "change-impact").length, 0);
 });
 
 // ---------------------------------------------------------------- accepting

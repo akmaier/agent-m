@@ -135,7 +135,8 @@ function contextOf(fake, { token = true, gitlab = false, instanceToken = false }
   const address = gitlab ? ON_GITLAB.web : ON_GITHUB.web;
   if (token) writeSetting(store, gitlab ? "gitlab-token:gitlab.example.org/team/product" : "github-token:alice/thesis-tool", TOKEN);
   if (instanceToken) writeSetting(store, "github-token", TOKEN);
-  return { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go() {},
+  const went = [];
+  return { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go(...where) { went.push(where); }, went,
     product: { address, kind: gitlab ? "gitlab" : "github", host: fake.host } };
 }
 async function show(fake, params = {}, options = {}) {
@@ -483,11 +484,17 @@ test("MOD-review-pages use-case/<id> — a GitHub product without a token of its
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 // given: a product on a GitLab server, no token of its own stored in this browser — the instance's GitHub token is stored, and is no token for a GitLab server; the list and UC-041
 // input: the route use-case rendered for the list and for UC-041
-// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that stores the project's token, #add-product
+// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that stores the project's token, #add-product, which on a click goes through the frame's `go` to the route add-product with the product's address
 test("MOD-review-pages use-case — a GitLab product without a token: no Accept, and the token's step linked", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost({ repository: ON_GITLAB });
-  const one = (await show(fake, { id: "UC-041" }, { token: false, gitlab: true, instanceToken: true })).target;
+  const shown = await show(fake, { id: "UC-041" }, { token: false, gitlab: true, instanceToken: true });
+  const one = shown.target;
+  const step = find(one, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product")[0];
+  let prevented = false;
+  step.dispatchEvent(Object.assign(new Event("click"), { preventDefault() { prevented = true; } }));
+  assert.deepEqual(shown.context.went, [["add-product", { address: ON_GITLAB.web }]], "the click goes to the step that stores the token");
+  assert.equal(prevented, true, "and does not follow the address as written");
   assert.match(one.textContent, /The member borrows a book at the desk\./, "the use case is shown");
   assert.equal(byClass(one, "button", "accept").length, 0, "no Accept");
   assert.equal(find(one, (node) => node.localName === "a" && /github\.com/.test(node.getAttribute("href") ?? "")).length, 0, "no GitHub page");

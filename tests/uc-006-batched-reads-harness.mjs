@@ -3,6 +3,9 @@
 // MOD-review-pages opened over MOD-repository-hosts' real GitHub host. The page is reached the way tests/system-uc-006-approve-spec-change.test.mjs
 // reaches it: the `spec-entry` route's render, in the DOM of tests/review-pages-harness.mjs. Nothing reaches the network:
 // `fetch` is replaced for the length of one page and every request is recorded. No expected result is computed here; each test states its own.
+//
+// Module: MOD-review-pages
+// Level: system
 
 import "./review-pages-harness.mjs";
 import { createHash } from "node:crypto";
