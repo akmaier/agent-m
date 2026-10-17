@@ -191,3 +191,33 @@ export async function rateComparison(results, commit, lastRelease) {
   }
   return out;
 }
+
+/**
+ * testHistory(results: Snapshot, test: string, tags: Array<{ tag: string, commit: string }>) -> Promise<{ commits:
+ * Array<{ commit: string, outcome: string }>, releases: Array<{ tag: string, outcome: string, runs: string | null }>
+ * }> — one mark per commit on which the test ran, a commit with both a passing and a failing record marked flaky; one
+ * row per release tag with the test's outcome on the tag's commit, not run where it holds no record of the test, and
+ * a model-dependent test's rate as runs; a record marked uncommitted is left out (MOD-result-records, Interfaces).
+ * Async — see this file's header.
+ * @param {{ paths: string[], read: (path: string) => Promise<string | null> }} results
+ * @param {string} test
+ * @param {Array<{ tag: string, commit: string }>} tags
+ */
+export async function testHistory(results, test, tags) {
+  const commitIds = [];
+  for (const path of results.paths) {
+    const commit = /^runs\/([^/]+)\/[^/]+\.md$/.exec(path)?.[1];
+    if (commit && !commitIds.includes(commit)) commitIds.push(commit);
+  }
+  const summaries = new Map();
+  for (const commit of new Set([...commitIds, ...tags.map((t) => t.commit)])) summaries.set(commit, summaryOf((await rowsByTest(results, commit)).get(test)));
+  const commits = commitIds
+    .filter((commit) => summaries.get(commit).records.length)
+    .map((commit) => ({ commit, outcome: summaries.get(commit).outcome }));
+  const releases = [];
+  for (const { tag, commit } of tags) {
+    const summary = summaries.get(commit);
+    releases.push({ tag, outcome: summary.outcome, runs: summary.runs });
+  }
+  return { commits, releases };
+}
