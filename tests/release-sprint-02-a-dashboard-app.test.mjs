@@ -837,8 +837,8 @@ test("release · ITM-136 UC-042 1: the GitHub token's ✓ works and its date are
 });
 
 // UC-042 1, 1b · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — Expected: when GitHub refuses the token at its Test, the
-// line shows ✗ refused and the line at the top names the GitHub token; after a reload — GitHub still refusing it — both say so
-// again.
+// line shows ✗ refused and the frame's notice at the top says "The server refused your token Agent M · akmaier/agent-m.";
+// after a reload — GitHub still refusing it — both say so again.
 test("release · ITM-136 UC-042 1b: a GitHub token refused at its last use is shown refused after a reload, on its line and at the top", async () => {
   let refusing = false;
   const w = await world({ refuse: (u) => (refusing ? refusedRead(u) : undefined) });
@@ -848,7 +848,7 @@ test("release · ITM-136 UC-042 1b: a GitHub token refused at its last use is sh
   assert.match(repositoryControl(githubRow(panes), "status").textContent, /Refused/);
   const again = await reload(w, page, { hash: "#uc" }), againPanes = await settingsPanes(again);
   assert.match(repositoryControl(githubRow(againPanes), "status").textContent, /Refused/, "after the reload");
-  assert.match(stripTags(again.el("token-banner")), /GitHub token/, "the line at the top names it");
+  assert.match(stripTags(again.el("token-banner")), /The server refused your token Agent M · akmaier\/agent-m\./, "the notice at the top names it");
 });
 
 // UC-042 1 · ITM-136 — "each setting kept in the browser" has its line's state: a GitLab project token. Expected: its Test with
