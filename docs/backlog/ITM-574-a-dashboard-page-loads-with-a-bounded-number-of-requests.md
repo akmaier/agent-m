@@ -61,6 +61,54 @@ change.
 **Not in it.** The prompt bar's reads (`productFacts` at a hand-over, the poll every 15 s) and the notifications check
 were not measured. Bounding them is a later item, after a count.
 
+**Settled at sprint team1/72's start. Selectable:** akmaier accepted MOD-site-frame's file with its taken-over lines
+(`c75a15be`).
+- **The move.** `docs/assets/dashboard-app.mjs` moves into `src/site-frame/`, as the accepted line says.
+  - Its relative imports are rewritten to where their files stand: `./vendor/`, `./settings-store.mjs`,
+    `./product-store-adapter.mjs`, `./dashboard/…`, and `../../src/…`.
+  - `loadFile` and `linkStylesheet` keep loading the views from `docs/assets/dashboard/`.
+  - `docs/index.html` loads the moved file.
+  - The views stay where they are, since they are other modules' (MOD-review-pages and others) and go in their items.
+- **The batches, in the moved app alone.**
+  - Before a route is drawn, the app reads through the load's one snapshot's `readMany` the paths that route shows,
+    taken from the tree by the route: `#uc` the use cases, `#arc` the architecture, `#spec` `SPEC.md` and the queues'
+    files, `#backlog` the backlog, and the records each needs.
+  - So no view changes.
+  - `readAt` keeps one snapshot per head for the length of an acceptance.
+  - A blob read once is not read again (sprint 71's agreement: a read is skipped where the item holds what it would
+    read).
+- **The tests that name the old path** (`grep -rln "docs/assets/dashboard-app.mjs\|assets/dashboard-app" tests src
+  docs/index.html`, full output read). `tests/app-harness.mjs` and `tests/load-per-view.test.mjs` become this module's,
+  as its accepted lines say. Others name modules this item does not hold:
+  - `dashboard-roles` (MOD-implementation-pages);
+  - `dashboard-review-flows`, `dashboard-settings-last-test` and the release test `release-uc-003-direct-endpoint`
+    (MOD-settings-pages);
+  - the release test `release-sprint-04-trace-pages` (MOD-trace-pages);
+  - `dashboard-notifications`, `dashboard-notifications-wiring` and `system-uc-047-…` (MOD-notifications);
+  - `test_no_backend.py` (MOD-repository-hosts' takeover);
+  - `dashboard-spec-impact`, `architecture-view` and `dashboard-backlog-teams` (MOD-review-pages' and
+    MOD-implementation-pages' takeovers).
+
+  The developer reads each for how it names the path. One that only reaches the app through `app-harness.mjs` keeps
+  working. One that reads the file at the old path fails on the draft. Such a test is changed by its own module's item,
+  and a release test by another participant (sprint 68's agreement). If the draft run shows any, the developer stops
+  and reports them before the tests-only commit.
+- **The release tests that count requests or writes:** TST-472516 and 472518 (`writes()` counts the batch's
+  `POST /graphql`), and TST-479201 and 479202 (their counts move). They are ITM-678's, by developer-sonnet-b, before this
+  item's gate. Every other release file run through `app-harness.mjs` is run on the draft (sprint 70's agreement).
+- **The harness.** `tests/app-harness.mjs` answers `POST /graphql` with the files of its repository, as GitHub's batch
+  query does. Today it answers 500, which reads as `Unreachable`.
+- **The measurement** is the SPEC's Check: `tests/load-per-view.test.mjs`. The start page, `#arc`, `#spec` and
+  `#backlog` each send their commit and tree once and one batch per 100 files they show, and an acceptance of three
+  files reads its head once.
+- **Error fields:** none added. **Topics:** no step is added.
+- **Sprints 64 to 71:**
+  - each draft run lists the changed tests, and stops at a release test, whose whole file is run;
+  - one action per shell command; DOM assertions compare booleans or strings; no refusal is worked around;
+  - a header the item touches loses its item history;
+  - every step added names the topic it folds;
+  - a read is skipped where the item already holds what it would read.
+
 ## Acceptance
 
 - Over a counting fake GitHub that serves the batch request, each of the start page, `#arc`, `#spec` and `#backlog` sends

@@ -35,3 +35,8 @@ against ITM-677's draft.
 - The four release tests pass on the base and on ITM-677's head, a batch counted as a read and no write left out.
 - They are written by a participant who builds none of ITM-677.
 - Its counter-proof: a real write planted in a page fails `writes()`.
+
+**Settled at sprint team1/72's start. Selectable,** by developer-sonnet-b, who builds none of ITM-574 or ITM-677.
+- ITM-574 now brings the batch request first, so this item goes before ITM-574's gate.
+- It is verified on ITM-574's draft, and later holds for ITM-677 as well.
+- **The whole release files** are run on ITM-574's draft (sprint 70's agreement), and every changed case is named.
