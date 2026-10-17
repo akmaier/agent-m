@@ -10,9 +10,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { openDashboard, press, repoServer, richDocument, settle } from "./app-harness.mjs";
+import { APP_FILE, openDashboard, press, repoServer, richDocument, settle } from "./app-harness.mjs";
 
-const APP_FILE = new URL("../src/site-frame/dashboard-app.mjs", import.meta.url);
 const INSTANCE = "akmaier/agent-m";
 const prefix = `agent-m:${INSTANCE}:`;
 const ENDPOINT = { name: "release", url: "https://release-model.example.test/v1", kind: "openai-compatible", model: "release-model", key: "release-browser-only-key" };

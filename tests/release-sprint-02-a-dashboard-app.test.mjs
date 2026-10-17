@@ -28,7 +28,7 @@ import { createHash } from "node:crypto";
 import { resolveObjectURL } from "node:buffer";
 import { registerHooks } from "node:module";
 import { fileURLToPath } from "node:url";
-import { repoServer, openDashboard, TOKEN } from "./app-harness.mjs";
+import { repoServer, openDashboard, TOKEN, APP_FILE } from "./app-harness.mjs";
 
 const API = "https://api.github.com";
 const INSTANCE = "akmaier/agent-m";
@@ -487,7 +487,6 @@ test("release · ITM-126 AN EDITED FILE KEEPS ITS IDENTIFIER: a decision and a m
 // The addresses of today are the routes of the shell's one table (DASHBOARD) and the detail addresses of the views built; which
 // view is built is read here from the disk — the files under docs/assets/dashboard/ —, not from the shell's own list of them.
 
-const APP_FILE = new URL("../src/site-frame/dashboard-app.mjs", import.meta.url);
 const { DASHBOARD } = await import(APP_FILE.href);
 const { MENU } = await import("../src/site/menu.mjs");
 const builtOnDisk = (file) => typeof file === "string" && fs.existsSync(path.join(ROOT, "docs/assets/dashboard", file));
