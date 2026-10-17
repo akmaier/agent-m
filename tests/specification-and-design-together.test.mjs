@@ -137,7 +137,7 @@ function repository(files = PRODUCT) {
 
 // A requirement edit as the editor hands it to proposeSection.
 const edit = (overrides = {}) => ({ target: "SPEC.md", anchor: "## 1. Reading", until: null, text: READING_EDITED, why: "A reader needs to know why a file cannot be read.",
-  origin: "an issue of a reader", person: "alice", openedBlob: gitBlob(READING), ...overrides });
+  origin: "an issue of a reader", person: "alice", openedBlob: gitBlob(READING), openedHead: "0".repeat(40), ...overrides });
 // What the review page shows of an entry, handed to acceptEntries as the person's click gives it.
 const shownOf = (queue, number, view) => ({ queue, entry: number, proposalBlob: view.proposal.blob, sectionBlob: view.current.blob });
 const folderName = (queue) => queue.split("/").pop();
