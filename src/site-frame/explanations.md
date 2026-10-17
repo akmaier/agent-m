@@ -712,3 +712,73 @@ The rules your product has to meet come from *requirement sources*: a law, a sta
 **Why the version is fixed.** A law is amended and a standard gets a new edition, and a requirement drawn from an older text may no longer hold. So each link records the exact version of the source the product uses, and the fingerprint (SHA-256) of that version. The product moves to a newer version only when you decide to, and Agent M lists the requirements it affects first.
 
 The *part* says which part of a source applies, such as a safety class, a chapter or a set of articles. Leave it empty when the source applies as a whole; any text is allowed. A source whose content is restricted can be linked like any other: only reading its content needs access.
+
+## settings-bridge-stored
+
+This browser keeps the Bridge address and pairing token so it can reach the Bridge. Anyone able to read this browser's Pages storage can read them.
+
+## settings-bridge-named
+
+This browser keeps the Bridge's address, or its port on the jump host, and its pairing token under the name the Bridge reports. Anyone able to read this browser's Pages storage can read them.
+
+## settings-jump-host
+
+This browser keeps the jump-host connection details so the Bridge can prepare remote sessions. Anyone able to read this browser's Pages storage can read them.
+
+## settings-export-import
+
+Export copies this browser's settings, including secrets, into a file for this person to keep or move. Import reads that file into this browser; whoever holds an unlocked export can read its settings.
+
+## settings-clear-everything
+
+This removes every Agent M setting held in this browser. It changes no repository, and any Pages site under the same owner domain that can read this storage loses access too.
+
+## settings-products-stored
+
+This browser keeps the list of managed product addresses so it can open their repository settings. Any Pages site under the same owner domain can read that browser storage.
+
+## settings-token-stored
+
+This browser keeps this token so Agent M can read and write this repository. Any Pages site under the same owner domain can read it; give it only the minimum repository scope needed.
+
+## settings-product-address
+
+This browser keeps this product address and its optional token so it can test and open the repository. Any Pages site under the same owner domain can read that browser storage.
+
+## settings-managed-products
+
+This browser keeps the managed product list so it can show each repository's settings. Any Pages site under the same owner domain can read that browser storage.
+
+## settings-notifications
+
+Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch. While a dashboard page is open, it checks every five minutes for open SPEC changes, use cases, architecture files, and release test reports waiting for Accept and release. Checks go only to repository servers with the tokens of this browser and nowhere else. Nothing is checked while no dashboard page is open.
+
+## settings-remote-session
+
+This browser keeps the forwarded port and copied Bridge token for this remote session. Any Pages site under the same owner domain can read them; the Bridge reads its own tunnel settings.
+
+## settings-job-workflow
+
+The product repository keeps Agent M's job workflow. The files name this instance commit and the CI secrets by name only: `AGENT_M_TOKEN` for the person's repository token and one key secret for each CI participant. The secret values are entered on the repository server's secrets page, not in Agent M.
+
+## settings-product-none
+
+A chosen product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser reads them to show their current state.
+
+## settings-product-unavailable
+
+This browser keeps the selected product address and token. Its token remains available in the repository settings above.
+
+## settings-product-read-only
+
+This product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser only reads them to show their current state.
+
+## settings-product-records
+
+This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click.
+
+## trace-none-yet
+
+Here a list reads none yet when the version shown holds no artifact of that kind at all. A list that reads none instead means the version holds such artifacts and none of them names this requirement.
+Architecture decisions and module files come when the architecture is derived from the accepted use cases, and tests when the modules are implemented.
+Choose a later version to see them once they exist.

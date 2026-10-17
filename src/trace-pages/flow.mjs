@@ -1,12 +1,21 @@
 // The public trace Route for the current SPEC slice. Above the tree it offers the ref its caller hands (current, when that is the default
-// branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the SPEC again at it. It does not derive
-// traces, read queues or write. On the default branch it leads to the review pages' editing: Edit beside each requirement and
-// + Requirement in each section; at any other ref the view says "as of" it and offers neither.
+// branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the SPEC again at it. Drawing reads
+// the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
+// graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
+// opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
+// and the unknown names they also name, each a link (step 6). It writes nothing. On the default branch it leads to
+// the review pages' editing: Edit beside each requirement and + Requirement in each section; at any other ref the view says "as of" it
+// and offers neither.
 //
 // Module: MOD-trace-pages
 
 import { parseSpec } from "../spec-document/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
+import { readDocument } from "../documents/index.mjs";
+import { statuses } from "../approvals/index.mjs";
+import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
+import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { explain } from "../site-frame/index.mjs";
 import { descriptorFor } from "./views.mjs";
 import { opening, personsSource, subjectOf } from "./subject.mjs";
 
@@ -31,6 +40,111 @@ function requirementDetail(requirement) {
   return detail;
 }
 
+// ---------------------------------------------------------------- what traces to an opened requirement (UC-020 steps 5 and 6)
+
+// The address of an artifact's page, in the form the frame reads (a route, then key=value parts, each encoded): a use case, a decision and a module
+// at the review pages' routes `use-case`, `decision` and `module` with the part `id`, a test at this module's own route `trace` for the tests view,
+// a source at the library's `library` with the part `source`. An identifier of another kind has no page, and is shown unlinked.
+const fragment = (route, params) => `#${[route, ...Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)].join("/")}`;
+function addressOf(id) {
+  if (/^UC-/.test(id)) return fragment("use-case", { id });
+  if (/^ARC-/.test(id)) return fragment("decision", { id });
+  if (/^MOD-/.test(id)) return fragment("module", { id });
+  if (/^TST-/.test(id)) return fragment("trace", { key: "tests", row: id });
+  if (/^SRC-/.test(id)) return fragment("library", { source: id });
+  return null;
+}
+const linked = (id, text) => {
+  const address = addressOf(id);
+  if (address === null) return el("span", null, text);
+  const anchor = el("a", "trace-link", text);
+  anchor.setAttribute("href", address);
+  return anchor;
+};
+
+// A fact of the version drawn, read when it is first wanted and kept for every later opening; one that failed is read again at the next.
+function kept(make) {
+  let held = null;
+  return () => {
+    held ??= make().catch((failure) => { held = null; throw failure; });
+    return held;
+  };
+}
+
+// The sources of the version drawn: the product's links at the version, and the register of the instance at its default branch (the Host the frame
+// gave the route; the version's own snapshot where it gave none), as MOD-review-pages' sourcesOf reads them.
+async function sourcesOf(shown) {
+  const { snapshot, context } = shown;
+  const { entry, links } = sourceSchemas();
+  let holder = snapshot;
+  if (context.instance?.host) holder = await context.instance.host.readSnapshot((await context.instance.host.repositoryInfo()).defaultBranch);
+  const register = await Promise.all(holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path))
+    .map(async (path) => readDocument(entry, path, (await holder.read(path)) ?? "")));
+  return { links: readDocument(links, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? ""), register };
+}
+
+const REVIEW = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
+const problemLine = (what, failure) => el("p", "traces-problem", `${what} could not be read: ${failure?.message ?? failure}`);
+const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
+
+// The facts of the version drawn, each read on its first opening.
+function factsOf(shown) {
+  return shown.facts ??= {
+    graph: kept(() => traceGraph(shown.snapshot, { commit: shown.snapshot.commit ?? null })),
+    sources: kept(() => sourcesOf(shown)),
+  };
+}
+
+// The sections of one opened requirement, drawn into `box` once the graph is read. A list nothing fills reads `none`; where the version holds no
+// artifact of the kind at all — no decision, module or test —, it reads `none yet` and a folded note says which phase produces them (UC-020 2b, 5a).
+async function showTraces(box, requirement, shown) {
+  const facts = factsOf(shown);
+  const section = (title, ...content) => el("section", "requirement-trace", el("h4", null, title), ...content);
+  const sections = [];
+  let graph;
+  try {
+    graph = await facts.graph();
+  } catch (failure) {
+    box.replaceChildren(problemLine("What traces to this requirement", failure));
+    return;
+  }
+  const traces = tracesTo(graph, requirement.name);
+  const held = (kind) => [...graph.nodes.values()].some((node) => node.kind === kind);
+  const reviewOf = statuses(shown.snapshot);
+
+  try {
+    const { links, register } = await facts.sources();
+    sections.push(section("Sources", traces.sources.length ? listOf(traces.sources.map((item) => {
+      const found = linkedVersion(links, register, item);
+      if (!found) return el("span", null, `${item} — no linked version`);
+      return el("span", null, linked(found.source.id, found.source.fields.title ?? found.source.id), ` — version ${found.version.version}${found.part ? `, part ${found.part}` : ""}`);
+    })) : el("p", "none", "none")));
+  } catch (failure) {
+    sections.push(section("Sources", problemLine("The sources", failure)));
+  }
+
+  sections.push(section("Use cases", traces.useCases.length ? listOf(traces.useCases.map((id) => {
+    const node = graph.nodes.get(id);
+    return el("span", null, linked(id, `${id} ${node.title ?? ""}`.trim()), ` — ${REVIEW[reviewOf.get(node.path)?.status] ?? "open"}`);
+  })) : el("p", "none", "none")));
+  for (const [title, kind, ids] of [["Architecture decisions", "ARC", traces.decisions], ["Modules", "MOD", traces.modules], ["Tests", "TST", traces.tests]]) {
+    if (ids.length) sections.push(section(title, listOf(ids.map((id) => linked(id, `${id} ${graph.nodes.get(id)?.title ?? ""}`.trim())))));
+    else if (!held(kind)) {
+      sections.push(section(title, el("p", "none-yet", "none yet"),
+        explain("trace-none-yet")));
+    } else sections.push(section(title, el("p", "none", "none")));
+  }
+
+  // Unknown names (UC-020 5b): the names that match no requirement, as coverageGaps finds them, which the artifacts listed above also name.
+  const listedIds = new Set([...traces.useCases, ...traces.decisions, ...traces.modules, ...traces.tests]);
+  const unknown = coverageGaps(graph).unknownNames
+    .map(({ name, namedBy }) => ({ name, namedBy: [...new Set(namedBy.map((place) => place.id).filter((id) => listedIds.has(id)))] }))
+    .filter(({ namedBy }) => namedBy.length);
+  sections.push(section("Unknown names", unknown.length ? listOf(unknown.map(({ name, namedBy }) =>
+    el("span", null, `${name} — named by `, ...namedBy.flatMap((id, at) => [...(at ? [", "] : []), linked(id, id)])))) : el("p", "none", "none")));
+  box.replaceChildren(...sections);
+}
+
 // An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded.
 function reviewLink(className, text, route, params) {
   const anchor = el("a", `${className} btn small`, text);
@@ -52,8 +166,10 @@ function requirementRows(requirement, editable, shown) {
       opening(shown.requirements, requirement.name, false);
       return;
     }
-    const cell = el("td", "panel", requirementDetail(requirement));
+    const traces = el("div", "requirement-traces", el("p", "traces-reading", "Reading what traces to it…"));
+    const cell = el("td", "panel", requirementDetail(requirement), traces);
     cell.setAttribute("colspan", "1");
+    showTraces(traces, requirement, shown);
     opened.replaceChildren(cell);
     opening(shown.requirements, requirement.name, true);
   });
@@ -172,11 +288,12 @@ export const route = {
     // read is named in place of the tree; the handed one is the caller's.
     const draw = async (ref, chosen) => {
       const mine = ++latest;
-      const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [] };
+      const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
       drawn.set(context, shown);
       let body;
       try {
         const snapshot = await host.readSnapshot(ref);
+        shown.snapshot = snapshot;
         const text = await snapshot.read(SPEC_PATH);
         shown.onDefaultBranch = await onDefaultBranch(host, ref);
         shown.spec = parseSpec(text ?? "");
