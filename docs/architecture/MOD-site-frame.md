@@ -142,7 +142,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   the products, or when the browser keeps no product — the pages then show the instance itself. Errors: `UnknownProduct`
   — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
   used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
-- `explain(topic: string) -> Element` — the folded *What is this?* of a topic, from `explanations.md`, rendered by the
+- `explain(topic: string, label?: string) -> Element` — the folded *What is this?* of a topic, or the fold under the
+  label a use case names for it (such as *Why these?*), from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
   topic the file does not hold it returns an empty element, and the frame's own check reports the missing topic.
 - `runPanel(prepared: Prepared, handlers: { onRun: () -> Promise<void>, onCancel?: () -> void }) -> Element` — the panel

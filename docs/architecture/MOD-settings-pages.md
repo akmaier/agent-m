@@ -149,7 +149,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     checked and how often, that the checks go to the repository servers with this browser's tokens and nowhere else, and
     that nothing is checked while no page of the dashboard is open.
   - `get-your-own`, `setup` — the fork, Pages and Actions steps with their direct links once the owner is known; then
-    *Finish setting up*: the prefilled token page, *Only select repositories* and the instance named, the shared-origin
+    *Finish setting up*: the prefilled token page with the folded *Why these?* of its permissions (UC-014 step 7),
+    *Only select repositories* and the instance named, the shared-origin
     notice with its tick, the token and its expiry, *Store and check*, and *Import settings* beside it.
   - `add-product` — the address recognised as GitHub or GitLab; the token's step for that server with the names filled
     in, or the GitLab project access token; *Check*; *Add product*, which writes the missing review layout and adds the
