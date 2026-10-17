@@ -309,7 +309,7 @@ test("EVERY STEP EXPLAINS ITSELF — the folded explanation names what, how ofte
     const page = await openDashboard({ server, hash: "#uc" });
     const box = await usabilitySettings(page);
     const notification = publicControls(box, "settings-notifications")[0];
-    const details = publicControls(notification, "settings-what-is-this")[0];
+    const details = publicControls(notification, "explain")[0];
     assert.ok(details, "the public Notifications control carries its folded explanation");
     assert.equal(details.localName, "details", "the public explanation remains a details element");
     assert.equal(Boolean(details.open), false, "the public explanation is collapsed by default");
