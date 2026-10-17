@@ -31,3 +31,20 @@ caller of `sourcesOf` (jobs, requirements-draft, the accept click) and how each 
 
 - A product's entry page reads the instance's commit and tree once, with a token, and TST-844201's count falls by three.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Decided at its draft stop (sprint team1/79, 2026-10-17, po-opus).**
+- **The changed tests are accepted as named changes,** each a count that falls with this item's one change:
+  - TST-844201, from 7 to 4;
+  - TST-844202, from 8 to 5;
+  - the two cases of `review-pages-read-problem.test.mjs`, from 14 to 12 and from 26 to 24.
+
+  They are fixed before the red. All are MOD-review-pages tests.
+- **The known positive.** ITM-844's gate stated 13 and 17 for a product's entry page, measured at this repository's size.
+  The harness's fixture gives 14 and 26. Both are counts, of different fixtures.
+  - The developer measures the base again at this repository's size, by ITM-844's method, and states whether 13 and 17
+    hold.
+  - If they do not, the difference is explained before the gate.
+  - The tests pin the harness's counts.
+- **Release test TST-418101's counter-proof** (`AGENT_M_418_COUNTERPROOF=1`) is run on the base and on the head before the
+  pull request, since `ownSource`'s line 85 is what it matches.
+- **The other callers of `sourcesOf`** stay as they are. A job's start page's second snapshot is ITM-852.
