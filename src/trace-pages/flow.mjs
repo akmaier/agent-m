@@ -15,12 +15,12 @@
 
 import { parseSpec } from "../spec-document/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
-import { readDocument } from "../documents/index.mjs";
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { componentDiagram, moduleFiles } from "./diagram.mjs";
+import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
 import { opening, personsSource, subjectOf } from "./subject.mjs";
 
@@ -362,22 +362,41 @@ const OTHER = {
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
-// The modules page (UC-025 step 5): the component diagram of the modules of the version handed, from the graph of that version, drawn through renderMermaid. It offers no
+// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md read in one batch and by their schema, nothing else of the
+// repository (the diagram needs no code and no test file, so the graph of the version is not built).
+async function moduleFilesOf(snapshot) {
+  const paths = snapshot.paths.filter((path) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(path));
+  if (paths.length) await snapshot.readMany?.(paths);
+  const schema = artifactSchemas().module;
+  const files = [];
+  for (const path of paths) {
+    const text = await snapshot.read(path);
+    if (text === null) continue;
+    const found = readDocument(schema, path, text);
+    files.push({
+      kind: "module", id: found.id, title: found.fields?.title ?? found.title ?? "", follows: found.fields?.follows ?? [],
+      uses: (found.fields?.uses ?? []).map((name) => { const dot = String(name).indexOf("."); return { module: String(name).slice(0, dot), iface: String(name).slice(dot + 1) }; }),
+      provides: found.fields?.provides ?? [],
+    });
+  }
+  return files;
+}
+
+// The modules page (UC-025 step 5): the component diagram of the modules of the version handed, from the module files of that version, drawn through renderMermaid. It offers no
 // version choice and reads no tag: the view's versions are "branch". Where the version holds no module it says so, and where the graph cannot be read it names that.
 async function drawModules(target, context, host, ref, descriptor) {
   const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
   drawn.set(context, shown);
   const place = el("div", "modules-body", el("p", "traces-reading", "Reading the modules…"));
   target.replaceChildren(el("section", "modules head", el("h2", null, descriptor.title), place));
-  let graph;
+  let files;
   try {
     shown.snapshot = await host.readSnapshot(ref);
-    graph = await factsOf(shown).graph();
+    files = await moduleFilesOf(shown.snapshot);
   } catch (failure) {
     place.replaceChildren(problemLine("The modules", failure));
     return;
   }
-  const files = moduleFiles(graph);
   if (!files.length) {
     place.replaceChildren(el("p", "gaps-missing", `No modules exist at ${ref}.`));
     return;
