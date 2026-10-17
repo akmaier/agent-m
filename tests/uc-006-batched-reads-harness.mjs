@@ -2,7 +2,8 @@
 // trace graph reads, on a fake GitHub that answers as GitHub's REST API and GraphQL API answer, and the SPEC-entry page of
 // MOD-review-pages opened over MOD-repository-hosts' real GitHub host. The page is reached the way tests/system-uc-006-approve-spec-change.test.mjs
 // reaches it: the `spec-entry` route's render, in the DOM of tests/review-pages-harness.mjs. Nothing reaches the network:
-// `fetch` is replaced for the length of one page and every request is recorded. No expected result is computed here; each test states its own.
+// `fetch` is replaced for the length of one page and every request is recorded. The instance throws when it is read, unless a test gives
+// `openPage` a second fake for it. No expected result is computed here; each test states its own.
 //
 // Module: MOD-review-pages
 // Level: system
@@ -58,10 +59,25 @@ export function productFiles(total = 1332) {
   return held;
 }
 
+// The product of `total` files with the links file docs/sources.md, which links the source SRC-alice (the register entry of the instance's author).
+export const PERSON_SOURCE = "SRC-alice";
+const registerEntry = (id, title, account) => text("---", `id: ${id}`, `title: ${title}`, "kind: person", `identifier: ${account}`, "authority: informational", "licence: may be republished - fixture",
+  "---", `# ${id} ${title}`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `2026-10-13` | 2026-10-13 | fixture | this repository | one file, hashed only |");
+export function productWithLinks(total = 10) {
+  return { ...productFiles(total), "docs/sources.md": text("# Requirement sources of the spec product", "", "| Source | Version | Hash | Part |", "|---|---|---|---|",
+    `| ${PERSON_SOURCE} | 2026-10-13 | ${"0".repeat(64)} | |`) };
+}
+// The instance alice/agent-m: its register docs/sources/ holds the entry of its author github.com/alice (SRC-alice) and one of another person (SRC-bob), unless `withAuthor` is false.
+export const REGISTER_PATHS = ["docs/sources/SRC-alice.md", "docs/sources/SRC-bob.md"];
+export function instanceFiles({ withAuthor = true } = {}) {
+  return { "README.md": text("# Agent M of the fixture"), ...(withAuthor ? { [REGISTER_PATHS[0]]: registerEntry(PERSON_SOURCE, "Alice", "github.com/alice") } : {}),
+    [REGISTER_PATHS[1]]: registerEntry("SRC-bob", "Bob", "github.com/bob") };
+}
+
 // A fake GitHub holding `held` at COMMIT. special: { path: "truncated" | "binary" | "absent" } is how GraphQL answers that path;
 // graphql(body, headers) may answer the /graphql request instead (a Response), or nothing to let the fake answer. Every request
 // is recorded as { method, url, headers, body }.
-export function fakeGitHub(held, { graphql = null, special = {} } = {}) {
+export function fakeGitHub(held, { graphql = null, special = {}, repo = "alice/spec-product" } = {}) {
   const requests = [];
   const fetch = async (input, init = {}) => {
     const url = new URL(String(input));
@@ -69,7 +85,7 @@ export function fakeGitHub(held, { graphql = null, special = {} } = {}) {
     const method = init.method ?? "GET";
     const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
     requests.push({ method, url, headers, body });
-    const prefix = "/repos/alice/spec-product";
+    const prefix = `/repos/${repo}`;
     if (url.origin === "https://api.github.com" && url.pathname === "/graphql") {
       const own = graphql?.(body, headers);
       if (own) return own;
@@ -84,7 +100,7 @@ export function fakeGitHub(held, { graphql = null, special = {} } = {}) {
       return json({ data: { rateLimit: { cost: 1, remaining: 4999 }, repository } });
     }
     if (url.origin === "https://raw.githubusercontent.com") {
-      const body1 = held[decodeURIComponent(url.pathname.slice(`/alice/spec-product/${COMMIT}/`.length))];
+      const body1 = held[decodeURIComponent(url.pathname.slice(`/${repo}/${COMMIT}/`.length))];
       return body1 === undefined ? json({ message: "Not Found" }, 404) : new Response(body1);
     }
     if (url.origin !== "https://api.github.com") return json({ message: "Not Found" }, 404);
@@ -100,26 +116,40 @@ export function fakeGitHub(held, { graphql = null, special = {} } = {}) {
   const graphqlRequests = () => requests.filter((r) => r.url.pathname === "/graphql");
   // The files read one by one: through the API's contents with a token, from the raw host without one.
   const contentPaths = () => requests.filter((r) => r.url.pathname.includes("/contents/") || r.url.origin === "https://raw.githubusercontent.com")
-    .map((r) => decodeURIComponent(r.url.pathname.includes("/contents/") ? r.url.pathname.split("/contents/")[1] : r.url.pathname.slice(`/alice/spec-product/${COMMIT}/`.length)));
+    .map((r) => decodeURIComponent(r.url.pathname.includes("/contents/") ? r.url.pathname.split("/contents/")[1] : r.url.pathname.slice(`/${repo}/${COMMIT}/`.length)));
   return { fetch, requests, graphqlRequests, contentPaths,
     namedPerQuery: () => graphqlRequests().map((q) => [...q.body.query.matchAll(/:object\(expression:/g)].length) };
 }
 
 // Opens the SPEC-entry page of the product over the real GitHub host with `fake` as GitHub: the entries list with no params, one entry with { id }.
-// -> { target, failure } the page's element after it rendered.
-export async function openPage(fake, params = {}, { token = TOKEN } = {}) {
+// `instance`: a second fake (fakeGitHub(..., { repo: INSTANCE_REPO })) that the instance's host reads, over the same real GitHub host; without it the instance
+// throws when it is read. The requests of each repository go to its own fake, told apart by the repository in the path, the raw host's path or the GraphQL variables.
+// -> the page's element after it rendered; lastContext() is the context it was drawn in.
+let drawnIn = null;
+export const lastContext = () => drawnIn;
+export const INSTANCE_REPO = "alice/agent-m";
+export const INSTANCE_ADDRESS = `https://github.com/${INSTANCE_REPO}`;
+const routed = (product, instance) => async (input, init = {}) => {
+  const url = new URL(String(input));
+  const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+  const ofInstance = url.pathname.startsWith(`/repos/${INSTANCE_REPO}`) || url.pathname.startsWith(`/${INSTANCE_REPO}/`) || body?.variables?.name === INSTANCE_REPO.split("/")[1];
+  return (ofInstance ? instance : product).fetch(input, init);
+};
+export async function openPage(fake, params = {}, { token = TOKEN, instance = null } = {}) {
   const real = globalThis.fetch;
-  globalThis.fetch = fake.fetch;
+  globalThis.fetch = instance ? routed(fake, instance) : fake.fetch;
   try {
     while (globalThis.localStorage.length) globalThis.localStorage.removeItem(globalThis.localStorage.key(0));
     const store = openStore("alice/agent-m");
     if (token) writeSetting(store, "github-token:alice/spec-product", { value: token, name: "Agent M - spec-product", expires: "2027-01-01" });
     const host = connect(parseAddress(PRODUCT_ADDRESS), token ? { token } : {});
-    const instance = { async repositoryInfo() { throw new Error("the instance is not read to show an entry"); }, async readSnapshot() { throw new Error("the instance is not read to show an entry"); } };
+    const refused = { async repositoryInfo() { throw new Error("the instance is not read to show an entry"); }, async readSnapshot() { throw new Error("the instance is not read to show an entry"); } };
+    const instanceHost = instance ? connect(parseAddress(INSTANCE_ADDRESS), token ? { token } : {}) : refused;
     const target = document.createElement("div");
     document.body.append(target);
-    await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: instance },
-      product: { address: PRODUCT_ADDRESS, kind: "github", host }, store, go() {} }, params);
+    drawnIn = { page: "review", instance: { repository: INSTANCE_REPO, host: instanceHost },
+      product: { address: PRODUCT_ADDRESS, kind: "github", host }, store, go() {} };
+    await route.render(target, drawnIn, params);
     return target;
   } finally {
     globalThis.fetch = real;
