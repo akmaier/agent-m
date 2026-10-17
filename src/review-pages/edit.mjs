@@ -34,7 +34,8 @@ export function impactOf(graph, before, after) {
 }
 
 /**
- * showEdit(where, kind, params) — the page of a requirement's edit (`kind.fresh` false, the part `name`) or of a new requirement (`kind.fresh` true, the part `section`).
+ * showEdit(where, kind, params) — the page of a requirement's edit (`kind.fresh` false, the part `name`) or of a new requirement (`kind.fresh` true, the part `section`);
+ * the editor it opened, which the route's `leave` closes, or nothing where it opened none.
  */
 export async function showEdit(where, kind, params) {
   const { target, snapshot, host, token, context } = where;
@@ -108,5 +109,5 @@ export async function showEdit(where, kind, params) {
   }
 
   target.append(el("h3", null, "Other open proposals on this section"), others, editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved);
-  openEditor(editorBox, initial, { marks, save });
+  return openEditor(editorBox, initial, { marks, save });
 }
