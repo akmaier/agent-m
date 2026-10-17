@@ -42,6 +42,7 @@ provides:
   - confirmDecision
   - notice
   - schemaForm
+  - readProblem
 ---
 # MOD-site-frame The frame every page shares
 
@@ -157,6 +158,10 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `confirmDecision(decision: { title: string, lines: string[], confirm: string, reason?: boolean }) -> Promise<{ confirmed:
   boolean, reason: string | null }>` — the one dialog of a decision: what will happen, in the given lines; with `reason`,
   a field the person fills in, as for rejecting a gate or recording a limitation.
+- `readProblem(failure: Error, tokenStored: boolean) -> Element` — the problem a failed read of a repository shows on a
+  page: for `NotFound` while this browser stores no token that reaches it, that the repository is private or does not
+  exist and no token reaches it, with the link to store one (UC-008 1a, UC-020 2a); otherwise the host's own message,
+  and the link to store a token where none is stored.
 - `notice(kind: "token-expiring" | "token-refused" | "rate-limit" | "unreachable" | "setup" | "moved" | "info", detail:
   { text: string, link?: { label: string, href: string } }) -> void` — shows a notice in the page's one place for them;
   the frame itself shows a token's expiry from fourteen days before it (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`) with

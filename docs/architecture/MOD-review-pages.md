@@ -10,6 +10,7 @@ uses:
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
+  - MOD-site-frame.readProblem
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
   - MOD-markdown-render.renderArtifact
@@ -109,8 +110,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
 - `index.mjs` — the interface: `view`.
 - `flow.mjs` — the template method: list, file, review all, accept, edit, drafting, arrange.
-- `common.mjs` — what the pages of every kind share: the elements of a page, the token kept for the page's product, the
-  problem a failed read shows, and the kind of server a product is on.
+- `common.mjs` — what the pages of every kind share: the elements of a page, the token kept for the page's product, and
+  the kind of server a product is on.
 - `subjects.mjs` — the subject each route gives the prompt bar.
 - `conversation-draft.mjs` — the route `draft`: the conversation's draft for the subject the address names, against the
   current text.
@@ -239,7 +240,7 @@ and `docs/participants.md` of the instance.
 
 ## Uses
 
-- MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
+- MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice, MOD-site-frame.readProblem,
   MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts of every route.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor, MOD-markdown-render.showDifference — files,
   editors, differences.

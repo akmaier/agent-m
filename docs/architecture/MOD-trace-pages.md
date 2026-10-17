@@ -10,6 +10,7 @@ uses:
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
+  - MOD-site-frame.readProblem
   - MOD-site-frame.confirmDecision
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.renderMermaid
@@ -128,7 +129,7 @@ instance's host that the frame gives every route, it also reads the instance's p
 
 ## Uses
 
-- MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
+- MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice, MOD-site-frame.readProblem,
   MOD-site-frame.confirmDecision — the frame's parts of every route.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.renderMermaid, MOD-markdown-render.showDifference — rows'
   details, the component diagram, the comparison of versions.
