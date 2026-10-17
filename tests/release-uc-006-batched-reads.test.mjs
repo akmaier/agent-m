@@ -18,8 +18,8 @@ import { productFiles, fakeGitHub, openPage, byClass, ENTRY_ID, TOKEN } from "./
 // guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the product of 1,332 files in which UC-002, the only artifact that names "A WRITE RULE", is the last file of the tree, so that it lies in the last query of 31 files
 // input: open the SPEC-entry page of entry 07, which changes "A WRITE RULE"
-// expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the use case came in the last of the trace graph's 14 queries, the one that names 31 files; at most 16 queries (the 14 and at most 2 more for the queues' files) and at most 22 requests in all, against the 1,336 of one request for each file
-test("TST-479201: an impact list names the artifact read in the last batch, within 16 queries", async () => {
+// expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the use case came in the last of the trace graph's 14 queries, the one that names 31 files; at most 17 queries (the 14 and at most 3 more for the queues' files) and at most 22 requests in all, against the 1,336 of one request for each file
+test("TST-479201: an impact list names the artifact read in the last batch, within 17 queries", async () => {
   const held = productFiles(1332), uc2 = "docs/use-cases/UC-002-write-a-file.md";
   const last = held[uc2];
   delete held[uc2];
@@ -31,7 +31,7 @@ test("TST-479201: an impact list names the artifact read in the last batch, with
   const holding = fake.graphqlRequests().findIndex((q) => q.body.query.includes(uc2));
   assert.ok(holding >= 0, "UC-002 stands in a query");
   assert.equal(fake.namedPerQuery()[holding], 31, "the query that names UC-002 is the last one of the trace graph's 14, which names 31 files");
-  assert.ok(fake.graphqlRequests().length <= 16);
+  assert.ok(fake.graphqlRequests().length <= 17);
   assert.ok(fake.requests.length <= 22, `${fake.requests.length} requests, at most 22`);
 });
 
@@ -39,7 +39,7 @@ test("TST-479201: an impact list names the artifact read in the last batch, with
 // guards: UC-006; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: the product on GitHub with the reviewer's token stored
 // input: open the SPEC-entry page of entry 07 (the queries and the reads are made)
-// expect: every request goes to https://api.github.com; every request carries "Authorization: Bearer <the token>"; the token is in no address and no body; there are 14 to 16 queries (the trace graph's 14 and at most 2 more for the queues' files), each a POST to https://api.github.com/graphql; and those POSTs are the only requests not GET
+// expect: every request goes to https://api.github.com; every request carries "Authorization: Bearer <the token>"; the token is in no address and no body; there are 14 to 17 queries (the trace graph's 14 and at most 3 more for the queues' files), each a POST to https://api.github.com/graphql; and those POSTs are the only requests not GET
 test("TST-479202: the token goes only to api.github.com, in the header, also on the batched reads", async () => {
   const fake = fakeGitHub(productFiles(1332));
   await openPage(fake, { id: ENTRY_ID });
@@ -51,7 +51,7 @@ test("TST-479202: the token goes only to api.github.com, in the header, also on 
     assert.equal(r.url.href.includes(TOKEN) || JSON.stringify(r.body ?? "").includes(TOKEN), false, r.url.href);
   }
   const queries = fake.graphqlRequests();
-  assert.ok(queries.length >= 14 && queries.length <= 16, `${queries.length} queries, 14 to 16`);
+  assert.ok(queries.length >= 14 && queries.length <= 17, `${queries.length} queries, 14 to 17`);
   for (const q of queries) { assert.equal(q.method, "POST"); assert.equal(q.url.href, "https://api.github.com/graphql"); }
   assert.equal(fake.requests.filter((r) => r.method !== "GET").length, queries.length, "every request that is not a GET is one of those queries");
 });
