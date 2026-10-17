@@ -56,3 +56,7 @@ yet". MOD-main-page's `job` route is not built either.
 
 This item switches the live page. It does not switch it until every route `home` links to is served: through the views
 `start.mjs` loads (`data-views`, as ITM-700 sets them), or by the frame. A test opens each link and finds its page.
+
+**Noted at ITM-854's gate (sprint team1/80, 2026-10-17, po-opus).** The old `src/home/home.mjs` connects the notifications'
+host once, with the token of the moment, as the frame did before ITM-854. It goes when this item switches the main page, and
+the new page's notifications follow the store as the frame's do.
