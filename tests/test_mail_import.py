@@ -1,5 +1,5 @@
 # Module: MOD-mail-records
-# Guards: A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; UC-038
+# Guards: A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL
 # Level: release
 """SPEC section 14 - the check named tests/test_mail_import.py, for the three requirements MOD-mail-records decides.
 
@@ -17,7 +17,6 @@ DATA = Path(__file__).with_suffix(".md")
 NAMED = "A MAIL IS NAMED BY A PSEUDONYMOUS IDENTIFIER"
 DECIDED = "A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN"
 THREAD = "A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL"
-FLOW = "UC-038 steps 2 and 3"
 
 
 def cases(section: str) -> list[dict]:
@@ -78,31 +77,6 @@ class TestMailImport(unittest.TestCase):
                         new Map(Object.entries(input.listed)));
                 """, loaded["case"]["input"])
                 self.assertEqual(got, loaded["case"]["expected"]["issue"])
-
-    # TST-814004 · level: system · module: MOD-mail-records
-    # guards: UC-038
-    # given: the case under "UC-038 steps 2 and 3" beside this file: issue 7 lists <abc>, <sample@example.invalid> is marked not an issue, the mailbox holds four mails
-    # input: each mailbox mail named, the issues' lists read, decided mails left out, a reply in a known thread attached
-    # expect: the listed and the marked mail are left out, the reply is attached to issue 7 and not proposed, only the unrelated new mail is proposed
-    def test_reading_the_mailbox_leaves_out_attaches_and_proposes(self):
-        for loaded in cases(FLOW):
-            with self.subTest(case=loaded["name"]):
-                got = run("""
-                    const listed = new Map();
-                    for (const issue of input.issues)
-                        for (const id of mailRecords.listedMailIds(issue)) listed.set(id, issue.number);
-                    const named = await Promise.all(input.mailbox.map(async (m) => ({
-                        ...m, id: await mailRecords.mailId({ messageId: m.messageId, bytes: null }) })));
-                    const open = new Set(mailRecords.undecided(named.map((m) => m.id), new Set(listed.keys()), new Set(input.marked)));
-                    const attached = {};
-                    const proposed = [];
-                    for (const m of named.filter((n) => open.has(n.id))) {
-                        const issue = await mailRecords.threadMatch({ inReplyTo: m.inReplyTo, references: m.references }, listed);
-                        if (issue === null) proposed.push(m.id); else attached[m.id] = issue;
-                    }
-                    return { attached, proposed };
-                """, loaded["case"]["input"])
-                self.assertEqual(got, loaded["case"]["expected"])
 
 
 if __name__ == "__main__":

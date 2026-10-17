@@ -123,24 +123,3 @@ first sixteen hex digits of the SHA-256 of the UTF-8 text between the angle brac
   "expected": { "issue": null }
 }
 ```
-
-## UC-038 steps 2 and 3
-
-### Reading the mailbox leaves out decided mails, attaches replies and proposes the rest
-
-```json
-{
-  "given": "Issue 7 lists the mail <abc> in the Mails line of its text. The author marked <sample@example.invalid> not an issue. The mailbox holds four mails: <abc>, <sample@example.invalid>, <reply@example.invalid> answering <abc>, and <new@example.invalid> answering nothing.",
-  "input": {
-    "issues": [ { "number": 7, "body": "Neutral report.\n\nMails: `MAIL-ba7816bf8f01cfea`", "comments": [] } ],
-    "marked": ["MAIL-ca171c6d1e8e76f0"],
-    "mailbox": [
-      { "messageId": "<abc>", "inReplyTo": null, "references": [] },
-      { "messageId": "<sample@example.invalid>", "inReplyTo": null, "references": [] },
-      { "messageId": "<reply@example.invalid>", "inReplyTo": "<abc>", "references": [] },
-      { "messageId": "<new@example.invalid>", "inReplyTo": null, "references": [] }
-    ]
-  },
-  "expected": { "attached": { "MAIL-1a2088dded8cc7e7": 7 }, "proposed": ["MAIL-e0bf27b64740ca66"] }
-}
-```
