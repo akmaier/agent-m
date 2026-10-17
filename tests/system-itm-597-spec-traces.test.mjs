@@ -1,8 +1,8 @@
-// What an opened requirement shows beside its four fields, through the dashboard's #spec (ITM-597): what traces to it is read when it is
-// opened and not when the tree is drawn, and kept for every later opening.
+// What an opened requirement shows beside its four fields, through the dashboard's #spec (ITM-597, ITM-648): what traces to it and the open proposals
+// that touch it are read when it is opened and not when the tree is drawn, and kept for every later opening.
 //
 // Module: MOD-trace-pages
-// Guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// Guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // Level: system
 //
 // The page is the real #spec of the dashboard on the harness's repository server, which counts every request it answers. A page without a
@@ -58,8 +58,8 @@ test("the dashboard reads the artifacts when a requirement is opened, not when #
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the dashboard with a stored token on the same repository, whose queue 2026-10-09_traced holds an open entry that changes TRACED RULE
 // input: the real #spec drawn; its requirement opened
-// expect: the page links UC-001 (known positive) and has no open proposals; opening requests no file of the queue; the artifacts were read in batch queries, fewer requests than files
-test("the dashboard reads the artifacts in batches when a requirement is opened, and no queue", async () => {
+// expect: the page links UC-001 (known positive) and lists the open entry, "spec-2026-10-09_traced-01 — changed (open)", linked to #spec-entry/id=spec-2026-10-09_traced-01; opening requests the queue's index and its decisions one file each and the entry's proposal in a batch, not as a file; the artifacts and the proposal were read in two batch queries, fewer requests than files
+test("the dashboard reads the artifacts in batches when a requirement is opened, and the queue's files with them", async () => {
   const graphql = async (url, init) => {
     if (url.pathname !== "/graphql") return null;
     const repository = {};
@@ -74,9 +74,33 @@ test("the dashboard reads the artifacts in batches when a requirement is opened,
   const opening = await page.click("button.requirement-name");
   const html = page.main();
   assert.ok(html.includes('href="#use-case/id=UC-001"'), "known positive: the traces are shown");
-  assert.ok(!html.includes("Open proposals") && !html.includes("spec-entry"));
-  assert.deepEqual(opening.filter((request) => request.includes("spec-freigaben")), []);
+  assert.ok(html.includes('href="#spec-entry/id=spec-2026-10-09_traced-01"'), "the open entry is linked");
+  assert.ok(html.includes("— changed (open)"), "its impact kind and state are shown");
+  assert.deepEqual(opening.filter((request) => request.includes("spec-freigaben")).sort(),
+    [`file docs/spec-freigaben/${QUEUE}/entscheidungen.md`, `file docs/spec-freigaben/${QUEUE}/index.md`]);
   const batches = opening.filter((request) => request.startsWith("handler POST"));
-  assert.ok(batches.length >= 1 && batches.length < Object.keys(FILES).length, `${batches.length} batch queries for ${Object.keys(FILES).length} files`);
+  assert.equal(batches.length, 2, "one batch query for the artifacts and one for the proposal");
+  assert.ok(batches.length < Object.keys(FILES).length, `${batches.length} batch queries for ${Object.keys(FILES).length} files`);
+  assert.deepEqual(server.writes, []);
+});
+
+// CASE ITM-648-SYSTEM-01
+// TST-648201 · level: system · module: MOD-trace-pages
+// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// given: the dashboard without a token on the same repository, whose queue 2026-10-09_traced holds an open entry that changes TRACED RULE
+// input: the real #spec drawn; its requirement opened; closed; opened again
+// expect (the page's load already requests the queue's index and decisions, and opening requests them again): opening requests the queue's index, its decisions and the entry's proposal, one file each and none twice (known positive: the page links UC-001 and the entry, "spec-2026-10-09_traced-01 — changed (open)", to #spec-entry/id=spec-2026-10-09_traced-01); closing and opening again request nothing
+test("the dashboard reads the queue's three files once when a requirement is opened, and nothing on reopening", async () => {
+  const server = await repoServer({ files: FILES });
+  const page = await openDashboard({ server, hash: "#spec", token: null });
+  const opening = await page.click("button.requirement-name");
+  assert.deepEqual(opening.filter((request) => request.includes("spec-freigaben")).sort(),
+    [`file docs/spec-freigaben/${QUEUE}/01-entry.md`, `file docs/spec-freigaben/${QUEUE}/entscheidungen.md`, `file docs/spec-freigaben/${QUEUE}/index.md`]);
+  const html = page.main();
+  assert.ok(html.includes('href="#use-case/id=UC-001"'), "known positive: the traces are shown");
+  assert.ok(html.includes('href="#spec-entry/id=spec-2026-10-09_traced-01"'), "the open entry is linked");
+  assert.ok(html.includes("— changed (open)"), "its impact kind and state are shown");
+  assert.deepEqual(await page.click("button.requirement-name"), [], "closing requests nothing");
+  assert.deepEqual(await page.click("button.requirement-name"), [], "opening again requests nothing");
   assert.deepEqual(server.writes, []);
 });
