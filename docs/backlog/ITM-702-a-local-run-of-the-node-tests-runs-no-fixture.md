@@ -1,6 +1,6 @@
 ---
 id: ITM-702
-title: A local run of the node tests runs no fixture
+title: A local run of the node tests runs no file of the groups fixture
 level: module
 realises:
   - A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
@@ -12,7 +12,7 @@ tests:
 origin:
   - ITM-628's gate on pull request #719 (docs/gates/20261017-1016-development-release-testing-8f15.md), from developer-sonnet-e's finding
 ---
-# ITM-702 A local run of the node tests runs no fixture
+# ITM-702 A local run of the node tests runs no file of the groups fixture
 
 **REGISTER**
 
@@ -27,10 +27,8 @@ two readers.
 
 ## Acceptance
 
-- `node --test tests/` runs no file below `tests/fixtures/`, and both readers find the fixture as before.
+- `node --test tests/` runs no file below `tests/fixtures/groups/`, and both readers find the fixture as before.
 - It is declared as refactoring: CI is green on every commit.
 
-**Read at sprint team1/71's start: it waits.** Its two readers, `tests/artifacts-checks.test.mjs` and `tests/test_groups.py`,
-are tests outside the architecture. Under `CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`, they are changed only by the
-modules whose files name them as taken over: MOD-documents and MOD-group-document, in the plan's drafts (`d59fd443`). So
-this item waits for akmaier's acceptance of those drafts, and then goes with ITM-695.
+The architecture fixture's `tests/fixtures/architecture/tests/reader.test.js` is not this item's: its readers are tests
+of other modules. It is ITM-818's.
