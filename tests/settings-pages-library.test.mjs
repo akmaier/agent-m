@@ -24,6 +24,8 @@
 //   - The content goes to its repository before the entry goes to the instance, so that an entry never names content that was not stored; a refusal of the named repository
 //     commits nothing in the instance.
 //   - A source is already in the library when its identifier, its title or, for a standard, its designation equals an entry's, as a requirement's source item names an entry.
+//   - A file only hashed is asked for the note where its copy is kept, beside its tick; the refusal of such a file without a note is MOD-source-register's NoteMissing, which the page shows in
+//     its result, naming the file; the page adds no check of its own, and Save is not disabled for it.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
 import "./site-frame.test.mjs";
@@ -291,7 +293,7 @@ test("library — restricted content goes only to the repository the person name
 
 // TST-472755 · level: unit · module: MOD-settings-pages
 // guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 4a
-// given: the standard route, a printed copy's file selected and only hashed; a licence preset restricted; the file explained
+// given: the standard route, a printed copy's file selected and only hashed, with the note `cabinet 3, shelf B` where the copy is kept; a licence preset restricted; the file explained
 // input: Save
 // expect: the file's SHA-256 shown and the statement that nothing of it is stored; one commit holding the entry alone — no file anywhere — whose version records the file with its hash and the note `not stored:`; no named repository is asked
 test("library — a file that is only hashed is stored nowhere, and the note records it", async (t) => {
@@ -302,6 +304,7 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
   await chooseFiles(page, [fileOf("iso-26262.pdf", "the publisher's bytes")]);
   assert.ok(folded(one(page, "library-route-standard")).some((node) => /SHA-256/.test(node.textContent)), "the hash-only choice is explained, folded");
   await tickHashed(page);
+  await put(one(page, "library-file-kept-at"), "cabinet 3, shelf B");
   const form = await describe(page, { id: "SRC-iso-26262", title: "ISO 26262", authority: "normative" });
   assert.equal(inputOf(form, "licence").value, "restricted");
   assert.match(one(page, "library-public").textContent, /nothing of iso-26262\.pdf is stored/i);
@@ -313,6 +316,61 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
   assert.equal(entryOfCommit(b, "SRC-iso-26262").fields.designation, "ISO 26262:2018");
   assert.equal(entryOfCommit(b, "SRC-iso-26262").sections.find((section) => section.heading === "## Versions").rows[0].cells.Version, "`ISO 26262:2018`", "the designation is the version");
   assert.deepEqual(b.posts, []);
+});
+
+// TST-576007 · level: unit · module: MOD-settings-pages
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 4a
+// given: the standard route, a printed copy's file iso-26262.pdf selected, the form filled in; the reading taken: the refusal of a file without a note is MOD-source-register's NoteMissing, not a check of the page, so Save is not disabled by the page
+// input: the file listed, then "Only hash it" ticked, then Save with no note, then the note `cabinet 3, shelf B` typed and Save once more
+// expect: before the tick the field for the note is hidden, after it shown; the first Save commits nothing to the instance, asks no named repository, and its result names iso-26262.pdf and does not say the source is registered; the second Save makes one commit holding the entry alone, whose file table under `### Files of ISO 26262:2018` is `| File | SHA-256 | Kept at |`, `|---|---|---|` and the row `| `iso-26262.pdf` | `<SHA-256>` | cabinet 3, shelf B |`
+test("library — a file that is only hashed asks where its copy is kept, and without the note it is refused by name", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await register(page, "standard");
+  await put(one(page, "library-standard-designation"), "ISO 26262:2018");
+  await chooseFiles(page, [fileOf("iso-26262.pdf", "the publisher's bytes")]);
+  assert.equal(one(page, "library-file-kept-at-label").hidden, true, "the question is asked of a file only hashed");
+  await tickHashed(page);
+  assert.equal(one(page, "library-file-kept-at-label").hidden, false);
+  const form = await describe(page, { id: "SRC-iso-26262", title: "ISO 26262", authority: "normative" });
+  assert.equal(saveOf(form).disabled, false, "the page adds no check of its own");
+  await click(saveOf(form));
+  assert.deepEqual(b.commits, [], "nothing is committed without the note");
+  assert.deepEqual(b.posts, []);
+  assert.equal(one(page, "library-result").textContent.includes("iso-26262.pdf"), true, "the refusal names the file");
+  assert.equal(one(page, "library-result").textContent.includes("is registered"), false);
+  await put(one(page, "library-file-kept-at"), "cabinet 3, shelf B");
+  await click(saveOf(one(page, "library-form-box")));
+  assert.equal(b.commits.length, 1);
+  assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-iso-26262.md"]);
+  const table = ["### Files of ISO 26262:2018", "", "| File | SHA-256 | Kept at |", "|---|---|---|",
+    `| \`iso-26262.pdf\` | \`${sha(bytesOf("the publisher's bytes"))}\` | cabinet 3, shelf B |`].join("\n");
+  assert.equal(instanceFiles(b)[0].text.includes(table), true, "the note stands beside its file");
+  assert.deepEqual(b.posts, []);
+});
+
+// TST-576008 · level: unit · module: MOD-settings-pages
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 4a
+// given: the documents route, two files a.md and b.md, a licence that may be republished; the first only hashed with the note `cabinet 3, shelf B`, the second kept
+// input: the form filled in, Save
+// expect: the instance gets the entry and b.md, not a.md; the file table has the row of a.md ending `| cabinet 3, shelf B |` and the row of b.md ending `| — |`; the field for the note of the second file is hidden
+test("library — each file only hashed has its own note, and a file kept has a dash", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await register(page, "documents");
+  await chooseFiles(page, SELECTED);
+  const [firstTick] = byClass(page, "library-file-only-hashed");
+  firstTick.checked = true;
+  await fire(firstTick, "change");
+  const [firstNote, secondNote] = byClass(page, "library-file-kept-at-label");
+  assert.deepEqual([firstNote.hidden, secondNote.hidden], [false, true]);
+  await put(byClass(page, "library-file-kept-at")[0], "cabinet 3, shelf B");
+  const form = await describe(page, { id: "SRC-handbook", title: "Handbook", authority: "advisory", licence: "may be republished — CC BY 4.0" });
+  await click(saveOf(form));
+  assert.deepEqual(instanceFiles(b).map((file) => file.path).sort(), ["docs/sources/SRC-handbook.md", `docs/sources/SRC-handbook/${TODAY}/b.md`]);
+  const text = instanceFiles(b).find((file) => file.path === "docs/sources/SRC-handbook.md").text;
+  assert.equal(text.includes(`| \`a.md\` | \`${sha(bytesOf("# A\n"))}\` | cabinet 3, shelf B |`), true);
+  assert.equal(text.includes(`| \`b.md\` | \`${sha(bytesOf("# B\n"))}\` | — |`), true);
 });
 
 // TST-472756 · level: unit · module: MOD-settings-pages
