@@ -1,5 +1,4 @@
 // propose.mjs — the sections a draft of requirements changes and the writer of classified candidates (MOD-spec-changes, Parts: propose.mjs; Interfaces: entrySections, specStrategies).
-// Of it, ITM-393 builds entrySections, ITM-338 the writer queue-entries, ITM-341 openQueueOf and proposeSection, and ITM-394 saveEntry.
 //
 // Module: MOD-spec-changes
 //
@@ -18,6 +17,10 @@
 //     requirement names already is not added again.
 //   - A candidate without a class, and a `conflict`, are not composed: a conflict is composed as the person resolved it, that is, as the
 //     class they gave it. A section whose text the draft leaves as it is is not returned; the sections come in the order of the SPEC.
+//   - Two candidates change one requirement when two of the classes composed are `change` with one `of`. That is TwoChanges, thrown after
+//     RequirementNotFound: its `candidates` are the names of every such candidate in the order of the classes, its `requirement` the name
+//     they change (the error's own `name` is its kind, as with every error of this module). A `change` and a `duplicate` of one requirement
+//     are not two changes: the duplicate adds its source to the block the change left.
 //   - The line end of a section is that of its first line.
 
 import { classifyCandidates, documentFindings, readDocument } from "../documents/index.mjs";
@@ -64,7 +67,8 @@ function withSources(block, name, items) {
 
 /**
  * entrySections(spec, draft, classes, source) -> Array<{ anchor, until, text }> — the sections of `spec` that the draft's candidates
- * change, each as the whole section's new text, composed by `classes`. Every other byte of a section stays as it is. Pure.
+ * change, each as the whole section's new text, composed by `classes`. Every other byte of a section stays as it is. Pure. Throws TwoChanges
+ * { requirement, candidates } when two candidates change one requirement, and composes nothing.
  * @param {string} spec
  * @param {unknown} draft
  * @param {Array<{ refs: string[], from: string[], class: string, of: string | null }>} classes
@@ -82,6 +86,15 @@ export function entrySections(spec, draft, classes, source) {
   if (missing.length > 0) {
     const names = [...new Set(missing)];
     throw failure("RequirementNotFound", `the SPEC holds no requirement ${names.join(", ")}`, { requirements: names });
+  }
+
+  const changing = new Map();
+  for (const { each, candidate } of composed) if (each.class === "change") changing.set(each.of, [...(changing.get(each.of) ?? []), candidate.name]);
+  const twice = [...changing].find(([, names]) => names.length > 1);
+  if (twice) {
+    const [requirement, names] = twice;
+    throw failure("TwoChanges", `${names.slice(0, -1).join(", ")} and ${names.at(-1)} change ${requirement}: one block would replace the other. Nothing was composed.`,
+      { requirement, candidates: names });
   }
 
   const texts = new Map();
@@ -231,8 +244,8 @@ export async function queueEntries(result, context) {
     { where: context.product, mine: writable.filter((candidate) => candidate.constrains !== "process"), decide: false },
     { where: context.instance, mine: writable.filter((candidate) => candidate.constrains === "process"), decide: true },
   ];
-  // The folders this call has named for a repository, so that a second queue of the day in it is not given the first's name before the first is written.
-  const named = new Map();
+  // Every target's sections are composed before any commit is made, so that a refusal of the second target (TwoChanges) leaves the first unwritten too.
+  const plans = [];
   for (const { where, mine, decide } of targets) {
     if (mine.length === 0) continue;
     const specText = await where.snapshot.read("SPEC.md");
@@ -257,8 +270,12 @@ export async function queueEntries(result, context) {
       }
     }
     const sections = entrySections(specText, { candidates: mine }, composable, source);
-    if (sections.length === 0) continue;
+    if (sections.length > 0) plans.push({ where, mine, spec, composable, sections });
+  }
 
+  // The folders this call has named for a repository, so that a second queue of the day in it is not given the first's name before the first is written.
+  const named = new Map();
+  for (const { where, mine, spec, composable, sections } of plans) {
     const host = where.host;
     if (!host) throw Object.assign(new Error("the repository the queue belongs to has no host to commit to"), { name: "NoHost" });
     const graph = await traceGraph(where.snapshot);
