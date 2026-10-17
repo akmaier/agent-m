@@ -71,18 +71,19 @@ export function occasionsOf(row, schedule) {
 
 /**
  * secretsNeeded(schedule: Document, resources: Document) -> Array<{ name: string, for: string }> — the names of the secrets
- * the scheduled tests need: of each paid endpoint or agent of the product's resources, which the row `paid` calls, the CI
+ * the scheduled tests need: of each endpoint or agent of the product's resources — the row `paid` is the tests that call a
+ * paid service or a model, so it calls them all —, the CI
  * secret its Secret column names (`ci:<NAME>`), once the row is ticked on some occasion. Never a value: a Secret cell that
  * is no `ci:<NAME>` — a key kept in a browser, left out, or a value written where a name belongs — gives nothing.
  * @param {Document} schedule
- * @param {Document} resources the list docs/resources.md read with MOD-resource-list's schema
+ * @param {Document} resources the list docs/resources.md as readDocument reads it with MOD-resource-list's schema
  * @returns {Array<{ name: string, for: string }>}
  */
 export function secretsNeeded(schedule, resources) {
   if (occasionsOf("paid", schedule).length === 0) return [];
-  return resources.rows.flatMap(({ cells }) => {
+  return resources.sections.flatMap((section) => section.rows ?? []).flatMap(({ cells }) => {
     const named = CI_SECRET.exec(cells.Secret ?? "");
-    const paid = (cells.Kind === "endpoint" || cells.Kind === "agent") && cells.Paid === "yes";
-    return paid && named ? [{ name: named[1], for: cells.Name }] : [];
+    const called = cells.Kind === "endpoint" || cells.Kind === "agent";
+    return called && named ? [{ name: named[1], for: cells.Name }] : [];
   });
 }

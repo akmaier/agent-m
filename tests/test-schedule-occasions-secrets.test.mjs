@@ -14,7 +14,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { scheduleSchema, defaultSchedule, occasionsOf, secretsNeeded } from "../src/test-schedule/index.mjs";
-import { readDocument, readRegister } from "../src/documents/index.mjs";
+import { readDocument } from "../src/documents/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
 
 const HEAD = "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |\n|---|---|---|---|---|---|---|";
@@ -25,7 +25,7 @@ const ORACLE = "| oracle | endpoint | https://api.example.org/v1 | example-model
 const FREE = "| local-llm | endpoint | http://gpu01:8000/v1 | example-model | — | — | runner:cpu | the group's server | no | ci:LOCAL_KEY |";
 const BROWSERY = "| coder | agent | https://agent.example.org | example-model | — | Acme | runner:cpu | Acme | yes | browser |";
 const LEAKY = "| leaky | endpoint | https://leaky.example.org | example-model | — | — | runner:cpu | the vendor | yes | sk-live-abc123def456 |";
-const resourcesOf = (...rows) => readRegister(resourceSchema(), "docs/resources.md",
+const resourcesOf = (...rows) => readDocument(resourceSchema(), "docs/resources.md",
   `# Resources of this product\n\n**REGISTER**\n\nThe resources.\n\n${RESOURCE_HEAD}\n${rows.join("\n")}\n`);
 
 // TST-743001 · level: unit · module: MOD-test-schedule
@@ -58,11 +58,12 @@ test("occasionsOf — a declared schedule is followed, and a row ticked nowhere 
 
 // TST-743003 · level: unit · module: MOD-test-schedule
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; NO SECRET IN THE REPOSITORY; UC-027 (4)
-// given: the book's default schedule, which ticks the row paid; a resource list with a paid endpoint oracle whose Secret is ci:ORACLE_KEY, a free endpoint whose Secret is ci:LOCAL_KEY, and a paid agent whose key is kept in a browser
+// given: the book's default schedule, which ticks the row paid; a resource list with a paid endpoint oracle whose Secret is ci:ORACLE_KEY, a free model endpoint local-llm whose Secret is ci:LOCAL_KEY, and a paid agent whose key is kept in a browser
 // input: secretsNeeded(defaultSchedule(), resources)
-// expect: exactly [{ name: "ORACLE_KEY", for: "oracle" }]
-test("secretsNeeded — names the secret of a paid endpoint the ticked row paid calls", () => {
-  assert.deepEqual(secretsNeeded(defaultSchedule(), resourcesOf(ORACLE, FREE, BROWSERY)), [{ name: "ORACLE_KEY", for: "oracle" }]);
+// expect: exactly [{ name: "ORACLE_KEY", for: "oracle" }, { name: "LOCAL_KEY", for: "local-llm" }] — the row paid is the tests that call a paid service or a model, so a model endpoint counts as well; the agent whose key is in a browser gives none
+test("secretsNeeded — names the secret of each endpoint the ticked row paid calls", () => {
+  assert.deepEqual(secretsNeeded(defaultSchedule(), resourcesOf(ORACLE, FREE, BROWSERY)),
+    [{ name: "ORACLE_KEY", for: "oracle" }, { name: "LOCAL_KEY", for: "local-llm" }]);
 });
 
 // TST-743004 · level: unit · module: MOD-test-schedule
