@@ -8,6 +8,7 @@ modules:
   - MOD-settings-pages
 builds_on:
   - ITM-575
+  - ITM-588
 tests:
   - unit
 origin:
@@ -23,6 +24,9 @@ origin:
 harness, so that file's tests run again with it. The harness moves to a helper of its own under `tests/`, whose header
 names MOD-settings-pages, and both files import the helper. This follows ITM-623, which does the same for the review
 pages.
+
+The setup tests use it too. `tests/settings-pages-setup.d/dom.mjs` (ITM-588) holds a copy of the DOM part `explain` needs,
+taken from the add-product tests. That copy goes, and the setup tests import the same helper (nothing twice).
 
 It is a refactoring of the tests: no expected result changes. The golden master is the list of the test names and
 results before and after, less the repeated runs.
