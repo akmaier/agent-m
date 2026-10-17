@@ -48,7 +48,10 @@ export async function sourcesOf({ snapshot, context }) {
     holder = await context.instance.host.readSnapshot(defaultBranch);
   }
   const links = readDocument(linksSchema, LINKS, (await snapshot.read(LINKS)) ?? "");
-  const register = await Promise.all(holder.paths.filter(isRegisterEntry)
+  const registerPaths = holder.paths.filter(isRegisterEntry);
+  // A product's register stands in the instance's snapshot, which no read of this page has asked for yet: its files in one batch (on the instance's own page the entry page's batch holds them).
+  if (context.product && registerPaths.length) await holder.readMany?.(registerPaths);
+  const register = await Promise.all(registerPaths
     .map(async (path) => readDocument(entrySchema, path, (await holder.read(path)) ?? "")));
   return { links, register };
 }
