@@ -143,6 +143,7 @@ test("a requirement or a use case in a list opens as it read in the version show
   const useCases = () => lists(target).find((section) => titleOf(section) === "Use cases that realise no requirement");
   click(useCases(), "UC-004 Fourth use case");
   await until(() => /It realises nothing the SPEC holds\./.test(useCases().textContent));
+  assert.ok(useCases().textContent.includes("It realises nothing the SPEC holds."), "the file of the use case is shown");
   assert.ok(useCases().textContent.includes("UC-004 Fourth use case"));
   click(useCases(), "UC-004 Fourth use case");
   assert.equal(useCases().textContent.includes("It realises nothing"), false);
@@ -152,6 +153,7 @@ test("a requirement or a use case in a list opens as it read in the version show
   assert.deepEqual(asOf(target), ["as of v2026.1.0"]);
   click(first(), "DELTA RULE");
   await until(() => /Old delta rule\./.test(first().textContent));
+  assert.ok(first().textContent.includes("Old delta rule."), "the rule as it read at the tag is shown");
   assert.equal(first().textContent.includes("Delta rule."), false, "the rule as it read at main is not the rule at the tag");
 });
 
