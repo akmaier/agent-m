@@ -60,6 +60,7 @@ function productHost({ links = linksText(PERSON) } = {}) {
       return { ref, commit: ref, paths: Object.keys(files), read: async (path) => files[path] ?? null, blob: () => null };
     },
     async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
+    async listTags() { return []; },
   };
 }
 function instanceHost(entries = [[PERSON, "github.com/acme"]]) {

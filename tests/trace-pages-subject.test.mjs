@@ -71,6 +71,7 @@ function productHost({ defaultBranch = "main", links = linksText(PERSON) } = {})
       return { ref, commit: ref, paths: Object.keys(files), read: async (path) => files[path] ?? null, blob: () => null };
     },
     async repositoryInfo() { calls.push(["product.repositoryInfo"]); return { defaultBranch, visibility: "public", canWrite: false, archived: false, description: "" }; },
+    async listTags() { return []; },
   };
   return host;
 }
