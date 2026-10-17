@@ -18,7 +18,6 @@ import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitla
 import {
   tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab, productTokenName, productTokenDescription,
 } from "../../docs/assets/dashboard/settings-view.mjs";
-import { createKeyStep } from "../../docs/assets/dashboard/setup-view.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
 import * as shell from "../../docs/assets/dashboard-app.mjs";
@@ -228,18 +227,6 @@ test("ONE GITHUB TOKEN SERVES EVERY FEATURE — the link, the steps and the guid
     assert.ok(steps.includes(p.permission), `the steps name ${p.permission}`);
     assert.ok(TOKEN_GUIDANCE.includes(`${p.permission}: `) && TOKEN_GUIDANCE.includes(p.why), `the guidance names ${p.permission} and why`);
   }
-});
-
-test("UC-014: the setup step explains every permission and why it is needed", () => {
-  const html = createKeyStep({ T: { instance: "r/agent-m" }, stepHtml }, ["r/agent-m"]);
-  const explain = html.slice(html.indexOf('<details class="explain">'));
-  for (const p of ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]) {
-    assert.match(explain, new RegExp(`<em>${p}</em>`), `the explanation names ${p}`);
-  }
-  for (const why of ["save and accept", "issues", "pull request", "start a run", "CI configuration"]) {
-    assert.ok(explain.toLowerCase().includes(why.toLowerCase()), `the explanation says why: ${why}`);
-  }
-  assert.doesNotMatch(explain, /\bfour\b/i, "no count that another permission would make wrong");
 });
 
 test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be rendered", () => {

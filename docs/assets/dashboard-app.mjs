@@ -575,6 +575,16 @@ async function route() {
           if (route === "bridge") location.hash = "#bridge";
         },
       }, { name: a ? decodeURIComponent(a) : "" });
+    } else if (kind === "setup") {
+      const setup = settingsPages.routes.find((r) => r.name === "setup");
+      await setup.render(main(), {
+        instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route) {
+          if (route === "settings") location.hash = "#settings";
+          if (route === "add-product") location.hash = "#add";
+          if (route === "main") location.hash = "#uc";
+        },
+      }, {});
     } else if (kind === "bridge") {
       const bridge = settingsPages.routes.find((r) => r.name === "bridge");
       await bridge.render(main(), {

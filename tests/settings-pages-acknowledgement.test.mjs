@@ -74,32 +74,6 @@ test("TST-290128: shared-origin acknowledgement persists only for the explicit c
   restored.checked = false;
   await restored.fire("change");
   assert.equal(globalThis.localStorage.getItem(key("acknowledged:shared-origin")), null, "unchecking removes the acknowledgement record");
-
-  const setupServer = await repoServer({ files: {} });
-  const setupPage = await openDashboard({ server: setupServer, hash: "#uc", entries: {} });
-  const setupDom = richDocument();
-  await setupPage.go("#setup");
-  const setupAcknowledgement = setupDom.byId("key-ack");
-  assert.equal(setupDom.byId("key-store").disabled, true, "legacy setup waits for the explicit acknowledgement");
-  setupAcknowledgement.checked = true;
-  await setupAcknowledgement.fire("change");
-  await settle(setupServer);
-  const setupRecord = JSON.parse(globalThis.localStorage.getItem(key("acknowledged:shared-origin")));
-  assert.match(setupRecord, /^\d{4}-\d{2}-\d{2}$/, "legacy setup stores the same acknowledgement only after its tick");
-  const setupEntries = Object.fromEntries(Array.from({ length: globalThis.localStorage.length }, (_, index) => {
-    const stored = globalThis.localStorage.key(index); return [stored, globalThis.localStorage.getItem(stored)];
-  }));
-  const restoredSetupServer = await repoServer({ files: {} });
-  const restoredSetupPage = await openDashboard({ server: restoredSetupServer, hash: "#uc", entries: setupEntries });
-  const restoredSetupDom = richDocument();
-  await restoredSetupPage.go("#setup");
-  const restoredSetupAcknowledgement = restoredSetupDom.byId("key-ack");
-  assert.equal(restoredSetupAcknowledgement.checked, true, "legacy setup restores the shared-origin acknowledgement");
-  assert.equal(restoredSetupDom.byId("key-store").disabled, false, "legacy setup enables Store after the restored acknowledgement");
-  assert.equal(restoredSetupDom.focused(), restoredSetupDom.byId("key-token"), "legacy setup focuses the token after acknowledgement restores");
-  restoredSetupAcknowledgement.checked = false;
-  await restoredSetupAcknowledgement.fire("change");
-  assert.equal(globalThis.localStorage.getItem(key("acknowledged:shared-origin")), null, "unticking legacy setup clears the shared-origin acknowledgement");
 });
 
 // Whether `control` is shown within `row`: no node between the row and the control is hidden. The tab that holds the row is

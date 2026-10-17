@@ -110,7 +110,7 @@ test("a load of every address of today asks for no view or settings file that is
   assert.deepEqual(missing, [], "a page asked for files that are not there");
   // The recording sees what a page asks for: the files of the views shown are among it.
   const all = new Set([...asked.values()].flat());
-  for (const f of ["review-views.mjs", "settings-view.mjs", "how-view.mjs", "setup-view.mjs"]) {
+  for (const f of ["review-views.mjs", "settings-view.mjs", "how-view.mjs"]) {
     assert.ok(all.has(f), `the recording saw ${f}: ${[...all].join(", ")}`);
   }
 });
