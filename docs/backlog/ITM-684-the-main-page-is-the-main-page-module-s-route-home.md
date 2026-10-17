@@ -32,3 +32,8 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Noted at ITM-685's gate (sprint team1/74, 2026-10-17, po-opus).** MOD-progress-measures' `productFacts` builds only the
+scope `work`. With it, `requirements`, `graph`, `tests`, `results`, `tags` and `modelSince` are `"unknown"`, so the
+Requirements, Tests and Release stages have no share. The main page calls it with the scope `all`, and its request count
+is measured at this item's start. The instance's own bar waits for ITM-809.
