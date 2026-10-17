@@ -1415,25 +1415,29 @@ value fails; counter-proof: one that only moves a test passes.
 
 **AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES** *(Vibe Coding, ch. 12 §6, ch. 10 §3; PO A. Maier)*
 The pull request of an implementation job changes only code files in the folders of the modules the job was
-given and tests that name one of those modules.
+given, tests that name one of those modules, and the files outside every module that one of those modules' files names
+as taken over.
 *Check:* `tests/test_implementation_job.py`
 
-**WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS** *(PO A. Maier)*
-A file that no module of the accepted architecture owns — code outside every module's folder, a test or test helper
-whose header names no module of the architecture — is changed by no implementation job. It is changed between jobs, by a
-pull request of its own that only makes old code call a module in place of its own code and its texts describe what the
-module does, removes what a module now provides together with the tests of what it removes, names in a test's header the module that now holds what the test
-tests, lets a check of the whole repository allow a module what the module's file states that it uses, lets a test
-helper reach the modules' files, or adds or changes a workflow file that only runs an entry that a module's file names.
-*Check:* `tests/test_implementation_job.py` — checks pull requests of a fixture product that change a file no module
-owns, from an implementation job and between jobs. It checks that the implementation job's pull request is refused, that
-a pull request between jobs is refused when it changes such a file in a way the rule does not name, and that one passes
-that replaces code of such a file by a call into a module, or that adds a workflow file that only runs an entry that a
-module's file names.
+**EVERY CODE FILE BELONGS TO A MODULE** *(PO A. Maier)*
+Every code file of a product lies in the folder of one module of its accepted architecture, or, where the platform that
+runs it fixes its place — a CI workflow, a page the Pages site serves —, is named in the parts of one module; every test
+and test helper names in its header a module of the architecture.
+*Check:* `tests/test_coverage_report.py` — every code file in no module's folder and in no module's parts, and every
+test or test helper that names no module of the architecture, is listed; counter-proof: a fixture product whose files
+all belong to its modules lists none.
+
+**CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT** *(PO A. Maier)*
+A code file, test or test helper that belongs to no module is changed only by an implementation job of the module whose
+file names it as taken over, which moves it into that module, or removes it once the module provides what it did,
+together with the tests of what it removes.
+*Check:* `tests/test_implementation_job.py` — a fixture job that moves a file its module's file names as taken over
+passes, and one that removes such a file with the tests of what it removed passes; counter-proof: a job that changes
+such a file in place, or one that no file of its modules names, is refused.
 
 **MODULE GAPS ARE REPORTED, NOT FORBIDDEN** *(PO A. Maier)*
-A module that realises no requirement, a requirement that no module realises, a module that no test
-exercises, and a code file outside every module's folder are shown in the dashboard; none of them blocks a job.
+A module that realises no requirement, a requirement that no module realises, and a module that no test exercises
+are shown in the dashboard; none of them blocks a job.
 *Check:* `tests/test_coverage_report.py`
 ## 12. Tests and continuous integration
 
