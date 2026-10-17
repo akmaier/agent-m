@@ -144,9 +144,11 @@ const fieldOf = (item, name, className, held) => inputsOf(item, name, className)
 export function editedResult(panel, outcome) {
   const items = inputsOf(panel, "li", "candidate");
   const candidates = [], classes = [];
-  const take = (candidate, item, from) => {
-    const class_ = inputsOf(item, "select", "class")[0].value;
-    const of = inputsOf(item, "input", "of")[0].value.trim();
+  const take = (candidate, item, from, origin = null) => {
+    let class_ = inputsOf(item, "select", "class")[0].value;
+    let of = inputsOf(item, "input", "of")[0].value.trim();
+    // A part that would change the requirement its candidate changes is written as a requirement of its own: a second change of one name would replace the first's block.
+    if (origin && class_ === "change" && of === origin.of) { class_ = "new"; of = ""; }
     const edited = { ...candidate, rule: fieldOf(item, "textarea", "candidate-rule", candidate.rule), check: fieldOf(item, "textarea", "candidate-check", candidate.check), class: class_ };
     if (of) edited.of = of;
     else delete edited.of;
@@ -158,7 +160,7 @@ export function editedResult(panel, outcome) {
     const item = items.find((node) => node.getAttribute("data-name") === candidate.name);
     const from = classOf(candidate, outcome.classes).from ?? [];
     const edited = take(candidate, item, from);
-    for (const part of items.filter((node) => node.getAttribute("data-split-of") === candidate.name)) take({ ...edited, name: inputsOf(part, "input", "candidate-name")[0].value.trim() }, part, from);
+    for (const part of items.filter((node) => node.getAttribute("data-split-of") === candidate.name)) take({ ...edited, name: inputsOf(part, "input", "candidate-name")[0].value.trim() }, part, from, edited);
   }
   return { draft: { candidates }, classes };
 }

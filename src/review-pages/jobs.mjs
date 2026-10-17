@@ -378,16 +378,6 @@ function candidateItem(candidate, decided, linked, { parsed, register, onClass, 
   return item;
 }
 
-function classesFrom(panel, classes) {
-  return elementsOf(panel, "li", "candidate").map((item) => {
-    const name = item.getAttribute("data-name");
-    const was = classes.find((each) => each.refs?.includes(name)) ?? { refs: [name], from: [], class: "new", of: null };
-    const select = elementsOf(item, "select", "class")[0];
-    const of = elementsOf(item, "input", "of")[0];
-    return { refs: [name], from: was.from ?? [], class: select.value || was.class, of: of.value.trim() || null };
-  });
-}
-
 async function presentRequirements(outcome, result, run) {
   const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
   const classes = candidates.map((candidate) => candidateClass(candidate, outcome.classes));
