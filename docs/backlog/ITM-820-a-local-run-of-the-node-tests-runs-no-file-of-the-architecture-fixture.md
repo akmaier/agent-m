@@ -1,5 +1,5 @@
 ---
-id: ITM-818
+id: ITM-820
 title: A local run of the node tests runs no file of the architecture fixture
 level: module
 realises:
@@ -16,7 +16,7 @@ tests:
 origin:
   - ITM-702's gate on pull request #746 (docs/gates/20261017-1911-development-release-testing-8943.md), and sprint team2/76's review
 ---
-# ITM-818 A local run of the node tests runs no file of the architecture fixture
+# ITM-820 A local run of the node tests runs no file of the architecture fixture
 
 **REGISTER**
 

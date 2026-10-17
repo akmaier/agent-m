@@ -31,4 +31,4 @@ two readers.
 - It is declared as refactoring: CI is green on every commit.
 
 The architecture fixture's `tests/fixtures/architecture/tests/reader.test.js` is not this item's: its readers are tests
-of other modules. It is ITM-818's.
+of other modules. It is ITM-820's.
