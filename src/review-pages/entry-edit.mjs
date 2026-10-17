@@ -10,11 +10,11 @@
 import { openEditor, renderArtifact } from "../markdown-render/index.mjs";
 import { entryView, queues, saveEntry } from "../spec-changes/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./edit.mjs";
 import { fallbackPages } from "./file-edit.mjs";
-import { el, link, parseServer, problem, TOKEN_STEP } from "./common.mjs";
+import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
 import { entryId } from "./spec-entries.mjs";
 
 const pad2 = (number) => String(number).padStart(2, "0");
@@ -33,7 +33,7 @@ export async function showEntryEdit(where, kind, id) {
       graph = await traceGraph(snapshot);
     }
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const back = link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, "Back to the entry");

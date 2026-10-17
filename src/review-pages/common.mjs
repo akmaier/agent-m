@@ -1,10 +1,11 @@
 // common.mjs — what the review pages of every kind share (MOD-review-pages, Parts): the elements of a page, the token this browser stores for the
-// page's product, the problem a failed read shows and the kind of server a product is on.
+// page's product and the kind of server a product is on.
 //
 // Module: MOD-review-pages
 
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
+import { readProblem } from "../site-frame/index.mjs";
 
 export const TOKEN_STEP = "#add-product";
 
@@ -43,16 +44,6 @@ export function storedToken(context) {
   return null;
 }
 
-// What a read that fails says: a private repository without a token that reaches it is named, and nothing is shown.
-export function problem(failure, token) {
-  const text = failure.name === "NotFound" && !token
-    ? "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload."
-    : failure.message;
-  const paragraph = el("p", "problem", text);
-  if (!token) paragraph.append(" ", link(TOKEN_STEP, "token-step", "Store a token"));
-  return paragraph;
-}
-
 export const parseServer = (context) => { try { return parseAddress(context.product.address).server; } catch { return null; } };
 
 /** defaultSnapshot(host) — the repository at its default branch now. */
@@ -73,7 +64,7 @@ export async function readPlace(target, context) {
   try {
     return { host, token, snapshot: await defaultSnapshot(host), context, target };
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return null;
   }
 }
