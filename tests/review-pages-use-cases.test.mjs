@@ -259,10 +259,11 @@ test("MOD-review-pages use-case/<id>/edit — Save commits the edited use case a
   assert.equal(change.expectedHead, read, "on the head the editor opened");
   assert.deepEqual(change.files, [{ path: P41, text: edited }], "only the use case is written");
   assert.ok(!change.files.some((file) => file.path.startsWith("docs/approvals/")), "no approval record");
-  await until(() => byClass(target, "p", "result")[0].textContent.includes("Saved"), "the saved result");
-  assert.ok(byClass(target, "p", "result")[0].textContent.includes(fake.head()), "the commit is linked");
-  await until(() => context.went.length === 1, "the use case to be shown again");
-  assert.deepEqual(context.went, [["use-case", { id: "UC-041" }]], "the saved use case is shown again from its page (UC-008 3a)");
+  // UC-008 3a: "The use case then has a new SHA and is shown again from step 2" — the page itself, open, with the saved text, no editor, and the commit.
+  await until(() => areaOf(target) === undefined && target.textContent.includes("with a receipt"), "the use case to be shown again");
+  assert.equal(badgeOf(target), "open", "shown again, open: its new text is accepted by no record");
+  assert.equal(byClass(target, "button", "accept").length, 1, "with its Accept");
+  assert.ok(find(target, (node) => node.localName === "a" && (node.getAttribute("href") ?? "").endsWith(`/commit/${fake.head()}`)).length >= 1, "the commit is linked");
 });
 
 // TST-358002 · level: unit · module: MOD-review-pages

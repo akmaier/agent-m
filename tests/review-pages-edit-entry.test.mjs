@@ -187,8 +187,8 @@ test("spec-entry/<id>/edit — Save writes the entry in its own queue and makes 
   const hrefs = find(byClass(target, "p", "entry")[0], (node) => node.localName === "a").map((node) => node.getAttribute("href"));
   assert.ok(hrefs.includes(`https://github.com/alice/thesis-tool/commit/${fake.head()}`), String(hrefs));
   assert.ok(hrefs.includes(`#spec-entry/id=${ENTRY}`), String(hrefs));
-  await until(() => target.went.length === 1, "the entry to be shown again");
-  assert.deepEqual(target.went, [["spec-entry", { id: ENTRY }]], "the saved entry is shown again from its page (UC-006 3a)");
+  // UC-006 3a: the saved entry is shown again — its page, with the saved proposal and no editor.
+  await until(() => find(target, (node) => node.localName === "textarea").length === 0 && target.textContent.includes("a PDF file, always."), "the entry to be shown again");
 });
 
 // TST-680206 · level: unit · module: MOD-review-pages
