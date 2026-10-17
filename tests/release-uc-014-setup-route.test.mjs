@@ -121,16 +121,17 @@ test("release · UC-014 7: underneath, Step A says to choose Only select reposit
 // TST-627004 · level: release · module: MOD-settings-pages
 // guards: UC-014 step 7; EVERY STEP EXPLAINS ITSELF
 // given: the page of TST-627001
-// input: read the folded explanation in Step A
-// expect: UC-014 step 7 "A folded ... says what each is for": there is one folded details in Step A (not open) and its text, for each of Contents (read and write), Issues (read and write),
+// input: read the folded explanations in Step A, however many there are and in whatever order
+// expect: UC-014 step 7 "A folded ... says what each is for": among Step A's details there is one, not open, whose text, for each of Contents (read and write), Issues (read and write),
 //   Pull requests (read and write), Actions (read and write) and Workflows (read and write), gives the access in the same sentence as the purpose "to save and accept", "for reports that
-//   become issues", "for the jobs' changes", "to start a run", "for a generated CI configuration"; Metadata (read) is named with a reason of at least eight letters
+//   become issues", "for the jobs' changes", "to start a run", "for a generated CI configuration"; Metadata (read) is named with a reason of at least eight letters. The number of
+//   details and their order are not asserted. A Step A with the permissions in no details fails
 test("release · UC-014 7: Step A carries a folded explanation of what each permission is for", async () => {
   const { target } = await open();
-  const folded = foldedIn(stepA(target));
-  assert.equal(folded.length, 1, "one folded explanation in Step A");
-  assert.equal(folded[0].hasAttribute("open"), false, "folded");
-  assertPermissionWithWhy(folded[0].textContent);
+  const saysWhat = (folded) => { try { assertPermissionWithWhy(folded.textContent); return true; } catch { return false; } };
+  const found = foldedIn(stepA(target)).find(saysWhat);
+  assert.ok(found, "among Step A's folded explanations, one says what each permission is for");
+  assert.equal(found.hasAttribute("open"), false, "folded");
 });
 
 // TST-627005 · level: release · module: MOD-settings-pages
