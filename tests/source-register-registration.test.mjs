@@ -66,7 +66,8 @@ const CHAPTER = { name: "chapter-1.md", bytes: encode("# Chapter 1\n\nThe first 
 const APPENDIX = { name: "appendix.md", bytes: encode("# Appendix\n\nÄ and ü.\n"), keep: true };
 // Bytes that are no UTF-8 text: a PDF's header and a lone continuation byte.
 const SCAN = { name: "scan.pdf", bytes: Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x80, 0xff, 0x00, 0x01]), keep: true };
-const HASHED = { name: "paid.pdf", bytes: encode("the publisher's bytes"), keep: false };
+// A file only hashed carries the `note` where its copy is kept, which registrationCommits requires; what is written of it is not looked at here.
+const HASHED = { name: "paid.pdf", bytes: encode("the publisher's bytes"), keep: false, note: "cabinet 3, shelf B" };
 
 const plan = (entry, files, instance = INSTANCE) => sourceRegister.registrationCommits(entry, files, instance);
 const groupOf = (commits, repository) => commits.find((commit) => commit.repository === repository);

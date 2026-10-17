@@ -419,6 +419,38 @@ test("draft — Discard drops the requirements and writes nothing", async () => 
   await assertDropped(shown, REQUIREMENTS_KEY);
 });
 
+// TST-636011 · level: component · module: MOD-review-pages
+// guards: UC-019 (8, 9); A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: the draft of a change of A LOAN HAS A DUE DATE with two candidates that change it: A LOAN HAS A DUE DATE (class change, of itself) and A MEMBER CAN RENEW ONCE (class change, of A LOAN HAS A DUE DATE)
+// input: the route draft; a click on Save; then the person sets the class of A MEMBER CAN RENEW ONCE to new and clicks Save
+// expect: the page shows no composed section and one problem reading "TwoChanges: A LOAN HAS A DUE DATE and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed.";
+//   after the first Save the same text is shown a second time, as the result of Save, the two candidates are still there and nothing is written; after the class is set to new the composed section is shown and the second Save writes one commit whose proposal holds
+//   the changed rule of A LOAN HAS A DUE DATE and the block A MEMBER CAN RENEW ONCE
+test("draft — two candidates that change one requirement are refused on the page and on Save, nothing written", async () => {
+  const fake = fakeProduct();
+  const refusal = `TwoChanges: ${LOAN} and ${RENEW} change ${LOAN}: one block would replace the other. Nothing was composed.`;
+  const draft = { candidates: [candidate(LOAN, { class: "change", of: LOAN, rule: OVERDUE, passage: "overdue" }), candidate(RENEW, { class: "change", of: LOAN, passage: "renewal" })] };
+  const { target } = await showRequirements(fake, { result: resultOf(draft, { rounds: [ROUND_ONE] }) });
+  const problems = () => byClass(target, "p", "problem").map((node) => node.textContent);
+  assert.deepEqual(problems(), [refusal]);
+  assert.equal(byClass(target, "section", "composed-section").length, 0);
+  click(buttonsNamed(target, "Save")[0]);
+  await until(() => problems().length === 2, "the result of Save");
+  assert.deepEqual(problems(), [refusal, refusal]);
+  assert.equal(byClass(target, "li", "candidate").length, 2, "the draft stays");
+  assert.equal(written(fake).length, 0, "nothing written");
+  const select = byClass(candidateOf(target, RENEW), "select", "class")[0];
+  select.value = "new";
+  select.dispatchEvent(new Event("change"));
+  assert.equal(byClass(target, "section", "composed-section").length, 1);
+  click(buttonsNamed(target, "Save")[0]);
+  await until(() => byClass(target, "p", "entry").length === 1, "the saved entry");
+  assert.equal(written(fake).length, 1, "one commit");
+  const [proposal] = proposalsOf(fake);
+  assert.match(proposal.text, /and says when it is overdue/);
+  assert.match(proposal.text, new RegExp(`\\*\\*${RENEW}\\*\\*`));
+});
+
 // ---------------------------------------------------------------- the kind converse
 
 const NOTES_PATH = "docs/notes.md";

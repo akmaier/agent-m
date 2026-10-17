@@ -18,7 +18,9 @@ What the language cannot say is written where it applies:
 - `## Versions` has one row per version, appended and never changed: the version's identifier, its date, its edition,
   what it was read from — a repository and the commit read, or the publication repository with the retrieval date and
   its version identifier —, and its files. A version's files, each with its SHA-256, may be listed under a lower heading
-  inside the section, such as `### Files of <version>`; the section's table is its first one.
+  inside the section, such as `### Files of <version>`, in a table of the columns `File`, `SHA-256` and `Kept at`: for a
+  file that was only hashed, the note where its copy is kept, with a `|` in it written `\|`, and `—` for a file that is
+  stored; a table of the first two columns reads alike. The section's table is its first one.
 - `## Parts`, optional, names the parts of the source that a link may name, such as safety classes or chapters.
 
 ```json
