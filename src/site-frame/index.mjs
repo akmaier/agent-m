@@ -46,11 +46,13 @@ const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url)
 /**
  * One route of a view. `name` is the first part of the address's fragment, the rest are the `params` render is given; a
  * route's `entry` puts it under that entry of the menu, null keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a
- * message in the prompt bar is about while the route is shown; a route that gives none, or whose `subject` gives `null`, has the frame's default (subject.mjs).
+ * message in the prompt bar is about while the route is shown; a route that gives none, or whose `subject` gives `null`, has the frame's default (subject.mjs). `leave` is asked
+ * of the route shown before the frame shows another on a change of the address; `false` keeps the route and the frame puts its address back.
  * @typedef {{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" | "releases" |
  *   "maintenance" | "settings" | null, title: string,
  *   render(target: Element, context: ViewContext, params: Record<string, string>): Promise<void>,
- *   subject?: (params: Record<string, string>, context: ViewContext) => Subject | null }} Route
+ *   subject?: (params: Record<string, string>, context: ViewContext) => Subject | null,
+ *   leave?: () => boolean }} Route
  */
 
 /**
@@ -291,18 +293,18 @@ async function startSite({ page, views }) {
         location.hash = fragmentOf(name, product && !("product" in given) ? { ...given, product: product.address } : given);
       } };
     if (!route) {
-      shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context };
+      shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context, fragment };
       const paragraph = document.createElement("p");
       paragraph.textContent = entryKey ? `The ${labelOf(entryKey)} entry is not built yet.` : "This page is not built yet.";
       target.replaceChildren(paragraph);
       return;
     }
     shownName = route.name;
-    shown = { route, params: route === byName ? params : {}, context };
+    shown = { route, params: route === byName ? params : {}, context, fragment };
     await route.render(target, context, shown.params);
   };
   const browser = globalThis.window ?? globalThis;
-  browser.addEventListener?.("hashchange", show);
+  browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));
   await show();
 
   const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
@@ -336,6 +338,27 @@ function footTakesBarHeight(foot) {
   }).observe(foot, { childList: true });
 }
 
+// The listener of the fragment's changes, for the main, the review and the Bridge pages: before `show` draws another route it asks the route shown with its `leave`
+// (Route). `current()` gives that route with the fragment it was drawn for. On `false` nothing is drawn and the fragment is put back; the browser announces the fragment put back
+// as a change of its own, which is neither asked nor drawn.
+function askBeforeShowing(location, current, show) {
+  let putBack = null;
+  return async () => {
+    if (putBack !== null) {
+      const fragment = putBack;
+      putBack = null;
+      if (location.hash === fragment) return;
+    }
+    const { route, fragment } = current() ?? {};
+    if (route?.leave?.() === false) {
+      putBack = fragment;
+      location.hash = fragment;
+      return;
+    }
+    await show();
+  };
+}
+
 // The value of the selector's entry that goes to the add-product route of the settings.
 const ADD_PRODUCT = "+add";
 
@@ -355,6 +378,8 @@ async function startBridge({ page, views }) {
   target.className = "site-frame-route";
   document.body.replaceChildren(header, notices, target);
 
+  // The route shown and the fragment it was drawn for, asked by askBeforeShowing before another route is shown.
+  let shown = null;
   const show = async () => {
     const selected = routeOf(location.hash);
     const route = routes.find((candidate) => candidate.name === selected.name) ?? first;
@@ -362,11 +387,12 @@ async function startBridge({ page, views }) {
       target.textContent = "This Bridge page has no view yet.";
       return;
     }
+    shown = { route, fragment: location.hash ?? "" };
     const context = { page, instance: { repository, host }, product: null, store,
       go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
     await route.render(target, context, route.name === selected.name ? selected.params : {});
   };
   const browser = globalThis.window ?? globalThis;
-  browser.addEventListener?.("hashchange", show);
+  browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));
   await show();
 }
