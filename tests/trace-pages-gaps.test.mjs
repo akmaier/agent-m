@@ -347,7 +347,7 @@ test("showing the link reads nothing, and following it adds only the graph the g
   const { route: name, params } = addressParts(link[0].getAttribute("href"));
   assert.equal(name, "trace");
   const followed = await render(productHost, params, context);
-  assert.equal(titles(followed).length, 5, "known positive: the gaps were drawn");
+  assert.deepEqual(titles(followed), ["Requirements realised by no use case", "Use cases that realise no requirement", "Unknown names"], "known positive: the gaps were drawn, without the lists of the kinds this version lacks");
   assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys],
     [["main", "main"], ["SPEC.md", "SPEC.md", "SPEC.md", UC_FILE], [["SPEC.md", UC_FILE]]]);
 });
