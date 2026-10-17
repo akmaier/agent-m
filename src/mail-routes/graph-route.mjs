@@ -1,5 +1,5 @@
 // graph-route.mjs — the Microsoft Graph route (MOD-mail-routes, Parts): Microsoft's sign-in, signIn (ITM-424), and the mailbox's test on
-// Microsoft Graph (ITM-425), read, find, drafts and sent (ITM-836). The draft and send operations of the route are UC-039's.
+// Microsoft Graph (ITM-425), read, find, drafts and sent (ITM-836), and its drafting and sending (ITM-837, UC-039).
 //
 // Module: MOD-mail-routes
 //
@@ -12,6 +12,7 @@
 import "./vendor/msal-browser.min.js";
 import { instanceOfPagesAddress, pagesAddress } from "../identifiers/index.mjs";
 import { mailId } from "../mail-records/index.mjs";
+import { sha256 } from "../text-tools/index.mjs";
 import PostalMime from "./vendor/postal-mime/postal-mime.js";
 
 import { failure } from "./errors.mjs";
@@ -115,20 +116,21 @@ async function cachedToken({ clientId, account }, address) {
   }
 }
 
-// The one request to Microsoft Graph: a GET, with the token in the authorisation header and nowhere else.
-async function graphRequest(token, path) {
-  return fetch(`${GRAPH}${path}`, { headers: { Authorization: `Bearer ${token}` }, credentials: "omit", cache: "no-store" });
+// The one request to Microsoft Graph: the token in the authorisation header and nowhere else, the address always Microsoft Graph's.
+async function graphRequest(token, path, { method = "GET", headers = {}, body } = {}) {
+  return fetch(`${GRAPH}${path}`, { method, headers: { ...headers, Authorization: `Bearer ${token}` }, ...(body === undefined ? {} : { body }),
+    credentials: "omit", cache: "no-store" });
 }
 
-// A resource of Graph, read: its answer, or null where it is not there. Failures as the module file names them.
-async function graphRead(token, path, as = "json") {
+// A request made, its answer checked: failures as the module file names them. A 404 is the answer's own to handle.
+async function graphCall(token, path, init) {
   let answer;
   try {
-    answer = await graphRequest(token, path);
+    answer = await graphRequest(token, path, init);
   } catch (error) {
     throw failure("Unreachable", { reason: error?.message ?? String(error) }, `Microsoft Graph could not be reached: ${error?.message ?? error}`);
   }
-  if (answer.status === 404) return null;
+  if (answer.status === 404) return answer;
   if (answer.status === 401) throw failure("SignInExpired", {}, "Microsoft Graph refused the sign-in: sign in with Microsoft again.");
   if (answer.status === 403) throw failure("PermissionDeclined", { permission: "Mail.ReadWrite" }, "Microsoft Graph refused the permission Mail.ReadWrite.");
   if (answer.status === 429) {
@@ -136,6 +138,13 @@ async function graphRead(token, path, as = "json") {
     throw failure("Throttled", { retryAfter }, `Microsoft Graph asks to wait${retryAfter ? ` ${retryAfter} seconds` : ""}.`);
   }
   if (!answer.ok) throw failure("Unreachable", { reason: `Microsoft Graph answered ${answer.status}` }, `Microsoft Graph answered ${answer.status}.`);
+  return answer;
+}
+
+// A resource of Graph, read: its answer, or null where it is not there.
+async function graphRead(token, path, as = "json") {
+  const answer = await graphCall(token, path);
+  if (answer.status === 404) return null;
   return as === "bytes" ? new Uint8Array(await answer.arrayBuffer()) : answer.json();
 }
 
@@ -209,9 +218,62 @@ async function mailsOf(token, folder, name, from) {
   return mails.filter(({ mail }) => from === null || from === undefined || Date.parse(mail.date) >= Date.parse(from));
 }
 
+// ---------------------------------------------------------------- drafting and sending (UC-039)
+
+// Agent M marks every draft it stores; only a draft with this mark is the instance's own, and only an own draft is replaced or sent.
+const OWN_DRAFT_MARK = "X-Agent-M-Draft";
+const USABLE_ADDRESS = /^[^\s@,;<>]+@[^\s@,;<>]+$/;
+
+// A reply goes to one reporter: the Draft's recipient must be one address, not missing, empty, without "@", or several in one.
+function replyAddressed(draft) {
+  const address = draft?.to?.address;
+  if (Array.isArray(draft?.to) || typeof address !== "string" || !USABLE_ADDRESS.test(address)) {
+    throw failure("NoReplyAddress", {}, "The mail has no usable reply address; nothing was stored.");
+  }
+  return draft;
+}
+
+function base64(bytes) {
+  let binary = "";
+  for (let at = 0; at < bytes.length; at += 8192) binary += String.fromCharCode(...bytes.subarray(at, at + 8192));
+  return btoa(binary);
+}
+
+const oneLine = (text) => String(text ?? "").replace(/[\r\n]+/g, " ");
+const encoded = (text) => (/^[\x20-\x7e]*$/.test(text) ? text : `=?UTF-8?B?${base64(new TextEncoder().encode(text))}?=`);
+
+// The reply in its raw form: one To, In-Reply-To and References from the reporter's Message-ID, the mark, the body in UTF-8.
+function replyMime(from, { replyTo, to, subject, body }) {
+  const name = oneLine(to.name);
+  const recipient = name ? (/^[\x20-\x7e]*$/.test(name) ? `"${name.replace(/(["\\])/g, "\\$1")}" <${to.address}>` : `${encoded(name)} <${to.address}>`) : to.address;
+  const text = base64(new TextEncoder().encode(String(body ?? ""))).replace(/.{1,76}/g, "$&\r\n");
+  return new TextEncoder().encode([
+    `From: ${oneLine(from)}`, `To: ${recipient}`, `Subject: ${encoded(oneLine(subject))}`,
+    ...(replyTo?.messageId ? [`In-Reply-To: ${oneLine(replyTo.messageId)}`, `References: ${[...(replyTo.references ?? []), replyTo.messageId].map(oneLine).join(" ")}`] : []),
+    `${OWN_DRAFT_MARK}: 1`, "MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "Content-Transfer-Encoding: base64", "", text,
+  ].join("\r\n"));
+}
+
+// The draft is created from its raw form (Graph: POST /me/messages with the MIME as base64 text); its reference is the message's id.
+async function createDraft(token, connection, draft) {
+  const answer = await graphCall(token, "/me/messages", { method: "POST", headers: { "Content-Type": "text/plain" },
+    body: base64(replyMime(connection.address, replyAddressed(draft))) });
+  return { route: "graph", id: (await answer.json()).id };
+}
+
+const draftChanged = () => failure("DraftChanged", {}, "The draft is not in the mailbox as it was; nothing was sent.");
+
+// The bytes of an own draft as stored; null where there is no such message or it does not carry the mark.
+async function ownDraftBytes(token, ref) {
+  const bytes = await graphRead(token, `/me/messages/${encodeURIComponent(ref?.id)}/$value`, "bytes");
+  if (bytes === null) return null;
+  const head = new TextDecoder().decode(bytes).split(/\r?\n\r?\n/)[0];
+  return new RegExp(`^${OWN_DRAFT_MARK}:`, "mi").test(head) ? bytes : null;
+}
+
 /**
  * graphMailbox(connection: MailConnection) -> Mailbox — the mailbox on the Microsoft route: ITM-425 builds its test, ITM-836 its read,
- * find, drafts and sent. Every request is a GET.
+ * find, drafts and sent (every request a GET), ITM-837 its storeDraft, updateDraft, showDraft and sendDraft.
  */
 export function graphMailbox(connection) {
   const token = async () => (await cachedToken(connection.graph, connection.address)).accessToken;
@@ -247,6 +309,34 @@ export function graphMailbox(connection) {
     async sent(from) {
       const accessToken = await token();
       return (await mailsOf(accessToken, "/me/mailFolders/sentitems", "Sent Items", from)).map(({ mail }) => mail);
+    },
+    // The reply stored in Drafts and nowhere else; a Draft without a usable reply address is refused before any request.
+    async storeDraft(draft) {
+      return createDraft(await token(), connection, draft);
+    },
+    // An edit: the new draft is stored first, then the old one removed — only if it is the instance's own.
+    async updateDraft(ref, draft) {
+      const accessToken = await token();
+      if ((await ownDraftBytes(accessToken, ref)) === null) throw draftChanged();
+      const stored = await createDraft(accessToken, connection, draft);
+      await graphCall(accessToken, `/me/messages/${encodeURIComponent(ref.id)}`, { method: "DELETE" });
+      return stored;
+    },
+    // The draft as stored, complete, with the SHA-256 of its bytes.
+    async showDraft(ref) {
+      const bytes = await graphRead(await token(), `/me/messages/${encodeURIComponent(ref?.id)}/$value`, "bytes");
+      if (bytes === null) throw draftChanged();
+      const mail = await parseMail(bytes, "Drafts");
+      return { ref, sha256: await sha256(bytes), from: mail.from, to: mail.to, cc: mail.cc, subject: mail.subject, body: mail.text,
+        attachments: mail.attachments.map(({ name, type, size }) => ({ name, type, size })) };
+    },
+    // The bytes are read again; only if their SHA-256 is the one shown does the provider send the draft, keep the copy in Sent and remove it.
+    async sendDraft(shown) {
+      const accessToken = await token();
+      const bytes = await ownDraftBytes(accessToken, shown.ref);
+      if (bytes === null || (await sha256(bytes)) !== shown.sha256) throw draftChanged();
+      await graphCall(accessToken, `/me/messages/${encodeURIComponent(shown.ref.id)}/send`, { method: "POST" });
+      return { sentAt: new Date().toISOString() };
     },
     // The mails in each named folder, whether Drafts and Sent are there, and whether sending works — the token holds Mail.Send; nothing
     // is sent to find out. Every request reads; nothing in the mailbox changes (READING THE MAILBOX CHANGES NOTHING IN IT).
