@@ -167,8 +167,8 @@ earlier entry of the queue creates it.
   resolved it, an undecided one not at all (`A CONFLICT IS DECIDED BY A PERSON`). Every requirement names `source`, the
   job's, with the passage it draws on, and, where its candidate points to a rule of another source, that source too.
   `draft` is a draft of `derive-requirements` or `change-requirements`, in the form its kind expects (MOD-job-catalogue).
-  Every other byte of a section stays as it is. Pure. Throws `TwoChanges { name, candidates }` when two candidates
-  change the requirement `name`, since one block would replace the other, and composes nothing.
+  Every other byte of a section stays as it is. Pure. Throws `TwoChanges { requirement, candidates }` when two
+  candidates change the requirement `requirement`, since one block would replace the other, and composes nothing.
 - `entryView(queue: string, entry: number, snapshot: Snapshot) -> { current: { text: string, blob: string } | null,
   proposal: { text: string, blob: string }, difference: LineDiff, rationale: string, impact: Array<{ name: string,
   change: "changed" | "withdrawn" | "added", referencedBy: string[] }>, state: string, createdBy: number | null }` —
