@@ -29,6 +29,13 @@ rewrites no line of the product's own — write the entry so, then install again
 **Existing test whose expected result changes:** TST-604003 (`tests/runtimes-gitlab-ci-merge.test.mjs`), which pins
 today's ending.
 
+**The grep of what changes** (sprint 58's agreement), read at sprint team1/60's start. "plain string, which cannot pass the
+inputs on" and the include ending are found in `tests/runtimes-gitlab-ci-merge.test.mjs`:
+- `:220` and `:224` are TST-604003, named above;
+- `:182` and `:191` are the include ending's constant and TST-604001's comment, which stay for the include cases.
+
+No other test, release tests included, holds either text.
+
 ## Acceptance
 
 - The plain-string entry's message ends with its own sentence, and a test states the whole message.

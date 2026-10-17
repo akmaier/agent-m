@@ -55,6 +55,13 @@ no registration:
   - TST-572007 (`tests/prompt-bar-hand-over-strategies.test.mjs`) gains the ninth set;
   - TST-572002 and TST-572006 change `draft-plan`'s missing strategy from `architecture-and-model` to `plan-checks`, its
     next one.
+- **The grep of what changes** (sprint 58's agreement), read at sprint team1/60's start.
+  - `architecture-and-model` in `tests` is found in five places:
+    - `tests/site-frame-start-hand-over-main.test.mjs:51` and `:57`, and
+      `tests/site-frame-start-hand-over-review.test.mjs:64` and `:71`. These are TST-572006's and 572002's
+      expectations and comments, named above.
+    - `tests/job-catalogue.test.mjs:44`, the catalogue's table, which this item does not touch.
+  - `workStrategies` is found only in `src/work-plans/index.mjs:6`, the line that says it is not built.
 
 ## Acceptance
 
