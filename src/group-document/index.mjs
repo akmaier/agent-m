@@ -1,7 +1,7 @@
 // MOD-group-document — group files and the hierarchy of one kind (docs/architecture/MOD-group-document.md): its
-// interface. Built so far: `GroupTree` and `parseGroupFile`, a group file read into its groups, their members and their lines;
-// `GroupMove` and `applyMoves`, the moves a person makes applied in order to a new tree; `Hierarchy` and `hierarchy`, the
-// tree with every item of the kind in its one place and the findings. `groupFileText` is not built yet.
+// interface. `GroupTree` and `parseGroupFile`, a group file read into its groups, their members and their lines;
+// `groupFileText`, a tree written as the canonical group file; `GroupMove` and `applyMoves`, the moves a person makes applied
+// in order to a new tree; `Hierarchy` and `hierarchy`, the tree with every item of the kind in its one place and the findings.
 //
 // Module: MOD-group-document
 //
@@ -56,6 +56,6 @@
  * }} Hierarchy
  */
 
-export { parseGroupFile } from "./group-file.mjs";
+export { parseGroupFile, groupFileText } from "./group-file.mjs";
 export { applyMoves } from "./moves.mjs";
 export { hierarchy } from "./hierarchy.mjs";
