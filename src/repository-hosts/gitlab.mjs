@@ -6,7 +6,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), setPipelineSchedule(schedule), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -245,6 +245,30 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     // sha the commit, its source — "api" where the answer names none — the event, its status the state, its web_url the address.
     async startWorkflow(workflow, ref, inputs) {
       return ciRunOf(await json(await call("POST", `${api}/pipeline`, { body: { ref, inputs } }), address.origin), workflow);
+    },
+
+    // Sets the project's pipeline schedule named by its description ("Pipeline schedules": GET …/pipeline_schedules, 100 to a page, read page by page, finds the first with the description; POST creates
+    // it — description, ref, cron, cron_timezone, active —, PUT …/pipeline_schedules/:id updates it, GET …/pipeline_schedules/:id names its variables). Its variables become those given: each given is
+    // set (PUT where the schedule has it, else POST …/variables), each other it has is deleted. Every request is a write that needs the role Maintainer, so a 404 is PermissionMissing.
+    async setPipelineSchedule({ description, cron, timezone, ref, active, variables = {} }) {
+      const options = { write: true, what: `the pipeline schedules of ${address.web}` };
+      const schedules = `${api}/pipeline_schedules`;
+      const fields = { ref, cron, cron_timezone: timezone, active };
+      const found = (await everyPage(schedules, options, (s) => s.id)).find((s) => s.description === description);
+      let id, had = [];
+      if (found) {
+        id = found.id;
+        had = (await read(`${schedules}/${id}`, options)).variables?.map((v) => v.key) ?? [];
+        await call("PUT", `${schedules}/${id}`, { ...options, body: fields });
+      } else {
+        id = (await json(await call("POST", schedules, { ...options, body: { description, ...fields } }), address.origin)).id;
+      }
+      for (const [key, value] of Object.entries(variables)) {
+        if (had.includes(key)) await call("PUT", `${schedules}/${id}/variables/${encodeURIComponent(key)}`, { ...options, body: { value } });
+        else await call("POST", `${schedules}/${id}/variables`, { ...options, body: { key, value } });
+      }
+      for (const key of had.filter((k) => !(k in variables))) await call("DELETE", `${schedules}/${id}/variables/${encodeURIComponent(key)}`, options);
+      return { id: String(id), url: `${address.web}/-/pipeline_schedules` };
     },
 
     // The pipelines ("List project pipelines": ref and sha from the filter's branch and commit, 100 to a page, read page by page). A project has one pipeline definition, which startWorkflow starts
