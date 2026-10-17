@@ -10,7 +10,7 @@
 // Guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; ONE CLICK PER DECISION; AN APPROVAL NAMES THE EXACT TEXT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 // Level: unit
 //
-// This imports the browser harness of tests/review-pages-use-cases.test.mjs unchanged (its document and its localStorage), and brings
+// This imports the browser harness of tests/review-pages-harness.mjs unchanged (its document and its localStorage), and brings
 // the repository the same way: a Host of the tests' own over one repository in memory with a history, keeping to MOD-repository-hosts'
 // interface; every call recorded. The real MOD-approvals, MOD-documents and MOD-browser-store run as they are. Nothing reaches the network.
 // Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
@@ -25,7 +25,7 @@
 //     does; on GitLab without a token it offers none and links the token's step, #add-product.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-use-cases.test.mjs";
+import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

@@ -639,7 +639,7 @@ const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function counterproofs() {
   const temporary = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-418-fault-"))), copied = join(temporary, "agent-m");
   const tests = ["tests/system-uc-019-change-requirements-by-prompt.test.mjs", "tests/system-uc-019-change-by-prompt.test.mjs", "tests/release-uc-019-change-requirements-by-prompt.test.mjs"];
-  const helpers = ["tests/app-harness.mjs", "tests/review-pages-draft-world.mjs", "tests/review-pages-use-cases.test.mjs"];
+  const helpers = ["tests/app-harness.mjs", "tests/review-pages-draft-world.mjs", "tests/review-pages-harness.mjs"];
   const receipts = [], receiptPath = join(tmpdir(), `agent-m-418-counterproof-${process.pid}.json`);
   try {
     cpSync(join(ROOT, "src"), join(copied, "src"), { recursive: true, filter: (path) => !path.split(/[\\/]/).includes("node_modules") });
