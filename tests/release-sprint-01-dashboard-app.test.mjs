@@ -20,7 +20,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { resolveObjectURL } from "node:buffer";
-import { repoServer, openDashboard, TOKEN } from "./app-harness.mjs";
+import { repoServer, openDashboard, press, TOKEN } from "./app-harness.mjs";
 
 const API = "https://api.github.com";
 const INSTANCE = "akmaier/agent-m";
@@ -131,6 +131,9 @@ function instanceFiles(extra = {}) {
   const uc2 = useCase("UC-002", "File a report");
   return {
     "SPEC.md": SPEC,
+    // A REQUIREMENT HAS A REGISTERED SOURCE: "PO", which every requirement of the SPEC names, is a source the instance registers and the product links.
+    "docs/sources.md": `# The sources this product meets\n\n| Source | Version | Hash | Part |\n|---|---|---|---|\n| SRC-po | 2026-01-01 | ${"0".repeat(64)} | |\n`,
+    "docs/sources/SRC-po.md": "---\nid: SRC-po\ntitle: PO\nkind: person\nauthority: normative\nlicence: may be republished — fixture\n---\n# SRC-po PO\n\nThe product owner.\n",
     [UC1]: useCase("UC-001", "Read a report"),
     [UC2]: uc2,
     [UC3]: UC3_NOW,
@@ -366,8 +369,21 @@ const gitlabTokenSentOnlyToItsProject = (w) => w.log.filter((r) => r.privateToke
 //
 // 2a and 3a are not carried out (ITM-132): no release test for them.
 
-const rowOf = (html, id) => String(html).split("<tr>").find((r) => r.includes(`#uc/${id}"`)) ?? "";
+const rowOf = (html, id) => String(html).split("<tr").find((r) => r.includes(`#use-case/id=${id}"`)) ?? "";
 const ucText = (w, path) => w.server.files[path];
+
+// The pages are MOD-review-pages' routes (its Interfaces): a file's heading with its status beside it, controls found by their class,
+// and the editor on the route the file's Edit link leads to.
+const inMain = () => globalThis.document.getElementById("main");
+const buttonNamed = (text) => inMain().querySelectorAll("button").find((button) => button.textContent === text);
+const headline = (html) => stripTags(/<h2>[\s\S]*?<\/h2>(?:<span class="badge[^"]*">[\s\S]*?<\/span>)?/.exec(html)?.[0] ?? "");
+async function openEditor(page, hash) {
+  await page.go(hash);
+  const edit = inMain().querySelector("a.edit-link");
+  assert.ok(edit, `${hash}: the page offers Edit`);
+  await page.go(edit.href);
+  return { area: inMain().querySelector("textarea"), save: () => buttonNamed("Save"), result: () => inMain().querySelector(".result")?.textContent ?? "" };
+}
 
 test("release · UC-008 1–5: a use case is read with its diagram and accepted by one commit that names its exact text", async () => {
   const w = await world();
@@ -379,7 +395,7 @@ test("release · UC-008 1–5: a use case is read with its diagram and accepted 
   assert.match(page.main(), /The reader opens the report\./);
   assert.match(page.main(), /language-mermaid[\s\S]*read the report UC-001/, "the Mermaid diagram");
   const shown = ucText(w, UC1);
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.equal(w.server.writes.length, 1, "one commit");
   const [[path, record]] = Object.entries(w.server.writes[0].files);
   const m = /^docs\/approvals\/UC-001-([0-9a-f]{7,40})\.md$/.exec(path);
@@ -389,7 +405,7 @@ test("release · UC-008 1–5: a use case is read with its diagram and accepted 
   assert.ok(lines.some((l) => l.includes(UC1)), "the record names the file");
   assert.ok(lines.some((l) => l.includes(blobSha(shown))), "the record names the blob SHA of the text shown");
   assert.ok(writesOf(w).every((r) => r.auth === `Bearer ${TOKEN}`), "under the reviewer's own token");
-  assert.match(stripTags(/<h2>[\s\S]*?<\/h2>/.exec(page.main())[0]), /UC-001.*\baccepted\b/);
+  assert.match(headline(page.main()), /UC-001.*\baccepted\b/);
 });
 
 // UC-008 5a — the file is edited after acceptance. Expected: on the next load it shows as changed since acceptance, without
@@ -414,11 +430,11 @@ test("release · UC-008 2a: a changed use case shows its difference to the text 
   const w = await world({ files: instanceFiles({ [now]: b, [r0]: ucRecord(old, a0), [r1]: ucRecord(old, a1) }), history: [UC3_ACCEPTED, a0, a1],
     dates: { [r0]: "2026-01-01T10:00:00Z", [r1]: "2026-02-01T10:00:00Z" } });
   const page = await open(w, { hash: "#uc/UC-004" });
-  const diff = stripTags(page.html("accepted-diff"));
+  const diff = stripTags(inMain().querySelector("section.accepted-diff")?.innerHTML ?? "");
   assert.match(diff, /LAST-ACCEPTED-LINE/);
   assert.match(diff, /CURRENT-LINE/);
   assert.doesNotMatch(diff, /OLDEST-LINE/, "not the older record's text");
-  assert.ok(page.main().indexOf('id="accepted-diff"') < page.main().indexOf("CURRENT-LINE"), "above the text");
+  assert.ok(page.main().indexOf('<section class="accepted-diff">') < page.main().indexOf("CURRENT-LINE"), "above the text");
 });
 
 // UC-008 1a — the product repository is private. Expected: with a token that reaches it, the dashboard reads it with that token;
@@ -445,31 +461,32 @@ test("release · UC-008 1a: a private repository is read with the token, and wit
 // case's file under the reviewer's token; the use case then has a new SHA and is shown again from step 2, open.
 test("release · UC-008 3a: Save commits the edited use case, which is then shown again, open", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#uc/UC-002" });
-  const ed = page.editor();
-  assert.equal(ed.parts.textarea.value, ucText(w, UC2), "the editor holds the text shown");
+  const page = await open(w);
+  const ed = await openEditor(page, "#uc/UC-002");
+  assert.equal(ed.area.value, ucText(w, UC2), "the editor holds the text shown");
   const edited = ucText(w, UC2).replace("The reader opens the report.", "The reader opens the report, EDITED-ON-DASHBOARD.");
-  ed.parts.textarea.value = edited;
-  await page.click("[data-edit-save]");
+  ed.area.value = edited;
+  await press(w.server, ed.save());
   assert.equal(w.server.writes.length, 1);
   assert.equal(w.server.writes[0].files[UC2], edited);
   assert.ok(writesOf(w).every((r) => r.auth === `Bearer ${TOKEN}`));
   assert.match(page.main(), /EDITED-ON-DASHBOARD/);
-  assert.match(stripTags(/<h2>[\s\S]*?<\/h2>/.exec(page.main())[0]), /UC-002.*\b(open|changed)\b/);
+  assert.match(headline(page.main()), /UC-002.*\b(open|changed)\b/);
 });
 
 // A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE (UC-008 3a) — the file changed on the default branch after the editor
 // opened. Expected: Save writes nothing, the other text stays, and the page says the file changed.
 test("release · UC-008 3a: a save whose file changed meanwhile writes nothing", async () => {
   const w = await world();
-  const page = await open(w, { hash: "#uc/UC-001" });
+  const page = await open(w);
+  const ed = await openEditor(page, "#uc/UC-001");
   const theirs = useCase("UC-001", "Read a report", "Someone else's EDIT-MEANWHILE.");
   await w.server.change(UC1, theirs);
-  page.editor().parts.textarea.value = useCase("UC-001", "Read a report", "My edit.");
-  await page.click("[data-edit-save]");
+  ed.area.value = useCase("UC-001", "Read a report", "My edit.");
+  await press(w.server, ed.save());
   assert.deepEqual(w.server.writes, []);
   assert.equal(ucText(w, UC1), theirs);
-  assert.match(page.editor().parts[".result"].textContent, /changed/i);
+  assert.match(ed.result(), /changed/i);
 });
 
 // UC-008 3b — no token is stored. Expected: Accept opens GitHub's new-file page with the record prefilled — the approval file
@@ -485,11 +502,13 @@ test("release · UC-008 3b: without a token, Accept and Edit open GitHub's own p
   const q = new URL(link).searchParams;
   assert.match(q.get("filename"), /^docs\/approvals\/UC-001-[0-9a-f]{7,40}\.md$/);
   assert.ok(q.get("value").includes(UC1) && q.get("value").includes(blobSha(shown)), "the record is prefilled");
-  assert.ok(page.main().includes(`data-copy="${q.get("filename")}"`), "the exact path with a copy button");
+  assert.equal(inMain().querySelector("code.record-path")?.textContent, q.get("filename"), "the exact path");
+  assert.ok(buttonNamed("Copy"), "with a copy button");
   assert.ok(hrefs(page.main()).every((x) => !x.includes("reader opens the report")), "no link carries the use case's text");
   const edited = shown.replace("opens the report.", "opens the report, WITHOUT-TOKEN.");
-  page.editor().parts.textarea.value = edited;
-  await page.click("[data-edit-commit]");
+  const ed = await openEditor(page, "#uc/UC-001");
+  ed.area.value = edited;
+  await press(w.server, ed.save());
   assert.deepEqual(page.asked.clipboard, [edited]);
   assert.deepEqual(page.asked.opened, [`https://github.com/${INSTANCE}/edit/main/${UC1}`]);
   assert.deepEqual(writesOf(w), []);
@@ -504,8 +523,13 @@ test("release · UC-008 3c: a GitLab product without its token is read, offers n
   assert.match(page.main(), /UC-001/);
   await page.go("#uc/UC-001");
   assert.match(page.main(), /The reader opens the report\./);
-  assert.doesNotMatch(page.main(), /data-accept-key|data-edit-save|data-edit-commit/);
-  assert.ok(hrefs(page.main()).includes(`#add/${encodeURIComponent(GL_ADDRESS)}`), "a link to the token step");
+  assert.equal(inMain().querySelector("button.accept"), null, "no Accept");
+  assert.equal(inMain().querySelector("a.edit-link"), null, "no Edit, so no Save");
+  assert.equal(buttonNamed("Save"), undefined);
+  const step = inMain().querySelector("a.token-step");
+  assert.ok(step, "a link to the token step");
+  step.fire("click", { preventDefault() {} });
+  assert.equal(location.hash, `#add/${encodeURIComponent(GL_ADDRESS)}`, "it leads to the step that stores the project's token");
   assert.ok(gitlab.requests.every((r) => r.auth === null && r.token === null));
 });
 
@@ -514,14 +538,12 @@ test("release · UC-008 3c: a GitLab product without its token is read, offers n
 test("release · UC-008 3d: Accept ticked writes one record per ticked use case in one commit; a file changed since is left out and named", async () => {
   for (const changeOne of [false, true]) {
     const w = await world();
-    const page = await open(w, { hash: "#uc/UC-001" });
+    const page = await open(w, { hash: "#uc" });
     const shown1 = ucText(w, UC1), shown3 = ucText(w, UC3);
-    const tick = async () => { const c = page.byId("main").querySelector("[data-tick]"); c.checked = true; c.fire("change", {}); };
-    await tick();
-    await page.go("#uc/UC-003");
-    await tick();
+    // The list holds a tick for each use case not yet accepted: UC-001, then UC-003.
+    for (const box of inMain().querySelectorAll("input.tick")) { box.checked = true; box.fire("change", {}); }
     if (changeOne) await w.server.change(UC3, useCase("UC-003", "Sign a report", "CHANGED-AFTER-SHOWN."));
-    await page.click("[data-accept-ticked]");
+    await page.click(".accept-ticked");
     assert.equal(w.server.writes.length, 1, "one commit");
     const records = Object.values(w.server.writes[0].files).join("\n");
     assert.ok(records.includes(blobSha(shown1)), "UC-001 as shown");
@@ -545,11 +567,11 @@ test("release · UC-008 3e: Review all shows every open use case and Accept all 
     assert.match(main, /The reader opens the report\./, "UC-001 in full");
     assert.match(stripTags(main), /CHANGED-SINCE/);
     assert.match(stripTags(main), /signs the report as accepted/, "UC-003 against its accepted text");
-    assert.doesNotMatch(main, /id="review-UC-002"|#uc\/UC-002"/, "the accepted UC-002 is not on the page");
+    assert.doesNotMatch(main, /UC-002/, "the accepted UC-002 is not on the page");
     assert.match(stripTags(main), /Accept all 2 shown/);
     if (changeOne) await w.server.change(UC1, useCase("UC-001", "Read a report", "CHANGED-AFTER-THE-PAGE."));
     const shown3 = ucText(w, UC3);
-    await page.click("[data-accept-all]");
+    await page.click(".accept-all");
     assert.equal(w.server.writes.length, 1);
     const records = Object.values(w.server.writes[0].files).join("\n");
     assert.ok(records.includes(blobSha(shown3)));
@@ -566,9 +588,9 @@ test("release · UC-008 3: nothing is written on load or on a script's click; th
   await page.go("#review/uc");
   await page.go("#uc/UC-001");
   assert.deepEqual(writesOf(w), [], "no write on load or reading");
-  await page.click("[data-accept-key]", { isTrusted: false });
+  await page.click(".accept", { isTrusted: false });
   assert.deepEqual(writesOf(w), [], "no write on a script's click");
-  await page.click("[data-accept-key]", { isTrusted: true });
+  await page.click(".accept", { isTrusted: true });
   assert.equal(w.server.writes.length, 1);
 });
 
@@ -593,7 +615,7 @@ test("release · UC-006 1–7: a SPEC change is accepted in one commit — recor
   assert.match(shown, /Difference[\s\S]*first written[\s\S]*PROPOSED-WORDING|Difference[\s\S]*PROPOSED-WORDING[\s\S]*first written/, "the difference");
   assert.match(shown, /RATIONALE-TEXT/, "the rationale");
   const decisions = w.server.files[`${Q}/entscheidungen.md`];
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.equal(w.server.writes.length, 1, "one commit");
   const files = w.server.writes[0].files;
   const rec = Object.entries(files).find(([p]) => p.startsWith("docs/approvals/"));
@@ -610,21 +632,23 @@ test("release · UC-006 1–7: a SPEC change is accepted in one commit — recor
   assert.equal(added.length, 1, "one decision");
   assert.ok(added[0].includes(rec[0].split("/").pop()), "naming the record");
   assert.ok(writesOf(w).every((r) => r.auth === `Bearer ${TOKEN}`));
-  assert.match(stripTags(/<h2>[\s\S]*?<\/h2>/.exec(page.main())[0]), /in SPEC/);
+  assert.match(headline(page.main()), /in SPEC/);
 });
 
 // UC-006 3a — the reviewer wants different wording. Expected: Save commits the edited proposal; the entry is shown again with
 // the new text, and Accept writes that text into the SPEC.
 test("release · UC-006 3a: an edited proposal is saved, shown again, and accepted as edited", async () => {
-  const w = await world();
-  const page = await open(w, { hash: ENTRY });
+  const w = await world({ writableProduct: true });
+  const page = await open(w);
+  const ed = await openEditor(page, ENTRY);
   const edited = PROPOSAL.replace("PROPOSED-WORDING", "EDITED-WORDING");
-  page.editor().parts.textarea.value = edited;
-  await page.click("[data-edit-save]");
+  ed.area.value = edited;
+  inMain().querySelector("textarea.why").value = "The wording is clearer.";
+  await press(w.server, ed.save());
   assert.equal(w.server.writes.length, 1);
   assert.equal(w.server.files[`${Q}/01-rule-two.md`], edited);
   assert.match(stripTags(page.main()), /EDITED-WORDING/);
-  await page.click("[data-accept-key]");
+  await page.click(".accept");
   assert.equal(w.server.writes.length, 2);
   assert.ok(w.server.files["SPEC.md"].includes(edited));
 });
@@ -637,7 +661,7 @@ test("release · UC-006 5a: a SPEC section or proposal changed since it was show
     const page = await open(w, { hash: ENTRY });
     if (which === "section") await w.server.change("SPEC.md", SPEC.replace("as first written", "as CHANGED-MEANWHILE"));
     else await w.server.change(`${Q}/01-rule-two.md`, PROPOSAL.replace("PROPOSED-WORDING", "CHANGED-MEANWHILE"));
-    await page.click("[data-accept-key]");
+    await page.click(".accept");
     assert.deepEqual(w.server.writes, [], `${which}: nothing is written`);
     assert.match(stripTags(page.main()), /CHANGED-MEANWHILE/, `${which}: the new state is shown`);
   }
@@ -654,14 +678,15 @@ test("release · UC-006 4d: an entry waits for the entry that creates its headin
     { [`${QB}/01-last.md`]: p1, [`${QB}/02-added.md`]: p2 })) });
   const decisions = w.server.files[`${QB}/entscheidungen.md`];
   const page = await open(w, { hash: "#spec/2026-01-01b_new-section/02" });
-  assert.doesNotMatch(page.main(), /data-accept-key/, "02 is not offered alone");
+  assert.equal(inMain().querySelector("button.accept"), null, "02 is not offered alone");
   assert.match(stripTags(page.main()), /\b0?1\b/);
   assert.match(stripTags(page.main()), /entry 0?1/i, "the entry it needs is named");
-  const tick = async () => { const c = page.byId("main").querySelector("[data-tick]"); c.checked = true; c.fire("change", {}); };
-  await tick();
-  await page.go("#spec/2026-01-01b_new-section/01");
-  await tick();
-  await page.click("[data-accept-ticked]");
+  // The SPEC changes list holds a tick for each entry of the queue, the waiting one too.
+  await page.go("#spec");
+  const queueOfB = inMain().querySelectorAll("section.queue").find((section) => section.textContent.includes("new section"));
+  assert.equal(queueOfB.querySelectorAll("input.tick").length, 2, "a tick for each of the two entries");
+  for (const box of queueOfB.querySelectorAll("input.tick")) { box.checked = true; box.fire("change", {}); }
+  await page.click(".accept-ticked");
   assert.equal(w.server.writes.length, 1, "one commit");
   const files = w.server.writes[0].files;
   const spec = files["SPEC.md"];
@@ -683,8 +708,10 @@ test("release · UC-006 4b: without a token, Accept and Edit open GitHub's pages
   assert.ok(link, "a link to GitHub's new-file page");
   const value = new URL(link).searchParams.get("value");
   assert.ok(value.includes(`${Q}/01-rule-two.md`) && value.includes(blobSha(PROPOSAL)), "the record is prefilled");
-  page.editor().parts.textarea.value = PROPOSAL;
-  await page.click("[data-edit-commit]");
+  const ed = await openEditor(page, ENTRY);
+  ed.area.value = PROPOSAL;
+  inMain().querySelector("textarea.why").value = "The wording is clearer.";
+  await press(w.server, ed.save());
   assert.deepEqual(page.asked.clipboard, [PROPOSAL]);
   assert.deepEqual(page.asked.opened, [`https://github.com/${INSTANCE}/edit/main/${Q}/01-rule-two.md`]);
   assert.deepEqual(writesOf(w), []);
@@ -710,7 +737,7 @@ test("release · UC-006 4a: an entry not accepted stays open and nothing is comm
   await page.go("#spec");
   await page.go(ENTRY);
   assert.deepEqual(writesOf(w), []);
-  assert.match(stripTags(/<h2>[\s\S]*?<\/h2>/.exec(page.main())[0]), /\bopen\b/);
+  assert.match(headline(page.main()), /\bopen\b/);
 });
 
 // UC-014 4a, with UC-006 4b and 4c — an approval of the instance's own SPEC committed on GitHub's page while the workflow has not
@@ -721,10 +748,10 @@ test("release · UC-014 4a: an approval committed on GitHub's page and not yet a
   const q = new URL(hrefs(page.main()).find((x) => x.startsWith(`https://github.com/${INSTANCE}/new/`))).searchParams;
   await w.server.change(q.get("filename"), q.get("value"));
   const again = await open(w, { hash: ENTRY, token: null });
-  const head = /<h2>[\s\S]*?<\/h2>/.exec(again.main())[0];
+  const head = headline(again.main()), why = stripTags(inMain().querySelector("p.approved-note")?.innerHTML ?? "");
   assert.match(stripTags(head), /\bapproved\b/);
   assert.doesNotMatch(stripTags(head), /in SPEC/);
-  assert.match(head, /workflow|not yet written/i, "it says why");
+  assert.match(why, /workflow|not yet written/i, "it says why");
 });
 
 // ================================================================ UC-014 Get your own Agent M — the built part, Finish setting up
