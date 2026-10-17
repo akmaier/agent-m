@@ -385,9 +385,10 @@ test("ITM-203 · the page draws Agent M's component diagram without Mermaid's \"
 test("ITM-203 · the explanation under the component diagram says what the diagram draws", async () => {
   const { page } = await architecturePage(OWN);
   const main = page.main();
-  const at = main.indexOf('<code class="language-mermaid">');
+  // renderMermaid draws the diagram as an element <div class="mermaid"> (MOD-markdown-render); the explanation follows it in the view's panel.
+  const at = main.indexOf('<div class="mermaid">');
   assert.ok(at > 0, "the diagram stands on the page");
-  const under = main.slice(main.indexOf("</code>", at), main.indexOf("</section>", at));
+  const under = main.slice(main.indexOf("</div>", at), main.indexOf("</section>", at));
   const m = /<details class="explain">\s*<summary>What is this\?<\/summary>\s*<div(?: class="md")?>([\s\S]*?)<\/div>\s*<\/details>/.exec(under);
   assert.ok(m, "an explanation that can be expanded stands under the diagram, in its panel");
   const says = textOf(m[1].replace(/<[^>]*>/g, "")).replace(/\s+/g, " ");
