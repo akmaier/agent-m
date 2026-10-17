@@ -1,7 +1,7 @@
 // MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Built: the types View,
 // Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, the last two with the
 // start of the prompt bar (subject.mjs gives it the subject of the route shown); menuOf (menu.mjs); instanceOf; chosenProduct
-// (routing.mjs); explain; runPanel (run-panel.mjs); confirmDecision (decision.mjs); notice (notices.mjs); schemaForm (forms.mjs), without its options secretKeys
+// (routing.mjs); explain; readProblem; runPanel (run-panel.mjs); confirmDecision (decision.mjs); notice (notices.mjs); schemaForm (forms.mjs), without its options secretKeys
 // and readOnly. Not built yet: embedRoute and the frame's own check of the topics.
 //
 // Module: MOD-site-frame
@@ -115,6 +115,27 @@ export function explain(topic) {
   summary.textContent = "What is this?";
   folded.append(summary, renderArtifact(text));
   return folded;
+}
+
+/**
+ * readProblem(failure: Error, tokenStored: boolean) -> Element — the problem a failed read of a repository shows on a page: a <p class="problem">. For a NotFound while no
+ * token that reaches the repository is stored, it says that the repository is private or does not exist and that no token reaches it; otherwise it is the host's own
+ * message. While no token is stored, a link "Store a token" to the add-product step follows. It reads nothing and never throws.
+ */
+export function readProblem(failure, tokenStored) {
+  const paragraph = document.createElement("p");
+  paragraph.className = "problem";
+  paragraph.textContent = failure.name === "NotFound" && !tokenStored
+    ? "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload."
+    : failure.message;
+  if (!tokenStored) {
+    const step = document.createElement("a");
+    step.className = "token-step";
+    step.setAttribute("href", fragmentOf("add-product"));
+    step.textContent = "Store a token";
+    paragraph.append(" ", step);
+  }
+  return paragraph;
 }
 
 // The instance whose Pages address this page belongs to. A local Bridge window keeps that Pages location as private shell

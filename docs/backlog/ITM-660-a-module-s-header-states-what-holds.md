@@ -33,3 +33,7 @@ The same kind of header stands in other modules' `index.mjs`: 61 item identifier
 
 - `src/source-register/index.mjs`'s header names what the module gives and what it does not give yet, and no item.
 - No expected result of a test changes. It is declared as refactoring.
+
+**Folded into ITM-576 at sprint team1/68's start**, by sprint 67's agreement: "An item whose code touches a module header
+removes the item history in it." ITM-576 changes `src/source-register/index.mjs`, so its header is ITM-576's to correct.
+This item is done with it.

@@ -7,7 +7,7 @@
 // Run: node --test tests/runtimes-pull-request.test.mjs
 //
 // Module: MOD-runtimes
-// Guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-024; UC-049
+// Guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A REMOTE INTERFACE NAMES HOW IT FAILS; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-024; UC-049
 // Level: unit
 //
 // The readings of this file, each with the sentence it reads (ITM-567, sprint team1/54):
@@ -17,9 +17,16 @@
 //     version of the file does not declare ("whose identifier that snapshot's version of the file does not declare").
 //   - The host is a server's where `listPullRequests` answers, a local one where it throws `NotSupported`. A pull request of the branch that stands open or merged is the one
 //     returned; the writer opens none beside it. `openPullRequest` failing with what the host names (`NotSupported` included) is thrown, not taken for a local host.
-//   - The description is lines: `Job:`, `Kind:`, `Plan step:` and `Backlog item:` (those the job's parameters `steps` and `items` name), `Modules:` (the distinct `MOD-` modules the new tests
-//     declare), `Requirements guarded by the new tests:` (their `guards`, once each), both in the order the new tests are found: the changed files by path, the declarations of a file in order, then a blank line and the provenance lines of MOD-job-runner's `provenanceLines`.
+//   - The description is lines: `Job:`, `Kind:`, `Plan step:` and `Backlog item:` (those the job's parameters `steps` and `items` name), `Modules:` (see the next reading), `Requirements guarded by the new tests:`
+//     (their `guards`, once each, in the order the new tests are found: the changed files by path, the declarations of a file in order), then a blank line and the provenance lines of MOD-job-runner's `provenanceLines`.
 //     It holds none of the job's instruction.
+//   - The modules (ITM-607, sprint team1/67). MOD-runtimes' `routeStrategies` says the description "names the job, the plan step or backlog item, its modules", and its Uses say:
+//     "`MOD-trace-graph.traceGraph` — the modules of the plan step or backlog item a pull request names: its `changes` edges." So `Modules:` holds the targets of the `changes` edges, from
+//     the node of each step and item the parameters name, in `traceGraph` of the job's snapshot (`context.product.snapshot`; the item's text says "over the job's snapshot"). The order is that of the names — the steps, then
+//     the items, the order of the title — and, within a name, that of the item's `modules` as its file lists them; a module is named once. A module that only a new test declares, or only a text of the item mentions, is
+//     none of them. A name the graph does not hold gives none, and with no module the line is left out. The graph is built once for a pull request the writer opens, and not at all where a pull request is
+//     opened by none (one exists, or the host is local) or where no step and no item is named.
+// The tests TST-607001 to TST-607005 are ITM-607's; TST-567001 is the one existing test whose expected result changes (its `Modules:` line was the new tests' modules).
 // Each test states its expected values in its own text; none reads them from a document. The repository server is the fake host of this file, which records every call; nothing
 // reaches the network (a fetch that fails the test replaces the real one). A name the module does not provide yet is undefined here, so that each test fails by itself. The
 // counter-proofs are recorded in the pull request.
@@ -39,16 +46,22 @@ const INSTRUCTION = "PLANTED-INSTRUCTION-91C2 add the export";
 
 const declared = (id, module, guards) => [`// ${id} · level: unit · module: ${module}`, `// guards: ${guards}`, "// given: g", "// input: i", "// expect: e", "test(\"x\", () => {});", ""].join("\n");
 
-// A tree is a map of path to text; its blob of a path is the text itself behind a prefix, `null` for a path it lacks.
-function treeOf(commit, files) {
-  return { commit, paths: Object.keys(files).sort(), read: async (path) => files[path] ?? null, blob: (path) => (path in files ? `blob:${files[path]}` : null) };
+// A tree is a map of path to text; its blob of a path is the text itself behind a prefix, `null` for a path it lacks. `reads`, where given, records every path read.
+function treeOf(commit, files, reads = null) {
+  return { commit, paths: Object.keys(files).sort(), read: async (path) => { reads?.push(path); return files[path] ?? null; }, blob: (path) => (path in files ? `blob:${files[path]}` : null) };
 }
 
+// The job's snapshot holds a backlog item ITM-9 that changes MOD-gamma and MOD-alpha, in that order, and whose text mentions MOD-beta; and a plan step ITM-10 that changes MOD-delta and MOD-alpha.
+const artifact = (id, modules, text) => ["---", `id: ${id}`, `title: The fixture ${id}`, "level: module", "realises:", "  - UC-024", "modules:", ...modules.map((module) => `  - ${module}`), "tests:", "  - unit",
+  "origin:", "  - the fixture", "---", `# ${id} The fixture ${id}`, "", text, ""].join("\n");
 const BASE_FILES = {
   "tests/old.test.mjs": declared("TST-001", "MOD-alpha", "OLD RULE"),
   "tests/same.test.mjs": declared("TST-004", "MOD-alpha", "UNTOUCHED RULE"),
   "src/alpha/index.mjs": "export const a = 1;\n",
+  "docs/backlog/ITM-9-item.md": artifact("ITM-9", ["MOD-gamma", "MOD-alpha"], "It leaves MOD-beta alone."),
+  "docs/plan/ITM-10-step.md": artifact("ITM-10", ["MOD-delta", "MOD-alpha"], "A step of the plan."),
 };
+const DOCS = ["docs/backlog/ITM-9-item.md", "docs/plan/ITM-10-step.md"];
 const BRANCH_FILES = {
   ...BASE_FILES,
   "tests/old.test.mjs": `${declared("TST-001", "MOD-alpha", "OLD RULE")}\n${declared("TST-002", "MOD-alpha", "NEW RULE ONE")}`,
@@ -84,21 +97,28 @@ function fakeHost({ branches = { [JOB]: treeOf("c1", BRANCH_FILES) }, pulls = []
   };
 }
 
-const contextOf = (host, params = { items: ["ITM-9"], steps: ["ITM-10"], instruction: INSTRUCTION }) => ({
-  kind: { name: "implement" }, params, product: { address: "https://github.com/acme/product", snapshot: treeOf(SNAPSHOT_COMMIT, BASE_FILES), host },
+const contextOf = (host, params = { items: ["ITM-9"], steps: ["ITM-10"], instruction: INSTRUCTION }, snapshot = treeOf(SNAPSHOT_COMMIT, BASE_FILES)) => ({
+  kind: { name: "implement" }, params, product: { address: "https://github.com/acme/product", snapshot, host },
   instance: { snapshot: treeOf("i0", {}), host: null }, connect: async () => host, participants: [], places: { sources: {}, mailbox: null }, gates: [], person: "alice",
   now: new Date("2026-10-17T10:00:00Z"), agentM: { version: "2026.10.0", commit: "a".repeat(40) }, jobId: JOB,
 });
 const resultOf = (draft = { branch: JOB, commits: ["c1"], pullRequest: "" }) => ({ draft, raw: null, drafter: { name: "coder-a", model: "model-m" }, rounds: [{}, {}], remaining: [],
   forPerson: [], stepFindings: [], classes: null, stoppedBecause: "passed", gate: null, usage: [], written: null });
 const writer = () => runtimes.routeStrategies?.writers?.["branch-and-pull-request"];
-const write = (host, draft, params) => writer()(resultOf(draft), contextOf(host, params));
+const write = (host, draft, params, snapshot) => writer()(resultOf(draft), contextOf(host, params, snapshot));
+// The lines of the one description a write opened, and the paths under docs/ the job's snapshot was read at while it wrote.
+const bodyOf = (server) => server.calls.find(([name]) => name === "openPullRequest")[1].body.split("\n");
+async function writeRecording(server, params, draft) {
+  const reads = [];
+  await write(server.host, draft, params, treeOf(SNAPSHOT_COMMIT, BASE_FILES, reads));
+  return reads.filter((path) => path.startsWith("docs/")).sort();
+}
 
 // TST-567001 · level: unit · module: MOD-runtimes
 // guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-024 step 11
-// given: a server host whose default branch is `develop`, no pull request of the branch; the job's snapshot at c0 declares TST-001 (OLD RULE) in tests/old.test.mjs and TST-004 (UNTOUCHED RULE) in tests/same.test.mjs; the branch is at c1 and, besides src/alpha/index.mjs, changes tests/old.test.mjs to declare TST-001 and TST-002 (NEW RULE ONE, module MOD-alpha), adds tests/new.test.mjs declaring TST-003 (NEW RULE TWO and NEW RULE ONE, module MOD-beta) and TST-005 (NEW RULE THREE, module system); the job JOB-20261017-1000-abcd of kind implement names the backlog item ITM-9 and the plan step ITM-10, and its instruction holds PLANTED-INSTRUCTION-91C2
+// given: a server host whose default branch is `develop`, no pull request of the branch; the job's snapshot at c0 declares TST-001 (OLD RULE) in tests/old.test.mjs and TST-004 (UNTOUCHED RULE) in tests/same.test.mjs; the branch is at c1 and, besides src/alpha/index.mjs, changes tests/old.test.mjs to declare TST-001 and TST-002 (NEW RULE ONE, module MOD-alpha), adds tests/new.test.mjs declaring TST-003 (NEW RULE TWO and NEW RULE ONE, module MOD-beta) and TST-005 (NEW RULE THREE, module system); the job's snapshot also holds the backlog item ITM-9, which changes MOD-gamma then MOD-alpha, and the plan step ITM-10, which changes MOD-delta then MOD-alpha; the job JOB-20261017-1000-abcd of kind implement names the backlog item ITM-9 and the plan step ITM-10, and its instruction holds PLANTED-INSTRUCTION-91C2
 // input: the writer `branch-and-pull-request` of routeStrategies with the answer { branch: the job's id, commits: ["c1"], pullRequest: "" }, the drafter coder-a with model model-m, after two rounds
-// expect: one openPullRequest, with branch = the job's id, base "develop" and a title that names the job; its body holds the lines "Job: JOB-20261017-1000-abcd", "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-beta, MOD-alpha", "Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE", and, after a blank line, exactly the six provenance lines ("Agent-M-Version: 2026.10.0, commit aaaa…", "Agent-M-Job: JOB-20261017-1000-abcd", "Agent-M-Kind: implement", "Agent-M-Participant: coder-a", "Agent-M-Model: model-m", "Agent-M-Rounds: 2"), and none of OLD RULE, UNTOUCHED RULE, MOD-system or PLANTED-INSTRUCTION-91C2; the outcome's pullRequest is "https://github.com/acme/product/pull/7", its commits ["c1"] and its files the three paths the branch changes, sorted
+// expect: one openPullRequest, with branch = the job's id, base "develop" and a title that names the job; its body holds the lines "Job: JOB-20261017-1000-abcd", "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-delta, MOD-alpha, MOD-gamma" (the step's modules, then the item's, MOD-alpha once), "Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE", and, after a blank line, exactly the six provenance lines ("Agent-M-Version: 2026.10.0, commit aaaa…", "Agent-M-Job: JOB-20261017-1000-abcd", "Agent-M-Kind: implement", "Agent-M-Participant: coder-a", "Agent-M-Model: model-m", "Agent-M-Rounds: 2"), and none of OLD RULE, UNTOUCHED RULE, MOD-beta (declared by a new test, named by no step or item), MOD-system or PLANTED-INSTRUCTION-91C2; the outcome's pullRequest is "https://github.com/acme/product/pull/7", its commits ["c1"] and its files the three paths the branch changes, sorted
 test("the writer opens the pull request into the default branch with the job, the work, the modules, the new tests' requirements and the provenance lines", async () => {
   assert.equal(typeof writer(), "function", "failure node: routeStrategies offers the writer branch-and-pull-request");
   const server = fakeHost();
@@ -110,12 +130,12 @@ test("the writer opens the pull request into the default branch with the job, th
   assert.equal(request.base, "develop");
   assert.ok(request.title.includes(JOB), `the title names the job: ${request.title}`);
   const lines = request.body.split("\n");
-  for (const line of [`Job: ${JOB}`, "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-beta, MOD-alpha",
+  for (const line of [`Job: ${JOB}`, "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-delta, MOD-alpha, MOD-gamma",
     "Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE"]) assert.ok(lines.includes(line), `the description holds the line ${line}`);
   const trailers = [`Agent-M-Version: 2026.10.0, commit ${"a".repeat(40)}`, `Agent-M-Job: ${JOB}`, "Agent-M-Kind: implement", "Agent-M-Participant: coder-a", "Agent-M-Model: model-m", "Agent-M-Rounds: 2"];
   assert.deepEqual(lines.slice(-trailers.length), trailers, "the provenance lines close the description");
   assert.equal(lines[lines.length - trailers.length - 1], "", "a blank line stands before them");
-  for (const word of ["OLD RULE", "UNTOUCHED RULE", "MOD-system", "PLANTED-INSTRUCTION-91C2"]) assert.ok(!request.body.includes(word), `the description holds no ${word}`);
+  for (const word of ["OLD RULE", "UNTOUCHED RULE", "MOD-beta", "MOD-system", "PLANTED-INSTRUCTION-91C2"]) assert.ok(!request.body.includes(word), `the description holds no ${word}`);
   assert.equal(outcome.pullRequest, "https://github.com/acme/product/pull/7");
   assert.deepEqual(outcome.commits, ["c1"]);
   assert.deepEqual(outcome.files, ["src/alpha/index.mjs", "tests/new.test.mjs", "tests/old.test.mjs"]);
@@ -202,4 +222,86 @@ test("the writer never merges and never commits, and a pull request the server c
   }
   const refusing = fakeHost({ openFails: failure("NotSupported", { what: "a pull request" }) });
   await assert.rejects(write(refusing.host), (error) => error.name === "NotSupported");
+});
+
+// TST-607001 · level: unit · module: MOD-runtimes
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-024
+// given: the server host of TST-567001, no pull request of the branch; the job's snapshot holds the backlog item ITM-9, which changes MOD-gamma and then MOD-alpha, and whose text mentions MOD-beta; the branch's new tests declare MOD-alpha (TST-002) and MOD-beta (TST-003), and none declares MOD-gamma
+// input: the writer with the job's parameters { items: ["ITM-9"] } (no step), the answer naming the branch
+// expect: the one pull request's description holds exactly one line starting "Modules:", and it is "Modules: MOD-gamma, MOD-alpha" — both modules of the item, in the item's order, though no new test declares MOD-gamma — and the description holds no MOD-beta (a new test declares it, the item's text mentions it) and no MOD-delta (the step ITM-10, not named by this job, changes it)
+test("the description names the modules the item changes, in the item's order, whether or not a new test declares them", async () => {
+  const server = fakeHost();
+  await write(server.host, undefined, { items: ["ITM-9"] });
+  const lines = bodyOf(server);
+  assert.deepEqual(lines.filter((line) => line.startsWith("Modules:")), ["Modules: MOD-gamma, MOD-alpha"]);
+  for (const word of ["MOD-beta", "MOD-delta"]) assert.ok(!lines.join("\n").includes(word), `the description holds no ${word}`);
+});
+
+// TST-607002 · level: unit · module: MOD-runtimes
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-024
+// given: the server host of TST-567001, no pull request of the branch; a job's snapshot that holds the step ITM-10 (MOD-delta, MOD-alpha) at docs/plan/ITM-10-step.md and the item ITM-9 (MOD-gamma, MOD-alpha) at docs/backlog/ITM-9-item.md, and records every path it is read at
+// input: the writer with the job's parameters { steps: ["ITM-10"], items: ["ITM-9"] }
+// expect: the description holds "Modules: MOD-delta, MOD-alpha, MOD-gamma" — the step's modules first, then the item's, MOD-alpha once —; the paths under docs/ that the snapshot was read at are exactly ["docs/backlog/ITM-9-item.md", "docs/plan/ITM-10-step.md"], each once: the graph is built once for the pull request, not once for each name
+test("the description names the modules of the steps and then of the items, each once, from one graph", async () => {
+  const server = fakeHost();
+  const read = await writeRecording(server, { steps: ["ITM-10"], items: ["ITM-9"] });
+  assert.ok(bodyOf(server).includes("Modules: MOD-delta, MOD-alpha, MOD-gamma"));
+  assert.deepEqual(read, ["docs/backlog/ITM-9-item.md", "docs/plan/ITM-10-step.md"]);
+});
+
+// TST-607003 · level: unit · module: MOD-runtimes
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-024
+// given: the server host of TST-567001, known positive first (with the item named, the description holds a Modules line and the snapshot's docs are read); no pull request of the branch; a snapshot that records the paths it is read at
+// input: the writer with the job's parameters { instruction } — no step, no item
+// expect: the positive holds; here the description holds no line starting "Modules:", it holds the line "Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE", and the snapshot was read at no path under docs/ — no graph was built
+test("with no step and no item named the description holds no Modules line and the repository's artifacts are not read", async () => {
+  const positive = fakeHost();
+  const positiveReads = await writeRecording(positive, { items: ["ITM-9"] });
+  assert.ok(bodyOf(positive).some((line) => line.startsWith("Modules:")), "known positive: with an item named the line is there");
+  assert.equal(positiveReads.length, 2, "known positive: the docs are read");
+
+  const server = fakeHost();
+  const read = await writeRecording(server, { instruction: INSTRUCTION });
+  const lines = bodyOf(server);
+  assert.deepEqual(lines.filter((line) => line.startsWith("Modules:")), []);
+  assert.ok(lines.includes("Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE"));
+  assert.deepEqual(read, []);
+});
+
+// TST-607004 · level: unit · module: MOD-runtimes
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-024
+// given: the server host of TST-567001, no pull request of the branch; the job's snapshot holds ITM-9 (MOD-gamma, MOD-alpha) and holds no ITM-77
+// input: the writer with { items: ["ITM-77"] }, and, on another host, with { items: ["ITM-77", "ITM-9"] }
+// expect: for ITM-77 alone one pull request is opened, its title names ITM-77, and its description holds the line "Backlog item: ITM-77" and no line starting "Modules:"; for both names the description holds "Modules: MOD-gamma, MOD-alpha" — the unknown name adds none and fails nothing
+test("a name the graph does not hold names no module and fails nothing", async () => {
+  const unknown = fakeHost();
+  await write(unknown.host, undefined, { items: ["ITM-77"] });
+  const opened = unknown.calls.filter(([name]) => name === "openPullRequest");
+  assert.equal(opened.length, 1, "one pull request opened");
+  assert.ok(opened[0][1].title.includes("ITM-77"), `the title names ITM-77: ${opened[0][1].title}`);
+  const lines = bodyOf(unknown);
+  assert.ok(lines.includes("Backlog item: ITM-77"));
+  assert.deepEqual(lines.filter((line) => line.startsWith("Modules:")), []);
+
+  const mixed = fakeHost();
+  await write(mixed.host, undefined, { items: ["ITM-77", "ITM-9"] });
+  assert.deepEqual(bodyOf(mixed).filter((line) => line.startsWith("Modules:")), ["Modules: MOD-gamma, MOD-alpha"]);
+});
+
+// TST-607005 · level: unit · module: MOD-runtimes
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-024
+// given: the server host of TST-567001, known positive first; then the same host with an open pull request #5 of the branch, and a local host (every server request throws NotSupported); the item ITM-9 named in each case; a snapshot that records the paths it is read at
+// input: the writer with { items: ["ITM-9"] } on each host
+// expect: with no pull request the snapshot's docs are read (two paths, the positive); with the open pull request, and again on the local host, no openPullRequest call is made and the snapshot was read at no path under docs/ — a graph is built only for a pull request the writer opens
+test("the repository's artifacts are read only for a pull request the writer opens", async () => {
+  const positive = fakeHost();
+  assert.equal((await writeRecording(positive, { items: ["ITM-9"] })).length, 2, "known positive: a pull request opened, the docs read");
+
+  const existing = fakeHost({ pulls: [{ number: 5, url: "https://github.com/acme/product/pull/5", branch: JOB, base: "develop", state: "open" }] });
+  assert.deepEqual(await writeRecording(existing, { items: ["ITM-9"] }), [], "an existing pull request: no docs read");
+  assert.equal(existing.calls.filter(([name]) => name === "openPullRequest").length, 0);
+
+  const local = fakeHost({ local: true });
+  assert.deepEqual(await writeRecording(local, { items: ["ITM-9"] }), [], "a local host: no docs read");
+  assert.equal(local.calls.filter(([name]) => name === "openPullRequest").length, 0);
 });

@@ -12,8 +12,8 @@ import { listJobs } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { explain } from "../site-frame/index.mjs";
-import { el, link, button, problem, parseServer, readPlace, TOKEN_STEP } from "./common.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
+import { el, link, button, parseServer, readPlace, TOKEN_STEP } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -107,7 +107,7 @@ export function reviewRoute(kind) {
       await view(where, params);
       await rememberSubject(where, kind, params);
     } catch (failure) {
-      target.append(problem(failure, where.token));
+      target.append(readProblem(failure, Boolean(where.token)));
     }
   }
 

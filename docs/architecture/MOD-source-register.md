@@ -147,11 +147,11 @@ names no source.
   instance: string) -> Promise<CommitPlan>` — the register entry with its first version, and the files: to the instance
   when the licence permits republishing, to the named repository otherwise, and nowhere when the person only hashed them,
   each such file recorded with its `note`, where its copy is kept. Hashes every file. Throws `ContentRepositoryMissing`
-  for restricted files without a named repository, and `NoteMissing { name }` for a file not kept that has no note.
+  for restricted files without a named repository, and `NoteMissing { file }` for a file not kept that has no note.
 - `versionCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[], version:
   { version: string, date: string }) -> Promise<CommitPlan>` — a new version appended to the entry, with its files, a
   file not kept recorded with its `note`. Throws `SameBytes { version }` when its files' hashes equal those of an existing
-  version, and `NoteMissing { name }` for a file not kept that has no note; then nothing is recorded.
+  version, and `NoteMissing { file }` for a file not kept that has no note; then nothing is recorded.
 - `linkedVersion(links: Document, register: Document[], source: string) -> LinkedVersion | null` — the version a product
   links of the source that `source` names — an identifier, or an item of a requirement's source —, with the part its
   link names, or `null` when it names no register entry, the product links none, or the entry records no version the link

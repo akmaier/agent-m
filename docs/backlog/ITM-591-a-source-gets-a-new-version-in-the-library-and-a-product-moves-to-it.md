@@ -54,3 +54,5 @@ UC-016 steps 1, 3, 4 and 5, with 4a and 1a, on the page; its second postconditio
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
 **The draft it waited for is accepted** (akmaier, `b43da779`): MOD-settings-pages' Uses with `MOD-source-register.readContent` (accepted blob b94701420bcf). It is free of drafts; its readings are read at its start.
+
+**Added at ITM-576's gate (2026-10-17, po-opus).** `versionCommits` now refuses a file not kept that has no note (`NoteMissing`). So *+ New version* asks for the note of a file only hashed, as the registration form does since ITM-576, and shows the module's refusal. A file that is only hashed no longer waits for ITM-576.

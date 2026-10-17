@@ -13,9 +13,9 @@ import { artifactSchemas, documentFindings, readDocument } from "../documents/in
 import { statuses } from "../approvals/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
 import { dropDraft, latestDraft } from "../prompt-bar/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
 import { formatFinding } from "../text-tools/index.mjs";
-import { el, link, problem, readPlace } from "./common.mjs";
+import { el, link, readPlace } from "./common.mjs";
 import { fileDrafts } from "./file-drafts.mjs";
 import { loadStage } from "./jobs.mjs";
 import { requirementsDraft } from "./requirements-draft.mjs";
@@ -95,7 +95,7 @@ async function render(target, context, params) {
   try {
     await show(where, params);
   } catch (failure) {
-    target.append(problem(failure, where.token));
+    target.append(readProblem(failure, Boolean(where.token)));
   }
 }
 
