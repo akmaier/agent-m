@@ -1,6 +1,5 @@
-// The difference of two texts, line by line (MOD-markdown-render, Parts: difference.mjs), shown as diffHtml of
-// docs/assets/dashboard-app.mjs shows it: each line with "+" when only the text after has it, "-" when only the text before
-// has it, and " " when both have it.
+// The difference of two texts, line by line (MOD-markdown-render, Parts: difference.mjs): each line with "+" when only the
+// text after has it, "-" when only the text before has it, and " " when both have it.
 //
 // Module: MOD-markdown-render
 

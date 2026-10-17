@@ -7,11 +7,8 @@
 //
 // Module: MOD-artifact-edits
 //
-// The model is saveReviewedFile in docs/assets/dashboard/writes.mjs, whose write path checks the opened blob (commitFiles in
-// docs/assets/git-host.mjs) and whose kernel identifierKept refuses a changed identifier; both stay as they are. Of the refusals
-// the module file names, ITM-219 builds the one of a file that changed meanwhile and ITM-335 that of a changed identifier; a
-// group file whose items stand in more than one place is not refused yet. ITM-395 adds several edits in one commit, a job's
-// trailers at the end of its message, and keptIdentifier.
+// The pages that save through it are src/review-pages/file-edit.mjs and src/review-pages/file-drafts.mjs. Of the refusals the
+// module file names, a group file whose items stand in more than one place is not refused yet.
 
 import { blobSha } from "../text-tools/index.mjs";
 import { artifactSchemaOf, readDocument } from "../documents/index.mjs";
