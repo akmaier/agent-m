@@ -365,11 +365,16 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
   // The renderer (MOD-markdown-render) draws only where the browser can sanitise (DOMPurify.isSupported) and, for a Mermaid block, draws
-  // SVG (SVGElement); this fake DOM stands for such a browser, so a use case's diagram reaches the page as the renderer writes it.
+  // SVG (SVGElement). This fake DOM has no HTML parser, so it sanitises nothing: the HTML of a text that holds a Mermaid block, which the
+  // renderer wrote itself, passes as it is, and any other text is refused as a browser without DOMPurify refuses it, so the renderer shows
+  // its source (what the explanations' tests read).
   const renderer = (await import("../src/markdown-render/vendor/purify.es.mjs")).default;
   for (const each of [purify, renderer]) {
-    if (typeof each.sanitize !== "function") each.sanitize = (s) => String(s);
-    if (!each.isSupported) each.isSupported = true;
+    each.sanitize = (html) => {
+      if (!String(html).includes('class="language-mermaid"')) throw new Error("this browser cannot sanitise HTML");
+      return String(html);
+    };
+    each.isSupported = true;
   }
   globalThis.SVGElement ??= class SVGElement {};
   const els = new Map();
