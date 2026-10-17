@@ -1,12 +1,12 @@
 // MOD-result-records — result records and counter-proofs, and what they say per commit, test and release
 // (docs/architecture/MOD-result-records.md): its interface. Of it, ITM-251 builds Outcome, resultSchema, resultsAt,
 // flakyTests and rateComparison, in read.mjs. appendResult adds one supplied run record in append.mjs.
-// parseOutcomes reads a JUnit report in junit.mjs (ITM-750). A test's history (testHistory) and the job kinds' strategies (resultStrategies) are UC-026's and
+// parseOutcomes reads a JUnit report in junit.mjs (ITM-750). testHistory is in read.mjs (ITM-751). The job kinds' strategies (resultStrategies) are UC-026's and
 // UC-028's and not part of this item.
 //
 // Module: MOD-result-records
 
-export { resultSchema, resultsAt, flakyTests, rateComparison } from "./read.mjs";
+export { resultSchema, resultsAt, flakyTests, rateComparison, testHistory } from "./read.mjs";
 export { appendResult } from "./append.mjs";
 export { parseOutcomes } from "./junit.mjs";
 
