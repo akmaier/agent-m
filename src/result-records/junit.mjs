@@ -74,7 +74,7 @@ function cases(report) {
  * report, then the declared tests without a case in the order of the declarations.
  * @param {string} report
  * @param {Array<{ id: string, level: string | null, expect: string | null, runs: number | null }>} declarations
- * @returns {import("./index.mjs").Outcome[]}
+ * @returns {object[]} Outcome[] (index.mjs)
  */
 export function parseOutcomes(report, declarations) {
   const declared = new Map(declarations.map((d) => [d.id, d]));
