@@ -249,12 +249,12 @@ test("spec-entry/draft - the run panel sends fewer source files and refuses a pa
 // TST-361003 - level: unit - module: MOD-review-pages
 // guards: UC-005 (steps 5 to 8, alternative flows 5a, 7a); A CONFLICT IS DECIDED BY A PERSON; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; A GENERATED ARTIFACT IS A PROPOSAL; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the endpoint returns new, change, duplicate, conflict and unlinked-source candidates
-// input: Run; move the new candidate to duplicate of A BOOK IS SHELVED; decide the conflict as a change of A LOAN HAS A DUE DATE; Write proposals
+// input: Run; move the new candidate to duplicate of A BOOK IS SHELVED; decide the conflict as a change of A BOOK IS SHELVED (A LOAN HAS A DUE DATE is changed by THE DUE DATE IS SHOWN already: a second change of it is refused); Write proposals
 // expect: candidates are grouped by class and editable; the unlinked source is listed apart; the written queue contains the moved duplicate and decided conflict, and no entry for the unlinked candidate
 // TST-584011 · level: unit · module: MOD-review-pages
 // guards: UC-005 (steps 5 to 8, alternative flows 5a, 7a); A CONFLICT IS DECIDED BY A PERSON; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; A GENERATED ARTIFACT IS A PROPOSAL; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the endpoint returns new, change, duplicate, conflict and unlinked-source candidates
-// input: Run; move the new candidate to duplicate of A BOOK IS SHELVED; decide the conflict as a change of A LOAN HAS A DUE DATE; Write proposals
+// input: Run; move the new candidate to duplicate of A BOOK IS SHELVED; decide the conflict as a change of A BOOK IS SHELVED (A LOAN HAS A DUE DATE is changed by THE DUE DATE IS SHOWN already: a second change of it is refused); Write proposals
 // expect: candidates are grouped by class and editable; the unlinked source is listed apart; the written queue contains the moved duplicate and decided conflict, and no entry for the unlinked candidate
 test("spec-entry/draft - candidates are reviewed, classes changed, conflicts decided and proposals written", async () => {
   endpointAnswers();
@@ -277,7 +277,7 @@ test("spec-entry/draft - candidates are reviewed, classes changed, conflicts dec
   byClass(renew, "input", "of")[0].value = OTHER;
   const conflict = byClass(target, "li", "candidate").find((item) => item.getAttribute("data-name") === "THE DUE DATE MAY BE HIDDEN");
   byClass(conflict, "select", "class")[0].value = "change";
-  byClass(conflict, "input", "of")[0].value = RULE;
+  byClass(conflict, "input", "of")[0].value = OTHER;
 
   click(byClass(target, "button", "write-proposals")[0]);
   await until(() => byClass(target, "p", "written").length === 1, "the write result");
