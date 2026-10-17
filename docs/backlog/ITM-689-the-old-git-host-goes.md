@@ -36,3 +36,6 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - It is declared as refactoring: CI is green on every commit.
+
+**Noted at ITM-807's gate (sprint team1/74, 2026-10-17, po-opus).** `tests/review-core.d/git-host.test.mjs` names
+MOD-repository-hosts since ITM-807. Its body still carries item history, `(ITM-006)` at `:26`, which this item removes.
