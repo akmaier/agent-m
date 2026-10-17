@@ -11,6 +11,7 @@ modules:
 builds_on:
   - ITM-574
   - ITM-807
+  - ITM-808
 tests:
   - unit
 origin:
