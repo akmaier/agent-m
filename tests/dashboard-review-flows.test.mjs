@@ -1,7 +1,7 @@
 // The flows the dashboard already carries out, one test per main and alternative flow of UC-001, UC-006 and UC-008 and of the
 // built parts of UC-014 (Finish setting up) and UC-042 (browser settings, export and import, pseudonymisation, collaborators).
-// Characterisation tests (ITM-123, a refactoring job): they pin what the dashboard does today and were green from their first
-// run. The real app (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against GitHub and GitLab fakes that record
+// Characterisation tests: they pin what the dashboard does today. The real app (the harness's APP_FILE) runs in
+// tests/app-harness.mjs against GitHub and GitLab fakes that record
 // every request; every write is started by a click on the button that names it, with the event a person's click carries
 // (isTrusted), and each write test has a counter-proof with a click a script makes. Run: node --test tests/*.test.mjs
 //
@@ -342,7 +342,7 @@ test("UC-008 3b: without a token, Accept is GitHub's new-file page prefilled wit
 });
 
 // TST-474013 · level: component · module: MOD-settings-pages
-// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
+// guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a private repository, answering 404 without the token
 // input: open #uc with the token and without it
 // expect: with the token the files are read through the API, never the raw host; without it the page says the repository was not found, that a private repository is found only with a token that reaches it, and shows no use case
@@ -354,7 +354,9 @@ test("UC-008 1a: a private repository is read with the stored token through the 
   const srv = await ucServer({}, [priv]);
   const withToken = await openDashboard({ server: srv, hash: "#uc" });
   assert.match(withToken.main(), /UC-002/);
-  assert.ok(withToken.requests.some((r) => r === `file ${UC1}`), "the files are read");
+  assert.ok(srv.batches.some((paths) => paths.includes(UC1)), "a batch request names UC-001's file");
+  const batchRequests = srv.seen.filter((r) => r.url === `${API}/graphql`);
+  assert.ok(batchRequests.length > 0 && batchRequests.every((r) => r.auth === `Bearer ${TOKEN}`), "the batch request carries the token");
   assert.ok(srv.seen.filter((r) => r.url.startsWith(`${API}/repos/${REPO}/contents/`)).every((r) => r.auth === `Bearer ${TOKEN}`),
     "through the API, with the token");
   assert.ok(!srv.seen.some((r) => r.url.startsWith("https://raw.githubusercontent.com/")), "never through the raw host");

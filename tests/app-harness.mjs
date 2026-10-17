@@ -1,12 +1,14 @@
-// A browser for docs/assets/dashboard-app.mjs under node — used by the tests that load the dashboard (load-per-view, review-page,
+// A browser for src/site-frame/dashboard-app.mjs under node — used by the tests that load the dashboard (load-per-view, review-page,
 // dashboard-shell, architecture, dashboard-review-flows, review-core.d/refused-save), no test of its own.
 //
 // The app is the real module, imported fresh for every page load. Around it: a DOM that keeps what the app writes into its
 // elements, localStorage, the Cache Storage (shared between page loads when the test says so), and GitHub's REST API served
-// from a set of files — every request counted by what it reads. The git-data endpoints a commit uses (ref, commit, tree, update
+// from a set of files and GitHub's batch request (POST /graphql) — every request counted by what it reads. The git-data endpoints a commit uses (ref, commit, tree, update
 // of the ref, fast-forward only) are served too, and a commit changes the files; a test adds the servers its view talks to as
 // request handlers of its own. A button the app wired is found by its
 // attribute and clicked with an event the test gives — trusted or not. No request leaves this process.
+//
+// Module: MOD-site-frame
 
 import { gitBlobSha } from "../docs/assets/review-core.mjs";
 
@@ -25,7 +27,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
   const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
   for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
-  const requests = [], writes = [];
+  const requests = [], writes = [], batches = [];
   let pending = 0, head = empty ? null : HEAD, seq = 0;
   const trees = new Map(), commits = new Map();
   const next = (c) => `${c}${String(++seq).padStart(6, "0")}`.padEnd(40, "0");
@@ -87,6 +89,22 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
         head = body.sha;
         return json({ object: { sha: head } });
       }
+      // GitHub's batch query: many files of one commit in one request, one aliased field for each (repository.object(expression:
+      // "<commit>:<path>") on a Blob); a path the commit does not hold answers null. Counted as `batch <n>`, and the paths it names are
+      // listed in `batches`.
+      if (method === "POST" && p === "/graphql") {
+        const asks = [...JSON.parse(init.body).query.matchAll(/(f\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)]
+          .map((m) => [m[1], JSON.parse(m[2])]);
+        what = `batch ${asks.length}`;
+        const repository = {}, named = [];
+        for (const [alias, expression] of asks) {
+          const at = expression.indexOf(":"), commit = expression.slice(0, at), path = expression.slice(at + 1);
+          named.push(path);
+          repository[alias] = commit === head && path in files ? { text: files[path], isTruncated: false } : null;
+        }
+        batches.push(named);
+        return json({ data: { repository } });
+      }
       if (method !== "GET") return new Response("{}", { status: 500 });
       if (p === `${api}/commits/main` || p === `${api}/commits/${head}`) { what = "commit"; return json({ sha: head }); }
       if (p === `${api}/git/ref/heads/main`) { what = "ref"; return json({ object: { sha: head } }); }
@@ -121,7 +139,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
   };
   // Another commit on the branch: `path` gets `text`, and the branch moves on.
   const change = async (path, text) => { await put(path, text); head = next("e"); };
-  return { files, shas, requests, writes, change, fetch: fetchMock, get head() { return head; }, get pending() { return pending; } };
+  return { files, shas, requests, writes, batches, change, fetch: fetchMock, get head() { return head; }, get pending() { return pending; } };
 }
 
 // The Cache Storage of a browser, in memory.
@@ -300,6 +318,9 @@ export async function settle(server) {
   }
 }
 
+// The app: the one place tests and the harness load it from.
+export const APP_FILE = new URL("../src/site-frame/dashboard-app.mjs", import.meta.url);
+
 let loads = 0;
 
 // One page load of the dashboard at `hash`, with a stored GitHub token. caches: the browser's Cache Storage, or null for a
@@ -309,8 +330,8 @@ let loads = 0;
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
 // entries: further settings in this browser when the page opens, { key: raw value } — a product's own token, for one.
 export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "", entries = {},
-  assets = new URL("../docs/assets/", import.meta.url) }) {
-  const purify = (await import(new URL("vendor/purify.es.mjs", assets))).default;
+  assets = new URL(".", APP_FILE) }) {
+  const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page

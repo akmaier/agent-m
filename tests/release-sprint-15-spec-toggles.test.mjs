@@ -22,7 +22,9 @@ const FILES = {
   [`docs/spec-freigaben/${QUEUE}/index.md`]: "# Queue\n\n**Zieldatei aller Einträge:** `SPEC.md`\n",
   [`docs/spec-freigaben/${QUEUE}/entscheidungen.md`]: "# Decisions\n",
 };
-const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request));
+// A write is a request that is not a GET, except the batch of reads: a POST to GitHub's /graphql, which answers with file texts and changes nothing.
+const BATCH_OF_READS = /^(write|other|handler) POST https:\/\/api\.github\.com\/graphql(\?|$)/;
+const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request) && !BATCH_OF_READS.test(request));
 
 function controls() {
   const main = globalThis.document.getElementById("main");

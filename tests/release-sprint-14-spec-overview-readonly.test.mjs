@@ -21,7 +21,9 @@ const FILES = {
   [`docs/spec-freigaben/${QUEUE}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n",
   [`docs/spec-freigaben/${QUEUE}/01-current.md`]: SPEC,
 };
-const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request));
+// A write is a request that is not a GET, except the batch of reads: a POST to GitHub's /graphql, which answers with file texts and changes nothing.
+const BATCH_OF_READS = /^(write|other|handler) POST https:\/\/api\.github\.com\/graphql(\?|$)/;
+const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request) && !BATCH_OF_READS.test(request));
 
 // CASE ITM-277-RELEASE-01
 // TST-472516 · level: release · module: MOD-trace-pages
