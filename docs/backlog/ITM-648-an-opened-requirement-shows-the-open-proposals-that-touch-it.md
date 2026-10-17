@@ -7,6 +7,7 @@ realises:
   - OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 modules:
   - MOD-trace-pages
+  - MOD-spec-changes
 builds_on:
   - ITM-597
 tests:
@@ -67,3 +68,10 @@ with ITM-597's gate, which adds `MOD-spec-changes.entryView` to MOD-trace-pages'
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
 **The draft it waited for is accepted** (akmaier, `b43da779`): MOD-trace-pages' Uses with `MOD-spec-changes.entryView` (accepted blob 5c9248d32c4f). It is free of drafts; its readings are read at its start.
+
+**At its gate on #715 (2026-10-17, po-opus): MOD-spec-changes joins its modules.** `queues` (`src/spec-changes/queues.mjs`)
+reads each queue's `index.md` and `entscheidungen.md`, each record, proposal and target one by one through
+`snapshot.read`, without `readMany`. On this repository's 56 queues that is over 112 requests per first opening of a
+requirement at a version, with a token API calls on the person's budget. `queues` gathers the paths it will read and
+reads them through the snapshot's `readMany` first. `Snapshot.readMany` is MOD-repository-hosts' interface, in
+MOD-spec-changes' Uses, so no draft is needed. A committed test with a fixture of many queues counts the reads.

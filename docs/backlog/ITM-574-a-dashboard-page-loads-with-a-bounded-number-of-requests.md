@@ -84,3 +84,7 @@ that reads it in batches.
   implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
   is named in that module's parts.
 - This item waits for akmaier's acceptance of that draft, and its fix is read again then.
+
+**Measured at ITM-648's gate on #715 (`docs/gates/20261017-0930-development-release-testing-91e4.md`).** The live `#spec` page load reads every queue's `index.md` and
+`entscheidungen.md`, and the specification route reads them again for an opened requirement. The page load's reads are
+in the live dashboard's code (`docs/assets/`), which this item bounds once queue `2026-10-17d` is decided.
