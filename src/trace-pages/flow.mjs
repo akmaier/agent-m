@@ -7,8 +7,12 @@
 // every requirement against the use cases, decisions, modules and tests that name it, and the gaps as MOD-trace-graph's coverageGaps finds them;
 // it says so when there are none (7a) and says which kinds of artifact the version does not hold (7b), and a requirement or use case in a list
 // opens as it read in that version. The graph of one version is built once and kept, in memory, for every page drawn at it while the page of the frame
-// stays loaded. It writes nothing. On the default branch the specification leads to the review pages' editing: Edit beside each requirement and
-// + Requirement in each section; at any other ref the view says "as of" it and offers neither.
+// stays loaded. On the default branch an opened requirement also lists the open proposals that touch it (step 5, 5c): the queues of the version
+// drawn are read when the first requirement is opened, and each open entry of the SPEC through MOD-spec-changes' entryView, whose impact names
+// what the entry changes, withdraws or adds; the page classifies nothing itself. Each is a link to the entry, with its state and the kind of
+// its impact; where two or more touch one requirement, the page notes that accepting one makes the other stale. It writes nothing. On the
+// default branch the specification leads to the review pages' editing: Edit beside each requirement and + Requirement in each section; at any
+// other ref the view says "as of" it and offers neither, and shows no proposal.
 //
 // Module: MOD-trace-pages
 
@@ -16,6 +20,7 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
+import { entryView, queues } from "../spec-changes/index.mjs";
 import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -47,7 +52,8 @@ function requirementDetail(requirement) {
 
 // The address of an artifact's page, in the form the frame reads (a route, then key=value parts, each encoded): a use case, a decision and a module
 // at the review pages' routes `use-case`, `decision` and `module` with the part `id`, a test at this module's own route `trace` for the tests view,
-// a source at the library's `library` with the part `source`. An identifier of another kind has no page, and is shown unlinked.
+// a source at the library's `library` with the part `source`, an entry of a change queue at `spec-entry` with the part `id`. An identifier of another kind
+// has no page, and is shown unlinked.
 const fragment = (route, params) => `#${[route, ...Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)].join("/")}`;
 function addressOf(id) {
   if (/^UC-/.test(id)) return fragment("use-case", { id });
@@ -55,6 +61,7 @@ function addressOf(id) {
   if (/^MOD-/.test(id)) return fragment("module", { id });
   if (/^TST-/.test(id)) return fragment("trace", { key: "tests", row: id });
   if (/^SRC-/.test(id)) return fragment("library", { source: id });
+  if (/^spec-/.test(id)) return fragment("spec-entry", { id });
   return null;
 }
 const linked = (id, text) => {
@@ -90,22 +97,50 @@ const REVIEW = { open: "open", accepted: "accepted", changed: "changed since acc
 const problemLine = (what, failure) => el("p", "traces-problem", `${what} could not be read: ${failure?.message ?? failure}`);
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
 
-// The graph of a commit is built once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
-// often the version is drawn again: a commit does not change. It is kept in memory only, under the commit.
-const graphsOf = new WeakMap();
-function graphKept(shown) {
+// A fact of a commit is read once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
+// often the version is drawn again: a commit does not change. It is kept in memory only, under the fact's name and the commit.
+const factsKept = new WeakMap();
+function keptForCommit(shown, name, make) {
   const { snapshot, context } = shown;
-  const make = () => traceGraph(snapshot, { commit: snapshot.commit ?? null });
   if (typeof snapshot.commit !== "string") return kept(make);
   const holder = context.store ?? context.product.host;
-  const graphs = graphsOf.get(holder) ?? graphsOf.set(holder, new Map()).get(holder);
-  if (!graphs.has(snapshot.commit)) graphs.set(snapshot.commit, kept(make));
-  return graphs.get(snapshot.commit);
+  const facts = factsKept.get(holder) ?? factsKept.set(holder, new Map()).get(holder);
+  const key = `${name}@${snapshot.commit}`;
+  if (!facts.has(key)) facts.set(key, kept(make));
+  return facts.get(key);
+}
+
+// ---------------------------------------------------------------- the open proposals (UC-020 step 5 and 5c)
+
+// An entry of a change queue is addressed as spec-<queue folder>-<NN> (MOD-review-pages, Interfaces), at the review pages' route spec-entry.
+const entryId = (folder, number) => `spec-${folder.slice(folder.lastIndexOf("/") + 1)}-${String(number).padStart(2, "0")}`;
+
+// What each open entry of the SPEC changes, withdraws or adds, as MOD-spec-changes' entryView gives it:
+// -> Map<requirement name, { id, state, change }[]>, the entries in the order of the queues, newest first. An entry is open here while its state is
+// not "in SPEC"; one whose file is not the SPEC drawn proposes nothing for it. The queues are read once and each such entry once; a host with a
+// batch request is asked for the files of the entries ahead of their reads.
+async function proposalsOf(shown) {
+  const { snapshot } = shown;
+  const open = (await queues(snapshot)).flatMap((queue) => queue.entries
+    .filter((entry) => entry.file === SPEC_PATH && entry.state !== "in SPEC")
+    .map((entry) => ({ queue: queue.folder, entry })));
+  const ahead = open.flatMap(({ entry }) => [entry.proposal.path, entry.rationale]).filter(Boolean);
+  if (ahead.length) await snapshot.readMany?.(ahead);
+  const touched = new Map();
+  for (const { queue, entry } of open) {
+    const view = await entryView(queue, entry.number, snapshot);
+    for (const { name, change } of view.impact) touched.set(name, [...(touched.get(name) ?? []), { id: entryId(queue, entry.number), state: view.state, change }]);
+  }
+  return touched;
 }
 
 // The facts of the version drawn, each read on its first opening.
 function factsOf(shown) {
-  return shown.facts ??= { graph: graphKept(shown), sources: kept(() => sourcesOf(shown)) };
+  return shown.facts ??= {
+    graph: keptForCommit(shown, "graph", () => traceGraph(shown.snapshot, { commit: shown.snapshot.commit ?? null })),
+    sources: kept(() => sourcesOf(shown)),
+    proposals: keptForCommit(shown, "proposals", () => proposalsOf(shown)),
+  };
 }
 
 // Whether the graph holds an artifact of the kind at all.
@@ -148,6 +183,20 @@ async function showTraces(box, requirement, shown) {
       sections.push(section(title, el("p", "none-yet", "none yet"),
         explain("trace-none-yet")));
     } else sections.push(section(title, el("p", "none", "none")));
+  }
+
+  // Open proposals (UC-020 step 5, 5c), on the default branch only (1a): each open entry whose impact names the requirement, with its state and the kind of
+  // its impact, linked to the entry; two or more are noted as making each other stale.
+  if (shown.onDefaultBranch) {
+    try {
+      const mine = (await facts.proposals()).get(requirement.name) ?? [];
+      const count = new Set(mine.map(({ id }) => id)).size;
+      sections.push(section("Open proposals", mine.length ? listOf(mine.map(({ id, state, change }) =>
+        el("span", null, linked(id, id), ` — ${change} (${state})`))) : el("p", "none", "none"),
+      ...(count > 1 ? [el("p", "stale-note", `${count} open proposals touch this requirement: accepting one makes the other${count > 2 ? "s" : ""} stale.`)] : [])));
+    } catch (failure) {
+      sections.push(section("Open proposals", problemLine("The open proposals", failure)));
+    }
   }
 
   // Unknown names (UC-020 5b): the names that match no requirement, as coverageGaps finds them, which the artifacts listed above also name.
