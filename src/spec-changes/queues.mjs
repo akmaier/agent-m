@@ -263,14 +263,27 @@ export async function queues(snapshot) {
 }
 
 /**
- * queueAt(snapshot, base) -> Promise<Queue | null> — the one queue whose folder is `base`, docs/spec-freigaben/<folder>, as
- * queues gives it, or null where the snapshot holds no such queue. For entryView, which needs one queue and not all of them.
+ * queuesAt(snapshot, bases) -> Promise<Array<Queue | null>> — the queues whose folders are `bases`, docs/spec-freigaben/<folder>, as
+ * queues gives them and in the order of `bases`, null for a base where the snapshot holds no such queue. Their files are read ahead
+ * together, so that a file the queues share is read once. For acceptEntries, which needs the queues of the entries shown.
+ * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
+ * @param {string[]} bases
+ * @returns {Promise<Array<Queue | null>>}
+ */
+export async function queuesAt(snapshot, bases) {
+  const folderOf = (base) => (snapshot.paths.includes(`${base}/index.md`) ? QUEUE_INDEX.exec(`${base}/index.md`)?.[1] ?? null : null);
+  const folders = bases.map(folderOf);
+  const read = await readQueues(snapshot, folders.filter(Boolean), specRecordsOf(snapshot.paths));
+  return folders.map((folder) => (folder ? read[folders.filter(Boolean).indexOf(folder)] : null));
+}
+
+/**
+ * queueAt(snapshot, base) -> Promise<Queue | null> — the one queue whose folder is `base`, as queuesAt gives it. For entryView, which
+ * needs one queue and not all of them.
  * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
  * @param {string} base
  * @returns {Promise<Queue | null>}
  */
 export async function queueAt(snapshot, base) {
-  const folder = QUEUE_INDEX.exec(`${base}/index.md`)?.[1];
-  if (!folder || !snapshot.paths.includes(`${base}/index.md`)) return null;
-  return (await readQueues(snapshot, [folder], specRecordsOf(snapshot.paths)))[0];
+  return (await queuesAt(snapshot, [base]))[0];
 }
