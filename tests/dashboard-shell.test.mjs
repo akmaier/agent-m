@@ -121,7 +121,7 @@ test("a load of every address of today asks for no view or settings file that is
   // The recording sees what a page asks for: the file of a view shown is among it. The addresses of the review pages ask for none:
   // the app hands them to MOD-review-pages' routes before any file is loaded.
   const all = new Set([...asked.values()].flat());
-  for (const f of ["settings-view.mjs"]) {
+  for (const f of ["backlog-view.mjs"]) {
     assert.ok(all.has(f), `the recording saw ${f}: ${[...all].join(", ")}`);
   }
 });

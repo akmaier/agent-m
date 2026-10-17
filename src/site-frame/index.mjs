@@ -20,7 +20,7 @@ import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
 import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
-import { notice, noticePlace } from "./notices.mjs";
+import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
@@ -284,6 +284,7 @@ async function startSite({ page, views }) {
       notice("setup", { text: "Finish setting up: store your GitHub token on the settings page.", link: { label: "Settings", href: linkOf(page, "settings") } });
     }
     if (unknown !== null) notice("info", { text: `This browser does not keep the product ${unknown}; the instance is shown. Choose + Add product to add it.` });
+    showTokenNotices({ store, instance, product });
 
     const byName = routes.find((candidate) => candidate.name === selected.name);
     const entryKey = labelOf(selected.name) ? selected.name : null;
@@ -303,7 +304,12 @@ async function startSite({ page, views }) {
     }
     shownName = route.name;
     shown = { route, params: route === byName ? params : {}, context, fragment };
-    await route.render(target, context, shown.params);
+    try {
+      await route.render(target, context, shown.params);
+    } catch (failure) {
+      if (failure?.name !== "TokenRefused") throw failure;
+      refusedNotice(failure);
+    }
   };
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));

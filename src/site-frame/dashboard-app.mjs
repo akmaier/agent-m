@@ -10,14 +10,13 @@
 //
 // Module: MOD-dashboard-app
 //
-// The other views are files of their own, docs/assets/dashboard/<view>-view.mjs, and the settings page's sections
-// docs/assets/dashboard/settings/<section>.mjs — each loaded by its name from one table (DASHBOARD, src/site/views.mjs, which
-// the main page reads too). The menu above the views is the site's one menu, in the order of the process (src/site/menu.mjs).
+// The other views are files of their own, docs/assets/dashboard/<view>-view.mjs — each loaded by its name from one table
+// (DASHBOARD, src/site/views.mjs, which the main page reads too). The menu above the views is the site's one menu, in the order of the process (src/site/menu.mjs).
 // Which of the table's files are built is read from one data file beside them, docs/assets/dashboard/built.json, so that a page
 // load asks for no file that is not there (one 404 each on GitHub Pages); a change that adds a view adds its file and its line
 // there. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a
-// stylesheet of its own beside style.css; a section module exports `renderSection(app, box)`. Both get `app`, this page's
-// context: what is read, what is kept, and the helpers every view uses.
+// stylesheet of its own beside style.css. It gets `app`, this page's context: what is read, what is kept, and the helpers every
+// view uses. The notices about a token — its expiry and its refusal — are the frame's (notices.mjs), drawn into the slot `token-banner`.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
 import { marked } from "../../docs/assets/vendor/marked.esm.js";
@@ -32,7 +31,6 @@ import {
   parseRecord, readByBlob, recordIndex, statusByNames, parseQueueIndex, parseDecisions,
 } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
-import { tokenBannerHtml } from "../../docs/assets/dashboard/settings-view.mjs";
 import { DASHBOARD, builtViews } from "../site/views.mjs";
 import { menuHtml, entryOf } from "../site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
@@ -47,6 +45,7 @@ import { view as tracePages } from "../trace-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
 import { routeOf } from "./routing.mjs";
+import { noticePlace, showTokenNotices } from "./notices.mjs";
 
 export { DASHBOARD, UPSTREAM };
 
@@ -418,15 +417,20 @@ const errorText = (e, product = T.product) => {
   return r ? `${r.text} Renew it with the link at the top of the page.` : e.message;
 };
 const gitlabShown = () => (GITLAB ? store.getGitLabToken(T.product.address) : null);
-// The shown product's own token: a GitLab product's project token, or a GitHub product's own token; none on the instance's pages,
-// nor for a GitHub product read with the instance's.
-const ownShown = () => (GITLAB ? gitlabShown() : store.getGitHubProductToken(T.product.address));
-// The line at the top of every view: the GitHub token, and the shown product's own token, each expiring or refused at its last use
-// (its kept last test).
+// The notices at the top of every view: the frame's own notices (MOD-site-frame, showTokenNotices) of the GitHub token and of the
+// shown product's own token, each expiring or refused at its last use (its kept last test). Their place is the page's slot
+// `token-banner`, made at the start of the page.
+let tokenNotices = null;
 function showBanner() {
-  const el = document.getElementById("token-banner"), own = ownShown();
-  if (el) el.innerHTML = (ghToken() ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
-    + (own ? tokenBannerHtml({ expires: own.expires, refused: Boolean(own.tested?.refused), product: T.product }) : "");
+  if (!tokenNotices) return;
+  const slot = document.getElementById("token-banner");
+  tokenNotices.replaceChildren();
+  const address = parseAddress(T.product.address);
+  const isInstance = address.server === "github" && address.path === T.instance;
+  showTokenNotices({ store: openStore(T.instance), instance: { host: connect(parseAddress(`https://github.com/${T.instance}`)) },
+    product: isInstance ? null : { address: T.product.address, host: connect(address) } });
+  // The slot holds the place only while it holds a notice, so that it stays empty (and hidden by the page's style) otherwise.
+  slot.replaceChildren(...(tokenNotices.children.length ? [tokenNotices] : []));
 }
 
 // ---------------------------------------------------------------- the product selector
@@ -800,10 +804,7 @@ async function route() {
       }
     }
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.
-    const own = ownShown();
-    document.getElementById("token-banner").innerHTML = (ghToken()
-      ? tokenBannerHtml({ expires: store.getTokenExpiry(), refused: Boolean(store.getTokenTest()?.refused) }) : "")
-      + (own ? tokenBannerHtml({ expires: own.expires, refused: Boolean(own.tested?.refused), product: T.product }) : "");
+    showBanner();
     if (flash) {
       main().insertAdjacentHTML("afterbegin", `<section class="panel notice flash"><p>${flash}</p></section>`);
       flash = null;
@@ -820,6 +821,7 @@ async function start() {
   GITLAB = isGitLab(T.product);
   SERVER = GITLAB ? T.product.host : "GitHub";
   store = productStore(T.instance);
+  tokenNotices = noticePlace();
   currentHost();
   await retireFileTexts();
   startNotifications(); // UC-047: the review pages start the checks, with MOD-browser-store's store of the instance

@@ -571,12 +571,12 @@ test("A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a product's own key that expi
   const page = await openDashboard({ server: own.srv, search: `?repo=${encodeURIComponent(PRODUCT)}`, hash: "#uc",
     entries: ownKey("github_pat_PRODUCT0123456789abcdefghij", soon) });
   const banner = page.el("token-banner");
-  assert.ok(banner.includes(`Your GitHub token for ${PRODUCT_ADDR} expires on ${soon}`), banner);
-  assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "Renew at GitHub's list of tokens");
-  assert.ok(banner.includes("Settings → GitHub product tokens → Change"), "where the new value is pasted");
+  assert.ok(banner.includes(`Your GitHub token expires on ${soon} (Agent M for ${PRODUCT_ADDR}).`), banner);
+  assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "Renew at GitHub's list of tokens");
+  assert.ok(banner.includes("paste the new value in Settings"), "where the new value is pasted");
   const other = await withProduct({ "README.md": "# Thesis\n" });
   const inst = await openDashboard({ server: other.srv, hash: "#uc", entries: ownKey("github_pat_PRODUCT0123456789abcdefghij", soon) });
-  assert.doesNotMatch(inst.el("token-banner"), /GitHub token for/, "counter-proof: the instance's pages do not name the product's key");
+  assert.doesNotMatch(inst.el("token-banner"), /for https:\/\/github\.com\//, "counter-proof: the instance's pages do not name the product's key");
 });
 
 // TST-474028 · level: component · module: MOD-settings-pages
@@ -875,9 +875,8 @@ test("UC-042 1a: a token that expires within fourteen days is named on every pag
   assert.equal(publicRepositoryControl(near.box, "GitHub token", "status").textContent, `Expires on ${day(5)}; renew soon.`);
   assert.equal(publicRepositoryControl(near.box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
   await near.page.go("#spec");
-  assert.ok(near.page.el("token-banner").includes(`<strong>Your GitHub token expires on ${day(5)} (in 5 days).</strong>`), "the expiry is named at the top of every dashboard page");
-  assert.ok(near.page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens"'));
-  assert.match(near.page.el("token-banner"), /Regenerate token/);
+  assert.ok(near.page.el("token-banner").includes(`Your GitHub token expires on ${day(5)} (GitHub token).`), "the token and its expiry are named at the top of every dashboard page");
+  assert.ok(near.page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "Renew at GitHub's list of tokens");
   const later = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(30), stored: day(0) } } });
   assert.equal(publicRepositoryControl(later.box, "GitHub token", "status").textContent, `Expires on ${day(30)}.`);
   assert.doesNotMatch(publicRepositoryControl(later.box, "GitHub token", "status").textContent, /renew soon/i);
@@ -900,8 +899,8 @@ test("UC-042 1b: a token the server refused is named, with its renewal, at the t
   assert.equal(publicRepositoryControl(box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
   assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✗ GitHub rejected authentication with your GitHub token. Renew it on https://github.com/settings/personal-access-tokens.");
   await page.go("#uc");
-  assert.ok(page.el("token-banner").includes("<strong>GitHub rejected authentication with your GitHub token.</strong>"));
-  assert.ok(page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens"'));
+  assert.ok(page.el("token-banner").includes("The server refused your token GitHub token."), "the refused token is named at the top");
+  assert.ok(page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "with its renewal");
 });
 
 // TST-474045 · level: component · module: MOD-settings-pages

@@ -36,6 +36,34 @@ def keys_without_place(store_source: str, page_html: str) -> list[str]:
     return [k for k in keys_written(store_source) if f'data-setting-key="{k}"' not in page_html]
 
 
+FRAME_DOM = """
+const element = (name) => ({ localName: name, className: "", children: [], attrs: {}, textContent: "",
+  append(...items) { this.children.push(...items); }, setAttribute(k, v) { this.attrs[k] = v; } });
+globalThis.document = { createElement: element };
+const mem = new Map();
+globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k),
+  get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null };
+"""
+
+
+def frame_notices(now: str, tokens: list) -> list:
+    """For each stored GitHub token { expires, refused? } the notices MOD-site-frame draws at `now`: [{ kind, text, label, href }]."""
+    return js(FRAME_DOM + f"""
+const out = [];
+for (const token of {json.dumps(tokens)}) {{
+  mem.clear();
+  const store = browserStore.openStore('a/agent-m');
+  browserStore.writeSetting(store, 'github-token', {{ value: 'github_pat_x', name: 'GitHub token', expires: token.expires, stored: '2026-09-01' }});
+  if (token.refused) browserStore.writeSetting(store, 'last-test:github-token', {{ at: '2026-09-30', outcome: 'refused' }});
+  const place = siteFrameNotices.noticePlace();
+  const host = repositoryHosts.connect(repositoryHosts.parseAddress('https://github.com/a/agent-m'), {{}});
+  siteFrameNotices.showTokenNotices({{ store, instance: {{ host }}, now: new Date('{now}T12:00:00Z') }});
+  out.push(place.children.map((p) => ({{ kind: p.className.replace('notice ', ''), text: p.children[0], label: p.children[2].textContent, href: p.children[2].attrs.href }})));
+}}
+return out;
+""")
+
+
 def page(entries: dict, shown=(), now="2026-09-30") -> str:
     # The last test of each setting is kept in the browser beside it (ITM-136), so the entries carry it.
     return js(f"return settingsView.browserSettingsHtml({{ entries: {json.dumps(entries)}, shown: {json.dumps(list(shown))},"
@@ -117,30 +145,29 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertEqual(v, ["2026-12-29", "90"])
 
     def test_warning_from_fourteen_days_before(self):
-        w = js("const n = new Date('2026-09-30T12:00:00Z'); return ['2026-10-15', '2026-10-14', '2026-09-30', '2026-09-29', null]"
-               ".map((d) => settingsView.expiryWarning(d, n));")
-        self.assertIsNone(w[0], "15 days before: no warning yet")
-        self.assertEqual((w[1]["days"], w[1]["expired"]), (14, False))
-        self.assertIn("2026-10-14", w[1]["text"])
-        self.assertEqual(w[1]["renewUrl"], "https://github.com/settings/personal-access-tokens")
-        self.assertEqual((w[2]["days"], w[2]["expired"]), (0, False))
-        self.assertTrue(w[3]["expired"])
-        self.assertIsNone(w[4], "no date recorded: nothing to warn of")
+        # The frame's notice (MOD-site-frame, showTokenNotices): 15 days before, no notice yet; 14 days, today and past are named.
+        w = frame_notices("2026-09-30", [{"expires": d} for d in ("2026-10-15", "2026-10-14", "2026-09-30", "2026-09-29", None)])
+        self.assertEqual(w[0], [], "15 days before: no warning yet")
+        self.assertEqual([n["kind"] for n in w[1]], ["token-expiring"])
+        self.assertIn("expires on 2026-10-14", w[1][0]["text"])
+        self.assertIn("GitHub token", w[1][0]["text"], "which token")
+        self.assertEqual(w[1][0]["href"], "https://github.com/settings/personal-access-tokens", "where it is renewed")
+        self.assertIn("expires on 2026-09-30", w[2][0]["text"], "today: not yet expired")
+        self.assertIn("expired on 2026-09-29", w[3][0]["text"])
+        self.assertEqual(w[4], [], "no date recorded: nothing to warn of")
 
     def test_the_banner_on_every_page_carries_renew(self):
-        b = js("return [settingsView.tokenBannerHtml({ expires: '2026-10-10', now: new Date('2026-09-30T12:00:00Z') }),"
-               " settingsView.tokenBannerHtml({ expires: '2026-12-29', now: new Date('2026-09-30T12:00:00Z') }),"
-               " settingsView.tokenBannerHtml({ expires: null, refused: true, now: new Date('2026-09-30T12:00:00Z') })];")
-        self.assertIn("2026-10-10", b[0])
-        self.assertIn("Renew", b[0])
-        self.assertIn("https://github.com/settings/personal-access-tokens", b[0])
-        self.assertIn("Regenerate token", b[0])
-        self.assertEqual(b[1], "", "counter-proof: far from expiry, no banner")
-        self.assertIn("GitHub token", b[2])
-        self.assertIn("Renew", b[2])
+        b = frame_notices("2026-09-30", [{"expires": "2026-10-10"}, {"expires": "2026-12-29"}, {"expires": None, "refused": True}])
+        self.assertIn("2026-10-10", b[0][0]["text"])
+        self.assertEqual(b[0][0]["label"], "Renew")
+        self.assertEqual(b[0][0]["href"], "https://github.com/settings/personal-access-tokens")
+        self.assertEqual(b[1], [], "counter-proof: far from expiry, no notice")
+        self.assertEqual(b[2][0]["kind"], "token-refused")
+        self.assertIn("GitHub token", b[2][0]["text"])
+        self.assertEqual((b[2][0]["label"], b[2][0]["href"]), ("Renew", "https://github.com/settings/personal-access-tokens"))
         app = (SRC / "site-frame" / "dashboard-app.mjs").read_text(encoding="utf-8")
         route = re.search(r"async function route\(\).*?\n}\n", app, re.S).group(0)
-        self.assertIn("tokenBannerHtml(", route, "the banner is added in route(), which renders every view")
+        self.assertIn("showBanner(", route, "the notices are drawn in route(), which renders every view")
 
     def test_storing_a_token_asks_for_its_expiry(self):
         app = dashboard_text()
