@@ -677,3 +677,22 @@ The product needs a repository to live in, and the server creates one on its own
 - *Starter files* — a README, a `.gitignore` and a licence are offered; all three are optional. Agent M writes the folders and files of its review layout that are still missing and overwrites nothing, so you may start empty or with any of them.
 
 On a GitLab server the page is the one for a new project and asks for the same choices under other names: the project name, the group or user it sits under (its owner), a visibility level of *Private*, *Internal* or *Public*, and whether to start with a README. The advice is the same.
+
+## setup-key
+
+A *token* is a key you create on GitHub and give to this page, so that it can make commits for you — only in the repositories you select, only with the permissions Agent M's features need, and only until the date you choose. You can delete it on GitHub at any time; it then stops working immediately.
+
+One key serves every feature, so the prefilled page asks for these permissions:
+
+- Contents (read and write) — to save and accept.
+- Issues (read and write) — for reports that become issues.
+- Pull requests (read and write) — for the jobs' changes.
+- Actions (read and write) — to start a run.
+- Workflows (read and write) — for a generated CI configuration.
+- Metadata (read) — to read the repository.
+
+Why *Only select repositories*? GitHub preselects All repositories, which would let this page write to every repository you own. Choosing only the instance limits the key to what Agent M actually needs; each product you add later gets a key of its own.
+
+## setup-store
+
+The token is kept in this browser only, in its `localStorage` — never in a cookie, never in an address, never in any repository. It is sent only to GitHub's API, as a header, to read the instance. Another computer or browser does not have it: Import settings moves it there from an export. Settings shows the token, tests it and clears it.

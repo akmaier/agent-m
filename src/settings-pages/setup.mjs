@@ -6,8 +6,8 @@
 // DISCLOSED); the person ticks it, pastes the token and confirms its expiry, and Store and check keeps both in this browser's store, forgets the last
 // test of an earlier token, and reads the instance with the new one through MOD-repository-hosts (the page says first where the token goes). The
 // instance is shown ready only when that read succeeds. Import settings, beside Store and check, goes to the route `settings`, where an export is
-// imported (SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS). Each step carries its folded "What is this?" (EVERY STEP EXPLAINS ITSELF);
-// MOD-site-frame's explanations hold no topic for these two steps, so each explanation is written here, as a folded details of its own.
+// imported (SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS). Each step carries its folded "What is this?" (EVERY STEP EXPLAINS ITSELF),
+// MOD-site-frame's explain of the topics setup-key (Step A) and setup-store (Step B), whose texts are in its explanations.md.
 //
 // Module: MOD-settings-pages
 //
@@ -16,21 +16,12 @@
 
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { readSetting, writeSetting, clearSetting } from "../browser-store/index.mjs";
+import { explain } from "../site-frame/index.mjs";
 import { repositoryChoiceSteps, sharedPagesNotice, defaultExpiry, TOKEN_DAYS } from "./products.mjs";
 
 const EXPIRY_WARN_DAYS = 14;
 const INSTANCE_TOKEN_KEY = "github-token";
 const ACKNOWLEDGEMENT_KEY = "acknowledged:shared-origin";
-
-// What each permission of the one token is for (UC-014 step 7), by the parameter of GitHub's prefilled page.
-const PERMISSION_USE = {
-  contents: ["Contents", "to save and accept."],
-  issues: ["Issues", "for reports that become issues."],
-  pull_requests: ["Pull requests", "for the jobs' changes."],
-  actions: ["Actions", "to start a run."],
-  workflows: ["Workflows", "for a generated CI configuration."],
-  metadata: ["Metadata", "to read the repository."],
-};
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -39,9 +30,6 @@ function el(name, className, ...children) {
   return node;
 }
 
-// A folded "What is this?" for people new to GitHub.
-const folded = (...children) => el("details", "explain", el("summary", null, "What is this?"), ...children);
-
 // What is wrong with a pasted token and its expiry date, or null.
 function tokenProblem(value, expires) {
   if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(value)) return "That is not a GitHub token — it starts with github_pat_ and is long.";
@@ -49,27 +37,18 @@ function tokenProblem(value, expires) {
   return null;
 }
 
-// Step A: the prefilled token page, the repository to pick on it, and why these permissions.
+// Step A: the prefilled token page and the repository to pick on it.
 function stepA(repository, link) {
   const anchor = el("a", null, "Open GitHub's token page (prefilled) ↗");
   anchor.href = link;
   anchor.target = "_blank";
   anchor.rel = "noopener";
-  const uses = [...new URL(link).searchParams].filter(([param]) => PERMISSION_USE[param])
-    .map(([param, access]) => el("li", null, `${PERMISSION_USE[param][0]} (${access === "read" ? "read" : "read and write"}): ${PERMISSION_USE[param][1]}`));
   return el("section", "step",
     el("h3", null, "Step A · Create your key on GitHub"),
     el("p", null, anchor),
     el("p", null, "On that page:"),
     el("ol", "choices", ...repositoryChoiceSteps(repository).map((text) => el("li", null, text))),
-    folded(
-      el("p", null, "A token is a key you create on GitHub and give to this page, so it can make commits for you — only in the repositories you " +
-        "select, only with the permissions Agent M's features need, and only until the date you choose. You can delete it on GitHub at any time; " +
-        "it then stops working immediately."),
-      el("p", null, "Why these permissions? One key covers all of them. Each product you add later gets a key of its own."),
-      el("ul", null, ...uses),
-      el("p", null, "Why “Only select repositories”? GitHub preselects “All repositories”. That would let this page write to every repository you own. " +
-        "Choosing only the repository named above limits it to what Agent M actually needs.")));
+    explain("setup-key"));
 }
 
 export const route = {
@@ -153,9 +132,7 @@ export const route = {
         el("p", "muted", `Store and check sends the token to GitHub's API, to read ${repository}, and nowhere else.`),
         el("p", null, storeButton, " ", importButton),
         check,
-        folded(el("p", null, "The token is kept in this browser only, in its localStorage — never in a cookie, never in an address, never in any " +
-          "repository. It is sent only to GitHub's API, as a header. Another computer or browser does not have it: Import settings moves it " +
-          "there from an export. Settings shows it, tests it and clears it."))),
+        explain("setup-store")),
       done);
     // A FORM OPENS WITH ITS FIRST FIELD FOCUSED: the box to tick, or, once ticked, the token field.
     (acknowledged ? token : ack).focus();
