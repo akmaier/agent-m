@@ -7,18 +7,15 @@
 //
 // Where the module file leaves a reading open, this file takes the one it names:
 //   - A SPEC change entry is decided when its state is `approved` or `in SPEC` (MOD-spec-changes): a person's acceptance names it.
-//   - The tests stage counts a requirement when a test that guards it (MOD-trace-graph's tracesTo) passes on the commit of the default
-//     branch the facts were read at (Facts.snapshot.commit), by MOD-result-records' resultsAt; a flaky test is not a passing one.
+//   - The tests stage has no share: it needs the commits of the default branch, which Facts does not hold.
 //   - A gate waits for a person when it is pending and its deciding role is held, in some role assignment, by a participant of the
 //     type `person`; a gate decided by a check has no holder. The path of such a gate is the record of the job waiting at it, else the
 //     product's declaration, where its gates are declared.
-//   - stageShares is async, since resultsAt reads the branch test-results through its Snapshot.
+//   - stageShares is async.
 
 import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { reportsAwaitingAcceptance } from "../release-evidence/index.mjs";
-import { tracesTo } from "../trace-graph/index.mjs";
-import { resultsAt } from "../result-records/index.mjs";
 
 // The human-readable kind MOD-progress-measures' waitingForAcceptance names a reviewed file by (Interfaces), keyed by
 // MOD-approvals' own kind (approval-record.schema.md). A kind with no entry here — release-report — names no
@@ -93,25 +90,10 @@ function implementationStage(facts) {
   return { share: done / states.length, detail: `${done} of ${states.length} ${steps ? "steps" : "items"} done` };
 }
 
-async function testsStage(facts) {
-  if (facts.requirements === "unknown") return unknown("requirements are");
-  if (!facts.requirements.length) return { share: 0, detail: "no requirement yet" };
-  if (facts.graph === "unknown") return unknown("trace graph is");
-  const guarded = facts.requirements.map((name) => [name, tracesTo(facts.graph, name).tests]).filter(([, ids]) => ids.length);
-  if (!guarded.length) return { share: 0, detail: "no requirement guarded by a test yet" };
-  if (facts.tests === "unknown") return unknown("test declarations are");
-  if (facts.results === "unknown") return unknown("test results are");
-  if (facts.results === null || facts.snapshot.commit === null) return { share: 0, detail: "no test result recorded yet" };
-  const levels = new Map(facts.tests.map((test) => [test.id, test.level]));
-  const declared = [...new Set(guarded.flatMap(([, ids]) => ids))].filter((id) => levels.has(id)).map((id) => ({ id, level: levels.get(id) }));
-  const passed = new Set();
-  if (declared.length) {
-    for (const level of await resultsAt(facts.results, facts.snapshot.commit, declared)) {
-      for (const test of level.tests) if (test.outcome === "passed") passed.add(test.id);
-    }
-  }
-  const counted = guarded.filter(([, ids]) => ids.some((id) => passed.has(id))).length;
-  return { share: counted / facts.requirements.length, detail: `${counted} of ${facts.requirements.length} requirements guarded by a passing test` };
+// A test passes “by the newest result record of a commit of the default branch that ran it”; Facts holds no list of the commits of
+// the default branch, so the share is not told.
+function testsStage() {
+  return unknown("commits of the default branch are");
 }
 
 function releaseStage(facts) {
@@ -124,8 +106,7 @@ function releaseStage(facts) {
 /**
  * stageShares(facts) -> Promise<Array<{ stage: string, share: number | null, detail: string }>> — the six stages of the main
  * page's bar, in their order: Requirements, Use cases, Architecture, Implementation, Tests, Release. A share is between 0 and 1;
- * a stage whose share needs an unknown fact has none (null), and its detail says which. Reads the branch test-results of the facts
- * through MOD-result-records' resultsAt — the records of one commit, and only where a requirement is guarded — and nothing else.
+ * a stage whose share needs an unknown fact has none (null), and its detail says which. Reads nothing.
  * @param {object} facts MOD-progress-measures' Facts
  */
 export async function stageShares(facts) {
@@ -134,7 +115,7 @@ export async function stageShares(facts) {
     ["Use cases", acceptedStage(facts, new Set(["use-case"]), { of: "accepted", none: "no use case yet" })],
     ["Architecture", acceptedStage(facts, new Set(["architecture-decision", "module"]), { of: "files accepted", none: "not designed yet" })],
     ["Implementation", implementationStage(facts)],
-    ["Tests", await testsStage(facts)],
+    ["Tests", testsStage()],
     ["Release", releaseStage(facts)],
   ];
   return stages.map(([stage, { share, detail }]) => ({ stage, share, detail }));
