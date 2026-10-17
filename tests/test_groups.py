@@ -27,6 +27,14 @@ FIX = Path(__file__).resolve().parent / "fixtures" / "groups"
 BROKEN = FIX / "broken"
 REPO = FIX / "repo"
 
+
+def build_product(root: Path) -> None:
+    """The fixture product at `root`: a copy of repo/, in which the fixture's test file has the name of a test. It is kept as
+    export.test.js.fixture, so that `node --test tests/` does not run it as a test of this repository."""
+    shutil.copytree(REPO, root)
+    kept = root / "tests" / "export.test.js.fixture"
+    kept.rename(kept.with_suffix(""))
+
 # EVERY HIERARCHY IS KEPT IN A GROUP FILE OF ITS OWN — the file of each kind under docs/groups/ (UC-021), and what its title
 # line and the line below it say.
 KINDS = ["requirements", "use-cases", "architecture", "modules", "tests"]
@@ -263,10 +271,10 @@ class GroupCarriesNoIdentifier(unittest.TestCase):
         self.assertEqual(group_titles_named(ROOT), [])
 
     def test_a_group_title_named_as_an_identifier_is_found(self):
-        self.assertEqual(group_titles_named(REPO), [], "the fixture product names no group title")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "repo"
-            shutil.copytree(REPO, root)
+            build_product(root)
+            self.assertEqual(group_titles_named(root), [], "the fixture product names no group title")
             uc = root / "docs" / "use-cases" / "UC-001-export-the-list.md"
             uc.write_text(read(uc).replace("  - EXPORT AS CSV\n", "  - EXPORT AS CSV\n  - Kernel\n"), encoding="utf-8")
             test = root / "tests" / "export.test.js"
@@ -417,7 +425,7 @@ class RegroupingLeavesTheGroupedFilesUnchanged(unittest.TestCase):
     def test_blob_shas_of_the_spec_and_every_artifact_are_equal_before_and_after(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "repo"
-            shutil.copytree(REPO, root)
+            build_product(root)
             before = blob_shas(root)
             for kind, moves in (("use-cases", [{"op": "move", "item": "UC-002", "to": ["Export"]},
                                                {"op": "delete", "group": ["Naming"]}]),
