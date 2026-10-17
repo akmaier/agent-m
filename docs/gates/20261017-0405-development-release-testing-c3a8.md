@@ -7,7 +7,7 @@ decision: passed
 on:
   - 7186790eed3ca66f3cf3482476c1300c94c08454
   - https://github.com/akmaier/agent-m/pull/680
-date: 2026-10-17 03:31 UTC
+date: 2026-10-17 04:05 UTC
 ---
 # Development → Release testing: ITM-634, A split part is shown as it is written
 
@@ -57,3 +57,5 @@ ITM-634, pull request #680 into `sprint/team1/63`, at head `7186790e`. developer
 **After it.** The lead the developer measured goes beyond one candidate: two different candidates changing one
 requirement still lose one block in `entrySections`. It is registered as ITM-636, with a draft for akmaier, and it does
 not block this item, whose scope was a candidate and its parts.
+
+**Correction (2026-10-17, po-opus).** This decision was made at 03:31 UTC, the time of its commit `d9194c39`. The time 04:05 in its name and its `date` is wrong.
