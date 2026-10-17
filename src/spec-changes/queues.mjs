@@ -1,9 +1,8 @@
 // queues.mjs — queues: every queue of a snapshot with its entries and each entry's state (MOD-spec-changes,
 // Interfaces). The module's Queue and queues are built here: an entry is open, approved, in SPEC, stale or waiting for its
-// anchor, derived and never written. ITM-234 built open, approved and in SPEC from each queue's index.md and
-// entscheidungen.md and the approval records under docs/approvals/, matched to an entry by name alone, as MOD-approvals'
-// statuses matches a reviewed file to its record. ITM-339 adds the two states that need the text of the target, and
-// createdBy:
+// anchor, derived and never written. Open, approved and in SPEC come from each queue's index.md and entscheidungen.md and the
+// approval records under docs/approvals/, matched to an entry by name alone, as MOD-approvals' statuses matches a reviewed file to
+// its record. The two states that need the text of the target, and createdBy, come from the files the entry names:
 //
 //   - A decision row decides: an entry it names is in SPEC.
 //   - Otherwise a record that names the entry makes it stale when it names a proposal blob that is no longer the proposal's
@@ -14,7 +13,10 @@
 //     queue, one above it in the index with another anchor, holds it in its proposal; createdBy is that entry's number, and
 //     is set for every undecided entry whose anchor is missing and created.
 //   - What the snapshot cannot read gives no evidence: without the target's text, or a record's, the entry keeps the state
-//     ITM-234 derived. The target of an entry is the file its own row names (Datei).
+//     its files give. The target of an entry is the file its own row names (Datei).
+//
+// The files are read ahead through the snapshot's readMany, which reads in batches where the snapshot has a batch request and
+// does nothing otherwise: first every queue's index.md and entscheidungen.md, then the targets and records the entries name.
 //
 // openQueueOf, proposeSection, saveEntry, entrySections and requirementHistory are not built yet (index.mjs); entryView, which reads
 // an entry through this file, is accept.mjs's, and specStrategies' recipe spec-with-queues, which reads every queue through it,
@@ -182,7 +184,7 @@ async function creatorOf(snapshot, entry, earlier) {
   return null;
 }
 
-// The queue with the states and createdBy that need the target's text (ITM-339), entry by entry in the index's order. The target of
+// The queue with the states and createdBy that need the target's text, entry by entry in the index's order. The target of
 // an entry is the file its own Datei cell names; the queue's line "Zieldatei aller Einträge", which a queue written in another
 // repository gives as products/<name>/SPEC.md, stays Queue.target and finds no section. An entry a decision row names needs no text,
 // and one whose target the snapshot cannot read keeps the state its files give.
@@ -209,8 +211,11 @@ async function withEvidence(snapshot, queue, folder, records) {
   return { ...queue, entries };
 }
 
-// One queue, with every entry of its index table and its state.
-async function oneQueue(snapshot, folder, records) {
+// The two files every queue is read from.
+const queueFiles = (folder) => [`docs/spec-freigaben/${folder}/index.md`, `docs/spec-freigaben/${folder}/entscheidungen.md`];
+
+// One queue, with every entry of its index table and the state its own files give, before the evidence of the target's text.
+async function bareQueue(snapshot, folder, records) {
   const base = `docs/spec-freigaben/${folder}`;
   const files = filesOf(snapshot.paths, base);
   const indexPath = `${base}/index.md`;
@@ -218,8 +223,24 @@ async function oneQueue(snapshot, folder, records) {
   const { document, rows } = readRegister(queueIndexSchema, indexPath, indexText ?? "");
   const decisions = await decisionsOf(snapshot, base);
   const entries = rows.map((row) => entryOf(row, folder, base, files, snapshot, records, decisions));
-  const queue = { folder: base, title: titleOf(document.title), target: targetOf(document.sections[0]?.text), entries };
-  return withEvidence(snapshot, queue, folder, records);
+  return { folder: base, title: titleOf(document.title), target: targetOf(document.sections[0]?.text), entries };
+}
+
+// The files withEvidence reads for a queue: the target of every entry no decision row decides, and the record of every approved one.
+const evidenceFiles = (queue) => queue.entries.filter((entry) => entry.state !== "in SPEC")
+  .flatMap((entry) => (entry.state === "approved" ? [entry.file, entry.record] : [entry.file]));
+
+// The queues of these folders, newest first as given, each with every entry of its index table and its state. The files are read
+// ahead in two rounds, so that a snapshot with a batch request reads them in batches: every queue's two files, then what the
+// entries name.
+async function readQueues(snapshot, folders, records) {
+  await snapshot.readMany?.(folders.flatMap(queueFiles));
+  const bare = [];
+  for (const folder of folders) bare.push(await bareQueue(snapshot, folder, records));
+  await snapshot.readMany?.(bare.flatMap(evidenceFiles));
+  const out = [];
+  for (const [at, folder] of folders.entries()) out.push(await withEvidence(snapshot, bare[at], folder, records));
+  return out;
 }
 
 /**
@@ -238,10 +259,7 @@ async function oneQueue(snapshot, folder, records) {
  */
 export async function queues(snapshot) {
   const folders = snapshot.paths.map((p) => QUEUE_INDEX.exec(p)?.[1]).filter(Boolean).sort().reverse();
-  const records = specRecordsOf(snapshot.paths);
-  const out = [];
-  for (const folder of folders) out.push(await oneQueue(snapshot, folder, records));
-  return out;
+  return readQueues(snapshot, folders, specRecordsOf(snapshot.paths));
 }
 
 /**
@@ -254,5 +272,5 @@ export async function queues(snapshot) {
 export async function queueAt(snapshot, base) {
   const folder = QUEUE_INDEX.exec(`${base}/index.md`)?.[1];
   if (!folder || !snapshot.paths.includes(`${base}/index.md`)) return null;
-  return oneQueue(snapshot, folder, specRecordsOf(snapshot.paths));
+  return (await readQueues(snapshot, [folder], specRecordsOf(snapshot.paths)))[0];
 }
