@@ -875,7 +875,7 @@ test("release · UC-042 2: Clear asks once, says what stops working, and removes
 });
 
 // UC-042 1a · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a token expires within fourteen days. Expected: every dashboard page
-// shows, in the frame's notice place, "Your token Agent M · akmaier/agent-m expires on <date>." with Renew to GitHub's token page;
+// shows, in the frame's notice place, "Your GitHub token expires on <date> (Agent M · akmaier/agent-m)." with Renew to GitHub's token page;
 // the settings line shows ⚠ expires on <date>.
 test("release · UC-042 1a: a token expiring within fourteen days is warned of on every page, with Renew", async () => {
   const w = await world();
@@ -890,7 +890,7 @@ test("release · UC-042 1a: a token expiring within fourteen days is warned of o
   for (const hash of ["#uc", "#spec", "#uc/UC-001"]) {
     await page.go(hash);
     const banner = page.el("token-banner");
-    assert.match(stripTags(banner), new RegExp(`Your token Agent M · akmaier/agent-m expires on ${soon}\\.`), hash);
+    assert.match(stripTags(banner), new RegExp(`Your GitHub token expires on ${soon} \\(Agent M · akmaier/agent-m\\)\\.`), hash);
     assert.ok(hrefs(banner).some((x) => x.startsWith("https://github.com/settings/personal-access-tokens")), `${hash}: Renew`);
   }
 });
