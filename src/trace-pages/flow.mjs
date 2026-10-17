@@ -3,7 +3,7 @@
 // the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
 // graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
 // opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
-// and — on the default branch only — its open proposals, each a link (step 6). It writes nothing. On the default branch it leads to
+// and the unknown names they also name, each a link (step 6). It writes nothing. On the default branch it leads to
 // the review pages' editing: Edit beside each requirement and + Requirement in each section; at any other ref the view says "as of" it
 // and offers neither.
 //
@@ -13,9 +13,9 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
-import { queues } from "../spec-changes/index.mjs";
 import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { explain } from "../site-frame/index.mjs";
 import { descriptorFor } from "./views.mjs";
 import { opening, personsSource, subjectOf } from "./subject.mjs";
 
@@ -50,7 +50,7 @@ function addressOf(id) {
   if (/^UC-/.test(id)) return fragment("use-case", { id });
   if (/^ARC-/.test(id)) return fragment("decision", { id });
   if (/^MOD-/.test(id)) return fragment("module", { id });
-  if (/^TST-/.test(id)) return fragment("trace", { key: "tests", test: id });
+  if (/^TST-/.test(id)) return fragment("trace", { key: "tests", row: id });
   if (/^SRC-/.test(id)) return fragment("library", { source: id });
   return null;
 }
@@ -83,33 +83,7 @@ async function sourcesOf(shown) {
   return { links: readDocument(links, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? ""), register };
 }
 
-// What each open entry of the queues would do to which requirement of the SPEC: `change` is "change proposed" for one whose source, rule or check the
-// proposal words otherwise, and "removal proposed" for one of the section it replaces that the proposal lacks — the section whose heading is
-// the entry's anchor. The proposal is read as a SPEC section (parseSpec). A requirement the SPEC does not hold is no row of this view's tree,
-// so what an entry adds is not collected. -> Map<name, {id, state, change}[]>
-const sectionNames = (spec, anchor) => spec.sections.find((section) => section.heading === anchor)?.requirements ?? [];
-const differs = (a, b) => a.source !== b.source || a.rule !== b.rule || a.check !== b.check;
-const entryId = (folder, number) => `spec-${folder.slice(folder.lastIndexOf("/") + 1)}-${String(number).padStart(2, "0")}`;
-async function proposalsOf(shown) {
-  const { snapshot, spec } = shown;
-  const open = (await queues(snapshot)).flatMap((queue) => queue.entries
-    .filter((entry) => entry.file === SPEC_PATH && entry.state !== "in SPEC" && entry.proposal?.path)
-    .map((entry) => ({ id: entryId(queue.folder, entry.number), entry })));
-  await snapshot.readMany?.(open.map(({ entry }) => entry.proposal.path));
-  const touched = new Map();
-  const touch = (name, id, state, change) => touched.set(name, [...(touched.get(name) ?? []), { id, state, change }]);
-  for (const { id, entry } of open) {
-    const proposed = parseSpec((await snapshot.read(entry.proposal.path)) ?? "").requirements;
-    for (const [name, requirement] of proposed) {
-      if (spec.requirements.has(name) && differs(spec.requirements.get(name), requirement)) touch(name, id, entry.state, "change proposed");
-    }
-    for (const name of sectionNames(spec, entry.anchor)) if (!proposed.has(name)) touch(name, id, entry.state, "removal proposed");
-  }
-  return touched;
-}
-
 const REVIEW = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
-const NONE_YET = { ARC: "architecture decisions", MOD: "modules", TST: "tests" };
 const problemLine = (what, failure) => el("p", "traces-problem", `${what} could not be read: ${failure?.message ?? failure}`);
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
 
@@ -118,7 +92,6 @@ function factsOf(shown) {
   return shown.facts ??= {
     graph: kept(() => traceGraph(shown.snapshot, { commit: shown.snapshot.commit ?? null })),
     sources: kept(() => sourcesOf(shown)),
-    proposals: kept(() => proposalsOf(shown)),
   };
 }
 
@@ -158,23 +131,8 @@ async function showTraces(box, requirement, shown) {
     if (ids.length) sections.push(section(title, listOf(ids.map((id) => linked(id, `${id} ${graph.nodes.get(id)?.title ?? ""}`.trim())))));
     else if (!held(kind)) {
       sections.push(section(title, el("p", "none-yet", "none yet"),
-        el("details", "none-yet-note", el("summary", null, "Which phase produces them?"),
-          el("p", null, `This version holds no ${NONE_YET[kind]} yet. Architecture decisions and modules come when the architecture is derived from the accepted use cases, and tests when the modules are implemented.`))));
+        explain("trace-none-yet")));
     } else sections.push(section(title, el("p", "none", "none")));
-  }
-
-  if (shown.onDefaultBranch) {
-    try {
-      const mine = (await facts.proposals()).get(requirement.name) ?? [];
-      const count = new Set(mine.map(({ id }) => id)).size;
-      sections.push(section("Open proposals", mine.length ? listOf(mine.map(({ id, state, change }) => {
-        const anchor = el("a", "trace-link", id);
-        anchor.setAttribute("href", fragment("spec-entry", { id }));
-        return el("span", null, anchor, ` — ${change} (${state})`);
-      })) : el("p", "none", "none"), ...(count > 1 ? [el("p", "stale-note", `${count} open proposals touch this requirement: accepting one makes the other${count > 2 ? "s" : ""} stale.`)] : [])));
-    } catch (failure) {
-      sections.push(section("Open proposals", problemLine("The open proposals", failure)));
-    }
   }
 
   // Unknown names (UC-020 5b): the names that match no requirement, as coverageGaps finds them, which the artifacts listed above also name.
