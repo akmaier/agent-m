@@ -33,7 +33,16 @@ UC-020 2a: "the browser says so and shows nothing". `flow.mjs:126-136` handles n
 - the specification view shows it on a failed read and draws no tree;
 - the empty state of an absent SPEC (TST-473167) stays as it is.
 
+**Two more failed reads, which ITM-594 left plain** (found at ITM-594's gate on #686, so this item holds them):
+- **A chosen version that cannot be read** is named in `flow.mjs`'s `draw` with the host's message, as plain text
+  ("<ref> could not be read: …"). It becomes `readProblem`'s.
+- **A failed `listTags`** is read by `tagsOf` as no tags, and the view then says "No release is tagged yet". That
+  sentence is wrong when the tags could not be read. The failure is named with `readProblem`, and only the handed ref
+  is offered.
+
 ## Acceptance
 
 - A refused or missing read is named by the host's error, and no tree is shown.
+- A chosen version that cannot be read, and a failed reading of the tags, are named through `readProblem`. A failed
+  reading of the tags never says that no release is tagged.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
