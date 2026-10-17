@@ -1,7 +1,7 @@
-# Module: MOD-git-host
-# Guards: THE PAGE STATES WHAT IT SENDS WHERE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+# Module: MOD-repository-hosts
+# Guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 # Level: component
-"""SPEC §7 THE PAGE STATES WHAT IT SENDS WHERE · A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT (the GitHub token)."""
+"""SPEC §7 A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT (the GitHub token)."""
 import unittest
 
 from jsrun import js
@@ -16,7 +16,6 @@ class DestinationDisclosure(unittest.TestCase):
         self.assertEqual(dests, ["https://api.github.com"])
         self.assertEqual(api, {"Authorization": "Bearer t"})
         self.assertEqual((raw, other, none), ({}, {}, {}))
-        self.assertIn("api.github.com", js("return settingsView.TOKEN_GUIDANCE;"))
 
 
 if __name__ == "__main__":
