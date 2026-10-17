@@ -110,7 +110,7 @@ test("parseOutcomes — several cases of a deterministic test pass only if all p
 });
 
 const runsReport = (name, passed, failed) =>
-  `<testsuites><testsuite name="s">${"<testcase name=\"" + name + " run\" classname=\"t\"/>".repeat(passed)}${
+  `<testsuites><testsuite name="s">${("<testcase name=\"" + name + " run\" classname=\"t\"/>").repeat(passed)}${
     ("<testcase name=\"" + name + " run\" classname=\"t\"><failure message=\"wrong\">w</failure></testcase>").repeat(failed)
   }</testsuite></testsuites>`;
 const RATE = [declaration("TST-750010", "unit", { runs: 20, phrasings: 4 })];
