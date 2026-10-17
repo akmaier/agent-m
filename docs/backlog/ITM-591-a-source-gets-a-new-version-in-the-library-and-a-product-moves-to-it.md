@@ -7,6 +7,7 @@ realises:
   - UC-004
 modules:
   - MOD-settings-pages
+  - MOD-site-frame
 builds_on:
   - ITM-589
 tests:
@@ -72,3 +73,5 @@ Selectable.** The readings above hold. Since ITM-576, *+ New version* also asks 
 **The draft it waited for is accepted** (akmaier, `b43da779`): MOD-settings-pages' Uses with `MOD-source-register.readContent` (accepted blob b94701420bcf). It is free of drafts; its readings are read at its start.
 
 **Added at ITM-576's gate (2026-10-17, po-opus).** `versionCommits` now refuses a file not kept that has no note (`NoteMissing`). So *+ New version* asks for the note of a file only hashed, as the registration form does since ITM-576, and shows the module's refusal. A file that is only hashed no longer waits for ITM-576.
+
+**At its gate on #723 (`docs/gates/20261017-1055-development-release-testing-d40b.md`): MOD-site-frame joins its modules,** for the topics `source-new-version` and `source-move` that *+ New version* and *Move* fold (`EVERY STEP EXPLAINS ITSELF`).
