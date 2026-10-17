@@ -41,14 +41,15 @@ const at = (commit, name) => `runs/${commit}/${name}.md`;
 
 // TST-751001 · level: unit · module: MOD-result-records
 // guards: EVERY TEST RUN LEAVES A RESULT RECORD
-// given: TST-001 recorded on three commits C1 (passed), C2 (failed), C3 (passed); TST-002 recorded on C1 only
+// given: TST-001 recorded on three commits C1 (passed), C2 (failed), C3 (passed); TST-002 recorded on C1 and, alone, on C4
 // input: testHistory(fixture, "TST-001", [])
-// expect: three marks, one per commit C1, C2, C3, with outcomes passed, failed, passed; no mark for TST-002's records
+// expect: three marks, one per commit C1, C2, C3, with outcomes passed, failed, passed; no mark for C4, whose only record is of TST-002
 test("testHistory — one mark per commit on which the test ran", async () => {
   const snapshot = fixtureSnapshot({
     [at(C1, "20261001-1000-commit-aaaa")]: record({ commit: C1, rows: [["TST-001", "unit", "passed", ""], ["TST-002", "unit", "passed", ""]] }),
     [at(C2, "20261002-1000-commit-bbbb")]: record({ commit: C2, rows: [["TST-001", "unit", "failed", ""]] }),
     [at(C3, "20261003-1000-commit-cccc")]: record({ commit: C3, rows: [["TST-001", "unit", "passed", ""]] }),
+    [at(C4, "20261004-1000-commit-dddd")]: record({ commit: C4, rows: [["TST-002", "unit", "passed", ""]] }),
   });
   const { commits } = await testHistory(snapshot, "TST-001", []);
   assert.deepEqual(commits.map((m) => [m.commit, m.outcome]), [[C1, "passed"], [C2, "failed"], [C3, "passed"]]);
