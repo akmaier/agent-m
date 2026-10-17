@@ -25,9 +25,11 @@
 // F5 beside a process requirement's gate (`renderPanels`'s requirementsPanel); F6 at a role's missing-capability link
 // (`roleInfo`).
 //
-// Not part of this item: the comparison of two versions of the declared model when the catalogue's version differs from
-// the one the declaration names (UC-031 6a) — this route always reads the catalogue at the instance's current commit —,
-// and how the dashboard reaches this route.
+// ITM-780 (UC-031 6a): when the catalogue as it stands holds another version of the declared model than the commit the
+// declaration's `model_version` names — the two `version`s differ —, `versionChange` shows, before *Save* names the new
+// commit, the workflows under each version side by side, the difference of the two model files, and what becomes invalid
+// (`declarationFindings` of the declaration as it would be saved, `roleAssignmentFindings` against the new workflow). The
+// product keeps the version it declared: nothing is written. Not part of this item: how the dashboard reaches this route.
 //
 // Module: MOD-implementation-pages
 
@@ -35,12 +37,16 @@ import { explain, schemaForm } from "../site-frame/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
-import { declarationSchema, declarationFindings, workflowOf } from "../product-process/index.mjs";
+import { declarationSchema, declarationFindings, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
+import { sourceSchemas } from "../source-register/index.mjs";
+import { showDifference } from "../markdown-render/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 
 const DECLARATION_PATH = "docs/process.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
 const SPEC_PATH = "SPEC.md";
+const SOURCES_PATH = "docs/sources.md";
+const ASSIGNMENT_FILE = /^docs\/role-assignments\/([^/]+)\.md$/;
 
 // F1 (UC-002 step 1): whether this module has already rendered the process-vs-rules table once before. A plain
 // module-level flag — in memory for this page's lifetime only, never written to the browser's storage, so it is no
@@ -147,6 +153,10 @@ export const route = {
     const page = el("article", "process-page");
     target.append(page);
 
+    // UC-031 6a: the declared model under the version the declaration names, beside the one as it stands.
+    const change = declaredModel ? await versionChange() : null;
+    if (change) page.append(change);
+
     // F1 (step 1): the process-vs-rules table (explain's own "process-model" topic) unfolded this module's first
     // render, folded at every later one — `shownBefore`, in memory only.
     const processVsRules = explain("process-model");
@@ -206,6 +216,64 @@ export const route = {
     form.append(notice);
     const extra = el("div", "workflow-extra");
     form.append(extra);
+
+    // The section that shows what the model's new version changes, or null where the declaration names no version or the
+    // model's file is the same at that commit and now.
+    async function versionChange() {
+      const declaredCommit = String(openedDeclaration.fields.model_version ?? "");
+      if (!declaredCommit) return null;
+      let declaredSnapshot;
+      try {
+        declaredSnapshot = await instance.host.readSnapshot(declaredCommit);
+      } catch (e) {
+        // The commit the declaration names cannot be read: the page stands as for an unchanged model, with this one line.
+        return el("p", "warn", `The version the declaration names, commit ${declaredCommit}, cannot be read: ${e?.message ?? String(e)}`);
+      }
+      const before = modelAt((await catalogue(declaredSnapshot)).models, declaredModel.path);
+      if (!before || before.version === declaredModel.version) return null;
+
+      const workflowAt = async (snapshot, catalogueAt, model) => {
+        const names = workflowOf(openedDeclaration, model, [], instanceSpec).practices;
+        const practices = (await Promise.all(catalogueAt.practices.filter((practice) => names.includes(practice.name)).map(async (practice) => {
+          const text = await snapshot.read(practice.path);
+          return text != null ? readDocument(modelSchema.practice, practice.path, text) : null;
+        }))).filter(Boolean);
+        return workflowOf(openedDeclaration, model, practices, instanceSpec);
+      };
+      const workflowBefore = await workflowAt(declaredSnapshot, await catalogue(declaredSnapshot), before);
+      const workflowNow = await workflowAt(instanceSnapshot, cat, declaredModel);
+      const side = (className, label, workflow) => el("div", className, el("h4", null, label),
+        el("ul", "phases", ...workflow.phases.map((phase) =>
+          el("li", null, `${phase.name} (${phase.roles.join(", ")}) → ${phase.produces.join(", ")}`))),
+        el("ul", "gates", ...workflow.gates.filter((gate) => !gate.addedBy).map((gate) =>
+          el("li", null, `${gate.name}: ${gate.artifacts} — ${gate.condition} — decided by ${gate.decider}`))),
+        el("ul", "roles", ...workflow.roles.map((role) => el("li", null, `${role.name} (${role.filledBy})`))));
+
+      const [textBefore, textNow] = await Promise.all([declaredSnapshot.read(before.path), instanceSnapshot.read(declaredModel.path)]);
+      const wouldBeSaved = { ...openedDeclaration, fields: { ...openedDeclaration.fields, model_version: instanceSnapshot.commit } };
+      const declarationProblems = declarationFindings(wouldBeSaved, cat, participants, instanceSpec);
+
+      const { entry: entrySchema, links: linksSchema } = sourceSchemas();
+      const sourcesText = await productSnapshot.read(SOURCES_PATH);
+      const linked = sourcesText != null ? readDocument(linksSchema, SOURCES_PATH, sourcesText).sections[0]?.rows ?? [] : [];
+      const sources = (await Promise.all(linked.map(async ({ cells }) => {
+        const path = `docs/sources/${cells.Source}.md`;
+        const entry = await instanceSnapshot.read(path);
+        return entry != null ? readDocument(entrySchema, path, entry) : null;
+      }))).filter(Boolean);
+      const assignments = await Promise.all(productSnapshot.paths.filter((path) => ASSIGNMENT_FILE.test(path)).sort()
+        .map(async (path) => readDocument(roleAssignmentSchema, path, await productSnapshot.read(path))));
+      const assignmentProblems = roleAssignmentFindings(assignments, workflowNow, participants, sources);
+
+      const listed = (className, findings) => el("ul", className, ...findings.map((finding) =>
+        el("li", null, `${finding.kind}: ${finding.what}`)));
+      const difference = el("div", "version-difference", showDifference(textBefore ?? "", textNow ?? ""));
+      return el("section", "version-change", el("h3", null, `${declaredModel.name} has a new version`),
+        el("div", "version-workflows", side("version-before", "As declared", workflowBefore), side("version-after", "As it stands", workflowNow)),
+        difference,
+        el("h4", null, "What becomes invalid"),
+        listed("version-declaration-findings", declarationProblems), listed("version-assignment-findings", assignmentProblems));
+    }
 
     function modelCard(model) {
       const card = el("div", "model-card",
