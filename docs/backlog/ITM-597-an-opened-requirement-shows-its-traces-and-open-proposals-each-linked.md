@@ -41,6 +41,21 @@ UC-020 step 5 (traces and proposals), step 6 (links), 2b, 5a, 5b and 5c. `traces
 - **At a tag,** open proposals are hidden (UC-020 1a).
 - **Reachable:** the live `#spec`.
 
+**Settled at sprint team1/65's start**, in addition to the readings above:
+- **ITM-594 is merged** (#686), so nothing holds it.
+- **The graph is read when a requirement is opened, not when the tree is drawn.** `traceGraph(snapshot)` takes the
+  version's snapshot as its `TextSource`, which reads through `readMany` in batches (MOD-trace-graph, Interfaces). It
+  is built once per drawn version and kept for every later opening. So drawing `#spec` costs no more requests than it
+  does today, which is the concern of ITM-574.
+- **Measurement** (sprint 59): the pull request states the requests of drawing `#spec` and of opening one requirement,
+  counted by the fetch spy on the base and on the head. Drawing must not grow.
+- **The expected results that change** (sprint 64): the developer runs MOD-trace-pages' and MOD-trace-graph's tests,
+  release tests included, on a draft of the change, and lists every test whose expected result changes before the
+  tests-only commit. Among the tests that will change are the `tracesTo` tests, whose lists are empty today
+  (`tests/trace-graph-*.test.mjs`).
+- **The SPEC queue `2026-10-17c`** names `tests/trace-pages-specification.test.mjs` as the Check of the two
+  requirements, and the item's tests there guard them by name.
+
 ## Acceptance
 
 - The opened requirement lists, each as a link: its sources with version and part, its use cases with their review status, the decisions, modules and tests that name it, and its open proposals.

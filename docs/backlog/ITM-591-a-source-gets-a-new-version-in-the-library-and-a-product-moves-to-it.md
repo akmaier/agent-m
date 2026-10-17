@@ -31,6 +31,21 @@ UC-016 steps 1, 3, 4 and 5, with 4a and 1a, on the page; its second postconditio
   Uses.
 - **Reached** as ITM-590 reads it.
 
+**Read at sprint team1/65's start: it waits for akmaier's acceptance of the draft committed with that start.**
+- ITM-590 is merged (#684), so ITM-590 no longer holds it.
+- *Move* lists "the changed passages". `changedPassages(before, after)` needs the two versions' texts, and only
+  MOD-source-register's `readContent` gives a version's content. MOD-settings-pages' Uses do not name `readContent`.
+  The grep's known positive is `readContent` in MOD-source-register's file at :36 and :166.
+- So the draft adds `MOD-source-register.readContent` to MOD-settings-pages' Uses, for the passages *Move* lists.
+- The rest is read for its start:
+  - *+ New version* goes through `versionCommits`, committed through the module's own `commitTo`.
+  - `SameBytes` is the refusal.
+  - UC-004 1a's text at `library.mjs:241` becomes an offer.
+  - The products are those this browser keeps, each read through its host.
+  - *Move* writes through ITM-590's `sources.mjs`.
+  - A file that is only hashed waits for ITM-576.
+  - `affectedRequirements` is called as it stands until ITM-637.
+
 ## Acceptance
 
 - *+ New version* is refused when its bytes equal an existing version's.
