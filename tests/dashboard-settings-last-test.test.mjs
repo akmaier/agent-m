@@ -231,10 +231,10 @@ test("UC-042 step 1 · 1b: a token GitHub refused at its last use is shown refus
   const again = await settingsPage(world, agentEntries());
   assert.match(repositoryControl(again.box, "status").textContent, /Refused/, "after the reload");
   const banner = again.page.el("token-banner");
-  assert.ok(banner.includes("<strong>GitHub rejected authentication with your GitHub token.</strong>"));
-  assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "with Renew");
+  assert.ok(banner.includes("The server refused your token GitHub token."), "the refused token is named");
+  assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "with Renew");
   await again.page.go("#uc");
-  assert.ok(again.page.el("token-banner").includes("GitHub rejected authentication with your GitHub token"), "on every page");
+  assert.ok(again.page.el("token-banner").includes("The server refused your token GitHub token."), "on every page");
 });
 
 // TST-475209 · level: component · module: MOD-settings-pages
@@ -254,8 +254,8 @@ test("TST-475209: a genuine 401 keeps named recovery without an invented cause o
   const assertBanner = (banner) => {
     assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens"'), "the existing renewal URL stays reachable");
     assert.ok(banner.includes("GitHub token"), "the rejected token stays identified");
-    assert.ok(banner.includes("<strong>GitHub rejected authentication with your GitHub token.</strong>"), "failure node: the actual banner reports rejection without asserting its cause");
-    assert.doesNotMatch(/<strong>([^]*?)<\/strong>/.exec(banner)?.[1] ?? "", /expired|expiry|regenerat|delet|rotat|revok/i);
+    assert.ok(banner.includes("The server refused your token GitHub token."), "failure node: the actual banner reports rejection without asserting its cause");
+    assert.doesNotMatch(/<p class="notice token-refused">([^<]*)/.exec(banner)?.[1] ?? "", /expired|expiry|regenerat|delet|rotat|revok/i);
   };
   assertBanner(page.el("token-banner"));
   const again = await reload(world);
