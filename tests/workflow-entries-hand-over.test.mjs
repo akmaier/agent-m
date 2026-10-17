@@ -153,7 +153,8 @@ function fakeGitHub(world = null) {
       const ref = url.searchParams.get("sha");
       requests.histories.push({ ref, path: url.searchParams.get("path"), perPage: url.searchParams.get("per_page"), page: url.searchParams.get("page") });
       if (pushed && ((plan.failHistory === "branch" && ref === pushed.commit) || (plan.failHistory === "base" && ref === pushed.base))) {
-        return new Response(JSON.stringify({ message: `fixture history unavailable: ${TASK} ${KEY} ${TOKEN}` }), { status: 503 });
+        const message = `fixture history unavailable: ${TASK} ${KEY} ${TOKEN}`;
+        return new Response(JSON.stringify({ message }), { status: 503, statusText: message });
       }
       const commits = git(world.root, "--git-dir", world.product, "log", "--format=%H", ref).split("\n");
       const perPage = Number(url.searchParams.get("per_page")), page = Number(url.searchParams.get("page"));
