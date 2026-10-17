@@ -6,6 +6,7 @@ realises:
   - CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT
 modules:
   - MOD-settings-pages
+  - MOD-site-frame
 builds_on:
   - ITM-683
   - ITM-811
