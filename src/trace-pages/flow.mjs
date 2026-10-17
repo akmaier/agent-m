@@ -8,7 +8,8 @@
 // it says so when there are none (7a) and says which kinds of artifact the version does not hold (7b), and a requirement or use case in a list
 // opens as it read in that version. The graph of one version is built once and kept, in memory, for every page drawn at it while the page of the frame
 // stays loaded. It writes nothing. On the default branch the specification leads to the review pages' editing: Edit beside each requirement and
-// + Requirement in each section; at any other ref the view says "as of" it and offers neither.
+// + Requirement in each section; at any other ref the view says "as of" it and offers neither. Beside the choice a link leads from the specification to the gaps
+// and from the gaps back to the specification, at the ref shown (UC-020 step 7); it reads nothing.
 //
 // Module: MOD-trace-pages
 
@@ -332,7 +333,7 @@ async function tagsOf(host) {
 }
 
 // The choice above the tree: the ref the caller handed, then the tags; the one shown is selected. Without a tag only the handed ref is offered.
-function versionChoice({ shown, handed, current, tags, choose }) {
+function versionChoice({ shown, handed, current, tags, choose, other }) {
   const select = el("select", "version-choice");
   select.setAttribute("aria-label", "Version");
   for (const [value, text] of [[handed, current ? "current" : handed], ...tags.filter((tag) => tag !== handed).map((tag) => [tag, tag])]) {
@@ -343,10 +344,19 @@ function versionChoice({ shown, handed, current, tags, choose }) {
   select.value = shown.ref;
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
+  const across = el("a", `${other.className} btn small`, other.text);
+  across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
+  choice.append(across);
   if (!tags.length) choice.append(el("p", "version-none", "No release is tagged yet (UC-013); only the current text can be shown."));
   if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
   return choice;
 }
+
+// The view each of the two leads to, beside its version choice: the specification to the gaps, and the gaps back to the specification, at the ref shown.
+const OTHER = {
+  specification: { key: "gaps", text: "Gaps", className: "trace-gaps-link" },
+  gaps: { key: "specification", text: "Specification", className: "trace-specification-link" },
+};
 
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
@@ -400,7 +410,7 @@ export const route = {
       }
       if (mine !== latest) return;
       if (!chosen) current = shown.onDefaultBranch;
-      target.replaceChildren(versionChoice({ shown, handed, current, tags, choose: (next) => draw(next, true) }), body);
+      target.replaceChildren(versionChoice({ shown, handed, current, tags, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
       if (fill) await fill();
     };
     await draw(handed, false);

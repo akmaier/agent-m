@@ -22,7 +22,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { doc, document, find, treeHost, until } from "./trace-pages-harness.mjs";
+import { addressParts, doc, document, find, treeHost, until } from "./trace-pages-harness.mjs";
 
 const { view } = await import("../src/trace-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "trace");
@@ -305,4 +305,49 @@ test("a view the route does not draw reads nothing and says so", async () => {
   const target = await render(productHost, { key: "modules", ref: "main" });
   assert.equal(target.textContent, "No current requirements are recorded in SPEC.md.");
   assert.deepEqual(productHost.log.snapshots, []);
+});
+
+// The way between the specification and the gaps (ITM-668): the gaps view leads back to the specification "the same way", an anchor in the frame's address form beside the version
+// choice, `#trace/key=specification/ref=<the ref shown, encoded>`; the specification's Gaps link is `#trace/key=gaps/ref=<the ref shown, encoded>`.
+const linksOf = (target, className) => find(target, (node) => node.localName === "a" && node.className.split(/\s+/).includes(className));
+
+// CASE ITM-668-06
+// TST-668006 · level: component · module: MOD-trace-pages
+// guards: UC-020
+// given: the fixture product at main, the default branch, and the tag v2026.1.0
+// input: the gaps rendered at main; v2026.1.0 chosen
+// expect: at main one link back, text "Specification", href "#trace/key=specification/ref=main", and no Gaps link; after the choice the one link back has the href "#trace/key=specification/ref=v2026.1.0"
+test("the gaps view leads back to the specification at the version it shows", async () => {
+  const target = await render(hostOf());
+  assert.deepEqual(linksOf(target, "trace-specification-link").map((node) => [node.textContent, node.getAttribute("href")]), [["Specification", "#trace/key=specification/ref=main"]]);
+  assert.equal(linksOf(target, "trace-gaps-link").length, 0);
+  choose(target, "v2026.1.0");
+  await until(() => asOf(target).length === 1 && reading(target) === 0);
+  assert.deepEqual(linksOf(target, "trace-specification-link").map((node) => node.getAttribute("href")), ["#trace/key=specification/ref=v2026.1.0"]);
+});
+
+// CASE ITM-668-07
+// TST-668007 · level: component · module: MOD-trace-pages
+// guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
+// given: a Host whose main holds a SPEC of one requirement ALPHA RULE and the use case UC-001 realising it, and counts every snapshot, read and readMany
+// input: the specification rendered at main; then the address of its Gaps link followed, as the frame does: the route "trace" rendered with the key and the ref the link names, with the same Host
+// expect: after the specification: snapshots [main], reads [SPEC.md], no readMany. After following the link: snapshots [main, main], reads [SPEC.md, SPEC.md, SPEC.md, UC-001's file] and one readMany of [SPEC.md, UC-001's file] — the gaps alone read SPEC.md twice, UC-001's file once and make that one readMany, so the specification and the link added the specification's own snapshot and read and nothing else
+test("showing the link reads nothing, and following it adds only the graph the gaps view builds itself", async () => {
+  const UC_FILE = "docs/use-cases/UC-001-first.md";
+  const files = {
+    "SPEC.md": ["# F", "", "## S", "", "**ALPHA RULE** *(Vibe Coding)*", "Alpha rule.", "*Check:* at review.", ""].join("\n"),
+    [UC_FILE]: doc("UC-001", "First", { realises: ["ALPHA RULE"] }),
+  };
+  const productHost = treeHost({ trees: { main: files } });
+  const context = { product: { address: ADDRESS, host: productHost } };
+  const target = await render(productHost, { key: "specification", ref: "main" }, context);
+  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys], [["main"], ["SPEC.md"], []]);
+  const link = linksOf(target, "trace-gaps-link");
+  assert.equal(link.length, 1, "known positive: the Gaps link is there");
+  const { route: name, params } = addressParts(link[0].getAttribute("href"));
+  assert.equal(name, "trace");
+  const followed = await render(productHost, params, context);
+  assert.deepEqual(titles(followed), ["Requirements realised by no use case", "Use cases that realise no requirement", "Unknown names"], "known positive: the gaps were drawn, without the lists of the kinds this version lacks");
+  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys],
+    [["main", "main"], ["SPEC.md", "SPEC.md", "SPEC.md", UC_FILE], [["SPEC.md", UC_FILE]]]);
 });

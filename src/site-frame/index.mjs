@@ -102,19 +102,21 @@ function topicsOf(text) {
 }
 
 /**
- * explain(topic: string) -> Element — the folded "What is this?" of a topic (EVERY STEP EXPLAINS ITSELF): a <details
- * class="explain">, folded, holding the summary "What is this?" and the topic's Markdown from explanations.md, rendered by
- * MOD-markdown-render's renderArtifact. It never throws: for a topic the file does not hold it returns an empty element.
+ * explain(topic: string, label?: string) -> Element — the folded explanation of a topic (EVERY STEP EXPLAINS ITSELF): a <details
+ * class="explain">, folded, holding the summary — "What is this?", or the label a use case names for it, such as "Why these?" — and
+ * the topic's Markdown from explanations.md, rendered by MOD-markdown-render's renderArtifact. It never throws: for a topic the file
+ * does not hold it returns an empty element.
  * @param {string} topic — a lower-case slug, as a heading of explanations.md names it
+ * @param {string} [label] — the summary; "What is this?" without one
  * @returns {Element}
  */
-export function explain(topic) {
+export function explain(topic, label = "What is this?") {
   const text = TOPICS.get(topic);
   if (text === undefined) return document.createElement("div");
   const folded = document.createElement("details");
   folded.className = "explain";
   const summary = document.createElement("summary");
-  summary.textContent = "What is this?";
+  summary.textContent = label;
   folded.append(summary, renderArtifact(text));
   return folded;
 }

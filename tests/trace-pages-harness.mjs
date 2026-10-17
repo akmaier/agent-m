@@ -100,7 +100,13 @@ export function find(root, match) { const found = []; (function walk(node) { for
 // Polls until `done()` holds, at most `ms` by the clock.
 export async function until(done, ms = 2000) { const end = Date.now() + ms; while (!done() && Date.now() < end) await new Promise((resolve) => setTimeout(resolve, 1)); }
 
-export const blobOf = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0${text}`).digest("hex");
+// The route name and the parts of an address in the form the frame reads: `#route/key=value/key=value`, each part decoded.
+export function addressParts(href) {
+  const [route, ...parts] = String(href).replace(/^#/, "").split("/");
+  return { route, params: Object.fromEntries(parts.map((part) => { const at = part.indexOf("="); return [decodeURIComponent(part.slice(0, at)), decodeURIComponent(part.slice(at + 1))]; })) };
+}
+
+export const blobOf =(text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0${text}`).digest("hex");
 export function doc(id, title, keys = {}, body = "") {
   const lines = ["---", `id: ${id}`, `title: ${title}`];
   for (const [key, values] of Object.entries(keys)) lines.push(Array.isArray(values) ? `${key}:\n${values.map((value) => `  - ${value}`).join("\n")}` : `${key}: ${values}`);

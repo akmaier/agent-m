@@ -89,24 +89,25 @@ test("setup — Step A links GitHub's prefilled token page and spells out Only s
 // guards: UC-014 steps 7 and 8; EVERY STEP EXPLAINS ITSELF
 // given: a fresh store; the instance akmaier/agent-m; known positive — explain("repository") is a folded details of class explain
 // input: render the route `setup`; read the folded explanations
-// expect: exactly two <details class="explain">, both folded, one in each step, none built by the route: Step A's has the structure and the text of explain("setup-key"), Step B's of explain("setup-store"); each of the two topics is a non-empty folded details of the frame
-test("setup — each step carries the frame's folded What is this? for its topic, Step A setup-key and Step B setup-store", async () => {
+// expect: exactly three <details class="explain">, all folded, none built by the route. Step A holds two, in this order: first the frame's explain("setup-key") under the summary "What is this?", then the frame's explain("setup-key-permissions", "Why these?") under the summary "Why these?". Step B holds one: the frame's explain("setup-store") under the summary "What is this?". Each of the three topics is a non-empty folded details of the frame
+test("setup — Step A carries the frame's What is this? for setup-key and its Why these? for setup-key-permissions, Step B the What is this? for setup-store", async () => {
   assert.equal(explain("repository").localName, "details", "known positive: the frame gives a folded explanation for a topic it holds");
-  for (const topic of ["setup-key", "setup-store"]) {
+  for (const topic of ["setup-key", "setup-key-permissions", "setup-store"]) {
     const given = explain(topic);
     assert.equal(given.localName, "details", `the frame holds the topic ${topic}`);
     assert.ok(given.textContent.length > "What is this?".length, `the topic ${topic} has a body`);
   }
   const { target } = await open();
   const folded = byTag(target, "details");
-  assert.equal(folded.length, 2, "one in each step");
+  assert.equal(folded.length, 3, "two in Step A, one in Step B");
   const [a, b] = ["Step A", "Step B"].map((prefix) => byTag(stepTitled(target, prefix), "details"));
-  assert.deepEqual([a.length, b.length], [1, 1]);
-  for (const [found, topic] of [[a[0], "setup-key"], [b[0], "setup-store"]]) {
-    const given = explain(topic);
+  assert.deepEqual([a.length, b.length], [2, 1]);
+  const expected = [[a[0], "setup-key", "What is this?"], [a[1], "setup-key-permissions", "Why these?"], [b[0], "setup-store", "What is this?"]];
+  for (const [found, topic, label] of expected) {
+    const given = explain(topic, label);
     assert.equal(found.className, "explain");
     assert.equal(found.hasAttribute("open"), false, "folded");
-    assert.equal(byTag(found, "summary")[0].textContent, "What is this?");
+    assert.equal(byTag(found, "summary")[0].textContent, label, `the fold of ${topic} reads ${label}`);
     assert.equal(found.innerHTML, given.innerHTML, `it is the frame's explanation of ${topic}`);
   }
 });

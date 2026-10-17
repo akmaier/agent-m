@@ -7,7 +7,8 @@
 // test of an earlier token, and reads the instance with the new one through MOD-repository-hosts (the page says first where the token goes). The
 // instance is shown ready only when that read succeeds. Import settings, beside Store and check, goes to the route `settings`, where an export is
 // imported (SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS). Each step carries its folded "What is this?" (EVERY STEP EXPLAINS ITSELF),
-// MOD-site-frame's explain of the topics setup-key (Step A) and setup-store (Step B), whose texts are in its explanations.md.
+// MOD-site-frame's explain of the topics setup-key (Step A) and setup-store (Step B), and Step A a folded "Why these?" of its permissions
+// (UC-014 step 7), explain("setup-key-permissions", "Why these?"); the texts are in its explanations.md.
 //
 // Module: MOD-settings-pages
 //
@@ -48,7 +49,7 @@ function stepA(repository, link) {
     el("p", null, anchor),
     el("p", null, "On that page:"),
     el("ol", "choices", ...repositoryChoiceSteps(repository).map((text) => el("li", null, text))),
-    explain("setup-key"));
+    explain("setup-key"), explain("setup-key-permissions", "Why these?"));
 }
 
 export const route = {
