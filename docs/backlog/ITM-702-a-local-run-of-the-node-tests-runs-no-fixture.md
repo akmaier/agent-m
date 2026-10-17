@@ -29,3 +29,8 @@ two readers.
 
 - `node --test tests/` runs no file below `tests/fixtures/`, and both readers find the fixture as before.
 - It is declared as refactoring: CI is green on every commit.
+
+**Read at sprint team1/71's start: it waits.** Its two readers, `tests/artifacts-checks.test.mjs` and `tests/test_groups.py`,
+are tests outside the architecture. Under `CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`, they are changed only by the
+modules whose files name them as taken over: MOD-documents and MOD-group-document, in the plan's drafts (`d59fd443`). So
+this item waits for akmaier's acceptance of those drafts, and then goes with ITM-695.

@@ -26,6 +26,12 @@ with the label dropped, so it does not check the label the use case names. The s
 naming the permissions reads *Why these?*. A participant who builds none of ITM-628 changes it
 (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`).
 
+**Settled at sprint team1/71's start. Selectable.**
+- It changes `tests/release-uc-014-setup-route.test.mjs` alone. Its header names MOD-settings-pages.
+- It is written by developer-sonnet-b, who wrote ITM-679 and builds none of ITM-628.
+- **Sprint 70's agreement:** the whole release file is run on the draft, and every changed case is named.
+- **Reads:** none.
+
 ## Acceptance
 
 - The subtest fails when Step A's permissions fold reads anything but *Why these?*, and passes on ITM-628's code.

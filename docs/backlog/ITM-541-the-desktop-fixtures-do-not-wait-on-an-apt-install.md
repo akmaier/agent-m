@@ -33,6 +33,16 @@ The same install in tests of other modules — `tests/dashboard-backlog-layout.t
 `tests/release-itm-290-public-settings-layout.test.mjs` — is theirs, and is mended in the same way when one of them meets
 the wait. No expected result changes.
 
+**Settled at sprint team1/71's start. Selectable.** Its readings above hold. The fix stays in MOD-desktop-shell's own two
+test files, and no workflow changes.
+- **Reads:** none.
+- **The measurement** is the fixture itself: its install retries and is bounded by 60 seconds, within the job's two
+  minutes.
+- **Sprints 68 and 70:** a release test among the changed tests stops the developer, who reports it, and the whole release
+  file is run on the draft.
+- **Sprints 64 to 67:** the draft run lists the changed tests; one action per shell command; DOM assertions compare
+  booleans or strings; no refusal is worked around; a header the item touches loses its item history.
+
 ## Acceptance
 
 - The tests that need Openbox no longer fail on a slow mirror, and no expected result changes.

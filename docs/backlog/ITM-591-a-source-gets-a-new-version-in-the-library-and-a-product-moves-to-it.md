@@ -46,6 +46,22 @@ UC-016 steps 1, 3, 4 and 5, with 4a and 1a, on the page; its second postconditio
   - A file that is only hashed waits for ITM-576.
   - `affectedRequirements` is called as it stands until ITM-637.
 
+**Settled at sprint team1/71's start, now that `readContent` is in MOD-settings-pages' accepted Uses (`b43da779`).
+Selectable.** The readings above hold. Since ITM-576, *+ New version* also asks for a hashed-only file's note.
+- **Reads, against the token budget** (sprints 66 and 69):
+  - Opening `library/<source>` lists the products on older versions. It reads each kept product's `docs/sources.md`:
+    one snapshot (two requests) and one read per product.
+  - *Move* reads the two versions' contents through `readContent`, on a click.
+  - **The measurement asked** (sprint 67): a committed test counting the requests of opening the page with two kept
+    products, and of one *Move*.
+- **Error fields:** `SameBytes { version }` and `NoteMissing { file }` carry no field that collides with `failure`'s
+  spread.
+- **Release tests:** none of UC-016 exists (ITM-639 is UC-015's). The draft run stops at any release test it changes.
+- **Sprints 68 and 70:** a release test among the changed tests stops the developer, who reports it, and the whole release
+  file is run on the draft.
+- **Sprints 64 to 67:** the draft run lists the changed tests; one action per shell command; DOM assertions compare
+  booleans or strings; no refusal is worked around; a header the item touches loses its item history.
+
 ## Acceptance
 
 - *+ New version* is refused when its bytes equal an existing version's.
