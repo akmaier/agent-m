@@ -154,19 +154,21 @@ test("a graph that cannot be read is named in place of the diagram", async () =>
   assert.deepEqual(drawn.texts, []);
 });
 
-// CASE ITM-720-05
+// CASE ITM-720-05, changed by ITM-680 (the PO's ruling "ITM-680's #arc reads": the modules view builds the diagram from the module files alone, so it no longer
+// shares the graph of a version with the gaps view)
 // TST-720005 · level: component · module: MOD-trace-pages
-// guards: UC-025; THE TRACEABILITY MATRIX IS DERIVED
+// guards: UC-025; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for main, whose snapshots count every readMany
 // input: the modules view rendered at main; then the gaps view at main with the same Host
-// expect: readMany has been told the paths of the graph once after the modules view and still once after the gaps — the graph of a version is the same for the pages
-test("the modules view and the gaps share the graph of a version", async () => {
+// expect: after the modules view readMany has been told the paths of the four module files, once and nothing else (no code and no test file); the gaps view then tells it the paths of the graph once more
+test("the modules view reads the module files in one batch; the gaps view reads the graph in another", async () => {
   const productHost = hostOf();
   await render(productHost);
   assert.equal(productHost.log.manys.length, 1);
+  assert.deepEqual([...productHost.log.manys[0]].sort(), Object.keys(FILES).filter((path) => path.startsWith("docs/architecture/MOD-")).sort(), "the module files and no other");
   const { target } = await render(productHost, { key: "gaps", ref: "main" });
   assert.ok(find(target, (node) => node.className === "gaps-body").length === 1, "known positive: the gaps were drawn");
-  assert.equal(productHost.log.manys.length, 1);
+  assert.equal(productHost.log.manys.length, 2);
 });
 
 // CASE ITM-720-06
