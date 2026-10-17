@@ -4,7 +4,7 @@
 // runner, runtime routes and artifact edits.
 // Run: node --test tests/system-uc-019-change-by-prompt.test.mjs
 //
-// Module: MOD-review-pages; MOD-artifact-edits; MOD-runtimes
+// Module: MOD-review-pages; MOD-prompt-bar; MOD-artifact-edits; MOD-runtimes
 // Guards: UC-019
 // Level: system
 //
@@ -15,7 +15,7 @@
 // - a todo test below, or in the release file named - that fails now and names what the code does instead. The findings:
 // the participants offered (UC019-S9) and the count of requirements and use cases when a context is too small (UC019-S10).
 //
-// The page, the servers and the person's actions are the harness of tests/system-uc-019-change-requirements-by-prompt.test.mjs: the real
+// The page, the servers and the person's actions are the harness of tests/uc-019-prompt-bar-harness.mjs: the real
 // MOD-site-frame, MOD-prompt-bar and MOD-review-pages over GitHub and a drafting endpoint served in memory; no request leaves the process.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an
 // architecture file. The flow map (TST-377001) takes the use case as its input and holds the expected passages itself.
@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { lineDiff } from "../src/text-tools/index.mjs";
 import { LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, goTo, keptDraft, messageLines, namedButton, onUseCase, one, press, recordTexts, rest, review, scenario,
-  send, sentText, statusOf, useCaseSection, useCases } from "./system-uc-019-change-requirements-by-prompt.test.mjs";
+  send, sentText, statusOf, useCaseSection, useCases } from "./uc-019-prompt-bar-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
@@ -33,6 +33,7 @@ const exists = (path) => existsSync(new URL(path, ROOT));
 const UC = "docs/use-cases/UC-019-change-a-specification-or-use-case-by-prompt.md";
 const SELF = "tests/system-uc-019-change-by-prompt.test.mjs";
 const REQUIREMENTS = "tests/system-uc-019-change-requirements-by-prompt.test.mjs";
+const HARNESS = "tests/uc-019-prompt-bar-harness.mjs";
 const RELEASE_REQUIREMENTS = "tests/release-uc-019-change-requirements-by-prompt.test.mjs";
 const DRAFT = "tests/review-pages-conversation-draft.test.mjs";
 const SUBJECT = "tests/trace-pages-subject.test.mjs";
@@ -173,7 +174,7 @@ test("TST-377001: UC-019 system coverage names the main flow and each required a
 // input: inspect their fixture boundaries
 // expect: the endpoint participant is a fixture behind a replaced fetch that refuses every other origin, and the Bridge path returns a draft from the Bridge
 test("TST-377002: UC-019 system evidence includes the fixture endpoint and Bridge routes", () => {
-  const harness = read(REQUIREMENTS);
+  const harness = read(HARNESS);
   assert.ok(harness.includes("globalThis.fetch = "), "the fetch is replaced");
   assert.ok(harness.includes("https://fixture-endpoint.example.test"), "the endpoint participant is a fixture");
   assert.ok(harness.includes("outside.push"), "a request to any other origin is recorded and refused");
