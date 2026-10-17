@@ -8,7 +8,7 @@
 // Guards: UC-001; UC-006; UC-008; UC-014; UC-042; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A TOKEN IS SCOPED TO WHAT IT WRITES; PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 // Level: release
 //
-// The real dashboard (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against fake GitHub and GitLab servers; no
+// The real dashboard (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against fake GitHub and GitLab servers; no
 // request leaves the process. Every case names, above it, the use-case flow or the SPEC rule it was written from and states its
 // expected result before it runs (SOFTWARE_MAINTENANCE.md §4.0a rule 1). A case that fails on the increment is a finding: it
 // stays here marked { todo } with the backlog item that will make it pass (ITM-141, *Kind and level*).
@@ -358,7 +358,9 @@ async function downloaded(page) {
   return Promise.all(page.asked.downloads.map(async (d) => ({ ...d, text: await resolveObjectURL(d.href).text() })));
 }
 
-const writesOf = (w) => w.log.filter((r) => r.method !== "GET");
+// A write is a request that is not a GET, except the batch of reads: a POST to GitHub's /graphql, which answers with file texts and changes nothing.
+const isBatchOfReads = (r) => r.method === "POST" && r.origin === API && new URL(r.url).pathname === "/graphql";
+const writesOf = (w) => w.log.filter((r) => r.method !== "GET" && !isBatchOfReads(r));
 const githubTokenSentOnlyToGitHub = (w) => w.log.filter((r) => r.auth).every((r) => r.origin === API);
 const gitlabTokenSentOnlyToItsProject = (w) => w.log.filter((r) => r.privateToken)
   .every((r) => r.url.startsWith(`${GL_ORIGIN}/api/v4/projects/${encodeURIComponent(GL_PROJECT)}`));
