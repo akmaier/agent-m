@@ -11,6 +11,9 @@ modules:
   - MOD-site-frame
   - MOD-trace-pages
   - MOD-settings-pages
+  - MOD-prompt-bar
+  - MOD-job-runner
+  - MOD-runtimes
 builds_on:
   - ITM-574
 tests:
