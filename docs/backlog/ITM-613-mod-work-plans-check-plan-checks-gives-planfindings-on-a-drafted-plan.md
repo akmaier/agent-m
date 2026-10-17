@@ -22,7 +22,18 @@ origin:
 The check `plan-checks` — `planFindings` on a drafted plan — and `planFindings` itself, as MOD-work-plans' file states them. `planFindings` is not built.
 It adds its strategy to `workStrategies`, which ITM-610 builds and registers, and changes no registration. With it, `draft-plan` comes closer to being prepared without `UnknownStrategy`.
 
-**Not ready for a sprint yet.** Its readings are settled before it is selected: the functions it calls are read against MOD-work-plans' Uses; the tests of every input and output form it changes are grepped; every path it builds is checked to be reachable through the real host.
+**It waits for a draft for akmaier**, read at sprint team1/61's start under sprint 60's agreement: a reading never
+follows another module's code; it names the interface.
+- `planFindings` as accepted names five checks. Two of them MOD-trace-graph's `graphFindings` already gives:
+  - "a plan step whose `tests` are not those of its `level`" (`A PLAN STEP NAMES THE TESTS OF ITS LEVEL`);
+  - "a cycle among the modules' uses" (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`).
+- MOD-work-plans' Uses do not name `graphFindings`, so building them here would keep both rules twice.
+- The draft, committed with sprint team1/61's start, has `planFindings` take those two from `graphFindings`. It runs
+  them on the graph of the product with the drafted steps in place, through a `TextSource`. It keeps the other three
+  checks of its own: a module, subsystem or system without a step; the order of the uses; a step without a phase.
+- The draft adds `MOD-trace-graph.graphFindings` and `TextSource` to MOD-work-plans' Uses.
+
+**Ready to be selected** once akmaier accepts the draft.
 
 ## Acceptance
 
