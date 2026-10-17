@@ -157,3 +157,15 @@ test("namedPersonFindings — a name that is an account passes; the same name wi
 test("namedPersonFindings — a text without a known name gives none", () => {
   assert.deepEqual(personal.namedPersonFindings("Nothing about anyone here.\n", "UC-900", people({ names: ["Ada Example"] }), null, []), []);
 });
+
+// TST-838013 · level: unit · module: MOD-personal-data
+// guards: A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
+// given: the collaborators document holds "Ada Example" with Agreed "no", "Bob Sample" with Agreed empty, and "Cy Invented" with Agreed "yes"
+// input: namedPersonFindings of a text naming all three on lines 1 to 3, the three as known names
+// expect: findings on lines 1 and 2 only; Cy Invented, who agreed, passes
+test("namedPersonFindings — a collaborator row whose Agreed is not yes does not let the name pass", () => {
+  const row = (Name, Agreed) => ({ cells: { Name, Account: "x", Agreed } });
+  const document = { sections: [{ rows: [row("Ada Example", "no"), row("Bob Sample", ""), row("Cy Invented", "yes")] }] };
+  const found = personal.namedPersonFindings("Ada Example\nBob Sample\nCy Invented\n", "UC-900", people({ names: ["Ada Example", "Bob Sample", "Cy Invented"] }), document, []);
+  assert.deepEqual(found.map((f) => f.line), [1, 2]);
+});

@@ -9,12 +9,12 @@ const plain = (text) => text.trim().replace(/^@/, "").toLowerCase();
 /**
  * namedPersonFindings(text, artifact, known: People, collaborators: Document | null, accounts: string[]) -> Finding[] — one error
  * for every occurrence in `text` of a name of `known` that is neither an account of `accounts` (whatever its case, with or without
- * a leading `@`) nor the Name of a row of the collaborators document; the finding names the artifact and the line.
+ * a leading `@`) nor the Name of a row whose Agreed is `yes`, of of the collaborators document; the finding names the artifact and the line.
  */
 export function namedPersonFindings(text, artifact, known, collaborators, accounts) {
   const passing = new Set([
     ...accounts.map(plain),
-    ...(collaborators?.sections ?? []).flatMap((section) => section.rows ?? []).map((row) => plain(row.cells.Name ?? "")),
+    ...(collaborators?.sections ?? []).flatMap((section) => section.rows ?? []).filter((row) => row.cells.Agreed === "yes").map((row) => plain(row.cells.Name ?? "")),
   ]);
   const unnamed = known.names.filter((name) => !passing.has(plain(name)));
   return personHits(text, { names: unnamed, addresses: [], phones: [], accounts: [] })
