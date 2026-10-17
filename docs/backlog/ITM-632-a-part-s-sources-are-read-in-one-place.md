@@ -64,3 +64,12 @@ the sources of a part, and listed.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
 **The draft it waited for is accepted** (akmaier, `b43da779`): MOD-job-runner's `sourcesOf` (accepted blob 7a7c5c8918aa). It is free of drafts; its readings are read at its start.
+
+**Folded in at the developer's preparation (2026-10-17, po-opus).** The JSDoc of `JobContext` in
+`src/job-runner/index.mjs:46` gives `places: { sources, mailbox }`. It omits `contents`, which MOD-job-runner's file
+gives `JobContext` (`MOD-job-runner.md:204`) and which `sourcesOf` reads. This item adds `contents` to the JSDoc, in the
+module it already changes. It is a comment, so no test changes for it.
+
+**Held (2026-10-17).** The auto-mode classifier denied the developer's first command, creating the item's branch, as
+"[Modify Shared Resources]". The developer stopped, as sprint 66's agreement asks. The item holds until akmaier answers
+the permission question.
