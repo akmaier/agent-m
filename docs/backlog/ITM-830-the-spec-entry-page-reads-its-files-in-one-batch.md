@@ -40,3 +40,19 @@ change named.
 - `#spec/<queue>/01` reads its files in one batch, with a token, and a committed test counts it.
 - No file is read twice, and no other route's count rises.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Decided at its draft stop (sprint team1/77, 2026-10-17, po-opus).**
+- **The counts are explained,** each with a stack probe. TST-479101's total falls from 21 to 20, and its "+2" is the size
+  of a new third query. TST-479104's fourth query is the entry page's batch, not `sourcesOf`.
+- **The named changes of the system test are accepted:**
+  - TST-479101: the queries name [2, 1, 2, 100×13, 31], no own GET, 17 queries, at most 20 requests;
+  - TST-479103: three files, 17 queries;
+  - TST-479104: four queries.
+
+  The total falls in each. They are fixed before the red, as sprint 56's agreement asks.
+- **The named changes of the release tests are accepted.** TST-479201 allows at most 17 queries, its 22-request bound
+  kept. TST-479202 allows 14 to 17. Each raises a query bound by one, while the requests fall. developer-sonnet-b makes
+  them on this item's branch, before the gate.
+- **The `readMany` in `sourcesOf` is dropped.** No test reaches it, and the entry page's own batch already holds the
+  register. A product's entry page, whose register is in the instance, is ITM-844, test first.
+- **The reading gap closes before the red commit:** AGENTS.md and SPEC.md as files, and chapters 9, 11, 12 and 13.
