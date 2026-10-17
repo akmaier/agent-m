@@ -45,4 +45,5 @@ UC-020 step 5 (traces and proposals), step 6 (links), 2b, 5a, 5b and 5c. `traces
 
 - The opened requirement lists, each as a link: its sources with version and part, its use cases with their review status, the decisions, modules and tests that name it, and its open proposals.
 - *none*, *none yet*, unknown names and stale proposals are shown as the use case says.
+- Its tests in `tests/trace-pages-specification.test.mjs` guard `A REQUIREMENT SHOWS WHAT TRACES TO IT` and `OPEN PROPOSALS ARE SHOWN IN THE BROWSER` by name (queue `2026-10-17c`).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

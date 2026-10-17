@@ -35,4 +35,5 @@ UC-020 step 5 (history) and 5d. `requirementHistory` is in MOD-spec-changes' fil
 
 - Every accepted change of a requirement's text is shown with its commit.
 - A requirement older than its records shows the commit that introduced it.
+- Its tests in `tests/trace-pages-specification.test.mjs` guard `A REQUIREMENT SHOWS ITS HISTORY` by name (queue `2026-10-17c`).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

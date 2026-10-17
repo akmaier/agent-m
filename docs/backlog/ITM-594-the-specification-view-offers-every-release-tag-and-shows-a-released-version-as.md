@@ -66,4 +66,5 @@ UC-020 steps 1, 1a and 1c. `src/trace-pages/flow.mjs:126-135` takes the ref from
 - The view offers the default branch and every release tag, newest first.
 - A tag is shown read-only, *as of* it, with open proposals hidden.
 - A product without tags is offered only *current*.
+- Its tests in `tests/trace-pages-specification.test.mjs` guard `THE BROWSER SHOWS ANY RELEASED VERSION` by name (queue `2026-10-17c`).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

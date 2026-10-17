@@ -19,6 +19,7 @@ uses:
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.listTags
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.repositoryInfo
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
   - MOD-spec-document.parseSpec
@@ -135,7 +136,9 @@ instance's host that the frame gives every route, it also reads the instance's p
   details, the component diagram, the comparison of versions.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.listTags,
   MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the release tags, a test's code
-  and a run's log on the server; for the audit, the instance at the commit the release's declaration names.
+  and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
+  MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
+  the instance's links are read for the person's own source.
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-spec-document.parseSpec, MOD-group-document.parseGroupFile,
   MOD-group-document.hierarchy, MOD-test-document.testDeclarations — the artifacts of the version.
 - MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
