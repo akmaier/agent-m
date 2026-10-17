@@ -241,3 +241,32 @@ test("saveEntry — the repository at the commit the edit was opened on is read 
   await saveEntry(withToken.host, EDIT(withToken.queue));
   assert.deepEqual(withToken.host.reads, ["main"]);
 });
+
+// TST-611015 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the setting of TST-611004 (a proposal that OPENED lacked), but the edit was opened on the commit of the snapshot the save reads, "h" repeated forty times
+// input: saveEntry without a token
+// expect: only "main" is read after the queue was made; both pages are GitHub's editor and differs is false for both, though OPENED lacked the proposal
+test("saveEntry — an edit opened on the commit the save already read reads no other snapshot", async () => {
+  const probe = await withQueue({ canWrite: false });
+  const f = await withQueue({ canWrite: false, opened: { lacking: [proposalPath(probe.queue)] } });
+  f.host.reads.length = 0;
+  const result = await saveEntry(f.host, EDIT(f.queue, { openedHead: "h".repeat(40) }));
+  assert.deepEqual(f.host.reads, ["main"]);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[proposalPath(f.queue), "alice/product/edit", false], [`${f.queue}/01-reading.begruendung.md`, "alice/product/edit", false]]);
+});
+
+// TST-611016 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the setting of TST-611004, but the edit was opened on no commit (null, an empty repository)
+// input: saveEntry without a token
+// expect: only "main" is read after the queue was made; no file existed when the edit began, so both pages are GitHub's new-file pages and differs is true for both
+test("saveEntry — an edit opened on no commit holds no file and reads no snapshot for it", async () => {
+  const f = await withQueue({ canWrite: false });
+  f.host.reads.length = 0;
+  const result = await saveEntry(f.host, EDIT(f.queue, { openedHead: null }));
+  assert.deepEqual(f.host.reads, ["main"]);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[proposalPath(f.queue), "alice/product/new", true], [`${f.queue}/01-reading.begruendung.md`, "alice/product/new", true]]);
+});

@@ -53,8 +53,9 @@ const WHY = "Because it is clearer.";
 // `moves`, once armed, makes the last reading of `paths` name the index of the queue as well: { at: <the number of the reading> }.
 function fakeHost(files = FILES) {
   const calls = [], tree = new Map(Object.entries(files)), head = createHash("sha1").update("commit 1").digest("hex");
-  const state = { armed: false, readings: 0, at: null, began: { lacking: [], extra: [] } };
-  const snapshot = (ref) => ({ repository: GITHUB, ref, commit: head, read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
+  const state = { armed: false, moves: false, readings: 0, at: null, began: { lacking: [], extra: [] } };
+  // `moves`, once armed, puts the default branch on another commit than the page opened on.
+  const snapshot = (ref) => ({ repository: GITHUB, ref, commit: state.armed && state.moves ? "m".repeat(40) : head, read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
     get paths() {
       const held = [...tree.keys()].sort();
       if (!state.armed) return held;
@@ -178,12 +179,13 @@ test("requirement/<name> — without a token a file that already differs is warn
 
 // TST-611006 · level: unit · module: MOD-review-pages
 // guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
-// given: the product of TST-592001, whose repository at the commit the editor was opened on held the index of the queue the edit starts, which the default branch no longer holds
+// given: the product of TST-592001, whose default branch has moved to another commit since the editor was opened, and whose repository at the commit it was opened on held the index of the queue the edit starts, which the default branch no longer holds
 // input: a click on Save
 // expect: the page of the index carries one warning that the file differs on the default branch, beside its text; no other page carries a warning
 test("requirement/<name> — without a token a file the default branch lost since the edit began is warned about on its page", async () => {
   const fake = fakeHost();
   fake.state.began.extra = [`${QUEUE}/index.md`];
+  fake.state.moves = true;
   const found = listed(await saveWithoutToken(fake));
   assert.deepEqual(found.filter((page) => page.warnings.length > 0).map((page) => page.path), [`${QUEUE}/index.md`]);
   assert.match(found.find((page) => page.path === `${QUEUE}/index.md`).warnings[0], /differs on the default branch/);

@@ -91,22 +91,25 @@ async function click(save, { token }) {
     globalThis.fetch = real;
   }
 }
-const section = (host) => proposeSection(host, { target: "SPEC.md", anchor: "## 1. Reading", until: null, text: READING_EDITED, why: "A reader needs to know why a file cannot be read.",
-  origin: "an issue of a reader", person: "alice", openedBlob: gitBlob(READING), openedHead: OPENED });
-const entry = (host) => saveEntry(host, { queue: QUEUE, entry: 1, text: READING_EDITED.replace("whole,", "whole;"), why: "A semicolon reads better.", person: "alice",
-  openedBlob: gitBlob(READING_EDITED), openedHead: OPENED });
+// The save of a section, or of the open entry, opened on the commit `openedHead` (OPENED, the default branch's HEAD, or null for an empty repository).
+const section = (openedHead = OPENED) => (host) => proposeSection(host, { target: "SPEC.md", anchor: "## 1. Reading", until: null, text: READING_EDITED, why: "A reader needs to know why a file cannot be read.",
+  origin: "an issue of a reader", person: "alice", openedBlob: gitBlob(READING), openedHead });
+const entry = (openedHead = OPENED) => (host) => saveEntry(host, { queue: QUEUE, entry: 1, text: READING_EDITED.replace("whole,", "whole;"), why: "A semicolon reads better.", person: "alice",
+  openedBlob: gitBlob(READING_EDITED), openedHead });
 const atOpened = (requests) => requests.filter((request) => request.includes(OPENED));
 
 // TST-611009 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 4a
 // given: the fake GitHub at two commits, OPENED the one the edit was opened on and HEAD the default branch's head; a section edited
 // input: one click, proposeSection, without a token and with one
-// expect: without a token GitHub's pages are returned and exactly two requests name OPENED — its commit and its tree; with a token a commit is made and no request names OPENED
+// expect: without a token GitHub's pages are returned; opened on OPENED, exactly two requests name OPENED — its commit and its tree — and the click sends 9 requests (proposeSection) or 11 (saveEntry); opened on HEAD, 7 or 9; with a token a commit is made and no request names OPENED
 test("proposeSection — a save without a token sends two requests at the commit the edit was opened on, a save with a token none", async () => {
-  const without = await click(section, { token: false });
+  const without = await click(section(), { token: false });
   assert.ok(Array.isArray(without.result.fallback), "known positive: the pages are returned");
   assert.deepEqual(atOpened(without.requests), [`GET https://api.github.com/repos/alice/product/commits/${OPENED}`, `GET https://api.github.com/repos/alice/product/git/trees/${OPENED}?recursive=1`]);
-  const withToken = await click(section, { token: true });
+  assert.equal(without.requests.length, 9, "an edit opened on an earlier commit: 7 and the 2 for that commit");
+  assert.equal((await click(section(HEAD), { token: false })).requests.length, 7, "an edit opened on the current head reads nothing more");
+  const withToken = await click(section(), { token: true });
   assert.equal(typeof withToken.result.commit, "string", "known positive: a commit is made");
   assert.deepEqual(atOpened(withToken.requests), []);
 });
@@ -115,12 +118,14 @@ test("proposeSection — a save without a token sends two requests at the commit
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 4a
 // given: the fake GitHub as in TST-611009, and an open entry
 // input: one click, saveEntry, without a token and with one
-// expect: without a token GitHub's pages are returned and exactly two requests name OPENED — its commit and its tree; with a token a commit is made and no request names OPENED
+// expect: without a token GitHub's pages are returned; opened on OPENED, exactly two requests name OPENED — its commit and its tree — and the click sends 9 requests (proposeSection) or 11 (saveEntry); opened on HEAD, 7 or 9; with a token a commit is made and no request names OPENED
 test("saveEntry — a save without a token sends two requests at the commit the edit was opened on, a save with a token none", async () => {
-  const without = await click(entry, { token: false });
+  const without = await click(entry(), { token: false });
   assert.ok(Array.isArray(without.result.fallback), "known positive: the pages are returned");
   assert.deepEqual(atOpened(without.requests), [`GET https://api.github.com/repos/alice/product/commits/${OPENED}`, `GET https://api.github.com/repos/alice/product/git/trees/${OPENED}?recursive=1`]);
-  const withToken = await click(entry, { token: true });
+  assert.equal(without.requests.length, 11, "an edit opened on an earlier commit: 9 and the 2 for that commit");
+  assert.equal((await click(entry(HEAD), { token: false })).requests.length, 9, "an edit opened on the current head reads nothing more");
+  const withToken = await click(entry(), { token: true });
   assert.equal(typeof withToken.result.commit, "string", "known positive: a commit is made");
   assert.deepEqual(atOpened(withToken.requests), []);
 });
@@ -128,9 +133,22 @@ test("saveEntry — a save without a token sends two requests at the commit the 
 // TST-611011 · level: unit · module: MOD-spec-changes
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
 // given: the fake GitHub as in TST-611009
-// input: one click each of proposeSection and saveEntry, without a token and with one
-// expect: without a token 9 requests for proposeSection and 11 for saveEntry — the 7 and 9 that the same fixture costs when no page is built from the commit the edit began on, and the 2 for that commit and its tree; with a token 13 and 15, as before
+// input: one click each of proposeSection and saveEntry, without a token for an edit opened on an earlier commit, on the current head and on no commit (null, an empty repository), and with a token
+// expect: without a token for an earlier commit 9 requests for proposeSection and 11 for saveEntry — the 7 and 9 of the edit opened on the current head, which reads nothing more, and the 2 for the earlier commit and its tree; for null 7 and 9, as nothing is read; with a token 13 and 15
 test("proposeSection and saveEntry — the requests of a whole click, without a token and with one", async () => {
-  const counts = async (token) => ({ section: (await click(section, { token })).requests.length, entry: (await click(entry, { token })).requests.length });
-  assert.deepEqual({ without: await counts(false), withToken: await counts(true) }, { without: { section: 9, entry: 11 }, withToken: { section: 13, entry: 15 } });
+  const counts = async (token, openedHead) => ({ section: (await click(section(openedHead), { token })).requests.length, entry: (await click(entry(openedHead), { token })).requests.length });
+  assert.deepEqual({ earlier: await counts(false, OPENED), current: await counts(false, HEAD), empty: await counts(false, null), withToken: await counts(true, OPENED) },
+    { earlier: { section: 9, entry: 11 }, current: { section: 7, entry: 9 }, empty: { section: 7, entry: 9 }, withToken: { section: 13, entry: 15 } });
+});
+
+// TST-611012 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the fake GitHub as in TST-611009, and an open entry; the edit opened on no commit (null, an empty repository)
+// input: one click, saveEntry, without a token
+// expect: no request names OPENED; both files of the entry did not exist when the edit began, so both pages are GitHub's new-file pages and differs is true for both, since both exist on the default branch
+test("saveEntry — an edit opened on no commit holds no file: every page is a new-file page that differs, and nothing is read for it", async () => {
+  const { requests, result } = await click(entry(null), { token: false });
+  assert.deepEqual(atOpened(requests), []);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[`${QUEUE}/01-reading.md`, "alice/product/new", true], [`${QUEUE}/01-reading.begruendung.md`, "alice/product/new", true]]);
 });

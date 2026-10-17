@@ -48,13 +48,17 @@ function watching(fake) {
   return state;
 }
 
-// The repository as it stood when the edit began: a read of the commit the page opened on — any ref but "main" — names the paths without `lacking` and with `extra`. Set on the fake's host before the page is drawn.
+// The repository as it stood when the edit began: a read of the commit the page opened on — any ref but "main" — names the paths without `lacking` and with `extra`; and, once `moves.armed` is
+// set, which the test does just before the click on Save, the default branch stands at another commit than the page opened on. Set on the fake's host before the page is drawn.
 function beganWith(fake, { lacking = [], extra = [] }) {
+  const moves = { armed: false };
   const read = fake.host.readSnapshot;
   fake.host.readSnapshot = async (ref) => {
     const snapshot = await read(ref);
-    return ref === "main" ? snapshot : Object.create(snapshot, { paths: { value: [...snapshot.paths.filter((path) => !lacking.includes(path)), ...extra].sort() } });
+    if (ref === "main") return moves.armed ? Object.create(snapshot, { commit: { value: "m".repeat(40) } }) : snapshot;
+    return Object.create(snapshot, { paths: { value: [...snapshot.paths.filter((path) => !lacking.includes(path)), ...extra].sort() } });
   };
+  return moves;
 }
 
 // ---------------------------------------------------------------- the page
@@ -77,12 +81,13 @@ const WHY = "Because it is clearer.";
 async function savedEntry(state = null, began = null) {
   const fake = fakeProduct(PRODUCT_FILES, { canWrite: false });
   const watch = watching(fake);
-  if (began) beganWith(fake, began);
+  const moves = began ? beganWith(fake, began) : null;
   const { target } = await draw(fake, "spec-entry", { id: ENTRY_ID, edit: "1" }, { token: false });
   areaIn(target).value = EDITED_ENTRY;
   areaIn(target).dispatchEvent(new Event("input"));
   byClass(target, "textarea", "why")[0].value = WHY;
   Object.assign(watch, { counting: true, ...state });
+  if (moves) moves.armed = true;
   click(buttonsNamed(target, "Save")[0]);
   await until(() => byClass(target, "a", "github-page").length === 2, "GitHub's two pages of the entry");
   return { fake, target, watch };
@@ -111,12 +116,13 @@ const REQUIREMENTS_KEY = `requirement/name=${encodeURIComponent(LOAN)}/product=$
 async function savedRequirements(state = null, began = null) {
   const fake = fakeProduct(PRODUCT_FILES, { canWrite: false });
   const watch = watching(fake);
-  if (began) beganWith(fake, began);
+  const moves = began ? beganWith(fake, began) : null;
   const context = contextOf(fake, { token: false });
   keepDraft(context, { subject: REQUIREMENTS_KEY, kind: "change-requirements", params: { requirements: [LOAN], source: SOURCE, version: blobOf(LENDING), instruction: "state the overdue rule" },
     result: resultOf(REQUIREMENTS, { rounds: [ROUND_ONE] }) });
   const { target } = await draw(fake, "draft", { subject: REQUIREMENTS_KEY }, { context });
   Object.assign(watch, { counting: true, ...state });
+  if (moves) moves.armed = true;
   click(buttonsNamed(target, "Save")[0]);
   await until(() => byClass(target, "a", "github-page").length === 4, "GitHub's four pages of the proposal");
   return { fake, target, watch };
@@ -256,7 +262,7 @@ test("draft — without a token the index of a draft of requirements that alread
 
 // TST-611007 · level: unit · module: MOD-review-pages
 // guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
-// given: the product of TST-622001, whose repository at the commit the entry's editor was opened on lacked the entry's proposal that the default branch holds now
+// given: the product of TST-622001, whose default branch has moved to another commit since the entry's editor was opened, and whose repository at the commit it was opened on lacked the entry's proposal that the default branch holds now
 // input: a click on Save
 // expect: the page of the proposal carries the warning "The file differs on the default branch; compare before committing." beside its text; the page of the rationale carries no warning and still its text
 test("spec-entry/<id>/edit — without a token a file that appeared on the default branch since the editor was opened is warned about on its page", async () => {
@@ -270,7 +276,7 @@ test("spec-entry/<id>/edit — without a token a file that appeared on the defau
 
 // TST-611008 · level: unit · module: MOD-review-pages
 // guards: UC-019 (steps 8, 9); UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
-// given: the product of TST-622005, whose repository at the commit the draft was opened on held the index of the queue the draft starts, which the default branch no longer holds
+// given: the product of TST-622005, whose default branch has moved to another commit since the draft was opened, and whose repository at the commit it was opened on held the index of the queue the draft starts, which the default branch no longer holds
 // input: a click on Save
 // expect: the page of the index carries the warning "The file differs on the default branch; compare before committing." beside its text; no other page carries a warning, and each other page still carries its text
 test("draft — without a token the index of a draft of requirements that the default branch lost since the draft was opened is warned about on its page", async () => {

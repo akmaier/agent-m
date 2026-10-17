@@ -352,3 +352,33 @@ test("proposeSection — the repository at the commit the edit was opened on is 
   await proposeSection(withToken.host, CHANGE);
   assert.deepEqual(withToken.host.reads, ["main"]);
 });
+
+// TST-611013 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the setting of TST-611001 (a second edit of Reading, whose proposal OPENED lacked), but the edit was opened on the commit of the snapshot the save reads, "h" repeated forty times
+// input: proposeSection without a token
+// expect: only "main" is read; the files are taken as that snapshot holds them, so both pages are GitHub's editor and differs is false for both, though OPENED lacked the proposal
+test("proposeSection — an edit opened on the commit the save already read reads no other snapshot", async () => {
+  const folder = `${TODAY}_mine`;
+  const base = `docs/spec-freigaben/${folder}`;
+  const f = repository({ files: queueFiles(folder, TODAY, ["## 1. Reading", "## 2. Writing"]), history: historyOf(folder, "alice"), canWrite: false, opened: { lacking: [`${base}/01-reading.md`] } });
+  const result = await proposeSection(f.host, { ...CHANGE, openedHead: "h".repeat(40) });
+  assert.deepEqual(f.host.reads, ["main"]);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[`${base}/01-reading.md`, "alice/product/edit", false], [`${base}/01-reading.begruendung.md`, "alice/product/edit", false]]);
+});
+
+// TST-611014 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// given: the setting of TST-611001, but the edit was opened on no commit (null, an empty repository)
+// input: proposeSection without a token
+// expect: only "main" is read; no file existed when the edit began, so both pages are GitHub's new-file pages and differs is true for both, since both exist now
+test("proposeSection — an edit opened on no commit holds no file and reads no snapshot for it", async () => {
+  const folder = `${TODAY}_mine`;
+  const base = `docs/spec-freigaben/${folder}`;
+  const f = repository({ files: queueFiles(folder, TODAY, ["## 1. Reading", "## 2. Writing"]), history: historyOf(folder, "alice"), canWrite: false });
+  const result = await proposeSection(f.host, { ...CHANGE, openedHead: null });
+  assert.deepEqual(f.host.reads, ["main"]);
+  assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
+    [[`${base}/01-reading.md`, "alice/product/new", true], [`${base}/01-reading.begruendung.md`, "alice/product/new", true]]);
+});
