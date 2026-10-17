@@ -151,16 +151,37 @@ function triggersOf(text) {
   return all.slice(at + 1, block < 0 ? undefined : at + 1 + block).flatMap((line) => /^ {2}(\w+):/.exec(line)?.slice(1) ?? []);
 }
 
+// The resources and participants the committed generated file records, as documents ciConfiguration reads: one endpoint per
+// secret name it lists, and for each row the schedule runs on a participant the runner label of that row's first job.
+function recorded(files, schedule, target) {
+  const text = files[target.server === "github" ? GITHUB_FILE : GITLAB_FILE] ?? "";
+  const listed = target.server === "github"
+    ? [...text.matchAll(/^ {6}(\w+): \$\{\{ secrets\.\1 \}\}$/gm)].map((m) => m[1])
+    : (/# Secrets, read from the CI variables: (.*)$/m.exec(text)?.[1].split(", ") ?? []);
+  const names = [...new Set(listed)];
+  const resources = { sections: [{ rows: names.map((name) => ({ cells: { Name: name, Kind: "endpoint", Secret: `ci:${name}` } })) }] };
+  const rows = [];
+  for (const { cells } of rowsOf(schedule)) {
+    const named = cells["runs on"];
+    if (!named || named === "hosted") continue;
+    const start = text.search(new RegExp(`^ {0,2}${cells.Row}-[\\w-]+:$`, "m"));
+    const job = start < 0 ? "" : text.slice(start).split(/\n(?= {0,2}[\w-]+:$)/)[0];
+    const label = /runs-on: \[self-hosted, (\S+)\]|tags: \[(\S+)\]/.exec(job);
+    rows.push({ cells: { Name: named, Type: "CI agent", Capabilities: "run code and tests", Route: `ci runner:${label?.[1] ?? label?.[2] ?? "unknown"}` } });
+  }
+  return { resources, participants: { sections: [{ rows }] } };
+}
+
 /**
  * configurationDrift(files, schedule, target) -> Array<{ path, difference }> — where the committed configuration differs
  * from the one the schedule generates: a generated file missing or with a line other than the generated one (one difference
  * per such line), and on GitLab a `.gitlab-ci.yml` without the include entry. A GitHub workflow Agent M did not generate
- * gives its triggers, the occasions they start and the rows the schedule runs on those occasions. The configuration is
- * generated without resources and participants, which this function is not given.
+ * gives its triggers, the occasions they start and the rows the schedule runs on those occasions. The resources and the
+ * participants of the generation are those the committed generated file records: its secret names and its runner labels.
  */
 export function configurationDrift(files, schedule, target) {
-  const empty = { sections: [] };
-  const { files: generated, include } = ciConfiguration(schedule, target, empty, empty);
+  const { resources, participants } = recorded(files, schedule, target);
+  const { files: generated, include } = ciConfiguration(schedule, target, resources, participants);
   const found = [];
   for (const [path, text] of Object.entries(generated)) {
     if (!(path in files)) {
