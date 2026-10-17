@@ -73,7 +73,7 @@ test("TST-661004 no-reply has its literal decision text", () => {
 // TST-661005
 // level: unit
 // module: MOD-mail-records
-// guards: UC-033
+// guards: A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION; UC-033
 // given: a valid supplied item identifier, calendar date and synthetic dashboard address
 // input: noteText("item-added", "ITM-123", "2026-10-17", "https://example.invalid/agent-m/#item/ITM-123")
 // expect: synchronously "Backlog item `ITM-123` added: https://example.invalid/agent-m/#item/ITM-123", with no trailing full stop or date
@@ -85,7 +85,7 @@ test("TST-661005 item-added has its literal dashboard-link text", () => {
 // TST-661006
 // level: unit
 // module: MOD-mail-records
-// guards: UC-033
+// guards: A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION; UC-033
 // given: a valid supplied item identifier, calendar date and synthetic closing pull-request address
 // input: noteText("closed-with", "ITM-456", "2026-10-17", "https://example.invalid/product/pull/7")
 // expect: synchronously "Closed with https://example.invalid/product/pull/7; item `ITM-456`.", including the semicolon and quoted supplied item
