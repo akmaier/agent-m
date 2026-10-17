@@ -35,9 +35,13 @@ export async function personsSource(context, snapshot) {
     const { entry, links } = sourceSchemas();
     const { host } = context.instance;
     const instance = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+    const entries = instance.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
+    // The files are named to Snapshot.readMany before they are read (as MOD-trace-pages' moduleFilesOf does): one batch where the links file and the
+    // register are one snapshot, the register's own where they are not; a host that cannot batch reads nothing ahead.
+    if (instance === snapshot) await snapshot.readMany?.(["docs/sources.md", ...entries]);
+    else await instance.readMany?.(entries);
     const linked = readDocument(links, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? "");
-    const register = await Promise.all(instance.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path))
-      .map(async (path) => readDocument(entry, path, (await instance.read(path)) ?? "")));
+    const register = await Promise.all(entries.map(async (path) => readDocument(entry, path, (await instance.read(path)) ?? "")));
     return personSource(linked, register, personAccount(instance));
   } catch {
     return null;
