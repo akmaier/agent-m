@@ -205,15 +205,15 @@ test("TST-600153 at a released version the requirement as it read there is the s
 
 // TST-600154 · level: unit · module: MOD-trace-pages
 // guards: UC-049; UC-020
-// given: the route rendered with the key "tests" at v1.0 and with the key "modules" at main — views the specification route does not draw — and the specification view at main with nothing opened
+// given: the route rendered with the key "tests" at v1.0 and with the key "audit" at main — views the specification route does not draw — and the specification view at main with nothing opened
 // input: route.subject for each
 // expect: each is the frame's default: kind "converse", draftRoute null, withhold null, refuses [], title "Current requirements", paramsFor giving exactly the key "page" whose text holds the title,
 //         the product's address and the version shown — "v1.0", "main"; two different versions are two different keys
 test("TST-600154 every other view, and the specification with nothing open, give the frame's default with the version shown", async () => {
   const tests = await shown({ key: "tests", ref: "v1.0" });
-  const modules = await shown({ key: "modules", ref: "main" });
+  const audit = await shown({ key: "audit", ref: "main" });
   const nothingOpen = await shown({ key: "specification", ref: "main" });
-  for (const [page, version] of [[tests, "v1.0"], [modules, "main"], [nothingOpen, "main"]]) {
+  for (const [page, version] of [[tests, "v1.0"], [audit, "main"], [nothingOpen, "main"]]) {
     const subject = page.subject();
     assert.equal(subject.kind, "converse", version);
     assert.equal(subject.draftRoute, null, version);
@@ -224,7 +224,7 @@ test("TST-600154 every other view, and the specification with nothing open, give
     assert.deepEqual(Object.keys(params), ["page"], version);
     for (const part of ["Current requirements", ADDRESS, version]) assert.ok(params.page.includes(part), `${version}: the page holds ${part}`);
   }
-  assert.notEqual(tests.subject().key, modules.subject().key);
+  assert.notEqual(tests.subject().key, audit.subject().key);
   assert.ok(nothingOpen.subject().paramsFor(PARTICIPANT).page.includes(OUTSIDE), "the page holds the text the route has drawn");
 });
 
