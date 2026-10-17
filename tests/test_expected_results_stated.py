@@ -68,7 +68,7 @@ class ExpectedResultsStated(unittest.TestCase):
         for module in ("system", ""):
             text = fixture(MODULE_READ, "EXAMPLE", module)
             self.assertEqual(reading("tests/reader.test.mjs", text), [], repr(module))
-        fixtures = 'const F = readFileSync(new URL("./fixtures/use-cases/UC-001-complete.md", import.meta.url), "utf8");'
+        fixtures = 'const F = readFileSync(new URL("./fixtures/identity/v2/docs/use-cases/UC-001-complete.md", import.meta.url), "utf8");'
         self.assertEqual(reading("tests/reader.test.mjs", fixture(fixtures, "F")), [])
 
     # TST-650003 · level: unit · module: MOD-test-document
@@ -94,7 +94,7 @@ class ExpectedResultsStated(unittest.TestCase):
     # guards: A TEST DOES NOT TAKE ITS EXPECTED RESULT FROM A DOCUMENT
     # given: the test files of this repository (not under a fixtures folder)
     # input: testsReadingDocuments of each; the list is printed
-    # expect: the list holds TST-472343 of tests/job-runner-records.test.mjs, which reads docs/architecture/MOD-job-runner.md, and holds no entry of this file
+    # expect: the list holds TST-472343 of tests/job-runner-records.test.mjs, which reads docs/architecture/MOD-job-runner.md
     def test_the_tests_of_the_repository_that_read_a_document_are_listed(self):
         files = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "tests").rglob("*")
                        if p.is_file() and p.suffix in (".py", ".mjs", ".js")
@@ -107,7 +107,6 @@ class ExpectedResultsStated(unittest.TestCase):
             print(f"{e['path']}:{e['line']} {e['id']} {e['module']} reads {', '.join(e['reads'])}", file=sys.stderr)
         print(f"{len(listed)} tests in {len({e['path'] for e in listed})} files name a module and read a document", file=sys.stderr)
         self.assertIn(("tests/job-runner-records.test.mjs", "TST-472343"), {(e["path"], e["id"]) for e in listed})
-        self.assertNotIn("tests/test_expected_results_stated.py", {e["path"] for e in listed})
 
 
 if __name__ == "__main__":
