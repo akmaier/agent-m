@@ -44,3 +44,7 @@ readers, this item:
 
 - No file reads `settings-view.mjs` or `settings/endpoints.mjs`, and both are removed.
 - Every removed case names the test that keeps its requirement.
+
+**Noted at ITM-819's gate (sprint team1/76, 2026-10-17, po-opus).** load-per-view's case "Clear everything also removes the
+kept file texts" (`tests/load-per-view.test.mjs:352`) reads the old handler's source. TST-819001 and TST-819002 pin the
+live *Clear everything*, so this item may drop that case, naming them as its keepers.
