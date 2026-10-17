@@ -100,7 +100,9 @@ const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.s
 
 // The fake host. refuseAt: the number of the call, counted from 1 over repositoryInfo, readSnapshot, readHistory and every read of
 // a file, that is answered with the failure `refusal` instead.
-function fakeHost({ refuseAt = null, refusal = null } = {}) {
+// forge: { path, text } — the host serves `text` as the content of `path` in every snapshot, while blob(path) still gives the blob
+// of the text that is really there: a host that answers with another text than the blob its own tree names.
+function fakeHost({ refuseAt = null, refusal = null, forge = null } = {}) {
   const calls = [], commits = [];
   let tree = new Map();
   HISTORY.forEach((step, n) => {
@@ -144,6 +146,7 @@ function fakeHost({ refuseAt = null, refusal = null } = {}) {
         return { repository: ON_GITHUB, ref, commit, paths: [...files.keys()].sort(),
           async read(path) {
             cross({ fn: "read", path, ref });
+            if (forge && path === forge.path) return forge.text;
             return files.has(path) ? files.get(path) : null;
           },
           blob: (path) => (files.has(path) ? blobOf(files.get(path)) : null) };
@@ -246,4 +249,38 @@ test("lastAcceptedText — a record whose text its file did not hold when it was
     assert.ok(error.message.includes(UC40) || String(error.what).includes(UC40), `it names the file: ${error.message}`);
     return true;
   });
+});
+
+// TST-718001 · level: unit · module: MOD-approvals
+// guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN APPROVAL NAMES THE EXACT TEXT; UC-008
+// given: the history above and UC-010, whose newest record names the blob of V2; a host whose tree still names that blob for UC-010 at the commit that added the record, but which serves V3 — the text the file holds now, a text of another blob — when UC-010 is read; and, as the known positive, the same history on a host that serves what its tree names
+// input: lastAcceptedText("UC-010", forging host), and lastAcceptedText("UC-010", honest host)
+// expect: the forging host's answer is NotFound naming UC-010 and is in no case a result holding V3; the honest host's answer is V2 with the blob of V2 and the blob of the returned text equal to the one the record names
+test("lastAcceptedText — a text of another blob than the record names is not given as the last accepted text", async () => {
+  assert.notEqual(blobOf(V3), blobOf(V2), "fixture: the forged text is a text of another blob");
+  const honest = await lastAcceptedText("UC-010", fakeHost().host);
+  assert.deepEqual(honest, { text: V2, blob: blobOf(V2), path: UC10 }, "known positive: a host that serves what its tree names");
+  assert.equal(blobOf(honest.text), honest.blob);
+
+  let answer = null;
+  await assert.rejects(lastAcceptedText("UC-010", fakeHost({ forge: { path: UC10, text: V3 } }).host).then((found) => { answer = found; }), (error) => {
+    assert.equal(error.name, "NotFound");
+    assert.ok(error.message.includes(UC10) || String(error.what).includes(UC10), `it names the file: ${error.message}`);
+    return true;
+  });
+  assert.equal(answer, null, "no result was given for the forged text");
+});
+
+// TST-718002 · level: unit · module: MOD-approvals
+// guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008
+// given: the history above and UC-010 asked for on an honest host that counts its calls
+// input: lastAcceptedText("UC-010", host)
+// expect: seven calls — repositoryInfo once, readSnapshot twice (the head and the commit that added the record), readHistory twice (one for each of UC-010's two records), and two reads (the newer record, and UC-010 at that commit) — so that checking the text against the record's blob reads nothing more
+test("lastAcceptedText — one answer takes seven calls to the host, the check of the text among them adding none", async () => {
+  const fake = fakeHost();
+  await lastAcceptedText("UC-010", fake.host);
+  const count = (fn) => fake.calls.filter((call) => call.fn === fn).length;
+  assert.deepEqual({ repositoryInfo: count("repositoryInfo"), readSnapshot: count("readSnapshot"), readHistory: count("readHistory"), read: count("read") },
+    { repositoryInfo: 1, readSnapshot: 2, readHistory: 2, read: 2 });
+  assert.equal(fake.calls.length, 7);
 });
