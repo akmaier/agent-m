@@ -106,7 +106,7 @@ function splitPart(origin, class_, of, onChange) {
 
 /**
  * splitCandidate(item, candidate, onChange) — splits the candidate whose item `item` is in the panel: its rule becomes a field the person may edit, and a part of its own stands after it (after
- * its parts, if it has some). The part shows the class and `of` the candidate shows, except for a `change`: a second change of one requirement would replace the first's block, so the part shows `new`
+ * its parts, if it has some). The part shows the class and `of` the candidate shows, except for a `change`: a second change of one requirement is refused (TwoChanges), so the part shows `new`
  * with an empty `of`. Nothing is written. `onChange` is called when a class of the panel may have changed.
  */
 export function splitCandidate(item, candidate, onChange) {
@@ -127,8 +127,8 @@ export function splitCandidate(item, candidate, onChange) {
 }
 
 /**
- * splitProblem(panel) -> string | null — what keeps the parts of the panel from being written: a part without a name or a rule, or bearing the name of another candidate, or two of a candidate and its parts that
- * are both `change` with one `of` (the second would replace the first's block); null when none does. A `change` with an empty `of` names no requirement and is not counted.
+ * splitProblem(panel) -> string | null — what keeps the parts of the panel from being written: a part without a name or a rule, or bearing the name of another candidate; null when none does. Two candidates
+ * that change one requirement are refused by MOD-spec-changes' entrySections (TwoChanges), not here.
  */
 export function splitProblem(panel) {
   const items = inputsOf(panel, "li", "candidate");
@@ -139,15 +139,6 @@ export function splitProblem(panel) {
     if (!name || !rule) return `A split part of ${part.getAttribute("data-split-of")} needs a name and a rule: nothing was written.`;
     if (taken.includes(name)) return `The split part ${name} has the name of another candidate: nothing was written.`;
     taken.push(name);
-  }
-  for (const candidate of new Set(parts.map((part) => part.getAttribute("data-split-of")))) {
-    const changed = new Set();
-    for (const item of items.filter((each) => each.getAttribute("data-name") === candidate || each.getAttribute("data-split-of") === candidate)) {
-      const of = inputsOf(item, "input", "of")[0].value.trim();
-      if (inputsOf(item, "select", "class")[0].value !== "change" || !of) continue;
-      if (changed.has(of)) return `Two parts of ${candidate} change ${of}: nothing was written.`;
-      changed.add(of);
-    }
   }
   return null;
 }
