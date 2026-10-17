@@ -28,3 +28,12 @@ and after, and changes `readAhead` only if the count falls.
 
 - `#spec`'s count with a token falls by the batch, and `load-per-view.test.mjs` pins it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its draft (sprint team1/78, 2026-10-17, po-opus): it waits.**
+- The draft takes `#spec` from 7 requests to 6 with a token. But it changes TST-833201, whose test names MOD-trace-pages.
+  That module's file uses MOD-test-schedule, so holding it would hold back team 2's ITM-745 (`78.md`).
+- The draft also writes the register's path pattern a second time. `personsSource` keeps it in
+  `src/trace-pages/subject.mjs:38`, and AGENTS.md §2 reads "Nothing twice".
+- At its next start, the frame takes the register's paths from an interface its Uses name, or a draft gives it one. The
+  test of MOD-trace-pages then changes in the same sprint, with that module free.
+- load-per-view gains a fixture with the register present (sprint 77's agreement).
