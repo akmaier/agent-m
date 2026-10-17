@@ -195,3 +195,23 @@ page load with a token to 3 requests for the start page and `#arc`, 15 for `#spe
      process model, reads them in a second `readMany`.
    - Every request then still holds at most 100 files, no file is read by itself, and none is read twice.
    - The Check counts batches by those waves: one per hundred files of each wave.
+
+**Decided at its second stop (2026-10-17, po-opus).**
+- **Two expected values change, named here, by the item's own purpose.** Both pin a page load's requests, which
+  `A PAGE LOAD READS THE REPOSITORY IN BATCHES` now bounds, so their new values are written from the requirement.
+  - `tests/dashboard-backlog-teams.test.mjs:224`: `#backlog` sends 5 requests in all, not 20. They are the commit, the
+    tree, the batch of its 16 files, the batch of the process model (the second wave), and the pull requests. The old 20
+    were 15 reads of one file each and those 5.
+  - `tests/dashboard-review-flows.test.mjs:361`: "the files are read" becomes "a batch request names UC-001's file", and
+    the next assertion, that the requests carry the token, asks it of that batch request. So it does not become
+    vacuous.
+- **More tests re-pointed to the moved app, with no expected value changed:**
+  - `tests/test_step_explanations.py:16-19`, which goes with `stepHtml` in ITM-700;
+  - `tests/review-core.d/dashboard-app.test.mjs`;
+  - `tests/review-core.d/dashboard-reads.test.mjs`;
+  - `tests/review-core.d/write-refused.test.mjs`.
+  Each is MOD-site-frame's or MOD-review-pages' by their accepted Parts.
+- **`#backlog`'s process model** is read in the second `readMany`, not by itself, as the reading of two waves allows.
+- **The release tests** are ITM-707's: `release-sprint-01-dashboard-app` (UC-008 3 and UC-006 4a, through its `writes()`),
+  `release-sprint-02-a-dashboard-app` (ITM-126) and `release-uc-003-direct-endpoint` (TST-292005).
+  `release-uc-019-change-requirements-by-prompt` is not among them.
