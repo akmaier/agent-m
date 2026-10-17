@@ -21,10 +21,10 @@ import { differs, eligible, participantSchema, participantsOf } from "../partici
 import { linkedVersion, permittedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { runPanel, explain } from "../site-frame/index.mjs";
+import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
-import { defaultSnapshot, el, button, link, problem, TOKEN_STEP } from "./common.mjs";
+import { defaultSnapshot, el, button, link, TOKEN_STEP } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -104,7 +104,7 @@ export async function showDraft(where, kind) {
     graph = await traceGraph(snapshot);
     loaded = await loadStage(where, kind.draft);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
@@ -169,7 +169,7 @@ export async function panelOf(run) {
   try {
     ready = await preparedRun(run);
   } catch (failure) {
-    stage.append(problem(failure, token));
+    stage.append(readProblem(failure, Boolean(token)));
     return;
   }
   const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
@@ -288,7 +288,7 @@ async function showRequirementsDraft(where, kind) {
     loaded = await loadStage(where, kind.draft);
     choices = await requirementSourceChoices(where);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
@@ -502,7 +502,7 @@ async function showArchitectureDraft(where, kind) {
     found = await approvalStrategies.preconditions["architecture-ready"]({ product: { snapshot, address: snapshot.repository?.web ?? "" } });
     reviewing = await kindOf(loaded.definition.reviewer);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs } = loaded;
