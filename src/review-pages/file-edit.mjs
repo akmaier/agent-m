@@ -9,7 +9,7 @@ import { renderArtifact } from "../markdown-render/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { el, link, openEditor, openGithubEditor, parseServer, showAgain, tokenStep } from "./common.mjs";
+import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
 
 const SCHEMA = { "use-case": "useCase", "architecture-decision": "decision", module: "module" };
 const REALISES = "A USE CASE REALISES NAMED REQUIREMENTS";
@@ -104,8 +104,9 @@ export async function showFileEdit(where, kind, file) {
       if (outcome.refused === "identifier changed") {
         return { kind: "failed", reason: `the identifier changed from ${outcome.openedId} to ${outcome.nowId ?? "none"}; keep ${outcome.openedId}.` };
       }
-      showAgain(context, kind.route, file.id);
-      return { kind: "saved", link: `${snapshot.repository.web}/commit/${outcome.commit}` };
+      const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
+      await where.shownAgain(file.id, el("p", "saved-note", "Saved in ", link(commit, null, `commit ${outcome.commit.slice(0, 7)}`), "."));
+      return { kind: "saved", link: commit };
     } catch (failure) {
       if (failure.name === "PermissionMissing" && fallbackPages(saved, fallbackFor(text))) {
         return { kind: "failed", reason: failure.message };

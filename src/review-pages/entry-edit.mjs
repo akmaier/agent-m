@@ -14,7 +14,7 @@ import { explain, readProblem } from "../site-frame/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./edit.mjs";
 import { fallbackPages } from "./file-edit.mjs";
-import { el, link, openEditor, openGithubEditor, parseServer, showAgain, tokenStep } from "./common.mjs";
+import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
 import { entryId } from "./spec-entries.mjs";
 
 const pad2 = (number) => String(number).padStart(2, "0");
@@ -78,8 +78,7 @@ export async function showEntryEdit(where, kind, id) {
         return { kind: "failed", reason: "there is no token, so nothing was committed from here: the proposal is on the clipboard and GitHub's editor is open." };
       }
       const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
-      saved.replaceChildren(el("p", "entry", "Saved in place: ", link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, id), " in ", link(commit, null, "this commit"), "."));
-      showAgain(context, kind.route, id);
+      await where.shownAgain(id, el("p", "entry", "Saved in place: ", link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, id), " in ", link(commit, null, "this commit"), "."));
       return { kind: "saved", link: commit };
     } catch (failure) {
       return { kind: "failed", reason: `${failure.name}: ${failure.message}` };

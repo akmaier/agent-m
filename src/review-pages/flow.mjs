@@ -126,6 +126,8 @@ export function reviewRoute(kind) {
     beginSubject(context);
     const where = await readPlace(target, context);
     if (where === null) return;
+    // After a save the page shows the item again (UC-008 3a, UC-006 3a): drawn anew from the repository, with what the save came to.
+    where.shownAgain = (id, message) => redraw(where, { id }, message);
     try {
       await view(where, params);
       await rememberSubject(where, kind, params);

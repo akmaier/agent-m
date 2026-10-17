@@ -73,12 +73,6 @@ export async function openGithubEditor(page) {
   try { globalThis.open?.(page.url, "_blank", "noopener"); } catch { /* the link is on the page */ }
 }
 
-// After a save the item is shown again from its page (UC-008 3a, UC-006 3a). The editor has set its saved text by the next turn, so that
-// leaving it asks nothing.
-export function showAgain(context, route, id) {
-  setTimeout(() => context.go(route, { id }), 0);
-}
-
 // The job records of a snapshot, asked for in one batch before MOD-job-ledger reads them one by one (A PAGE LOAD READS THE REPOSITORY IN BATCHES):
 // the reads that follow find their texts held. Where a batch cannot be made, they are read one by one as before.
 export async function readJobRecords(snapshot) {
