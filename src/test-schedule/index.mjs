@@ -3,7 +3,7 @@
 // product's docs/tests/schedule.md in schedule.schema.md, and the book's default in default-schedule.md, marked as the
 // default. They give the complete run of a release candidate the levels it runs, the command that runs them and the
 // runner of each (MOD-release-evidence). ITM-742 adds scheduleFindings (rules.mjs). ITM-743 adds occasionsOf and secretsNeeded (occasions.mjs). ITM-744 adds
-// ciConfiguration (generate.mjs, templates/). configurationDrift, proposeSchedule, applyPipelineSchedule and scheduleStrategies
+// ciConfiguration (generate.mjs, templates/). ITM-745 adds configurationDrift (generate.mjs). proposeSchedule, applyPipelineSchedule and scheduleStrategies
 // are not built yet.
 //
 // Module: MOD-test-schedule
@@ -18,7 +18,7 @@ import { ownText } from "./own-file.mjs";
 
 export { scheduleFindings } from "./rules.mjs";
 export { occasionsOf, secretsNeeded } from "./occasions.mjs";
-export { ciConfiguration } from "./generate.mjs";
+export { ciConfiguration, configurationDrift } from "./generate.mjs";
 
 const OWNER = "MOD-test-schedule";
 const SCHEMA_FILE = "schedule.schema.md";
