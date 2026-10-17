@@ -2,7 +2,7 @@
 // to executable evidence through the prompt bar and the review pages' route `draft`, or to a finding that names what the code does instead.
 // Run: node --test tests/release-uc-019-change-by-prompt.test.mjs
 //
-// Module: MOD-review-pages; MOD-artifact-edits; MOD-workflow-entries; MOD-runtimes
+// Module: MOD-review-pages; MOD-prompt-bar; MOD-artifact-edits; MOD-workflow-entries; MOD-runtimes
 // Level: release
 // Guards: UC-019
 //
@@ -12,7 +12,7 @@
 // Expected result: every requirement in REALISED has executable evidence that asserts nothing the accepted UC-019 replaced, and no
 // extra requirement is claimed; the parts of a requirement the code does otherwise are findings - todo tests that fail now and name what
 // the code does instead: FINDINGS below. The tests of the flows run in the harness of
-// tests/system-uc-019-change-requirements-by-prompt.test.mjs (the real frame, bar and review pages over servers in memory; no request
+// tests/uc-019-prompt-bar-harness.mjs (the real frame, bar and review pages over servers in memory; no request
 // leaves the process). Each test states its input and its expected values in its own text; none reads an expected result from the SPEC,
 // a use case or an architecture file: the list of requirements is the expected value, and UC-019 is the input it is compared with.
 
@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, messageLines, namedButton, onUseCase, one, press, proposalTexts, proposalWrites, review, run, scenario,
-  send, statusOf, useCases } from "./system-uc-019-change-requirements-by-prompt.test.mjs";
+  send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
