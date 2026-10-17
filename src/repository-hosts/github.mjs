@@ -83,6 +83,11 @@ export function githubAdapter(address, { token, tokenName }, links) {
     if (on[answer.status]) return on[answer.status](answer);
     throw await refusal(answer, { ...context, write: method !== "GET", ...more });
   }
+  // The server's message of a refused merge, as the reason of NotMergeable.
+  const notMergeable = async (answer) => {
+    const said = await answer.json().catch(() => null);
+    throw new HostError("NotMergeable", { reason: said?.message ?? `${answer.status} ${answer.statusText}`.trim() }, `GitHub refuses the merge: ${said?.message ?? answer.status}`);
+  };
   // A read's JSON; what an `on` handler returns instead of an answer is passed on as it is.
   const read = async (url, options) => {
     const answer = await call("GET", url, options);
@@ -354,6 +359,17 @@ export function githubAdapter(address, { token, tokenName }, links) {
     async openPullRequest({ branch, base, title, body, draft }) {
       const made = await call("POST", `${repo}/pulls`, { body: { title, head: branch, base, body, draft: draft === true }, permission: "Pull requests", what: address.web });
       return pullOf(await json(made, API));
+    },
+
+    // Merges a pull request at the head that was read ("Get a pull request" for the head, then "Merge a pull request": PUT …/pulls/{n}/merge, body sha — the head the pull request must still have —;
+    // 200 { sha }; 405 and 422 the merge cannot be performed; 409 the head did not match). A head other than the expected one is Moved before any merge is sent; the server's own 409 is Moved too.
+    // No merge method is sent: the server's default stands, and its branch protection with it.
+    async mergePullRequest(number, expectedHead) {
+      const now = (await read(`${repo}/pulls/${number}`, { what: `pull request #${number} of ${address.web}` })).head.sha;
+      if (now !== expectedHead) throw new HostError("Moved", { head: now }, `Pull request #${number} has moved on to ${now.slice(0, 12)} since it was read — nothing was merged; read it again.`);
+      const made = await call("PUT", `${repo}/pulls/${number}/merge`, { body: { sha: expectedHead }, permission: "Pull requests", what: `pull request #${number} of ${address.web}`,
+        on: { 405: notMergeable, 422: notMergeable, 409: async () => { throw new HostError("Moved", { head: null }, `Pull request #${number} has moved on since it was read — nothing was merged; read it again.`); } } });
+      return { commit: (await json(made, API)).sha };
     },
 
     // Whether the branch's history holds the commit ("Compare two commits": GET …/compare/{basehead}, basehead BASE...HEAD, here the commit
