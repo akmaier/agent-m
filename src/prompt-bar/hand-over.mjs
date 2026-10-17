@@ -29,7 +29,7 @@ import { runStrategies } from "../run-planner/index.mjs";
 import { handOverJob, routeStrategies, routesFor, tabContext } from "../runtimes/index.mjs";
 import { sourceStrategies } from "../source-register/index.mjs";
 import { specStrategies } from "../spec-changes/index.mjs";
-import { startable } from "../work-plans/index.mjs";
+import { startable, workStrategies } from "../work-plans/index.mjs";
 import { readParticipants } from "./offer.mjs";
 import { connectionsOf, defaultSnapshot, personOf } from "./send.mjs";
 
@@ -40,7 +40,7 @@ const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.y
  * strategies of its kinds. They are the sets the job workflow registers in CI, since a handed-over job runs on CI or on a Bridge, of the thirteen the module file names the ones that modules
  * build and export today; the others join as the items that build them add them.
  */
-export const handOverStrategies = [approvalStrategies, specStrategies, editStrategies, sourceStrategies, reuseStrategies, resourceStrategies, runStrategies, routeStrategies];
+export const handOverStrategies = [approvalStrategies, specStrategies, editStrategies, sourceStrategies, reuseStrategies, resourceStrategies, workStrategies, runStrategies, routeStrategies];
 
 /** recordRoute(route: Route) -> string — the route as a job's record writes it: `ci hosted`, `ci runner:<label>`, `bridge <name>`. */
 export const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);

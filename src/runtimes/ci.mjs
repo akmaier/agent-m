@@ -86,8 +86,9 @@ const LIST_ITEM = /^\s*-(\s|$)/;
 // A line that names the job file, as a `local:` value or as a plain string item.
 const NAMES_JOB_FILE = /^\s*(-\s+)?(local:\s*)?["']?\/?\.gitlab\/agent-m-jobs\.yml["']?\s*(#.*)?$/;
 
-// The sentence that ends a GitlabCiNotList message is the one of its own case: an include:, or an inline inputs:.
+// The sentence that ends a GitlabCiNotList message is the one of its own case: an include:, an inline inputs:, or an entry that is a plain string.
 const INCLUDE_ENDING = "Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.";
+const ENTRY_ENDING = "Agent M passes its inputs only through an entry written with local: and inputs:, and rewrites no line of the product's own — write the entry so, then install again.";
 const INPUTS_ENDING = "Agent M adds its inputs only to an inputs: written as a block, and rewrites no line of the product's own — write it as a block, then install again.";
 const notAList = (why, ending = INCLUDE_ENDING) => new RuntimeError("GitlabCiNotList", { file: ".gitlab-ci.yml" }, `.gitlab-ci.yml: ${why} ${ending}`);
 
@@ -159,7 +160,7 @@ function mergeGitlabCi(text, names) {
   } else {
     const start = starts[named], stop = starts[named + 1] ?? end + 1;
     if (!lines.slice(start, stop).some((line) => /^\s*(-\s+)?local:/.test(line))) {
-      throw notAList("the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.");
+      throw notAList("the entry for .gitlab/agent-m-jobs.yml is a plain string, which cannot pass the inputs on.", ENTRY_ENDING);
     }
     const inputsAt = lines.findIndex((line, at) => at > start && at < stop && /^\s+inputs:/.test(line));
     if (inputsAt !== -1 && !/^\s+inputs:\s*(#.*)?$/.test(lines[inputsAt])) throw notAList("the inputs: of the entry for .gitlab/agent-m-jobs.yml is not written as a block.", INPUTS_ENDING);
