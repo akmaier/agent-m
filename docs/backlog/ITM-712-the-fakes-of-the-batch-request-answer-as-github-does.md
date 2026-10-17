@@ -34,3 +34,7 @@ Each file is changed by the job of its module. A file that belongs to no module 
 
 - Every listed fake answers a batch with the texts of the files it holds, as GitHub does.
 - Its counter-proof: a fake that answers empty makes the shared helper's own test fail.
+
+**Found at ITM-704's gate (2026-10-17, po-opus).** `tests/settings-pages-sources.d/github.mjs`, the fake of
+MOD-settings-pages' three tests, now answers the batch request as GitHub does (#733, `cf904ec0`). The shared fake of
+this item takes its place, or this one becomes it.

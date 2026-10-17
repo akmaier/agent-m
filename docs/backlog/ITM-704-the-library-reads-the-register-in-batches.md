@@ -6,6 +6,7 @@ realises:
   - A PAGE LOAD READS THE REPOSITORY IN BATCHES
 modules:
   - MOD-settings-pages
+  - MOD-site-frame
 builds_on:
 tests:
   - unit
