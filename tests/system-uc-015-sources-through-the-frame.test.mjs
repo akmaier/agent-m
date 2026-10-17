@@ -17,7 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installDocument, byTag, click as clickOnce, turn } from "./settings-pages-harness.mjs";
 import { freshStore, tick, untick } from "./settings-pages-setup.d/dom.mjs";
-import { githubWorld, installWorld, registerEntry, sectionOf, withClass } from "./settings-pages-sources.d/github.mjs";
+import { githubWorld, installWorld, registerEntry, sectionOf, settled, withClass } from "./settings-pages-sources.d/github.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
@@ -54,6 +54,7 @@ const PRODUCT_TOKEN = "github_pat_PRODUCT0123456789abcdefghijk";
 async function visit(t, fragment, { productFiles = { "SPEC.md": SPEC } } = {}) {
   const world = githubWorld({ [INSTANCE]: { files: REGISTER }, [PRODUCT_REPO]: { files: productFiles } });
   installWorld(t, world);
+  current = world;
   const scripted = new EventTarget();
   Object.assign(scripted, globalThis.window);
   globalThis.window = scripted;
@@ -71,8 +72,9 @@ async function visit(t, fragment, { productFiles = { "SPEC.md": SPEC } } = {}) {
   await settle();
   return page;
 }
-const settle = async () => { for (let more = 0; more < 20; more += 1) await turn(); };
-// A person's click, and the turns a save through the host takes to finish.
+let current = null; // the world of the page opened last
+const settle = async () => { await turn(); await settled(current); };
+// A person's click, and the time a save through the host takes to finish.
 const click = async (button) => { await clickOnce(button); await settle(); };
 // The fragment changes, as when a person follows a link or presses back, and the frame shows the route it names.
 const go = async (page, fragment) => { page.location.hash = fragment; page.scripted.dispatchEvent(new Event("hashchange")); await settle(); };
@@ -159,6 +161,7 @@ test("UC-015 3a — through the frame, a restricted source is linked like any ot
   const page = await visit(t, `#sources/${PRODUCT_FRAGMENT}`);
   const note = "Restricted: its content needs access. Linking needs none — the entry, its versions and their hashes are public.";
   for (const id of ["SRC-handbook", "SRC-iec-62304"]) assert.deepEqual(withClass(sectionOf(page.main(), id), "sources-restricted").map((node) => node.textContent), [note]);
+  assert.deepEqual([field(page, "SRC-handbook", "sources-tick").disabled, field(page, "SRC-iec-62304", "sources-tick").disabled], [false, false], "a restricted source can be ticked");
   await tick(field(page, "SRC-handbook", "sources-tick"));
   await tick(field(page, "SRC-iec-62304", "sources-tick"));
   await click(save(page));

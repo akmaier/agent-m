@@ -108,6 +108,16 @@ export const walk = (root, match) => {
 export const withClass = (root, name) => walk(root, (node) => node.className.split(" ").includes(name));
 export const sectionOf = (root, id) => walk(root, (node) => node.getAttribute("data-source") === id)[0];
 
+// Resolves once the world has been asked nothing for three timer ticks in a row: the reads, the tree, the commit and the move of a save take as many turns as the host's responses take.
+export async function settled(world) {
+  let last = -1, quiet = 0;
+  while (quiet < 3) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    if (world.requests.length === last) quiet += 1;
+    else { quiet = 0; last = world.requests.length; }
+  }
+}
+
 // Fetch replaced by the world's for the length of the test `t`; the fetch of the module's load is the one put back.
 const original = globalThis.fetch;
 export function installWorld(t, world) {

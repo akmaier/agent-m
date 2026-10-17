@@ -22,7 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { installDocument, byTag, click as clickOnce, turn } from "./settings-pages-harness.mjs";
 import { attachedTarget, buttonLabelled, freshStore, tick, untick } from "./settings-pages-setup.d/dom.mjs";
-import { githubWorld, installWorld, registerEntry, sectionOf, withClass } from "./settings-pages-sources.d/github.mjs";
+import { githubWorld, installWorld, registerEntry, sectionOf, settled, withClass } from "./settings-pages-sources.d/github.mjs";
 
 installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
@@ -61,6 +61,7 @@ const PRODUCT_TOKEN = "github_pat_PRODUCT0123456789abcdefghijk";
 async function open(t, { productFiles = { "SPEC.md": SPEC }, register = REGISTER, product = true, instanceKnown = true } = {}) {
   const world = githubWorld({ ...(instanceKnown ? { [INSTANCE]: { files: register } } : {}), [PRODUCT_REPO]: { files: productFiles } });
   installWorld(t, world);
+  current = world;
   const went = [];
   const context = { page: "review", instance: { repository: INSTANCE, host: connect(parseAddress(`https://github.com/${INSTANCE}`), { token: TOKEN }) },
     product: product ? { address: PRODUCT, kind: "github", host: connect(parseAddress(PRODUCT), { token: PRODUCT_TOKEN }) } : null,
@@ -70,7 +71,8 @@ async function open(t, { productFiles = { "SPEC.md": SPEC }, register = REGISTER
   return { world, context, target, went };
 }
 // A person's click, and the turns a save through the host takes to finish (its reads, its tree, its commit and the move of the branch).
-const click = async (button) => { await clickOnce(button); for (let more = 0; more < 20; more += 1) await turn(); };
+let current = null; // the world of the page opened last
+const click = async (button) => { await clickOnce(button); await settled(current); };
 const field = (target, id, className) => withClass(sectionOf(target, id), className)[0];
 const save = (target) => withClass(target, "sources-save")[0];
 const result = (target) => withClass(target, "sources-result")[0].textContent;
@@ -261,6 +263,7 @@ test("sources — a restricted source links like any other: only its content nee
   const note = (id) => withClass(sectionOf(page.target, id), "sources-restricted").map((node) => node.textContent);
   const sentence = "Restricted: its content needs access. Linking needs none — the entry, its versions and their hashes are public.";
   assert.deepEqual([note("SRC-handbook"), note("SRC-iec-62304"), note("SRC-ai-act")], [[sentence], [sentence], []]);
+  assert.deepEqual([field(page.target, "SRC-handbook", "sources-tick").disabled, field(page.target, "SRC-iec-62304", "sources-tick").disabled], [false, false], "a restricted source can be ticked");
   await tick(field(page.target, "SRC-handbook", "sources-tick"));
   await click(save(page.target));
   assert.equal(productCommits(page)[0].files["docs/sources.md"], links(`| SRC-handbook | 1 | ${H.handbook} | — |`));
