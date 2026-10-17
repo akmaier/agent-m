@@ -14,6 +14,7 @@ import { blobSha } from "../text-tools/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { candidateRows, editedResult } from "./candidates.mjs";
 import { el, button, link } from "./common.mjs";
+import { fallbackPages } from "./file-edit.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
 const SPEC = "SPEC.md";
@@ -76,9 +77,7 @@ export async function requirementsDraft({ snapshot, host, token, context, draft,
       }
       const fallback = saved.flatMap((each) => each.fallback ?? []);
       if (fallback.length) {
-        const pages = el("ul", "pages");
-        for (const page of fallback) pages.append(el("li", null, link(page.url, "github-page", `Open GitHub's page for ${page.path}`)));
-        status.replaceChildren(el("p", null, "There is no token: GitHub's pages open for the proposal files."), pages);
+        fallbackPages(status, fallback);
         return;
       }
       drop();

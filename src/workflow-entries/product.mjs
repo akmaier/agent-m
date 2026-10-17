@@ -83,15 +83,22 @@ function endpointOf(text) {
   return { kind: read.kind, baseUrl: read.baseUrl, model: read.model };
 }
 
-// The branch of a run whose commit messages or pull request text hold the task, trimmed, as one string: the pull request the writer returned, read
-// through the server's API with the person's token. -> { branch, where } or null.
-async function refusedBranch(host, written, task) {
+// The task, trimmed, must not appear in a run's PR text or new branch commit messages. Without a PR, compare the reported branch at one
+// pinned commit against the job's pre-run snapshot by complete commit identities, including merge-side history. -> { branch, where } or null.
+async function refusedBranch(host, written, task, baseCommit) {
   const number = /\/(?:pull|merge_requests)\/(\d+)\b/.exec(written?.pullRequest ?? "")?.[1];
-  if (!number) return null;
-  const facts = await host.pullRequestFacts(Number(number));
   const holds = (value) => typeof value === "string" && value.includes(task.trim());
-  const where = facts.commits.some((commit) => holds(commit.message)) ? "a commit message" : Object.values(facts.pullRequest).some(holds) ? "the pull request's text" : null;
-  return where ? { branch: facts.pullRequest.branch, where } : null;
+  if (number) {
+    const facts = await host.pullRequestFacts(Number(number));
+    const where = facts.commits.some((commit) => holds(commit.message)) ? "a commit message" : Object.values(facts.pullRequest).some(holds) ? "the pull request's text" : null;
+    return where ? { branch: facts.pullRequest.branch, where } : null;
+  }
+  const branch = written?.shown?.branch;
+  if (typeof branch !== "string" || !branch) return null;
+  const pinned = await host.readSnapshot(branch);
+  const history = await host.readHistory(null, { ref: pinned.commit });
+  const before = new Set((await host.readHistory(null, { ref: baseCommit })).map((entry) => entry.commit));
+  return history.some((entry) => !before.has(entry.commit) && holds(entry.message)) ? { branch, where: "a commit message" } : null;
 }
 
 // The participant's answer: the draft's `answer` where it is a text, else the draft as it stands, as JSON.
@@ -141,7 +148,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context });
     outcome = result.written;
     if (handOver) {
-      const refused = await refusedBranch(product.host, outcome, handOver.task);
+      const refused = await refusedBranch(product.host, outcome, handOver.task, context.product.snapshot.commit);
       if (refused) throw Object.assign(new Error(`the branch ${refused.branch} is refused: ${refused.where} holds the task of the hand-over.`), { name: "TaskInBranch" });
       leaveAnswer(env, record.id, answerOf(outcome?.shown ?? result.draft));
     }

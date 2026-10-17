@@ -12,6 +12,7 @@ import { fallbackEditLinks, keptIdentifier, saveFile } from "../artifact-edits/i
 import { statuses } from "../approvals/index.mjs";
 import { openEditor } from "../markdown-render/index.mjs";
 import { el, button, link } from "./common.mjs";
+import { fallbackPages } from "./file-edit.mjs";
 
 /**
  * fileDrafts({ files, snapshot, host, trailers, versionOf, check, extras }) -> Promise<{ drafts, discard, saved }> — `files` are the drafted { path, text }; `trailers` the provenance
@@ -33,10 +34,7 @@ export async function fileDrafts({ files, snapshot, host, trailers, versionOf = 
       const info = await host.repositoryInfo();
       if (!info.canWrite) {
         const pages = fallbackEditLinks(edits.map((edit) => ({ path: edit.path, text: edit.text, existing: edit.openedBlob !== null })), snapshot);
-        if (pages.refused) return { kind: "failed", reason: "a GitLab product is written with the project's own token." };
-        const list = el("ul", "pages");
-        for (const page of pages) list.append(el("li", null, link(page.url, "github-page", `Open GitHub's page for ${page.path}`)));
-        saved.replaceChildren(el("p", null, "There is no token: GitHub's page opens for each file, and you commit them there."), list);
+        if (!fallbackPages(saved, pages)) return { kind: "failed", reason: "a GitLab product is written with the project's own token." };
         return { kind: "failed", reason: "there is no token, so nothing was committed from here." };
       }
       const out = await saveFile(host, edits);

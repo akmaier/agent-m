@@ -13,6 +13,7 @@ import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./edit.mjs";
+import { fallbackPages } from "./file-edit.mjs";
 import { el, link, parseServer, problem, TOKEN_STEP } from "./common.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -72,9 +73,7 @@ export async function showEntryEdit(where, kind, id) {
       if (outcome.refused === "changed meanwhile") return { kind: "refused", newer: outcome.current ?? "" };
       if (outcome.refused === "not open") return { kind: "failed", reason: `the entry is no longer open: it is ${outcome.state}.` };
       if (outcome.fallback) {
-        const pages = el("ul", "pages");
-        for (const file of outcome.fallback) pages.append(el("li", null, link(file.url, "github-page", `Open GitHub's page for ${file.path}`)));
-        saved.replaceChildren(el("p", null, "There is no token: GitHub's page opens for each file of the entry, and you commit them there."), pages);
+        fallbackPages(saved, outcome.fallback);
         return { kind: "failed", reason: "there is no token, so nothing was committed from here." };
       }
       const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
