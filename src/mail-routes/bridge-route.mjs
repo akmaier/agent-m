@@ -39,8 +39,25 @@ function named(error, connection) {
   return error;
 }
 
+// A usable reply address: one address, "name@host", in the one `to` of a Draft (A REPLY GOES TO ONE REPORTER). The module file fixes no rule; this one
+// refuses what is plainly none: missing, empty, without "@", or several in one.
+const USABLE_ADDRESS = /^[^\s@,;<>]+@[^\s@,;<>]+$/;
+function replyAddressed(draft) {
+  const address = draft?.to?.address;
+  if (Array.isArray(draft?.to) || typeof address !== "string" || !USABLE_ADDRESS.test(address)) {
+    throw failure("NoReplyAddress", {}, "The mail has no usable reply address; nothing was stored.");
+  }
+  return draft;
+}
+
+// The Bridge's confirmation-refused as the module file's ConfirmationRefused with the reason; anything else is not this.
+function refusal(error) {
+  return error?.name === "BridgeFailed" && error.error === "confirmation-refused"
+    ? failure("ConfirmationRefused", { reason: error.message }, error.message) : undefined;
+}
+
 /**
- * bridgeMailbox(connection: MailConnection, bridge: Bridge) -> Mailbox — the mailbox on the Bridge route: ITM-425 builds its test, ITM-834 its read, find, drafts and sent.
+ * bridgeMailbox(connection: MailConnection, bridge: Bridge) -> Mailbox — the mailbox on the Bridge route: ITM-425 builds its test, ITM-834 its read, find, drafts and sent, ITM-835 its draft and send operations.
  */
 export function bridgeMailbox(connection, bridge) {
   // One request to the Bridge; its failures are the module file's.
@@ -64,6 +81,31 @@ export function bridgeMailbox(connection, bridge) {
       }
     },
     drafts: () => ask("drafts", {}),
+    // The reply is stored by the Bridge in Drafts; a draft without a usable reply address is refused here, before any request.
+    storeDraft: async (draft) => ask("store-draft", { draft: replyAddressed(draft) }),
+    updateDraft: async (ref, draft) => ask("update-draft", { ref, draft: replyAddressed(draft) }),
+    showDraft: (ref) => ask("show-draft", { ref }),
+    // The Bridge's single-use confirmation for the SHA-256 of the mail shown first, then the send with it. The Bridge's confirmation-refused to
+    // send, when it says the draft is not the mail that was confirmed, is DraftChanged; any other is ConfirmationRefused with its message.
+    async sendDraft(shown) {
+      let confirmed;
+      try {
+        confirmed = await mailCall(bridge, "confirm-send", connection, { ref: shown.ref, sha256: shown.sha256 });
+      } catch (error) {
+        throw refusal(error) ?? named(error, connection);
+      }
+      try {
+        return await mailCall(bridge, "send", connection, { ref: shown.ref, sha256: shown.sha256, confirmation: confirmed.confirmation });
+      } catch (error) {
+        if (error?.name === "BridgeFailed" && error.error === "confirmation-refused" && /not the mail that was confirmed/i.test(error.message)) {
+          throw failure("DraftChanged", {}, error.message);
+        }
+        if (error?.name === "BridgeFailed" && error.error === "upstream-failed") {
+          throw failure("SendRefused", { answer: error.message }, error.message);
+        }
+        throw refusal(error) ?? named(error, connection);
+      }
+    },
     sent: (since) => ask("sent", { since }),
     // The Bridge logs in to the IMAP server over TLS, counts the mails of the named folders read-only, finds Drafts and Sent, logs in to
     // the SMTP server over TLS without sending, and forgets the password; its answer is returned as it gave it.
