@@ -202,13 +202,17 @@ export function modelFindings(model) {
  * the files `docs/process-models/<name>.md` its snapshot holds —, each model with its findings. A shipped model is offered
  * for adapting, never for editing in place. Over the instance's snapshot at the commit a product's declaration names, it
  * holds the instance's models as they stood at that commit: the version the product declared (UC-031 6a). The instance's
- * models are read through the snapshot, so the call crosses the network, and it fails as the snapshot's read fails:
- * NotFound, TokenRefused, PermissionMissing, RateLimited or Unreachable.
+ * models are read through the snapshot — all of them named to its readMany first, one batch request of up to a hundred files
+ * where the host has one —, so the call crosses the network, and it fails as the snapshot's read fails: NotFound,
+ * TokenRefused, PermissionMissing, RateLimited or Unreachable.
  * @param {Snapshot} instance — the instance repository at one commit, as MOD-repository-hosts' readSnapshot gives it
  * @returns {Promise<Catalogue>}
  */
 export async function catalogue(instance) {
   const paths = instance.paths.filter((path) => INSTANCE_MODEL.test(path)).sort();
+  // The texts are named to the snapshot first (Snapshot.readMany), which fetches them in batches of a hundred where the host can
+  // and reads nothing ahead elsewhere; the reads below then find them held. A snapshot without readMany is read file by file.
+  await instance.readMany?.(paths);
   const documents = [...SHIPPED_MODELS,
     ...await Promise.all(paths.map(async (path) => readDocument(MODEL, path, await instance.read(path))))];
   return {
