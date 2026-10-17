@@ -571,7 +571,7 @@ test("A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE — a product's own key that expi
   const page = await openDashboard({ server: own.srv, search: `?repo=${encodeURIComponent(PRODUCT)}`, hash: "#uc",
     entries: ownKey("github_pat_PRODUCT0123456789abcdefghij", soon) });
   const banner = page.el("token-banner");
-  assert.ok(banner.includes(`Your token Agent M for ${PRODUCT_ADDR} expires on ${soon}.`), banner);
+  assert.ok(banner.includes(`Your GitHub token expires on ${soon} (Agent M for ${PRODUCT_ADDR}).`), banner);
   assert.ok(banner.includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "Renew at GitHub's list of tokens");
   assert.ok(banner.includes("paste the new value in Settings"), "where the new value is pasted");
   const other = await withProduct({ "README.md": "# Thesis\n" });
@@ -875,7 +875,7 @@ test("UC-042 1a: a token that expires within fourteen days is named on every pag
   assert.equal(publicRepositoryControl(near.box, "GitHub token", "status").textContent, `Expires on ${day(5)}; renew soon.`);
   assert.equal(publicRepositoryControl(near.box, "GitHub token", "renew").href, "https://github.com/settings/personal-access-tokens");
   await near.page.go("#spec");
-  assert.ok(near.page.el("token-banner").includes(`Your token GitHub token expires on ${day(5)}.`), "the token and its expiry are named at the top of every dashboard page");
+  assert.ok(near.page.el("token-banner").includes(`Your GitHub token expires on ${day(5)} (GitHub token).`), "the token and its expiry are named at the top of every dashboard page");
   assert.ok(near.page.el("token-banner").includes('href="https://github.com/settings/personal-access-tokens">Renew</a>'), "Renew at GitHub's list of tokens");
   const later = await publicSettingsPage({ settings: { "github-token": { value: TOKEN, name: "GitHub token", expires: day(30), stored: day(0) } } });
   assert.equal(publicRepositoryControl(later.box, "GitHub token", "status").textContent, `Expires on ${day(30)}.`);

@@ -51,13 +51,13 @@ async function start({ tokens = {}, tested = {}, products = [], fragment = "", v
 // guards: A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; UC-042
 // given: the instance's token named "Agent M" whose recorded expiry is 14 days from today
 // input: startPage
-// expect: one notice of kind token-expiring whose text begins "Your token Agent M expires on <that date>." and tells where the new
+// expect: one notice of kind token-expiring whose text begins "Your GitHub token expires on <that date> (Agent M)." and tells where the new
 //   value is pasted, with a link labelled "Renew" to GitHub's list of tokens
 test("TST-683001 a token that expires in 14 days is named with its date, and its renewal is linked", async () => {
   const page = await start({ tokens: { "github-token": { expires: day(14) } } });
   assert.equal(page.notices.length, 1);
   assert.equal(page.notices[0].kind, "token-expiring");
-  assert.ok(page.notices[0].text.startsWith(`Your token Agent M expires on ${day(14)}.`), page.notices[0].text);
+  assert.ok(page.notices[0].text.startsWith(`Your GitHub token expires on ${day(14)} (Agent M).`), page.notices[0].text);
   assert.match(page.notices[0].text, /paste the new value in Settings/);
   assert.equal(page.notices[0].label, "Renew");
   assert.equal(page.notices[0].href, GITHUB_TOKENS);
@@ -78,13 +78,13 @@ test("TST-683002 a token 15 days from its expiry, one with no recorded expiry an
 // guards: A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
 // given: the instance's token expiring today, then one that expired yesterday
 // input: startPage for each
-// expect: today's notice says "expires on <today>."; yesterday's says "expired on <yesterday>." and links GitHub's list of tokens
+// expect: today's notice says "Your GitHub token expires on <today> (Agent M)."; yesterday's says "Your GitHub token expired on <yesterday> (Agent M)." and links GitHub's list of tokens
 test("TST-683003 a token that expires today is still to expire; one that expired yesterday is named as expired", async () => {
   const today = await start({ tokens: { "github-token": { expires: day(0) } } });
-  assert.ok(today.notices[0].text.startsWith(`Your token Agent M expires on ${day(0)}.`), today.notices[0].text);
+  assert.ok(today.notices[0].text.startsWith(`Your GitHub token expires on ${day(0)} (Agent M).`), today.notices[0].text);
   const past = await start({ tokens: { "github-token": { expires: day(-1) } } });
   assert.equal(past.notices[0].kind, "token-expiring");
-  assert.ok(past.notices[0].text.startsWith(`Your token Agent M expired on ${day(-1)}.`), past.notices[0].text);
+  assert.ok(past.notices[0].text.startsWith(`Your GitHub token expired on ${day(-1)} (Agent M).`), past.notices[0].text);
   assert.equal(past.notices[0].href, GITHUB_TOKENS);
 });
 
@@ -103,7 +103,7 @@ test("TST-683004 days are counted in whole UTC days, whatever the time of day", 
     showTokenNotices({ store, instance, now: new Date("2026-10-17T23:59:59Z") });
     return place.children.map((p) => p.children[0]);
   };
-  assert.deepEqual(shown("2026-10-31"), ["Your token Agent M expires on 2026-10-31. After renewing it, paste the new value in Settings."]);
+  assert.deepEqual(shown("2026-10-31"), ["Your GitHub token expires on 2026-10-31 (Agent M). After renewing it, paste the new value in Settings."]);
   assert.deepEqual(shown("2026-11-01"), []);
 });
 
@@ -128,16 +128,16 @@ test("TST-683005 a token the server refused is named with its renewal, and a ref
 // given: a GitHub product https://github.com/acme/widget and a GitLab product https://gitlab.example.org/team/app, each with a token of
 //   its own expiring in 5 days, and the instance's token expiring in 60 days
 // input: startPage on the widget's pages, on the app's pages, and on the instance's pages
-// expect: the widget's pages name "Agent M for https://github.com/acme/widget" with GitHub's list of tokens; the app's pages name
-//   "Agent M for https://gitlab.example.org/team/app" with https://gitlab.example.org/team/app/-/settings/access_tokens; the instance's
+// expect: the widget's pages show "Your GitHub token expires on <date> (Agent M for https://github.com/acme/widget)" with GitHub's list of tokens;
+//   the app's pages show "Your GitLab project token expires on <date> (Agent M for https://gitlab.example.org/team/app)" with https://gitlab.example.org/team/app/-/settings/access_tokens; the instance's
 //   pages name neither (counter-proof)
 test("TST-683006 a product's own token is named on that product's pages only, with its server's renewal page", async () => {
   const tokens = { "github-token": { expires: day(60) }, "github-token:acme/widget": { expires: day(5) }, "gitlab-token:gitlab.example.org/team/app": { value: "glpat-X", expires: day(5) } };
   const widget = await start({ tokens, products: [WIDGET, APP], fragment: `#alpha/product=${encodeURIComponent(WIDGET)}` });
-  assert.deepEqual(widget.notices.map((n) => [n.kind, n.text.split(" expires")[0], n.href]), [["token-expiring", `Your token Agent M for ${WIDGET}`, GITHUB_TOKENS]]);
+  assert.deepEqual(widget.notices.map((n) => [n.kind, n.text.replace(/\. After renewing.*$/, ""), n.href]), [["token-expiring", `Your GitHub token expires on ${day(5)} (Agent M for ${WIDGET})`, GITHUB_TOKENS]]);
   const app = await start({ tokens, products: [WIDGET, APP], fragment: `#alpha/product=${encodeURIComponent(APP)}` });
-  assert.deepEqual(app.notices.map((n) => [n.kind, n.text.split(" expires")[0], n.href]),
-    [["token-expiring", `Your token Agent M for ${APP}`, "https://gitlab.example.org/team/app/-/settings/access_tokens"]]);
+  assert.deepEqual(app.notices.map((n) => [n.kind, n.text.replace(/\. After renewing.*$/, ""), n.href]),
+    [["token-expiring", `Your GitLab project token expires on ${day(5)} (Agent M for ${APP})`, "https://gitlab.example.org/team/app/-/settings/access_tokens"]]);
   const instance = await start({ tokens, products: [WIDGET, APP], fragment: "#alpha" });
   assert.deepEqual(instance.notices, [], "counter-proof: the instance's pages name neither product's token");
 });
