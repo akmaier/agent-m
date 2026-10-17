@@ -48,3 +48,7 @@ last other importer.
 - Each SPEC Check named above runs on MOD-settings-pages' pages and keeps its requirement; the pull request names each
   case's new place.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Narrowed at its draft stop (sprint team1/75, 2026-10-17, po-opus).** This item moves the three Checks onto the live
+settings pages and fixes what they show missing. It removes neither old file: that is ITM-818, once the readers in other
+modules have moved. The decisions are in `75.md`, "ITM-810's draft stop".
