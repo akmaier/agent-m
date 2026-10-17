@@ -95,6 +95,7 @@ function fakeGraph(seed = {}) {
 // The header lines of raw bytes (unfolded) and the recipients named in a header.
 const headerLines = (raw) => raw.split(/\r?\n\r?\n/)[0].replace(/\r?\n[ \t]+/g, " ").split(/\r?\n/);
 const header = (raw, name) => headerLines(raw).filter((line) => line.toLowerCase().startsWith(`${name.toLowerCase()}:`)).map((line) => line.slice(name.length + 1).trim());
+const bodyOf = (raw) => Buffer.from(raw.split(/\r?\n\r?\n/)[1].replace(/\s+/g, ""), "base64").toString("utf8");
 const sendRequests = (graph) => graph.requests.filter((request) => request.method === "POST" && /\/send$/.test(request.address));
 const sha = (raw) => createHash("sha256").update(raw).digest("hex");
 
@@ -160,7 +161,7 @@ test("storeDraft and updateDraft — on the Microsoft route: no usable reply add
 
 // TST-483703 · level: unit · module: MOD-mail-routes
 // guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; UC-039
-// given: a fake Microsoft Graph holding a stored draft that was shown; afterwards the draft's bytes are changed in the mailbox (its body differs by one word)
+// given: a fake Microsoft Graph holding a stored draft that was shown; afterwards the draft's bytes are changed in the mailbox (its subject differs by one letter)
 // input: mailbox(connection of the Microsoft route, null).sendDraft(the ShownMail from before the change)
 // expect: rejects with DraftChanged; no send request was made and the draft is still in Drafts, nothing is in Sent
 test("sendDraft — on the Microsoft route: a draft changed after it was shown is not sent and DraftChanged is thrown", async () => {
@@ -170,7 +171,7 @@ test("sendDraft — on the Microsoft route: a draft changed after it was shown i
   const box = mailbox(CONNECTION, null);
   const ref = await box.storeDraft(DRAFT);
   const shown = await box.showDraft(ref);
-  graph.drafts[ref.id] = graph.drafts[ref.id].replace("fixed", "broken");
+  graph.drafts[ref.id] = graph.drafts[ref.id].replace("Subject: Re:", "Subject: RE:");
   await assert.rejects(box.sendDraft(shown), (error) => error.name === "DraftChanged");
   assert.equal(sendRequests(graph).length, 0, "no send request");
   assert.deepEqual(Object.keys(graph.drafts), [ref.id]);
@@ -195,7 +196,7 @@ test("sendDraft — on the Microsoft route: the unchanged draft is sent with one
   const mine = graph.requests.slice(before);
   assert.equal(sendRequests({ requests: mine }).length, 1, "exactly one send request");
   const send = mine.findIndex((request) => /\/send$/.test(request.address));
-  assert.equal(new URL(mine[send].address).pathname, `/v1.0/me/messages/${ref.id}/send`);
+  assert.equal(decodeURIComponent(new URL(mine[send].address).pathname), `/v1.0/me/messages/${ref.id}/send`);
   assert.ok(mine.slice(0, send).some((request) => request.method === "GET" && request.address.includes("$value")), "the bytes were read again before the send");
   assert.deepEqual(Object.keys(graph.sent), [ref.id]);
   assert.deepEqual(graph.drafts, {});
@@ -218,11 +219,11 @@ test("updateDraft — on the Microsoft route: the edit replaces the instance's o
   const second = await box.updateDraft(first, { ...DRAFT, body: "A better answer." });
   assert.equal(second.route, "graph");
   assert.notEqual(second.id, first.id);
-  assert.match(graph.drafts[second.id], /A better answer\./);
+  assert.match(bodyOf(graph.drafts[second.id]), /A better answer\./);
   assert.equal(graph.drafts[first.id], undefined, "the old draft of Agent M's is removed");
   const deletes = graph.requests.slice(before).filter((request) => request.method === "DELETE");
   assert.equal(deletes.length, 1);
-  assert.equal(new URL(deletes[0].address).pathname, `/v1.0/me/messages/${first.id}`);
+  assert.equal(decodeURIComponent(new URL(deletes[0].address).pathname), `/v1.0/me/messages/${first.id}`);
   const mark = graph.requests.length;
   await assert.rejects(box.updateDraft({ route: "graph", id: "AAMk-hand=" }, DRAFT), (error) => error.name === "DraftChanged");
   assert.equal(graph.drafts["AAMk-hand="], FOREIGN, "the hand-written draft is untouched");
