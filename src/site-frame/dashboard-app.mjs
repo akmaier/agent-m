@@ -522,8 +522,24 @@ function startNotifications() {
     return; // StorageUnavailable: a browser that refuses storage holds no switch, and no check runs
   }
   if (typeof globalThis.Notification === "undefined") return;
-  const instanceHost = connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() });
-  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHost }, addressOf: addressOfNotification });
+  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHostFollowingToken() }, addressOf: addressOfNotification });
+}
+
+// The instance's host for the checks, which keep it for the page's whole life: each call of its functions goes through a host connected
+// with the GitHub token stored at that moment, a new one when the token was cleared, replaced or stored since (A CLEAR IS A REAL CLEAR).
+function instanceHostFollowingToken() {
+  const address = parseAddress(`https://github.com/${T.instance}`);
+  let held = null, heldToken = null;
+  const current = () => {
+    const stored = ghToken() || null;
+    if (!held || stored !== heldToken) {
+      held = connect(address, { token: stored });
+      heldToken = stored;
+    }
+    return held;
+  };
+  return Object.freeze(Object.fromEntries(Object.entries(current()).map(([name, member]) =>
+    [name, typeof member === "function" ? (...given) => current()[name](...given) : member])));
 }
 
 // ---------------------------------------------------------------- this page's context, handed to every view
