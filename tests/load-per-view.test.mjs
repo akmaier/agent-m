@@ -260,6 +260,49 @@ test("an acceptance of three files reads its head once", async () => {
   assert.deepEqual(before.filter((r) => r.startsWith("file ") || r.startsWith("batch ")), ["file SPEC.md"], before.join(" | "));
 });
 
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open
+// input: open #review/uc with a token
+// expect: the three use cases come in one batch of three and none by itself; the only file read by itself is the record of UC-002's last accepted
+//         text, which MOD-approvals reads; the commit and the tree once each
+test("#review/uc: the files it shows come in one batch", async () => {
+  const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
+  const srv = await server(repo);
+  const page = await openDashboard({ server: srv, hash: "#review/uc" });
+  assert.match(page.main(), /Accept all 3 shown/);
+  assert.deepEqual(batchesOf(page.requests), ["batch 3"]);
+  assert.deepEqual(srv.batches.map(sorted), [sorted([UC2, "docs/use-cases/UC-003-third.md", "docs/use-cases/UC-004-fourth.md"])]);
+  assert.deepEqual(files(page.requests), recordOf(repo, "UC-002"), "only the record of UC-002's last accepted text is read by itself");
+  assert.equal(count(page.requests, "commit"), 1);
+  assert.equal(count(page.requests, "tree"), 1);
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the same three use cases, and a stored token that is not sent
+// input: open #review/uc without a token
+// expect: counter-proof of the case above — GitHub's batch request needs the token, so no batch is sent and each of the three use cases is read by
+//         its own request, more requests than the one batch
+test("#review/uc without a token: each file is read by itself, which sends more requests than the batch", async () => {
+  const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
+  const withToken = await openDashboard({ server: await server(repo), hash: "#review/uc" });
+  const without = await openDashboard({ server: await server(repo), hash: "#review/uc", token: null });
+  assert.deepEqual(batchesOf(without.requests), []);
+  for (const path of [UC2, "docs/use-cases/UC-003-third.md", "docs/use-cases/UC-004-fourth.md"]) assert.ok(files(without.requests).includes(path), path);
+  assert.ok(without.requests.length > withToken.requests.length, `${without.requests.length} against ${withToken.requests.length}`);
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product, whose UC-001 is accepted
+// input: open #uc/UC-001 and #arc/ARC-001 with a token — a route that shows one accepted file
+// expect: the commit, the tree and the repository's information, and the one file by its own request — a batch of one file is no fewer requests
+test("#uc/<id> and #arc/<id> of an accepted file read that one file by itself", async () => {
+  const repo = await product();
+  const use = await openDashboard({ server: await server(repo), hash: "#uc/UC-001" });
+  assert.deepEqual(use.requests, ["commit", "tree", "repository", `file ${UC1}`]);
+  const arc = await openDashboard({ server: await server(repo), hash: "#arc/ARC-001" });
+  assert.deepEqual(arc.requests, ["commit", "tree", "repository", `file ${ARC}`]);
+});
+
 // ---------------------------------------------------------------- one view, what it reads
 
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT

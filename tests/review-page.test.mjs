@@ -4,7 +4,7 @@
 // which the app's address #review/uc and #review/arc lead to. Run: node --test tests/*.test.mjs
 //
 // Module: MOD-site-frame
-// Guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-008; UC-022; UC-023
+// Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-008; UC-022; UC-023
 // Level: component
 //
 // SPEC §10 SEVERAL FILES ARE ACCEPTED IN ONE CLICK · AN APPROVAL NAMES THE EXACT TEXT · A CHANGED FILE IS SHOWN AGAINST ITS LAST
@@ -147,21 +147,27 @@ test("counter-proof: a file changed between building the page and the click is l
   assert.match(section(page.main(), "MOD-page"), /Edited by someone else\./);
 });
 
-test("request count: the architecture's review page reads each file once, its commit and tree once, the repository's information once, and the graph of its impact list in one batch", async (t) => {
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product, whose three module files MOD-page, MOD-reader and MOD-review are not accepted
+// input: open #review/arc with a token
+// expect: the three files shown come in one batch of three and none by itself; the graph of the impact list is a second batch that holds the SPEC
+//         and the architecture files; the commit, the tree and the repository's information once each; no use case and no queue file
+test("request count: the architecture's review page reads the files it shows in one batch, its commit and tree once, the repository's information once, and the graph of its impact list in a second", async (t) => {
   const repo = await product(), caches = fakeCaches();
   const srv = await server(repo);
   const cold = await openDashboard({ server: srv, hash: "#review/arc", caches });
-  assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/architecture/") || p === "SPEC.md"),
-    ["docs/architecture/MOD-page.md", "docs/architecture/MOD-reader.md", "docs/architecture/MOD-review.md"],
-    "the three files shown, each once");
-  assert.equal(srv.batches.length, 1);
-  assert.ok(srv.batches[0].includes("SPEC.md") && srv.batches[0].includes("docs/architecture/ARC-001-static-client.md"), "the batch holds the SPEC and the architecture files the graph reads");
+  assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/architecture/") || p === "SPEC.md"), [],
+    "no file shown is read by itself");
+  assert.equal(srv.batches.length, 2);
+  assert.deepEqual([...srv.batches[0]].sort(), ["docs/architecture/MOD-page.md", "docs/architecture/MOD-reader.md", "docs/architecture/MOD-review.md"],
+    "the three files shown, in one batch");
+  assert.ok(srv.batches[1].includes("SPEC.md") && srv.batches[1].includes("docs/architecture/ARC-001-static-client.md"), "the second batch holds the SPEC and the architecture files the graph reads");
   assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/use-cases/") || p.startsWith("docs/spec-freigaben/")), [],
     "no use case and no queue file");
   assert.equal(count(cold.requests, "commit"), 1);
   assert.equal(count(cold.requests, "tree"), 1);
   assert.equal(count(cold.requests, "repository"), 1);
-  assert.equal(cold.requests.filter((r) => r.startsWith("batch ")).length, 1, "the graph reads its files in one batch");
+  assert.equal(cold.requests.filter((r) => r.startsWith("batch ")).length, 2, "the files shown in one batch, the graph's in a second");
   const warm = await openDashboard({ server: await server(repo), hash: "#review/arc", caches });
   assert.deepEqual(warm.requests, cold.requests, "a new dashboard load has a fresh in-memory text cache");
   assert.equal(warm.main(), cold.main(), "the same page");

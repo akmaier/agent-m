@@ -1,4 +1,4 @@
-// Markdown to sanitised HTML (MOD-markdown-render, Interfaces: renderArtifact), with md() of docs/assets/dashboard-app.mjs as
+// Markdown to sanitised HTML (MOD-markdown-render, Interfaces: renderArtifact), with md() of src/site-frame/dashboard-app.mjs as
 // its model: marked turns the Markdown into HTML, and DOMPurify sanitises it before it reaches the page (ARC-049).
 //
 // Module: MOD-markdown-render
