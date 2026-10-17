@@ -8,6 +8,7 @@ import { loadSchema } from "../documents/index.mjs";
 export { peopleIn, personHits } from "./people.mjs";
 export { checkersFor } from "./checkers.mjs";
 export { namedPersonFindings } from "./consent.mjs";
+export { privacyStrategies } from "./strategies.mjs";
 
 const OWNER = "MOD-personal-data";
 const SETTINGS_SCHEMA_FILE = new URL("./settings.schema.md", import.meta.url);
