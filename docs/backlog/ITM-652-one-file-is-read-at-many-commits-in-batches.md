@@ -41,3 +41,7 @@ It waits for akmaier's acceptance of that draft.
 - `readHistory` with `changes: false` costs one request per page of commits, and its entries' `changes` are empty.
 - The tests count the requests on GitHub's and GitLab's adapters.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Noted at ITM-718's gate (sprint team1/75, 2026-10-17, po-opus).** MOD-approvals' `lastAcceptedText` costs 2R+7 requests
+for R records, because `readHistory` reads every commit's changes. Once `changes: false` is built here, it passes that
+option and needs only each commit and its date. The count of a changed file's page is measured before and after.
