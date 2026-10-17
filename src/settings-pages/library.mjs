@@ -296,7 +296,7 @@ function movePanel(entry, entries, item, context, moved) {
           result.textContent = `✗ ${error?.message ?? error} — nothing was written.`;
         }
       });
-      panel.replaceChildren(
+      panel.replaceChildren(explain("source-move"),
         el("p", "library-move-requirements", names.length ? `Requirements that name ${entry.id}: ${names.join(", ")}.` : `No requirement of this product names ${entry.id}.`),
         passages, ...(record.hash ? [] : [el("p", "library-move-nohash", `${newest} records no version hash, so a link cannot name it.`)]),
         el("p", "library-move-where", `Move writes docs/sources.md in ${product.web} as your own commit, and writes nothing else.`), el("p", null, move), result);
@@ -368,7 +368,7 @@ async function entryPage(target, first, entries, context) {
     }
   });
 
-  panel.append(el("h3", null, "Add a new version"), el("p", null, el("label", null, "Version, its official identifier or edition ", versionId)),
+  panel.append(el("h3", null, "Add a new version"), explain("source-new-version"), el("p", null, el("label", null, "Version, its official identifier or edition ", versionId)),
     el("p", null, el("label", null, "Date ", versionDate)), el("p", null, el("label", null, "Files ", filesInput)), fileRows, explain("file-only-hashed"), statement, explain("source-public"),
     el("p", null, save), result);
   drawTop(); drawOlder();

@@ -493,6 +493,26 @@ public: the name, kind, authority, licence, versions, identifiers and hashes. Th
 says it may be republished; restricted content goes to the repository you name, and it is public only as far as that repository
 is.
 
+## source-new-version
+
+A new version is a newer edition or revision of a source that is already in the library: a law that was amended, a norm that got its
+next edition, a document that was revised. Choose + New version, give the version a name that tells it apart, such as the edition or
+its date, and select its files; your browser computes each file's SHA-256, a fingerprint of its exact content. The new version is
+added beside the old versions, which are never overwritten: the library keeps every version as it was, so a product can still say
+exactly which one it used. Saving makes a commit to the instance repository under your own account (a commit is GitHub's record of
+one change, kept in the history), and the content goes to the repository the source names where its licence is restricted. Files
+with exactly the same bytes as an existing version are refused, and nothing is recorded. Products stay on the version they link
+until you move them.
+
+## source-move
+
+Moving a product changes which version of the source the product links. Each product keeps a list of the sources that apply to it
+in its file docs/sources.md, with the version it uses; a product that links an earlier version stays on it, for example because it
+was certified against it, until you decide otherwise. When you choose Move to the new version, the requirements that name the source
+and the passages that changed are shown first, so you can see what the move touches before you decide. Then Move makes one commit to
+docs/sources.md of the product's repository under your own account, and nothing else; the commit message names the requirements
+listed, so the history shows the move together with what it affects. Without pressing Move the product stays on its version.
+
 ## mailbox-routes
 
 There are two ways to connect a mailbox, and your mail provider decides which one you use. The *web API* route is for Microsoft
