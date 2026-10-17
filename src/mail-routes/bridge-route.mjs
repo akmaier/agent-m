@@ -1,5 +1,5 @@
-// bridge-route.mjs — the IMAP and SMTP route through the Bridge (MOD-mail-routes, Parts): the mailbox's test. ITM-425 builds it; the other
-// operations of the route are UC-038's and UC-039's.
+// bridge-route.mjs — the IMAP and SMTP route through the Bridge (MOD-mail-routes, Parts): the mailbox's test (ITM-425) and its read, find,
+// drafts and sent (ITM-834). The draft and send operations of the route are UC-039's.
 //
 // Module: MOD-mail-routes
 //
@@ -15,6 +15,11 @@ const MISSING = /doesn'?t exist|does not exist|no such|not exist|unknown|not fou
 // thrown as it is.
 function named(error, connection) {
   const said = error?.message ?? String(error);
+  // The Bridge's `not-found` for a named folder begins with the folder's name.
+  if (error?.name === "BridgeFailed" && error.error === "not-found") {
+    const folder = connection.folders.find((name) => said.startsWith(`${name}:`));
+    if (folder !== undefined) return failure("FolderNotFound", { folder }, said);
+  }
   if (["TokenMissing", "NoAnswer", "TokenRefused", "JumpHostLoginRefused", "Timeout"].includes(error?.name)
       || (error?.name === "BridgeFailed" && ["paused", "origin-refused", "not-found", "invalid-request"].includes(error.error))) {
     return failure("BridgeUnavailable", { reason: said, ...(error.likely ? { likely: error.likely } : {}) }, `The Bridge is unavailable: ${said}`);
@@ -35,18 +40,35 @@ function named(error, connection) {
 }
 
 /**
- * bridgeMailbox(connection: MailConnection, bridge: Bridge) -> Mailbox — the mailbox on the Bridge route: ITM-425 builds its test.
+ * bridgeMailbox(connection: MailConnection, bridge: Bridge) -> Mailbox — the mailbox on the Bridge route: ITM-425 builds its test, ITM-834 its read, find, drafts and sent.
  */
 export function bridgeMailbox(connection, bridge) {
+  // One request to the Bridge; its failures are the module file's.
+  async function ask(operation, args) {
+    try {
+      return await mailCall(bridge, operation, connection, args);
+    } catch (error) {
+      throw named(error, connection);
+    }
+  }
   return {
+    // The mails of the named folders, opened read-only by the Bridge: nothing marked, moved, flagged or deleted.
+    read: (since) => ask("read", { since }),
+    // The Bridge answers a miss with `not-found` whose message begins with the identifier: that is null, never a guess.
+    async find(id) {
+      try {
+        return await mailCall(bridge, "find", connection, { id });
+      } catch (error) {
+        if (error?.name === "BridgeFailed" && error.error === "not-found" && String(error.message).startsWith(`${id}:`)) return null;
+        throw named(error, connection);
+      }
+    },
+    drafts: () => ask("drafts", {}),
+    sent: (since) => ask("sent", { since }),
     // The Bridge logs in to the IMAP server over TLS, counts the mails of the named folders read-only, finds Drafts and Sent, logs in to
     // the SMTP server over TLS without sending, and forgets the password; its answer is returned as it gave it.
     async test() {
-      try {
-        return await mailCall(bridge, "test", connection, {});
-      } catch (error) {
-        throw named(error, connection);
-      }
+      return ask("test", {});
     },
   };
 }
