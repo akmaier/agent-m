@@ -1,4 +1,4 @@
-// A browser for docs/assets/dashboard-app.mjs under node — used by the tests that load the dashboard (load-per-view, review-page,
+// A browser for src/site-frame/dashboard-app.mjs under node — used by the tests that load the dashboard (load-per-view, review-page,
 // dashboard-shell, architecture, dashboard-review-flows, review-core.d/refused-save), no test of its own.
 //
 // The app is the real module, imported fresh for every page load. Around it: a DOM that keeps what the app writes into its
@@ -327,8 +327,8 @@ let loads = 0;
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
 // entries: further settings in this browser when the page opens, { key: raw value } — a product's own token, for one.
 export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "", entries = {},
-  assets = new URL("../docs/assets/", import.meta.url) }) {
-  const purify = (await import(new URL("vendor/purify.es.mjs", assets))).default;
+  assets = new URL("../src/site-frame/", import.meta.url) }) {
+  const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
   if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page

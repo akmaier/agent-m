@@ -19,13 +19,14 @@ import {
   tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab, productTokenName, productTokenDescription,
 } from "../../docs/assets/dashboard/settings-view.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
-import { stepHtml, gitlabWriteRefusal } from "../../docs/assets/dashboard-app.mjs";
-import * as shell from "../../docs/assets/dashboard-app.mjs";
-import { ASSETS, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
+import { stepHtml, gitlabWriteRefusal } from "../../src/site-frame/dashboard-app.mjs";
+import * as shell from "../../src/site-frame/dashboard-app.mjs";
+import { ASSETS, APP, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
 
 // Every module file of the site (vendored libraries excepted), with the modules its Module line names.
-const moduleFiles = () => readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
-  .sort().map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") }));
+const moduleFiles = () => [...readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
+  .map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") })), { file: "dashboard-app.mjs", text: readFileSync(APP, "utf8") }]
+  .sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
 // The adapters (ARC-003 decision 1): the modules that reach the outside, as the code is built.
 function adapterModules() {
   return new Set(["MOD-git-host", "MOD-settings-store", "MOD-participants", "MOD-mailbox", "MOD-bridge-server", "MOD-bridge-tunnel"]);
@@ -240,7 +241,7 @@ test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be ren
 // ---------------------------------------------------------------- products in the browser (UC-001)
 
 test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
-  for (const u of [new URL("dashboard-app.mjs", ASSETS), ...viewFiles(), new URL("review-core.mjs", ASSETS), new URL("settings-store.mjs", ASSETS)]) {
+  for (const u of [APP, ...viewFiles(), new URL("review-core.mjs", ASSETS), new URL("settings-store.mjs", ASSETS)]) {
     const r = spawnSync(process.execPath, ["--check", u.pathname]);
     assert.equal(r.status, 0, `${u.pathname}: ${r.stderr}`);
   }

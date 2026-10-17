@@ -120,9 +120,9 @@ def _prepared(text: str, at: int) -> bool:
 
 
 def _own_origin(text: str, at: int) -> bool:
-    """dashboard-app.mjs: a view file or its style sheet, resolved against the module's own address."""
+    """src/site-frame/dashboard-app.mjs: a view file or its style sheet, resolved against the module's own address."""
     window = text[at:at + 400]
-    return "new URL(`dashboard/" in window and "import.meta.url" in window
+    return "new URL(`../../docs/assets/dashboard/" in window and "import.meta.url" in window
 
 
 FRAME_ASSET_LOADING = "the frame's own look.css or lettered brand asset, resolved from its module address"
@@ -322,8 +322,8 @@ PERMITTED_CHANNELS = {
     ("src/prompt-bar/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("docs/assets/bridge-tunnel.mjs", "fetch"): (1, "the probe of a remote session's forward, on localhost",
                                                   lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
-    ("docs/assets/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
-    ("docs/assets/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
+    ("src/site-frame/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
+    ("src/site-frame/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
     **{(path, channel): rule for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js")
        for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
@@ -410,7 +410,7 @@ class NoServer(unittest.TestCase):
 
     def test_the_site_has_code_to_check(self):
         # A scan that finds no file proves nothing: the page, the dashboard's modules and the vendored libraries are there.
-        for f in ("index.html", "src/home/home.mjs", "docs/index.html", "docs/assets/dashboard-app.mjs", "docs/assets/git-host.mjs",
+        for f in ("index.html", "src/home/home.mjs", "docs/index.html", "src/site-frame/dashboard-app.mjs", "docs/assets/git-host.mjs",
                   "docs/assets/vendor/mermaid.min.js"):
             self.assertIn(f, self.files)
 

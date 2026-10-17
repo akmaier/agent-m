@@ -10,7 +10,7 @@
 // Guards: UC-032; UC-035; EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; EVERY STEP EXPLAINS ITSELF
 // Level: component
 //
-// The real dashboard (docs/assets/dashboard-app.mjs) and its view docs/assets/dashboard/backlog-view.mjs run in
+// The real dashboard (src/site-frame/dashboard-app.mjs) and its view docs/assets/dashboard/backlog-view.mjs run in
 // tests/app-harness.mjs against a GitHub API mock; this file brings a fake of GitHub's pulls API and of "Create a reference".
 // The fixture product works in sprints without a time box, with a work-in-progress limit of 2, and has two teams. team1 runs
 // its sprint 01 since 2026-09-14 on its own branch, with ITM-001 — merged into that branch on 2026-09-15 — and ITM-002, whose

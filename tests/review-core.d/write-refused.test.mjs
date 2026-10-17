@@ -18,7 +18,7 @@ import { repoServer, openDashboard, REPO } from "../app-harness.mjs";
 import { gitBlobSha, recordText, useCaseRecord, specRecord, approvalPath, createReviewSession } from "../../docs/assets/review-core.mjs";
 import { newFileUrl, parseProductAddress } from "../../docs/assets/git-host.mjs";
 import { acceptPanel, githubPath } from "../../docs/assets/dashboard/review-views.mjs";
-import * as shell from "../../docs/assets/dashboard-app.mjs";
+import * as shell from "../../src/site-frame/dashboard-app.mjs";
 import { B_SPEC, B_P05, B_INDEX, QD, GL_ADDR } from "./helpers.mjs";
 
 const API = "https://api.github.com";

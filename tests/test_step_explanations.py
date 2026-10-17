@@ -9,14 +9,14 @@ test makes sure the app does not bypass it by writing a step by hand.
 import re
 import unittest
 
-from jsrun import ASSETS, js
+from jsrun import ASSETS, SRC, js
 
 
 def dashboard_text(shell: bool = True) -> str:
-    """The dashboard's own files (MOD-dashboard-app): the shell, dashboard-app.mjs, and every view and settings section under
+    """The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section under
     docs/assets/dashboard/ — what a test that read the one app file reads now; `shell=False`: the views alone."""
     views = sorted((ASSETS / "dashboard").rglob("*.mjs"))
-    return "\n".join(f.read_text(encoding="utf-8") for f in ([ASSETS / "dashboard-app.mjs"] if shell else []) + views)
+    return "\n".join(f.read_text(encoding="utf-8") for f in ([SRC / "site-frame" / "dashboard-app.mjs"] if shell else []) + views)
 
 
 class StepExplanations(unittest.TestCase):

@@ -1,8 +1,8 @@
 // Dashboard — the browser runtime's composition root and router. SPEC §10; ARC-003 (shells).
 //
 // Reads one pinned commit of the product — on GitHub or on a GitLab server (its REST API v4, at the same pinned commit) —
-// through the public repository Host reads, and renders use cases and SPEC change proposals. A page load reads only the commit
-// and its tree; each view then reads the files it shows through that pinned Snapshot. With a stored token, a
+// through the public repository Host reads, and renders use cases and SPEC change proposals. A page load reads the commit and
+// its tree, then the files the route shows in batches (readAhead); each view then takes the files it shows from that pinned Snapshot. With a stored token, a
 // person's click commits an edit or an acceptance: the button's trusted click becomes the authority of the git host's one
 // write path (dashboard/writes.mjs clickAuthority; ARC-003 decision 3); an accepted SPEC change is written in
 // the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
@@ -21,27 +21,29 @@
 // context: what is read, what is kept, and the helpers every view uses.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
-import { marked } from "./vendor/marked.esm.js";
-import DOMPurify from "./vendor/purify.es.mjs";
-import builtFiles from "./dashboard/built.json" with { type: "json" };
-import { retireFileTexts } from "./settings-store.mjs";
-import { productStore } from "./product-store-adapter.mjs";
+import { marked } from "../../docs/assets/vendor/marked.esm.js";
+import DOMPurify from "../../docs/assets/vendor/purify.es.mjs";
+import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
+import { retireFileTexts } from "../../docs/assets/settings-store.mjs";
+import { productStore } from "../../docs/assets/product-store-adapter.mjs";
 import {
   REPO_RE, parseProductAddress, isGitLab, tokenRefusal, usedUpLimit,
-} from "./git-host.mjs";
+} from "../../docs/assets/git-host.mjs";
 import {
   parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
-} from "./review-core.mjs";
-import { tokenBannerHtml } from "./dashboard/settings-view.mjs";
-import { DASHBOARD, builtViews } from "../../src/site/views.mjs";
-import { menuHtml, entryOf } from "../../src/site/menu.mjs";
-import { UPSTREAM, instanceOf } from "../../src/site/instance-repository.mjs";
+  parseQueueIndex, parseDecisions,
+} from "../../docs/assets/review-core.mjs";
+import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
+import { tokenBannerHtml } from "../../docs/assets/dashboard/settings-view.mjs";
+import { DASHBOARD, builtViews } from "../site/views.mjs";
+import { menuHtml, entryOf } from "../site/menu.mjs";
+import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
-import { openStore } from "../../src/browser-store/index.mjs";
-import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
-import { watchForAcceptance } from "../../src/notifications/index.mjs";
-import { view as settingsPages } from "../../src/settings-pages/index.mjs";
+import { openStore } from "../browser-store/index.mjs";
+import { parseAddress, connect } from "../repository-hosts/index.mjs";
+import { watchForAcceptance } from "../notifications/index.mjs";
+import { view as settingsPages } from "../settings-pages/index.mjs";
 
 export { DASHBOARD, UPSTREAM };
 
@@ -56,7 +58,7 @@ const built = new Set(builtFiles);
 // error.
 const modules = new Map();
 function loadFile(file) {
-  if (!modules.has(file)) modules.set(file, import(new URL(`dashboard/${file}`, import.meta.url).href));
+  if (!modules.has(file)) modules.set(file, import(new URL(`../../docs/assets/dashboard/${file}`, import.meta.url).href));
   return modules.get(file);
 }
 const notThere = (e) => e?.code === "ERR_MODULE_NOT_FOUND" || e instanceof TypeError;
@@ -72,7 +74,7 @@ function linkStylesheet(file) {
   linked.add(file);
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = new URL(`dashboard/${file}`, import.meta.url).href;
+  link.href = new URL(`../../docs/assets/dashboard/${file}`, import.meta.url).href;
   document.head.append(link);
 }
 
@@ -242,7 +244,8 @@ let flash = null; // the outcome of the last acceptance, shown once above the ne
 // ---------------------------------------------------------------- loading
 //
 // A page load reads the commit the branch points at and that commit's tree — two requests. The tree names every file with its
-// blob SHA. Each view then reads what it shows, once per commit (`once`): a file by its blob SHA through the pinned Snapshot.
+// blob SHA. The files the route shows are read in batches (readAhead); each view then takes what it shows once per commit
+// (`once`): a file by its blob SHA through the pinned Snapshot, whose texts the batches have brought.
 // The status of a reviewed file comes from the names of the approval records in the tree (statusByNames); a record is read
 // where its content decides.
 
@@ -266,8 +269,79 @@ async function loadSnapshot() {
   if (state.commit !== before) { memo = new Map(); state.records = null; verified.clear(); }
 }
 
-// A file on the commit an acceptance is written on (dashboard/writes.mjs acceptItems); null if it is absent.
-const readAt = async (head, path) => (await currentHost().readSnapshot(head)).read(path);
+// A file on the commit an acceptance is written on (dashboard/writes.mjs acceptItems); null if it is absent. The snapshot of a
+// commit is read once for as long as acceptances are written on that commit; a branch name is never kept, it moves.
+let headSnapshot = null; // { head, snapshot: Promise<Snapshot>, host }
+const COMMIT_ID = /^[0-9a-f]{40}$/;
+const readAt = async (head, path) => {
+  const activeHost = currentHost();
+  if (!COMMIT_ID.test(head)) return (await activeHost.readSnapshot(head)).read(path);
+  if (headSnapshot?.head !== head || headSnapshot.host !== activeHost) {
+    const snapshot = activeHost.readSnapshot(head);
+    headSnapshot = { head, snapshot, host: activeHost };
+    snapshot.catch(() => { if (headSnapshot?.snapshot === snapshot) headSnapshot = null; });
+  }
+  return (await headSnapshot.snapshot).read(path);
+};
+
+// A page load reads the files a route shows in batches, ahead of the reads of the views (Snapshot.readMany): each route's
+// paths are taken from the tree, so no view changes. A route whose list of files depends on files it has read — the open
+// queues' proposals, the process model a declaration names — reads them in a second wave. Each wave is one batch per hundred
+// files; a path the tree does not hold is left out, and a file the batch could not give is read by its own fileText.
+const USE_CASE_PATH = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
+const QUEUE_INDEX_PATH = /^docs\/spec-freigaben\/[^/]+\/index\.md$/;
+const QUEUE_HEAD_PATH = /^docs\/spec-freigaben\/[^/]+\/(?:index|entscheidungen)\.md$/;
+const ITEM_PATH = /^docs\/backlog\/ITM-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/\d+\.md$/;
+const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
+const MODULE_PATH = /^docs\/architecture\/MOD-[^/]+\.md$/;
+const pathsOf = (...res) => state.tree.map((e) => e.path).filter((p) => res.some((re) => re.test(p)));
+// The approval records a status of `path` reads: statusByNames run with a reader that notes what it is asked.
+async function recordsRead(path, blob) {
+  const asked = [];
+  try { await statusByNames({ index: recIndex(), path, blob, read: async (list) => { asked.push(...list); return list.map(() => ({})); } }); } catch { /* only what it asked */ }
+  return asked;
+}
+const recordsOfAll = async (paths) => (await Promise.all(paths.map((p) => recordsRead(p, state.byPath.get(p).sha)))).flat();
+async function readWave(paths) {
+  const wanted = [...new Set(paths)].filter((p) => state.byPath.has(p));
+  if (wanted.length) await (await pinned()).readMany(wanted);
+}
+// The proposals, and the files they change, of the SPEC change queues that still have an entry to decide (spec-changes-view.mjs
+// queueHeads, queueEntries): read from the queues' index and decisions files, which the first wave brought.
+async function openProposals() {
+  const lists = await Promise.all(pathsOf(QUEUE_INDEX_PATH).map(async (index) => {
+    const dir = index.replace(/\/index\.md$/, "");
+    const [indexText, decisionText] = await Promise.all([fileText(index), fileText(`${dir}/entscheidungen.md`)]);
+    const { target, entries } = parseQueueIndex(indexText), decisions = parseDecisions(decisionText);
+    if (entries.length > 0 && entries.every((en) => decisions.get(en.nr)?.decision === "uebernommen")) return [];
+    return entries.flatMap((en) => {
+      const prefix = `${dir}/${String(en.nr).padStart(2, "0")}-`;
+      const proposal = pathsOf(/\.md$/).find((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && !p.endsWith(".begruendung.md"));
+      return [proposal, (target || en.file).replace(/^`|`$/g, "").replace(/^products\/[^/]+\//, "")];
+    });
+  }));
+  return lists.flat().filter(Boolean);
+}
+async function readAhead(kind) {
+  if (kind === "" || kind === "uc") {
+    const ucs = pathsOf(USE_CASE_PATH);
+    await readWave([...ucs, "docs/use-cases/README.md", ...await recordsOfAll(ucs)]);
+  } else if (kind === "arc") {
+    const files = pathsOf(ARCHITECTURE_FILE);
+    await readWave([...files, "SPEC.md", ...await recordsOfAll([...files, ...pathsOf(USE_CASE_PATH)])]);
+  } else if (kind === "spec") {
+    await readWave(["SPEC.md", ...pathsOf(QUEUE_HEAD_PATH)]);
+    await readWave(await openProposals());
+  } else if (kind === "backlog") {
+    // The module files are read for a product with more than one team (backlog-view.mjs context).
+    const teams = new Set([...pathsOf(ASSIGNMENT_PATH).map((p) => ASSIGNMENT_PATH.exec(p)[1]), ...pathsOf(SPRINT_PATH).map((p) => SPRINT_PATH.exec(p)[1])]);
+    await readWave(["docs/process.md", "SPEC.md", ...pathsOf(ITEM_PATH, SPRINT_PATH, ASSIGNMENT_PATH), ...(teams.size > 1 ? pathsOf(MODULE_PATH) : []),
+      ...await recordsOfAll(pathsOf(USE_CASE_PATH))]);
+    const model = /^model_file:\s*(\S+)\s*$/m.exec(state.byPath.has("docs/process.md") ? await fileText("docs/process.md") : "")?.[1];
+    if (model) await readWave([model]);
+  }
+}
 
 // The product shown, for a write (writeFiles): a GitLab product by itself, a GitHub one by its repository.
 const writeTarget = () => (GITLAB ? { product: T.product } : { repo: T.repo });
@@ -281,17 +355,21 @@ const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
 // A file of the pinned commit, by its blob SHA — "" for a file the tree does not hold. Snapshot.read is the public Host
 // interface for this address and credential lifetime; without an injected cache, readByBlob returns Snapshot.read's text.
+// The load's one snapshot: the one loadSnapshot read, or, after Settings changed the host, the same commit read through the new one.
+async function pinned() {
+  const activeHost = currentHost();
+  if (snapshotHost !== activeHost) {
+    snapshot = await activeHost.readSnapshot(state.commit);
+    snapshotHost = activeHost;
+  }
+  return snapshot;
+}
 function fileText(path) {
   const e = state.byPath.get(path);
   if (!e) return Promise.resolve("");
   currentHost();
   return once(`file:${path}`, () => readByBlob({ sha: e.sha, read: async () => {
-    const activeHost = currentHost();
-    if (snapshotHost !== activeHost) {
-      snapshot = await activeHost.readSnapshot(state.commit);
-      snapshotHost = activeHost;
-    }
-    const text = await snapshot.read(path);
+    const text = await (await pinned()).read(path);
     if (text === null && !GITLAB) throw Object.assign(new Error(`404 Not Found — ${path} at ${state.commit}`), { status: 404 });
     return text ?? "";
   } }));
@@ -528,6 +606,7 @@ async function route() {
     await available;
     loadProducts();
     renderProductSelector();
+    if (state.commit && !a && ["", "uc", "arc", "spec", "backlog"].includes(kind || "")) await readAhead(kind || "");
     if (kind === "requirement" || kind === "requirements") {
       const params = Object.fromEntries(location.hash.slice(1).split("/").slice(1).map((part) => {
         const at = part.indexOf("=");

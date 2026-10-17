@@ -16,12 +16,13 @@ import { ARCHITECTURE_FILE } from "../docs/assets/artifacts.mjs";
 import { prerequisitesHtml } from "../docs/assets/dashboard/review-views.mjs";
 import { repoServer, openDashboard } from "./app-harness.mjs";
 
-// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
+// The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section
 // under docs/assets/dashboard/ — what a test that read the one app file reads now.
 const dashboardText = () => {
   const assets = new URL("../docs/assets/", import.meta.url);
   const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
-  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
+  return [readFileSync(new URL("../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8"),
+    ...views.map((f) => readFileSync(new URL(`dashboard/${f}`, assets), "utf8"))].join("\n");
 };
 
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";

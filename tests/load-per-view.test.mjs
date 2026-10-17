@@ -1,7 +1,7 @@
 // A PAGE LOAD READS THE REPOSITORY IN BATCHES — the Check of that requirement. With a token on GitHub, one load of a dashboard
 // page sends its commit and that commit's tree once, and the texts of the files it shows in requests of at most 100 files each;
 // a file whose blob the page has read is not read again, and an acceptance reads the head it commits on once. Deterministic, no
-// network: the real app (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that counts every
+// network: the real app (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that counts every
 // request and serves GitHub's batch request (POST /graphql), one aliased field for each file.
 //
 // Module: MOD-site-frame
@@ -20,12 +20,13 @@ import { gitBlobSha, recordText, useCaseRecord, reviewedRecord, specRecord, extr
   from "../docs/assets/review-core.mjs";
 import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
 
-// The dashboard's own files (MOD-dashboard-app): the shell, docs/assets/dashboard-app.mjs, and every view and settings section
+// The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section
 // under docs/assets/dashboard/ — what a test that read the one app file reads now.
 const dashboardText = () => {
   const assets = new URL("../docs/assets/", import.meta.url);
   const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
-  return ["dashboard-app.mjs", ...views.map((f) => `dashboard/${f}`)].map((f) => readFileSync(new URL(f, assets), "utf8")).join("\n");
+  return [readFileSync(new URL("../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8"),
+    ...views.map((f) => readFileSync(new URL(`dashboard/${f}`, assets), "utf8"))].join("\n");
 };
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues

@@ -14,16 +14,16 @@ import json
 import re
 import unittest
 
-from jsrun import ASSETS, js
+from jsrun import ASSETS, SRC, js
 
 STORE = ASSETS / "settings-store.mjs"
 
 
 def dashboard_text(shell: bool = True) -> str:
-    """The dashboard's own files (MOD-dashboard-app): the shell, dashboard-app.mjs, and every view and settings section under
+    """The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section under
     docs/assets/dashboard/ — what a test that read the one app file reads now; `shell=False`: the views alone."""
     views = sorted((ASSETS / "dashboard").rglob("*.mjs"))
-    return "\n".join(f.read_text(encoding="utf-8") for f in ([ASSETS / "dashboard-app.mjs"] if shell else []) + views)
+    return "\n".join(f.read_text(encoding="utf-8") for f in ([SRC / "site-frame" / "dashboard-app.mjs"] if shell else []) + views)
 KEY_RE = re.compile(r"""PREFIX\s*\+\s*["']([^"']+)["']""")
 SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop"
 
@@ -139,7 +139,7 @@ class ExpiryWarnedInAdvance(unittest.TestCase):
         self.assertEqual(b[1], "", "counter-proof: far from expiry, no banner")
         self.assertIn("GitHub token", b[2])
         self.assertIn("Renew", b[2])
-        app = (ASSETS / "dashboard-app.mjs").read_text(encoding="utf-8")
+        app = (SRC / "site-frame" / "dashboard-app.mjs").read_text(encoding="utf-8")
         route = re.search(r"async function route\(\).*?\n}\n", app, re.S).group(0)
         self.assertIn("tokenBannerHtml(", route, "the banner is added in route(), which renders every view")
 

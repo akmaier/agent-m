@@ -8,7 +8,7 @@ from jsrun import js
 
 
 def target(host, path, search=""):
-    return js(f"return dashboardApp.deriveTarget({{hostname: '{host}', pathname: '{path}', search: '{search}'}});")
+    return js(f"return siteFrameDashboardApp.deriveTarget({{hostname: '{host}', pathname: '{path}', search: '{search}'}});")
 
 
 class InstanceTarget(unittest.TestCase):

@@ -21,7 +21,7 @@ import {
 } from "../../docs/assets/review-core.mjs";
 import { reviewedId } from "../../docs/assets/artifacts.mjs";
 import { parseProductAddress, webFileUrl } from "../../docs/assets/git-host.mjs";
-import { diffHtml, deriveTarget } from "../../docs/assets/dashboard-app.mjs";
+import { diffHtml, deriveTarget } from "../../src/site-frame/dashboard-app.mjs";
 import { lastAccepted, readBlob } from "../../docs/assets/dashboard/reads.mjs";
 import * as core from "../../docs/assets/dashboard/reads.mjs";
 import { withFetch, GL, GL_ADDR, GL_TOKEN, UC_OLD, UC_NEW } from "./helpers.mjs";

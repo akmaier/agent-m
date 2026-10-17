@@ -1,7 +1,7 @@
 // The flows the dashboard already carries out, one test per main and alternative flow of UC-001, UC-006 and UC-008 and of the
 // built parts of UC-014 (Finish setting up) and UC-042 (browser settings, export and import, pseudonymisation, collaborators).
 // Characterisation tests (ITM-123, a refactoring job): they pin what the dashboard does today and were green from their first
-// run. The real app (docs/assets/dashboard-app.mjs) runs in tests/app-harness.mjs against GitHub and GitLab fakes that record
+// run. The real app (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against GitHub and GitLab fakes that record
 // every request; every write is started by a click on the button that names it, with the event a person's click carries
 // (isTrusted), and each write test has a counter-proof with a click a script makes. Run: node --test tests/*.test.mjs
 //
