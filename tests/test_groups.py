@@ -246,6 +246,18 @@ class GroupCarriesNoIdentifier(unittest.TestCase):
         for g in found:
             self.assertEqual(sorted(g), ["groups", "line", "members", "title"], g["title"])
 
+    def test_a_group_titled_by_an_identifier_is_refused_when_created(self):
+        # Input: the use-case group file of tests/fixtures/groups/, and two `create` moves titled UC-007 — at the top level
+        # and inside "Export". Precondition: the file is canonical, so its text read and written again is CANONICAL.
+        # Expected: neither move is applied; each is refused with the reason `"UC-007" is an identifier, and a group carries
+        # none`; the tree and the file text are those it was given.
+        moves = [{"op": "create", "title": "UC-007", "in": []}, {"op": "create", "title": "UC-007", "in": ["Export"]}]
+        r = regroup("use-cases", read(FIX / "use-cases.md"), moves)
+        self.assertEqual(r["applied"], [])
+        self.assertEqual(r["refused"], [{"move": m, "reason": '"UC-007" is an identifier, and a group carries none'} for m in moves])
+        self.assertEqual(outline(r["tree"]), [["Export", ["UC-001", ["Scheduled", ["UC-003"]]]], ["Import", ["UC-002"]]])
+        self.assertEqual(r["text"], CANONICAL["use-cases"])
+
     def test_no_artifact_of_this_repository_names_a_group_title_where_an_identifier_is_expected(self):
         self.assertTrue(references(ROOT), "the references are read at all")
         self.assertEqual(group_titles_named(ROOT), [])
