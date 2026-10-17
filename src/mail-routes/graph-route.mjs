@@ -1,5 +1,5 @@
 // graph-route.mjs — the Microsoft Graph route (MOD-mail-routes, Parts): Microsoft's sign-in, signIn (ITM-424), and the mailbox's test on
-// Microsoft Graph (ITM-425). The other operations of the route are UC-038's and UC-039's.
+// Microsoft Graph (ITM-425), read, find, drafts and sent (ITM-836). The draft and send operations of the route are UC-039's.
 //
 // Module: MOD-mail-routes
 //
@@ -11,6 +11,8 @@
 
 import "./vendor/msal-browser.min.js";
 import { instanceOfPagesAddress, pagesAddress } from "../identifiers/index.mjs";
+import { mailId } from "../mail-records/index.mjs";
+import PostalMime from "./vendor/postal-mime/postal-mime.js";
 
 import { failure } from "./errors.mjs";
 import { SIGN_IN_SERVICE } from "./index.mjs";
@@ -119,7 +121,7 @@ async function graphRequest(token, path) {
 }
 
 // A resource of Graph, read: its answer, or null where it is not there. Failures as the module file names them.
-async function graphRead(token, path) {
+async function graphRead(token, path, as = "json") {
   let answer;
   try {
     answer = await graphRequest(token, path);
@@ -134,14 +136,118 @@ async function graphRead(token, path) {
     throw failure("Throttled", { retryAfter }, `Microsoft Graph asks to wait${retryAfter ? ` ${retryAfter} seconds` : ""}.`);
   }
   if (!answer.ok) throw failure("Unreachable", { reason: `Microsoft Graph answered ${answer.status}` }, `Microsoft Graph answered ${answer.status}.`);
-  return answer.json();
+  return as === "bytes" ? new Uint8Array(await answer.arrayBuffer()) : answer.json();
+}
+
+// ---------------------------------------------------------------- reading: read, find, drafts and sent (UC-038)
+
+const person = ({ name, address }) => ({ name: name || null, address });
+
+// A MOD-mail-routes Mail, parsed with postal-mime from the raw form Graph returns; its identifier is the MAIL- identifier of MOD-mail-records.
+async function parseMail(bytes, folder) {
+  const parsed = await PostalMime.parse(bytes);
+  const messageId = parsed.messageId ?? null;
+  return {
+    id: await mailId({ messageId, bytes: messageId === null ? bytes : null }),
+    messageId,
+    inReplyTo: parsed.inReplyTo ?? null,
+    references: (parsed.references ?? "").split(/\s+/).filter(Boolean),
+    from: person(parsed.from ?? { address: "" }),
+    replyTo: (parsed.replyTo ?? []).map(person),
+    to: (parsed.to ?? []).map(person),
+    cc: (parsed.cc ?? []).map(person),
+    subject: parsed.subject ?? "",
+    date: parsed.date ?? "",
+    text: parsed.text ?? "",
+    attachments: (parsed.attachments ?? []).map((part) => ({
+      name: part.filename ?? "", type: part.mimeType, size: part.content.byteLength,
+      text: part.mimeType.startsWith("text/") ? new TextDecoder().decode(part.content) : null,
+    })),
+    folder,
+  };
+}
+
+// The resource of a named folder: INBOX is the well-known inbox, any other name the top-level folder of that display name.
+async function folderResource(token, name) {
+  if (name.toUpperCase() === "INBOX") return "/me/mailFolders/inbox";
+  const found = await graphRead(token, `/me/mailFolders?$filter=${encodeURIComponent(`displayName eq '${name.replaceAll("'", "''")}'`)}&$select=id`);
+  const id = found?.value?.[0]?.id;
+  if (!id) throw failure("FolderNotFound", { folder: name }, `The folder ${name} is not in the mailbox.`);
+  return `/me/mailFolders/${encodeURIComponent(id)}`;
+}
+
+// The messages of a folder as Graph lists them ({ id, internetMessageId }), page after page. A next page is followed only when it is an
+// address of Microsoft Graph: the token goes nowhere else.
+async function listMessages(token, folder, name) {
+  const messages = [];
+  let path = `${folder}/messages?$select=id,internetMessageId&$top=100`;
+  while (path) {
+    const page = await graphRead(token, path);
+    if (page === null) throw failure("FolderNotFound", { folder: name }, `The folder ${name} is not in the mailbox.`);
+    messages.push(...page.value);
+    const next = page["@odata.nextLink"];
+    if (next && !next.startsWith(`${GRAPH}/`)) {
+      throw failure("Unreachable", { reason: "Microsoft Graph named a next page at another address" }, "Microsoft Graph named a next page at another address; it was not followed.");
+    }
+    path = next ? next.slice(GRAPH.length) : null;
+  }
+  return messages;
+}
+
+// One message in full, read in its raw form; a message that is gone since it was listed is null.
+async function fetchMail(token, id, folder) {
+  const bytes = await graphRead(token, `/me/messages/${encodeURIComponent(id)}/$value`, "bytes");
+  return bytes === null ? null : parseMail(bytes, folder);
+}
+
+async function mailsOf(token, folder, name, from) {
+  const mails = [];
+  for (const { id } of await listMessages(token, folder, name)) {
+    const mail = await fetchMail(token, id, name);
+    if (mail) mails.push({ id, mail });
+  }
+  return mails.filter(({ mail }) => from === null || from === undefined || Date.parse(mail.date) >= Date.parse(from));
 }
 
 /**
- * graphMailbox(connection: MailConnection) -> Mailbox — the mailbox on the Microsoft route: ITM-425 builds its test.
+ * graphMailbox(connection: MailConnection) -> Mailbox — the mailbox on the Microsoft route: ITM-425 builds its test, ITM-836 its read,
+ * find, drafts and sent. Every request is a GET.
  */
 export function graphMailbox(connection) {
+  const token = async () => (await cachedToken(connection.graph, connection.address)).accessToken;
   return {
+    // The mails of the named folders, read in their raw form: nothing is marked, moved, flagged or deleted.
+    async read(from) {
+      const accessToken = await token();
+      const mails = [];
+      for (const name of connection.folders) {
+        mails.push(...(await mailsOf(accessToken, await folderResource(accessToken, name), name, from)).map(({ mail }) => mail));
+      }
+      return mails;
+    },
+    // The Message-IDs of the named folders' mails are hashed; only the mail that matches is fetched in full. None: null, never a guess.
+    async find(id) {
+      const accessToken = await token();
+      for (const name of connection.folders) {
+        const folder = await folderResource(accessToken, name);
+        for (const message of await listMessages(accessToken, folder, name)) {
+          if (!message.internetMessageId || (await mailId({ messageId: message.internetMessageId, bytes: null })) !== id) continue;
+          const mail = await fetchMail(accessToken, message.id, name);
+          if (mail) return mail;
+        }
+      }
+      return null;
+    },
+    // The mailbox's Drafts, each with the reference of the draft on this route.
+    async drafts() {
+      const accessToken = await token();
+      return (await mailsOf(accessToken, "/me/mailFolders/drafts", "Drafts", null))
+        .map(({ id, mail }) => ({ ref: { route: "graph", id }, inReplyTo: mail.inReplyTo, mail }));
+    },
+    async sent(from) {
+      const accessToken = await token();
+      return (await mailsOf(accessToken, "/me/mailFolders/sentitems", "Sent Items", from)).map(({ mail }) => mail);
+    },
     // The mails in each named folder, whether Drafts and Sent are there, and whether sending works — the token holds Mail.Send; nothing
     // is sent to find out. Every request reads; nothing in the mailbox changes (READING THE MAILBOX CHANGES NOTHING IN IT).
     async test() {
