@@ -17,8 +17,8 @@
 //   - A link row whose source the library does not hold is kept as it is, and named; it cannot be edited here.
 //   - A row the person leaves as it is keeps its cells as the file has them; Save with nothing changed writes nothing, and neither does Save with nothing ticked in a product that has
 //     no `docs/sources.md`.
-//   - The requirements that name a source are the ones affectedRequirements gives for the entry's identifier; a requirement that names a source by its title or designation is not
-//     among them (MOD-source-register's file: "A title or a designation is not matched").
+//   - The requirements that name a source are the ones affectedRequirements gives for the register and the entry's identifier: those one of whose source items names the entry by its
+//     identifier, its title or a standard's designation, as MOD-source-register's file reads an item. The register is the one this page read; no read is added.
 //   - Save acts on the person's own click only (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK); a click the page itself dispatched writes nothing.
 
 import { parseAddress } from "../repository-hosts/index.mjs";
@@ -122,7 +122,7 @@ export const route = {
       tick.addEventListener("change", () => {
         const linked = rowsOf(opened.document).some((each) => sourceOf(each) === entry.id);
         if (tick.checked || !linked) { removal.textContent = ""; return; }
-        const names = affectedRequirements(files.spec, entry.id);
+        const names = affectedRequirements(files.spec, entries, entry.id);
         removal.textContent = names.length
           ? `Removing ${entry.id}: the requirements that name it — ${names.join(", ")} — would lose that source. They are listed, not deleted.`
           : `Removing ${entry.id}: no requirement of this product names it.`;
