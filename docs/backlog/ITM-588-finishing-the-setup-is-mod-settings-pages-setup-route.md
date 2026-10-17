@@ -6,6 +6,7 @@ realises:
   - UC-014
 modules:
   - MOD-settings-pages
+  - MOD-site-frame
 builds_on:
 tests:
   - unit
@@ -37,6 +38,8 @@ UC-014 steps 6 to 8 and 7a run today in `docs/assets/dashboard/setup-view.mjs`, 
     use.
   - The item's own tests render the module's route in a small DOM, as the other `tests/settings-pages-*.test.mjs` do.
     They state the same behaviour in their own words.
+- **The explanations** of Step A and Step B are topics of MOD-site-frame's `explanations.md`, from UC-014 step 7, called
+  with `explain` as the module's other routes call it. No folded explanation is built in `setup.mjs` (gate of #654).
 - **Reachable through the real host.** *Store and check* reads the instance's repository with the token through
   MOD-repository-hosts, as the live page does today.
 
