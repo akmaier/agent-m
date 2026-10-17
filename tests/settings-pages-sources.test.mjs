@@ -15,7 +15,7 @@
 //   - The version is preset to the version the link names, else to the last row of the entry's `## Versions`.
 //   - A part is suggested for each line of the entry's `## Parts` with the marker of its list item taken off; the part is free text; an empty part is written as the empty cell.
 //   - A row the person leaves as it is keeps its cells as the file has them; Save with nothing changed writes nothing.
-//   - The requirements that name a source are those MOD-source-register's affectedRequirements gives for the entry's identifier.
+//   - The requirements that name a source are those MOD-source-register's affectedRequirements gives for the register and the entry's identifier: those one of whose source items names the entry by its identifier, title or a standard's designation.
 // The counter-proofs (a planted fault in src/settings-pages/ and the test's failing result) are recorded in the pull request.
 
 import test from "node:test";
@@ -393,4 +393,36 @@ test("sources — the module's view holds one route sources under the entry sett
   assert.equal(found[0].entry, "settings");
   assert.equal(found[0].title, "Requirement sources");
   assert.equal(typeof found[0].render, "function");
+});
+
+// TST-637005 · level: unit · module: MOD-settings-pages
+// guards: UC-015 2b; A REQUIREMENT HAS A REGISTERED SOURCE
+// given: the library of the tests above and SRC-handbook-annex, titled `Faculty handbook, annex II`; the product's docs/sources.md links SRC-ai-act, SRC-iec-62304 (title `IEC 62304`, designation `IEC 62304:2006+AMD1:2015`), SRC-handbook (title `Faculty handbook`) and SRC-handbook-annex; its SPEC.md has the requirements EXPORT NAMES THE ACT BY ITS TITLE (`EU AI Act, Art. 13`), PAGE NAMES THE ACT BY ITS IDENTIFIER (`SRC-ai-act`), STANDARD BY DESIGNATION (`IEC 62304:2006+AMD1:2015, class B`), STANDARD BY TITLE (`IEC 62304, class C`), HANDBOOK BY TITLE (`Faculty handbook, ch. 3`) and ANNEX BY TITLE (`Faculty handbook, annex II`)
+// input: render the route; untick SRC-ai-act; untick SRC-iec-62304; untick SRC-handbook; untick SRC-handbook-annex
+// expect: the note of SRC-ai-act reads "Removing SRC-ai-act: the requirements that name it — EXPORT NAMES THE ACT BY ITS TITLE, PAGE NAMES THE ACT BY ITS IDENTIFIER — would lose that source. They are listed, not deleted."; the note of SRC-iec-62304 lists STANDARD BY DESIGNATION, STANDARD BY TITLE; the note of SRC-handbook lists HANDBOOK BY TITLE alone, the longer name of the annex not being the handbook's; the note of SRC-handbook-annex lists ANNEX BY TITLE alone; the four unticks send no request, so the number of requests the page has made is the same after them as before; nothing has been committed
+test("sources — unticking a linked source lists the requirements that name it by its title or designation, and sends no request", async (t) => {
+  const named = (names, id) => `Removing ${id}: the requirements that name it — ${names} — would lose that source. They are listed, not deleted.`;
+  const spec = ["# Thesis tool — Specification", "", "## 1. Names", "",
+    ...[["EXPORT NAMES THE ACT BY ITS TITLE", "EU AI Act, Art. 13"], ["PAGE NAMES THE ACT BY ITS IDENTIFIER", "SRC-ai-act"],
+      ["STANDARD BY DESIGNATION", "IEC 62304:2006+AMD1:2015, class B"], ["STANDARD BY TITLE", "IEC 62304, class C"],
+      ["HANDBOOK BY TITLE", "Faculty handbook, ch. 3"], ["ANNEX BY TITLE", "Faculty handbook, annex II"]]
+      .flatMap(([name, source]) => [`**${name}** *(${source})*`, "The rule is one statement.", "*Check:* `tests/a.test.mjs`", ""])].join("\n");
+  const register = { ...REGISTER, "docs/sources/SRC-handbook-annex.md": registerEntry({ id: "SRC-handbook-annex", title: "Faculty handbook, annex II", kind: "document",
+    authority: "informational", licence: "restricted — internal", versions: [{ version: "1", date: "2026-09-01", hash: "6".repeat(64) }] }) };
+  const handbook = `| SRC-handbook | 1 | ${H.handbook} | all |`;
+  const annex = `| SRC-handbook-annex | 1 | ${"6".repeat(64)} | |`;
+  const page = await open(t, { register, productFiles: { "SPEC.md": spec, "docs/sources.md": links(AI_V1, IEC_B, handbook, annex) } });
+  const { target } = page;
+  const requested = page.world.requests.length;
+  await untick(field(target, "SRC-ai-act", "sources-tick"));
+  assert.equal(field(target, "SRC-ai-act", "sources-removal").textContent, named("EXPORT NAMES THE ACT BY ITS TITLE, PAGE NAMES THE ACT BY ITS IDENTIFIER", "SRC-ai-act"));
+  await untick(field(target, "SRC-iec-62304", "sources-tick"));
+  assert.equal(field(target, "SRC-iec-62304", "sources-removal").textContent, named("STANDARD BY DESIGNATION, STANDARD BY TITLE", "SRC-iec-62304"));
+  await untick(field(target, "SRC-handbook", "sources-tick"));
+  assert.equal(field(target, "SRC-handbook", "sources-removal").textContent, named("HANDBOOK BY TITLE", "SRC-handbook"));
+  await untick(field(target, "SRC-handbook-annex", "sources-tick"));
+  assert.equal(field(target, "SRC-handbook-annex", "sources-removal").textContent, named("ANNEX BY TITLE", "SRC-handbook-annex"));
+  await settled(page.world);
+  assert.equal(page.world.requests.length, requested);
+  assert.equal(productCommits(page).length, 0);
 });

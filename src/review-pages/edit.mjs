@@ -13,8 +13,8 @@ import { parseSpec, renamedRequirements, requirementFindings, sectionText } from
 import { proposeSection, queues } from "../spec-changes/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
-import { explain } from "../site-frame/index.mjs";
-import { el, link, problem, parseServer, TOKEN_STEP } from "./common.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
+import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -55,7 +55,7 @@ export async function showEdit(where, kind, params) {
     graph = await traceGraph(snapshot);
     all = await queues(snapshot);
   } catch (failure) {
-    target.append(problem(failure, token));
+    target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const openedBlob = await blobSha(section);

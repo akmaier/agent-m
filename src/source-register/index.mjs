@@ -230,7 +230,7 @@ const namesOf = (entry) => [entry.id, entry.fields.title, entry.fields.kind === 
   .filter((name) => typeof name === "string" && name !== "");
 
 // Whether a requirement's source item names the source called `name`: the item begins with it, followed by the end of the item
-// or by `, ` and the part it draws on. The one grammar of entryNamed, sourceFindings and affectedRequirements.
+// or by `, ` and the part it draws on. The one grammar, read through entryNamed by linkedVersion, sourceFindings and affectedRequirements.
 const namesSource = (item, name) => item === name || item.startsWith(`${name}, `);
 
 // The register entry a source item names: the one whose identifier, title or — for a standard — designation the item begins
@@ -270,17 +270,21 @@ export function linkedVersion(links, register, source) {
 }
 
 /**
- * affectedRequirements(spec: string, source: string) -> string[] — the names of the requirements one of whose source items names
- * the source, in the SPEC's order, as MOD-spec-document's parseSpec reads them. `source` is a register entry's identifier; an item
- * names it when it begins with the identifier, followed by the end of the item or by `, ` and the part — the grammar
- * sourceFindings reads. A title or a designation is not matched: the signature carries no register entry.
+ * affectedRequirements(spec: string, register: Document[], source: string) -> string[] — the names of the requirements one of whose
+ * source items names the source, in the SPEC's order, as MOD-spec-document's parseSpec reads them. `source` is read as linkedVersion
+ * reads it: the register entry whose identifier, title or — for a standard — designation it begins with, the longest such match,
+ * followed by the end or by `, ` and a part (entryNamed). An item names the source when the entry the item names, read the same way,
+ * is that entry — the one grammar of linkedVersion and sourceFindings. Empty when `source` names no register entry.
  * @param {string} spec — the text of a SPEC
- * @param {string} source — a register entry's identifier
+ * @param {Document[]} register — the instance's register entries
+ * @param {string} source — an identifier, a title, a designation, or an item of a requirement's source
  * @returns {string[]}
  */
-export function affectedRequirements(spec, source) {
+export function affectedRequirements(spec, register, source) {
+  const entry = entryNamed(register, source);
+  if (!entry) return [];
   return [...parseSpec(spec).requirements.values()]
-    .filter((requirement) => requirement.sources.some((item) => namesSource(item, source)))
+    .filter((requirement) => requirement.sources.some((item) => entryNamed(register, item) === entry))
     .map((requirement) => requirement.name);
 }
 
