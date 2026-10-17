@@ -1,4 +1,4 @@
-# Module: MOD-dashboard-app
+# Module: MOD-site-frame
 # Guards: EVERY STEP EXPLAINS ITSELF
 # Level: component
 """SPEC §10 EVERY STEP EXPLAINS ITSELF.

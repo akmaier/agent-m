@@ -1,17 +1,14 @@
 // The dashboard's reads that need both the git host and the kernel (docs/assets/dashboard/reads.mjs) — the last accepted text
 // of an identifier and a text kept by its blob SHA — and the repository the page derives from its own address
-// (docs/assets/dashboard-app.mjs deriveTarget). Deterministic, no network.
+// (src/site-frame/dashboard-app.mjs deriveTarget). Deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-review-pages
 // Guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; GITLAB PRODUCTS ARE SUPPORTED; A PRODUCT IS NAMED BY ITS ADDRESS
 // Level: unit
 //
-// Moved, unchanged, out of tests/review-core.test.mjs and tests/status-by-names.test.mjs when the kernel's reads left it
-// (ITM-130): MOD-review-core's lastAccepted takes what it reads as ports, MOD-git-host reads (readBlob, commitsTouching), and
-// docs/assets/dashboard/reads.mjs wires the two with the arguments the checks below pass, as the kernel took them before.
-// The fixture memoryCache is copied, not moved: the checks staying in status-by-names.test.mjs use it too. The block from
-// status-by-names.test.mjs reaches the module it checks as `core`, the name it had there. Counter-proofs: the mutations listed
+// MOD-review-core's lastAccepted takes what it reads as ports, MOD-git-host reads (readBlob, commitsTouching), and
+// docs/assets/dashboard/reads.mjs wires the two with the arguments the checks below pass. Counter-proofs: the mutations listed
 // in docs/measurements/2026-09-30_review-dashboard-mutations.md.
 
 import test from "node:test";

@@ -1,3 +1,4 @@
+# Module: MOD-repository-hosts
 # Guards: NO SERVER
 # Level: unit
 """SPEC §0 NO SERVER — the built site contains no call to an origin other than the configured endpoints, the
@@ -39,8 +40,7 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
 The vendored libraries are docs/assets/vendor/ and MOD-markdown-render's src/markdown-render/vendor/, whose module file
 states that it reads them; check 1 does not count them as the site's own code.
 
-The check of the own code's addresses moved here from tests/test_pages_layout.py (ITM-050). Only tracked files are
-read, so a scratch file in a working tree changes nothing. Counter-proofs:
+Only tracked files are read, so a scratch file in a working tree changes nothing. Counter-proofs:
 docs/measurements/2026-10-01_product-rules-repository-checks.md."""
 import re
 import subprocess

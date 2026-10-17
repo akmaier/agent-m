@@ -3,7 +3,7 @@
 // deterministic, no network. Run through tests/review-core.test.mjs, which SPEC.md names for these checks:
 // node --test tests/*.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-review-pages
 // Guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // Level: unit
 //

@@ -1,6 +1,7 @@
-// Shared fixtures of tests/review-core.test.mjs and the files of this folder — no test of its own. Moved here, unchanged but for
-// `export` and the paths relative to this folder, when the file was split by module (ITM-004): the fake git servers, the fake
+// Shared fixtures of tests/review-core.test.mjs and the files of this folder — no test of its own: the fake git servers, the fake
 // browser storage, the dashboard's own files, and the constants several modules' tests use.
+//
+// Module: MOD-approvals
 
 import { readFileSync, readdirSync } from "node:fs";
 import { gitBlobSha } from "../../docs/assets/review-core.mjs";

@@ -1,11 +1,10 @@
-# Module: MOD-dashboard-app
+# Module: MOD-settings-pages
 # Guards: EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; THE DASHBOARD WRITES THE TUNNEL COMMANDS; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; UC-042
 # Level: component
 """SPEC §7 EVERY SETTING IS REACHED FROM ONE PAGE · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS
 SHOWN · A STORED SECRET IS HIDDEN UNTIL SHOWN · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE (UC-042).
 A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: changing a product setting commits to the product's repository
-(docs/assets/dashboard/writes.mjs savePseudonymisation), and the browser's store holds none — moved back here, unchanged but for
-the module the write is reached by, from tests/test_settings_in_the_core.py when the writes left the kernel (ITM-124).
+(docs/assets/dashboard/writes.mjs savePseudonymisation), and the browser's store holds none.
 
 The browser section of the settings page is rendered by settingsView.browserSettingsHtml; the page inserts
 that HTML as it is. So "appears on the page" is checked on the HTML the page shows.

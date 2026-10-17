@@ -1,4 +1,4 @@
-# Module: MOD-dashboard-app
+# Module: MOD-site-frame
 # Guards: AN INSTANCE IS A FORK OF AGENT M
 # Level: unit
 """SPEC §10 AN INSTANCE IS A FORK OF AGENT M — the dashboard derives its repository from its address."""
