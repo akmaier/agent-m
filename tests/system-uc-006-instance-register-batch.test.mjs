@@ -23,7 +23,7 @@ const REPO = `GET /repos/${INSTANCE_REPO}`, COMMIT = `GET /repos/${INSTANCE_REPO
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product on GitHub with the links file docs/sources.md; an instance alice/agent-m whose register docs/sources/ holds SRC-alice and SRC-bob; the reviewer's token is stored
 // input: open the SPEC-entry page of entry 07 of the product
-// expect: the instance's register is read in one request of GitHub's batch API that names its two files (docs/sources/SRC-alice.md and docs/sources/SRC-bob.md) and no file of the instance is read on its own; the instance receives 7 requests in all: its repository twice, its default branch's commit twice and its tree twice (the page reads the instance's snapshot for the person's account and again for the register) and the 1 batch
+// expect: the instance's register is read in one request of GitHub's batch API that names its two files (docs/sources/SRC-alice.md and docs/sources/SRC-bob.md) and no file of the instance is read on its own; the instance receives 4 requests in all: its repository, its default branch's commit and its tree once each (the one snapshot serves the person's account and the register) and the 1 batch
 test("TST-844201: a product's entry page reads the instance's register in one batch with a token", async () => {
   const product = fakeGitHub(productWithLinks(10)), instance = fakeGitHub(instanceFiles(), { repo: INSTANCE_REPO });
   await openPage(product, { id: ENTRY_ID }, { instance });
@@ -31,8 +31,8 @@ test("TST-844201: a product's entry page reads the instance's register in one ba
   assert.deepEqual(instance.namedPerQuery(), [2]);
   assert.deepEqual(instance.graphqlRequests()[0].body.query.match(/docs\/sources\/SRC-[a-z]+\.md/g).sort(), REGISTER_PATHS);
   assert.deepEqual(instance.contentPaths(), []);
-  assert.deepEqual(asked(instance), [COMMIT, COMMIT, REPO, REPO, TREE, TREE, "POST /graphql"].sort());
-  assert.equal(instance.requests.length, 7);
+  assert.deepEqual(asked(instance), [COMMIT, REPO, TREE, "POST /graphql"].sort());
+  assert.equal(instance.requests.length, 4);
   assert.deepEqual(product.contentPaths(), [], "the product's own files are read in batches too");
 });
 
@@ -40,7 +40,7 @@ test("TST-844201: a product's entry page reads the instance's register in one ba
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same product and instance; no token is stored
 // input: open the SPEC-entry page of entry 07 of the product
-// expect: nothing is read in a batch: no request to /graphql and no request that carries an Authorization header, on either repository; the instance's two register files are each read on its own from GitHub's raw host; the instance receives 8 requests in all (its repository, commit and tree twice and the 2 raw reads)
+// expect: nothing is read in a batch: no request to /graphql and no request that carries an Authorization header, on either repository; the instance's two register files are each read on its own from GitHub's raw host; the instance receives 5 requests in all (its repository, commit and tree once each and the 2 raw reads)
 test("TST-844202: without a token the instance's register is read file by file from the raw host", async () => {
   const product = fakeGitHub(productWithLinks(10)), instance = fakeGitHub(instanceFiles(), { repo: INSTANCE_REPO });
   await openPage(product, { id: ENTRY_ID }, { instance, token: null });
@@ -49,7 +49,7 @@ test("TST-844202: without a token the instance's register is read file by file f
   assert.equal(product.graphqlRequests().length, 0);
   assert.deepEqual(instance.contentPaths().sort(), REGISTER_PATHS);
   assert.equal(instance.requests.filter((r) => r.url.origin === "https://raw.githubusercontent.com").length, 2);
-  assert.equal(instance.requests.length, 8);
+  assert.equal(instance.requests.length, 5);
   assert.equal([...instance.requests, ...product.requests].filter((r) => "authorization" in r.headers).length, 0);
 });
 
