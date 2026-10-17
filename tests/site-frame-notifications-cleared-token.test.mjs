@@ -69,7 +69,7 @@ function installBrowser() {
 //    fires the page's check interval, -> the requests since; clearToken(): presses Clear on the token's line.
 async function livePage({ token }) {
   const sent = [];
-  const spy = (url, init) => { sent.push({ what: `${init.method} ${url.origin}${url.pathname}`, token: JSON.stringify(init.headers ?? {}).includes(TOKEN) }); return undefined; };
+  const spy = (url, init) => { sent.push({ what: `${init.method} ${url.origin}${url.pathname}`, auth: init.headers?.Authorization ?? null, token: JSON.stringify(init.headers ?? {}).includes(TOKEN) }); return undefined; };
   const srv = await repoServer({ files: FILES, handlers: [emptyTags, spy] });
   const browser = installBrowser();
   const entries = {
@@ -146,3 +146,28 @@ test("TST-854002 · a notification check of a page that never had a token makes 
     assert.equal(sent.some((request) => request.token), false, "no request of the page carries a token");
   } finally { browser.restore(); }
 });
+
+// The token the person stores next, on a page that has one already or none: Settings' Save writes it under the instance's key.
+const NEXT_TOKEN = "github_pat_NEXTONE0123456789abcdefghij";
+const store = (value) => globalThis.localStorage.setItem(`${PREFIX}github-token`, JSON.stringify({ value, name: "GitHub token", expires: null, stored: "2026-10-18" }));
+
+for (const [name, token] of [["stored on a page that opened without one", null], ["replaced on a page that opened with another", TOKEN]]) {
+  // TST-854003
+  // level: component
+  // module: MOD-site-frame
+  // guards: A CLEAR IS A REAL CLEAR
+  // given: the live page with notifications switched on and due, opened with the GitHub token the case names (none, or the first), Settings drawn
+  // input: a GitHub token is stored under the instance's key; five minutes pass; the page's check interval fires
+  // expect: the check makes at least one request, and every request carries the token stored last and no other (the check follows the stored token, as the page's own reads do)
+  test(`TST-854003 · a GitHub token ${name} is the one the next notification check sends`, async (t) => {
+    const { browser, tick } = await livePage({ token });
+    try {
+      store(NEXT_TOKEN);
+      const check = await tick();
+      t.diagnostic(`check after the token was ${name}: ${check.length} requests, ${check.filter((r) => r.auth === `Bearer ${NEXT_TOKEN}`).length} carrying the stored token`);
+      assert.ok(check.length > 0, "the check made requests");
+      assert.deepEqual(check.map((request) => request.auth), check.map(() => `Bearer ${NEXT_TOKEN}`), "every request of the check carries the token stored last");
+      assert.equal(check.some((request) => request.token), false, "no request of the check carries the first token");
+    } finally { browser.restore(); }
+  });
+}
