@@ -303,6 +303,62 @@ test("#uc/<id> and #arc/<id> of an accepted file read that one file by itself", 
   assert.deepEqual(arc.requests, ["commit", "tree", "repository", `file ${ARC}`]);
 });
 
+// ---------------------------------------------------------------- the review pages' own addresses: #use-case, #decision, #module
+
+// A decision file of the fixture's form, ARC-<n>: the fixture then holds three decisions (ARC-001, ARC-002, ARC-003).
+const decision = (n) => base[ARC].replaceAll("ARC-001", `ARC-${n}`);
+const ARC2 = "docs/architecture/ARC-002-second.md", ARC3 = "docs/architecture/ARC-003-third.md";
+const MODULES = [PAGE, READER, REVIEW];
+
+// The files each address shows: the fixture's two use cases, three decisions and three module files.
+const SHOWN = { "#use-case": [UC1, UC2], "#decision": [ARC, ARC2, ARC3], "#module": MODULES };
+const withDecisions = () => product({ [ARC2]: decision("002"), [ARC3]: decision("003") });
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product with two use cases (UC-001, UC-002), three decisions (ARC-001, ARC-002, ARC-003) and three module files
+//        (MOD-page, MOD-reader, MOD-review)
+// input: open #use-case (then #decision, then #module) with a token
+// expect: the commit and the tree once, one batch of exactly the files of its own kind — 2 files for #use-case, 3 for #decision, 3 for
+//         #module —, the repository's information once, and no file by itself
+for (const [hash, paths] of Object.entries(SHOWN)) {
+  test(`${hash} sends its commit and tree once and one batch of the files it shows`, async () => {
+    const srv = await server(await withDecisions());
+    const page = await openDashboard({ server: srv, hash });
+    assert.deepEqual(page.requests, ["commit", "tree", `batch ${paths.length}`, "repository"]);
+    assert.deepEqual(srv.batches.map(sorted), [sorted(paths)]);
+    assert.deepEqual(files(page.requests), [], "no file by itself");
+  });
+}
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the same fixture product, and a stored token that is not sent
+// input: open #use-case, #decision and #module without a token
+// expect: counter-proof of the case above — GitHub's batch request needs the token, so no batch is sent and each of the files of the
+//         kind (2, 3 and 3) is read by its own request
+test("#use-case, #decision and #module without a token: each file is read by itself", async () => {
+  const repo = await withDecisions();
+  for (const [hash, paths] of Object.entries(SHOWN)) {
+    const page = await openDashboard({ server: await server(repo), hash, token: null });
+    assert.deepEqual(batchesOf(page.requests), [], hash);
+    for (const path of paths) assert.ok(files(page.requests).includes(path), `${hash}: ${path}`);
+    assert.equal(count(page.requests, "repository"), 1, hash);
+  }
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: UC-001 and MOD-page, each with a record that names its current text
+// input: open #use-case/id=UC-001 and #module/id=MOD-page with a token — a route that shows one accepted file
+// expect: the commit, the tree and the repository's information, and the one file by its own request — a batch of one file is no fewer requests
+test("#use-case/id= and #module/id= of an accepted file read that one file by itself", async () => {
+  const repo = await product();
+  const blob = await gitBlobSha(repo[PAGE]);
+  repo[approvalPath("MOD-page", blob)] = recordText(reviewedRecord(PAGE, blob));
+  const use = await openDashboard({ server: await server(repo), hash: "#use-case/id=UC-001" });
+  assert.deepEqual(use.requests, ["commit", "tree", "repository", `file ${UC1}`]);
+  const module = await openDashboard({ server: await server(repo), hash: "#module/id=MOD-page" });
+  assert.deepEqual(module.requests, ["commit", "tree", "repository", `file ${PAGE}`]);
+});
+
 // ---------------------------------------------------------------- one view, what it reads
 
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
