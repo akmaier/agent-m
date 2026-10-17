@@ -30,5 +30,5 @@ scrum-master-opus-b (`7a2a6165`). The Product Owner wrote none of them.
 commits, and each second parent is the head its gate passed: `a88f58f7` (#799, ITM-791) on `708359ec` (record
 20261017-2238, `04e4`), `8284126f` (#798, ITM-753) on `43a25f7e` (20261017-2239, `ac09`), `a6eb8a0e` (#801,
 ITM-758) on `adaefced` (20261017-2239, `ae92`), `04896cd0` (#802, ITM-812) on `532af4b9` (20261017-2242, `38b1`).
-`git show --cc` prints no line for any of them. The ten changed files are the five sources and five tests the four
-items name.
+`git show --cc` prints no line for any of them. The ten changed files are the five sources and four tests the
+Selection names, and `tests/implementation-pages-process-groups-data.test.mjs`, which #802 adds.
