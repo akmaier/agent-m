@@ -98,6 +98,22 @@ function fakeInstance() {
     async readSnapshot() { return snapshot; } };
 }
 
+// An instance whose own SPEC holds one requirement and whose host takes commits: the repository a candidate that constrains the process is written to.
+const GATES = "EVERY GATE NAMES WHO DECIDES IT";
+const INSTANCE_SPEC = text("# Agent M - Specification", "", "## Process", "", `**${GATES}** *(PO A. Maier)*`, "Every gate names who decides it.", "*Check:* `tests/gate.test.mjs`");
+function writableInstance() {
+  const calls = [];
+  const snapshot = { repository: { server: "github", origin: "https://github.com", path: "alice/agent-m", web: "https://github.com/alice/agent-m" },
+    ref: "main", commit: "abc123def4567890abc123def4567890abc123de", paths: [...Object.keys(SOURCE_FILES), "SPEC.md"].sort(),
+    read: async (path) => (path === "docs/participants.md" ? REGISTER : path === "SPEC.md" ? INSTANCE_SPEC : path in SOURCE_FILES ? SOURCE_FILES[path] : onDisk(path)), blob: () => null };
+  return { writes: () => calls.map((change) => change.files), host: {
+    async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
+    async readSnapshot() { return snapshot; },
+    async readHistory() { return []; },
+    async commitFiles(change) { calls.push(structuredClone(change)); return { commit: "f".repeat(40), url: "https://github.com/alice/agent-m/commit/ffff" }; },
+  } };
+}
+
 // ---------------------------------------------------------------- the endpoint's answer
 
 const candidate = (name, rule) => ({ name, rule, check: "`tests/fixture.test.mjs`", constrains: "product", passage: "ch. 1", class: "new", source: SOURCE });
@@ -139,7 +155,7 @@ async function until(condition, what) {
 }
 
 // The panel of the derivation's draft, reached by a real job: the route, the participant, Show the run panel, Run. Returns the page and the product's host.
-async function panelOf(draft) {
+async function panelOf(draft, { instance = { host: fakeInstance() } } = {}) {
   endpointAnswers(draft);
   assert.ok(route, `the route spec-entry: ${pages.error?.message}`);
   const product = fakeProduct();
@@ -148,7 +164,7 @@ async function panelOf(draft) {
   writeSetting(store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "m", throughBridge: false });
   const target = document.createElement("div");
   document.body.append(target);
-  await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: fakeInstance() }, store, go() {},
+  await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host: instance.host }, store, go() {},
     product: { address: ON_GITHUB.web, kind: "github", host: product.host } }, { id: "draft" });
   for (const file of byClass(target, "input", "source-file")) file.checked = file.value === MAIN_FILE;
   const box = byClass(target, "input", "participant").find((each) => each.value === "drafter-a");
@@ -294,4 +310,53 @@ test("spec-entry/draft - a split part bearing another candidate's name is not wr
   await until(() => byClass(panel, "p", "problem").length === 1, "the problem");
   assert.equal(byClass(panel, "p", "problem")[0].textContent, `The split part ${CLEAN} has the name of another candidate: nothing was written.`);
   assert.equal(proposalsOf(product).length, 0);
+});
+
+// TST-578008 · level: unit · module: MOD-review-pages
+// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// given: the endpoint answers, in every round, a `change` of A LOAN HAS A DUE DATE named THE DUE DATE IS SHOWN, whose rule says two things ("Every loan shows its due date and its return place."); the person splits it,
+//   names the part THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.", leaves the part's class `change` of A LOAN HAS A DUE DATE as the split copied them, and edits the first's rule to "Every loan shows its due date."
+// input: Write proposals
+// expect: the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND a block THE RETURN PLACE IS SHOWN *(SRC-policy, ch. 1)* with the rule
+//   "Every loan shows its return place.", each followed by "*Check:* `tests/fixture.test.mjs`": neither part is lost
+test("spec-entry/draft - a split change candidate is written with both parts", async () => {
+  const CHANGE = "THE DUE DATE IS SHOWN";
+  const { panel, product } = await panelOf({ candidates: [{ ...candidate(CHANGE, "Every loan shows its due date and its return place."), class: "change", of: LOAN }] });
+  click(splitOf(itemOf(panel, CHANGE))[0]);
+  const part = partsOf(panel)[0];
+  assert.equal(byClass(part, "select", "class")[0].value, "change");
+  assert.equal(byClass(part, "input", "of")[0].value, LOAN);
+  byClass(part, "input", "candidate-name")[0].value = "THE RETURN PLACE IS SHOWN";
+  byClass(part, "textarea", "candidate-rule")[0].value = "Every loan shows its return place.";
+  byClass(itemOf(panel, CHANGE), "textarea", "candidate-rule")[0].value = "Every loan shows its due date.";
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  const entry = proposalsOf(product)[0].find((file) => /docs\/spec-freigaben\/[^/]+\/01-lending\.md$/.test(file.path)).text;
+  const block = (name, rule) => `**${name}** *(SRC-policy, ch. 1)*\n${rule}\n*Check:* \`tests/fixture.test.mjs\``;
+  assert.ok(entry.includes(block(LOAN, "Every loan shows its due date.")), JSON.stringify(entry));
+  assert.ok(entry.includes(block("THE RETURN PLACE IS SHOWN", "Every loan shows its return place.")), JSON.stringify(entry));
+});
+
+// TST-578009 · level: unit · module: MOD-review-pages
+// guards: UC-005 (steps 7 and 8); A GENERATED ARTIFACT IS A PROPOSAL
+// given: the endpoint answers one candidate that constrains the process, class `new` (A GATE DECISION IS RECORDED, rule "Every gate decision is recorded."); the instance's SPEC holds EVERY GATE NAMES WHO DECIDES IT;
+//   no split: the person sets the candidate's class to `change` and its "of" to EVERY GATE NAMES WHO DECIDES IT
+// input: Write proposals
+// expect: the instance's host takes one commit whose entry 01-process.md holds `**EVERY GATE NAMES WHO DECIDES IT** *(PO A. Maier; SRC-policy, ch. 1)*` (the source the job adds to the requirement's), the rule "Every gate decision is recorded." and "*Check:* `tests/fixture.test.mjs`" - a change under the
+//   existing name - and holds no block named A GATE DECISION IS RECORDED; the product's host takes no commit under docs/spec-freigaben
+test("spec-entry/draft - an unsplit write hands the writer the class and the of the person left", async () => {
+  const NEW = "A GATE DECISION IS RECORDED";
+  const instance = writableInstance();
+  const { panel, product } = await panelOf({ candidates: [{ ...candidate(NEW, "Every gate decision is recorded."), constrains: "process" }] }, { instance });
+  const item = itemOf(panel, NEW);
+  byClass(item, "select", "class")[0].value = "change";
+  byClass(item, "input", "of")[0].value = GATES;
+  click(byClass(panel, "button", "write-proposals")[0]);
+  await until(() => byClass(panel, "p", "written").length === 1, "the write result");
+  const written = instance.writes().filter((files) => files.some((file) => file.path.includes("docs/spec-freigaben/")));
+  assert.equal(written.length, 1, "one commit to the instance");
+  const entry = written[0].find((file) => /docs\/spec-freigaben\/[^/]+\/01-process\.md$/.test(file.path)).text;
+  assert.ok(entry.includes(`**${GATES}** *(PO A. Maier; SRC-policy, ch. 1)*\nEvery gate decision is recorded.\n*Check:* \`tests/fixture.test.mjs\``), JSON.stringify(entry));
+  assert.ok(!entry.includes(`**${NEW}**`), "no block under the candidate's own name");
+  assert.equal(proposalsOf(product).length, 0, "nothing is written to the product");
 });
