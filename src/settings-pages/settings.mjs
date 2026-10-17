@@ -37,10 +37,6 @@ function attribute(node, name, value) {
   else node[name] = String(value);
 }
 
-function whatIsThis(text) {
-  return el("details", "explain settings-what-is-this", el("summary", null, "What is this?"), el("div", null, text));
-}
-
 function endpointName(key) {
   return key.slice("endpoint:".length);
 }
@@ -162,7 +158,7 @@ function bridgeLine(target, context) {
     el("h3", null, "Bridge"),
     el("p", null, `Address: ${setting.address}`),
     el("p", null, el("label", null, "Pairing token ", token, " ", show)),
-    whatIsThis("This browser keeps the Bridge address and pairing token so it can reach the Bridge. Anyone able to read this browser's Pages storage can read them."),
+    explain("settings-bridge-stored"),
     el("p", null, change, " ", clear),
   );
 }
@@ -276,7 +272,7 @@ function bridgeNamedLine(target, context, info) {
     el("h3", null, "Bridge: ", el("span", "settings-bridge-named-name", name)), status,
     el("p", null, `Reached at: ${where()}`),
     el("p", null, el("label", null, "Pairing token ", token, " ", show)),
-    whatIsThis("This browser keeps the Bridge's address, or its port on the jump host, and its pairing token under the name the Bridge reports. Anyone able to read this browser's Pages storage can read them."),
+    explain("settings-bridge-named"),
     el("p", null, test, " ", change, " ", clear), result,
   );
 }
@@ -320,7 +316,7 @@ function jumpHostLine(target, context) {
     el("h3", null, "Jump host"),
     el("p", null, `Host: ${setting.hostname}`),
     el("p", null, `HTTPS address: ${setting.httpsAddress ?? "Not configured."}`),
-    whatIsThis("This browser keeps the jump-host connection details so the Bridge can prepare remote sessions. Anyone able to read this browser's Pages storage can read them."),
+    explain("settings-jump-host"),
     status, el("p", null, test, " ", change, " ", clear), result,
   );
 }
@@ -383,7 +379,7 @@ function exportImportControls(context, signIn) {
     download,
     el("p", null, el("label", null, "Import settings file ", file)),
     el("p", null, el("label", null, "Import passphrase ", importPassphrase)),
-    whatIsThis("Export copies this browser's settings, including secrets, into a file for this person to keep or move. Import reads that file into this browser; whoever holds an unlocked export can read its settings."),
+    explain("settings-export-import"),
     result,
   );
 }
@@ -404,7 +400,7 @@ function browserClearControls(context) {
   return el("section", "settings-clear panel",
     el("h3", null, "Clear this browser"),
     el("p", null, "This removes this instance's stored settings from localStorage and does not change a repository."),
-    whatIsThis("This removes every Agent M setting held in this browser. It changes no repository, and any Pages site under the same owner domain that can read this storage loses access too."),
+    explain("settings-clear-everything"),
     el("p", null, el("label", null, acknowledgement, " I understand this clears every Agent M setting in this browser.")),
     clear, result,
   );
@@ -426,7 +422,7 @@ function repositoryLine(target, context, info) {
       await route.render(target, context, {});
     });
     return el("section", "settings-repository panel", el("h3", null, info.label), status,
-      whatIsThis("This browser keeps the list of managed product addresses so it can open their repository settings. Any Pages site under the same owner domain can read that browser storage."),
+      explain("settings-products-stored"),
       el("p", null, change, " ", clear));
   }
   const stored = readSetting(context.store, info.key);
@@ -527,7 +523,7 @@ function repositoryLine(target, context, info) {
     el("h3", null, info.label), status,
     el("p", null, el("label", null, "Stored token ", value, " ", show)),
     el("p", null, `Expires on `, expiry, " ", renewal),
-    whatIsThis("This browser keeps this token so Agent M can read and write this repository. Any Pages site under the same owner domain can read it; give it only the minimum repository scope needed."),
+    explain("settings-token-stored"),
     notice, acknowledgementLine,
     el("p", null, change, " ", save, " ", test, " ", clear), result,
   );
@@ -680,11 +676,11 @@ function productListControls(target, context) {
       await route.render(target, context, {});
     });
     return el("section", "settings-product-list-item", el("h4", null, web),
-      whatIsThis("This browser keeps this product address and its optional token so it can test and open the repository. Any Pages site under the same owner domain can read that browser storage."),
+      explain("settings-product-address"),
       el("p", null, test, " ", remove), result);
   });
   return el("section", "settings-product-list panel", el("h3", null, "Managed products"),
-    whatIsThis("This browser keeps the managed product list so it can show each repository's settings. Any Pages site under the same owner domain can read that browser storage."), ...lines);
+    explain("settings-managed-products"), ...lines);
 }
 
 function clearProductToken(store, web) {
@@ -726,7 +722,7 @@ function notificationsControls(context) {
   return el("section", "settings-notifications panel",
     el("h3", null, "Notifications"), status,
     el("p", null, on, " ", test, " ", off),
-    whatIsThis("Notifications let this browser alert you when something needs your attention. This browser stores whether notifications are switched on; the browser and any Pages site under the same owner domain able to read this storage can read that switch. While a dashboard page is open, it checks every five minutes for open SPEC changes, use cases, architecture files, and release test reports waiting for Accept and release. Checks go only to repository servers with the tokens of this browser and nowhere else. Nothing is checked while no dashboard page is open."), result,
+    explain("settings-notifications"), result,
   );
 }
 
@@ -778,7 +774,7 @@ function remoteSessionLine(target, context, info) {
     el("p", null, `Forwarded port: ${session.port ?? "Not configured."}`),
     el("p", null, el("label", null, "Copied Bridge token ", token, " ", show)),
     el("p", null, "Tunnel commands and proxy configuration are prepared on the Bridge page; no tunnel is started here."),
-    whatIsThis("This browser keeps the forwarded port and copied Bridge token for this remote session. Any Pages site under the same owner domain can read them; the Bridge reads its own tunnel settings."),
+    explain("settings-remote-session"),
     el("p", null, test, " ", change, " ", clear), result,
   );
 }
@@ -857,7 +853,7 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
     status,
     secretList,
     el("p", null, secretsPage),
-    whatIsThis("The product repository keeps Agent M's job workflow. The files name this instance commit and the CI secrets by name only: AGENT_M_TOKEN for the person's repository token and one key secret for each CI participant. The secret values are entered on the repository server's secrets page, not in Agent M."),
+    explain("settings-job-workflow"),
     ...(offerInstall ? [el("p", null, install)] : []),
     result,
   );
@@ -866,7 +862,7 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
-    whatIsThis("A chosen product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser reads them to show their current state."));
+    explain("settings-product-none"));
   const { settings, collaborators } = await settingsSchemas();
   let repository;
   try { repository = await context.product.host.repositoryInfo(); }
@@ -874,7 +870,7 @@ async function productControls(context) {
     return el("section", "settings-product panel",
       el("h3", null, `Product · ${context.product.address}`),
       el("p", "settings-product-read-only", `Repository metadata is unavailable: ${error.message}`),
-      whatIsThis("This browser keeps the selected product address and token. Its token remains available in the repository settings above."));
+      explain("settings-product-unavailable"));
   }
   const { defaultBranch } = repository;
   const address = parseAddress(context.product.address);
@@ -908,7 +904,7 @@ async function productControls(context) {
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
       state,
-      whatIsThis("This product repository keeps its pseudonymisation setting and collaborator consent records, which every repository reader can read. This browser only reads them to show their current state."),
+      explain("settings-product-read-only"),
       workflow,
       el("h4", null, "Collaborators"),
       el("ul", "settings-collaborator-records", ...collaboratorRows.map((row) => el("li", null, `${row.name} · @${row.account} · agreed on ${row.agreed}`))));
@@ -983,7 +979,7 @@ async function productControls(context) {
   const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product panel",
     el("h3", null, `Product · ${context.product.address}`), state,
-    whatIsThis("This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click."),
+    explain("settings-product-records"),
     workflow,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
     el("p", "notice", "With pseudonymisation on, report data is rewritten without persons while keeping its technical content."),
