@@ -298,11 +298,11 @@ test("the subject of the gaps page is the page, titled Gaps", async () => {
 // TST-599009 · level: component · module: MOD-trace-pages
 // guards: UC-020
 // given: the fixture Host
-// input: the route rendered with the key "modules", a view the route does not draw
+// input: the route rendered with the key "audit", a view the route does not draw
 // expect: the page says "No current requirements are recorded in SPEC.md." and the Host is asked for no snapshot
 test("a view the route does not draw reads nothing and says so", async () => {
   const productHost = hostOf();
-  const target = await render(productHost, { key: "modules", ref: "main" });
+  const target = await render(productHost, { key: "audit", ref: "main" });
   assert.equal(target.textContent, "No current requirements are recorded in SPEC.md.");
   assert.deepEqual(productHost.log.snapshots, []);
 });
