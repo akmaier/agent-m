@@ -63,7 +63,8 @@ export function showTokenNotices({ store, instance, product = null, now = new Da
       refusedNotice({ tokenName, renewal });
     } else if (soon.has(key)) {
       const expires = soon.get(key);
-      notice("token-expiring", { text: expires < today ? `Your token ${tokenName} expired on ${expires}. ${PASTE}` : `Your token ${tokenName} expires on ${expires}. ${PASTE}`,
+      const kind = key.startsWith("gitlab-token:") ? "GitLab project token" : "GitHub token";
+      notice("token-expiring", { text: `Your ${kind} ${expires < today ? "expired" : "expires"} on ${expires} (${tokenName}). ${PASTE}`,
         link: { label: "Renew", href: renewal } });
     }
   }
