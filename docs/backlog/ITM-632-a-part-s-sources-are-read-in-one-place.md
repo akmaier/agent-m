@@ -40,3 +40,5 @@ the sources of a part, and listed.
 - `sourcesOf` gives each case once: a path that a content place names, a folder above it, and neither.
 - The three callers call it and copy no rule of their own.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-job-runner's `sourcesOf` (accepted blob 7a7c5c8918aa). It is free of drafts; its readings are read at its start.

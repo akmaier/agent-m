@@ -39,3 +39,5 @@ It waits for akmaier's acceptance of the draft committed with ITM-627's gate, wh
 - Step A's fold reads *Why these?* and holds the purpose of each permission. Every other fold of the site still reads
   *What is this?*.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-site-frame's `explain(topic, label?)` and MOD-settings-pages' *Why these?* fold (accepted blobs 33dee99a46a0, b94701420bcf). It is free of drafts; its readings are read at its start.

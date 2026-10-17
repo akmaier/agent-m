@@ -39,3 +39,5 @@ follows another module's code; it names the interface.
 
 - The strategy works as MOD-work-plans' file states it, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-work-plans' `planFindings` taking two checks from `graphFindings`, with `TextSource` in its Uses (accepted blob eb9c90e38eb9). It is free of drafts; its readings are read at its start.

@@ -52,3 +52,5 @@ UC-016 steps 1, 3, 4 and 5, with 4a and 1a, on the page; its second postconditio
 - The products still on older versions are shown.
 - *Move* lists the affected requirements and the changed passages, then commits `docs/sources.md` with a message that names those requirements.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-settings-pages' Uses with `MOD-source-register.readContent` (accepted blob b94701420bcf). It is free of drafts; its readings are read at its start.

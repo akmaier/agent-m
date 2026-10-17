@@ -43,3 +43,5 @@ It waits for akmaier's acceptance of the draft committed with it, which states `
   candidates.
 - A draft with one `change` of each requirement is written as before.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-spec-changes' `TwoChanges` of `entrySections` (accepted blob bfbc5fce5845). It is free of drafts; its readings are read at its start.

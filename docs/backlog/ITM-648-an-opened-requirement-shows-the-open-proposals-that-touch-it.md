@@ -39,3 +39,5 @@ with ITM-597's gate, which adds `MOD-spec-changes.entryView` to MOD-trace-pages'
 - No rule of what an entry changes is written in MOD-trace-pages.
 - Its tests in `tests/trace-pages-specification.test.mjs` guard `OPEN PROPOSALS ARE SHOWN IN THE BROWSER` by name.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-trace-pages' Uses with `MOD-spec-changes.entryView` (accepted blob 5c9248d32c4f). It is free of drafts; its readings are read at its start.

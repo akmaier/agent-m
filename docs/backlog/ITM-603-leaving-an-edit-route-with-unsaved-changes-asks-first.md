@@ -49,3 +49,5 @@ holds. No frame test asserts a route's replacement against a `leave`.
 - Leaving an edit route with unsaved changes calls the editor's `close()`, which asks.
 - When the person declines, the changes stay.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft it waited for is accepted** (akmaier, `b43da779`): MOD-site-frame's `Route.leave`, MOD-markdown-render's `Editor.close() -> boolean` and MOD-review-pages' leave (accepted blobs 33dee99a46a0, 66f2f8040b32, fb1576acca0f). It is free of drafts; its readings are read at its start.
