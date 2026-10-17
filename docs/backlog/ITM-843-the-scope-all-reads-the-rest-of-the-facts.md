@@ -29,3 +29,7 @@ requests at this repository's size, before and after. Their callers are the prog
 - Every field of `Facts` is read in the scope `all`, or is `"unknown"` only where its text says so, with tests and the
   counts.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Added at ITM-827's draft stop (sprint team1/78, 2026-10-17, po-opus).** `productFacts` gives `jobs` without their live
+state (`src/progress-measures/facts.mjs:186` passes `new Map()`), against the module's text. ITM-827's `home` reads the live
+states itself. Once this item gives them, `home` takes them from `Facts`, and its own reading goes.

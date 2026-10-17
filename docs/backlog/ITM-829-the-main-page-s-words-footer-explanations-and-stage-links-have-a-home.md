@@ -33,3 +33,6 @@ is accepted.
 ## Acceptance
 
 - The accepted draft's parts are drawn by their modules, with tests.
+
+**Added at ITM-827's draft stop (sprint team1/78, 2026-10-17, po-opus).** MOD-main-page's Parts do not name
+`src/home/home.mjs` as taken over. The draft for MOD-main-page includes that line.
