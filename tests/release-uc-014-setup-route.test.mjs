@@ -154,7 +154,7 @@ test("release · A TOKEN IS SCOPED TO WHAT IT WRITES: the step states Only selec
 // input: read the details elements of Step A and of Step B
 // expect: UC-014 "Both steps carry a folded What is this?": among its details each step holds one whose summary reads "What is this?", folded (no open attribute), with a body of more
 //   than forty characters beyond the summary. UC-014 step 7 "A folded Why these? says what each is for": among its details Step A also holds one whose summary reads "Why these?",
-//   folded, whose body names Contents, Issues, Pull requests, Actions, Workflows and Metadata; that part is a todo until ITM-628 gives Step A that fold
+//   folded, whose body names Contents, Issues, Pull requests, Actions, Workflows and Metadata; the fold of Step A that names all six permissions has the summary "Why these?" and no other
 test("release · UC-014 7–8: both steps carry a folded What is this?, and Step A a folded Why these?", async (t) => {
   const { target } = await open();
   const foldedTitled = (step, summary) => foldedIn(step).find((folded) => byTag(folded, "summary")[0]?.textContent === summary);
@@ -164,12 +164,11 @@ test("release · UC-014 7–8: both steps carry a folded What is this?, and Step
     assert.equal(folded.hasAttribute("open"), false, `${title}: folded`);
     assert.ok(folded.textContent.length > "What is this?".length + 40, `${title}: a body`);
   }
-  await t.test("Step A holds a folded Why these? that names the permissions", { todo: "ITM-628" }, () => {
-    const folded = foldedTitled(stepA(target), "Why these?");
-    assert.ok(folded, "Step A holds a folded Why these?");
-    assert.equal(folded.hasAttribute("open"), false, "Why these?: folded");
-    const missing = WHY.map(([name]) => name).filter((name) => !folded.textContent.includes(name));
-    assert.deepEqual(missing, [], "Why these? names every permission");
+  await t.test("the fold of Step A that names the permissions reads Why these?", () => {
+    const naming = foldedIn(stepA(target)).find((folded) => WHY.every(([name]) => folded.textContent.includes(name)));
+    assert.ok(naming, "Step A holds a fold that names every permission");
+    assert.equal(byTag(naming, "summary")[0]?.textContent, "Why these?", "the fold naming the permissions reads Why these?");
+    assert.equal(naming.hasAttribute("open"), false, "Why these?: folded");
   });
 });
 
