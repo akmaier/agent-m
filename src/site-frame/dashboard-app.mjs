@@ -1,17 +1,16 @@
 // Dashboard — the browser runtime's composition root and router. SPEC §10; ARC-003 (shells).
 //
 // Reads one pinned commit of the product — on GitHub or on a GitLab server (its REST API v4, at the same pinned commit) —
-// through the public repository Host reads, and renders use cases and SPEC change proposals. A page load reads the commit and
-// its tree, then the files the route shows in batches (readAhead); each view then takes the files it shows from that pinned Snapshot. With a stored token, a
-// person's click commits an edit or an acceptance: the button's trusted click becomes the authority of the git host's one
-// write path (dashboard/writes.mjs clickAuthority; ARC-003 decision 3); an accepted SPEC change is written in
-// the same commit as its approval record. Without a token, GitHub's own pages are opened, prefilled; a GitLab product
-// without its project token is read-only and links to the step that stores it. Every read goes through the git host (GET
-// only), and each token only to the API of the server that issued it.
+// through the public repository Host reads. The review addresses — #uc, #arc, #review, #spec and the routes' own names — are
+// handed to MOD-review-pages' routes (reviewTargets), which render the use cases, the architecture and the SPEC change entries and
+// make their decisions on a person's click; a GitLab product without its project token is read-only and links to the step that
+// stores it. A page load reads the commit and its tree, then the files the route shows in batches (readAhead); the routes then take
+// the files they show from that pinned Snapshot. Every read goes through the git host (GET only), and each token only to the API of
+// the server that issued it.
 //
 // Module: MOD-dashboard-app
 //
-// The views are files of their own, docs/assets/dashboard/<view>-view.mjs, and the settings page's sections
+// The other views are files of their own, docs/assets/dashboard/<view>-view.mjs, and the settings page's sections
 // docs/assets/dashboard/settings/<section>.mjs — each loaded by its name from one table (DASHBOARD, src/site/views.mjs, which
 // the main page reads too). The menu above the views is the site's one menu, in the order of the process (src/site/menu.mjs).
 // Which of the table's files are built is read from one data file beside them, docs/assets/dashboard/built.json, so that a page
@@ -30,8 +29,7 @@ import {
   REPO_RE, parseProductAddress, isGitLab, tokenRefusal, usedUpLimit,
 } from "../../docs/assets/git-host.mjs";
 import {
-  parseRecord, createReviewSession, readByBlob, recordIndex, statusByNames, recordsForId, lineDiff, architecturePrerequisites,
-  parseQueueIndex, parseDecisions,
+  parseRecord, readByBlob, recordIndex, statusByNames, parseQueueIndex, parseDecisions,
 } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
 import { tokenBannerHtml } from "../../docs/assets/dashboard/settings-view.mjs";
@@ -44,6 +42,11 @@ import { openStore } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { view as settingsPages } from "../settings-pages/index.mjs";
+import { view as reviewPages } from "../review-pages/index.mjs";
+import { view as tracePages } from "../trace-pages/index.mjs";
+import { registerStrategies } from "../job-runner/index.mjs";
+import { explain } from "./index.mjs";
+import { routeOf } from "./routing.mjs";
 
 export { DASHBOARD, UPSTREAM };
 
@@ -85,13 +88,6 @@ export function stepHtml({ title, body, explain }) {
   if (!explain || !String(explain).trim()) throw new Error(`step "${title}" has no \"explain\" text (EVERY STEP EXPLAINS ITSELF)`);
   return `<section class="step"><h3>${h(title)}</h3>${body}` +
     `<details class="explain"><summary>What is this?</summary><div>${explain}</div></details></section>`;
-}
-
-// The one difference every view shows (review-core.mjs lineDiff), as HTML.
-export function diffHtml(a, b) {
-  const d = lineDiff(a, b);
-  if (!d.some(([k]) => k !== " ")) return `<p class="muted">No difference.</p>`;
-  return `<pre class="diff">${d.map(([k, l]) => `<span class="d${k === "+" ? "add" : k === "-" ? "del" : "ctx"}">${h(k)} ${h(l)}</span>`).join("\n")}</pre>`;
 }
 
 // A write refused with 403. What GitLab answers 403 for here: a push to a protected branch by a role it does not allow — the
@@ -224,9 +220,6 @@ function currentHost() {
       snapshotHost = null;
       memo = new Map();
       state.records = null;
-      verified.clear();
-      acceptedCache.clear();
-      headersCache.clear();
     }
   }
   return host;
@@ -235,10 +228,7 @@ function currentHost() {
 // a refusal names that token; null where the instance's token was used.
 const ownTokenOf = (p) => (isGitLab(p) || (p?.address && !p.error && store.getGitHubProductToken(p.address)) ? p : null);
 // The pinned commit and its tree (every file with its blob SHA). Everything else is read by the view that shows it (`once`).
-const state = { commit: null, tree: [], byPath: new Map(), records: null, archCtx: { spec: "", useCases: [] }, products: [] };
-// What this page has shown the reviewer and what they ticked (SEVERAL FILES ARE ACCEPTED IN ONE CLICK).
-// Kept in memory only: a reload starts without ticks.
-const session = createReviewSession();
+const state = { commit: null, tree: [], byPath: new Map(), records: null, products: [] };
 let flash = null; // the outcome of the last acceptance, shown once above the next view
 
 // ---------------------------------------------------------------- loading
@@ -266,23 +256,8 @@ async function loadSnapshot() {
   state.commit = snap.commit;
   state.tree = snap.paths.map((path) => ({ path, sha: snap.blob(path) }));
   state.byPath = new Map(state.tree.map((e) => [e.path, e]));
-  if (state.commit !== before) { memo = new Map(); state.records = null; verified.clear(); }
+  if (state.commit !== before) { memo = new Map(); state.records = null; }
 }
-
-// A file on the commit an acceptance is written on (dashboard/writes.mjs acceptItems); null if it is absent. The snapshot of a
-// commit is read once for as long as acceptances are written on that commit; a branch name is never kept, it moves.
-let headSnapshot = null; // { head, snapshot: Promise<Snapshot>, host }
-const COMMIT_ID = /^[0-9a-f]{40}$/;
-const readAt = async (head, path) => {
-  const activeHost = currentHost();
-  if (!COMMIT_ID.test(head)) return (await activeHost.readSnapshot(head)).read(path);
-  if (headSnapshot?.head !== head || headSnapshot.host !== activeHost) {
-    const snapshot = activeHost.readSnapshot(head);
-    headSnapshot = { head, snapshot, host: activeHost };
-    snapshot.catch(() => { if (headSnapshot?.snapshot === snapshot) headSnapshot = null; });
-  }
-  return (await headSnapshot.snapshot).read(path);
-};
 
 // A page load reads the files a route shows in batches, ahead of the reads of the views (Snapshot.readMany): each route's
 // paths are taken from the tree, so no view changes. A route whose list of files depends on files it has read — the open
@@ -307,8 +282,8 @@ async function readWave(paths) {
   const wanted = [...new Set(paths)].filter((p) => state.byPath.has(p));
   if (wanted.length) await (await pinned()).readMany(wanted);
 }
-// The proposals, and the files they change, of the SPEC change queues that still have an entry to decide (spec-changes-view.mjs
-// queueHeads, queueEntries): read from the queues' index and decisions files, which the first wave brought.
+// The proposals, and the files they change, of the SPEC change queues that still have an entry to decide
+// (the route spec-entry reads them): read from the queues' index and decisions files, which the first wave brought.
 async function openProposals() {
   const lists = await Promise.all(pathsOf(QUEUE_INDEX_PATH).map(async (index) => {
     const dir = index.replace(/\/index\.md$/, "");
@@ -325,11 +300,9 @@ async function openProposals() {
 }
 async function readAhead(kind) {
   if (kind === "" || kind === "uc") {
-    const ucs = pathsOf(USE_CASE_PATH);
-    await readWave([...ucs, "docs/use-cases/README.md", ...await recordsOfAll(ucs)]);
+    await readWave(pathsOf(USE_CASE_PATH));
   } else if (kind === "arc") {
-    const files = pathsOf(ARCHITECTURE_FILE);
-    await readWave([...files, "SPEC.md", ...await recordsOfAll([...files, ...pathsOf(USE_CASE_PATH)])]);
+    await readWave(pathsOf(ARCHITECTURE_FILE));
   } else if (kind === "spec") {
     await readWave(["SPEC.md", ...pathsOf(QUEUE_HEAD_PATH)]);
     await readWave(await openProposals());
@@ -376,21 +349,8 @@ function fileText(path) {
 // The approval records named in the tree, and those read so far (each parsed, with its own path).
 const recIndex = () => (state.records ??= recordIndex(state.tree.map((e) => e.path)));
 const readRecords = (list) => Promise.all(list.map((p) => once(`record:${p}`, async () => ({ ...parseRecord(await fileText(p)), _path: p }))));
-// STATUS IS DERIVED FROM THE RECORDS: from their names in the tree; verify — for a file that is opened — from their content.
+// STATUS IS DERIVED FROM THE RECORDS: from their names in the tree.
 const statusOf = (path, blob, ids = [], verify = false) => statusByNames({ index: recIndex(), path, blob, ids, read: readRecords, verify });
-// Every record of an identifier: those named by it, and any whose name follows no known form.
-const recordsOf = async (id) => recordsForId(await readRecords([...(recIndex().byId.get(id) || []).map((n) => n.path),
-  ...recIndex().unknown]), id);
-// The status a file was shown with when it was opened (verified from its records), by path — a list shows it too.
-const verified = new Map();
-
-// ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS: what an architecture file rests on — the SPEC and the use cases it names — as the
-// architecture views read it for the view shown (state.archCtx).
-const prerequisitesOf = (f) => architecturePrerequisites({ arch: f.arch, specText: state.archCtx.spec, useCases: state.archCtx.useCases });
-
-// The last accepted texts and the code's module headers read on this page, by identifier or commit (review-views.mjs).
-const acceptedCache = new Map(), headersCache = new Map();
-
 // A view renders only while it is still the one asked for: reading may take long enough for the person to have moved on.
 let routeSeq = 0;
 
@@ -429,10 +389,6 @@ async function reloadAndRoute() {
   await loadSnapshot();
   await route();
 }
-
-// A GitLab product without its project token: no Accept, no Save — the step that stores the token instead
-// (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-008 3c, UC-018 4b).
-const tokenStepLink = () => `#add/${encodeURIComponent(T.product.address)}`;
 
 // Why a write was refused, in the product's terms (writeRefusalText); githubPage: the GitHub path the caller links beside it.
 const writeErrorText = (e, githubPage = null) => writeRefusalText(e, T.product, new Date(), { githubPage }) || errorText(e);
@@ -509,8 +465,8 @@ function renderProductSelector() {
 // names, and builds the one thing watchForAcceptance needs that the module does not provide itself: the address of a
 // notification's review-pages route, confirmed against the routes this file and its views already serve (the PO's gate
 // record of ITM-236 names addressOf's routes as this change's reading to confirm) — #uc(/<id>), #arc(/<id>) for both an
-// architecture decision and a module (review-views.mjs: "ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE"),
-// #spec/<queue>/<nn> for one SPEC change entry (spec-changes-view.mjs; MOD-progress-measures' id "spec-<queue>-<nn>"),
+// architecture decision and a module ("ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE"),
+// #spec/<queue>/<nn> for one SPEC change entry (MOD-progress-measures' id "spec-<queue>-<nn>"),
 // #release always for a release test report (release-view.mjs; not built yet — ITM-239 — so this falls back to the
 // use-case list today, as any not-yet-built route does, route()).
 let notificationsStore = null;
@@ -564,11 +520,9 @@ function startNotifications() {
 let app = null;
 function context() {
   return {
-    T, GITLAB, SERVER, store, session, state, DASHBOARD,
-    ghToken, token, once, loadSnapshot, readAt, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf,
-    recordsOf, verified, prerequisitesOf, acceptedCache, headersCache, shownSecrets,
-    main, h, md, renderMermaid, stepHtml, diffHtml, gitlabWriteRefusal, rateLimitText, reloadAndRoute, tokenStepLink, writeErrorText,
-    writeAccessRefused: (e) => writeAccessRefused(e, T.product),
+    T, GITLAB, SERVER, store, state, DASHBOARD,
+    ghToken, token, once, loadSnapshot, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf, shownSecrets,
+    main, h, md, renderMermaid, rateLimitText, reloadAndRoute, writeErrorText,
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
     seq: () => routeSeq,
     setFlash: (text) => { flash = text; },
@@ -578,13 +532,160 @@ function context() {
   };
 }
 
+// ---------------------------------------------------------------- the review pages' routes (MOD-review-pages)
+//
+// The live addresses lead where they led, through MOD-review-pages' routes: #uc, #uc/<id>, #arc, #arc/<id>, #review/uc, #review/arc,
+// #spec and #spec/<queue>/<nn>; the routes' own names (#use-case/id=…, #decision, #module/id=…, #spec-entry/id=…, #requirement/name=…,
+// #requirements/section=…, #draft/subject=…) are served as they are, since the pages' links use them.
+
+const REVIEW_ROUTES = new Set(reviewPages.routes.map((route) => route.name));
+const decoded = (part) => decodeURIComponent(part);
+
+// The routes the address shows, each { name, params }, or null for an address that is no review address.
+function reviewTargets(kind, a, b) {
+  if (kind === "uc") return [{ name: "use-case", params: a ? { id: decoded(a) } : {} }];
+  if (kind === "arc") {
+    if (!a) return [{ name: "decision", params: {} }, { name: "module", params: {} }];
+    return [{ name: decoded(a).startsWith("MOD-") ? "module" : "decision", params: { id: decoded(a) } }];
+  }
+  if (kind === "review") {
+    if (a === "uc") return [{ name: "use-case", params: { id: "all" } }];
+    if (a === "arc") return [{ name: "decision", params: { id: "all" } }];
+    return [{ name: "use-case", params: {} }];
+  }
+  if (kind === "spec") return [{ name: "spec-entry", params: a && b ? { id: `spec-${decoded(a)}-${b}` } : {} }];
+  if (REVIEW_ROUTES.has(kind)) return [{ name: kind, params: routeOf(location.hash).params }];
+  return null;
+}
+
+// The host the review pages read through: the app's own. While a page is being loaded it hands the snapshot this load read, whose texts the
+// batches brought, so that the page asks the server for neither the commit nor the tree again (A PAGE LOAD READS THE REPOSITORY IN BATCHES);
+// a click after the load — a decision — reads the branch as it is then. Its repository information is read once. A commit it makes reads the new
+// head, so that the next page shows it.
+let pagesHosts = null; // { of, host }
+let loading = 0; // pages being loaded
+function pagesHost() {
+  const real = currentHost();
+  if (pagesHosts?.of === real) return pagesHosts.host;
+  let info = null;
+  // A refusal of the token by the server marks the token that was used, as every other view marks it (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED).
+  const noted = (call) => async (...given) => {
+    try {
+      return await call(...given);
+    } catch (e) {
+      throw noteRefusal(e);
+    }
+  };
+  const host = Object.freeze({
+    ...Object.fromEntries(Object.entries(real).map(([name, member]) => [name, typeof member === "function" ? noted(member) : member])),
+    repositoryInfo: noted(() => (info ??= real.repositoryInfo().catch((e) => { info = null; throw e; }))),
+    readSnapshot: noted(async (ref) => (loading > 0 && ref === T.ref && snapshot && snapshotHost === real ? snapshot : real.readSnapshot(ref))),
+    commitFiles: noted(async (change) => {
+      const made = await real.commitFiles(change);
+      await loadSnapshot();
+      return made;
+    }),
+  });
+  pagesHosts = { of: real, host };
+  return host;
+}
+
+// The strategies of the review pages' kinds, registered with the job runner once under the owner of each set; a set the owner registered on an
+// earlier load of the page counts as registered, as start.mjs counts it.
+function registerReviewStrategies() {
+  for (const [at, strategies] of reviewPages.strategies.entries()) {
+    const owner = `MOD-review-pages#${at}`;
+    try {
+      registerStrategies(owner, strategies);
+    } catch (e) {
+      if (e.name !== "DuplicateStrategy" || e.owners[0] !== owner) throw e;
+    }
+  }
+}
+
+let strategiesRegistered = false;
+// The ViewContext of the review pages for the product shown: the product is the instance itself when the address names the instance.
+function reviewContext() {
+  if (!strategiesRegistered) {
+    registerReviewStrategies();
+    strategiesRegistered = true;
+  }
+  const address = parseAddress(T.product.address);
+  const shown = pagesHost();
+  const isInstance = address.server === "github" && address.path === T.instance;
+  return {
+    page: "review",
+    instance: { repository: T.instance, host: isInstance ? shown : connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
+    product: isInstance ? null : { address: T.product.address, kind: address.server, host: shown, tokenStored: Boolean(token()) },
+    store: openStore(T.instance),
+    // The step that stores a product's token is this page's #add; any other route is written as the frame writes it.
+    go(route, params = {}) {
+      if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
+      else location.hash = `#${[route, ...Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)].join("/")}`;
+    },
+  };
+}
+
+// Each route draws into an element of its own in <main>: a route that was left meanwhile draws into an element no longer there.
+async function renderReviewPages(targets, lead = []) {
+  const context = reviewContext();
+  const boxes = targets.map(() => document.createElement("div"));
+  main().replaceChildren(...lead, ...boxes);
+  loading += 1;
+  try {
+    for (const [at, { name, params }] of targets.entries()) {
+      await reviewPages.routes.find((route) => route.name === name).render(boxes[at], context, params);
+      if (name === "spec-entry" && !params.id) await renderSpecification(context);
+    }
+  } finally {
+    loading -= 1;
+  }
+}
+
+// The specification browser under the open SPEC changes (MOD-trace-pages' route `trace`), read through the same host.
+async function renderSpecification(context) {
+  const box = document.createElement("div");
+  main().append(box);
+  await tracePages.routes.find((route) => route.name === "trace").render(box,
+    { instance: { host: context.instance.host }, product: { host: (context.product ?? context.instance).host } }, { key: "specification", ref: T.ref });
+}
+
+// UC-014 step 6: while this browser holds no key for the instance, the start page opens with Finish setting up your instance.
+function setupBanner() {
+  const node = (name, className, ...children) => {
+    const made = document.createElement(name);
+    if (className) made.className = className;
+    made.append(...children);
+    return made;
+  };
+  const link = (className, href, text) => {
+    const made = node("a", className, text);
+    made.setAttribute("href", href);
+    return made;
+  };
+  return node("section", "panel setup-banner", node("h3", null, "Finish setting up your instance"),
+    node("p", null, "This browser has no key for ", node("strong", null, T.instance), " yet. Without one you can read and review; accepting and editing " +
+      "then go through GitHub's own pages, and products cannot be added."),
+    node("p", null, link("btn primary", "#setup", "Set up now"), " ", link("btn", "#settings", "Import settings"), " ",
+      node("span", "muted small", "— from a file exported in another browser (Settings → Export settings).")));
+}
+const showsSetup = (kind, a) => (kind === "" || kind === "uc") && !a && !GITLAB && !ghToken();
+
+// How acceptance works: the topic `accepting`, folded.
+function renderHow() {
+  const fold = explain("accepting", "How acceptance works");
+  fold.open = true;
+  main().replaceChildren(fold);
+}
+
 // ---------------------------------------------------------------- routing
 
 // THE MENU FOLLOWS THE PROCESS: the site's menu, each entry leading to the first of its views whose file is built; the entry of
 // the view shown is marked.
 let available = null;
 function markTab(kind) {
-  const entry = entryOf(kind || "uc");
+  // A route of the review pages named as it is (#use-case/…, #decision) is under the menu entry its route names.
+  const entry = entryOf(kind || "uc") ?? reviewPages.routes.find((route) => route.name === kind)?.entry ?? null;
   document.querySelectorAll(".tabs [data-entry]").forEach((t) => t.classList.toggle("active", t.dataset.entry === entry));
 }
 async function renderTabs() {
@@ -605,13 +706,11 @@ async function route() {
     loadProducts();
     renderProductSelector();
     if (state.commit && !a && ["", "uc", "arc", "spec", "backlog"].includes(kind || "")) await readAhead(kind || "");
-    if (kind === "requirement" || kind === "requirements") {
-      const params = Object.fromEntries(location.hash.slice(1).split("/").slice(1).map((part) => {
-        const at = part.indexOf("=");
-        return at > 0 ? [decodeURIComponent(part.slice(0, at)), decodeURIComponent(part.slice(at + 1))] : null;
-      }).filter(Boolean));
-      const { renderRequirementPrompt } = await loadFile("requirement-prompt-view.mjs");
-      await renderRequirementPrompt(app, main(), kind, params);
+    const reviewed = reviewTargets(kind, a, b);
+    if (reviewed) {
+      await renderReviewPages(reviewed, showsSetup(kind, a) ? [setupBanner()] : []);
+    } else if (kind === "how") {
+      renderHow();
     } else if (kind === "settings") {
       const settings = settingsPages.routes.find((r) => r.name === "settings");
       const settingsStore = openStore(T.instance);
@@ -679,9 +778,7 @@ async function route() {
         linkStylesheet(views.stylesheet);
         await views.routes[v.view](app, a, b);
       } else {
-        const uc = await loadFile(DASHBOARD.find((x) => x.view === "uc").file);
-        linkStylesheet(uc.stylesheet);
-        await uc.routes.uc(app);
+        await renderReviewPages(reviewTargets("uc"), GITLAB || ghToken() ? [] : [setupBanner()]);
       }
     }
     // A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED — on every view.

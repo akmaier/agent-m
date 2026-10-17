@@ -14,7 +14,7 @@ import { explain, readProblem } from "../site-frame/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./edit.mjs";
 import { fallbackPages } from "./file-edit.mjs";
-import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
+import { el, link, parseServer, tokenStep } from "./common.mjs";
 import { entryId } from "./spec-entries.mjs";
 
 const pad2 = (number) => String(number).padStart(2, "0");
@@ -47,7 +47,7 @@ export async function showEntryEdit(where, kind, id) {
     return;
   }
   if (!token && parseServer(context) === "gitlab") {
-    target.append(renderArtifact(view.proposal.text), el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+    target.append(renderArtifact(view.proposal.text), el("p", "problem", "A GitLab product is written with the project's own token. ", tokenStep(context)));
     return;
   }
   const before = view.current?.text ?? "";

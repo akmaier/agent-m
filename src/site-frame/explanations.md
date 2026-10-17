@@ -804,3 +804,11 @@ This product repository keeps pseudonymisation and collaborator consent records 
 Here a list reads none yet when the version shown holds no artifact of that kind at all. A list that reads none instead means the version holds such artifacts and none of them names this requirement.
 Architecture decisions and module files come when the architecture is derived from the accepted use cases, and tests when the modules are implemented.
 Choose a later version to see them once they exist.
+
+## impact-of-a-change
+
+Before a change to an accepted decision or module is accepted, the dashboard works out from the repository at the commit shown what
+hangs on it: the modules that follow the decision or use an interface the change alters or removes, those that use a removed one
+marked *breaks*; the code files in their folders; the tests that exercise them and the requirements those tests guard; and the
+requirements and use cases the file names now and no longer names. Accepting changes no code: the code still reflects the old
+architecture until an implementation job changes it. In the book *Vibe Coding*: chapter 10, section 3.

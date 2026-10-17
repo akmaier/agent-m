@@ -14,7 +14,7 @@ import { proposeSection, queues } from "../spec-changes/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
+import { el, link, parseServer, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -48,7 +48,7 @@ export async function showEdit(where, kind, params) {
     return;
   }
   if (!token && parseServer(context) === "gitlab") {
-    target.append(renderArtifact(section), el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+    target.append(renderArtifact(section), el("p", "problem", "A GitLab product is written with the project's own token. ", tokenStep(context)));
     return;
   }
   let graph, all;

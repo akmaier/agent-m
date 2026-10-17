@@ -26,6 +26,17 @@ export const button = (className, text) => {
   return b;
 };
 
+// The link to the step that stores the token of the page's product: a link of the route `add-product`, which the frame's `go` reaches — the
+// address of that route is the frame's to write (MOD-site-frame, ViewContext) —, with the product's address when the page shows a product.
+export function tokenStep(context, text = "Store the token") {
+  const a = link(TOKEN_STEP, "token-step", text);
+  a.addEventListener("click", (event) => {
+    event?.preventDefault?.();
+    context.go("add-product", context.product ? { address: context.product.address } : {});
+  });
+  return a;
+}
+
 // The token this browser stores for the page's product — its own, never the instance's (A GITHUB PRODUCT USES A TOKEN OF ITS OWN) —,
 // or, on the page that shows the instance itself, the instance's.
 export function storedToken(context) {

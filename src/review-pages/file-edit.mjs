@@ -9,7 +9,7 @@ import { openEditor, renderArtifact } from "../markdown-render/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
+import { el, link, parseServer, tokenStep } from "./common.mjs";
 
 const SCHEMA = { "use-case": "useCase", "architecture-decision": "decision", module: "module" };
 const REALISES = "A USE CASE REALISES NAMED REQUIREMENTS";
@@ -67,7 +67,7 @@ export async function showFileEdit(where, kind, file) {
   target.append(el("h2", null, `Edit ${file.id}`), explain(kind.explain.edit ?? kind.explain.one));
   if (!token && parseServer(context) === "gitlab") {
     target.append(renderArtifact(body), el("p", "problem", "A GitLab product is written with the project's own token. ",
-      link(TOKEN_STEP, "token-step", "Store the token")));
+      tokenStep(context)));
     return;
   }
 
