@@ -32,6 +32,12 @@ class Node extends EventTarget {
     super();
     Object.assign(this, { _doc: doc, _type: type, _name: name, _parent: null, _kids: [] });
   }
+  // A browser marks the events a person makes as trusted (`isTrusted`) and those a script makes as not. node marks every Event untrusted,
+  // so the harness stands for the person: an event dispatched through a node is trusted, unless the test made it with `scripted()`.
+  dispatchEvent(event) {
+    if (!event.scripted) Object.defineProperty(event, "isTrusted", { value: true });
+    return super.dispatchEvent(event);
+  }
   get nodeType() { return this._type; }
   get nodeName() { return this._name; }
   get ownerDocument() { return this._type === 9 ? null : this._doc; }
@@ -224,3 +230,6 @@ globalThis.localStorage = { getItem: (k) => (kept.has(k) ? kept.get(k) : null), 
 
 // The next store this browser opens finds nothing kept.
 export function emptyStorage() { kept = new Map(); }
+
+// An event a script makes, as a script in a browser makes one: not trusted, so a control that writes does not answer it.
+export const scripted = (type = "click") => Object.assign(new Event(type), { scripted: true });

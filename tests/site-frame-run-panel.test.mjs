@@ -237,6 +237,23 @@ test("runPanel — pressing Run calls onRun once, and not before", async () => {
   assert.equal(run.hasAttribute("disabled"), true);
 });
 
+// TST-680208 · level: unit · module: MOD-site-frame
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION
+// given: the Prepared value above, a handler onRun that counts its calls
+// input: a click a script makes (isTrusted false) on Run; then the person's click
+// expect: after the script's click onRun is not called and Run is not disabled; after the person's click it is called once
+test("runPanel — counter-proof: a click a script makes on Run calls nothing", async () => {
+  let calls = 0;
+  const run = buttonNamed(panel(prepared(), { onRun: async () => { calls += 1; } }), "Run");
+  run.dispatchEvent(Object.assign(new Event("click"), { scripted: true }));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls, 0, "onRun is not called");
+  assert.equal(run.hasAttribute("disabled"), false, "Run stays pressable");
+  run.dispatchEvent(new Event("click"));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls, 1, "the person's click calls it");
+});
+
 // TST-472854 · level: unit · module: MOD-site-frame
 // guards: ONE CLICK PER DECISION; UC-019 5a
 // given: the Prepared value above; handlers with and without onCancel

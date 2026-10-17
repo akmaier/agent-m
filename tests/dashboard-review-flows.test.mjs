@@ -137,6 +137,25 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   assert.match(page.main(), /Accepted in commit [0-9a-f]{7}\./);
 });
 
+// TST-680207 · level: component · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: UC-002 open on its page; the list with UC-002 and UC-003 ticked
+// input: a click a script makes (isTrusted false) on Accept, and on Accept ticked
+// expect: no request is made and nothing is written; the person's click on Accept then commits
+test("UC-008 counter-proof: a click a script makes on Accept, and on Accept ticked, writes and reads nothing", async () => {
+  const srv = await ucServer();
+  const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
+  assert.deepEqual(await page.click("[data-accept-key], .accept", SCRIPTED), []);
+  assert.deepEqual(srv.writes, []);
+  await page.go("#uc");
+  const boxes = globalThis.document.getElementById("main").querySelectorAll(".tick");
+  for (const box of boxes) await tick(srv, box);
+  assert.deepEqual(await page.click(".accept-ticked", SCRIPTED), []);
+  assert.deepEqual(srv.writes, []);
+  await page.click(".accept-ticked");
+  assert.equal(srv.writes.length, 1, "known positive: the person's click on the same button writes");
+});
+
 // TST-474004 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: UC-003 accepted in an earlier text and changed since

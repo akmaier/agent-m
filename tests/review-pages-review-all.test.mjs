@@ -25,7 +25,7 @@
 //     does; on GitLab without a token it offers none and links the token's step, #add-product.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-harness.mjs";
+import { scripted } from "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -200,6 +200,22 @@ test("MOD-review-pages use-case/all — Accept all 3 shown writes one commit wit
   assert.match(target.textContent, /Nothing to review/);
   assert.equal(buttonOf(target), undefined, "no button any more");
   assert.match(target.textContent, new RegExp(fake.head().slice(0, 7)), "the commit is named");
+});
+
+// TST-680204 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// given: the review page of the use cases with a token
+// input: a click a script makes (isTrusted false) on Accept all; then the person's click
+// expect: after the script's click no commit is attempted; after the person's click one commit
+test("MOD-review-pages use-case/all — counter-proof: a click a script makes on Accept all writes nothing", async () => {
+  const fake = fakeHost();
+  const target = await show(fake);
+  const all = buttonOf(target);
+  all.dispatchEvent(scripted());
+  for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  click(all);
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
 });
 
 // TST-472653 · level: unit · module: MOD-review-pages

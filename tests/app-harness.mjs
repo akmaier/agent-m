@@ -262,7 +262,8 @@ function domElement(localName) {
     },
     addEventListener(type, listener) { listeners.push([type, listener]); },
     fire(type, ev = {}) { return Promise.all(listeners.filter(([kind]) => kind === type).map(([, listener]) => listener({ ...ev, type, currentTarget: node, target: node }))); },
-    dispatchEvent(ev) { return node.fire(ev.type, ev); },
+    // An event dispatched through a node is a person's, as a browser marks it; one made with `scripted: true` is a script's.
+    dispatchEvent(ev) { return node.fire(ev.type, { ...ev, isTrusted: !ev.scripted }); },
     // Downloads are observed by the test-specific wrapper where one is installed; the shared browser fixture still
     // performs the anchor activation for settings exports that need only the browser's normal no-return click.
     click() {},

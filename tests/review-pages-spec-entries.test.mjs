@@ -31,7 +31,7 @@
 //     and the record, and no text of a proposal; for a product's SPEC there is neither, and <a class="token-step"> links #add-product.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./review-pages-harness.mjs";
+import { scripted } from "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -226,6 +226,23 @@ test("spec-entry/<id> — Accept writes one commit, after which the entry is in 
   assert.match(files[`${QUEUE}/entscheidungen.md`], /\| 7 \| uebernommen \| approval:spec-2026-03-01_sample-07-[0-9a-f]{12}\.md \|/);
   await until(() => badgeOf(target) === "in SPEC", "the page to show the entry in SPEC");
   assert.equal(byClass(target, "button", "accept").length, 0, "no Accept any more");
+});
+
+// TST-680205 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN
+// given: the instance with the entry 07 open, the links and the register, and a token
+// input: a click a script makes (isTrusted false) on Accept; then the person's click
+// expect: after the script's click no commit is attempted and the entry is still open; after the person's click one commit
+test("spec-entry/<id> — counter-proof: a click a script makes on Accept writes nothing", async () => {
+  const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
+  const target = await show(fake, { id: idOf(E07) });
+  const accept = byClass(target, "button", "accept")[0];
+  accept.dispatchEvent(scripted());
+  for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  assert.notEqual(badgeOf(target), "in SPEC", "still open");
+  click(accept);
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
 });
 
 // TST-472663 · level: unit · module: MOD-review-pages

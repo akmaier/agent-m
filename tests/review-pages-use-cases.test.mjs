@@ -26,7 +26,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { emptyStorage } from "./review-pages-harness.mjs";
+import { emptyStorage, scripted } from "./review-pages-harness.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -545,4 +545,62 @@ test("MOD-review-pages use-case — nothing is written without the person's clic
   await show(fake, { id: "UC-043" });
   assert.ok(byClass(list, "button", "accept-ticked").length === 1, "known positive: the button that would write stands on the page");
   assert.equal(fake.writes().length, 0, "no commit attempted");
+});
+
+// ---------------------------------------------------------------- a click a script makes
+
+// Waits for the turns in which a handler that answered would have written.
+const settled = async () => { for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve)); };
+
+// TST-680201 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
+// given: UC-041 shown with its Accept, the token stored
+// input: a click a script makes (isTrusted false) on Accept; then the person's click on the same button
+// expect: after the script's click no commit is attempted and the use case is still open; after the person's click one commit
+test("MOD-review-pages use-case/<id> — counter-proof: a click a script makes on Accept writes nothing", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041" });
+  const accept = byClass(target, "button", "accept")[0];
+  accept.dispatchEvent(scripted());
+  await settled();
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  assert.equal(badgeOf(target), "open", "still open");
+  click(accept);
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
+});
+
+// TST-680202 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// given: the list shown with a token; UC-041 and UC-044 ticked
+// input: a click a script makes on Accept ticked; then the person's click
+// expect: after the script's click no commit is attempted; after the person's click one commit
+test("MOD-review-pages use-case — counter-proof: a click a script makes on Accept ticked writes nothing", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake);
+  for (const id of ["UC-041", "UC-044"]) tick(byClass(rowOf(target, id), "input", "tick")[0]);
+  const bar = byClass(target, "button", "accept-ticked")[0];
+  bar.dispatchEvent(scripted());
+  await settled();
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  click(bar);
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
+});
+
+// TST-680203 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EDITS ARE PREPARED ON THE DASHBOARD
+// given: the editor opened for UC-041 with an edited text
+// input: a click a script makes on Save; then the person's click
+// expect: after the script's click no commit is attempted; after the person's click one commit
+test("MOD-review-pages use-case/<id>/edit — counter-proof: a click a script makes on Save writes nothing", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  type(target, UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt."));
+  saveButton(target).dispatchEvent(scripted());
+  await settled();
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  click(saveButton(target));
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
 });

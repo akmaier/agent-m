@@ -14,7 +14,7 @@
 //     view gives), <ul class="impact"> against the section that holds now, and after a save <p class="entry"> linking the commit and the entry.
 //   - A save with an empty Why is not sent. Without a token the person of the edit is "anonymous".
 
-import "./review-pages-harness.mjs";
+import { scripted } from "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -186,6 +186,23 @@ test("spec-entry/<id>/edit — Save writes the entry in its own queue and makes 
   const hrefs = find(byClass(target, "p", "entry")[0], (node) => node.localName === "a").map((node) => node.getAttribute("href"));
   assert.ok(hrefs.includes(`https://github.com/alice/thesis-tool/commit/${fake.head()}`), String(hrefs));
   assert.ok(hrefs.includes(`#spec-entry/id=${ENTRY}`), String(hrefs));
+});
+
+// TST-680206 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL
+// given: the editor on the open entry, the proposal reworded again, and a Why
+// input: a click a script makes (isTrusted false) on Save; then the person's click
+// expect: after the script's click no commit is attempted; after the person's click one commit
+test("spec-entry/<id>/edit — counter-proof: a click a script makes on Save writes nothing", async () => {
+  const fake = fakeHost();
+  const target = await showEdit(fake, EDIT);
+  type(target, PROPOSAL.replace("a PDF file.", "a PDF file, always."));
+  withWhy(target, "Always is what the reviewer wants.");
+  saveOf(target).dispatchEvent(scripted());
+  for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  click(saveOf(target));
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
 });
 
 // TST-397004 · level: unit · module: MOD-review-pages
