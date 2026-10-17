@@ -35,6 +35,28 @@ on MOD-source-register.
 - **Reached** through MOD-site-frame's route `library`. The live page dispatches no `library`. It reaches it with the
   switch to `start.mjs`, as ITM-599 reads it.
 
+**Settled at sprint team1/68's start. Selectable. ITM-660 is folded in**, by sprint 67's agreement on module headers.
+- **The modules whose files it changes:**
+  - MOD-source-register: `index.mjs`. `registrationCommits` (:103) and `versionCommits` (:191) take a file's `note` and
+    throw `NoteMissing { name }`. `filesCell` (:142-146) and the line at :117 write the note beside the unstored file's
+    name. Its header (:1-10) loses its item history and its no-longer-true sentence, which is ITM-660.
+  - MOD-settings-pages: `library.mjs`. Beside "Only hash it" (:330-334), the form asks where the copy is kept. A
+    hash-only file without a note is refused by name, through the module's `NoteMissing`, not a check of the page's own.
+  - No topic is added: the existing `explain("file-only-hashed")` (`library.mjs:191`) stays.
+- **The grep, full output read:**
+  - `grep -rn "not stored:" src tests` finds `index.mjs:96, 117, 146` and `content.mjs:25-27`, which reads the cell back.
+  - Also the comment `library.mjs:18`, and `tests/source-register-registration.test.mjs:18, 147`.
+  - `content.mjs`'s reading of the cell is read at the developer's draft run. If the note changes what it reads, it is
+    named, and kept so that `filesOf` still finds each file unstored.
+- **Reads, against the token budget:** none. The commit plan is the same one.
+- **No measurement is claimed.**
+- **Reachable** through MOD-site-frame's route `library`.
+- **Sprint 64:** the developer runs the modules' tests and their callers', release tests included, on a draft, and lists
+  every changed one before the tests-only commit.
+- **Sprint 65:** DOM assertions compare a boolean or a string.
+- **Sprint 66:** no refusal is worked around.
+- **Sprint 67:** each shell command does one action, and a module header it touches loses its item history.
+
 ## Acceptance
 
 - The library form asks for the note when a file is only hashed, and the register entry holds it.

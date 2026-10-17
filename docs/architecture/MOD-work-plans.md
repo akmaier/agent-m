@@ -158,11 +158,12 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   string, item: string, module: string }>` — what keeps an item from the team's selection: each item another team's sprint
   holds that is the item itself, changes a module the item changes or uses, or uses a module the item changes, with that
   module (`SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES`).
-- `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow) -> Finding[]` — a
-  module, a subsystem or the system without a step; a module ordered before one whose interface it uses; a step without
-  a phase of the model; and the findings MOD-trace-graph's `graphFindings` gives on the graph of the product with the
-  drafted steps in place, of those steps: a step without the tests of its level, or with the tests of another, and a
-  cycle in the modules' uses, naming its modules.
+- `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow, source: TextSource) ->
+  Promise<Finding[]>` — a module, a subsystem or the system without a step; a module ordered before one whose interface
+  it uses; a step without a phase of the model; and the findings MOD-trace-graph's `graphFindings` gives on
+  `traceGraph(source)`, `source` being the product's files with the drafted steps in place, of those steps: a step
+  without the tests of its level, or with the tests of another, and a cycle in the modules' uses, naming its modules.
+  Crosses the network through `source` for the files it has not read; fails with its errors.
 - `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
   no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
   and, as a warning, an item that restates an existing one.

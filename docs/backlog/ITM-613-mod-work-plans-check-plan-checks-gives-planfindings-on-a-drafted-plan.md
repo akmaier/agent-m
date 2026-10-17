@@ -41,3 +41,11 @@ follows another module's code; it names the interface.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
 **The draft it waited for is accepted** (akmaier, `b43da779`): MOD-work-plans' `planFindings` taking two checks from `graphFindings`, with `TextSource` in its Uses (accepted blob eb9c90e38eb9). It is free of drafts; its readings are read at its start.
+
+**Read at sprint team1/68's start: it waits for a draft for akmaier, committed with that start.** `planFindings`' accepted
+signature returns `Finding[]` from `(plan, steps, architecture, workflow)`, yet the same text has it run
+`graphFindings` on the graph of the product with the drafted steps in place. That graph comes only from the async
+`traceGraph(source)`, and the signature carries no source. The draft gives `planFindings` a `source: TextSource` and a
+`Promise<Finding[]>`. When it is selected, its modules also take in MOD-site-frame and MOD-prompt-bar, for TST-572002
+and its twin, whose expected `UnknownStrategy` changes once `plan-checks` is registered. TST-610006's stand-in
+`plan-checks` goes.
