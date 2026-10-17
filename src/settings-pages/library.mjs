@@ -1,7 +1,7 @@
 // MOD-settings-pages' routes `library` and `library/<source>` (UC-004 steps 1 to 6): the instance's register of sources with their versions, and + Register source by
 // route — an EU legal text, a standard, documents, a repository —, the common fields in a form from the entry's schema, what becomes public stated before Save, and Save,
 // which commits the plan MOD-source-register's registrationCommits gives, each file in its repository. The download of an EU legal text after saving and a new version of a
-// source (UC-016) are not part of this page yet.
+// source (UC-016) are not part of this page yet. For a product, a button leads back to its Requirement sources (the route `sources`, UC-015 2a).
 //
 // Module: MOD-settings-pages
 //
@@ -42,12 +42,12 @@ function el(name, className, ...children) {
   node.append(...children);
   return node;
 }
-const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, "");
+export const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, "");
 const today = () => new Date().toISOString().slice(0, 10);
 const bytesToText = (bytes) => new TextDecoder().decode(bytes);
 
 // The register of the instance: its entries in the order of their files.
-async function readRegisterOf(host) {
+export async function readRegisterOf(host) {
   const { defaultBranch } = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(defaultBranch);
   const entries = [];
@@ -58,14 +58,17 @@ async function readRegisterOf(host) {
   return { entries, branch: defaultBranch };
 }
 
-const versionsOf = (entry) => entry.sections.find((section) => section.heading === "## Versions")?.rows ?? [];
+export const versionsOf = (entry) => entry.sections.find((section) => section.heading === "## Versions")?.rows ?? [];
 const namesOf = (fields, id) => [id, fields.title, fields.kind === "standard" ? fields.designation : null].filter((name) => typeof name === "string" && name.trim() !== "");
 const isLegalText = (entry) => Boolean(recogniseLegalText(entry.fields.identifier));
+
+// The version hash a version's row records in its Files cell, or null where it records none.
+export const versionHashOf = (row) => /version hash `([0-9a-f]{64})`/.exec(String(row.cells.Files ?? ""))?.[1] ?? null;
 
 // The files of one version of an entry, each stored or not, as MOD-source-register's linkedVersion reads the entry's note.
 function filesOfVersion(entry, row) {
   const version = unquoted(row.cells.Version);
-  const hash = /version hash `([0-9a-f]{64})`/.exec(String(row.cells.Files ?? ""))?.[1] ?? "0".repeat(64);
+  const hash = versionHashOf(row) ?? "0".repeat(64);
   const links = readDocument(LINKS, "docs/sources.md", ["# Requirement sources", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| ${entry.id} | ${version} | ${hash} | |`, ""].join("\n"));
   return linkedVersion(links, [entry], entry.id)?.version.files ?? [];
 }
@@ -353,6 +356,9 @@ export const route = {
       explain("source-name"), explain("source-authority"), explain("source-licence"),
       formBox, alreadyBox, publicStatement, explain("source-public"), result);
     showRoute();
-    target.replaceChildren(el("h2", null, "Library"), el("p", null, open), panel, list);
+    // UC-015 2a: for a product, a way back to its Requirement sources.
+    const back = el("button", "library-back-to-sources btn", "Back to Requirement sources");
+    back.addEventListener("click", () => context.go("sources", {}));
+    target.replaceChildren(el("h2", null, "Library"), el("p", null, open, ...(context.product ? [" ", back] : [])), panel, list);
   },
 };

@@ -696,3 +696,19 @@ Why *Only select repositories*? GitHub preselects All repositories, which would 
 ## setup-store
 
 The token is kept in this browser only, in its `localStorage` — never in a cookie, never in an address, never in any repository. It is sent only to GitHub's API, as a header, to read the instance. Another computer or browser does not have it: Import settings moves it there from an export. Settings shows the token, tests it and clears it.
+
+## requirement-sources
+
+The rules your product has to meet come from *requirement sources*: a law, a standard, a customer's specification. This page lists which of them apply to this product. Three differences help to read it.
+
+| | The library | This list |
+|---|---|---|
+| answers | which sources exist at all | which sources apply to this product |
+| kept in | the Agent M instance, for every product | this product's repository, in `docs/sources.md` |
+| you decide | when you register a source or a new version of it | which sources to tick, in which version, and to which part |
+
+**A source is not a resource.** A source is a rule the product must meet, such as the EU AI Act or IEC 62304 class B. A resource is something the product is built with or run on, such as a private repository of libraries, a model on Hugging Face, a compute cluster or an endpoint; resources are declared elsewhere and are not linked here, see [UC-040](#use-case/id=UC-040). If a resource comes with terms the product must meet, such as a licence or a usage policy, register those terms in the library as a source and link them here.
+
+**Why the version is fixed.** A law is amended and a standard gets a new edition, and a requirement drawn from an older text may no longer hold. So each link records the exact version of the source the product uses, and the fingerprint (SHA-256) of that version. The product moves to a newer version only when you decide to, and Agent M lists the requirements it affects first.
+
+The *part* says which part of a source applies, such as a safety class, a chapter or a set of articles. Leave it empty when the source applies as a whole; any text is allowed. A source whose content is restricted can be linked like any other: only reading its content needs access.

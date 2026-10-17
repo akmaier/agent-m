@@ -95,6 +95,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
       if (init.method === "GET" && url.pathname === "/v1/ask/fixture-ask") return response({ state: "done", text: answerText(), usage: { inputTokens: 10, outputTokens: 5 }, error: null });
       return new Response(JSON.stringify({ error: "not-found" }), { status: 404 });
     }
+    if (url.origin === "https://api.github.com" && (init.method ?? "GET") === "GET" && /^\/repos\/[^/]+\/[^/]+\/tags$/.test(url.pathname)) return response([]);
     return null;
   };
   const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC,
