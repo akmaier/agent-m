@@ -73,3 +73,7 @@ were not measured. Bounding them is a later item, after a count.
 the version. On this repository that costs 11 GraphQL batches with a token, and 1139 requests without a token: one raw
 file per artifact. Drawing `#spec` stays at 12 and 127 requests. The bound this item gives a page load covers that
 opening too.
+
+**Measured at ITM-598's gate on #697 (`docs/gates/20261017-0634-development-release-testing-3c18.md`).** A requirement's history read through today's interface costs 4 requests
+per commit of `SPEC.md`: 380 per first opening on this repository, 286 of them API calls. ITM-652 holds the interface
+that reads it in batches.
