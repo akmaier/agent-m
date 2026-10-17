@@ -1,6 +1,6 @@
 // MOD-mail-routes — one mailbox interface over Microsoft Graph and over the Bridge (docs/architecture/MOD-mail-routes.md): its
 // interface. ITM-423 builds the format MailConnection, routeFor and providerLinks, ITM-424 signIn (graph-route.mjs), ITM-425 mailbox and the
-// mailbox's test (graph-route.mjs, bridge-route.mjs). ITM-834 builds the Bridge route's read, find, drafts and sent. The Graph route's reading, the mail parser and the draft and send operations are not built yet.
+// mailbox's test (graph-route.mjs, bridge-route.mjs). ITM-834 builds the Bridge route's read, find, drafts and sent, ITM-836 the Graph route's (the mail parser is vendor/postal-mime/). The draft and send operations of the Graph route are not built yet.
 //
 // Module: MOD-mail-routes
 //
