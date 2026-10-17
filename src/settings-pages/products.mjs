@@ -37,7 +37,7 @@ import { reviewLayoutCommit } from "../artifact-edits/index.mjs";
 import { readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
-const TOKEN_DAYS = 90;
+export const TOKEN_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NAME_MAX = 40;
 const INSTANCE_TOKEN_KEY = "github-token";
@@ -63,7 +63,7 @@ function anchor(text, href) {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
-const defaultExpiry = (now = new Date()) =>
+export const defaultExpiry = (now = new Date()) =>
   new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) + TOKEN_DAYS * DAY_MS).toISOString().slice(0, 10);
 
 // A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT: name and description of a GitHub product's own token, from its
@@ -195,7 +195,7 @@ function placeholderSteps(message) {
 // THE SHARED PAGES ORIGIN IS DISCLOSED: settings live in the origin of this dashboard, whose owner is the
 // instance repository's owner. It is deliberately not derived from a product address: a GitLab product has no
 // bearing on which GitHub Pages sites share this browser storage.
-function sharedPagesNotice(context) {
+export function sharedPagesNotice(context) {
   const owner = String(context.instance?.repository ?? "").split("/")[0];
   return `Everything Agent M stores in this browser is stored for the address https://${owner}.github.io — every GitHub Pages site under that same ${owner}.github.io domain can read it.`;
 }
