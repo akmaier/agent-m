@@ -409,8 +409,8 @@ export async function proposeSection(host, change) {
   files.push({ path: proposalPath, text: change.text }, { path: rationalePath, text: rationale });
 
   if (!info.canWrite) {
-    const held = new Set(snapshot.paths);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: held.has(file.path) })), snapshot) };
+    const began = new Set((await host.readSnapshot(change.openedHead)).paths);
+    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
   }
   const trailers = change.trailers?.length ? `\n\n${change.trailers.join("\n")}` : "";
   const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
@@ -445,8 +445,8 @@ export async function saveEntry(host, edit) {
   const files = [{ path: entry.proposal.path, text: edit.text }, { path: entry.rationale, text: rationale }];
 
   if (!info.canWrite) {
-    const present = new Set(snapshot.paths);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: present.has(file.path) })), snapshot) };
+    const began = new Set((await host.readSnapshot(edit.openedHead)).paths);
+    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
   }
   const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
     message: `Save the edit of entry ${pad2(entry.number)} of the queue ${edit.queue.split("/").pop()}` });

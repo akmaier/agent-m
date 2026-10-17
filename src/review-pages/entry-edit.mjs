@@ -69,7 +69,7 @@ export async function showEntryEdit(where, kind, id) {
     const reason = String(why.value ?? "").trim();
     if (!reason) return { kind: "failed", reason: "say why in the Why field." };
     try {
-      const outcome = await saveEntry(host, { queue: queue.folder, entry: item.number, text, why: reason, person: token?.name ?? "anonymous", openedBlob: view.proposal.blob });
+      const outcome = await saveEntry(host, { queue: queue.folder, entry: item.number, text, why: reason, person: token?.name ?? "anonymous", openedBlob: view.proposal.blob, openedHead: snapshot.commit });
       if (outcome.refused === "changed meanwhile") return { kind: "refused", newer: outcome.current ?? "" };
       if (outcome.refused === "not open") return { kind: "failed", reason: `the entry is no longer open: it is ${outcome.state}.` };
       if (outcome.fallback) {
