@@ -95,7 +95,7 @@ export function bridgeMailbox(connection, bridge) {
         throw refusal(error) ?? named(error, connection);
       }
       try {
-        return await mailCall(bridge, "send", connection, { confirmation: confirmed.confirmation });
+        return await mailCall(bridge, "send", connection, { ref: shown.ref, sha256: shown.sha256, confirmation: confirmed.confirmation });
       } catch (error) {
         if (error?.name === "BridgeFailed" && error.error === "confirmation-refused" && /not the mail that was confirmed/i.test(error.message)) {
           throw failure("DraftChanged", {}, error.message);

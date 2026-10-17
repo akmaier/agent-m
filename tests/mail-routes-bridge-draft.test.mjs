@@ -14,8 +14,8 @@
 // (MOD-mail-protocols) gives: store-draft and update-draft -> DraftRef, show-draft -> ShownMail, confirm-send -> { confirmation, expiresAt },
 // send -> { sentAt }, and its error confirmation-refused (409) or upstream-failed (502). Values the module file leaves open, and the reading this
 // file takes (the pull request names them):
-//   - the arguments of the request: { draft } (store-draft), { ref, draft } (update-draft), { ref } (show-draft), { ref: shown.ref, sha256:
-//     shown.sha256 } (confirm-send), { confirmation } (send) — the Bridge's own reading of them;
+//   - the arguments of the request (send as MOD-bridge-http states): { draft } (store-draft), { ref, draft } (update-draft), { ref } (show-draft), { ref: shown.ref, sha256:
+//     shown.sha256 } (confirm-send), { ref, sha256, confirmation } (send) — the Bridge's own reading of them;
 //   - which reply addresses are "usable" is not fixed: only an address that is missing, empty, without "@", or a list of several addresses is
 //     asserted to fail; no other value is asserted;
 //   - the Bridge's confirmation-refused to send for a draft whose bytes are not the confirmed ones (its message says the draft is not the mail that
@@ -137,14 +137,14 @@ test("storeDraft and updateDraft — on the Bridge route: no usable reply addres
 // guards: THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; UC-039
 // given: a fake Bridge that answers confirm-send with { confirmation: "c0nf1rm", expiresAt } and send with { sentAt: "2026-10-17T10:00:00.000Z" }
 // input: mailbox(connection of the Bridge route, bridge).sendDraft(a ShownMail of ref uid 7 and sha256 "aaaa…")
-// expect: { sentAt: "2026-10-17T10:00:00.000Z" }; exactly two requests, in this order: POST /v1/mail/confirm-send with args { ref, sha256 } of the mail shown, then POST /v1/mail/send with args { confirmation: "c0nf1rm" }
+// expect: { sentAt: "2026-10-17T10:00:00.000Z" }; exactly two requests, in this order: POST /v1/mail/confirm-send with args { ref, sha256 } of the mail shown, then POST /v1/mail/send with args { ref, sha256, confirmation: "c0nf1rm" } (MOD-bridge-http)
 test("sendDraft — on the Bridge route: confirm-send for the SHA-256 of the mail shown, then send with that confirmation", async () => {
   assert.ok(mailbox, `mailbox: ${mailRoutes.error?.message}`);
   const requests = fakeBridge(() => json({ confirmation: "c0nf1rm", expiresAt: "2026-10-17T10:05:00.000Z" }), () => json({ sentAt: "2026-10-17T10:00:00.000Z" }));
   assert.deepEqual(await mailbox(CONNECTION, BRIDGE).sendDraft(SHOWN), { sentAt: "2026-10-17T10:00:00.000Z" });
   assert.equal(requests.length, 2, "exactly two requests");
   assertRequest(requests[0], "confirm-send", { ref: REF, sha256: SHA });
-  assertRequest(requests[1], "send", { confirmation: "c0nf1rm" });
+  assertRequest(requests[1], "send", { ref: REF, sha256: SHA, confirmation: "c0nf1rm" });
 });
 
 // TST-483505 · level: unit · module: MOD-mail-routes
