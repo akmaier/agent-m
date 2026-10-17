@@ -9,6 +9,7 @@ modules:
 builds_on:
   - ITM-680
   - ITM-683
+  - ITM-810
 tests:
   - unit
 origin:

@@ -35,3 +35,7 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Narrowed at its draft stop (sprint team1/74, 2026-10-17, po-opus).** This item moves the token banner into the frame and
+takes the app's import of `settings-view.mjs` away. `settings-view.mjs` and `settings/endpoints.mjs` stay until no test
+reads them. ITM-810 then removes them, after ITM-811. The acceptance's "removed, as that line says" passes to ITM-810.
