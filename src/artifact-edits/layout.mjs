@@ -6,8 +6,8 @@
 //
 // Module: MOD-artifact-edits
 //
-// The model is missingLayout in docs/assets/review-core.mjs and addProduct in docs/assets/dashboard/writes.mjs, which stay as
-// they are.
+// The model is missingLayout in docs/assets/review-core.mjs, which stays as it is. The add-product page,
+// src/settings-pages/products.mjs, calls reviewLayoutCommit.
 
 import { specSkeleton } from "../spec-document/index.mjs";
 

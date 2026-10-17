@@ -1,5 +1,4 @@
-// The editor with its live preview and its marks (MOD-markdown-render, Interfaces: openEditor, Editor, SaveOutcome), with the
-// editor of docs/assets/dashboard/review-views.mjs — editPanel, wireCommon and showNewer — as its model.
+// The editor with its live preview and its marks (MOD-markdown-render, Interfaces: openEditor, Editor, SaveOutcome).
 //
 // Module: MOD-markdown-render
 //

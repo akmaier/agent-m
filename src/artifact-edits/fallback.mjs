@@ -5,9 +5,8 @@
 //
 // Module: MOD-artifact-edits
 //
-// The model is editUrl and newFileUrl in docs/assets/git-host.mjs and the dashboard's editPanel in
-// docs/assets/dashboard/review-views.mjs, which stay as they are. The pages are those of MOD-repository-hosts' webLinks
-// (ITM-310), built on `main`.
+// The model is editUrl and newFileUrl in docs/assets/git-host.mjs, which stay as they are. The pages are those of
+// MOD-repository-hosts' webLinks.
 
 import { connect } from "../repository-hosts/index.mjs";
 
