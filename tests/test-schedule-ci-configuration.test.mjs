@@ -80,6 +80,19 @@ function pushStarts(text, files) {
   return files.some((file) => !ignore.some((dir) => file.startsWith(dir)));
 }
 
+// Ruby's File.fnmatch with FNM_PATHNAME | FNM_DOTMATCH | FNM_EXTGLOB, as far as the generated globs use it: one level of braces,
+// `**/`, `*`, `?` and `[!x]`.
+function fnmatch(glob, file) {
+  const open = glob.indexOf("{");
+  if (open >= 0) {
+    const close = glob.indexOf("}", open);
+    return glob.slice(open + 1, close).split(",").some((alt) => fnmatch(glob.slice(0, open) + alt + glob.slice(close + 1), file));
+  }
+  const source = glob.replace(/[.+^$()|\\]/g, "\\$&").replace(/\*\*\//g, "\0").replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]")
+    .replace(/\[!([^\]]*)\]/g, "[^$1/]").replaceAll("\0", "(?:.*/)?");
+  return new RegExp(`^${source}$`).test(file);
+}
+
 // TST-744001 · level: unit · module: MOD-test-schedule
 // guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027 (5)
 // given: the book's default schedule and a changed fixture schedule (unit only on a pull request and at the release candidate and on demand, system only nightly and later, component on the self-hosted runner lab)
@@ -162,17 +175,20 @@ test("ciConfiguration — GitHub: a push that records only jobs or conversations
 // TST-744005 · level: unit · module: MOD-test-schedule
 // guards: A JOB RECORD STARTS NO CI RUN; GITLAB PRODUCTS ARE SUPPORTED; UC-027 (7)
 // given: the GitLab file generated from the default schedule
-// input: the script of each job of the occasion every commit
-// expect: each begins with a check of the files the push changed that ends the job at once when all lie under docs/jobs/ or docs/conversations/, and that lets the job run when any other file changed
-test("ciConfiguration — GitLab: a commit job ends at once for a push that records only jobs", () => {
+// input: the rule of each job of the occasion every commit, whose `changes` globs are read with Ruby's File.fnmatch semantics (FNM_PATHNAME, braces, [!x]); pushes that change (a) only docs/jobs/run-1.md, (b) docs/conversations/c1.md and docs/jobs/run-1.md, (c) docs/jobs/run-1.md and src/a.mjs, (d) only src/a.mjs, docs/SPEC.md, README.md, docs/jobsx/a.md or docs/jobs.md
+// expect: the rule holds a `changes` list; (a) and (b) match no glob, so the job is not added; (c) matches, as does each push of (d); no job script holds a check of the changed files
+test("ciConfiguration — GitLab: a commit job has a rule that a push of only job records does not match", () => {
   const jobs = jobsOf(textOf(generate(defaultSchedule(), GITLAB)), "gitlab");
   for (const row of ["unit", "component", "system"]) {
     const block = jobs[jobName(row, "every commit")];
-    const script = block.slice(block.indexOf("script:"));
-    const guard = script.match(/^\s+- (.*git diff.*)$/m)?.[1] ?? "";
-    assert.ok(guard.includes("CI_COMMIT_BEFORE_SHA") && guard.includes("^docs/jobs/") && guard.includes("^docs/conversations/"), guard);
-    assert.ok(guard.includes("exit 0"), guard);
-    assert.ok(script.indexOf("git diff") < script.indexOf("onTestsFinished") || !script.includes("onTestsFinished"));
+    const globs = [...(block.match(/^ {6}changes:\n((?: {8}- ".*"\n)+)/m)?.[1] ?? "").matchAll(/- "(.*)"/g)].map((m) => m[1]);
+    assert.ok(globs.length > 0, `${row}: no rules:changes`);
+    const starts = (files) => files.some((file) => globs.some((glob) => fnmatch(glob, file)));
+    assert.equal(starts(["docs/jobs/run-1.md"]), false);
+    assert.equal(starts(["docs/conversations/c1.md", "docs/jobs/run-1.md"]), false);
+    assert.equal(starts(["docs/jobs/run-1.md", "src/a.mjs"]), true);
+    for (const file of ["src/a.mjs", "docs/SPEC.md", "README.md", "docs/jobsx/a.md", "docs/jobs.md", "doc/a.md", "d/a.md"]) assert.equal(starts([file]), true, file);
+    assert.ok(!block.includes("git diff"), "no check in the script");
   }
 });
 

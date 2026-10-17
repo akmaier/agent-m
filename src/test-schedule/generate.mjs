@@ -34,10 +34,25 @@ const GITLAB_IF = {
   "release candidate": () => "$CI_COMMIT_TAG =~ /^v.*-rc\\..*$/",
   "on demand": (row) => `$CI_PIPELINE_SOURCE == "web" && $ROWS =~ /(^|,)${row}(,|$)/`,
 };
-// A push that changes only job records or conversation records ends a GitLab commit job at once: GitLab's rules cannot
-// exclude paths.
-const GITLAB_GUARD = "changed=$(git diff --name-only \"$CI_COMMIT_BEFORE_SHA\" \"$CI_COMMIT_SHA\" || echo code); "
-  + "if ! echo \"$changed\" | grep -qv -e '^docs/jobs/' -e '^docs/conversations/'; then echo 'only job records'; exit 0; fi";
+// A push that changes only job records or conversation records starts no GitLab commit job. GitLab's `rules:changes` takes
+// globs of Ruby's File.fnmatch, which have no negation of a directory but do have `[!x]` and braces: the paths below are
+// every path that does not lie under one of the ignored directories.
+const IGNORED = ["docs/jobs", "docs/conversations"];
+
+// The names that are not one of `names`, as brace alternatives: at each position a character other than those the names
+// continue with, a proper prefix of a name, and a name continued by at least one more character.
+function otherThan(names, prefix = "") {
+  const next = [...new Set(names.filter((n) => n.length > prefix.length && n.startsWith(prefix)).map((n) => n[prefix.length]))];
+  const alternatives = next.length ? [`${prefix}[!${next.join("")}]*`] : [];
+  if (prefix && !names.includes(prefix)) alternatives.push(prefix);
+  if (names.includes(prefix)) alternatives.push(`${prefix}?*`);
+  for (const c of next) alternatives.push(...otherThan(names, prefix + c));
+  return alternatives;
+}
+const braces = (names) => `{${otherThan(names).join(",")}}`;
+const below = IGNORED.map((d) => d.split("/")).reduce((m, [top, sub]) => m.set(top, [...(m.get(top) ?? []), sub]), new Map());
+const GITLAB_CHANGES = ["*", ...[...below].flatMap(([top, subs]) => [`${top}/*`, `${top}/${braces(subs)}/**/*`]),
+  `${braces([...below.keys()])}/**/*`];
 
 const quoted = (text) => `'${text.replaceAll("'", "''")}'`;
 const lines = (indent, items) => items.map((item) => indent + item).join("\n");
@@ -98,7 +113,7 @@ export function ciConfiguration(schedule, target, resources, participants) {
     return fill(TEMPLATES["gitlab-job"], {
       key, row, tags: runner ? `  tags: [${runner}]` : "", rule: quoted(GITLAB_IF[occasion](row)),
       secrets: names.length ? `  # Secrets, read from the CI variables: ${names.join(", ")}` : "",
-      guard: occasion === "every commit" ? `    - ${quoted(GITLAB_GUARD)}` : "",
+      changes: occasion === "every commit" ? `      changes:\n${lines("        ", GITLAB_CHANGES.map((c) => `- "${c}"`))}` : "",
       clone, command: quoted(run),
       handOn: quoted(`if [ -f ${report} ]; then AGENT_M_REPORT=${report} AGENT_M_INSTANCE_COMMIT=${target.instanceCommit} `
         + "node .agent-m/src/workflow-entries/main.mjs onTestsFinished; fi"),

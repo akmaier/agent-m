@@ -5,9 +5,9 @@
     AGENT_M_LEVEL: {{row}}
   rules:
     - if: {{rule}}
+{{changes}}
 {{secrets}}
   script:
-{{guard}}
     - {{clone}}
     - {{command}}
   after_script:
