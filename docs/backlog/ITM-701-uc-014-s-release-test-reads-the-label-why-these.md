@@ -31,3 +31,4 @@ naming the permissions reads *Why these?*. A participant who builds none of ITM-
 - The subtest fails when Step A's permissions fold reads anything but *Why these?*, and passes on ITM-628's code.
 - It is written by a participant other than developer-sonnet-e.
 - Its counter-proof is the label dropped, which fails it.
+- Its `# TODO ITM-628` mark goes, since ITM-628 is merged and the subtest passes (sprint 70's end gate).
