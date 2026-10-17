@@ -1,5 +1,5 @@
 // candidates.mjs — the candidates of a draft of requirements, as the author reviews them (MOD-review-pages, Parts): each candidate with its class, the requirement it refers to beside it, and its
-// rule and check, which the author may change; and the draft and the classes as the author left them. Used by the page of a draft of the conversation (requirements-draft.mjs).
+// rule and check, which the author may change; and the draft and the classes as the author left them. Used by the page of a draft of the conversation (requirements-draft.mjs); `showCurrent` is also the requirement's current text on the panel of a derivation (jobs.mjs).
 //
 // Module: MOD-review-pages
 //
@@ -36,12 +36,23 @@ export const classOf = (candidate, classes) => classes?.find((each) => each.refs
   refs: [candidate.name], from: [candidate.passage].filter(Boolean), class: candidate.class, of: candidate.of ?? null,
 };
 
+const sourceText = (item, register) => {
+  const id = item.split(",")[0].trim();
+  const entry = register.find((each) => each.id === id);
+  return `${item} (${entry?.fields.authority ?? "authority not registered"})`;
+};
+
+/**
+ * showCurrent(current, held, register) — fills the section `current` with the current requirement `held` (a requirement of MOD-spec-document's parseSpec, or undefined) as the SPEC holds it:
+ * name, rule, each source with the authority `register` records for it, and check; without `held`, the sentence that the candidate refers to no current requirement. Both pages of a candidate call it.
+ */
+export function showCurrent(current, held, register) {
+  current.replaceChildren(el("h5", null, "Current requirement"), held
+    ? renderArtifact(`**${held.name}**\n\n${held.rule ?? ""}\n\n*Sources:* ${held.sources.map((item) => sourceText(item, register)).join("; ")}\n\n*Check:* ${held.check ?? ""}`)
+    : el("p", "none", "This candidate refers to no current requirement."));
+}
+
 export function candidateRows(panel, outcome, parsed, source, register, onChange) {
-  const sourceText = (item) => {
-    const id = item.split(",")[0].trim();
-    const entry = register.find((each) => each.id === id);
-    return `${item} (${entry?.fields.authority ?? "authority not registered"})`;
-  };
   const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
   for (const candidate of candidates) {
     const decided = classOf(candidate, outcome.classes);
@@ -53,22 +64,20 @@ export function candidateRows(panel, outcome, parsed, source, register, onChange
     const check = el("textarea", "candidate-check");
     check.value = candidate.check ?? "";
     const current = el("section", "current-requirement"), difference = el("section", "candidate-difference");
-    const showCurrent = () => {
+    const refresh = () => {
       const held = parsed.requirements.get(of.value.trim());
-      current.replaceChildren(el("h5", null, "Current requirement"), held
-        ? renderArtifact(`**${held.name}**\n\n${held.rule ?? ""}\n\n*Sources:* ${held.sources.map(sourceText).join("; ")}\n\n*Check:* ${held.check ?? ""}`)
-        : el("p", "none", "This candidate refers to no current requirement."));
+      showCurrent(current, held, register);
       difference.replaceChildren(el("h5", null, "Difference"), showDifference(held?.rule ?? "", rule.value));
     };
-    const changed = () => { showCurrent(); onChange(); };
+    const changed = () => { refresh(); onChange(); };
     select.addEventListener("change", changed);
     of.addEventListener("input", changed);
     rule.addEventListener("input", changed);
     check.addEventListener("input", onChange);
-    showCurrent();
+    refresh();
     const item = el("li", "candidate", el("section", "candidate-draft", el("span", "candidate-name", candidate.name),
       el("label", null, " Class ", select), el("label", null, " of ", of), el("label", null, "Rule", rule),
-      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source)}.`)), current, difference);
+      el("label", null, "Check", check), el("p", "candidate-source", `Source: ${sourceText(candidate.source ?? source, register)}.`)), current, difference);
     item.setAttribute("data-name", candidate.name);
     panel.append(item);
   }
