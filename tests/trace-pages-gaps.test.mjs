@@ -194,7 +194,7 @@ test("a version that predates the artifacts shows what it holds and says what is
   await until(() => missing(target).length === 5 && reading(target) === 0);
   assert.deepEqual(missing(target), ["SPEC.md holds no requirements at v2025.0.1.", "No use cases exist at v2025.0.1.", "No architecture decisions exist at v2025.0.1.",
     "No modules exist at v2025.0.1.", "No tests exist at v2025.0.1."]);
-  assert.deepEqual(matrix(target), []);
+  assert.equal(matrix(target).length, 0);
   assert.deepEqual(noGaps(target), []);
 });
 
@@ -209,12 +209,12 @@ test("a graph that cannot be read is named in place of the gaps, the choice stay
   assert.deepEqual(find(target, (node) => node.className === "traces-problem").map((node) => node.textContent), ["The gaps could not be read: unreachable"]);
   assert.equal(selectOf(target).value, "main");
   assert.deepEqual(titles(target), []);
-  assert.deepEqual(matrix(target), []);
+  assert.equal(matrix(target).length, 0);
   choose(target, "v2026.1.0");
   await until(() => asOf(target).length === 1 && reading(target) === 0);
   choose(target, "main");
   await until(() => titles(target).length === 5);
-  assert.deepEqual(find(target, (node) => node.className === "traces-problem"), []);
+  assert.equal(find(target, (node) => node.className === "traces-problem").length, 0);
   assert.equal(matrix(target).length, 1);
 });
 
