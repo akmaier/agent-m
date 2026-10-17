@@ -1,13 +1,11 @@
 // MOD-progress-measures — a product's facts gathered once, and its progress in every measure
-// (docs/architecture/MOD-progress-measures.md): its interface. Of it, ITM-235 builds waitingForAcceptance, in
-// stages.mjs — less its release-test-report kind: no release candidate exists before UC-013's release is built;
-// ITM-239 adds it. progressIn gives the burn-down of each team's sprint, in measures.mjs; its grid of a planned model and the
-// board's flow are not built yet. ITM-536 builds productFacts with the scope `work` (facts.mjs): the scope `all` is not built, and
-// every fact the scope `work` does not name is "unknown". stageShares, currentStage, gateOverview, blocked, whoWorksOnWhat and
-// waitingForAPerson are not built yet.
+// (docs/architecture/MOD-progress-measures.md): its interface. Built: productFacts with the scope `work` (facts.mjs; the scope `all`
+// is refused, and every fact the scope `work` does not name is "unknown"), progressIn for a model with sprints (measures.mjs; its
+// grid of a planned model and the board's flow are null), and stageShares, currentStage, buildInProgress, waitingForAPerson and
+// waitingForAcceptance (stages.mjs). gateOverview, blocked and whoWorksOnWhat are not built yet.
 //
 // Module: MOD-progress-measures
 
-export { waitingForAcceptance } from "./stages.mjs";
+export { waitingForAcceptance, stageShares, currentStage, buildInProgress, waitingForAPerson } from "./stages.mjs";
 export { progressIn } from "./measures.mjs";
 export { productFacts } from "./facts.mjs";

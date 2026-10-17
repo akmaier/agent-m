@@ -48,7 +48,7 @@ export function addressWriter(page, pageAddress, instance, products) {
 }
 
 // The key a product's own token is kept under (MOD-browser-store, Data).
-const tokenKeyOf = (address) => address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`;
+export const tokenKeyOf = (address) => address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`;
 
 // chosenProduct({ store, fragment }) -> Promise<ProductContext | null> — the product the fragment names among those this browser
 // keeps, connected with its own token to its own server only; null when the fragment names none. Throws UnknownProduct { address }

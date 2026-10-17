@@ -112,10 +112,10 @@ test("UC-008 4a counter-proof: a token the server refuses (401) is named for ren
   const { srv, page, result } = await refusedAccept(refuseWrite(401, {}, "Bad credentials"));
   assert.deepEqual(srv.writes, []);
   // The refusal marks the token that was used, and the line at the top of every page says which token and where it is renewed.
-  assert.match(page.el("token-banner"), /GitHub rejected authentication with your GitHub token/);
+  assert.match(page.el("token-banner"), /The server refused your token/);
   assert.match(page.el("token-banner"), /Renew/);
   const honest = await openDashboard({ server: await instance(), hash: "#uc/UC-002" });
-  assert.doesNotMatch(honest.el("token-banner"), /rejected authentication/, "counter-proof: a token the server accepts is not marked");
+  assert.doesNotMatch(honest.el("token-banner"), /refused your token/, "counter-proof: a token the server accepts is not marked");
   const said = `${result.text} ${result.html}`;
   assert.match(said, /GitHub rejected authentication with your GitHub token/);
   assert.doesNotMatch(said, /cannot write|pull request/);
