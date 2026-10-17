@@ -13,7 +13,7 @@
 // architecture: every file under docs/architecture/ of this checkout, as it stands. Beside it stands a SPEC.md of this file's
 // own: no test opens Agent M's own SPEC.md (tests/test_release_sprint_02_c.py), and the page reads a SPEC only for what the
 // files it lists wait for, which the diagram does not draw. Mermaid, to which the page hands its diagrams
-// (docs/assets/dashboard-app.mjs, renderMermaid), is replaced by a recorder, as GitHub is replaced by the fixture server: it
+// (MOD-markdown-render, renderMermaid), is replaced by a recorder, as GitHub is replaced by the fixture server: it
 // keeps the configuration the page initialises it with and the text of every diagram the page hands it — the text Mermaid
 // draws. No request leaves the process.
 //
@@ -104,28 +104,37 @@ const textOf = (html) => html.replace(/&(#x[0-9a-f]+|#\d+|quot|amp|lt|gt|apos|nb
   ? String.fromCodePoint(/^#x/i.test(e) ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : NAMED[e.toLowerCase()]));
 
 // The architecture page of a repository holding `files` (and the fixture's SPEC): a page load, then #arc, with Mermaid replaced by
-// the recorder. The harness's document finds controls by an attribute only; the page's own search for diagrams —
-// `pre > code.language-mermaid` in <main> (renderMermaid) — is answered here from the HTML <main> holds: each block with its text,
-// and a <pre> the page replaces by the node it hands to Mermaid.
+// the recorder. The page draws the diagram as Mermaid in Markdown through MOD-markdown-render's renderArtifact: it finds each
+// `code.language-mermaid` of the HTML it wrote and hands its text to renderMermaid, which has the library parse it
+// (mermaidAPI.getDiagramFromText), initialises it once for the process, and runs it on a node holding the text. The harness's
+// elements find a tag by an attribute only, so the search for `code` is answered here from the HTML the element holds, and the
+// node the renderer replaces is a stand-in. The recorder keeps the configuration of that one initialisation and the text of
+// every diagram run.
 // -> { server, page, mermaid: { config, texts } }
+const RECORDER = { config: null, texts: [] };
 async function architecturePage(files) {
   const server = await repoServer({ files: { "SPEC.md": SPEC, ...files } });
   const page = await openDashboard({ server, hash: "" });
-  const mermaid = { config: null, texts: [] };
-  const main = globalThis.document.getElementById("main");
-  const own = main.querySelectorAll;
-  main.querySelectorAll = (sel) => (sel === "pre > code.language-mermaid"
-    ? [...main.innerHTML.matchAll(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g)]
-      .map((m) => ({ textContent: textOf(m[1]), parentElement: { replaceWith() {} } }))
-    : own.call(main, sel));
+  const mermaid = RECORDER;
+  mermaid.texts = [];
+  const make = globalThis.document.createElement.bind(globalThis.document);
+  globalThis.document.createElement = (tag) => {
+    const element = make(tag);
+    element.getElementsByTagName = (name) => (name !== "code" ? [] : [...String(element.innerHTML).matchAll(/<code class="(language-mermaid)">([\s\S]*?)<\/code>/g)]
+      .map((m) => ({ className: m[1], textContent: textOf(m[2]), parentNode: { parentNode: { insertBefore() {}, removeChild() {} } } })));
+    return element;
+  };
   globalThis.mermaid = {
     initialize: (config) => { mermaid.config = config; },
+    mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) },
     run: async ({ nodes }) => { mermaid.texts.push(...nodes.map((n) => n.textContent)); },
   };
   try {
     await page.go("#arc");
+    for (let waited = 0; waited < 200 && mermaid.texts.length === 0; waited += 1) await new Promise((resolve) => setTimeout(resolve, 10));
   } finally {
     delete globalThis.mermaid;
+    globalThis.document.createElement = make;
   }
   return { server, page, mermaid };
 }
@@ -376,10 +385,11 @@ test("ITM-203 · the page draws Agent M's component diagram without Mermaid's \"
 test("ITM-203 · the explanation under the component diagram says what the diagram draws", async () => {
   const { page } = await architecturePage(OWN);
   const main = page.main();
-  const at = main.indexOf('<pre><code class="language-mermaid">');
+  // renderMermaid draws the diagram as an element <div class="mermaid"> (MOD-markdown-render); the explanation follows it in the view's panel.
+  const at = main.indexOf('<div class="mermaid">');
   assert.ok(at > 0, "the diagram stands on the page");
-  const under = main.slice(main.indexOf("</pre>", at), main.indexOf("</section>", at));
-  const m = /<details class="explain">\s*<summary>What is this\?<\/summary>\s*<div>([\s\S]*?)<\/div>\s*<\/details>/.exec(under);
+  const under = main.slice(main.indexOf("</div>", at), main.indexOf("</section>", at));
+  const m = /<details class="explain">\s*<summary>What is this\?<\/summary>\s*<div(?: class="md")?>([\s\S]*?)<\/div>\s*<\/details>/.exec(under);
   assert.ok(m, "an explanation that can be expanded stands under the diagram, in its panel");
   const says = textOf(m[1].replace(/<[^>]*>/g, "")).replace(/\s+/g, " ");
   for (const [what, words] of [

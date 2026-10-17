@@ -28,7 +28,7 @@ const writes = (server) => server.requests.filter((request) => /^(write|other|ha
 
 function controls() {
   const main = globalThis.document.getElementById("main");
-  const table = main.querySelector("table.list");
+  const table = main.querySelector("section.spec-section").querySelector("table.list");
   table.removeAttribute = (name) => { delete table[name]; };
   return { table, section: main.querySelector("button.spec-section-toggle"), requirement: main.querySelector("button.requirement-name") };
 }

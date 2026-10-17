@@ -338,7 +338,7 @@ test("requirement/<name> — on GitLab without a token there is no Save", async 
   assert.match(target.textContent, new RegExp(LOAN), "known positive: the section is shown");
   assert.equal(find(target, (node) => node.localName === "textarea").length, 0, "no editor");
   assert.equal(find(target, (node) => node.localName === "button" && node.textContent === "Save").length, 0, "no Save");
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length >= 1, true, "the token's step");
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length >= 1, true, "the token's step");
   assert.equal(fake.writes().length, 0);
 });
 

@@ -7,17 +7,17 @@
 // Guards: UC-008; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; NO TEXT TRAVELS IN A URL
 // Level: component
 //
-// The real dashboard runs in tests/app-harness.mjs against the harness's GitHub fake, which refuses the write; the accept panel
-// of a GitLab product and of a product's SPEC change is rendered on its own (review-views.mjs acceptPanel). These tests run
-// inside the process of tests/review-core.test.mjs, so each puts back the globals the harness sets when it ends. Counter-proofs:
+// The real dashboard runs in tests/app-harness.mjs against the harness's GitHub fake, which refuses the write; the page is
+// MOD-review-pages' route of the use case. These tests run inside the process of tests/review-core.test.mjs, so each puts back the
+// globals the harness sets when it ends. The accept panel of a GitLab product and of a product's SPEC change is MOD-review-pages' own
+// (tests/review-pages-use-cases.test.mjs, tests/review-pages-spec-entries.test.mjs). Counter-proofs:
 // docs/measurements/2026-10-01_write-refused-offers-the-github-path.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, openDashboard, REPO } from "../app-harness.mjs";
-import { gitBlobSha, recordText, useCaseRecord, specRecord, approvalPath, createReviewSession } from "../../docs/assets/review-core.mjs";
+import { gitBlobSha, recordText, useCaseRecord, approvalPath } from "../../docs/assets/review-core.mjs";
 import { newFileUrl, parseProductAddress } from "../../docs/assets/git-host.mjs";
-import { acceptPanel, githubPath } from "../../docs/assets/dashboard/review-views.mjs";
 import * as shell from "../../src/site-frame/dashboard-app.mjs";
 import { B_SPEC, B_P05, B_INDEX, QD, GL_ADDR } from "./helpers.mjs";
 
@@ -46,7 +46,7 @@ const contentsJson = (srv) => (url, init) => {
 };
 
 const UC2 = "docs/use-cases/UC-002-show-the-status.md";
-const UC2_TEXT = "---\nid: UC-002\ntitle: Show the status\narea: review\nactors:\n  - Reviewer\nrealises:\n  - RULE ONE\n---\n" +
+const UC2_TEXT = "---\nid: UC-002\ntitle: Show the status\narea: review\nactors:\n  - Reviewer\nrealises: []\n---\n" +
   "# UC-002 Show the status\n\n## Main flow\n\n1. The dashboard shows the status.\n";
 const FILES = {
   "SPEC.md": B_SPEC, [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
@@ -65,22 +65,21 @@ async function instance(handlers = []) {
 const inMain = (sel) => globalThis.document.getElementById("main").querySelector(sel);
 
 // UC-002 opened with a token, Accept pressed by a person, the commit refused as `refuse` says.
-// -> { srv, result: the panel's result line (its text and its HTML), accept: the button }
+// -> { srv, result: the page's result line (its text and its HTML), accept: the button, page }
 async function refusedAccept(refuse) {
   const srv = await instance([refuse]);
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
-  await page.click("[data-accept-key]");
-  const accept = inMain("[data-accept-key]");
-  const out = accept.closest(".panel").querySelector(".result");
-  return { srv, page, accept, result: { text: out.textContent, html: out.innerHTML } };
+  await page.click(".accept");
+  const accept = inMain(".accept");
+  const out = inMain(".result");
+  return { srv, page, accept, result: { text: out?.textContent ?? "", html: page.main() } };
 }
 
 test("UC-008 4a: a commit refused for missing write access writes nothing; the page says so and links GitHub's new-file page prefilled with the approval record, as without a token", () => isolated(async () => {
   const { srv, accept, result } = await refusedAccept(refuseWrite(403));
   assert.deepEqual(srv.writes, [], "nothing is written");
   assert.equal(accept.disabled, false, "Accept can be pressed again");
-  assert.match(result.html, /Your token cannot write to akmaier\/agent-m/, "the page says so");
-  assert.match(result.html, /403/, "with the server's answer");
+  assert.match(result.html, /<p class="result">Your GitHub token may not write to https:\/\/github\.com\/akmaier\/agent-m/, "the page says so");
   const blob = await gitBlobSha(UC2_TEXT);
   const record = recordText(useCaseRecord(UC2, blob));
   const want = newFileUrl(REPO, "main", approvalPath("UC-002", blob), record);
@@ -93,7 +92,7 @@ test("UC-008 4a: a commit refused for missing write access writes nothing; the p
   assert.ok(!want.includes(encodeURIComponent("The dashboard shows the status")), "not the reviewed text");
   assert.match(result.html, /pull request/, "says that without write access the commit becomes a pull request");
   assert.match(result.html, /maintainer merges it/, "which counts once a maintainer merges it");
-  // As without a token: the same page the accept panel links when no token is stored.
+  // As without a token: the same page the use case links when no token is stored.
   const without = await openDashboard({ server: await instance(), hash: "#uc/UC-002", token: null });
   assert.deepEqual(hrefs(without.main()).filter((x) => x.startsWith(NEW_PAGE)), [want], "the same prefilled page");
 }));
@@ -110,49 +109,25 @@ test("UC-008 4a counter-proof: a refusal for a used-up rate limit names the limi
 }));
 
 test("UC-008 4a counter-proof: a token the server refuses (401) is named for renewal, and no GitHub page is offered", () => isolated(async () => {
-  const { srv, result } = await refusedAccept(refuseWrite(401, {}, "Bad credentials"));
+  const { srv, page, result } = await refusedAccept(refuseWrite(401, {}, "Bad credentials"));
   assert.deepEqual(srv.writes, []);
+  // The refusal marks the token that was used, and the line at the top of every page says which token and where it is renewed.
+  assert.match(page.el("token-banner"), /GitHub rejected authentication with your GitHub token/);
+  assert.match(page.el("token-banner"), /Renew/);
+  const honest = await openDashboard({ server: await instance(), hash: "#uc/UC-002" });
+  assert.doesNotMatch(honest.el("token-banner"), /rejected authentication/, "counter-proof: a token the server accepts is not marked");
   const said = `${result.text} ${result.html}`;
   assert.match(said, /GitHub rejected authentication with your GitHub token/);
   assert.doesNotMatch(said, /cannot write|pull request/);
   assert.ok(!hrefs(result.html).some((x) => x.startsWith(NEW_PAGE)), "no GitHub page offered");
 }));
 
-// The context the accept panel reads from the page (dashboard-app.mjs context()), for a product shown with a stored token.
-function panelApp(product, repo) {
-  const T = { product, repo, instance: REPO, ref: "main" };
-  return { T, GITLAB: product.kind === "gitlab", SERVER: product.kind === "gitlab" ? product.host : "GitHub",
-    session: createReviewSession(), token: () => "a-stored-token" };
-}
-
-test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN: a GitLab product's refused write offers no GitHub page — its refusal is GitLab's", async () => {
+test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN: a GitLab product's refused write has no GitHub path — its refusal is GitLab's", () => {
   const p = parseProductAddress(GL_ADDR);
-  const blob = await gitBlobSha(UC2_TEXT);
-  const app = panelApp(p, p.repo), rec = useCaseRecord(UC2, blob), path = approvalPath("UC-002", blob);
-  const html = acceptPanel(app, rec, path, "UC-002", { kind: "use-case", id: "UC-002", path: UC2, blob });
-  assert.match(html, /data-accept-key/, "Accept is offered, with the project's token");
-  assert.equal(githubPath(app, rec, path), null, "no GitHub page to fall back to");
-  assert.doesNotMatch(html, /github\.com/);
   const e = Object.assign(new Error("POST /api/v4/projects/x/repository/commits: 403 Forbidden"), { status: 403 });
   assert.equal(shell.writeAccessRefused(e, p), false, "GitLab's 403 is not the GitHub path's refusal");
   assert.match(shell.writeRefusalText(e, p), /GitLab refused the write/);
   assert.doesNotMatch(shell.writeRefusalText(e, p), /GitHub/);
-});
-
-test("UC-006 4c: a product's SPEC change refused for missing write access offers no GitHub page; counter-proof: the instance's does", async () => {
-  const blob = await gitBlobSha(B_P05), section = await gitBlobSha("## 10. R\n\nold ten\n");
-  const rec = specRecord({ queue: QD, entry: 5, proposal: `${QD}/05-a.md`, blob, target: "SPEC.md", anchor: "## 10. R", section });
-  const path = approvalPath(`spec-${QD.split("/").pop()}-05`, blob);
-  const item = { kind: "spec", queue: QD, nr: 5 };
-  const product = parseProductAddress("https://github.com/alice/thesis-tool");
-  const forProduct = panelApp(product, "alice/thesis-tool");
-  assert.match(acceptPanel(forProduct, rec, path, "entry 05", item), /data-accept-key/, "Accept is offered, with the token");
-  assert.equal(githubPath(forProduct, rec, path), null, "no product carries the workflow that would apply a record committed on GitHub's page");
-  // A product's use case keeps its GitHub path (UC-008 3b): only the SPEC change is held back.
-  const ucBlob = await gitBlobSha(UC2_TEXT);
-  assert.ok(githubPath(forProduct, useCaseRecord(UC2, ucBlob), approvalPath("UC-002", ucBlob))?.startsWith("https://github.com/alice/thesis-tool/new/"));
-  const own = parseProductAddress(`https://github.com/${REPO}`);
-  assert.equal(githubPath(panelApp(own, REPO), rec, path), newFileUrl(REPO, "main", path, recordText(rec)), "the instance's workflow applies it");
 });
 
 test("writeAccessRefused: GitHub's 403 or 404 on a write is missing write access; counter-proof: a used-up limit, a 401 and another error are not", () => {

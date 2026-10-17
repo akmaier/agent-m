@@ -112,7 +112,7 @@ test("the shells read only through what the git host provides — no file of the
   // product reads a GitHub product's branch through readSnapshot (ITM-130, back from Release testing, finding A1).
   const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
   assert.ok(files.some((f) => f.file === "dashboard-app.mjs") && files.some((f) => f.file === "dashboard/settings-view.mjs")
-    && files.some((f) => f.file === "dashboard/reads.mjs") && files.some((f) => f.file === "dashboard/writes.mjs"), "the shell's files are checked");
+    && files.some((f) => f.file === "dashboard/writes.mjs"), "the shell's files are checked");
   const importing = files.filter((f) => gitHostImports(f.text).some((n) => n === "*" || n === "fetchText")).map((f) => f.file);
   assert.deepEqual(importing, [], "no file of the dashboard imports the request helper");
   // counter-proof: the helper imported by name, by a namespace or dynamically is caught; a provided read is not
@@ -283,24 +283,13 @@ test("A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT — the description names the
 
 // ---------------------------------------------------------------- the use-case key is `area` (was `stage`)
 
-test("the dashboard reads the use-case key `area` and says Area — `stage` is used nowhere", () => {
+test("the use-case key is `area` — `stage` is used nowhere in the dashboard's own files", () => {
   const app = dashboardText();
   const STAGE = /\bstages?\b/i;
   assert.doesNotMatch(app, STAGE);
-  assert.match(app, /fields\.area\b/);
-  assert.match(app, /<th>Area<\/th>/);
   assert.equal(parseFrontMatter("---\nid: UC-001\narea: setup\n---\n").fields.area, "setup");
   // Counter-proof: the old column is caught.
   assert.match("<td>${h(u.fields.stage)}</td>", STAGE);
-});
-
-test("status 'approved' is described truly for both routes — the dashboard's own commit and the workflow", () => {
-  const app = dashboardText();
-  const line = app.match(/^\s*approved: \["approved", "([^"]+)"\],$/m)?.[1];
-  assert.ok(line, "the label of status approved");
-  assert.doesNotMatch(line, /^Approval committed — the workflow writes it into the SPEC$/);
-  assert.match(line, /workflow/, "names the route without a token");
-  assert.match(line, /not (yet )?(written|in)/i, "says what the status means: approved, not yet in the SPEC");
 });
 
 // ---------------------------------------------------------------- GitLab products (queue 2026-09-24b)
@@ -309,15 +298,6 @@ test("status 'approved' is described truly for both routes — the dashboard's o
 
 // ---------------------------------------------------------------- the last accepted text (queue 2026-09-30, entry 03)
 // A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT (UC-008 2a)
-
-test("the dashboard shows the last accepted text above a changed use case, with the core's diff", () => {
-  const app = dashboardText({ shell: false });
-  const view = app.match(/async function viewUseCase\([\s\S]*?\n}\n/)[0];
-  assert.ok(view.includes("accepted-diff"), "the panel is part of the use-case view");
-  assert.ok(view.indexOf("accepted-diff") < view.indexOf('<article class="md doc">'), "above the text");
-  assert.match(app, /lastAccepted\(/);
-  assert.doesNotMatch(app, /function (lineDiff|diffHtml)\(/, "one diff, in the core — not a second copy in the app");
-});
 
 // ---------------------------------------------------------------- a used-up rate limit (queue 2026-10-01b, ITM-005)
 // A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN · AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED

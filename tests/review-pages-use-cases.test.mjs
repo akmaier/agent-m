@@ -26,7 +26,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { emptyStorage } from "./review-pages-harness.mjs";
+import { emptyStorage, scripted } from "./review-pages-harness.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -82,11 +82,13 @@ function fakeHost({ steps = STEPS, repository = ON_GITHUB, refuse = null, unread
   for (const files of steps) head = commitOf(new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), head);
   const snapshotAt = (sha) => {
     const { tree } = commits.get(sha);
-    return { repository, ref: sha, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+    return { repository, ref: sha, commit: sha, paths: [...tree.keys()].sort(),
+      readMany: async (paths) => { calls.push({ fn: "readMany", paths: [...paths] }); }, read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
   const fake = {
     head: () => head,
+    calls: () => calls,
     files: () => Object.fromEntries(commits.get(head).tree),
     writes: () => calls.filter((call) => call.fn === "commitFiles"),
     // Another writer's commit on `main`: each path of `changed` set to its text.
@@ -135,7 +137,8 @@ function contextOf(fake, { token = true, gitlab = false, instanceToken = false }
   const address = gitlab ? ON_GITLAB.web : ON_GITHUB.web;
   if (token) writeSetting(store, gitlab ? "gitlab-token:gitlab.example.org/team/product" : "github-token:alice/thesis-tool", TOKEN);
   if (instanceToken) writeSetting(store, "github-token", TOKEN);
-  return { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go() {},
+  const went = [];
+  return { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go(...where) { went.push(where); }, went,
     product: { address, kind: gitlab ? "gitlab" : "github", host: fake.host } };
 }
 async function show(fake, params = {}, options = {}) {
@@ -243,7 +246,7 @@ test("MOD-review-pages use-case/<id>/edit — Save commits the edited use case a
   assert.equal(edit.getAttribute("href"), "#use-case/id=UC-041/edit=1", "one Edit link to the edit route");
 
   const read = fake.head();
-  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  const { target, context } = await show(fake, { id: "UC-041", edit: "1" });
   assert.equal(areaOf(target).value, UC41, "the editor holds the use case byte for byte");
   assert.ok(byClass(target, "ol", "marks")[0].textContent.includes("A USE CASE HAS ACTOR"), "schema marks are shown");
   assert.equal(saveButton(target).disabled, false, "Save is offered while marks remain");
@@ -256,8 +259,11 @@ test("MOD-review-pages use-case/<id>/edit — Save commits the edited use case a
   assert.equal(change.expectedHead, read, "on the head the editor opened");
   assert.deepEqual(change.files, [{ path: P41, text: edited }], "only the use case is written");
   assert.ok(!change.files.some((file) => file.path.startsWith("docs/approvals/")), "no approval record");
-  await until(() => byClass(target, "p", "result")[0].textContent.includes("Saved"), "the saved result");
-  assert.ok(byClass(target, "p", "result")[0].textContent.includes(fake.head()), "the commit is linked");
+  // UC-008 3a: "The use case then has a new SHA and is shown again from step 2" — the page itself, open, with the saved text, no editor, and the commit.
+  await until(() => areaOf(target) === undefined && target.textContent.includes("with a receipt"), "the use case to be shown again");
+  assert.equal(badgeOf(target), "open", "shown again, open: its new text is accepted by no record");
+  assert.equal(byClass(target, "button", "accept").length, 1, "with its Accept");
+  assert.ok(find(target, (node) => node.localName === "a" && (node.getAttribute("href") ?? "").endsWith(`/commit/${fake.head()}`)).length >= 1, "the commit is linked");
 });
 
 // TST-358002 · level: unit · module: MOD-review-pages
@@ -297,15 +303,20 @@ test("MOD-review-pages use-case/<id>/edit — a changed file refuses Save and ke
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product without a token, and UC-041 opened in the editor
 // input: edit and Save
-// expect: no commit from the dashboard; GitHub's editor page is offered with only the path in the URL, while the edited text is shown for the clipboard
+// expect: no commit from the dashboard; the edited text is put on the clipboard and GitHub's editor is opened for the file with only the path in the URL; the page keeps the link and the text, for a browser that refuses the clipboard
 test("MOD-review-pages use-case/<id>/edit — without a token on GitHub, Save offers GitHub's editor without text in the URL", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
   const { target } = await show(fake, { id: "UC-041", edit: "1" }, { token: false });
   const edited = UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt.");
   type(target, edited);
+  const asked = { clipboard: [], opened: [] };
+  Object.defineProperty(globalThis, "navigator", { value: { clipboard: { writeText: async (written) => { asked.clipboard.push(written); } } }, configurable: true, writable: true });
+  globalThis.open = (url) => { asked.opened.push(url); return null; };
   click(saveButton(target));
   await until(() => byClass(target, "a", "github-page").length === 1, "GitHub's editor page");
+  assert.deepEqual(asked.clipboard, [edited], "the edited text is on the clipboard (UC-008 3b)");
+  assert.deepEqual(asked.opened, ["https://github.com/alice/thesis-tool/edit/main/" + P41], "GitHub's editor is opened for the file, with no text in the address");
   const page = new URL(byClass(target, "a", "github-page")[0].getAttribute("href"));
   assert.equal(page.origin + page.pathname, "https://github.com/alice/thesis-tool/edit/main/" + P41);
   assert.equal([...page.searchParams.keys()].length, 0, "no text-bearing query");
@@ -347,7 +358,7 @@ test("MOD-review-pages use-case/<id>/edit — on GitLab without a token there is
   assert.match(target.textContent, /The member borrows a book at the desk\./, "the use case is shown");
   assert.equal(find(target, (node) => node.localName === "textarea").length, 0, "no editor");
   assert.equal(saveButton(target), undefined, "no Save");
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length, 1, "the token's step");
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length, 1, "the token's step");
   assert.equal(fake.writes().length, 0, "nothing written");
 });
 
@@ -483,15 +494,22 @@ test("MOD-review-pages use-case/<id> — a GitHub product without a token of its
 // guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 // given: a product on a GitLab server, no token of its own stored in this browser — the instance's GitHub token is stored, and is no token for a GitLab server; the list and UC-041
 // input: the route use-case rendered for the list and for UC-041
-// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that stores the project's token, #add-product
+// expect: the use case read and shown; no Accept, no tick, no Accept ticked, no link to a GitHub page; a link to the step that stores the project's token, #add, which on a click goes through the frame's `go` to the route add-product with the product's address
 test("MOD-review-pages use-case — a GitLab product without a token: no Accept, and the token's step linked", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost({ repository: ON_GITLAB });
-  const one = (await show(fake, { id: "UC-041" }, { token: false, gitlab: true, instanceToken: true })).target;
+  const shown = await show(fake, { id: "UC-041" }, { token: false, gitlab: true, instanceToken: true });
+  const one = shown.target;
+  const step = find(one, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/"))[0];
+  assert.equal(step.getAttribute("href"), `#add/${encodeURIComponent(ON_GITLAB.web)}`, "the app's own address of the step, with the product's address");
+  let prevented = false;
+  step.dispatchEvent(Object.assign(new Event("click"), { preventDefault() { prevented = true; } }));
+  assert.deepEqual(shown.context.went, [["add-product", { address: ON_GITLAB.web }]], "the click goes to the step that stores the token");
+  assert.equal(prevented, true, "and does not follow the address as written");
   assert.match(one.textContent, /The member borrows a book at the desk\./, "the use case is shown");
   assert.equal(byClass(one, "button", "accept").length, 0, "no Accept");
   assert.equal(find(one, (node) => node.localName === "a" && /github\.com/.test(node.getAttribute("href") ?? "")).length, 0, "no GitHub page");
-  assert.equal(find(one, (node) => node.localName === "a" && node.getAttribute("href") === "#add-product").length, 1, "the token's step");
+  assert.equal(find(one, (node) => node.localName === "a" && node.getAttribute("href")?.startsWith("#add/")).length, 1, "the token's step");
   const list = (await show(fake, {}, { token: false, gitlab: true, instanceToken: true })).target;
   assert.equal(find(list, (node) => node.localName === "input").length + byClass(list, "button", "accept-ticked").length, 0, "no tick, no Accept ticked");
   assert.equal(rowOf(list, "UC-041") !== undefined, true, "the list is shown");
@@ -538,4 +556,83 @@ test("MOD-review-pages use-case — nothing is written without the person's clic
   await show(fake, { id: "UC-043" });
   assert.ok(byClass(list, "button", "accept-ticked").length === 1, "known positive: the button that would write stands on the page");
   assert.equal(fake.writes().length, 0, "no commit attempted");
+});
+
+// ---------------------------------------------------------------- the job records of an open file
+
+// TST-680211 · level: unit · module: MOD-review-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a product whose `main` holds the four use cases and three job records under docs/jobs/, a token stored
+// input: the page of UC-041, which is open, rendered; and the page of UC-042, which is accepted
+// expect: the job records, which the notes of the job that wrote the use case are read from, are asked for in one batch (Snapshot.readMany) with every path of them; an accepted use case's page asks for none
+test("MOD-review-pages use-case/<id> — the job records an open file's notes are read from are read in one batch", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const jobs = ["JOB-20261001-1000-aaaa", "JOB-20261001-1100-bbbb", "JOB-20261001-1200-cccc"].map((name) => `docs/jobs/${name}.md`);
+  const steps = [...STEPS, Object.fromEntries(jobs.map((path) => [path, "not a job record\n"]))];
+  const fake = fakeHost({ steps });
+  await show(fake, { id: "UC-041" });
+  const batches = fake.calls().filter((call) => call.fn === "readMany");
+  assert.equal(batches.length, 1, "one batch");
+  assert.deepEqual([...batches[0].paths].sort(), jobs, "every job record, and nothing else");
+  const accepted = fakeHost({ steps });
+  await show(accepted, { id: "UC-042" });
+  assert.equal(accepted.calls().filter((call) => call.fn === "readMany").length, 0, "an accepted use case reads no job record");
+});
+
+// ---------------------------------------------------------------- a click a script makes
+
+// Waits for the turns in which a handler that answered would have written.
+const settled = async () => { for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve)); };
+
+// TST-680201 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
+// given: UC-041 shown with its Accept, the token stored
+// input: a click a script makes (isTrusted false) on Accept; then the person's click on the same button
+// expect: after the script's click no commit is attempted and the use case is still open; after the person's click one commit
+test("MOD-review-pages use-case/<id> — counter-proof: a click a script makes on Accept writes nothing", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041" });
+  const accept = byClass(target, "button", "accept")[0];
+  accept.dispatchEvent(scripted());
+  await settled();
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  assert.equal(badgeOf(target), "open", "still open");
+  click(accept);
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
+});
+
+// TST-680202 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// given: the list shown with a token; UC-041 and UC-044 ticked
+// input: a click a script makes on Accept ticked; then the person's click
+// expect: after the script's click no commit is attempted; after the person's click one commit
+test("MOD-review-pages use-case — counter-proof: a click a script makes on Accept ticked writes nothing", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake);
+  for (const id of ["UC-041", "UC-044"]) tick(byClass(rowOf(target, id), "input", "tick")[0]);
+  const bar = byClass(target, "button", "accept-ticked")[0];
+  bar.dispatchEvent(scripted());
+  await settled();
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  click(bar);
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
+});
+
+// TST-680203 · level: unit · module: MOD-review-pages
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EDITS ARE PREPARED ON THE DASHBOARD
+// given: the editor opened for UC-041 with an edited text
+// input: a click a script makes on Save; then the person's click
+// expect: after the script's click no commit is attempted; after the person's click one commit
+test("MOD-review-pages use-case/<id>/edit — counter-proof: a click a script makes on Save writes nothing", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  type(target, UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt."));
+  saveButton(target).dispatchEvent(scripted());
+  await settled();
+  assert.equal(fake.writes().length, 0, "no commit attempted");
+  click(saveButton(target));
+  await until(() => fake.writes().length === 1, "the commit of the person's click");
 });

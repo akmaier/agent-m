@@ -66,23 +66,32 @@ test("with every view file of today, the menu shows the stages of the process in
   assert.deepEqual(remaining, MENU_OF_TODAY);
 });
 
-test("every dashboard view file of today is shown — use cases, architecture, SPEC changes, how acceptance works, settings, setup, review pages", async () => {
+// The expected headings are those MOD-review-pages' routes give their pages (its Interfaces: the files of a kind, one file, Review all);
+// How acceptance works is the folded explanation of the topic `accepting` (MOD-site-frame, explain).
+test("every address of today is shown — use cases, architecture, SPEC changes, how acceptance works, settings, setup, review pages", async () => {
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
   const heading = async (hash) => { await page.go(hash); return (/<h2>([^<]*)/.exec(page.main()) || [])[1]?.trim(); };
   assert.equal(await heading("#uc"), "Use cases");
   assert.equal(await heading("#uc/UC-001"), "UC-001 Add a product");
-  assert.equal(await heading("#arc"), "Architecture");
+  assert.equal(await heading("#arc"), "Architecture decisions");
   assert.equal(await heading("#spec"), "SPEC changes");
-  assert.equal(await heading("#how"), "How acceptance works");
+  await page.go("#how");
+  assert.match(page.main(), /<details class="explain"[^>]*><summary>How acceptance works<\/summary>/);
+  assert.match(page.main(), /Accepting is a commit made under your own account/);
   assert.equal(await heading("#settings"), "Settings");
   assert.equal(await heading("#setup"), "Finish setting up your instance");
-  assert.equal(await heading("#review/uc"), "Review all — use cases");
-  assert.equal(await heading("#review/arc"), "Review all — architecture");
+  assert.equal(await heading("#review/uc"), "Review all — Use cases");
+  assert.equal(await heading("#review/arc"), "Review all — the whole architecture");
+  // The addresses the review pages write themselves lead to their routes too.
+  assert.equal(await heading("#use-case/id=UC-001"), "UC-001 Add a product");
+  assert.equal(await heading("#decision"), "Architecture decisions");
+  assert.equal(await heading("#spec-entry"), "SPEC changes");
 });
 
 test("a view or settings section whose file is not there yet is not shown, and its address shows the use cases", async () => {
   const views = new URL("../docs/assets/dashboard/", import.meta.url);
-  const missing = DASHBOARD.filter((x) => x.file && !existsSync(new URL(x.file, views)));
+  const listed = JSON.parse(readFileSync(new URL("built.json", views), "utf8"));
+  const missing = DASHBOARD.filter((x) => x.file && !existsSync(new URL(x.file, views)) && !listed.includes(x.file));
   const view = missing.find((x) => x.view && MENU.some((e) => e.views.includes(x.view))), section = missing.find((x) => x.section);
   assert.ok(view && section, "the table names a view of a menu stage and a settings section that have no file yet");
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
@@ -109,21 +118,34 @@ test("a load of every address of today asks for no view or settings file that is
   }
   const missing = [...asked].flatMap(([hash, files]) => files.filter((f) => !isThere(f)).map((f) => `${hash}: ${f}`));
   assert.deepEqual(missing, [], "a page asked for files that are not there");
-  // The recording sees what a page asks for: the files of the views shown are among it.
+  // The recording sees what a page asks for: the file of a view shown is among it. The addresses of the review pages ask for none:
+  // the app hands them to MOD-review-pages' routes before any file is loaded.
   const all = new Set([...asked.values()].flat());
-  for (const f of ["review-views.mjs", "settings-view.mjs", "how-view.mjs"]) {
+  for (const f of ["settings-view.mjs"]) {
     assert.ok(all.has(f), `the recording saw ${f}: ${[...all].join(", ")}`);
   }
 });
 
 // Guards: UC-024
-test("the list of built files beside the views names exactly the files of the table that are there", () => {
+test("the list of built files beside the views names exactly the files of the table that are there, or views a module answers", async () => {
   const built = JSON.parse(readFileSync(new URL("built.json", VIEWS), "utf8"));
   assert.ok(Array.isArray(built) && built.every((f) => typeof f === "string"), "a JSON list of file names below docs/assets/dashboard/");
   assert.equal(new Set(built).size, built.length, "each file once");
   const named = new Set(DASHBOARD.filter((x) => x.file).map((x) => x.file));
   assert.deepEqual(built.filter((f) => !named.has(f)), [], "the list names only files the table names");
-  assert.deepEqual(built.filter((f) => !isThere(f)), [], "the list names only files that are there");
+  // A listed file that is not there belongs to views the app hands to a route of MOD-review-pages (the heading each shows is that route's).
+  const handed = { "review-views.mjs": ["uc", "arc", "review"], "spec-changes-view.mjs": ["spec"], "how-view.mjs": ["how"] };
+  assert.deepEqual(built.filter((f) => !isThere(f) && !handed[f]), [], "the list names only files that are there, or views handed to a module");
+  const page = await openDashboard({ server: await repoServer({ files: FILES }) });
+  const shows = { uc: /<h2>Use cases<\/h2>/, arc: /<h2>Architecture decisions<\/h2>/, review: /<h2>Use cases<\/h2>/, spec: /<h2>SPEC changes<\/h2>/,
+    how: /<summary>How acceptance works<\/summary>/ };
+  for (const [file, views] of Object.entries(handed)) {
+    if (isThere(file) || !built.includes(file)) continue;
+    for (const view of views) {
+      await page.go(`#${view}`);
+      assert.match(page.main(), shows[view], `#${view}: the view of ${file}, which is not there, is shown by a module's route`);
+    }
+  }
   assert.deepEqual([...named].filter((f) => isThere(f) && !built.includes(f)), [], "every file of the table that is there is listed");
 });
 
@@ -144,23 +166,23 @@ test("a request handler a test brings answers before the harness's own GitHub", 
 });
 
 test("a view may link a stylesheet of its own beside style.css — once, when it is first shown", async () => {
-  // A copy of the site whose how-view.mjs names a stylesheet; the view is otherwise the real one. The copy keeps the site's
+  // A copy of the site whose roles-view.mjs names a stylesheet; the view is otherwise the real one. The copy keeps the site's
   // layout — docs/assets/ beside src/, which the dashboard's modules import from.
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-assets-"))), dir = join(root, "docs", "assets");
   try {
     cpSync(new URL("../docs/assets/", import.meta.url), dir, { recursive: true });
     cpSync(new URL("../src/", import.meta.url), join(root, "src"), { recursive: true });
-    const view = join(dir, "dashboard", "how-view.mjs");
-    writeFileSync(view, readFileSync(view, "utf8") + '\nexport const stylesheet = "how-view.css";\n');
+    const view = join(dir, "dashboard", "roles-view.mjs");
+    writeFileSync(view, readFileSync(view, "utf8") + '\nexport const stylesheet = "roles-view.css";\n');
     const assets = pathToFileURL(join(root, "src", "site-frame") + "/");
     const page = await openDashboard({ server: await repoServer({ files: FILES }), assets });
     assert.deepEqual(page.stylesheets(), [], "the use cases bring none");
-    await page.go("#how");
+    await page.go("#roles");
     await page.go("#uc");
-    await page.go("#how");
-    assert.deepEqual(page.stylesheets(), [new URL("dashboard/how-view.css", pathToFileURL(dir + "/")).href]);
-    // Counter-proof: the real how-view.mjs names none, and nothing is linked.
-    const real = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#how" });
+    await page.go("#roles");
+    assert.deepEqual(page.stylesheets(), [new URL("dashboard/roles-view.css", pathToFileURL(dir + "/")).href]);
+    // Counter-proof: the real roles-view.mjs names none, and nothing is linked.
+    const real = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#roles" });
     assert.deepEqual(real.stylesheets(), []);
   } finally {
     rmSync(root, { recursive: true, force: true });

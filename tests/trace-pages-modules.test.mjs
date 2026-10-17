@@ -154,19 +154,21 @@ test("a graph that cannot be read is named in place of the diagram", async () =>
   assert.deepEqual(drawn.texts, []);
 });
 
-// CASE ITM-720-05
+// CASE ITM-720-05, changed by ITM-680 (the PO's ruling "ITM-680's #arc reads": the modules view builds the diagram from the module files alone, so it no longer
+// shares the graph of a version with the gaps view)
 // TST-720005 · level: component · module: MOD-trace-pages
-// guards: UC-025; THE TRACEABILITY MATRIX IS DERIVED
+// guards: UC-025; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for main, whose snapshots count every readMany
 // input: the modules view rendered at main; then the gaps view at main with the same Host
-// expect: readMany has been told the paths of the graph once after the modules view and still once after the gaps — the graph of a version is the same for the pages
-test("the modules view and the gaps share the graph of a version", async () => {
+// expect: after the modules view readMany has been told the paths of the four module files, once and nothing else (no code and no test file); the gaps view then tells it the paths of the graph once more
+test("the modules view reads the module files in one batch; the gaps view reads the graph in another", async () => {
   const productHost = hostOf();
   await render(productHost);
   assert.equal(productHost.log.manys.length, 1);
+  assert.deepEqual([...productHost.log.manys[0]].sort(), Object.keys(FILES).filter((path) => path.startsWith("docs/architecture/MOD-")).sort(), "the module files and no other");
   const { target } = await render(productHost, { key: "gaps", ref: "main" });
   assert.ok(find(target, (node) => node.className === "gaps-body").length === 1, "known positive: the gaps were drawn");
-  assert.equal(productHost.log.manys.length, 1);
+  assert.equal(productHost.log.manys.length, 2);
 });
 
 // CASE ITM-720-06
@@ -185,4 +187,19 @@ test("the subject of the modules page is the page, titled Modules", async () => 
   assert.ok(subject.key.includes("key=modules") && subject.key.includes("ref=main"), subject.key);
   const page = subject.paramsFor({}).page;
   for (const part of ["Modules", ADDRESS, "Version: main"]) assert.ok(page.includes(part), part);
+});
+
+// TST-680212 · level: component · module: MOD-trace-pages
+// guards: UC-025; EVERY STEP EXPLAINS ITSELF
+// given: the fixture product at main
+// input: Route.render with the key "modules" at main
+// expect: after the diagram's block, a folded explanation ("What is this?") says what the diagram draws — one box per module, in the box of its subsystem, one arrow to each module it uses, a used module without a file marked missing
+test("the modules page folds an explanation of what the diagram draws under it", async () => {
+  const { target } = await render(hostOf());
+  const kids = find(target, (node) => node.localName === "div" && node.className === "modules-body")[0].childNodes;
+  const explained = [...kids].filter((node) => node.nodeType === 1 && node.className === "explain");
+  assert.equal(explained.length, 1, "one folded explanation");
+  assert.ok([...kids].indexOf(explained[0]) > [...kids].findIndex((node) => node.className === "mermaid"), "under the diagram");
+  assert.match(explained[0].textContent, /What is this\?/);
+  assert.match(explained[0].textContent, /one box per module[^]*one arrow[^]*missing/i);
 });

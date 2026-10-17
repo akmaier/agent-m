@@ -91,3 +91,22 @@ export function entrySections(view, others, order, hrefOf) {
     el("section", "queue-order", el("h3", null, "The queue's order"), orderList),
   ];
 }
+
+// The impact list of a change to an accepted decision or module (UC-023 step 4; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST),
+// drawn from the ArchitectureImpact MOD-trace-graph's architectureImpact derives: the modules the change concerns, a module that uses an
+// interface it alters or removes marked as breaking; the code files in their folders; the tests that exercise them and what they guard; the
+// requirements and use cases the file names now and no longer; the backlog items that name an affected module.
+export function impactSection(impact) {
+  const list = (names) => (names.length ? names.join(", ") : "—");
+  const modules = el("ul", "names");
+  for (const each of impact.modules) {
+    modules.append(el("li", null, el("strong", null, each.id), ...(each.breaks ? [" ", el("span", "badge breaks", "breaks")] : []), ` — ${each.why}`));
+  }
+  if (impact.modules.length === 0) modules.append(el("li", null, "none — no module follows this decision"));
+  return el("section", "change-impact", el("h3", null, "Impact of this change"),
+    el("p", "small", el("strong", null, "Affected modules")), modules,
+    el("p", "small", el("strong", null, "Code files"), ` — ${impact.codeFiles.length ? list(impact.codeFiles) : "no code yet"}`),
+    el("p", "small", el("strong", null, "Tests"), ` — ${list(impact.tests.map((each) => `${each.id}${each.guards.length ? ` (guards ${each.guards.join(", ")})` : ""}`))}`),
+    el("p", "small", el("strong", null, "Requirements and use cases"), ` — newly named: ${list(impact.named.added)} · no longer named: ${list(impact.named.removed)}`),
+    el("p", "small", el("strong", null, "Items"), ` — ${list(impact.items)}`));
+}

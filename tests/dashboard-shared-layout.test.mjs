@@ -1,7 +1,8 @@
-// The dashboard's pages share one layout: #spec and #settings build their buttons and groups from the same classes as #uc
-// and #arc, whose look docs/assets/style.css gives.
+// The dashboard's pages share one layout: the pages of the review routes (#uc, #arc, #spec), which MOD-review-pages draws, and #settings
+// build their buttons and folded explanations from the same classes, whose look docs/assets/style.css gives; #settings and the
+// specification below #spec keep their titles in a section.head. The title of a review route's page is MOD-review-pages' own markup.
 //
-// Module: MOD-dashboard-app
+// Module: MOD-site-frame
 // Guards: UC-042; UC-020; UC-006; UC-008; UC-022
 // Level: system
 
@@ -58,10 +59,10 @@ function titleSection(html) {
 }
 
 // What the shared layout asks of one rendered page. -> the departures, each a short text naming the tag.
-function departures(html) {
+function departures(html, { title = true } = {}) {
   const found = [];
   const head = titleSection(html);
-  if (!head || !classesOf(head).includes("head")) found.push(`title outside a section.head: ${head ?? "no section"}`);
+  if (title && (!head || !classesOf(head).includes("head"))) found.push(`title outside a section.head: ${head ?? "no section"}`);
   for (const button of tags(html, "button")) if (!classesOf(button).includes("btn")) found.push(`button without btn: ${button}`);
   for (const details of tags(html, "details")) if (!classesOf(details).includes("explain")) found.push(`details without explain: ${details}`);
   return found;
@@ -72,19 +73,21 @@ const render = async (hash) => (await openDashboard({ server: await repoServer({
 // CASE LAYOUT-01
 // given: a product with one requirement, one use case and one module; the dashboard opened on #uc, #arc, #spec and #settings
 // input: each page as the dashboard renders it
-// expect: known positive first — #uc and #arc keep their title in a section.head, give every button the class btn and every
-//         folded explanation the class explain; then #spec and #settings do the same
-test("#spec and #settings use the layout of #uc and #arc: a section.head title, btn buttons, explain details", async () => {
+// expect: known positive first — #uc and #arc, drawn by MOD-review-pages, give every button the class btn and every folded
+//         explanation the class explain; #spec the same; #settings the same and keeps its title in a section.head
+test("#spec and #settings use the layout of #uc and #arc: btn buttons and explain details; #settings a section.head title", async () => {
   for (const hash of ["#uc", "#arc"]) {
     const html = await render(hash);
     assert.match(html, /<h2/, `known positive: ${hash} renders its title`);
-    assert.deepEqual(departures(html), [], `known positive: ${hash} follows the shared layout`);
+    assert.match(html, /<details/, `known positive: ${hash} renders a folded explanation`);
+    assert.deepEqual(departures(html, { title: false }), [], `known positive: ${hash} follows the shared layout`);
   }
-  for (const hash of ["#spec", "#settings"]) {
-    const html = await render(hash);
-    assert.match(html, /<button/, `${hash} renders buttons`);
-    assert.deepEqual(departures(html), [], `${hash} follows the shared layout`);
-  }
+  const spec = await render("#spec");
+  assert.match(spec, /<button/, "#spec renders buttons");
+  assert.deepEqual(departures(spec, { title: false }), [], "#spec follows the shared layout");
+  const settings = await render("#settings");
+  assert.match(settings, /<button/, "#settings renders buttons");
+  assert.deepEqual(departures(settings), [], "#settings follows the shared layout");
 });
 
 // CASE LAYOUT-02

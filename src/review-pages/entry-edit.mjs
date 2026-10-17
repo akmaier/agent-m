@@ -7,14 +7,14 @@
 // A SPEC EDIT IS SAVED AS A PROPOSAL; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. The editor is
 // used only through openEditor, and where there is to be no Save it is not opened: only an open entry is edited, and a GitLab product without a token is shown the proposal only.
 
-import { openEditor, renderArtifact } from "../markdown-render/index.mjs";
+import { renderArtifact } from "../markdown-render/index.mjs";
 import { entryView, queues, saveEntry } from "../spec-changes/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./edit.mjs";
 import { fallbackPages } from "./file-edit.mjs";
-import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
+import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
 import { entryId } from "./spec-entries.mjs";
 
 const pad2 = (number) => String(number).padStart(2, "0");
@@ -47,7 +47,7 @@ export async function showEntryEdit(where, kind, id) {
     return;
   }
   if (!token && parseServer(context) === "gitlab") {
-    target.append(renderArtifact(view.proposal.text), el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+    target.append(renderArtifact(view.proposal.text), el("p", "problem", "A GitLab product is written with the project's own token. ", tokenStep(context)));
     return;
   }
   const before = view.current?.text ?? "";
@@ -74,10 +74,11 @@ export async function showEntryEdit(where, kind, id) {
       if (outcome.refused === "not open") return { kind: "failed", reason: `the entry is no longer open: it is ${outcome.state}.` };
       if (outcome.fallback) {
         fallbackPages(saved, outcome.fallback);
-        return { kind: "failed", reason: "there is no token, so nothing was committed from here." };
+        await openGithubEditor(outcome.fallback[0]);
+        return { kind: "failed", reason: "there is no token, so nothing was committed from here: the proposal is on the clipboard and GitHub's editor is open." };
       }
       const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
-      saved.replaceChildren(el("p", "entry", "Saved in place: ", link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, id), " in ", link(commit, null, "this commit"), "."));
+      await where.shownAgain(id, el("p", "entry", "Saved in place: ", link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, id), " in ", link(commit, null, "this commit"), "."));
       return { kind: "saved", link: commit };
     } catch (failure) {
       return { kind: "failed", reason: `${failure.name}: ${failure.message}` };

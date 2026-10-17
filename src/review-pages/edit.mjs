@@ -8,13 +8,13 @@
 // MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. The page uses the editor only through its interface (the marks callback, the save
 // callback and its outcomes); it neither reaches into the editor's elements nor withholds its Save: where there is to be no Save, the editor is not opened.
 
-import { openEditor, renderArtifact } from "../markdown-render/index.mjs";
+import { renderArtifact } from "../markdown-render/index.mjs";
 import { parseSpec, renamedRequirements, requirementFindings, sectionText } from "../spec-document/index.mjs";
 import { proposeSection, queues } from "../spec-changes/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, parseServer, TOKEN_STEP } from "./common.mjs";
+import { el, link, openEditor, parseServer, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -48,7 +48,7 @@ export async function showEdit(where, kind, params) {
     return;
   }
   if (!token && parseServer(context) === "gitlab") {
-    target.append(renderArtifact(section), el("p", "problem", "A GitLab product is written with the project's own token. ", link(TOKEN_STEP, "token-step", "Store the token")));
+    target.append(renderArtifact(section), el("p", "problem", "A GitLab product is written with the project's own token. ", tokenStep(context)));
     return;
   }
   let graph, all;
