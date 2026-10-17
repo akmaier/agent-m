@@ -91,7 +91,7 @@ export async function showEdit(where, kind, params) {
     if (!reason) return { kind: "failed", reason: "say why in the Why field." };
     try {
       const outcome = await proposeSection(host, { target: SPEC, anchor: heading, until: null, text, why: reason, origin: "the dashboard",
-        person: token?.name ?? "anonymous", openedBlob });
+        person: token?.name ?? "anonymous", openedBlob, openedHead: snapshot.commit });
       if (outcome.refused) return { kind: "refused", newer: outcome.current ?? "" };
       if (outcome.fallback) {
         return fallbackPages(saved, outcome.fallback) ? { kind: "failed", reason: "there is no token, so nothing was committed from here." }

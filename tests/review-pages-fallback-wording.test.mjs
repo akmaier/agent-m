@@ -44,7 +44,7 @@ function fakeHost() {
     host: {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
       async readSnapshot(ref) {
-        if (ref === "main") return snapshot("main");
+        if (ref === "main" || ref === head) return snapshot(ref);
         throw failure("NotFound", `${ref} was not found`);
       },
       async readHistory() { return []; },

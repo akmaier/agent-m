@@ -1,7 +1,7 @@
 // The GitHub of the tests of MOD-settings-pages' route `sources` (tests/settings-pages-sources.test.mjs, tests/system-uc-015-sources-through-the-frame.test.mjs): GitHub's REST
 // API as MOD-repository-hosts' real GitHub host calls it — the repository's information, the head of a branch, a commit's tree, a file's text, and the commit that a write makes
 // (a tree, a commit, and the move of the branch) — answered by a fake of fetch over repositories that hold files, so that the route meets a real host and nothing reaches the
-// network. A request it has not been scripted for throws; every request is recorded. It also holds the small pieces both test files use: a register entry written as the library
+// network. A request it has not been scripted for throws; every request is recorded; a write without an authorisation header is answered 401. It also holds the small pieces both test files use: a register entry written as the library
 // writes it, the fixture DOM's finders, and a context as the frame hands it to a route. It is code only; it holds no expected result.
 //
 // Module: MOD-settings-pages; MOD-site-frame
@@ -19,7 +19,7 @@ const plain = (text) => new Response(text, { status: 200 });
 // A write moves the branch main to a new head; `commits` lists them oldest first as { sha, message, authorization, files }. `change` is another person's commit, made while a page is open.
 export function githubWorld(repositories) {
   const state = new Map(Object.entries(repositories).map(([name, { files, visibility = "public" }]) =>
-    [name, { files: new Map(Object.entries(files)), visibility, count: 0, trees: new Map(), made: new Map(), commits: [], head: null }]));
+    [name, { files: new Map(Object.entries(files)), visibility, count: 0, trees: new Map(), made: new Map(), blobs: new Map(), commits: [], head: null }]));
   const requests = [];
   const headOf = (name, count) => sha1(`${name}#${count}`);
   for (const [name, repository] of state) repository.head = headOf(name, 0);
@@ -36,6 +36,7 @@ export function githubWorld(repositories) {
       return text === undefined ? json({ message: "Not Found" }, 404) : plain(text);
     }
     if (url.origin !== "https://api.github.com") throw new Error(`unscripted request: ${method} ${url}`);
+    if (method !== "GET" && !headers.get("authorization")) return json({ message: "Requires authentication" }, 401);
     const [, , owner, name, ...rest] = url.pathname.split("/");
     const repository = state.get(`${owner}/${name}`);
     if (url.pathname.split("/")[1] !== "repos" || !repository) return json({ message: "Not Found" }, 404);
@@ -54,6 +55,11 @@ export function githubWorld(repositories) {
       return text === undefined ? json({ message: "Not Found" }, 404) : plain(text);
     }
     if (method === "GET" && tail.startsWith("actions/")) return json({ workflow_runs: [] });
+    if (method === "POST" && tail === "git/blobs") {
+      const sha = sha1(body.content);
+      repository.blobs.set(sha, Buffer.from(body.content, "base64").toString("utf8"));
+      return json({ sha }, 201);
+    }
     if (method === "POST" && tail === "git/trees") {
       const sha = sha1(JSON.stringify(body));
       repository.trees.set(sha, body.tree);
@@ -68,8 +74,9 @@ export function githubWorld(repositories) {
     if (method === "PATCH" && tail === "git/refs/heads/main") {
       const made = repository.made.get(body.sha);
       if (!made || !made.parents.includes(repository.head)) return json({ message: "Update is not a fast forward" }, 422);
-      for (const entry of made.tree) repository.files.set(entry.path, entry.content);
-      repository.commits.push({ sha: body.sha, message: made.message, authorization: headers.get("authorization"), files: Object.fromEntries(made.tree.map((entry) => [entry.path, entry.content])) });
+      const textOf = (entry) => entry.content ?? repository.blobs.get(entry.sha);
+      for (const entry of made.tree) repository.files.set(entry.path, textOf(entry));
+      repository.commits.push({ sha: body.sha, message: made.message, authorization: headers.get("authorization"), files: Object.fromEntries(made.tree.map((entry) => [entry.path, textOf(entry)])) });
       repository.head = body.sha;
       return json({ object: { sha: body.sha } });
     }
@@ -90,11 +97,13 @@ export function githubWorld(repositories) {
 }
 
 // ---------------------------------------------------------------- a register entry as the library writes it
-// register({ id, title, kind, authority, licence, designation?, versions: [{ version, date, hash }], parts? }) -> the text of `docs/sources/<id>.md`.
-export function registerEntry({ id, title, kind, authority, licence, designation, versions, parts }) {
-  const front = Object.entries({ id, title, kind, authority, licence, designation }).filter(([, value]) => value !== undefined).map(([key, value]) => `${key}: ${value}`);
-  const rows = versions.map(({ version, date, hash }) => `| \`${version}\` | ${date} | — | fixture | 1 file, listed below; version hash \`${hash}\` |`);
-  const files = versions.flatMap(({ version }) => ["", `### Files of ${version}`, "", "| File | SHA-256 |", "|---|---|", `| \`file-${version}.md\` | \`${"f".repeat(64)}\` |`]);
+// register({ id, title, kind, authority, licence, designation?, content_repository?, versions: [{ version, date, hash, files?: [{ name, sha256 }], notStored?: [name] }], parts? }) -> the text of `docs/sources/<id>.md`.
+// A version without `files` lists one file `file-<version>.md`.
+export function registerEntry({ id, title, kind, authority, licence, designation, content_repository, versions, parts }) {
+  const front = Object.entries({ id, title, kind, authority, licence, designation, content_repository }).filter(([, value]) => value !== undefined).map(([key, value]) => `${key}: ${value}`);
+  const rows = versions.map(({ version, date, hash, notStored }) => `| \`${version}\` | ${date} | — | fixture | 1 file, listed below; version hash \`${hash}\`${notStored ? `; not stored: ${notStored.join(", ")}` : ""} |`);
+  const files = versions.flatMap(({ version, files: listed }) => ["", `### Files of ${version}`, "", "| File | SHA-256 |", "|---|---|",
+    ...(listed ?? [{ name: `file-${version}.md`, sha256: "f".repeat(64) }]).map((file) => `| \`${file.name}\` | \`${file.sha256}\` |`)]);
   return [...(front.length ? ["---", ...front, "---"] : []), `# ${id} ${title}`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", ...rows, ...files, "",
     ...(parts ? ["## Parts", "", ...parts.map((part) => `- ${part}`), ""] : [])].join("\n");
 }

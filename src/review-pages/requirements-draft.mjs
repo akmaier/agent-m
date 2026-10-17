@@ -73,7 +73,7 @@ export async function requirementsDraft({ snapshot, host, token, context, draft,
       for (const section of sections) {
         saved.push(await proposeSection(host, { target: SPEC, anchor: section.anchor, until: section.until, text: section.text,
           why: `Drafted from ${params.source} on the person's instruction.`, origin: "the prompt bar", person: token?.name ?? "anonymous",
-          openedBlob: opened.get(section.anchor), trailers }));
+          openedBlob: opened.get(section.anchor), openedHead: snapshot.commit, trailers }));
       }
       const fallback = saved.flatMap((each) => each.fallback ?? []);
       if (fallback.length) {

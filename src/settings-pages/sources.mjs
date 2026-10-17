@@ -3,7 +3,8 @@
 // `## Parts`; Save writes the product's `docs/sources.md` with MOD-artifact-edits' saveFile, on the blob it was opened on, as the person's own commit, in one commit. Before a
 // link is removed, the requirements that name its source are listed, with MOD-source-register's affectedRequirements. A link to the library and, in the library, one back (2a).
 // The folded What is this? is MOD-site-frame's topic requirement-sources, called through explain (EVERY STEP EXPLAINS ITSELF). A restricted source links like any other (3a):
-// only its content needs access.
+// only its content needs access. The file's reading and writing (openLinks, linkRow, linkCells, movedRows, linksText, saveLinks) are exported: the library's Move of a product to a
+// source's newer version (UC-016 5) writes the link through the same code.
 //
 // Module: MOD-settings-pages
 //
@@ -39,11 +40,18 @@ function el(name, className, ...children) {
   return node;
 }
 
-// The product's files this page reads, at the head of its default branch: the links file with the blob it was opened on (null: it does not exist yet), and the SPEC.
-async function readProduct(host) {
+// A product's links file at the head of its default branch: the snapshot it was read from, its text (null: it does not exist yet) and the blob it was opened on. The library page reads it
+// for each product this browser keeps, to show the products on an older version of a source.
+export async function openLinks(host) {
   const { defaultBranch } = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(defaultBranch);
-  return { text: await snapshot.read(PATH), blob: snapshot.blob(PATH), spec: (await snapshot.read(SPEC_PATH)) ?? "" };
+  return { snapshot, text: await snapshot.read(PATH), blob: snapshot.blob(PATH) };
+}
+
+// The product's files this page reads, at the head of its default branch: the links file with the blob it was opened on (null: it does not exist yet), and the SPEC.
+async function readProduct(host) {
+  const { snapshot, text, blob } = await openLinks(host);
+  return { text, blob, spec: (await snapshot.read(SPEC_PATH)) ?? "" };
 }
 
 // The parts an entry names: each line of its `## Parts`, without the marker of a list item.
@@ -55,6 +63,27 @@ const rowsOf = (document_) => document_.sections[0]?.rows ?? [];
 const sourceOf = (row) => unquoted(row.cells.Source);
 // A row as the file says it, to tell a change from none.
 const signature = (row) => [sourceOf(row), unquoted(row.cells.Version), unquoted(row.cells.Hash), String(row.cells.Part ?? "").trim()].join("\u0000");
+
+// The row of a links file that links the source `id`, or undefined.
+export const linkRow = (document_, id) => rowsOf(document_).find((row) => sourceOf(row) === id);
+
+// The cells of a link when the person's choice is `record` ({ version, hash }) and `part`: the row's own cells where its version and part are the choice's.
+export function linkCells(id, row, record, part) {
+  const same = Boolean(row) && unquoted(row.cells.Version) === record.version;
+  const kept = String(part).trim();
+  return { Source: row ? row.cells.Source : id, Version: same ? row.cells.Version : record.version,
+    Hash: same ? row.cells.Hash : record.hash, Part: row && kept === String(row.cells.Part ?? "").trim() ? row.cells.Part : kept };
+}
+
+// The rows of a links file with the link of `id` moved to `record`, its part kept.
+export const movedRows = (document_, id, record) => rowsOf(document_)
+  .map((row) => (sourceOf(row) === id ? { ...row, cells: linkCells(id, row, record, row.cells.Part ?? "") } : row));
+
+// The text of a links file holding `rows`.
+export const linksText = (document_, rows) => writeDocument(LINKS, { ...document_, sections: [{ ...document_.sections[0], rows }] });
+
+// The links file saved on the blob it was opened on, as the person's own commit; `trailers` end the commit's message. -> saveFile's result.
+export const saveLinks = (host, opened, text, trailers = []) => saveFile(host, { path: PATH, text, openedBlob: opened.blob, trailers });
 
 export const route = {
   name: "sources",
@@ -142,13 +171,7 @@ export const route = {
     // ------------------------------------------------------------ Save
     const result = el("p", "sources-result");
     const save = el("button", "sources-save btn primary", "Save");
-    const cellsOf = (item, row) => {
-      const record = item.versions.find((each) => each.version === item.select.value);
-      const same = Boolean(row) && unquoted(row.cells.Version) === record.version;
-      const part = item.part.value.trim();
-      return { Source: row ? row.cells.Source : item.entry.id, Version: same ? row.cells.Version : record.version,
-        Hash: same ? row.cells.Hash : record.hash, Part: row && part === String(row.cells.Part ?? "").trim() ? row.cells.Part : part };
-    };
+    const cellsOf = (item, row) => linkCells(item.entry.id, row, item.versions.find((each) => each.version === item.select.value), item.part.value);
     const rowsNow = () => {
       const byId = new Map(items.map((item) => [item.entry.id, item]));
       const kept = rowsOf(opened.document).flatMap((row) => {
@@ -168,9 +191,9 @@ export const route = {
         result.textContent = "Nothing changed; nothing was written.";
         return;
       }
-      const text = writeDocument(LINKS, { ...opened.document, sections: [{ ...opened.document.sections[0], rows }] });
+      const text = linksText(opened.document, rows);
       try {
-        const saved = await saveFile(product.host, { path: PATH, text, openedBlob: opened.blob });
+        const saved = await saveLinks(product.host, opened, text);
         if (saved.refused) {
           result.textContent = `${PATH} changed since this page read it; nothing was written. Your choices stay here; open the page again to read the newer file.`;
           return;
