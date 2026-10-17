@@ -1,7 +1,7 @@
 // MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Built: the types View,
 // Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, the last two with the
 // start of the prompt bar (subject.mjs gives it the subject of the route shown); menuOf (menu.mjs); instanceOf; chosenProduct
-// (routing.mjs); explain; runPanel (run-panel.mjs); confirmDecision; notice; schemaForm (forms.mjs), without its options secretKeys
+// (routing.mjs); explain; runPanel (run-panel.mjs); confirmDecision (decision.mjs); notice (notices.mjs); schemaForm (forms.mjs), without its options secretKeys
 // and readOnly. Not built yet: embedRoute and the frame's own check of the topics.
 //
 // Module: MOD-site-frame
@@ -20,14 +20,16 @@ import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
 import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
+import { notice, noticePlace } from "./notices.mjs";
 
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
 export { menuOf } from "./menu.mjs";
 export { chosenProduct } from "./routing.mjs";
+export { notice } from "./notices.mjs";
+export { confirmDecision } from "./decision.mjs";
 
 const UPSTREAM = "akmaier/agent-m";
-let notices = null;
 const LOOK = new URL("./look.css", import.meta.url).href;
 const PRL_LOGO = new URL("./brand/prl-lettered.png", import.meta.url).href;
 const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;
@@ -198,8 +200,7 @@ async function startSite({ page, views }) {
   const selector = document.createElement("select");
   selector.className = "product";
   header.getElementsByTagName("div")[0].append(selector, menu);
-  notices = document.createElement("section");
-  notices.className = "site-frame-notices";
+  const notices = noticePlace();
   const target = document.createElement("main");
   target.className = "site-frame-route";
   const foot = document.createElement("footer");
@@ -328,8 +329,7 @@ async function startBridge({ page, views }) {
   const routes = views.flatMap((view) => view?.routes ?? []);
   const first = routes[0] ?? null;
   const header = sharedHeader("Bridge");
-  notices = document.createElement("section");
-  notices.className = "site-frame-notices";
+  const notices = noticePlace();
   const target = document.createElement("main");
   target.className = "site-frame-route";
   document.body.replaceChildren(header, notices, target);
@@ -348,51 +348,4 @@ async function startBridge({ page, views }) {
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", show);
   await show();
-}
-
-// notice(kind, detail) -> void — one supplied message at the frame's notice place. It performs no action beyond drawing the
-// supplied text and optional link.
-export function notice(kind, { text, link } = {}) {
-  if (!notices) throw new Error("Start a page before showing a notice.");
-  const shown = document.createElement("p");
-  shown.className = `notice ${kind}`;
-  shown.append(String(text ?? ""));
-  if (link) {
-    const anchor = document.createElement("a");
-    anchor.setAttribute("href", link.href);
-    anchor.textContent = link.label;
-    shown.append(" ", anchor);
-  }
-  notices.append(shown);
-}
-
-// confirmDecision(decision) -> Promise<{ confirmed: boolean, reason: string | null }> — the single small confirmation
-// surface used by the Bridge frame. The result is produced only by the person's button click.
-export function confirmDecision({ title, lines, confirm, reason = false }) {
-  return new Promise((resolve) => {
-    const dialog = document.createElement("section");
-    dialog.className = "decision";
-    const heading = document.createElement("h2");
-    heading.textContent = title;
-    dialog.append(heading);
-    for (const line of lines ?? []) {
-      const paragraph = document.createElement("p");
-      paragraph.textContent = line;
-      dialog.append(paragraph);
-    }
-    const reasonField = reason ? document.createElement("textarea") : null;
-    if (reasonField) dialog.append(reasonField);
-    const cancel = document.createElement("button");
-    cancel.textContent = "Cancel";
-    const accept = document.createElement("button");
-    accept.textContent = confirm;
-    const answer = (confirmed) => {
-      dialog.remove();
-      resolve({ confirmed, reason: confirmed && reasonField ? reasonField.value : null });
-    };
-    cancel.addEventListener("click", () => answer(false));
-    accept.addEventListener("click", () => answer(true));
-    dialog.append(cancel, accept);
-    document.body.append(dialog);
-  });
 }
