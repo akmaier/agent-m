@@ -33,10 +33,20 @@ class Node extends EventTarget {
     Object.assign(this, { _doc: doc, _type: type, _name: name, _parent: null, _kids: [] });
   }
   // A browser marks the events a person makes as trusted (`isTrusted`) and those a script makes as not. node marks every Event untrusted,
-  // so the harness stands for the person: an event dispatched through a node is trusted, unless the test made it with `scripted()`.
+  // so the harness stands for the person: an event dispatched through a node is trusted, unless the test made it with `scripted()` or the node stands within an element of a class that the file using the harness lists in `globalThis.reviewPagesScriptedWithin`
+  // (tests/uc-019-prompt-bar-harness.mjs lists the prompt bar's hand-over, which its tests click as a script first).
   dispatchEvent(event) {
-    if (!event.scripted) Object.defineProperty(event, "isTrusted", { value: true });
+    const within = globalThis.reviewPagesScriptedWithin ?? [];
+    const scriptedHere = within.length > 0 && this.closestOf(within);
+    if (!event.scripted && !scriptedHere) Object.defineProperty(event, "isTrusted", { value: true });
     return super.dispatchEvent(event);
+  }
+  // Whether this node stands within an element of one of these classes.
+  closestOf(classes) {
+    for (let node = this; node; node = node._parent) {
+      if (node._type === 1 && String(node.className ?? "").split(" ").some((name) => classes.includes(name))) return true;
+    }
+    return false;
   }
   get nodeType() { return this._type; }
   get nodeName() { return this._name; }
