@@ -7,6 +7,7 @@ realises:
   - MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 modules:
   - MOD-trace-pages
+  - MOD-site-frame
 builds_on:
 tests:
   - unit
