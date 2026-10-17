@@ -55,12 +55,12 @@ const lines = (...parts) => parts.filter((part) => typeof part === "string" && p
 
 /**
  * subjectOf({ title, params, context, shown }) -> Subject — the subject of the route `trace` shown with these `params` and this `context`;
- * `shown` is what the route has kept while it was drawn: `target` (what it has drawn), `onDefaultBranch`, `spec` (as parseSpec reads it),
+ * `shown` is what the route has kept while it was drawn: `target` (what it has drawn), `ref` (the version shown, which the version choice may have changed from `params.ref`), `onDefaultBranch`, `spec` (as parseSpec reads it),
  * `source` (the person's, or null), and `requirements` (names) and `groups` ({ heading, names }) in the order they were opened; null where
  * the route was not drawn with this context. `key` tells the view, the version, what is open and the product apart.
  */
 export function subjectOf({ title, params, context, shown }) {
-  const ref = params.ref;
+  const ref = shown?.ref ?? params.ref;
   const address = context.product?.address;
   const version = typeof ref === "string" && ref !== "" ? `Version: ${ref}` : "";
   const keyOf = (...parts) => ["trace", `key=${encoded(params.key ?? "")}`, ...(version ? [`ref=${encoded(ref)}`] : []), ...parts,
