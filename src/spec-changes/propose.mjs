@@ -273,11 +273,16 @@ export async function queueEntries(result, context) {
     if (sections.length > 0) plans.push({ where, mine, spec, composable, sections });
   }
 
+  // Every refusal that depends only on the draft and the context is raised before the first commit, so that a refusal of the second repository leaves the first unwritten too:
+  // NoHost for every repository that gets a queue, then the composing of each queue, whose rationale breaks its schema or not. Moved is known only by committing and stays in the second loop.
+  for (const { where } of plans) {
+    if (!where.host) throw Object.assign(new Error("the repository the queue belongs to has no host to commit to"), { name: "NoHost" });
+  }
+
   // The folders this call has named for a repository, so that a second queue of the day in it is not given the first's name before the first is written.
   const named = new Map();
+  const prepared = [];
   for (const { where, mine, spec, composable, sections } of plans) {
-    const host = where.host;
-    if (!host) throw Object.assign(new Error("the repository the queue belongs to has no host to commit to"), { name: "NoHost" });
     const graph = await traceGraph(where.snapshot);
     const taken = named.get(where.snapshot) ?? [];
     const { day, folder } = folderFor([...where.snapshot.paths, ...taken.map((each) => `${each}/index.md`)], date, slug);
@@ -307,10 +312,13 @@ export async function queueEntries(result, context) {
       ...sections.map((section, at) => `| ${pad2(at + 1)} | \`SPEC.md\` | ${section.anchor} | — | — |`), ""].join("\n");
     const decisions = `# Decisions — queue ${day} ${title}\n\nAppend-only.\n`;
     const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId ?? "none", kind: context.kind?.name ?? "none", participant: job.participant, rounds: job.rounds });
-    const { defaultBranch } = await host.repositoryInfo();
     const planned = [{ path: `${folder}/index.md`, text: index }, ...files, { path: `${folder}/entscheidungen.md`, text: decisions }];
-    const committed = await host.commitFiles({ branch: defaultBranch, expectedHead: where.snapshot.commit ?? null, files: planned,
-      message: `Propose ${sections.length} SPEC ${sections.length === 1 ? "change" : "changes"} as queue ${day}\n\n${trailers.join("\n")}` });
+    prepared.push({ where, planned, message: `Propose ${sections.length} SPEC ${sections.length === 1 ? "change" : "changes"} as queue ${day}\n\n${trailers.join("\n")}` });
+  }
+
+  for (const { where, planned, message } of prepared) {
+    const { defaultBranch } = await where.host.repositoryInfo();
+    const committed = await where.host.commitFiles({ branch: defaultBranch, expectedHead: where.snapshot.commit ?? null, files: planned, message });
     outcome.commits.push(committed.commit);
     outcome.files.push(...planned.map((file) => file.path));
   }
