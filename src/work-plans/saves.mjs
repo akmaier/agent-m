@@ -131,13 +131,16 @@ export async function startSprint(host, sprint, context) {
  * endSprint(host: Host, sprint: string, context: { head: string, now: Date, trailers: string[] }) -> Promise<{ commit: string }>
  * — End sprint (UC-032 6b): appends ## Ended with the day of `now` (UTC) to the record of `sprint`, `<team>/<nn>`, in one commit
  * on the default branch at `head`. A sprint with a time box — its end is its date — or one that holds its ## Ended already is
- * refused with NotEndable, and nothing is written. Crosses the network, through the host; fails also with the host's failures.
+ * refused with NotEndable, one that has no record with NotFound { path }, and nothing is written. Crosses the network, through the host; fails also with the host's failures.
  */
 export async function endSprint(host, sprint, context) {
   const { head, now, trailers = [] } = context;
   const path = `docs/backlog/sprints/${text(sprint)}.md`;
   const snapshot = await host.readSnapshot(head);
   const current = await snapshot.read(path);
+  if (current === null || current === undefined) {
+    throw new WorkPlansError("NotFound", { path }, `${path} is no sprint of this product at ${head}.`);
+  }
   const record = readDocument(sprintSchema, path, current);
   if (text(record.fields.end).trim() !== "") {
     throw new WorkPlansError("NotEndable", { sprint }, `Sprint ${sprint} has a time box: it ends on ${text(record.fields.end)}.`);
