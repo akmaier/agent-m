@@ -211,7 +211,9 @@ The six stages of the main page, each a share between 0 and 1:
   team's sprint and the module.
 - `whoWorksOnWhat(facts: Facts) -> { participants: Array<{ participant: string, roles: string[], teams: string[], jobs:
   string[] }>, held: Held[], unreachable: Array<{ route: string, reason: string | null }> }` — each participant of the
-  product with its roles, its teams in a product with several teams, and its current jobs; what each team's sprint holds; and each source of jobs that could not be read, whose running jobs are not shown.
+  product with its roles, its teams in a product with several teams, and its current jobs; what each team's sprint holds; and each source of jobs that could not be read, whose running jobs are not shown. A job record
+  that cannot be read names no route: it stands as a source of its own, its path as `route`, with the reason it could not
+  be read; a source not reached with different reasons is listed once for each.
 - `buildInProgress(facts: Facts) -> Array<{ item: string, job: string, participant: string, state: string, elapsed:
   number, reachable: boolean }>` — the steps or items in progress, each with the job working on it, its participant,
   state and elapsed time, jobs on Bridges included; a job whose runtime does not answer is listed as not reachable, with
