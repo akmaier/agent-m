@@ -1,159 +1,166 @@
-# Module: MOD-traceability
-# Guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+# Module: MOD-trace-graph
+# Guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; MODULE GAPS ARE REPORTED, NOT FORBIDDEN; EVERY CODE FILE BELONGS TO A MODULE
 # Level: unit
 """SPEC §4 UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN — a requirement with no use case and a use case with no
 requirement are both shown in the dashboard; neither blocks a run. SPEC §11 MODULE GAPS ARE REPORTED, NOT FORBIDDEN — a
-module that realises no requirement, a requirement that no module realises, a module that no test exercises, and a code
-file that names no module are shown in the dashboard; none of them blocks a job.
+module that realises no requirement, a requirement that no module realises and a module that no test exercises are shown in
+the dashboard; none of them blocks a job. SPEC §11 EVERY CODE FILE BELONGS TO A MODULE — a code file in no module's folder is
+listed.
 
-MOD-traceability coverageGaps(graph) gives the lists of UC-020 step 7 and moduleRows(graph) the rows and gaps of UC-025
-steps 3 and 4. Reported: each gap is a list entry naming the artifact it concerns. Not forbidden: a graph full of gaps is
-built, and every view of it — the rows, the impact lists — is computed from it as from a graph without one; no gap is an
-error, and nothing refuses. A module that realises nothing is such a gap here, whatever the format check of its file says
-(ITM-013). The files are the fixture product tests/fixtures/architecture/, with gaps planted in copies of it.
+MOD-trace-graph: traceGraph builds the graph of a repository's files, coverageGaps gives the lists of UC-020 step 7 and
+moduleRows the rows and gaps of UC-025 steps 3 and 4. Reported: each gap is a list entry naming the artifact it concerns. Not
+forbidden: a graph full of gaps is built, every view of it is computed as from a graph without one, and graphFindings, whose
+findings are errors, reports none of the gaps. The product is built here, small, from the helpers below, with gaps planted in
+copies of it; each test states its input and its expected result in its own text.
 """
 import json
 import unittest
-from pathlib import Path
 
 from jsrun import js
 
-FIX = Path(__file__).resolve().parent / "fixtures" / "architecture"
-FILES = {p.relative_to(FIX).as_posix(): p.read_text(encoding="utf-8") for p in sorted(FIX.rglob("*")) if p.is_file()}
-ARC, READER = "docs/architecture/ARC-001-static-client.md", "docs/architecture/MOD-reader.md"
-REVIEW, PAGE = "docs/architecture/MOD-review.md", "docs/architecture/MOD-page.md"
-UC3 = "docs/use-cases/UC-003-export.md"
-RULE_THREE = "**RULE THREE** *(PO, 2026-10-01)*\nA third rule.\n*Check:* none\n\n"
+RULE_ONE, RULE_TWO = "RULE ONE", "RULE TWO"
+SPEC_ONE = f"**{RULE_ONE}** *(PO, 2026-10-01)*\nThe first rule.\n*Check:* none\n\n"
+SPEC_TWO = f"**{RULE_TWO}** *(PO, 2026-10-01)*\nThe second rule.\n*Check:* none\n\n"
+DECISION = "docs/architecture/ARC-001-the-whole.md"
 
 
-def edited(files: dict, path: str, old: str, new: str) -> dict:
-    assert old in files[path], (path, old)
-    return {**files, path: files[path].replace(old, new)}
+def spec(*rules: str) -> str:
+    return "# Fixture product\n\n## Rules\n\n" + "".join(rules)
 
 
-def use_case(realises: list) -> str:
-    lines = "".join(f"  - {n}\n" for n in realises)
-    return (f"---\nid: UC-003\ntitle: Export\narea: 1\nactors:\n  - Reader\nrealises:{' []' if not realises else ''}\n"
-            f"{lines}---\n# UC-003 Export\n")
+def decision(designs: list) -> str:
+    items = "".join(f"  - {m}\n" for m in designs)
+    return (f"---\nid: ARC-001\ntitle: The whole\nforced_by:\n  - {RULE_ONE}\ndesigns:\n{items}---\n# ARC-001 The whole\n")
 
 
-def gaps(files: dict) -> dict:
-    return js(f"return traceability.coverageGaps(traceability.linkGraph({{ files: {json.dumps(files)} }}));")
+def module(slug: str) -> str:
+    return (f"---\nid: MOD-{slug}\ntitle: {slug}\nfolder: src/{slug}/\nrealises: []\nfollows:\n  - ARC-001\nuses: []\n"
+            f"provides: []\n---\n# MOD-{slug} {slug}\n")
 
 
-def modules(files: dict) -> dict:
-    return js(f"return traceability.moduleRows(traceability.linkGraph({{ files: {json.dumps(files)} }}));")
+def use_case(n: int, realises: list) -> str:
+    lines = "".join(f"  - {name}\n" for name in realises)
+    return (f"---\nid: UC-00{n}\ntitle: Case {n}\narea: 1\nactors:\n  - Reader\nrealises:{'' if realises else ' []'}\n{lines}"
+            f"---\n# UC-00{n} Case {n}\n")
 
 
-def gap_list(m: dict) -> list:
-    return sorted((g["kind"], g["artifact"]) for g in m["gaps"])
+def test_file(n: int, slug: str, guards: list) -> str:
+    """A test file with one declaration, written from parts so that this file declares no test by it."""
+    head = " ".join(["//", f"TST-10000{n}", "·", "level: unit", "·", f"module: MOD-{slug}"])
+    return (f"{head}\n// guards: {'; '.join(guards)}\n// given: nothing\n// input: nothing\n// expect: nothing\n"
+            "test(\"a fixture test\", () => {});\n")
 
 
-# The fixture with every gap of both rules: RULE THREE, which nothing realises; UC-003, which realises only a withdrawn
-# requirement and an unknown name; the test guarding a rule its module does not realise; a code file naming two modules and
-# one naming a module that does not exist.
-GAPPED = {**FILES, "SPEC.md": FILES["SPEC.md"].replace("**OLD RULE**", RULE_THREE + "**OLD RULE**"),
-          UC3: use_case(["OLD RULE", "NO SUCH RULE"]),
-          "tests/reader.test.js": FILES["tests/reader.test.js"].replace("// Guards: RULE ONE", "// Guards: RULE ONE; THE READER'S RULE"),
-          "src/both.js": "// Module: MOD-reader\n// Module: MOD-review\n",
-          "src/ghost.js": "// Module: MOD-ghost\n"}
+def product(code_at: str = "src/one/one.mjs", tested: bool = True, extra: dict = None) -> dict:
+    """One requirement, one decision, one module MOD-one; its code file at `code_at`, a test of it unless `tested` is false, and
+    the files of `extra` besides."""
+    files = {"SPEC.md": spec(SPEC_ONE), DECISION: decision(["MOD-one"]), "docs/architecture/MOD-one.md": module("one"),
+             code_at: "export const one = 1;\n", "docs/use-cases/UC-001-case.md": use_case(1, [RULE_ONE])}
+    if tested:
+        files["tests/one.test.mjs"] = test_file(1, "one", [RULE_ONE])
+    return {**files, **(extra or {})}
+
+
+def run(files: dict, call: str):
+    """The expression `call` over the graph `tg` that traceGraph builds from `files`."""
+    return js(f"const fixture = {json.dumps(files)};"
+              "const tg = await traceGraph.traceGraph({ paths: Object.keys(fixture), read: async (p) => fixture[p] ?? null });"
+              + call)
+
+
+def coverage(files: dict) -> dict:
+    return run(files, "return traceGraph.coverageGaps(tg);")
+
+
+def gap_list(files: dict) -> list:
+    return [[g["kind"], g["artifact"]] for g in run(files, "return traceGraph.moduleRows(tg);")["gaps"]]
 
 
 class UnrealisedRequirements(unittest.TestCase):
-    def test_the_fixture_has_no_coverage_gap_but_its_untested_rule(self):
-        self.assertEqual(gaps(FILES), {"unrealised": [], "realisingNothing": [],
-                                       "unknownNames": [{"name": "MOD-store", "withdrawn": False, "from": ["MOD-review"]}],
-                                       "untested": ["THE READER'S RULE"]})
-
+    # TST-692101 · level: unit · module: MOD-trace-graph
+    # guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+    # given: a product of RULE ONE, which UC-001 realises, and RULE TWO, which no use case realises, with UC-002 realising nothing and UC-003 realising only the name NO SUCH RULE
+    # input: coverageGaps over the graph traceGraph builds from its files
+    # expect: RULE TWO is the one requirement without a use case; UC-002 and UC-003 are the use cases without a requirement; NO SUCH RULE is the one unknown name, named by UC-003 alone
     def test_a_requirement_without_use_case_and_a_use_case_without_requirement_are_listed(self):
-        g = gaps(GAPPED)
-        self.assertEqual(g["unrealised"], ["RULE THREE"])
-        self.assertEqual(g["realisingNothing"], ["UC-003"], "it realises only a withdrawn and an unknown name")
-        self.assertIn({"name": "OLD RULE", "withdrawn": True, "from": ["UC-003"]}, g["unknownNames"])
-        self.assertIn({"name": "NO SUCH RULE", "withdrawn": False, "from": ["UC-003"]}, g["unknownNames"])
-        self.assertEqual(g["untested"], ["RULE THREE"], "the test now guards THE READER'S RULE too")
-        # A use case with an empty realises list is the same gap.
-        self.assertEqual(gaps({**FILES, UC3: use_case([])})["realisingNothing"], ["UC-003"])
+        files = product(extra={"docs/use-cases/UC-002-case.md": use_case(2, []),
+                               "docs/use-cases/UC-003-case.md": use_case(3, ["NO SUCH RULE"])})
+        files["SPEC.md"] = spec(SPEC_ONE, SPEC_TWO)
+        gaps = coverage(files)
+        self.assertEqual(gaps["requirementsWithoutUseCase"], [RULE_TWO])
+        self.assertEqual(gaps["useCasesWithoutRequirement"], ["UC-002", "UC-003"])
+        self.assertEqual([(u["name"], [p["id"] for p in u["namedBy"]]) for u in gaps["unknownNames"]], [("NO SUCH RULE", ["UC-003"])])
 
+    # TST-692102 · level: unit · module: MOD-trace-graph
+    # guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+    # given: the product of TST-692101 with UC-002 realising RULE TWO and no UC-003
+    # input: coverageGaps over its graph
+    # expect: no requirement without a use case, no use case without a requirement and no unknown name
     def test_counter_proof_a_realised_requirement_is_no_gap(self):
-        realised = {**GAPPED, UC3: use_case(["RULE THREE"])}
-        g = gaps(realised)
-        self.assertEqual([g["unrealised"], g["realisingNothing"]], [[], []])
-        self.assertNotIn("OLD RULE", [u["name"] for u in g["unknownNames"]])
+        files = product(extra={"docs/use-cases/UC-002-case.md": use_case(2, [RULE_TWO])})
+        files["SPEC.md"] = spec(SPEC_ONE, SPEC_TWO)
+        gaps = coverage(files)
+        self.assertEqual([gaps["requirementsWithoutUseCase"], gaps["useCasesWithoutRequirement"], gaps["unknownNames"]], [[], [], []])
 
 
 class ModuleGaps(unittest.TestCase):
-    def test_each_module_row_names_what_it_realises_follows_its_code_and_its_tests(self):
-        rows = {r["id"]: r for r in modules(FILES)["rows"]}
-        self.assertEqual(sorted(rows), ["MOD-page", "MOD-reader", "MOD-review"])
-        self.assertEqual(rows["MOD-reader"]["realises"], [{"name": "RULE ONE", "status": "accepted"},
-                                                          {"name": "UC-001", "status": None}])
-        self.assertEqual(rows["MOD-reader"]["follows"], [{"name": "ARC-001", "status": None}])
-        self.assertEqual(rows["MOD-reader"]["code"], ["src/reader.js"])
-        self.assertEqual(rows["MOD-reader"]["tests"], [{"path": "tests/reader.test.js", "guards": ["RULE ONE"]}])
-        self.assertEqual([rows["MOD-review"]["code"], rows["MOD-review"]["tests"]], [["src/review.py"], []])
-        self.assertEqual([rows["MOD-page"]["realises"], rows["MOD-page"]["code"]], [[], []])
+    # TST-692103 · level: unit · module: MOD-trace-graph
+    # guards: EVERY CODE FILE BELONGS TO A MODULE
+    # given: the product with its code file at src/one/one.mjs, in the folder of MOD-one, and a copy with the file at loose/one.mjs, in no module's folder
+    # input: moduleRows over the graph of each
+    # expect: the first lists no gap at all; the second lists the code file loose/one.mjs as code-without-module, and MOD-one as without code, and nothing else
+    def test_a_code_file_in_no_modules_folder_is_listed_and_a_product_whose_files_all_belong_lists_none(self):
+        self.assertEqual(gap_list(product()), [])
+        self.assertEqual(gap_list(product(code_at="loose/one.mjs")),
+                         [["code-without-module", "loose/one.mjs"], ["module-without-code", "MOD-one"]])
 
-    def test_the_four_gaps_of_the_rule_and_those_of_uc_025_are_listed(self):
-        self.assertEqual(gap_list(modules(FILES)), [
-            ("code-without-module", "src/late.js"),
-            ("module-without-code", "MOD-page"),
-            ("module-without-test", "MOD-page"),
-            ("module-without-test", "MOD-review"),
-            ("realises-nothing", "MOD-page"),
-            ("unknown-name", "MOD-review"),
-        ])
-        self.assertEqual(gap_list(modules(GAPPED)), [
-            ("code-names-two-modules", "src/both.js"),
-            ("code-names-unknown-module", "src/ghost.js"),
-            ("code-without-module", "src/late.js"),
-            ("module-without-code", "MOD-page"),
-            ("module-without-test", "MOD-page"),
-            ("module-without-test", "MOD-review"),
-            ("realises-nothing", "MOD-page"),
-            ("requirement-without-module", "RULE THREE"),
-            ("test-guards-what-its-module-does-not-realise", "tests/reader.test.js"),
-            ("unknown-name", "MOD-review"),
-        ])
-        by = {(g["kind"], g["artifact"]): g for g in modules(GAPPED)["gaps"]}
-        self.assertEqual(by[("test-guards-what-its-module-does-not-realise", "tests/reader.test.js")]["names"],
-                         ["THE READER'S RULE"])
-        self.assertEqual(by[("unknown-name", "MOD-review")]["names"], ["MOD-store"])
-        self.assertEqual(by[("code-names-unknown-module", "src/ghost.js")]["names"], ["MOD-ghost"])
+    # TST-692104 · level: unit · module: MOD-trace-graph
+    # guards: MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+    # given: the product with no test of MOD-one, and with RULE TWO in its SPEC, which no module realises
+    # input: moduleRows over its graph
+    # expect: MOD-one is listed as realising no requirement and as exercised by no test, and RULE TWO as a requirement no module realises; and these three only
+    def test_a_module_that_realises_nothing_a_requirement_no_module_realises_and_a_module_no_test_exercises_are_listed(self):
+        files = product(tested=False)
+        files["SPEC.md"] = spec(SPEC_ONE, SPEC_TWO)
+        self.assertEqual(gap_list(files), [["module-without-test", "MOD-one"], ["realises-nothing", "MOD-one"],
+                                           ["requirement-without-module", RULE_ONE], ["requirement-without-module", RULE_TWO]])
 
-    def test_a_withdrawn_name_is_a_gap_with_its_note(self):
-        files = edited(FILES, READER, "  - RULE ONE\n", "  - RULE ONE\n  - OLD RULE\n")
-        m = modules(files)
-        realises = {r["id"]: r["realises"] for r in m["rows"]}["MOD-reader"]
-        self.assertIn({"name": "OLD RULE", "status": "withdrawn"}, realises)
-        by = {(g["kind"], g["artifact"]): g for g in m["gaps"]}
-        self.assertEqual(by[("unknown-name", "MOD-reader")]["names"], ["OLD RULE"])
-        self.assertTrue(by[("unknown-name", "MOD-reader")]["withdrawn"])
-
-    def test_counter_proof_a_module_with_requirement_code_and_test_is_no_gap(self):
-        files = edited(FILES, PAGE, "realises:\nfollows:\n", "realises:\n  - THE READER'S RULE\nfollows:\n  - ARC-001\n")
-        files = {**files, "src/page.js": "// Module: MOD-page\n", "tests/page.test.js": "// Module: MOD-page\n// Guards: THE READER'S RULE\n"}
-        self.assertNotIn("MOD-page", [g["artifact"] for g in modules(files)["gaps"]])
+    # TST-692105 · level: unit · module: MOD-trace-graph
+    # guards: MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+    # given: the product of TST-692104 with a test of MOD-one that guards RULE ONE
+    # input: moduleRows over its graph
+    # expect: only RULE TWO is listed, as a requirement no module realises; the module has no gap
+    def test_counter_proof_a_module_with_code_and_a_test_that_guards_a_requirement_is_no_gap(self):
+        files = product()
+        files["SPEC.md"] = spec(SPEC_ONE, SPEC_TWO)
+        self.assertEqual(gap_list(files), [["requirement-without-module", RULE_TWO]])
 
 
 class NothingBlocks(unittest.TestCase):
-    def test_every_view_is_computed_on_a_graph_full_of_gaps(self):
-        r = js(f"const files = {json.dumps(GAPPED)};"
-               "const g = traceability.linkGraph({ files });"
-               "const arc = (t) => artifacts.parseArchitecture('" + ARC + "', t);"
-               f"const after = arc(files['{ARC}'].replace('  - UC-001\\n', '  - UC-002\\n'));"
-               "const cov = traceability.coverageGaps(g), mods = traceability.moduleRows(g);"
-               "return { rows: mods.rows.length, gaps: mods.gaps.length, unrealised: cov.unrealised,"
-               "  trace: traceability.tracesTo(g, 'RULE THREE'), impact: traceability.requirementImpact(g, 'OLD RULE').map((a) => a.id),"
-               "  arch: traceability.architectureImpact({ before: arc(files['" + ARC + "']), after, graph: g }).affected.map((a) => a.id),"
-               "  kinds: [...new Set([...mods.gaps, ...cov.unknownNames].map((x) => x.severity ?? null))] };")
-        self.assertEqual(r["rows"], 3)
-        self.assertEqual(r["gaps"], 10)
-        self.assertEqual(r["unrealised"], ["RULE THREE"])
-        self.assertEqual(r["trace"]["useCases"], [])
-        self.assertEqual(r["impact"], ["UC-003"], "what still names a withdrawn requirement")
-        self.assertEqual(r["arch"], ["MOD-reader", "MOD-review"])
-        self.assertEqual(r["kinds"], [None], "a gap is a line of a list, never an error or a refusal")
+    # TST-692106 · level: unit · module: MOD-trace-graph
+    # guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+    # given: a product full of gaps — RULE TWO that no use case or module realises, UC-002 realising nothing, MOD-one without a test, a code file in no module's folder — that breaks no rule of the architecture
+    # input: traceGraph, coverageGaps, moduleRows and graphFindings over its files
+    # expect: the graph is built; the gaps are listed (positive control: more than one in each list); graphFindings gives no finding, since a gap is a line of a list and no error
+    def test_a_graph_full_of_gaps_is_built_and_no_gap_is_an_error(self):
+        files = product(tested=False, extra={"docs/use-cases/UC-002-case.md": use_case(2, []), "loose/free.mjs": "export const f = 1;\n"})
+        files["SPEC.md"] = spec(SPEC_ONE, SPEC_TWO)
+        r = run(files, "return { findings: traceGraph.graphFindings(tg), coverage: traceGraph.coverageGaps(tg), rows: traceGraph.moduleRows(tg) };")
+        self.assertGreater(len(r["coverage"]["requirementsWithoutUseCase"]) + len(r["coverage"]["useCasesWithoutRequirement"]), 1)
+        self.assertGreater(len(r["rows"]["gaps"]), 1)
+        self.assertEqual(r["findings"], [])
+
+    # TST-692107 · level: unit · module: MOD-trace-graph
+    # guards: UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+    # given: the product with its test and UC-003 realising the name NO SUCH RULE, which is no requirement
+    # input: graphFindings and coverageGaps over its graph
+    # expect: graphFindings gives one finding, an error of UC-003 under A USE CASE REALISES NAMED REQUIREMENTS; coverageGaps lists the same name; so an error is a name that matches nothing and no gap else
+    def test_counter_proof_a_name_that_matches_nothing_is_an_error_beside_the_gaps(self):
+        files = product(extra={"docs/use-cases/UC-003-case.md": use_case(3, ["NO SUCH RULE"])})
+        r = run(files, "return { findings: traceGraph.graphFindings(tg), coverage: traceGraph.coverageGaps(tg) };")
+        self.assertEqual([(f["artifact"], f["kind"], f["rule"]) for f in r["findings"]],
+                         [("UC-003", "error", "A USE CASE REALISES NAMED REQUIREMENTS")])
+        self.assertEqual([u["name"] for u in r["coverage"]["unknownNames"]], ["NO SUCH RULE"])
 
 
 if __name__ == "__main__":
