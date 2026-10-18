@@ -173,26 +173,34 @@ export function reviewRoute(kind) {
     const bar = token ? button("btn accept-ticked", "Accept ticked (0)") : null;
     if (bar) bar.disabled = true;
     const tables = [];
+    const rowFor = (file, withTick) => {
+      const first = el("td");
+      if (withTick && token && file.tick) {
+        const box = el("input", "tick");
+        box.type = "checkbox";
+        box.addEventListener("change", () => {
+          if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
+          bar.disabled = ticks.size === 0;
+          bar.textContent = `Accept ticked (${ticks.size})`;
+        });
+        first.append(box);
+      }
+      const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
+        el("td", null, file.title), el("td", null, badge(file.status, file.label)));
+      row.setAttribute("data-id", file.id);
+      return row;
+    };
+    const head = () => el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status")));
+    const waiting = groups.flatMap((group) => group.entries).filter((file) => file.status !== "accepted" && file.status !== "in-SPEC");
+    if (waiting.length) {
+      const rows = el("tbody");
+      for (const file of waiting) rows.append(rowFor(file, true));
+      tables.push(el("section", "open-changes", el("h3", null, "Open or changed"), el("table", "list", head(), rows)));
+    }
     for (const group of groups) {
       const rows = el("tbody");
-      for (const file of group.entries) {
-        const first = el("td");
-        if (token && file.tick) {
-          const box = el("input", "tick");
-          box.type = "checkbox";
-          box.addEventListener("change", () => {
-            if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
-            bar.disabled = ticks.size === 0;
-            bar.textContent = `Accept ticked (${ticks.size})`;
-          });
-          first.append(box);
-        }
-        const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
-          el("td", null, file.title), el("td", null, badge(file.status, file.label)));
-        row.setAttribute("data-id", file.id);
-        rows.append(row);
-      }
-      const table = el("table", "list", el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status"))), rows);
+      for (const file of group.entries) rows.append(rowFor(file, false));
+      const table = el("table", "list", head(), rows);
       if (group.title === null) tables.push(table);
       else {
         const section = el("section", "queue", el("h3", null, group.title), table);

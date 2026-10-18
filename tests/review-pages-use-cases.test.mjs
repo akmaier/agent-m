@@ -186,8 +186,12 @@ test("MOD-review-pages use-case — the list: every use case with its status and
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
   const { target, context } = await show(fake);
-  const rows = find(target, (node) => node.localName === "tr" && node.getAttribute("data-id")).map((row) => row.getAttribute("data-id"));
+  const whole = (page) => find(page, (node) => node.localName === "table" && node.parentNode === page)[0];
+  const firstPart = (page) => find(page, (node) => node.localName === "section" && node.className.split(" ").includes("open-changes"))[0];
+  const idsIn = (root) => find(root, (node) => node.localName === "tr" && node.getAttribute("data-id")).map((row) => row.getAttribute("data-id"));
+  const rows = idsIn(whole(target));
   assert.deepEqual(rows, ["UC-041", "UC-042", "UC-043", "UC-044"], "a row for each use case");
+  assert.deepEqual(idsIn(firstPart(target)), ["UC-041", "UC-043", "UC-044"], "the open and changed use cases first");
   assert.deepEqual(["UC-041", "UC-042", "UC-043", "UC-044"].map((id) => badgeOf(rowOf(target, id))),
     ["open", "accepted", "changed since acceptance", "open"]);
   assert.match(rowOf(target, "UC-043").textContent, /Return a book/, "its title");
@@ -199,8 +203,7 @@ test("MOD-review-pages use-case — the list: every use case with its status and
 
   const instance = document.createElement("div");
   await route.render(instance, { ...context, product: null }, {});
-  assert.deepEqual(find(instance, (node) => node.localName === "tr" && node.getAttribute("data-id")).map((row) => row.getAttribute("data-id")),
-    rows, "the instance itself: the same rows");
+  assert.deepEqual(idsIn(whole(instance)), rows, "the instance itself: the same rows");
 });
 
 // ---------------------------------------------------------------- one use case
