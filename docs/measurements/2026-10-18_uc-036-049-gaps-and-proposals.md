@@ -2041,3 +2041,22 @@ reason, through the `go` the frame hands it.
 - Counter-proof: a refusal for another reason (a requirement not accepted) shows no such link.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 ````
+
+## Added at ITM-961's pre-gate (#930, head 14bec871), by po-opus-b
+
+Three gaps found by developer-sonnet-i and checked on the branch. Each waits for a free item number. MOD-desktop-shell
+touches team 1 (as NEW-044-7).
+
+- **NEW-044-16 — READY — MOD-desktop-shell: the Bridge reads `build.json` and `update-key.pem` at start.**
+  - MOD-desktop-shell.md:132-136 and :197 have the app read its resources `build.json` and `update-key.pem`.
+  - `src/desktop-shell/main.mjs:13-16` reads `--instance`, `--origin` and `--data-folder` from the command line only, and
+    throws a `TypeError` without `--instance`.
+  - So a packaged app started as a person starts it, without arguments, ends at once. ITM-961's real build (TST-961006)
+    and its tunnel check cannot pass until this is built.
+- **NEW-044-17 — READY — MOD-desktop-shell: the icons.** MOD-desktop-shell.md:82 has `icons/` hold "the app's icon for each
+  platform, and the icon of the menu bar and the tray". `appDescription.icons` names `icons/macos.png`,
+  `icons/windows.png` and `icons/linux.png`, but `src/desktop-shell/icons/` does not exist.
+- **NEW-044-18 — the overnight run of the real Bridge build.** TST-961006 runs only with `BRIDGE_BUILD_REAL=1` on Linux.
+  No workflow sets it (`.github/workflows/nightly.yml`), and Linux needs a display (xvfb) for the packaged app. Whether
+  macOS Electron's `appData` follows `$HOME` is not verified. This is wiring of the nightly run (MOD-test-schedule, held by
+  team 1), or a change between jobs.
