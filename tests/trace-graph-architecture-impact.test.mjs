@@ -316,3 +316,67 @@ test("TST-554010 code files follow the accepted folder exclusions without legacy
   assert.deepEqual([...actual].sort(), ["src/reader/.git/local.js", "src/reader/nested/types.ts", "src/reader/read.mjs",
     "src/reader/third-party/adapt.py", "src/reader/third_party/adapt.mjs"]);
 });
+
+// Extra tests that all exercise MOD-reader (ITM-906): guards in a different order, a guard stated twice, a test that guards nothing.
+const MANY = {
+  "tests/many-a.test.mjs": testText("TST-111", "MOD-reader", ["UC-001", "RULE TWO", "RULE ONE"]),
+  "tests/many-b.test.mjs": testText("TST-112", "MOD-reader", ["RULE TWO", "RULE TWO"]),
+  "tests/many-c.test.mjs": testText("TST-113", "MOD-reader", []),
+  "tests/many-d.test.mjs": testText("TST-114", "MOD-reader", ["UC-001"]),
+  "tests/many-e.test.mjs": testText("TST-115", "MOD-reader", ["RULE ONE", "UC-001"]),
+  "tests/many-f.test.mjs": testText("TST-116", "MOD-reader", ["RULE TWO"]),
+};
+
+// Counts the passes over an edge list: each call of an array method that walks it and each iterator taken from it.
+function spyOnEdges(graph) {
+  const counter = { passes: 0 };
+  const walking = new Set(["filter", "map", "forEach", "some", "every", "find", "findIndex", "findLast", "reduce", "flatMap",
+    "indexOf", "includes", "slice", "entries", "values", "keys", Symbol.iterator]);
+  const edges = new Proxy(graph.edges, { get(target, key) {
+    const value = Reflect.get(target, key, target);
+    return walking.has(key) && typeof value === "function" ? (...args) => { counter.passes += 1; return value.apply(target, args); } : value;
+  } });
+  return { graph: { ...graph, edges }, counter };
+}
+
+// TST-906001
+// level: unit
+// module: MOD-trace-graph
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
+// given: seven tests exercise MOD-reader, among them guards in another order, a guard stated twice and a test that guards nothing
+// input: architectureImpact of a reader prose change, and for each listed test the guards built edge by edge from graph.edges
+// expect: tests TST-101, TST-111 to TST-116 in order, each with exactly the sorted, deduplicated guards of its guards edges, and
+// expect: the literal list below; the value is the one the function gave before the guards came from one pass
+test("TST-906001 the guards of each listed test equal the list built edge by edge", async () => {
+  const after = READER_BEFORE.replace("One concern.", "Reads each file whole.");
+  const { graph } = await fixture({ ...MANY, [READER]: after });
+  const impact = trace.architectureImpact(graph, [{ path: READER, before: READER_BEFORE, after }]);
+  const byEdge = impact.tests.map(({ id }) => ({ id, guards: [...new Set(graph.edges
+    .filter((edge) => edge.via === "guards" && edge.from === id).map((edge) => edge.to))].sort() }));
+  assert.deepEqual(impact.tests, byEdge);
+  assert.deepEqual(impact.tests, [
+    { id: "TST-101", guards: ["RULE ONE", "UC-001"] }, { id: "TST-111", guards: ["RULE ONE", "RULE TWO", "UC-001"] },
+    { id: "TST-112", guards: ["RULE TWO"] }, { id: "TST-113", guards: [] }, { id: "TST-114", guards: ["UC-001"] },
+    { id: "TST-115", guards: ["RULE ONE", "UC-001"] }, { id: "TST-116", guards: ["RULE TWO"] },
+  ]);
+});
+
+// TST-906002
+// level: unit
+// module: MOD-trace-graph
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
+// given: two graphs of the same repository, one with one test exercising MOD-reader, one with seven; graph.edges is a spy that counts
+// given: every array method that walks it and every iterator taken from it
+// input: architectureImpact of the same reader prose change on each graph
+// expect: the number of passes over graph.edges is the same for both, and the seven-test graph lists seven tests (positive control)
+test("TST-906002 the passes over graph.edges do not grow with the number of tests", async () => {
+  const after = READER_BEFORE.replace("One concern.", "Reads each file whole.");
+  const changes = [{ path: READER, before: READER_BEFORE, after }];
+  const few = spyOnEdges((await fixture({ [READER]: after })).graph);
+  const many = spyOnEdges((await fixture({ ...MANY, [READER]: after })).graph);
+  const fewImpact = trace.architectureImpact(few.graph, changes), manyImpact = trace.architectureImpact(many.graph, changes);
+  assert.equal(fewImpact.tests.length, 1, "positive control: one test exercises the module");
+  assert.equal(manyImpact.tests.length, 7, "positive control: seven tests exercise the module");
+  assert.ok(few.counter.passes > 0, "positive control: the spy sees the passes");
+  assert.equal(many.counter.passes, few.counter.passes);
+});
