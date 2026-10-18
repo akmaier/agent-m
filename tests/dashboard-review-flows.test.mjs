@@ -102,9 +102,9 @@ const ucServer = async (over = {}, handlers = []) => instance({ files: await ins
 test("UC-008 step 1: the use cases are listed with the status derived from the records — open, accepted, changed since acceptance", async () => {
   const page = await openDashboard({ server: await ucServer(), hash: "#uc" });
   const row = (id) => page.main().split("<tr>").find((r) => r.includes(`href="#use-case/id=${id}"`));
-  assert.match(row("UC-001"), /class="badge accepted"/);
-  assert.match(row("UC-002"), /class="badge open"/);
-  assert.match(row("UC-003"), /class="badge changed"/);
+  assert.match(row("UC-001"), /class="badge b-accepted"/);
+  assert.match(row("UC-002"), /class="badge b-open"/);
+  assert.match(row("UC-003"), /class="badge b-changed"/);
 });
 
 // TST-474002 · level: component · module: MOD-settings-pages
@@ -116,7 +116,7 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
   const html = page.main();
-  assert.match(html, /<h2>UC-002 Show the status<\/h2><span class="badge open">open<\/span>/);
+  assert.match(html, /<h2>UC-002 Show the status<\/h2><span class="badge b-open">open<\/span>/);
   assert.match(html, /The dashboard shows the status\./, "the text");
   assert.match(html, /<code class="language-mermaid">[^]*flowchart LR/, "the diagram, drawn by the renderer as a Mermaid block");
   assert.match(html, /<button class="btn accept" type="button">Accept<\/button>/);
@@ -136,7 +136,7 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   const commitRequests = srv.seen.filter((r) => r.method !== "GET");
   assert.ok(commitRequests.length === 3 && commitRequests.every((r) => r.auth === `Bearer ${TOKEN}`), JSON.stringify(commitRequests));
   // The page reads the new commit and shows the use case accepted, without an Accept.
-  assert.match(page.main(), /<span class="badge accepted">accepted<\/span>/);
+  assert.match(page.main(), /<span class="badge b-accepted">accepted<\/span>/);
   assert.doesNotMatch(page.main(), /<button class="btn accept"/);
   assert.match(page.main(), /Accepted in commit [0-9a-f]{7}\./);
 });
@@ -167,7 +167,7 @@ test("UC-008 counter-proof: a click a script makes on Accept, and on Accept tick
 // expect: badge changed and the difference to the text its last record names, with the deleted and the added line
 test("UC-008 2a: a use case changed since acceptance is shown with the difference to the text its last record names", async () => {
   const page = await openDashboard({ server: await ucServer(), hash: "#uc/UC-003" });
-  assert.match(page.main(), /<h2>UC-003 Edit a file<\/h2><span class="badge changed">changed since acceptance<\/span>/);
+  assert.match(page.main(), /<h2>UC-003 Edit a file<\/h2><span class="badge b-changed">changed since acceptance<\/span>/);
   assert.match(page.main(), /<h3>Changed since it was last accepted<\/h3>/);
   assert.match(page.main(), /<span class="ddel">- 1\. The reviewer edits the file\.<\/span>/);
   assert.match(page.main(), /<span class="dadd">\+ 1\. The reviewer edits the file and saves it\.<\/span>/);
@@ -181,10 +181,10 @@ test("UC-008 2a: a use case changed since acceptance is shown with the differenc
 test("UC-008 5a: a file edited after acceptance shows as changed — no status was reset by anyone", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc/UC-001" });
-  assert.match(page.main(), /badge accepted/);
+  assert.match(page.main(), /badge b-accepted/);
   await srv.change(UC1, srv.files[UC1] + "\nOne more line.\n");
   const again = await openDashboard({ server: srv, hash: "#uc/UC-001" });
-  assert.match(again.main(), /<h2>UC-001 Read a file<\/h2><span class="badge changed">changed since acceptance<\/span>/);
+  assert.match(again.main(), /<h2>UC-001 Read a file<\/h2><span class="badge b-changed">changed since acceptance<\/span>/);
   assert.match(again.main(), /<button class="btn accept"/, "it can be accepted again");
 });
 
@@ -352,7 +352,7 @@ test("UC-006 steps 1–2: an open entry is shown beside the SPEC section it repl
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/05` });
   const html = page.main();
-  assert.match(html, /<span class="badge open">open<\/span>/);
+  assert.match(html, /<span class="badge b-open">open<\/span>/);
   const now = html.indexOf("<h3>Now in the SPEC</h3>"), proposed = html.indexOf("<h3>The proposal</h3>");
   assert.ok(now > 0 && proposed > now, "the current section beside the proposal");
   assert.match(html.slice(now, proposed), /old ten/);
@@ -381,7 +381,7 @@ test("UC-006 steps 4–7: one click on Accept writes the record, the SPEC sectio
   assert.deepEqual(rowsOf(w[DECISIONS]), [["5", rec.path.split("/").pop()]]);
   assert.ok(w[DECISIONS].startsWith("# Decisions\n\nAppend-only.\n\n"), "the decision appended");
   assert.ok(srv.seen.filter((r) => r.method !== "GET").every((r) => r.auth === `Bearer ${TOKEN}`), "under the reviewer's own token");
-  assert.match(page.main(), /<span class="badge in-SPEC">in SPEC<\/span>/);
+  assert.match(page.main(), /<span class="badge b-applied">in SPEC<\/span>/);
   assert.doesNotMatch(page.main(), /<button class="btn accept"/);
 });
 
@@ -452,7 +452,7 @@ test("UC-006 4b: without a token, Accept opens GitHub's new-file page prefilled 
 test("UC-006 4c: an approval committed on GitHub's page and not yet written is shown approved, with why", async () => {
   const rec = await specRecordFor(5, P05, B_P05, "## 10. R", SECTION_10);
   const page = await openDashboard({ server: await ucServer({ [rec.path]: rec.text }), hash: `#spec/${QNAME}/05` });
-  assert.match(page.main(), /<span class="badge approved">approved<\/span><p class="approved-note">Approval recorded, not yet written into the SPEC — the apply workflow writes it/);
+  assert.match(page.main(), /<span class="badge b-approved">approved<\/span><p class="approved-note">Approval recorded, not yet written into the SPEC — the apply workflow writes it/);
   assert.doesNotMatch(page.main(), /<button class="btn accept" type="button">Accept<\/button>/);
 });
 
