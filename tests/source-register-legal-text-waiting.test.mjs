@@ -95,7 +95,7 @@ test("library — an EU legal text registered with its bare CELEX number shows t
 // guards: UC-004; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; ONE CLICK PER DECISION
 // given: the entry SRC-ai-act with the bare identifier 32024R1689 and no version row; the latest run of fetch-sources.yml failed, its log naming SRC-ai-act ("Unreachable: publication offline")
 // input: the route `library`; press Fetch again
-// expect: the entry shows "Fetch failed: " and the log's line, which names "publication offline", and one Fetch again; the press starts fetch-sources.yml once, with the ref main and no input
+// expect: the entry shows "Fetch failed: " and the log's line, which names "publication offline", and one Fetch again; the press starts fetch-sources.yml once, with the ref main and the input source = SRC-ai-act
 test("library — after a failed run an EU legal text registered with its bare CELEX number shows the failure and Fetch again, which starts the workflow", async (t) => {
   const page = await open(t, [["SRC-ai-act", "32024R1689"]], { failed: true });
   const section = sectionOf(page, "SRC-ai-act");
@@ -105,5 +105,5 @@ test("library — after a failed run an EU legal text registered with its bare C
   const again = byClass(section, "library-fetch-again");
   assert.equal(again.length, 1);
   await click(again[0]);
-  assert.deepEqual(page.dispatched, [{ ref: "main", inputs: {} }]);
+  assert.deepEqual(page.dispatched, [{ ref: "main", inputs: { source: "SRC-ai-act" } }]);
 });
