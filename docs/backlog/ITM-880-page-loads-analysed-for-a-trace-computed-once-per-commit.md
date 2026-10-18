@@ -83,3 +83,15 @@ AGENTS.md §2 and the book's chapters 10 and 12.
 - For the recommendation, the module texts it changes are drafted for akmaier's acceptance (step 4), never committed as
   accepted.
 - The build items the recommendation needs are registered, each building on this item.
+
+**An input from ITM-875's measurement** (sprint team1/87, developer-sonnet-d, `$S/ITM-875-measure.mjs`, one load of
+`#review/arc` through `tests/app-harness.mjs` at each commit's own checkout).
+- **With a token,** a fixture of every text file at `deab7a3b`: 36 requests, against 33 at `aba1a0d4` and 934 single reads
+  for the old view at `caad73d3^`.
+- **Page CPU time with the fake network:** 3.4 s, against 0.41 s for the old view.
+- **Of the 27 batches,** 22 build the whole-repository graph for the impact list, about 2.2k files the page does not show.
+  This includes 249 `src/` files since ITM-735.
+- **Not measured on a real network.**
+SPEC.md:672 holds as worded, because the files are read in batches and none twice. The felt slowness is therefore this
+analysis's question: what a page needs from a graph of the whole repository, and whether that is computed once per commit.
+

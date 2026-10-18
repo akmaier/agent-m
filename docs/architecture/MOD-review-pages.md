@@ -76,6 +76,7 @@ uses:
   - MOD-job-runner.provenanceLines
   - MOD-job-ledger.newJobId
   - MOD-job-ledger.listJobs
+  - MOD-job-ledger.recordsNewestFirst
   - MOD-runtimes.routesFor
   - MOD-runtimes.queueJob
   - MOD-runtimes.runOnTab
@@ -291,8 +292,9 @@ and `docs/participants.md` of the instance.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar; MOD-prompt-bar.latestDraft,
   MOD-prompt-bar.ConversationDraft — the conversation's draft the route `draft` shows; MOD-prompt-bar.dropDraft — the
   draft dropped once it is saved or discarded.
-- MOD-job-ledger.newJobId — the identifier of a job started here; MOD-job-ledger.listJobs — the record of the job that
-  drafted a file, with its rounds.
+- MOD-job-ledger.newJobId — the identifier of a job started here; MOD-job-ledger.listJobs — the jobs a page lists;
+  MOD-job-ledger.recordsNewestFirst — the record of the job that drafted a file, with its rounds, read newest first and
+  no further than that record.
 - MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.tabContext, MOD-runtimes.runOnTab,
   MOD-runtimes.liveState — the route of a participant, the start record, a drafting job's context and its run in this
   tab attended, and a job followed on its route.
