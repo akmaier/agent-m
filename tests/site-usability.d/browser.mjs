@@ -19,18 +19,20 @@ const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
 const executableOf = (installed) => process.platform === "darwin" ? join(installed, "dist/Electron.app/Contents/MacOS/Electron") : join(installed, "dist/electron");
 
 // until(name, condition, limitMs = 30000) -> Promise<any> — the first truthy value `condition` returns; it is tried every 100 ms and a
-// try that has not answered by the deadline is given up. At the deadline it throws "<name> did not hold within <n> s" and the last error.
+// try that has not answered by the deadline is given up. At the deadline it throws "<name> did not hold within <n> s" and the last error that a try really gave
+// ("none" if none did): the deadline cutting off a try in flight is no error of the try.
 export async function until(name, condition, limitMs = 30000) {
   const deadline = Date.now() + limitMs;
   let lastError;
+  const cutOff = new Error("deadline");
   for (;;) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
     let timer;
     try {
-      const value = await Promise.race([condition(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("deadline")), remaining); })]);
+      const value = await Promise.race([condition(), new Promise((_, reject) => { timer = setTimeout(() => reject(cutOff), remaining); })]);
       if (value) return value;
-    } catch (failure) { lastError = failure; } finally { clearTimeout(timer); }
+    } catch (failure) { if (failure !== cutOff) lastError = failure; } finally { clearTimeout(timer); }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`${name} did not hold within ${limitMs / 1000} s; last error: ${lastError?.message ?? "none"}`);
@@ -94,8 +96,10 @@ function electronCommand(executable, arguments_) {
 
 const freePort = () => new Promise((resolve) => { const s = createServer(); s.listen(0, "127.0.0.1", () => { const value = s.address().port; s.close(() => resolve(value)); }); });
 
-// The main process of the window: Electron's light theme, a hidden window that loads the address it is given.
-const ENTRY = `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); electron.app.dock?.hide(); electron.nativeTheme.themeSource = "light"; const window = new electron.BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`;
+// The main process of the window: Electron's light theme, a hidden window that loads the address it is given. It is exported so that
+// tests/site-usability-boot-entry.test.mjs runs this very text against a stand-in for Electron. The first load is superseded by the checks' own first Page.navigate
+// when it is not yet finished; Electron then rejects it with ERR_ABORTED, which is no failure of the window, so only another error quits the app.
+export const ENTRY = `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); electron.app.dock?.hide(); electron.nativeTheme.themeSource = "light"; const window = new electron.BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url).catch((failure) => { if (failure.code !== "ERR_ABORTED") throw failure; }); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`;
 
 async function session(url) {
   const socket = new WebSocket(url);
@@ -131,6 +135,16 @@ async function session(url) {
   };
 }
 
+// withStderr(failure, stderr) -> Error — `failure` with the tail of the Electron child's stderr (its last 500 characters) after its message, or the word that the child wrote
+// nothing; the child's stderr is kept in memory by openWindow (`stderr()` of its result) and no other line writes it.
+export function withStderr(failure, stderr) {
+  if (stderr === undefined) return failure;
+  const text = String(stderr ?? "").trim();
+  const shown = text ? `the Electron child's stderr, its last ${Math.min(text.length, 500)} characters: ${text.slice(-500)}` : "the Electron child wrote nothing to its stderr";
+  const error = new Error(`${failure?.message ?? failure}; ${shown}`, { cause: failure });
+  return error;
+}
+
 // stageElectron() -> Promise<string> — the Electron executable, fetched and ready, and openbox installed where the screen is virtual.
 export async function stageElectron() {
   await acquireLock();
@@ -144,9 +158,11 @@ export async function stageElectron() {
   } finally { rmdirSync(nativeFixtureLock); }
 }
 
-// openWindow(executable, address) -> Promise<{ page, close }> — a hidden Electron window that has loaded `address`; `page` is the
-// DevTools session of its page (call, evaluate, close). `close` ends the page's session and the Electron, and removes its folder.
-export async function openWindow(executable, address) {
+// openWindow(executable, address) -> Promise<{ page, close, stderr }> — a hidden Electron window that has loaded `address`; `page` is the
+// DevTools session of its page (call, evaluate, close). `close` ends the page's session and the Electron, and removes its folder. `stderr()` is the
+// tail of what the Electron wrote to its stderr so far (4000 characters at most; on Linux its stdout too, where xvfb-run puts its stderr). A failure of openWindow carries that tail (withStderr); `limit` is how long the
+// window's page may take to appear among the debugging targets.
+export async function openWindow(executable, address, { limit = 30000 } = {}) {
   const debug = await freePort();
   const folder = mkdtempSync(join(tmpdir(), "agent-m-904-entry-"));
   const entry = join(folder, "main.mjs");
@@ -157,6 +173,8 @@ export async function openWindow(executable, address) {
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   child.on("error", (error) => { spawnError = error; });
+  // What the child wrote to its stderr. On Linux the child runs behind xvfb-run, which folds the child's stderr into its own stdout, so there it is the stdout too.
+  const written = () => `${stderr}${process.platform === "linux" ? stdout : ""}`;
   const close = () => {
     page?.close();
     if (child.exitCode === null) {
@@ -169,9 +187,10 @@ export async function openWindow(executable, address) {
     const target = await until("the window's page appears among the debugging targets", async () => {
       if (spawnError || child.exitCode !== null) throw new Error(`Electron stopped; exit=${child.exitCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}`);
       return (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl;
-    });
+    }, limit);
     page = await session(target);
     await readyPage(page);
-    return { page, close };
-  } catch (failure) { close(); throw failure; }
+    await until(`the window shows ${address}`, async () => (await page.evaluate("location.href", 3000)) === address);
+    return { page, close, stderr: written };
+  } catch (failure) { close(); throw failure.message.includes("; stderr=") ? failure : withStderr(failure, written()); }
 }

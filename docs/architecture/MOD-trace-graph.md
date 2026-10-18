@@ -50,6 +50,7 @@ provides:
   - graphText
   - graphFromText
   - publishGraph
+  - storedImpacts
 ---
 # MOD-trace-graph The trace graph and everything derived from it
 
@@ -81,7 +82,8 @@ source it is given and writes only through `publishGraph`, which adds the graph 
 ## Data
 
 It keeps nothing between calls. A graph lives as long as its caller holds it, or on the branch `trace-cache` of the repository,
-which only grows: the file `<commit>.json` is the text `graphText` gives for the graph of the commit it is named by, and no
+which only grows: the file `<commit>.json` is the text `graphText` gives for the graph of the commit it is named by, the
+file `<commit>.impacts.json` holds the impact lists of that commit's decision and module files that are not accepted, and no
 file of it is changed or deleted.
 
 What it reads, and as what:
@@ -209,10 +211,19 @@ identifier, and which register entry an item names is MOD-source-register's to s
   graph was built for.
 - `graphFromText(text: string, commit: string) -> Graph | null` — the graph the text holds, or `null` for a text that is
   no `graphText` or names a commit other than `commit`. Reads nothing.
-- `publishGraph(host: Host, snapshot: Snapshot) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the
-  snapshot's commit from its files and adds `<commit>.json` to the branch `trace-cache` by `commitFiles`, on the head it
-  read; `written` is `false` when the branch holds the file already, which it then leaves as it is. Crosses the network;
-  fails as `commitFiles` fails, with `NotFound` naming the branch when the repository has none.
+- `publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string }
+  | null }>) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the snapshot's commit from its files
+  and adds `<commit>.json` to the branch `trace-cache` by `commitFiles`, on the head it read; `written` is `false` when
+  the branch holds the file already, which it then leaves as it is. With `changed`, the decision and module files of the
+  commit that are not accepted, each with the text it was last accepted at and that text's commit (`null` for a file never
+  accepted), as the caller reads them, it adds `<commit>.impacts.json` in the same commit: for each file, its path, its
+  blob at the commit, `before`'s commit, and `architectureImpact(graph, [{ path, before: before.text, after }])`. This
+  module reads no history and no approval record, so the caller hands `changed` in. Crosses the network; fails as
+  `commitFiles` fails, with `NotFound` naming the branch when the repository has none.
+- `storedImpacts(source: TextSource, commit: string) -> Promise<Map<string, { blob: string, before: string | null,
+  impact: ArchitectureImpact }> | null>` — the impact lists stored for `commit` by `publishGraph`, keyed by path, read
+  with the source's `readOn` in one request; `null` without `readOn`, or when the branch or the file is missing or holds
+  another format. A caller uses an entry only while the file's blob is the one stored.
 - `systemDecisions(graph: Graph) -> { system: string[], subsystems: string[] }` — the decisions that refine no other,
   and the subsystems' decisions: those that refine one of them and design at least one module; each list by identifier.
 - `moduleOrder(graph: Graph) -> { order: string[] } | { cycle: string[] }` — the modules in an order in which every module
@@ -234,8 +245,9 @@ identifier, and which register entry an item names is MOD-source-register's to s
 
 ## Files
 
-It reads, through the `TextSource` it is given, the files listed under Data, and the file `<commit>.json` of the branch
-`trace-cache`. It writes `<commit>.json` on that branch, only by adding, and only in `publishGraph`.
+It reads, through the `TextSource` it is given, the files listed under Data, and the files `<commit>.json` and
+`<commit>.impacts.json` of the branch `trace-cache`. It writes both on that branch, only by adding, and only in
+`publishGraph`.
 
 ## Uses
 
