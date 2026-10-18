@@ -9,6 +9,7 @@ modules:
   - MOD-settings-pages
   - MOD-site-frame
 builds_on:
+  - ITM-950
 tests:
   - unit
   - system
@@ -30,3 +31,9 @@ UC-014 steps 1 to 5, from "A guided page opens; it asks for the person's GitHub 
 - The Actions step offers *Later*.
 - Every step carries its folded explanation.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped before its first test (sprint team1/92, developer-sonnet-a).** Steps 1 and 2 need `webLinks().fork` and
+`.pagesSettings`. MOD-repository-hosts.md:146-151 states them, but `src/repository-hosts/web-links.mjs` does not build
+them, so ITM-950 builds them first. Step 4 needs MOD-identifiers.pagesAddress, which MOD-settings-pages.md's Uses do not
+name. That line is drafted for akmaier. This item waits for ITM-950's merge and for akmaier's acceptance of the draft.
+
