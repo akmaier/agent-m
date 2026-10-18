@@ -141,7 +141,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   a refused token, which is shown as a notice. While the route shown reports `unsaved` true, closing or reloading the tab
   makes the browser ask first, in the words the browser gives that question. A fragment that names no loaded route shows the first route of its menu entry, or says that
   the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
-  `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of the address of a
+  `watchForAcceptance` with the page's store, the instance as it connected it, a host for each product, which it
+  connects as the instance's — through the token and the stored secrets this browser holds at each call —, and its own
+  writing of the address of a
   route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
   `chosenProduct` read back. On the same pages it starts MOD-prompt-bar's `startPromptBar` in the page's foot, handing it
   the store, the instance, the chosen product, the subject of the route shown at each moment, its own `explain` and its
