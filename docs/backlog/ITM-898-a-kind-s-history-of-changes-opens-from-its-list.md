@@ -38,3 +38,27 @@ ITM-879's stop.
   the person who committed it and the date, through `readHistory`. Tests check this, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - It waits for akmaier's acceptance of the draft in MOD-review-pages.md.
+
+**Stopped before its go (sprint team1/89), for its request cost.** The red is confirmed (run 39121297141). The developer
+measured one load at this repository's size, with a fake GitHub fed from git: 236 commits touched `docs/approvals/`.
+
+| Page | Rows | With a token | Without a token |
+|---|---|---|---|
+| use-case | 181 | 244 | 423 |
+| decision | 40 | 243 | 282 |
+| module | 265 | 245 | 507 |
+| spec-entry | 110 | 244 | 352 |
+
+- 242 of each total are REST calls: three for the snapshot, three pages of commits, and one per commit for its changes.
+- The cost grows with every acceptance ever made. Without a token, GitHub allows 60 calls an hour.
+- `A PAGE LOAD READS THE REPOSITORY IN BATCHES` names commit, tree and file texts, not history, so it is not broken as
+  worded. The accepted text names no bound, and the item will not add one by itself.
+- **The draft for akmaier, on `main`:** MOD-review-pages' `<k>/history` reads twenty commits of `docs/approvals/` at a
+  time, with *Older* for the next twenty from the parent of the last commit shown (`readHistory`'s `ref` and `limit`,
+  MOD-repository-hosts.md:179). One page then costs the snapshot, one page of commits and twenty commits.
+- The same draft names `MOD-approvals.approvalSchema` in the Uses, which the module's code already imports.
+- **The reading of "its approval records" is accepted:** the records whose identifier names one of the kind's files on the
+  default branch now, with the `spec-` prefix for SPEC entries. A record of a file that no longer stands is not listed.
+- The PR stays open with its red tests. The item resumes once akmaier accepts the draft, and its tests gain the page of
+  twenty and *Older*.
+

@@ -47,6 +47,7 @@ uses:
   - MOD-approvals.acceptShown
   - MOD-approvals.acceptanceBlockers
   - MOD-approvals.fallbackAcceptLink
+  - MOD-approvals.approvalSchema
   - MOD-approvals.approvalStrategies
   - MOD-spec-changes.queues
   - MOD-spec-changes.openQueueOf
@@ -179,7 +180,8 @@ ReviewKind = {
     written, because the instance's workflows are not turned on, is shown *approved*, not *in SPEC*, with why and a link
     to the Actions step of MOD-settings-pages' `get-your-own` (UC-014 step 4, 4a).
   - `<k>/history` — the history of the kind's changes: its approval records, newest first, each with the file it names,
-    the person who committed it and the date; opened only from the link on `<k>`.
+    the person who committed it and the date, read twenty commits of `docs/approvals/` at a time, and *Older* for the
+    next twenty, read from the parent of the last commit shown; opened only from the link on `<k>`.
   - `<k>/<id>` — one file, `<id>` the identifier an approval record names it by (MOD-approvals): `UC-<nnn>`,
     `ARC-<nnn>`, `MOD-<slug>`, `spec-<queue>-<NN>` for an entry of a change queue, `release-v<version>` for a release
     test report — one part of the address's fragment, since none of them holds a `/`. The file rendered, with its
@@ -274,7 +276,8 @@ and `docs/participants.md` of the instance.
   MOD-trace-graph.requirementImpact, MOD-trace-graph.architectureImpact — the marks across artifacts, the requirements
   no use case realises, and the impact lists.
 - MOD-approvals.statuses, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
-  MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses and acceptance.
+  MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses and acceptance; MOD-approvals.approvalSchema —
+  the schema an approval record is read with, on `<k>/history` too.
 - MOD-spec-changes.queues, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection, MOD-spec-changes.saveEntry,
   MOD-spec-changes.entrySections, MOD-spec-changes.entryView, MOD-spec-changes.acceptEntries — SPEC edits, an open entry
   saved in place, the sections a draft of the conversation holds, SPEC entries and their acceptance in the queue's order, with the product's links and
