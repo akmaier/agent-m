@@ -8,6 +8,7 @@ import { artifactSchemas, documentFindings, readDocument } from "../documents/in
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
+import { graphFindings, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
 
@@ -79,10 +80,21 @@ export async function showFileEdit(where, kind, file) {
   const editorBox = el("div", "editor-box");
   target.append(editorBox, saved);
 
+  // The findings across artifacts (graphFindings) of the edited file of a decision or a module: the graph of the repository with the edited text in
+  // place of the file, read asynchronously; they are handed to the editor when they are in, unless the text has moved on.
+  let editor = null, latest = null;
+  const reads = new Map();
+  const readOnce = (path) => (reads.has(path) ? reads : reads.set(path, snapshot.read(path))).get(path);
+  async function acrossArtifacts(text, own) {
+    latest = text;
+    const graph = await traceGraph({ paths: snapshot.paths, read: (path) => (path === file.path ? text : readOnce(path)) });
+    if (latest === text && editor) editor.setMarks([...own, ...graphFindings(graph).filter((found) => found.artifact === file.id)]);
+  }
   const marks = (text) => {
     const document = readDocument(schema, file.path, text);
     const found = documentFindings(schema, document);
     if (kind.kind === "use-case") found.push(...unmatchedRealises(document.id ?? file.id, text, requirements));
+    else acrossArtifacts(text, [...found]).catch(() => {});
     return found;
   };
   const disabledReason = (text) => {
@@ -115,5 +127,6 @@ export async function showFileEdit(where, kind, file) {
     }
   }
 
-  return openEditor(editorBox, body, { marks, save, disabledReason });
+  editor = openEditor(editorBox, body, { marks, save, disabledReason });
+  return editor;
 }
