@@ -8,6 +8,7 @@ realises:
   - EVERY STEP EXPLAINS ITSELF
 modules:
   - MOD-implementation-pages
+  - MOD-site-frame
 builds_on:
 tests:
   - unit
@@ -27,6 +28,10 @@ products from `readSetting`, each declaration read with `readSnapshot`), and its
 *Adapt* and never an edit in place, with the explanation UC-031 2b gives; an instance's model offers *Edit*; the page
 offers *+ New model*. Each part carries a folded *What is this?*. The buttons lead to `models/<name>`, which ITM-779
 builds.
+
+**The explanations.** Each *What is this?* is `MOD-site-frame.explain` of a topic of MOD-site-frame's
+`explanations.md`, which holds `process-model` but neither the parts of this page nor UC-031 2b's explanation of
+*Adapt*. This item writes those topics into that file, so it changes MOD-site-frame too.
 
 **Reading.** The module's Uses give `readSetting` for a job's settings; this item reads with it the setting
 `products` (MOD-browser-store's table), the products this browser manages, as the products whose declarations it reads.
