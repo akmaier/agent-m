@@ -5,7 +5,7 @@ level: module
 realises:
   - UC-004
 modules:
-  - MOD-settings-pages
+  - MOD-source-register
 builds_on:
   - ITM-591
 tests:
@@ -39,3 +39,26 @@ change instead, it stops and the draft goes to akmaier.
 - A legal text registered through the library's route shows its waiting state and, after a failed fetch, *Fetch again*.
   A test checks this, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it if the lead holds. No stub is committed.
+
+**Stopped at its first task (sprint team1/89, developer-sonnet-a): the text has to change, not the page.** Measured on the
+page (probe `ITM-914-probe.mjs`):
+
+| `identifier` of an entry with no version | `recogniseLegalText` | The page shows |
+|---|---|---|
+| bare CELEX `32024R1689` | `null` | no fetch state, no *Fetch again* |
+| ELI `http://data.europa.eu/eli/reg/2024/1689/oj` | recognised | "Waiting for fetch." and one *Fetch again* |
+| EUR-Lex `…?uri=CELEX:32024R1689` | recognised | "Waiting for fetch." and one *Fetch again* |
+
+- The form writes a bare CELEX (`tests/settings-pages-library.test.mjs:209-210`), as MOD-source-register's Data row and
+  UC-004 step 4 say: `identifier` is "an EU legal text's CELEX number or ELI".
+- MOD-source-register.md:102 defines a waiting entry by what `recogniseLegalText` recognises, and :183 lets it read an
+  address only. For a bare CELEX the two cannot both hold.
+- By reading, MOD-workflow-entries' `isWaitingLegalText` (`src/workflow-entries/instance.mjs:43-48`) calls the same
+  recogniser, so the fetch would never pick such an entry up either.
+- **The draft for akmaier, on `main`:** MOD-source-register.md, `recogniseLegalText` also recognises "a CELEX number or an
+  ELI given by itself, as a register entry's `identifier` holds it". One recogniser fixes the page and the workflow.
+- **So the item's module is MOD-source-register** (`src/source-register/legal-text.mjs`). Its tests:
+  - `recogniseLegalText("32024R1689")` gives `{ celex }`;
+  - a bare-CELEX entry shows its waiting state, and *Fetch again* after a failed run, with a counter-proof.
+- It waits for akmaier's acceptance of the draft.
+

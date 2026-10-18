@@ -181,7 +181,7 @@ names no source.
 - `changedPassages(before: string, after: string) -> DiffLine[]` — the passages that changed between two versions of a
   text, line by line.
 - `recogniseLegalText(address: string) -> { celex: string } | { eli: string } | null` — the CELEX number or ELI an
-  EUR-Lex or ELI address names.
+  EUR-Lex or ELI address names, and a CELEX number or an ELI given by itself, as a register entry's `identifier` holds it.
 - `fetchLegalText(identifier: { celex: string } | { eli: string }) -> Promise<{ files: { name: string, bytes: Uint8Array
   }[], retrieved: string, repositoryVersion: string }>` — in Node: fetches the official text from the EU's publication
   repository, across the network, with the date it was retrieved and the repository's version identifier (`AN EU LEGAL
