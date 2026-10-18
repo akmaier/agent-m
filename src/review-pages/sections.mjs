@@ -7,6 +7,8 @@
 // is drawn from the text or the rounds it is given.
 
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
+import { explain } from "../site-frame/index.mjs";
+import { traceGraph, architectureImpact } from "../trace-graph/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -110,3 +112,17 @@ export function impactSection(impact) {
     el("p", "small", el("strong", null, "Requirements and use cases"), ` — newly named: ${list(impact.named.added)} · no longer named: ${list(impact.named.removed)}`),
     el("p", "small", el("strong", null, "Items"), ` — ${list(impact.items)}`));
 }
+
+// The impact list of a change to an accepted decision or module (AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST), from the graph of the
+// snapshot shown, the text accepted last and the text shown: { shown } the section to show, or { problem } a paragraph saying why it could not be
+// derived, in which case the change is not offered for acceptance. graphOf() gives the graph, built once for a page.
+export async function changeImpact(file, last, body, graphOf) {
+  try {
+    const shown = impactSection(architectureImpact(await graphOf(), [{ path: file.path, before: last.text, after: body }]));
+    shown.append(explain("impact-of-a-change"));
+    return { shown };
+  } catch (failure) {
+    return { problem: el("p", "problem", `The impact list could not be derived: ${failure.message} — without it, this change cannot be accepted.`) };
+  }
+}
+export const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= traceGraph(snapshot)); };
