@@ -71,27 +71,28 @@ test("productFacts, scope all, with a token — 250 use cases nothing but the tr
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the product and instance of TST-873001; no token, so that every file is read by a request of its own
 // input: productFacts(…, { scope: "all" })
-// expect: 1,008 requests in all — the repository 1, the commit 2 (main and test-results), the tree 1, the pull requests 1, the tags 1, and 1,002 files each by a request of its own (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no use case is read
-test("productFacts, scope all, without a token — the 250 use cases are not read, 1,008 requests in all", async () => {
+// expect: 1,009 requests in all — the repository 1, the commit 2 (main and test-results), the tree 1, the pull requests 1, the tags 1, and 1,003 files each by a request of its own (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no use case is read
+test("productFacts, scope all, without a token — the 250 use cases are not read, 1,009 requests in all", async () => {
   const { seen } = await facts("all", false);
   assert.equal(seen.singles.filter((path) => path.startsWith("docs/use-cases/")).length, 0);
-  assert.equal(seen.total, 1008);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, file: 1002 });
+  assert.equal(seen.total, 1009);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, file: 1003 });
 });
 
 // TST-873003 · level: unit · module: MOD-progress-measures
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: a product whose tests/unit.test.mjs declares TST-001, tests/second.test.mjs declares TST-002 and TST-003, tests/empty.test.mjs declares nothing, and docs/notes.md names a TST-004 in prose; a token
+// given: a product whose tests/unit.test.mjs declares TST-001, tests/second.test.mjs declares TST-002 and TST-003, tests/empty.test.mjs declares nothing, docs/notes.md names a TST-004 in prose, and src/store.mjs, which is no test file, holds a comment declaring TST-005; a token
 // input: productFacts(…, { scope: "all" })
-// expect: graph is "unknown"; tests are, in the order of the paths, [TST-001 at tests/unit.test.mjs, TST-002 at tests/second.test.mjs, TST-003 at tests/second.test.mjs]; requirements ["FIRST RULE", "SECOND RULE"]
+// expect: graph is "unknown"; tests are, in the alphabetical order of the paths, [TST-002 at tests/second.test.mjs, TST-003 at tests/second.test.mjs, TST-001 at tests/unit.test.mjs]; requirements ["FIRST RULE", "SECOND RULE"]
 test("productFacts, scope all — graph is \"unknown\", and the tests are the declarations of the test files, read without the graph", async () => {
   server.restore();
   server = githubServer({ [PRODUCT]: files({ "tests/second.test.mjs": `${TEST_FILE("TST-002", "FIRST RULE")}${TEST_FILE("TST-003", "SECOND RULE")}`,
-    "tests/empty.test.mjs": "test(\"nothing declared\", () => {});\n", "docs/notes.md": "TST-004 is only named here.\n" }), [INSTANCE]: instanceFiles() });
+    "tests/empty.test.mjs": "test(\"nothing declared\", () => {});\n", "docs/notes.md": "TST-004 is only named here.\n",
+    "src/store.mjs": TEST_FILE("TST-005", "FIRST RULE") }), [INSTANCE]: instanceFiles() });
   server.install();
   const { result } = await facts("all", true);
   assert.equal(result.graph, "unknown");
-  assert.deepEqual(result.tests.map((t) => [t.id, t.path]), [["TST-001", "tests/unit.test.mjs"], ["TST-002", "tests/second.test.mjs"], ["TST-003", "tests/second.test.mjs"]]);
+  assert.deepEqual(result.tests.map((t) => [t.id, t.path]), [["TST-002", "tests/second.test.mjs"], ["TST-003", "tests/second.test.mjs"], ["TST-001", "tests/unit.test.mjs"]]);
   assert.deepEqual(result.requirements, ["FIRST RULE", "SECOND RULE"]);
 });
 
