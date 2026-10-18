@@ -57,18 +57,19 @@ function sourcesOf(requirement, links, register) {
   return [...found.values()];
 }
 
-// The report's acceptance, on the default branch: statusOf of the report in `head`; the records that name its current blob;
-// the limitations are those of the first of them.
+// The report's acceptance, on the default branch: statusOf of the report in `head`; every record that names the report, and
+// among them `current`, those that name its current blob, whose first gives the limitations.
 async function acceptance(head, reportPath, tag) {
   const blob = head.blob(reportPath);
-  if (blob === null) return { reported: false, blob, accepted: false, limitations: [], records: [] };
+  if (blob === null) return { reported: false, blob, accepted: false, limitations: [], records: [], current: [] };
   const records = [];
   for (const path of head.paths.filter((each) => each.startsWith(`docs/approvals/release-${tag}-`) && each.endsWith(".md")).sort()) {
     const { fields } = readDocument(approvalSchema, path, (await head.read(path)) ?? "");
-    if (fields.file === reportPath && fields.blob === blob) records.push({ path, blob: head.blob(path), fields });
+    if (fields.file === reportPath) records.push({ path, blob: head.blob(path), fields });
   }
-  if (statusOf(reportPath, blob, head) !== "accepted") return { reported: true, blob, accepted: false, limitations: [], records };
-  return { reported: true, blob, accepted: true, limitations: [].concat(records[0]?.fields.limitation ?? []), records };
+  const current = records.filter((record) => record.fields.blob === blob);
+  if (statusOf(reportPath, blob, head) !== "accepted") return { reported: true, blob, accepted: false, limitations: [], records, current };
+  return { reported: true, blob, accepted: true, limitations: [].concat(current[0]?.fields.limitation ?? []), records, current };
 }
 
 async function counterProofOf(at, id) {
@@ -118,7 +119,7 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
   const jobsOf = (kind) => jobs.map((row) => row.record).filter((record) => record.kind === kind);
   const links = await linksOf(at);
 
-  const record = report.records[0] ?? null;
+  const record = report.current[0] ?? null;
   const evidence = { report: report.reported ? { path: reportPath, blob: report.blob } : null,
     records: report.records.map(({ path, blob }) => ({ path, blob })),
     acceptance: record && accepted ? { person: accepted.person, date: accepted.date, blob: record.fields.blob } : null };
@@ -181,8 +182,8 @@ function evidenceLines({ report, records, acceptance }) {
     report ? `- Release test report: ${code(report.path)}, blob ${code(report.blob)}` : "- No release test report on the default branch.",
     ...(records.length ? records.map((record) => `- Approval record: ${code(record.path)}, blob ${code(record.blob)}`) : ["- Approval records: none."]),
     acceptance ? `- Accepted text: blob ${code(acceptance.blob)}, accepted by ${acceptance.person} on ${acceptance.date}`
-      : report && !records.length ? "- Not accepted: no approval record names the report's current text."
-        : "- Acceptance: who accepted the report and when is not given.",
+      : report ? "- Not accepted: no approval record names the report's current text, or who accepted it and when is not given."
+        : "- Acceptance: none, there is no report.",
   ];
 }
 
