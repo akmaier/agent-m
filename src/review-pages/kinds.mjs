@@ -33,6 +33,13 @@ export const SPEC_ENTRIES = { kind: "spec-entry", route: "spec-entry", entry: "r
   accept: "queue", draft: "derive-requirements",
   save: "entry", change: { kind: "change-requirements", parameter: "target" } };
 
+// The descriptor of the release test reports (ITM-910): the files docs/tests/releases/v<version>.md, never edited, accepted through MOD-release-evidence, which releases on the acceptance.
+// A report has no heading of its own; the page gives it its identifier, release-v<version>, and the title of its kind.
+const reportHeading = (body) => { const version = /^version: (\S+)$/m.exec(body)?.[1]; return version ? `release-v${version} Release test report` : ""; };
+export const RELEASE_REPORTS = { kind: "release-report", route: "release-report", entry: "releases", title: "Release test reports", plural: "release test reports",
+  noun: "release test report", heading: reportHeading, accept: "release",
+  explain: { list: "accepting", all: "accepting", one: "accepting", changed: "accepting", fallback: "github-page-without-token" } };
+
 // The descriptors of editing a requirement (ITM-359): a requirement is a section of the SPEC, not a reviewed file; `edit` names the editing of its section, saved as an entry of
 // the person's open queue of the day. REQUIREMENT_NEW is the same with the four fields empty, in the section handed in.
 const requirementExplain = { edit: "spec-edit-waits-for-approval",
