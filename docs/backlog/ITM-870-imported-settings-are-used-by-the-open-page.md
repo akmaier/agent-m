@@ -27,3 +27,7 @@ a new token and lets the page read without a reload. It shows whether the import
 
 - After an import, the open page's requests carry the imported tokens, and the test pins it.
 - The first commit holds only the tests, and CI is red on it if the lead holds. No stub is committed.
+
+**Noted at ITM-869's gate (sprint team1/83, 2026-10-18, po-opus).** Since ITM-869, the frame's
+instance host connects with the token stored at each call. A GitLab-form token imported under `github-token` would then
+make `connect` throw inside a host call, not at start. The import is checked for that at this item's start.
