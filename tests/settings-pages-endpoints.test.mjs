@@ -352,3 +352,158 @@ test("TST-265016: Settings identifies untested and refused endpoint states", asy
   assert.match(byClass(refused, "settings-endpoint-status")[0].textContent, /^Refused\.$/);
   assert.equal(target.textContent.includes("other-secret"), false);
 });
+
+// ---- ITM-512: the endpoints route says whether the model called the tool (UC-003 step 5, 5a) ----
+// Readings these tests take, named in the pull request:
+//   - The two answers are the words *can use tools* and *text only*, in the route's result paragraph (class endpoint-result); a failed test shows neither.
+//   - "the endpoint's message ... shown folded" is a <details class="endpoint-tool-message"> that holds the message exactly, is not open, and is the only place the message stands in the page.
+//     It stands only for *text only*, and only when the endpoint gave a message (not for an empty answer, and not for *can use tools*).
+//   - A refusal of tools (HTTP 400 "tools are not supported") is a working endpoint with *text only* and the provider's message folded.
+// The probe tool of testEndpoint is named agent_m_probe; a constructed answer that calls it is "the model called the tool".
+const CALLED = { choices: [{ message: { content: null, tool_calls: [{ id: "1", type: "function", function: { name: "agent_m_probe", arguments: "{}" } }] } }] };
+const textAnswer = (content) => ({ choices: [{ message: { content } }] });
+
+async function testedDirect(answer) {
+  const store = freshStore(), oldFetch = globalThis.fetch;
+  globalThis.fetch = scripted([answer], []);
+  try {
+    const target = await render(store);
+    type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
+    type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
+    await click(byClass(target, "endpoint-test")[0]);
+    return target;
+  } finally { globalThis.fetch = oldFetch; }
+}
+const resultOf = (target) => byClass(target, "endpoint-result")[0].textContent;
+const foldedMessages = (target) => byClass(target, "endpoint-tool-message");
+
+// TST-512001 · level: unit · module: MOD-settings-pages
+// guards: UC-003
+// given: a constructed answer in which the model calls the probe tool
+// input: the author fills the endpoints Route and presses Save and test
+// expect: the result says "can use tools" and not "text only", still says the model is working, and holds no folded message
+test("TST-512001: a model that called the tool is shown as can use tools", async () => {
+  const target = await testedDirect({ status: 200, body: CALLED });
+  assert.match(resultOf(target), /tiny-model is working/);
+  assert.match(resultOf(target), /can use tools/);
+  assert.doesNotMatch(resultOf(target), /text only/);
+  assert.equal(foldedMessages(target).length, 0);
+});
+
+// TST-512002 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 5a; EVERY STEP EXPLAINS ITSELF
+// given: a constructed answer with the text "I cannot call tools." and no tool call
+// input: the author fills the endpoints Route and presses Save and test
+// expect: the result says "text only" and not "can use tools"; one details element of the class endpoint-tool-message holds exactly "I cannot call tools.", is not open, and the message stands once in the whole page
+test("TST-512002: an answer without a tool call is text only, with the endpoint's message folded", async () => {
+  const target = await testedDirect({ status: 200, body: textAnswer("I cannot call tools.") });
+  assert.match(resultOf(target), /tiny-model is working/);
+  assert.match(resultOf(target), /text only/);
+  assert.doesNotMatch(resultOf(target), /can use tools/);
+  const folded = foldedMessages(target);
+  assert.equal(folded.length, 1);
+  assert.equal(folded[0].localName, "details");
+  assert.notEqual(folded[0].open, true, "folded");
+  assert.ok(folded[0].textContent.includes("I cannot call tools."));
+  assert.equal(target.textContent.split("I cannot call tools.").length - 1, 1, "the message stands once");
+});
+
+// TST-512003 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 5a
+// given: a constructed answer with an empty text and no tool call
+// input: the author fills the endpoints Route and presses Save and test
+// expect: the result says "text only"; there is no folded message, since the endpoint gave none
+test("TST-512003: an empty answer is text only with no folded message", async () => {
+  const target = await testedDirect({ status: 200, body: textAnswer("") });
+  assert.match(resultOf(target), /text only/);
+  assert.doesNotMatch(resultOf(target), /can use tools/);
+  assert.equal(foldedMessages(target).length, 0);
+});
+
+// TST-512004 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 5a; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: a constructed HTTP 400 whose message is "tools are not supported by this model"
+// input: the author fills the endpoints Route and presses Save and test
+// expect: the endpoint is shown as working with "text only"; the provider's message is folded in one endpoint-tool-message details, and the result does not show a failure mark
+test("TST-512004: an endpoint that rejects the tool is working, text only, with its message folded", async () => {
+  const target = await testedDirect({ status: 400, body: { error: { message: "tools are not supported by this model" } } });
+  assert.match(resultOf(target), /tiny-model is working/);
+  assert.match(resultOf(target), /text only/);
+  assert.doesNotMatch(resultOf(target), /✗/);
+  const folded = foldedMessages(target);
+  assert.equal(folded.length, 1);
+  assert.ok(folded[0].textContent.includes("tools are not supported by this model"));
+});
+
+// TST-512005 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 4b
+// given: a constructed 401 "Invalid API key."
+// input: the author fills the endpoints Route and presses Save and test
+// expect: the result shows the refusal and neither "can use tools" nor "text only", and no folded message (counter-proof of the cases above)
+test("TST-512005: a refused key shows neither answer about tools", async () => {
+  const target = await testedDirect({ status: 401, body: { error: { message: "Invalid API key." } } });
+  assert.match(resultOf(target), /Invalid API key/);
+  assert.doesNotMatch(resultOf(target), /can use tools|text only/);
+  assert.equal(foldedMessages(target).length, 0);
+});
+
+// The Bridge path: a paired loopback Bridge answers the endpoint-test probe with the same result testEndpoint gives.
+async function testedThroughBridge(answer) {
+  const store = freshStore(), oldFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ answer }), { status: 200, headers: { "Content-Type": "application/json" } });
+  try {
+    writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4711", token: "bridge-token" });
+    const target = await render(store);
+    type(byClass(target, "endpoint-name")[0], "local"); type(byClass(target, "endpoint-url")[0], BRIDGED.url);
+    type(byClass(target, "endpoint-model")[0], BRIDGED.model);
+    byClass(target, "endpoint-bridge")[0].value = "local"; byClass(target, "endpoint-bridge")[0].dispatchEvent(new Event("change"));
+    await click(byClass(target, "endpoint-test")[0]);
+    return target;
+  } finally { globalThis.fetch = oldFetch; }
+}
+
+// TST-512006 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a
+// given: a paired Bridge that answers the probe with { works: true, model: "local-model", tools: true, toolMessage: null }
+// input: the author fills the endpoints Route, chooses the Bridge and presses Save and test
+// expect: the result says "can use tools" and not "text only"
+test("TST-512006: through a Bridge, a model that called the tool is shown as can use tools", async () => {
+  const target = await testedThroughBridge({ works: true, model: "local-model", tools: true, toolMessage: null });
+  assert.match(resultOf(target), /local-model is working/);
+  assert.match(resultOf(target), /can use tools/);
+  assert.doesNotMatch(resultOf(target), /text only/);
+});
+
+// TST-512007 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 5a
+// given: a paired Bridge that answers the probe with { works: true, model: "local-model", tools: false, toolMessage: "no tools here" }
+// input: the author fills the endpoints Route, chooses the Bridge and presses Save and test
+// expect: the result says "text only" and not "can use tools"; one endpoint-tool-message details holds "no tools here" and is not open
+test("TST-512007: through a Bridge, text only shows the endpoint's message folded", async () => {
+  const target = await testedThroughBridge({ works: true, model: "local-model", tools: false, toolMessage: "no tools here" });
+  assert.match(resultOf(target), /text only/);
+  assert.doesNotMatch(resultOf(target), /can use tools/);
+  const folded = foldedMessages(target);
+  assert.equal(folded.length, 1);
+  assert.notEqual(folded[0].open, true, "folded");
+  assert.ok(folded[0].textContent.includes("no tools here"));
+});
+
+// TST-512008 · level: unit · module: MOD-settings-pages
+// guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// given: a constructed text-only answer
+// input: the author tests the endpoint "campus" on the endpoints Route
+// expect: the last test kept beside the endpoint is exactly { at, outcome: "working" } with at an ISO date and no other field (the stored format of last-test is unchanged)
+test("TST-512008: showing the answer about tools leaves the stored last test as { at, outcome }", async () => {
+  const store = freshStore(), oldFetch = globalThis.fetch;
+  globalThis.fetch = scripted([{ status: 200, body: textAnswer("plain") }], []);
+  try {
+    const target = await render(store);
+    type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
+    type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
+    await click(byClass(target, "endpoint-test")[0]);
+    const recorded = readSetting(store, "last-test:endpoint:campus");
+    assert.deepEqual(Object.keys(recorded).sort(), ["at", "outcome"]);
+    assert.equal(recorded.outcome, "working");
+  } finally { globalThis.fetch = oldFetch; }
+});
