@@ -183,8 +183,10 @@ jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
   nothing when a text is stale (`WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE`, `A STALE APPROVAL IS NOT
   APPLIED`); the status names what was applied and what was stale.
 - `onSourcesCommitted(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance: for each register entry of an EU
-  legal text that waits for its fetch, as MOD-source-register defines it, fetches the official text and commits it with
-  its retrieval date, the repository's version identifier and its SHA-256, completing the entry. A failed fetch writes
+  legal text that waits for its fetch, as MOD-source-register defines it, and for the entry a run started with the input
+  `source` names, fetches the official text and commits it with its retrieval date, the repository's version identifier
+  and its SHA-256, completing the entry; for an entry that already has versions, the text is appended as a further
+  version, and nothing is written when its SHA-256 equals an existing version's (`A SOURCE VERSION IS NEVER OVERWRITTEN`). A failed fetch writes
   nothing and ends the entry `failed`, its summary naming the register entry and the failure, which the library shows
   beside the entry with *Fetch again* (UC-004 7a); nothing is guessed (`AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL
   REPOSITORY`).
