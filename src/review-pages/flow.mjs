@@ -6,10 +6,11 @@
 // STATUS IS DERIVED FROM THE RECORDS (it is read from MOD-approvals only); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A
 // TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN. Nothing is written while a page is drawn.
 
-import { statuses, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema } from "../approvals/index.mjs";
+import { statuses, statusOf, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema } from "../approvals/index.mjs";
 import { writeDocument, readDocument, artifactSchemas } from "../documents/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
+import { acceptAndRelease } from "../release-evidence/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
@@ -104,6 +105,19 @@ async function draftingRounds(where) {
   } catch { return null; }
 }
 
+// Where a release test report lies, and the identifier its approval record carries: docs/approvals/release-v<version>-<blob12>.md.
+const RELEASE_REPORT = /^docs\/tests\/releases\/(v\d{4}\.\d+\.\d+)\.md$/;
+
+// The status of every reviewed file of a snapshot: MOD-approvals' `statuses`, and each release test report through `statusOf`.
+function reviewedFiles(snapshot) {
+  const all = new Map(statuses(snapshot));
+  for (const path of snapshot.paths) {
+    const version = RELEASE_REPORT.exec(path)?.[1];
+    if (version && !all.has(path)) all.set(path, { id: `release-${version}`, kind: "release-report", status: statusOf(path, snapshot.blob(path), snapshot) });
+  }
+  return all;
+}
+
 // The service a descriptor names for its decisions (`accept`): the approvals of reviewed files, or the entries of a change queue through
 // MOD-spec-changes. Each gives the flow the groups of files to list, whether a kind has a Review all, whether a product without a token
 // is sent to the token's step, and accepts what was shown, once: a result { commit, leftOut } or { refusal } — a failure is thrown.
@@ -113,7 +127,7 @@ const approvalsService = {
   reviewAll: true,
   async groups({ snapshot, token }, kind) {
     const entries = [];
-    for (const file of [...statuses(snapshot)].filter(([, each]) => each.kind === kind.kind).map(([path, each]) => ({ path, ...each })).sort((a, b) => a.id.localeCompare(b.id))) {
+    for (const file of [...reviewedFiles(snapshot)].filter(([, each]) => each.kind === kind.kind).map(([path, each]) => ({ path, ...each })).sort((a, b) => a.id.localeCompare(b.id))) {
       const body = (await snapshot.read(file.path)) ?? "";
       entries.push({ id: file.id, name: file.id, title: kind.heading(body).replace(/^\S+\s*/, ""), status: file.status, label: LABEL[file.status],
         tick: file.status === "accepted" ? null : { path: file.path, blob: snapshot.blob(file.path) } });
@@ -123,19 +137,39 @@ const approvalsService = {
   accept: (where, shown, person) => acceptShown(where.host, shown, person),
   // Whether an approval record's identifier is one of the kind's files in this snapshot.
   owns(snapshot, kind) {
-    const ids = new Set([...statuses(snapshot).values()].filter((each) => each.kind === kind.kind).map((each) => each.id));
+    const ids = new Set([...reviewedFiles(snapshot).values()].filter((each) => each.kind === kind.kind).map((each) => each.id));
     return (id) => ids.has(id);
   },
 };
-const SERVICES = { approvals: approvalsService, queue: queueService };
+
+// Accepting a release test report releases it (MOD-release-evidence.acceptAndRelease): one release for each report shown, on the person's click. A report that
+// cannot be released — a failing test without its reason, a tag that stands — is left out with the service's words; when none can be, the first failure is thrown.
+async function releaseShown(where, shown, person) {
+  const today = new Date().toISOString().slice(0, 10);
+  const recorded = [], leftOut = [];
+  let commit = null, first = null;
+  for (const { path, blob } of shown) {
+    try {
+      ({ commit } = await acceptAndRelease(where.host, { path, blob }, { limitations: {} }, person, today));
+      recorded.push(path);
+    } catch (failure) {
+      first ??= failure;
+      leftOut.push({ path, reason: failure.message, names: [] });
+    }
+  }
+  if (recorded.length === 0) throw first;
+  return { commit, recorded, leftOut };
+}
+const releaseService = { ...approvalsService, accept: releaseShown };
+const SERVICES = { approvals: approvalsService, release: releaseService, queue: queueService };
 
 export function reviewRoute(kind) {
   const service = SERVICES[kind.accept ?? "approvals"];
-  const files = (snapshot) => [...statuses(snapshot)].filter(([, file]) => file.kind === kind.kind)
+  const files = (snapshot) => [...reviewedFiles(snapshot)].filter(([, file]) => file.kind === kind.kind)
     .map(([path, file]) => ({ path, ...file })).sort((a, b) => a.id.localeCompare(b.id));
-  const idOf = (path, snapshot) => statuses(snapshot).get(path)?.id ?? path;
+  const idOf = (path, snapshot) => reviewedFiles(snapshot).get(path)?.id ?? path;
   // The files Review all shows: those of the kind — for the architecture, of the whole of it — that are not accepted.
-  const notAccepted = (snapshot) => [...statuses(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
+  const notAccepted = (snapshot) => [...reviewedFiles(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
     .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
 
   // The editor of the page drawn last, or null where that page opened none: what the route's `leave` asks.
@@ -344,7 +378,7 @@ export function reviewRoute(kind) {
       accept.addEventListener("click", async () => {
         accept.disabled = true;
         try {
-          const result = await acceptShown(host, records.map(({ file, blob }) => ({ path: file.path, blob })), token.name);
+          const result = await service.accept(where, records.map(({ file, blob }) => ({ path: file.path, blob })), token.name);
           await redraw(where, { id: REVIEW_ALL }, acceptedMessage(result, (path) => idOf(path, snapshot)));
         } catch (failure) {
           accept.disabled = false;
@@ -517,7 +551,7 @@ export function reviewRoute(kind) {
       accept.addEventListener("click", async () => {
         accept.disabled = true;
         try {
-          const done = await acceptShown(host, [{ path: file.path, blob }], token.name);
+          const done = await service.accept(where, [{ path: file.path, blob }], token.name);
           await redraw(where, { id }, el("p", "result", `Accepted in commit ${done.commit.slice(0, 7)}.`));
         } catch (failure) {
           accept.disabled = false;
