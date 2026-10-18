@@ -95,8 +95,9 @@ function electronCommand(executable, arguments_) {
 const freePort = () => new Promise((resolve) => { const s = createServer(); s.listen(0, "127.0.0.1", () => { const value = s.address().port; s.close(() => resolve(value)); }); });
 
 // The main process of the window: Electron's light theme, a hidden window that loads the address it is given. It is exported so that
-// tests/site-usability-boot-entry.test.mjs runs this very text against a stand-in for Electron.
-export const ENTRY = `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); electron.app.dock?.hide(); electron.nativeTheme.themeSource = "light"; const window = new electron.BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`;
+// tests/site-usability-boot-entry.test.mjs runs this very text against a stand-in for Electron. The first load is superseded by the checks' own first Page.navigate
+// when it is not yet finished; Electron then rejects it with ERR_ABORTED, which is no failure of the window, so only another error quits the app.
+export const ENTRY = `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); electron.app.dock?.hide(); electron.nativeTheme.themeSource = "light"; const window = new electron.BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url).catch((failure) => { if (failure.code !== "ERR_ABORTED") throw failure; }); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`;
 
 async function session(url) {
   const socket = new WebSocket(url);
@@ -173,6 +174,7 @@ export async function openWindow(executable, address) {
     });
     page = await session(target);
     await readyPage(page);
+    await until(`the window shows ${address}`, async () => (await page.evaluate("location.href", 3000)) === address);
     return { page, close };
   } catch (failure) { close(); throw failure; }
 }
