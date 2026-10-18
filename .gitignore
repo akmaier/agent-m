@@ -19,3 +19,6 @@ __pycache__/
 # Product clones in a local checkout (SPEC §10 A LOCAL CLONE HOLDS ITS PRODUCTS IN ITS PRODUCTS FOLDER)
 /products/*
 !/products/README.md
+
+# The Bridge app's installed packages (MOD-bridge-build: npm install --prefix src/bridge-build)
+/src/bridge-build/node_modules/
