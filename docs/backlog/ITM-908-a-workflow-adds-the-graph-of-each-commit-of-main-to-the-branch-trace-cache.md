@@ -37,3 +37,9 @@ branch `trace-cache`. The work is 0.4 s of `traceGraph` and 6.2 MB of text; the 
   (`written: false`); a unit test over a fake host checks both, with a counter-proof that replaces the file.
 - A branch that moved meanwhile ends in `Moved`, and the run can be made again.
 - The first commit holds only the tests, and CI is red on it.
+
+## Read at sprint team2/94's start decision (po-opus-b)
+
+The drafts of MOD-trace-graph (`f90e1187`) and MOD-repository-hosts (`50b09201`) are accepted. The entry this item waited
+for is drafted for akmaier in `c6baba33`: MOD-workflow-entries' `onMainChanged`, run on every push to the default branch of
+the instance. It is not accepted yet, so this item still waits for it. ITM-941 builds the rest of that entry.
