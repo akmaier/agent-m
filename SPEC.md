@@ -933,6 +933,21 @@ The instance's site uses the colours of the FAU's Faculty of Engineering as lme.
 `#04316a`, dark blue `#041e42`, metallic `#8c9fb1` — and the logo of the Pattern Recognition Lab.
 *Check:* no automatic check; at review.
 
+**EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE** *(PO A. Maier)*
+Every page of the instance's site draws its header, menu, buttons, tables and lists with the same style sheets; every
+button and link meets WCAG 2.2's minimum target size (success criterion 2.5.8); and every page reflows as WCAG 2.2's
+success criterion 1.4.10 asks, so that its text, tables and lists are read on a phone without scrolling sideways.
+*Check:* `tests/site-usability.test.mjs` — each route, drawn at a phone's width and at a desktop's, uses the site's style
+sheets only, offers no button or link below the minimum target size, and holds no element wider than the window;
+counter-proof: a planted table wider than a phone fails.
+
+**THE SITE SERVES A SCREEN READER** *(PO A. Maier)*
+Every page of the instance's site meets WCAG 2.2 at level AA, so that a person can use it with a screen reader: every
+control has an accessible name, every image a text alternative, every page its landmarks and headings in order, and no
+status is given by colour alone.
+*Check:* `tests/site-accessibility.test.mjs` — an automatic check of each route against WCAG 2.2 level AA finds no
+violation; counter-proof: a planted button without a name fails.
+
 **DOCUMENTS ARE REVIEWED AND EDITED UNDER DOCS** *(PO A. Maier)*
 Documents are reviewed and edited on the page under `docs/` of the instance's Pages site.
 *Check:* `tests/test_pages_layout.py`
