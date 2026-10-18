@@ -181,15 +181,16 @@ test("TST-953006 a reply found in Sent that no issue notes is noted in its issue
 // guards: A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO; UC-039
 // given: counter-proof of TST-953006: Sent holds a reply to B, which already has a reply-sent note; and a reply to C, which has a question-sent note
 // input: repliesDue
-// expect: no comment is written
+// expect: no comment is written; the groups are still found (issue 8 in none, issue 9 open), so the case cannot pass without repliesDue
 test("TST-953007 counter-proof: a sent mail is not noted for a mail already noted, nor for one a question was sent to", async () => {
   const log = [];
   const host = fakeHost([issue(8, listing(B), { state: "closed", comments: [comment(`Reply sent to \`${B.id}\` on 2026-10-12.`)] }),
     issue(9, listing(C), { comments: [comment(`Question sent to \`${C.id}\` on 2026-10-12.`)] })], { log });
   const toB = mail({ id: "MAIL-8888888888888888", messageId: "<reply@example.invalid>" }, { inReplyTo: B.messageId, date: "2026-10-17T15:30:00Z" });
   const toC = mail({ id: "MAIL-7777777777777777", messageId: "<ask@example.invalid>" }, { inReplyTo: C.messageId, date: "2026-10-12T15:30:00Z" });
-  await handling.repliesDue?.(fakeMailbox({ sent: [toB, toC], log }), [{ address: PRODUCT, host }]);
+  const result = await handling.repliesDue?.(fakeMailbox({ sent: [toB, toC], log }), [{ address: PRODUCT, host }]);
   assert.deepEqual(callsOf(log, "host.commentOnIssue"), []);
+  assert.deepEqual([result?.toAnswer.length, result?.answerReceived.length, result?.open.map((due) => due.issue)], [0, 0, [9]]);
 });
 
 // TST-953008
