@@ -19,6 +19,7 @@ uses:
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.PullRequest
   - MOD-repository-hosts.readSnapshot
+  - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.createBranch
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.openPullRequest
@@ -129,8 +130,9 @@ module. The file holds:
   configuration is merged. Considers: the schedule must have no error finding; `instanceCommit` pins the Agent M whose
   `onDoneCheck` and `onTestsFinished` the configuration runs. Errors: `InvalidSchedule` with its findings.
 - `configurationDrift(files: Record<string, string>, schedule: Document, target: { server: "github" | "gitlab",
-  instance: string, instanceCommit: string }) -> Array<{ path: string, difference: string }>` — where the committed
-  configuration differs from the one the schedule generates, on GitLab including a `.gitlab-ci.yml` without the include
+  instance: string, instanceCommit: string }, resources: Document, participants: Document) -> Array<{ path: string,
+  difference: string }>` — where the committed configuration differs from the one `ciConfiguration` generates from the
+  same schedule, target, resources and participants, on GitLab including a `.gitlab-ci.yml` without the include
   entry; empty when they agree, and for a configuration Agent M did not generate, the triggers it has and which rows they
   run, as far as they can be read.
 - `secretsNeeded(schedule: Document, resources: Document) -> Array<{ name: string, for: string }>` — the names of the
@@ -174,9 +176,9 @@ module. The file holds:
 - MOD-participant-list.participantSchema, participantsOf, eligible — the instance's register, its participants and which
   may run a row on a self-hosted runner.
 - MOD-resource-list.resourceSchema — the services the tests call and the names of their secrets.
-- MOD-repository-hosts.Host, Snapshot, PullRequest, readSnapshot, createBranch, commitFiles, openPullRequest,
-  setPipelineSchedule — the product's `.gitlab-ci.yml` at the head, the pull request of a schedule, and the pipeline
-  schedule on GitLab.
+- MOD-repository-hosts.Host, Snapshot, PullRequest, readSnapshot, repositoryInfo, createBranch, commitFiles,
+  openPullRequest, setPipelineSchedule — the product's `.gitlab-ci.yml` at the head, the pull request of a schedule and
+  the default branch it goes into and the pipeline schedule runs on, and the pipeline schedule on GitLab.
 - MOD-text-tools.Finding, finding — the findings of a schedule.
 - MOD-job-runner.Strategies, JobContext, JobResult, provenanceLines — the form of the strategy and the provenance of its
   commit.

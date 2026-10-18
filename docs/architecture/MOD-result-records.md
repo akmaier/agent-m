@@ -19,6 +19,9 @@ uses:
   - MOD-resource-list.Resource
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.paidServices
+  - MOD-test-schedule.scheduleSchema
+  - MOD-test-schedule.defaultSchedule
+  - MOD-test-schedule.occasionsOf
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.readSnapshot
@@ -153,8 +156,8 @@ default branch, entering with the test's pull request:
 
 ## Files
 
-- Reads the branch `test-results`, `docs/tests/counter-proofs/`, the test files of the product, its `docs/resources.md`,
-  and the release tags.
+- Reads the branch `test-results`, `docs/tests/counter-proofs/`, the test files of the product, its `docs/resources.md`
+  and `docs/tests/schedule.md`, and the release tags.
 - Writes `runs/<commit>/<run>.md` on the branch `test-results`, only by adding. Counter-proof records are written by the
   participant that wrote the test, in its pull request.
 
@@ -167,6 +170,8 @@ default branch, entering with the test's pull request:
 - MOD-trace-graph.traceGraph, tracesTo — the tests that guard a selected requirement, use case or module.
 - MOD-resource-list.Resource, resourceSchema, paidServices — the product's resources, and which of the services it
   calls are paid.
+- MOD-test-schedule.scheduleSchema, defaultSchedule, occasionsOf — the product's schedule, or the book's default where
+  none is saved: the levels that run on a commit or a pull request, and the commands of `commit-and-levels`.
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, commitFiles, listTags — the branch `test-results`, adding to it,
   and the release tags.
 - MOD-text-tools.Finding, finding — the findings of `test-proposals`.

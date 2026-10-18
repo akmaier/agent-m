@@ -133,8 +133,8 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   being entered waits all the same, and the panel names what is missing. Crosses the network: the tags through the host,
   the records through the snapshot; fails with their errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
   `Unreachable` —, and with `NotSupported` through a host that does no server operations, such as a local clone.
-- `auditRows(at: Snapshot, results: Snapshot, release: { tag: string, commit: string }, gates: Array<{ requirement: string,
-  gate: string, record: string }>, instanceSpec: string) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
+- `auditRows(at: Snapshot, results: Snapshot, head: Snapshot, release: { tag: string, commit: string }, gates: Array<{
+  requirement: string, gate: string, record: string }>, instanceSpec: string, register: Document[]) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
   worse: number, byImplementer: number, accepted: boolean, limitations: string[] }, rows: Array<{ requirement: string,
   constrains: "product" | "process", sources: Array<{ id: string, authority: string, version: string, hashes: string[] }>,
   tests: Array<{ id: string, level: string, outcome: string, counterProof: string | null }>, gates: string[] }> }` — one
@@ -148,13 +148,14 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   `docs/audits/<tag>.md`.
 
 `Host` and `Snapshot` are MOD-repository-hosts'; `at` is the product at the release's commit, `results` its
-branch `test-results`.
+branch `test-results`, `head` its default branch, which holds the report and its approval record, committed after the
+tagged commit by `acceptAndRelease`; `register` is the instance's source register.
 
 ## Files
 
-- Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests, the report, the approval records —,
-  the branch `test-results`, the schedule, and the instance's source register and `SPEC.md`, whose requirements are the
-  process requirements.
+- Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests —, the report and its approval record
+  on the default branch, the branch `test-results`, the schedule, and the instance's source register and `SPEC.md`, whose
+  requirements are the process requirements.
 - Reads, for `reportsAwaitingAcceptance`, the tags, the default branch's `docs/tests/releases/`, and, only while a release
   candidate is pending, its `docs/jobs/` newest first back to the first run of a candidate.
 - Writes `docs/tests/releases/v<version>.md`, `docs/approvals/release-v<version>-<blob12>.md`, `CHANGELOG.md`, the tags

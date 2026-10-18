@@ -106,7 +106,9 @@ formats are those of the modules it uses.
   - `schedule` — the table of levels by occasion, a form from the schedule's schema, the book's default marked as such
     until one is saved; the release candidate column that cannot be cleared and the commit and pull request columns that
     refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row
-    among the participants that can run tests; the secrets needed, by name, with the server's secrets page; *Save*,
+    among the participants that can run tests, and for a row on a self-hosted runner the server's runner page with the
+    label the runner must carry and a folded explanation, the row's runs shown as queued until one is online; the
+    secrets needed, by name, with the server's secrets page; *Save*,
     which opens with `proposeSchedule` one pull request holding the schedule and the configuration generated from it;
     its CI result, and *Merge* once green, after which, on a GitLab server, `applyPipelineSchedule` sets the project's
     nightly pipeline schedule and the page links it; a configuration edited by hand shown against the schedule; the last
@@ -153,7 +155,8 @@ the result records on the branch `test-results`, the product's resources and the
   MOD-repository-hosts.listPullRequests — the commits to choose from; MOD-repository-hosts.repositoryInfo — the
   repository's visibility for the routes of a job; MOD-repository-hosts.mergePullRequest,
   MOD-repository-hosts.listCiRuns — the schedule's pull request, its CI and its merge; MOD-repository-hosts.ciRunLog,
-  MOD-repository-hosts.webLinks — a run's log, and the secrets, workflow and pipeline schedule pages.
+  MOD-repository-hosts.webLinks — a run's log, the runs of a commit, the branch `test-results`, and the secrets,
+  workflow, runner and pipeline schedule pages.
 - MOD-documents.readRegister, MOD-resource-list.resourceSchema, MOD-participant-list.participantSchema — the product's
   resources and the instance's participants, which the schedule's runners and paid services come from;
   MOD-resource-list.reachableBy — the routes that reach the product's resources, for the routes of `write-tests` and

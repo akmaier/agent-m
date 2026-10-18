@@ -24,6 +24,7 @@ uses:
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.PullRequestFacts
+  - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.commitFiles
   - MOD-text-tools.Finding
   - MOD-text-tools.finding
@@ -219,8 +220,8 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   changed an expected result.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, readRegister — declaration, gate records,
   participants and module files by their schemas.
-- MOD-repository-hosts.Host, Snapshot, PullRequestFacts, commitFiles — the facts of a pull request, and the gate
-  record's commit.
+- MOD-repository-hosts.Host, Snapshot, PullRequestFacts, repositoryInfo, commitFiles — the facts of a pull request, and
+  the gate record's commit on the default branch.
 - MOD-text-tools.Finding, finding, blobSha — findings, and the blobs of the checked texts.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
   provenance of a gate record's commit.

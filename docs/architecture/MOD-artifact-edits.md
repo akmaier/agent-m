@@ -18,8 +18,10 @@ uses:
   - MOD-identifiers.identifiersIn
   - MOD-identifiers.nextIdentifier
   - MOD-spec-document.specSkeleton
+  - MOD-spec-document.parseSpec
   - MOD-group-document.parseGroupFile
   - MOD-group-document.hierarchy
+  - MOD-trace-graph.traceGraph
   - MOD-text-tools.Finding
   - MOD-text-tools.finding
   - MOD-text-tools.blobSha
@@ -159,8 +161,11 @@ The review layout it writes into a product, skipping whatever exists:
 - MOD-documents.readDocument — the identifier a saved or drafted text declares.
 - MOD-identifiers.kindOfIdentifier, identifiersIn, nextIdentifier — the kind of a file, the identifiers in use, the next
   free one.
-- MOD-spec-document.specSkeleton — the SPEC of a new product.
+- MOD-spec-document.specSkeleton, parseSpec — the SPEC of a new product; the text of each requirement for
+  `items-of-kind`.
 - MOD-group-document.parseGroupFile, hierarchy — that every item has one place before a group file is saved.
+- MOD-trace-graph.traceGraph — the items of a kind with their identifiers and titles, for `items-of-kind`, as the check
+  `group-rules` reads them.
 - MOD-text-tools.Finding, finding, blobSha — the finding of `identifier-kept`, and the blob of a text.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
   provenance of a drafted commit.

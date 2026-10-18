@@ -94,7 +94,8 @@ it in a browser; its writer and its workflow files are used in Node as well.
 
 ## Data
 
-It keeps, in memory, the jobs running in this tab; nothing else. A job running in a tab lives as long as the tab; its
+It keeps, in memory, the jobs running in this tab, and the result of each job of this tab that waits at a gate;
+nothing else. A job running in a tab lives as long as the tab; its
 record then shows it as ended without record (UC-036).
 
 **Agent M's job workflow in a product.** On GitHub, the file `.github/workflows/agent-m-jobs.yml`; on GitLab, the file
@@ -178,7 +179,7 @@ a person's decision.
   trusted; and, for an endpoint, with the endpoint's own failure, which the Bridge passes on.
 - `resumeJob(record: JobRecord, gateRecord: string, route: Route, host: Host, head: string, bridge?: Bridge) ->
   Promise<void>` — appends the resumption, naming the gate record, on the head read, and hands the job back to its route:
-  in the tab it goes on; on a Bridge it is handed over again when `bridge` is given, and otherwise taken up when the
+  in the tab it goes on from the result this module kept for it, its end appended as a job of the tab ends; on a Bridge it is handed over again when `bridge` is given, and otherwise taken up when the
   Bridge next reads the repository; on CI the push itself starts the job workflow, which goes on.
 - `liveState(record: JobRecord, product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<LiveState>` — asks the
   runtime that holds a job that has not ended: the CI service's runs of the job workflow for the job, through the host;
