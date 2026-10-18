@@ -7,7 +7,7 @@
 // A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; THE DASHBOARD WRITES ONLY ON A
 // PERSON'S CLICK. The commit's provenance lines name the Agent M version, the kind, the participant and its model and the rounds, and no message of the conversation.
 //
-// Not built: the impact list of a change of the architecture. MOD-trace-graph's architectureImpact, which the module file names for it, is not built yet.
+// The impact list of a change of the architecture is MOD-trace-graph's architectureImpact over the graph of the default branch, the file's current text as before and the draft as after.
 
 import { artifactSchemas, documentFindings, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
@@ -19,7 +19,7 @@ import { el, link, readPlace } from "./common.mjs";
 import { fileDrafts } from "./file-drafts.mjs";
 import { loadStage } from "./jobs.mjs";
 import { requirementsDraft } from "./requirements-draft.mjs";
-import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
+import { changeImpact, dueDiligenceSection, graphOnce, roundsSection, splitDueDiligence } from "./sections.mjs";
 
 // The schema of the kind of reviewed file that owns a path, among those of MOD-documents.
 const OWNERS = [[/^docs\/use-cases\/UC-[^/]+\.md$/, "useCase"], [/^docs\/architecture\/ARC-[^/]+\.md$/, "decision"], [/^docs\/architecture\/MOD-[^/]+\.md$/, "module"]];
@@ -40,6 +40,8 @@ function roundsAndLeft(result) {
   return [el("p", "rounds", `Correction rounds: ${result.rounds.length}`), explain("correction-loop"), left];
 }
 
+const ARCHITECTURE_FILE = /^docs\/architecture\/(ARC|MOD)-[^/]+\.md$/;
+
 // The files of a draft: a change of a use case or of the architecture drafts `files`, a conversation `edits`.
 const filesOf = (draft) => (draft.kind === "converse" ? draft.result.draft.edits : draft.result.draft.files) ?? [];
 
@@ -51,9 +53,19 @@ async function showFiles(where, draft, trailers, target, drop) {
   const namedPath = named === undefined ? null : [...statuses(snapshot)].find(([, each]) => each.id === named)?.[0] ?? null;
   const versionOf = (path) => (path === namedPath && params.version ? params.version : undefined);
   const architecture = draft.kind === "change-architecture";
+  // The impact list of each architecture file the draft changes, from the file on the default branch to the draft; derived before the editors open.
+  const impacts = new Map(), graphOf = graphOnce(snapshot);
+  if (architecture) {
+    for (const drafted of filesOf(draft)) {
+      if (!ARCHITECTURE_FILE.test(drafted.path)) continue;
+      const current = await snapshot.read(drafted.path);
+      if (current !== null) impacts.set(drafted.path, await changeImpact({ path: drafted.path }, { text: current }, drafted.text, graphOf));
+    }
+  }
   const extras = (path, text) => {
     const diligence = architecture ? splitDueDiligence(text).section : null;
-    return diligence === null ? [] : [dueDiligenceSection(diligence)];
+    const impact = impacts.get(path);
+    return [...(diligence === null ? [] : [dueDiligenceSection(diligence)]), ...(impact ? [impact.problem ?? impact.shown] : [])];
   };
   const check = draft.kind === "converse" ? ownerError : () => null;
   if (typeof draft.result.draft.answer === "string") target.append(el("div", "answer", draft.result.draft.answer));

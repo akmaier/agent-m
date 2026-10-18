@@ -20,8 +20,7 @@ import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
 import { queueService } from "./spec-entries.mjs";
-import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, impactSection } from "./sections.mjs";
-import { traceGraph, architectureImpact } from "../trace-graph/index.mjs";
+import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, changeImpact, graphOnce } from "./sections.mjs";
 
 // What the status approved means (UC-006 4c): the record is committed, the section is not yet written into the SPEC.
 const APPROVED_NOTE = "Approval recorded, not yet written into the SPEC — the apply workflow writes it after an approval committed on GitHub's page; " +
@@ -77,20 +76,6 @@ async function draftingRounds(where) {
     return { rounds: row.record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(row.record.path)) };
   } catch { return null; }
 }
-
-// The impact list of a change to an accepted decision or module (AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST), from the graph of the
-// snapshot shown, the text accepted last and the text shown: { shown } the section to show, or { problem } a paragraph saying why it could not be
-// derived, in which case the change is not offered for acceptance. graphOf() gives the graph, built once for a page.
-async function changeImpact(file, last, body, graphOf) {
-  try {
-    const shown = impactSection(architectureImpact(await graphOf(), [{ path: file.path, before: last.text, after: body }]));
-    shown.append(explain("impact-of-a-change"));
-    return { shown };
-  } catch (failure) {
-    return { problem: el("p", "problem", `The impact list could not be derived: ${failure.message} — without it, this change cannot be accepted.`) };
-  }
-}
-const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= traceGraph(snapshot)); };
 
 // The service a descriptor names for its decisions (`accept`): the approvals of reviewed files, or the entries of a change queue through
 // MOD-spec-changes. Each gives the flow the groups of files to list, whether a kind has a Review all, whether a product without a token
