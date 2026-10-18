@@ -41,7 +41,9 @@ const nodeJobShards = (workflow) => {
 };
 // Whether the matrix runs each shard the count names, once.
 const agree = ({ matrix, count }) => matrix !== null && count !== null && matrix.length === count && matrix.every((n, index) => n === index);
-const SHARDS = nodeJobShards(readFileSync(new URL("../.github/workflows/tests.yml", import.meta.url), "utf8")).count;
+// The text of the workflow, read once.
+const workflowText = readFileSync(new URL("../.github/workflows/tests.yml", import.meta.url), "utf8");
+const SHARDS = nodeJobShards(workflowText).count;
 // A file the rule is known to match, for the known positive of the rule read from the workflow.
 const KNOWN = "tests/site-usability.test.mjs";
 
@@ -50,7 +52,7 @@ after(() => rmSync(work, { recursive: true, force: true }));
 
 // The text the node job of the workflow writes as level.mjs: the lines between `<<'JS'` and `JS`, without the indentation of the block.
 function workflowScript() {
-  const lines = readFileSync(join(root, ".github/workflows/tests.yml"), "utf8").split("\n");
+  const lines = workflowText.split("\n");
   const job = lines.indexOf("  node:");
   assert.ok(job >= 0, "the workflow has a node job");
   const first = lines.findIndex((line, index) => index > job && line.includes("<<'JS'")) + 1;
@@ -256,7 +258,7 @@ test("TST-945008 · over a smaller copy with seven files that need the Electron,
 // input: the shard numbers its matrix lists, and the shard count its script is run with
 // expect: the matrix lists the shards 0 to 15, one job each, and the script is run with the count 16: the 741 tests of the heaviest shard of a run of all levels (8 shards, 2 m 11 s) are spread over 16 shards so that no job nears the two-minute limit; the matrix and the count agree, so that every file runs once
 test("TST-948001 · the node job runs the sixteen shards its matrix lists, with the count sixteen", () => {
-  const stated = nodeJobShards(readFileSync(join(root, ".github/workflows/tests.yml"), "utf8"));
+  const stated = nodeJobShards(workflowText);
   assert.deepEqual(stated.matrix, Array.from({ length: 16 }, (_, number) => number));
   assert.equal(stated.count, 16);
   assert.equal(agree(stated), true);
@@ -277,4 +279,20 @@ test("TST-948002 · counter-proof: a matrix and a count that disagree are found"
   assert.equal(agree(nodeJobShards(job(sixteen, 8))), false);
   assert.equal(agree(nodeJobShards(job(eight, 16))), false);
   assert.equal(agree(nodeJobShards("\n  node:\n    steps: []\n")), false);
+});
+
+// TST-948003
+// level: unit
+// module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: the text of .github/workflows/tests.yml as it stands, and a copy of it with the node job's count planted at 8 while its matrix lists 16 shards
+// input: the agreement check of the matrix and the count, on each text
+// expect: the real text agrees (the matrix lists the shards 0 to count - 1); the planted copy is found to disagree
+test("TST-948003 · the real workflow's node matrix and count agree, and a copy with the count at 8 and the matrix at 16 is found to disagree", () => {
+  assert.equal(agree(nodeJobShards(workflowText)), true);
+  const planted = workflowText.replace(/(\{\{ matrix\.shard \}\}" )\d+( tests\/\*\.test\.mjs)/, (whole, before, after) => `${before}8${after}`);
+  assert.notEqual(planted, workflowText, "the count was planted");
+  assert.equal(nodeJobShards(planted).matrix.length, 16);
+  assert.equal(nodeJobShards(planted).count, 8);
+  assert.equal(agree(nodeJobShards(planted)), false);
 });
