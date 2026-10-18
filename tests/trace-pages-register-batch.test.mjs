@@ -1,6 +1,6 @@
-// MOD-trace-pages' specification view reads the product's links file and the instance's register entries through Snapshot.readMany (ITM-833): on the
-// default branch the person's own source is looked up in docs/sources.md and in the entries of docs/sources/, and these files are named to readMany
-// before they are read, so that a host that can batch fetches them together.
+// MOD-trace-pages' specification view reads the product's links file and the instance's register entries through Snapshot.readMany: on the
+// default branch the person's own source is looked up in docs/sources.md and in the entries of docs/sources/, and an opened requirement shows its sources
+// from the same files, at any version; these files are named to readMany before they are read, so that a host that can batch fetches them together.
 //
 // Run: node --test tests/trace-pages-register-batch.test.mjs
 //
@@ -15,12 +15,14 @@
 // - "one batch of the files it shows" (SPEC.md, A PAGE LOAD READS THE REPOSITORY IN BATCHES): the links file and the register entries are asked for in
 //   one readMany call where they stand in one snapshot; where the product's and the instance's snapshots are two, the register's entries are asked for in
 //   one call of the instance's snapshot, and the links file, a batch of one file, by its own read.
-// - "It reads the product's snapshot at the chosen version" (MOD-trace-pages, Files): the register is looked up only on the default branch, where the
-//   person's own source is given to the prompt bar; at a released version no file of the register is asked for.
+// - "It reads the product's snapshot at the chosen version" (MOD-trace-pages, Files): the register is looked up for the prompt bar's person only on the default
+//   branch; at a released version no file of the register is asked for until a requirement is opened.
+// - "Sources — each with the version and the part the product links" (UC-020 step 5): opening a requirement reads the same files, and they are named to readMany
+//   in one call for the drawing the requirement is opened in, however many requirements are opened in it.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { document, find } from "./trace-pages-harness.mjs";
+import { document, find, until } from "./trace-pages-harness.mjs";
 
 const { view } = await import("../src/trace-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "trace");
@@ -130,4 +132,102 @@ test("at a released version no file of the register is asked for", async () => {
   await drawn({ product: host, instance: host, ref: "v1.0" });
   assert.deepEqual(register(events), []);
   assert.deepEqual(events.filter((event) => event.startsWith("host many")), []);
+});
+
+// An opened requirement (ITM-846): the specification of the cases below holds two requirements that name the person's source, SRC-acme-person, as their source.
+const SPEC_TWO = "# Fixture — Specification\n\n## First section\n\n**FIRST RULE** *(SRC-acme-person)*\nFirst rule.\n*Check:* at review.\n\n**SECOND RULE** *(SRC-acme-person)*\nSecond rule.\n*Check:* at review.\n";
+
+// The specification route drawn at `ref`, then each requirement of `names` opened in turn, each waited for until it no longer says it is reading. -> { target, calls } where
+// `calls` are the calls the Snapshots received from the opening on (not those of drawing the page).
+async function opened({ product, instance, events, ref = "main", names }) {
+  const target = document.createElement("div");
+  document.body.append(target);
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: "https://github.com/acme/library", kind: "github", host: product }, store: {}, go() {} };
+  await route.render(target, context, { key: "specification", ref });
+  const from = events.length;
+  for (const name of names) {
+    find(target, (node) => node.localName === "button" && node.textContent === name)[0].dispatchEvent(new Event("click"));
+    await until(() => find(target, (node) => node.className === "traces-reading").length === 0);
+  }
+  return { target, calls: events.slice(from) };
+}
+const SOURCES_SHOWN = "A person — version 2026-10-11";
+
+// CASE ITM-846-01
+// TST-846001 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: one Host for the product and the instance, which hands the same Snapshot for main each time; that Snapshot holds SPEC.md (two requirements naming SRC-acme-person), docs/sources.md and two register entries
+// input: the specification route drawn at main, then the requirement FIRST RULE opened
+// expect: of the calls the opening makes that name a file of the register, the first is one readMany of docs/sources.md and the two entries, in that order; the three files are then read once each; the opening told readMany of the register once; known positive: the Sources of the opened requirement read "A person — version 2026-10-11"
+test("an opened requirement names the links file and the register entries to readMany together before it reads them", async () => {
+  const events = [];
+  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC_TWO, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
+  const { target, calls } = await opened({ product: host, instance: host, events, names: ["FIRST RULE"] });
+  assert.equal(register(calls)[0], `host many docs/sources.md,${PERSON_FILE},${OTHER_FILE}`);
+  assert.deepEqual(register(calls).slice(1).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
+  assert.equal(register(calls).filter((event) => event.startsWith("host many")).length, 1);
+  assert.ok(target.textContent.includes(SOURCES_SHOWN), "known positive: the sources are shown");
+});
+
+// CASE ITM-846-02
+// TST-846002 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a product Host whose Snapshot at the tag v1.0 holds SPEC.md and docs/sources.md, and an instance Host, another one, whose Snapshot holds the two register entries
+// input: the specification route drawn at v1.0, a released version, then the requirement FIRST RULE opened
+// expect: the instance's Snapshot is told the two entries in one readMany, before it reads them once each; the product's Snapshot is told no file of the register and reads docs/sources.md once; known positive: the Sources read "A person — version 2026-10-11"
+test("an opened requirement at a released version names the register's entries to the instance's snapshot together and reads the links file by itself", async () => {
+  const events = [];
+  const product = recordingHost({ label: "product", files: { "SPEC.md": SPEC_TWO, "docs/sources.md": LINKS }, events });
+  const instance = recordingHost({ label: "instance", files: REGISTER, events });
+  const { target, calls } = await opened({ product, instance, events, ref: "v1.0", names: ["FIRST RULE"] });
+  const instanceCalls = calls.filter((event) => event.startsWith("instance "));
+  assert.equal(instanceCalls[0], `instance many ${PERSON_FILE},${OTHER_FILE}`);
+  assert.deepEqual(instanceCalls.slice(1).sort(), [`instance read ${OTHER_FILE}`, `instance read ${PERSON_FILE}`].sort());
+  assert.deepEqual(register(calls).filter((event) => event.startsWith("product many")), []);
+  assert.deepEqual(calls.filter((event) => event === "product read docs/sources.md"), ["product read docs/sources.md"]);
+  assert.ok(target.textContent.includes(SOURCES_SHOWN), "known positive: the sources are shown");
+});
+
+// CASE ITM-846-03
+// TST-846003 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the Host of case 1 without readMany on its Snapshots
+// input: the specification route drawn at main, then FIRST RULE opened
+// expect: the three files of the register are read once each by read, no call is refused, and the Sources read "A person — version 2026-10-11"
+test("an opened requirement on a snapshot without readMany reads the register file by file as before", async () => {
+  const events = [];
+  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC_TWO, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true, batching: false });
+  const { target, calls } = await opened({ product: host, instance: host, events, names: ["FIRST RULE"] });
+  assert.deepEqual(register(calls).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
+  assert.ok(target.textContent.includes(SOURCES_SHOWN), "known positive: the sources are shown");
+});
+
+// CASE ITM-846-04
+// TST-846004 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the Host of case 1
+// input: the specification route drawn at main, then FIRST RULE opened and SECOND RULE opened
+// expect: the two openings together tell readMany the register once (one call naming docs/sources.md) and read each of its three files once
+test("two requirements opened in one drawing name the register to readMany once", async () => {
+  const events = [];
+  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC_TWO, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
+  const { target, calls } = await opened({ product: host, instance: host, events, names: ["FIRST RULE", "SECOND RULE"] });
+  assert.equal(register(calls).filter((event) => event.startsWith("host many")).length, 1);
+  assert.deepEqual(register(calls).filter((event) => event.startsWith("host read")).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
+  assert.equal(find(target, (node) => node.className === "requirement-opened").filter((node) => node.textContent !== "").length, 2, "known positive: both requirements are open");
+});
+
+// CASE ITM-846-05
+// TST-846005 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the product Host of case 2, and an instance Host whose Snapshot holds no entry of the register
+// input: the specification route drawn at v1.0, then FIRST RULE opened
+// expect: no call names an entry of the register, docs/sources.md is read once by the product's Snapshot, and the Sources read "SRC-acme-person — no linked version"
+test("an opened requirement whose register holds no entry names none to readMany and says its source has no linked version", async () => {
+  const events = [];
+  const product = recordingHost({ label: "product", files: { "SPEC.md": SPEC_TWO, "docs/sources.md": LINKS }, events });
+  const instance = recordingHost({ label: "instance", files: {}, events });
+  const { target, calls } = await opened({ product, instance, events, ref: "v1.0", names: ["FIRST RULE"] });
+  assert.deepEqual(register(calls), ["product read docs/sources.md"]);
+  assert.ok(target.textContent.includes("SRC-acme-person — no linked version"), "the source is named without a linked version");
 });

@@ -5,7 +5,7 @@
 // Run: node --test tests/system-itm-599-gaps-view.test.mjs
 //
 // Module: MOD-trace-pages; MOD-site-frame
-// Guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+// Guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // Level: system
 //
 // Each case states its input and its expected values in its own text; none reads an expected value from a document. The product is https://github.com/alice/thesis-tool: a SPEC of
@@ -26,6 +26,7 @@ const INSTANCE = "akmaier/agent-m";
 const PRODUCT = "https://github.com/alice/thesis-tool";
 const REPO = "alice/thesis-tool";
 const TOKEN = "github_pat_PRODUCT0123456789abcdefghijk";
+const INSTANCE_TOKEN = "github_pat_INSTANCE0123456789abcdefghij";
 const TICK = "`";
 const FILES = {
   "SPEC.md": ["# Thesis tool — Specification", "", "## Export", "",
@@ -46,8 +47,8 @@ const settle = async () => { await until(() => false, 150); };
 const pageIsGaps = () => /Matrix/.test(mainText());
 
 // A person opens the page at `fragment`, with the product kept in this browser — with its own token where `token` is true — and the frame started on the view of MOD-trace-pages.
-async function visit(t, fragment, { token }) {
-  const world = githubWorld({ [REPO]: { main: FILES }, [INSTANCE]: { main: {} } });
+async function visit(t, fragment, { token, instanceToken = false, repositories = { [REPO]: { main: FILES }, [INSTANCE]: { main: {} } } }) {
+  const world = githubWorld(repositories);
   const realFetch = globalThis.fetch;
   const realInterval = globalThis.setInterval;
   globalThis.fetch = world.fetch;
@@ -57,6 +58,7 @@ async function visit(t, fragment, { token }) {
   const store = openStore(INSTANCE);
   writeSetting(store, "products", [PRODUCT]);
   if (token) writeSetting(store, `github-token:${REPO}`, { value: TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" });
+  if (instanceToken) writeSetting(store, "github-token", { value: INSTANCE_TOKEN, name: "Agent M · akmaier/agent-m", expires: "2027-01-01" });
   await startPage({ page: "review", views: [view] });
   await settle();
   return { world, browser, product: () => world.forRepository(REPO) };
@@ -114,4 +116,63 @@ test("opening the gaps page a second time at the same commit asks for the lists'
     assert.deepEqual(counted(second), token ? { api: 5, graphql: 0, raw: 0 } : { api: 4, graphql: 0, raw: 1 }, token ? "with a token" : "without a token");
     assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
   }
+});
+
+// An opened requirement at a released version (ITM-846): the product's tag v1.0.0 holds a SPEC whose requirement ALPHA RULE names the person's source SRC-acme-person, the product's links
+// file docs/sources.md, and the use case UC-001; the instance akmaier/agent-m holds the register, two entries of docs/sources/. The register is read for the opened requirement only: a
+// deep link to the tag does not draw the default branch, whose drawing would have read it for the prompt bar.
+const SHA = "0".repeat(64);
+const entryOf = (id, account) => ["---", `id: ${id}`, "title: A person", "kind: person", "authority: normative", "licence: may be republished — fixture", `identifier: ${account}`, "---",
+  `# ${id} A person`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
+  `| ${TICK}2026-10-11${TICK} | 2026-10-11 | the fixture | this repository | one file, hashed only |`, ""].join("\n");
+const RELEASED = {
+  "SPEC.md": ["# Thesis tool — Specification", "", "## Export", "", "**ALPHA RULE** *(SRC-acme-person)*", "Alpha rule.", "*Check:* at review.", ""].join("\n"),
+  "docs/sources.md": ["# Sources", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", `| SRC-acme-person | 2026-10-11 | ${SHA} | |`, ""].join("\n"),
+  "docs/use-cases/UC-001-first.md": doc("UC-001", "First use case", { realises: ["ALPHA RULE"] }),
+};
+const REGISTER_FILES = ["docs/sources/SRC-acme-person.md", "docs/sources/SRC-other-person.md"];
+const REGISTER = Object.fromEntries(REGISTER_FILES.map((path) => [path, entryOf(path.slice("docs/sources/".length, -3), "github.com/alice")]));
+const RELEASE_LINK = `#trace/key=specification/ref=v1.0.0/product=${encodeURIComponent(PRODUCT)}`;
+
+// The requests the product's and the instance's repositories are asked for by one click on the requirement, as { product, instance }.
+async function clickAlpha(t, { tokens }) {
+  const page = await visit(t, RELEASE_LINK, { token: tokens, instanceToken: tokens,
+    repositories: { [REPO]: { main: FILES, "v1.0.0": RELEASED }, [INSTANCE]: { main: REGISTER } } });
+  assert.match(mainText(), /ALPHA RULE/, "known positive: the specification at the tag is drawn");
+  const before = { product: page.product().length, instance: page.world.forRepository(INSTANCE).length };
+  find(document.body, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0].dispatchEvent(new Event("click"));
+  await until(() => /A person — version 2026-10-11/.test(mainText()));
+  await settle();
+  assert.match(mainText(), /A person — version 2026-10-11/, "known positive: the sources of the opened requirement are shown");
+  return { product: page.product().slice(before.product), instance: page.world.forRepository(INSTANCE).slice(before.instance) };
+}
+
+// CASE ITM-846-SYSTEM-01
+// TST-846201 · level: system · module: MOD-trace-pages; MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: this browser keeps the product and the instance, each with its own token; the address of the specification at the tag v1.0.0 is opened
+// input: the requirement ALPHA RULE is opened
+// expect: the instance is asked for 3 REST calls (its information, the commit of main, that commit's tree) and 1 GraphQL batch that names the two register entries, and for no file from the raw host; the product is asked for 1 REST call (docs/sources.md through the contents API) and 1 GraphQL batch (UC-001's file, the file of the graph); every request carries the token of its repository
+test("with tokens, an opened requirement at a released version reads the register entries in one GraphQL batch", async (t) => {
+  const asked = await clickAlpha(t, { tokens: true });
+  assert.deepEqual(counted(asked.instance), { api: 3, graphql: 1, raw: 0 });
+  assert.deepEqual(asked.instance.find((request) => request.kind === "graphql").files.sort(), REGISTER_FILES);
+  assert.deepEqual(counted(asked.product), { api: 1, graphql: 1, raw: 0 });
+  assert.deepEqual(asked.product.find((request) => request.kind === "graphql").files, ["docs/use-cases/UC-001-first.md"]);
+  assert.deepEqual(asked.instance.filter((request) => request.authorization !== `Bearer ${INSTANCE_TOKEN}`), []);
+  assert.deepEqual(asked.product.filter((request) => request.authorization !== `Bearer ${TOKEN}`), []);
+});
+
+// CASE ITM-846-SYSTEM-02
+// TST-846202 · level: system · module: MOD-trace-pages; MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the same, with no token stored
+// input: the requirement ALPHA RULE is opened
+// expect: GitHub's batch query needs a token, so none is sent: the instance is asked for 3 REST calls and the 2 register entries from the raw host, one request each; the product for the 2 files UC-001 and docs/sources.md from the raw host and for no REST call
+test("without a token, an opened requirement reads each register entry by its own request", async (t) => {
+  const asked = await clickAlpha(t, { tokens: false });
+  assert.deepEqual(counted(asked.instance), { api: 3, graphql: 0, raw: 2 });
+  assert.deepEqual(asked.instance.filter((request) => request.kind === "raw").map((request) => request.file).sort(), REGISTER_FILES);
+  assert.deepEqual(counted(asked.product), { api: 0, graphql: 0, raw: 2 });
+  assert.deepEqual(asked.product.filter((request) => request.kind === "raw").map((request) => request.file).sort(), ["docs/sources.md", "docs/use-cases/UC-001-first.md"]);
 });
