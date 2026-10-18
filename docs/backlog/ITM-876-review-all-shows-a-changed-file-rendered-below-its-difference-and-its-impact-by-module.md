@@ -50,6 +50,11 @@ there and reports it.
 
 - On Review all and on a file's page, a changed decision or module file shows its difference and, below it, the file
   rendered with its Mermaid diagrams. Tests check both, each with a counter-proof.
-- The impact list names, under each affected module, its code files and its tests, in a box that scrolls. A test checks
+- The impact list names, under each affected module, its code files and its tests. A test checks
   this, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Split at its stop clause (sprint team1/87).** No existing rule gives the impact list a scrolling box that fits:
+`.accepted-diff .diff` is the difference's style, with its `pre-wrap`, block spans and warning border. So the box is
+ITM-894's, and this item builds the rendering and the grouping.
+
