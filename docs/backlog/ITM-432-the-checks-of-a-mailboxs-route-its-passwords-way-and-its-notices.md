@@ -54,3 +54,9 @@ reading and sending in the first two checks wait for the items of UC-038 and UC-
 - Where the code does not do what the requirement says, the test follows the requirement and the disagreement is named
   as a finding.
 - Only the two new test files, their data files and the mailbox's cases in `tests/test_settings_disclosure.py` change.
+
+## Built (read on main by po-opus-b, 2026-10-18)
+
+This item is built: commit `82db8d4a` ("Team2 sprint40 ITM-432 mailbox release checks") is on `main`. No merged pull request names it, because it predates the record
+format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
+of UC-036 to UC-049 found its code and tests on `main`.
