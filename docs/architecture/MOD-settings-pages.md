@@ -23,6 +23,7 @@ uses:
   - MOD-browser-store.listSettings
   - MOD-browser-store.exportSettings
   - MOD-browser-store.importSettings
+  - MOD-browser-store.readExport
   - MOD-browser-store.expiringSoon
   - MOD-browser-store.secretValues
   - MOD-repository-hosts.parseAddress
@@ -156,7 +157,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     `docs/conversation-recording.md`; switching it off is saved without a notice, and the page says that records already
     written stay in the history (UC-042 3b). At the bottom *Export settings*, after the statement of every secret it holds
     and what each grants, optionally locked with a passphrase; *Import settings*, which keeps what this browser has and
-    adds the rest, listing both; *Clear everything in this browser*. Each section and line has its folded explanation,
+    adds the rest, listing both, and which stores nothing when the file holds a token of the other kind of server than its
+    key names — a `github-token` or `github-token:<owner>/<repository>` token is connected to a GitHub repository, a
+    `gitlab-token:<server>/<project>` token to that GitLab project, before the file is imported, and a refusal of
+    `connect` refuses the import, with a line that names the key and never the token; *Clear everything in this browser*.
+    Each section and line has its folded explanation,
     among them that every Pages site of the same owner can read this browser's store, and, for *Notifications*, what is
     checked and how often, that the checks go to the repository servers with this browser's tokens and nowhere else, and
     that nothing is checked while no page of the dashboard is open.
@@ -232,7 +237,8 @@ reaches.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting, MOD-browser-store.writeSetting,
   MOD-browser-store.clearSetting, MOD-browser-store.clearEverything, MOD-browser-store.listSettings,
   MOD-browser-store.exportSettings, MOD-browser-store.importSettings, MOD-browser-store.expiringSoon — every browser
-  setting, its export and import; MOD-browser-store.secretValues — the stored secrets a host it connects refuses to commit
+  setting, its export and import; MOD-browser-store.readExport — the tokens an import file holds, read before the import;
+  MOD-browser-store.secretValues — the stored secrets a host it connects refuses to commit
   (`NO SECRET IN THE REPOSITORY`).
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect, MOD-repository-hosts.readSnapshot,
   MOD-repository-hosts.repositoryInfo — products and the instance, a token's test, a repository's visibility;
