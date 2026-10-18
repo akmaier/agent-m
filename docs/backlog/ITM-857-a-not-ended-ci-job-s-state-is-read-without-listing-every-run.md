@@ -6,6 +6,7 @@ realises:
   - A PAGE LOAD READS THE REPOSITORY IN BATCHES
 modules:
   - MOD-runtimes
+  - MOD-main-page
 builds_on:
   - ITM-847
 tests:
