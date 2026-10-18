@@ -35,6 +35,7 @@ path resolved before the page's base, or a race in the page's load. No change co
 
 **Not built separately (sprint team1/91).** Its cause is a fault of `openWindow` in `tests/site-usability.d/browser.mjs`,
 shared by every caller, and the fix belongs there once, in ITM-935. A second helper beside it would copy `openWindow` and
-leave the fault in place. Pull request #909 is closed without merging. At ITM-935's gate, the 918 test is checked to resolve
-its module under a held server answer. If it does, this item is done by ITM-935. If not, it is read again.
+leave the fault in place. Pull request #909 is closed without merging. **This item is done by ITM-935:** its gate
+(`docs/gates/20261018-1643-development-release-testing-b935.md`) found the 918 test resolving its module under a held
+server answer.
 
