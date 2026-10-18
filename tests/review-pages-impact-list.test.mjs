@@ -11,10 +11,12 @@
 // The fixtures of tests/review-pages-draft-world.mjs are used unchanged (the document, the store, the instance, the page helpers); the product is a Host of this file's own over one
 // repository in memory with a history, keeping to MOD-repository-hosts' interface. The real MOD-approvals, MOD-trace-graph, MOD-documents and MOD-prompt-bar run as they are.
 // Nothing reaches the network. Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
-//   - The list is <section class="change-impact">: <ul class="names"> with an <li> for each module, "<id> breaks — <why>" for a module that uses an interface the change alters or
-//     removes, "<id> — changed" for the changed file's own module; then <p class="small"> lines "Code files — …" ("no code yet" where the affected folders hold none), "Tests — …",
-//     "Requirements and use cases — newly named: … · no longer named: …" and "Items — …".
-//   - "No code yet" is said for the whole list, as MOD-trace-graph's ArchitectureImpact gives one list of code files, not one for each module.
+//   - The list is <section class="change-impact">: <ul class="names"> with an <li class="module" data-id="<id>"> for each module, whose <span class="module-head"> reads "<id> breaks — <why>"
+//     for a module that uses an interface the change alters or removes, "<id> — changed" for the changed file's own module; under the head <p class="small code-files"> "Code files — …"
+//     ("no code yet" where the module's folder holds none) and <p class="small tests"> "Tests — …" ("none" where no test exercises it); then, as children of the section,
+//     <p class="small"> lines "Requirements and use cases — newly named: … · no longer named: …" and "Items — …".
+//   - UC-023 step 4 lists "the code files in each affected module's folder" and "the tests that exercise each affected module": a code file stands under the module whose folder begins its path,
+//     a test under the module it exercises (MOD-trace-graph's Graph: the module's `folder`, the `exercises` edges).
 //   - On `draft`, the list stands in the draft's box of the architecture file the draft changes, from the file's text on the default branch (before) and the draft (after).
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
@@ -104,11 +106,16 @@ function fakeProduct(changed) {
 }
 
 const impactOf = (target) => byClass(target, "section", "change-impact")[0];
-const namesOf = (impact) => byClass(impact, "ul", "names")[0].childNodes.filter((node) => node.nodeType === 1).map((node) => node.textContent);
-const linesOf = (impact) => byClass(impact, "p", "small").map((node) => node.textContent);
+const namesOf = (impact) => byClass(impact, "span", "module-head").map((node) => node.textContent);
+// The lines of the list itself: the <p class="small"> that are children of the section, not those under a module.
+const linesOf = (impact) => impact.childNodes.filter((node) => node.nodeType === 1 && node.localName === "p" && node.className.split(" ").includes("small")).map((node) => node.textContent);
+// What stands under each module, by its identifier: its code files and its tests, one line each.
+const underModules = (impact) => Object.fromEntries(byClass(impact, "li", "module").map((item) =>
+  [item.getAttribute("data-id"), [byClass(item, "p", "code-files")[0].textContent, byClass(item, "p", "tests")[0].textContent]]));
 const MODULE_LIST = ["MOD-tree-view breaks — uses an interface that is removed", "MOD-reader — changed"];
-const MODULE_LINES = ["Affected modules", "Code files — src/reader/read.mjs, src/tree-view/view.mjs", "Tests — TST-801 (guards RULE ONE), TST-802 (guards RULE TWO)",
-  "Requirements and use cases — newly named: RULE TWO · no longer named: UC-001", "Items — ITM-801, ITM-802"];
+const MODULE_LINES = ["Affected modules", "Requirements and use cases — newly named: RULE TWO · no longer named: UC-001", "Items — ITM-801, ITM-802"];
+const UNDER_MODULES = { "MOD-tree-view": ["Code files — src/tree-view/view.mjs", "Tests — TST-802 (guards RULE TWO)"],
+  "MOD-reader": ["Code files — src/reader/read.mjs", "Tests — TST-801 (guards RULE ONE)"] };
 
 // TST-729001 · level: unit · module: MOD-review-pages
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
@@ -122,6 +129,7 @@ test("module/<id> — the impact list of a changed module file: breaking modules
   assert.deepEqual(namesOf(impact), MODULE_LIST);
   assert.equal(byClass(impact, "span", "breaks").length, 1, "one module is marked breaks");
   assert.deepEqual(linesOf(impact), MODULE_LINES);
+  assert.deepEqual(underModules(impact), UNDER_MODULES, "each module with its own code files and its own tests");
 });
 
 // TST-729002 · level: unit · module: MOD-review-pages
@@ -135,7 +143,7 @@ test("decision/<id> — a module folder without code says no code yet", async ()
   assert.ok(impact, "the impact list");
   assert.deepEqual(namesOf(impact), ["MOD-pending — changed"]);
   assert.equal(byClass(impact, "span", "breaks").length, 0);
-  assert.equal(linesOf(impact)[1], "Code files — no code yet");
+  assert.deepEqual(underModules(impact), { "MOD-pending": ["Code files — no code yet", "Tests — none"] });
 });
 
 // TST-729003 · level: unit · module: MOD-review-pages
@@ -156,6 +164,7 @@ test("draft — an architecture file's draft shows the same impact list as the s
   assert.deepEqual(namesOf(impact), MODULE_LIST);
   assert.equal(byClass(impact, "span", "breaks").length, 1);
   assert.deepEqual(linesOf(impact), MODULE_LINES);
+  assert.deepEqual(underModules(impact), UNDER_MODULES);
   const route = impactOf((await draw(fakeProduct(true), "module", { id: "MOD-reader" })).target);
   assert.equal(impact.textContent, route.textContent, "the same list as on the route module");
 });

@@ -202,6 +202,14 @@ export function reviewRoute(kind) {
     if (bar) target.append(bar);
   }
 
+  // The file as it will be accepted, rendered with its diagrams; of the whole architecture's further decisions with their due diligence. Below its difference
+  // a changed file's rendering stands in a section of its own (UC-008 3e, 2a, step 2).
+  function renderedFile(file, body, changed) {
+    const { rest, section: diligence } = kind.whole && file.kind === "architecture-decision" ? splitDueDiligence(shortBody(body)) : { rest: shortBody(body), section: null };
+    const nodes = [renderArtifact(rest), ...(diligence !== null ? [dueDiligenceSection(diligence)] : [])];
+    return changed ? [el("section", "rendered", el("h4", null, "The file as it will be accepted"), ...nodes)] : nodes;
+  }
+
   // Review all: every file not yet accepted in sequence — a changed one as its difference to the last accepted text, a new one in
   // full — and, below them, the acceptance of exactly what is shown. For the architecture it is the page of the whole architecture:
   // decisions and module files in their order, a further decision with its due diligence, and the rounds of the job that drafted them.
@@ -233,16 +241,14 @@ export function reviewRoute(kind) {
         } catch (failure) {
           diff.append(el("p", "problem", failure.message));
         }
-        section.append(diff);
+        section.append(diff, ...renderedFile(file, body, true));
         if (kind.restsOn && last) {
           const impact = await changeImpact(file, last, body, graphOf);
           withImpact = !impact.problem;
           section.append(impact.problem ?? impact.shown);
         }
       } else {
-        const { rest, section: diligence } = kind.whole && file.kind === "architecture-decision" ? splitDueDiligence(shortBody(body)) : { rest: shortBody(body), section: null };
-        section.append(renderArtifact(rest));
-        if (diligence !== null) section.append(dueDiligenceSection(diligence));
+        section.append(...renderedFile(file, body, false));
       }
       if (kind.restsOn) {
         const open = await acceptanceBlockers(file.path, snapshot);
@@ -347,7 +353,7 @@ export function reviewRoute(kind) {
       }
       target.append(diff);
     }
-    target.append(renderArtifact(shortBody(body)));
+    target.append(file.status === "changed" ? el("section", "rendered", el("h3", null, "The file as it will be accepted"), renderArtifact(shortBody(body))) : renderArtifact(shortBody(body)));
     if (kind.save === "file" && (token || parseServer(where.context) !== "gitlab")) {
       target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
     }

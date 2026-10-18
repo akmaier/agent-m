@@ -95,20 +95,28 @@ export function entrySections(view, others, order, hrefOf) {
 }
 
 // The impact list of a change to an accepted decision or module (UC-023 step 4; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST),
-// drawn from the ArchitectureImpact MOD-trace-graph's architectureImpact derives: the modules the change concerns, a module that uses an
-// interface it alters or removes marked as breaking; the code files in their folders; the tests that exercise them and what they guard; the
+// drawn from the ArchitectureImpact MOD-trace-graph's architectureImpact derives and from the graph it was derived from: each affected module — one that uses an
+// interface the change alters or removes marked as breaking — with the code files in its folder and the tests that exercise it, and what they guard; then the
 // requirements and use cases the file names now and no longer; the backlog items that name an affected module.
-export function impactSection(impact) {
+export function impactSection(impact, graph) {
   const list = (names) => (names.length ? names.join(", ") : "—");
   const modules = el("ul", "names");
   for (const each of impact.modules) {
-    modules.append(el("li", null, el("strong", null, each.id), ...(each.breaks ? [" ", el("span", "badge breaks", "breaks")] : []), ` — ${each.why}`));
+    const folder = graph.nodes.get(each.id)?.folder ?? null;
+    const prefix = folder === null ? null : folder.endsWith("/") ? folder : `${folder}/`;
+    const code = prefix === null ? [] : impact.codeFiles.filter((path) => path.startsWith(prefix));
+    const exercising = new Set(graph.edges.filter((edge) => edge.via === "exercises" && edge.to === each.id).map((edge) => edge.from));
+    const tests = impact.tests.filter((t) => exercising.has(t.id)).map((t) => `${t.id}${t.guards.length ? ` (guards ${t.guards.join(", ")})` : ""}`);
+    const item = el("li", "module",
+      el("span", "module-head", el("strong", null, each.id), ...(each.breaks ? [" ", el("span", "badge breaks", "breaks")] : []), ` — ${each.why}`),
+      el("p", "small code-files", `Code files — ${code.length ? list(code) : "no code yet"}`),
+      el("p", "small tests", `Tests — ${tests.length ? list(tests) : "none"}`));
+    item.setAttribute("data-id", each.id);
+    modules.append(item);
   }
   if (impact.modules.length === 0) modules.append(el("li", null, "none — no module follows this decision"));
   return el("section", "change-impact", el("h3", null, "Impact of this change"),
     el("p", "small", el("strong", null, "Affected modules")), modules,
-    el("p", "small", el("strong", null, "Code files"), ` — ${impact.codeFiles.length ? list(impact.codeFiles) : "no code yet"}`),
-    el("p", "small", el("strong", null, "Tests"), ` — ${list(impact.tests.map((each) => `${each.id}${each.guards.length ? ` (guards ${each.guards.join(", ")})` : ""}`))}`),
     el("p", "small", el("strong", null, "Requirements and use cases"), ` — newly named: ${list(impact.named.added)} · no longer named: ${list(impact.named.removed)}`),
     el("p", "small", el("strong", null, "Items"), ` — ${list(impact.items)}`));
 }
@@ -118,7 +126,8 @@ export function impactSection(impact) {
 // derived, in which case the change is not offered for acceptance. graphOf() gives the graph, built once for a page.
 export async function changeImpact(file, last, body, graphOf) {
   try {
-    const shown = impactSection(architectureImpact(await graphOf(), [{ path: file.path, before: last.text, after: body }]));
+    const graph = await graphOf();
+    const shown = impactSection(architectureImpact(graph, [{ path: file.path, before: last.text, after: body }]), graph);
     shown.append(explain("impact-of-a-change"));
     return { shown };
   } catch (failure) {
