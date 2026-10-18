@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, history, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
-import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
+import { ROUTES, CASES, OBSERVE, show, testId } from "./site-usability.d/routes.mjs";
 import { axeSource, AXE_VERSION, RUN_AXE } from "./site-usability.d/axe.mjs";
 import { unrenderedFindings } from "./site-usability.d/inspect.mjs";
 
@@ -113,9 +113,8 @@ after(async () => {
   await site?.close();
 });
 
-let number = 1;
 for (const route of ROUTES) {
-  test(`TST-905${String(number++).padStart(3, "0")}: ${route.address} was drawn, with its content, at both widths`, () => {
+  test(`${testId(905, route.ids[905].drawn)}: ${route.address} was drawn, with its content, at both widths`, () => {
     for (const [kind] of WIDTHS) {
       const result = found.get(`${route.address} ${kind}`);
       assert.ok(result.text.includes(route.shows), `${route.address} at a ${kind}'s width shows "${route.shows}"; it shows: ${result.text.slice(0, 200)}`);
@@ -125,7 +124,7 @@ for (const route of ROUTES) {
 
 for (const route of ROUTES) {
   const today = TODAY[route.address];
-  test(`TST-905${String(number++).padStart(3, "0")}: ${route.address} meets WCAG 2.2 level AA`,
+  test(`${testId(905, route.ids[905].wcag)}: ${route.address} meets WCAG 2.2 level AA`,
     today ? { todo: `FINDING ${route.address} - ${today}` } : {}, () => {
       for (const [kind] of WIDTHS) {
         const violations = found.get(`${route.address} ${kind}`).violations;
@@ -135,17 +134,17 @@ for (const route of ROUTES) {
 }
 
 // The page the counter-proofs plant in, as it is, has no violation of the two rules the plants break — the known positive.
-test(`TST-905${String(number++).padStart(3, "0")}: the page before the planting has no violation of button-name or image-alt`, () => {
+test(`${testId(905, CASES[905].plantedBefore)}: the page before the planting has no violation of button-name or image-alt`, () => {
   assert.equal(planted.before.some((each) => each.id === "button-name" || each.id === "image-alt"), false);
 });
 
-test(`TST-905${String(number++).padStart(3, "0")}: a planted button without a name fails the check with the rule button-name`, () => {
+test(`${testId(905, CASES[905].plantedButton)}: a planted button without a name fails the check with the rule button-name`, () => {
   const rule = planted.after.find((each) => each.id === "button-name");
   assert.ok(rule, `violations: ${planted.after.map((each) => each.id).join(", ")}`);
   assert.ok(rule.first.includes("planted-button"), `the first node is ${rule.first}`);
 });
 
-test(`TST-905${String(number++).padStart(3, "0")}: a planted image without a text alternative fails the check with the rule image-alt`, () => {
+test(`${testId(905, CASES[905].plantedImage)}: a planted image without a text alternative fails the check with the rule image-alt`, () => {
   const rule = planted.after.find((each) => each.id === "image-alt");
   assert.ok(rule, `violations: ${planted.after.map((each) => each.id).join(", ")}`);
 });
@@ -155,7 +154,7 @@ const LISTS = ["#uc", "#arc", "#module", "#spec"];
 const TICKED = ["#uc", "#arc", "#module"];
 
 // given: every list route drawn at both widths; input: axe-core's rule `label` over each; expect: no violation of it (the whole-page tests above stay todos while the menu, a badge or a box violates)
-test(`TST-905${String(number++).padStart(3, "0")}: the tick boxes of the lists ${LISTS.join(", ")} have an accessible name (rule label)`, () => {
+test(`${testId(905, CASES[905].labels)}: the tick boxes of the lists ${LISTS.join(", ")} have an accessible name (rule label)`, () => {
   for (const address of LISTS) {
     for (const [kind] of WIDTHS) {
       const violations = found.get(`${address} ${kind}`).violations.filter((each) => each.id === "label").map((each) => `${each.id} (${each.nodes}: ${each.first})`);
@@ -165,7 +164,7 @@ test(`TST-905${String(number++).padStart(3, "0")}: the tick boxes of the lists $
 });
 
 // given: the lists #uc, #arc and #module, which hold open files; input: the tick boxes in <main>; expect: the list draws at least one (the known positive that the rule above has something to check), and each one's name holds the identifier of its row, the file it accepts
-test(`TST-905${String(number++).padStart(3, "0")}: each tick box of the lists ${TICKED.join(", ")} names the file it accepts`, () => {
+test(`${testId(905, CASES[905].ticks)}: each tick box of the lists ${TICKED.join(", ")} names the file it accepts`, () => {
   for (const address of TICKED) {
     for (const [kind] of WIDTHS) {
       const ticks = found.get(`${address} ${kind}`).ticks;
@@ -176,11 +175,11 @@ test(`TST-905${String(number++).padStart(3, "0")}: each tick box of the lists ${
 });
 
 // The counter-proof: the page before the planting has no violation of label; with a tick box without a name planted, the rule label finds it.
-test(`TST-905${String(number++).padStart(3, "0")}: the page before the planting has no violation of label`, () => {
+test(`${testId(905, CASES[905].tickBefore)}: the page before the planting has no violation of label`, () => {
   assert.equal(planted.before.some((each) => each.id === "label"), false);
 });
 
-test(`TST-905${String(number++).padStart(3, "0")}: a planted tick box without a name fails the check with the rule label`, () => {
+test(`${testId(905, CASES[905].plantedTick)}: a planted tick box without a name fails the check with the rule label`, () => {
   const rule = planted.afterTick.find((each) => each.id === "label");
   assert.ok(rule, `violations: ${planted.afterTick.map((each) => each.id).join(", ")}`);
   assert.ok(rule.first.includes("planted-tick"), `the first node is ${rule.first}`);
@@ -190,7 +189,7 @@ test(`TST-905${String(number++).padStart(3, "0")}: a planted tick box without a 
 // reader meets that text where the diagram should be, so the route's check names each such block.
 // given: every route drawn at both widths; input: the blocks of the page with the class `unrendered`; expect: none
 for (const route of ROUTES) {
-  test(`TST-905${String(number++).padStart(3, "0")}: ${route.address} holds no block that did not render, such as a diagram that failed`, () => {
+  test(`${testId(905, route.ids[905].diagrams)}: ${route.address} holds no block that did not render, such as a diagram that failed`, () => {
     for (const [kind] of WIDTHS) {
       const blocks = found.get(`${route.address} ${kind}`).diagrams;
       assert.deepEqual(blocks, [], `${route.address} at a ${kind}'s width: ${blocks.join("; ")}`);
@@ -199,11 +198,11 @@ for (const route of ROUTES) {
 }
 
 // The counter-proof: the page before the planting has no such block; with a failed diagram planted, the check names it with its reason.
-test(`TST-905${String(number++).padStart(3, "0")}: the page before the planting holds no block that did not render`, () => {
+test(`${testId(905, CASES[905].diagramBefore)}: the page before the planting holds no block that did not render`, () => {
   assert.deepEqual(planted.diagramsBefore, []);
 });
 
-test(`TST-905${String(number++).padStart(3, "0")}: a planted failed diagram fails the check and is named with its reason`, () => {
+test(`${testId(905, CASES[905].diagramAfter)}: a planted failed diagram fails the check and is named with its reason`, () => {
   assert.deepEqual(planted.diagramsAfter, ['a block that did not render: "Diagram error: planted"']);
 });
 
@@ -211,7 +210,7 @@ test(`TST-905${String(number++).padStart(3, "0")}: a planted failed diagram fail
 const EDITS = ["#use-case/id=UC-002/edit=1", "#decision/id=ARC-001/edit=1", "#module/id=MOD-reader/edit=1"];
 
 // given: the edit pages of a use case, an architecture decision and a module file, drawn at both widths; input: axe-core's rule `scrollable-region-focusable` over each; expect: no violation of it (the whole-page tests above stay todos while the menu or a summary violates)
-test(`TST-905${String(number++).padStart(3, "0")}: no box that scrolls on the edit pages ${EDITS.join(", ")} is out of the keyboard's reach (rule scrollable-region-focusable)`, () => {
+test(`${testId(905, CASES[905].scrollEdits)}: no box that scrolls on the edit pages ${EDITS.join(", ")} is out of the keyboard's reach (rule scrollable-region-focusable)`, () => {
   for (const address of EDITS) {
     for (const [kind] of WIDTHS) {
       const violations = found.get(`${address} ${kind}`).violations.filter((each) => each.id === "scrollable-region-focusable").map((each) => `${each.id} (${each.nodes}: ${each.first})`);
@@ -221,11 +220,11 @@ test(`TST-905${String(number++).padStart(3, "0")}: no box that scrolls on the ed
 });
 
 // The counter-proof: the page before the planting has no violation of scrollable-region-focusable; with a box that scrolls and has no tabindex planted, the rule finds it.
-test(`TST-905${String(number++).padStart(3, "0")}: the page before the planting has no violation of scrollable-region-focusable`, () => {
+test(`${testId(905, CASES[905].scrollBefore)}: the page before the planting has no violation of scrollable-region-focusable`, () => {
   assert.equal(planted.before.some((each) => each.id === "scrollable-region-focusable"), false);
 });
 
-test(`TST-905${String(number++).padStart(3, "0")}: a planted box that scrolls and cannot be focused fails the check with the rule scrollable-region-focusable`, () => {
+test(`${testId(905, CASES[905].plantedScroll)}: a planted box that scrolls and cannot be focused fails the check with the rule scrollable-region-focusable`, () => {
   const rule = planted.afterScroll.find((each) => each.id === "scrollable-region-focusable");
   assert.ok(rule, `violations: ${planted.afterScroll.map((each) => each.id).join(", ")}`);
   assert.ok(rule.first.includes("planted-scroll"), `the first node is ${rule.first}`);
@@ -236,7 +235,7 @@ test(`TST-905${String(number++).padStart(3, "0")}: a planted box that scrolls an
 const CHANGED = ["#uc/UC-001", "#review/uc"];
 
 // given: the routes that draw the changed use case, at both widths; input: each `pre.diff` in <main>; expect: the route draws at least one (the known positive that the whole-page checks meet the box), and each has tabindex "0"
-test(`TST-905${String(number++).padStart(3, "0")}: the pages of the changed use case draw a difference box that the keyboard reaches`, () => {
+test(`${testId(905, CASES[905].changedKeyboard)}: the pages of the changed use case draw a difference box that the keyboard reaches`, () => {
   for (const address of CHANGED) {
     for (const [kind] of WIDTHS) {
       const boxes = found.get(`${address} ${kind}`).boxes;
@@ -247,7 +246,7 @@ test(`TST-905${String(number++).padStart(3, "0")}: the pages of the changed use 
 });
 
 // given: the routes that draw the box, at both widths; input: axe-core's rule scrollable-region-focusable over each; expect: no violation of it
-test(`TST-905${String(number++).padStart(3, "0")}: the difference box of the changed use case meets the rule scrollable-region-focusable`, () => {
+test(`${testId(905, CASES[905].changedRule)}: the difference box of the changed use case meets the rule scrollable-region-focusable`, () => {
   for (const address of CHANGED) {
     for (const [kind] of WIDTHS) {
       const violations = found.get(`${address} ${kind}`).violations.filter((each) => each.id === "scrollable-region-focusable").map((each) => `${each.id} (${each.nodes}: ${each.first})`);
@@ -257,7 +256,7 @@ test(`TST-905${String(number++).padStart(3, "0")}: the difference box of the cha
 });
 
 // The counter-proof: with a difference box that scrolls and has no tabindex planted beside the planted scrolling box, the rule finds one node more.
-test(`TST-905${String(number++).padStart(3, "0")}: a planted difference box that scrolls and cannot be focused is found by the rule scrollable-region-focusable`, () => {
+test(`${testId(905, CASES[905].plantedDiff)}: a planted difference box that scrolls and cannot be focused is found by the rule scrollable-region-focusable`, () => {
   const before = planted.afterScroll.find((each) => each.id === "scrollable-region-focusable");
   const after = planted.afterBox.find((each) => each.id === "scrollable-region-focusable");
   assert.ok(before && after, "the rule finds the planted boxes");
