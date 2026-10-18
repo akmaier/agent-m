@@ -410,7 +410,7 @@ async function entryPage(target, first, entries, context, branch) {
     el("p", null, el("label", null, "Date ", versionDate)), ...(repository ? [] : [el("p", null, el("label", null, "Files ", filesInput)), fileRows, explain("file-only-hashed")]), statement, explain("source-public"),
     el("p", null, save), result);
   drawTop(); drawOlder();
-  target.replaceChildren(top, el("p", null, open), fetchRun ? result : panel, older);
+  target.replaceChildren(top, el("p", null, open), ...(fetchRun ? [explain("source-new-version"), result] : [panel]), older);
   products = await readProducts(context);
   drawOlder();
 }
