@@ -80,8 +80,8 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   page icons, and a `README.md` stating the terms under which the logo is used.
 - `explanations.md` — the folded explanations, as data.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes.
-  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); removed once `docs/index.html` starts the site through `start.mjs`.
+  - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes. It loads no library for Markdown, sanitising or diagrams: the app's Markdown is rendered with `renderArtifact`.
+  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); its Markdown is rendered with `renderArtifact`, and it imports no library of the renderer's `vendor/`; removed once `docs/index.html` starts the site through `start.mjs`.
   - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
   - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
   - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
@@ -206,7 +206,7 @@ It writes nothing.
 
 ## Uses
 
-- MOD-markdown-render.renderArtifact — to render the explanations; MOD-markdown-render.openEditor — for a section field
+- MOD-markdown-render.renderArtifact — to render the explanations and the live page's Markdown; MOD-markdown-render.openEditor — for a section field
   of a form.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting — the products, tokens and the instance's key;
   MOD-browser-store.expiringSoon — the expiry notice; MOD-browser-store.secretValues — handed to every host it connects,

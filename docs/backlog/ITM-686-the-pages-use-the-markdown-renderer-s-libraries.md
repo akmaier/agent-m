@@ -6,6 +6,7 @@ realises:
   - EVERY CODE FILE BELONGS TO A MODULE
 modules:
   - MOD-markdown-render
+  - MOD-site-frame
 builds_on:
   - ITM-574
 tests:
@@ -30,3 +31,13 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - It is declared as refactoring: CI is green on every commit.
+
+**The drafts for akmaier are on `main`** (sprint team1/92, written by developer-sonnet-a).
+- The frame does not import the renderer's `vendor/` by path (`DEVELOP AGAINST INTERFACES`, SPEC.md:1226-1228).
+- The live app renders its Markdown with `renderArtifact`, which MOD-site-frame already uses.
+- `docs/index.html` loads no library of its own, and `docs/assets/vendor/` is removed with its licence files and README.
+- **For its start:** with `renderArtifact`, the live app's images become links and its front matter is shown. The build
+  keeps the app's release tests green, and names each changed reader outside the two modules under `d995c09b` and
+  `e9082606`.
+- It waits for the acceptance.
+
