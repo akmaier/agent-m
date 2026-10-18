@@ -52,4 +52,8 @@ fact, for `importsRead`.
   single reads.
 - **The tests that pin the absence today,** quoted at the start: `tests/trace-graph-architecture-impact.test.mjs:114-115`
   (TST-554001), and `tests/trace-graph-read-many.test.mjs:131` and `:133` (TST-479008).
+- **A finding beside it, with no item yet.** MOD-job-runner's check `graph-checks` (`src/job-runner/builtins.mjs:222-224`)
+  hands `acrossArtifacts` the draft in place as `{ paths, read }`, without `readMany`: 1,930 requests with a token, 1,928
+  of them single reads. No sentence asks a job to read in batches (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`,
+  SPEC.md:672, speaks of a page load), so it becomes an item once akmaier names one.
 - **Its acceptance commits the count** as a test on a recorded fixture, because the probe's counts move with the repository.
