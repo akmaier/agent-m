@@ -1,5 +1,5 @@
 // Who may decide a gate, and the state of each gate (MOD-product-process, Interfaces: mayDecide, gateStates). index.mjs offers both.
-// recordGateDecision, which the module file places here too, is not built yet.
+// recordGateDecision, which the module file places here too, writes a decision as a gate record.
 //
 // Module: MOD-product-process
 //
@@ -9,6 +9,10 @@
 // the role (A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS).
 
 import { holdersOf } from "./assignments.mjs";
+import { readDocument, writeDocument } from "../documents/index.mjs";
+import { blobSha } from "../text-tools/index.mjs";
+// gateSchema is used only when a decision is recorded, long after both modules are loaded, so the cycle with index.mjs, which offers it, is harmless.
+import { gateSchema } from "./index.mjs";
 
 // A decider that is an automated check, whose result decides: `check: <CI check name>`.
 const CHECK = /^check:[ \t]*(\S(?:.*\S)?)[ \t]*$/;
@@ -112,4 +116,68 @@ export function gateStates(workflow, records, texts) {
   return workflow.gates.map((gate) => (entered.has(gate.from)
     ? { gate: gate.name, ...verdicts.get(gate.name) }
     : { gate: gate.name, state: "not reached", record: null, needs: `the phase ${gate.from} to be entered`, difference: null }));
+}
+
+// ---------------------------------------------------------------- the record of a decision
+//
+// recordGateDecision turns a decision into one gate record. Where the module file leaves a reading open, this file takes the one it names:
+//   - The record's `decider` is the participant's name, or `check: <name>` for a check; its `date` is `now` as `YYYY-MM-DD HH:MM UTC`, as the repository's own records give it.
+//   - The path is docs/gates/<yyyymmdd>-<hhmm>-<gate slug>-<4 hex>.md, the slug the gate's name in lower case with every run of other characters as one `-`, the four hex digits the
+//     first of the record text's blob SHA.
+//   - The commit message is a subject line, then the trailers after an empty line, one per line; no trailer, no empty line.
+
+// The failures of this function itself, named as MOD-repository-hosts' HostError is: `MayNotDecide { reason, holders }`, `ReasonMissing`. The host's own — Moved, TokenRefused,
+// PermissionMissing, RateLimited, Unreachable — pass through as the host gave them.
+class GateDecisionError extends Error {
+  constructor(name, fields, message) {
+    super(message);
+    this.name = name;
+    Object.assign(this, fields);
+  }
+}
+
+const two = (n) => String(n).padStart(2, "0");
+
+/**
+ * recordGateDecision(host: Host, decision: { gate, job, decider: { name, kind }, role, decision: "passed" | "rejected", reason, on: string[] }, context: { workflow, assignment,
+ * workBy: string[], head: string, now: Date, trailers: string[] }) -> Promise<{ commit: string, path: string }> — a decision on a gate, written as one gate record of gateSchema in
+ * one commit on `head`, the head that was read, on the default branch `host.repositoryInfo()` names. mayDecide runs first: a decision it would not pass is refused with MayNotDecide
+ * { reason, holders } and nothing is written; a rejection without a reason fails with ReasonMissing. `on` names each checked artifact as `<path>@<blob>`, or the commit; `trailers`
+ * are a job's provenance lines, empty for a person's own decision. Moved and the other failures of the host's commitFiles pass through.
+ */
+export async function recordGateDecision(host, decision, context) {
+  const { workflow, assignment, workBy, head, now, trailers } = context;
+  const may = mayDecide(decision.decider, decision.gate, workflow, assignment, workBy);
+  if (!may.may) throw new GateDecisionError("MayNotDecide", { reason: may.reason, holders: may.holders }, `${decision.decider.name} may not decide ${decision.gate}: ${may.reason}`);
+  const reason = typeof decision.reason === "string" ? decision.reason.trim() : "";
+  if (decision.decision === "rejected" && !reason) throw new GateDecisionError("ReasonMissing", {}, `a rejection of ${decision.gate} needs its reason`);
+  const day = `${now.getUTCFullYear()}${two(now.getUTCMonth() + 1)}${two(now.getUTCDate())}`;
+  const clock = `${two(now.getUTCHours())}${two(now.getUTCMinutes())}`;
+  const slug = decision.gate.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "");
+  const text = [
+    "---",
+    `gate: ${decision.gate}`,
+    `job: ${decision.job ?? ""}`,
+    `decider: ${decision.decider.kind === "check" ? `check: ${decision.decider.name}` : decision.decider.name}`,
+    `role: ${decision.role}`,
+    `decision: ${decision.decision}`,
+    "on:",
+    ...decision.on.map((entry) => `  - ${entry}`),
+    `date: ${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6)} ${clock.slice(0, 2)}:${clock.slice(2)} UTC`,
+    "---",
+    `# ${decision.gate}`,
+    "",
+    "**REGISTER**",
+    "",
+    ...(reason ? ["## Reason", "", reason, ""] : []),
+  ].join("\n");
+  const canonical = writeDocument(gateSchema, readDocument(gateSchema, "docs/gates/-.md", text));
+  const path = `docs/gates/${day}-${clock}-${slug}-${(await blobSha(canonical)).slice(0, 4)}.md`;
+  const { defaultBranch } = await host.repositoryInfo();
+  const subject = `gates: ${decision.gate} ${decision.decision} by ${decision.decider.name}`;
+  const { commit } = await host.commitFiles({
+    branch: defaultBranch, expectedHead: head, files: [{ path, text: canonical }],
+    message: trailers.length ? `${subject}\n\n${trailers.join("\n")}` : subject,
+  });
+  return { commit, path };
 }

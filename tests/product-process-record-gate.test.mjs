@@ -14,7 +14,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readDocument } from "../src/documents/index.mjs";
+import { documentFindings, readDocument } from "../src/documents/index.mjs";
 import { HostError } from "../src/repository-hosts/index.mjs";
 import * as product from "../src/product-process/index.mjs";
 
@@ -113,7 +113,7 @@ test("TST-785003: a moved head fails with Moved, and the commit was asked on the
 // guards: THE GATE IS RECORDED; UC-034
 // given: the workflow with its two gates, a host double whose default branch is "trunk", the head "1"x40, now 2026-10-18 09:41:30 UTC, the trailers of a job, and the checked artifact docs/increment.md at the blob "a"x40
 // input: recordGateDecision by po-opus-b (an agent) passing Development → Release testing on `docs/increment.md@<blob>` and a commit, with the job JOB-785 and a reason; and by the check done passing Release testing → Release; the records read back with readDocument(gateSchema) and gateStates over them
-// expect: each is one commitFiles call on branch "trunk" (not "main") with expectedHead "1"x40 and exactly one file docs/gates/20261018-0941-<gate slug>-<4 hex>.md, the slug being development-release-testing and release-testing-release; the message's last lines are the trailers; the call returns the commit and that path; the record reads with no finding and gives gate, job, decider (po-opus-b, and "check: done"), role (Product Owner, and "done"), decision passed, on and date "2026-10-18 09:41 UTC"; gateStates gives passed for both against the blob "a"x40 and "passed on an earlier text" for the first against another blob
+// expect: each is one commitFiles call on branch "trunk" (not "main") with expectedHead "1"x40 and exactly one file docs/gates/20261018-0941-<gate slug>-<4 hex>.md, the slug being development-release-testing and release-testing-release; the message's last lines are the trailers; the call returns the commit and that path; each record reads with no finding under documentFindings and gives gate, job, decider (po-opus-b, and "check: done"), role (Product Owner, and "done"), decision passed, on and date "2026-10-18 09:41 UTC"; gateStates gives passed for both against the blob "a"x40 and "passed on an earlier text" for the first against another blob
 test("TST-785004: a decision is one gate record in one commit on the default branch and the head that was read, with the trailers; gateStates reads it back as passed", async () => {
   const host = hostDouble();
   const first = await decide(host, { job: "JOB-785", reason: "every acceptance line holds", on: [`${ARTIFACT}@${BLOB}`, "f".repeat(40)] });
@@ -130,7 +130,8 @@ test("TST-785004: a decision is one gate record in one commit on the default bra
     assert.deepEqual(call.message.split("\n").slice(-TRAILERS.length), TRAILERS);
   }
   const records = [readRecord(one), readRecord(two)];
-  assert.deepEqual(product.gateSchema && records.map((record) => record.fields.decider), ["po-opus-b", "check: done"]);
+  assert.deepEqual(records.flatMap((record) => documentFindings(gateSchema, record)), [], "both records read with no finding");
+  assert.deepEqual(records.map((record) => record.fields.decider), ["po-opus-b", "check: done"]);
   assert.deepEqual(records.map((record) => record.fields.role), ["Product Owner", "done"]);
   assert.deepEqual(records.map((record) => [record.fields.gate, record.fields.decision, record.fields.date]), [[DEV, "passed", "2026-10-18 09:41 UTC"], [REL, "passed", "2026-10-18 09:41 UTC"]]);
   assert.equal(records[0].fields.job, "JOB-785");
