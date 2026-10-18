@@ -102,7 +102,7 @@ reads at once each card whose reading fell due meanwhile. It stores nothing betw
     request). Where there is one, its stage bar and what waits come from it, and only the build is read, with
     `productFacts`' scope `build`. Where there is none, the card reads the scope `all` as before. The stored overview is a
     record of the repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
-    browser.
+    browser. The rows of the build are the same whether the stage bar comes from a stored overview or from the scope `all`.
   - `jobs` — every job of every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
