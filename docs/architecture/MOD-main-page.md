@@ -65,8 +65,10 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 - `index.mjs` — the interface: `view`.
 - `greeting.mjs` — the greeting: Agent M's name, one sentence on what Agent M is, what to do first, and the folded
   explanation of the page.
+- `home.mjs` — the route `home`: it draws the cards and what waits for a person, and starts the readings again.
 - `cards.mjs` — a card per product or Agent M's own card, its stage bar, whose stages are links, and its build.
 - `waits.mjs` — what waits for a person.
+- `reread.mjs` — the readings again: the jobs' states of the cards drawn, and nothing else.
 - `jobs.mjs` — the list of every job and a job's detail.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `index.html`: named here as the main page, whose place the Pages site fixes; it loads `start.mjs` with this module's view; its greeting is drawn by `greeting.mjs`, and its footer by MOD-site-frame's `footer.mjs`.
