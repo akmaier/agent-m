@@ -12,13 +12,13 @@
 // index.mjs. Every other file of this folder is private to the module.
 
 import { renderArtifact } from "../markdown-render/index.mjs";
-import { openStore, readSetting, secretValues } from "../browser-store/index.mjs";
+import { openStore, readSetting } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter } from "./routing.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
@@ -211,10 +211,7 @@ async function startSite({ page, views }) {
   const location = globalThis.location ?? {};
   const repository = instanceOf(location);
   const store = openStore(repository);
-  const secrets = secretValues(store);
-  const instanceToken = readSetting(store, "github-token");
-  const instance = { repository,
-    host: connect(parseAddress(`https://github.com/${repository}`), { token: instanceToken?.value ?? null, tokenName: instanceToken?.name ?? null, secrets }) };
+  const instance = { repository, host: instanceHostFollowingStore({ store, address: parseAddress(`https://github.com/${repository}`) }) };
   const routes = views.flatMap((view) => view?.routes ?? []);
   const served = new Set(routes.map((route) => route.entry).filter(Boolean));
   const entries = menuOf(page, [...served]);

@@ -67,6 +67,27 @@ export async function chosenProduct({ store, fragment }) {
   return { address: address.web, kind: address.server, host, tokenStored: token !== null };
 }
 
+// instanceHostFollowingStore({ store, address }) -> Host — the instance's host for the pages, which hand it to every route for the page's
+// whole life: each call of its functions goes through a host connected with the GitHub token and the secrets stored at that moment,
+// a new one when the token or a secret was stored, replaced or cleared since (A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY).
+// The connection passes every option the frame's connection passes: token, tokenName and secrets.
+export function instanceHostFollowingStore({ store, address }) {
+  let held = null;
+  let heldFor = null;
+  const current = () => {
+    const token = readSetting(store, "github-token");
+    const secrets = secretValues(store);
+    const stored = JSON.stringify([token?.value ?? null, token?.name ?? null, secrets]);
+    if (held === null || stored !== heldFor) {
+      held = connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null, secrets });
+      heldFor = stored;
+    }
+    return held;
+  };
+  return Object.freeze(Object.fromEntries(Object.entries(current()).map(([name, member]) =>
+    [name, typeof member === "function" ? (...given) => current()[name](...given) : member])));
+}
+
 // viewAddress(slug) -> the address of a view module: `../<slug>/index.mjs`, relative to the folder of the frame.
 const viewAddress = (slug) => new URL(`../${slug}/index.mjs`, import.meta.url).href;
 
