@@ -25,10 +25,9 @@ reached through". That reads MOD-participant-list's `reachedThrough` (MOD-partic
 uses do not name it. Without it, the Change form (`src/settings-pages/participants.mjs:669-688`, `routeOf` at `:131-143`)
 would blank a `through <name>` route. `participantsOf`, imported at `participants.mjs:13`, is not named either.
 
-**The draft for akmaier:** MOD-settings-pages.md's `uses` and Uses name MOD-participant-list.reachedThrough and
-MOD-participant-list.participantsOf, for the participants route's subagents and its list.
-- It goes to `main` once sprint team1/92's MOD-settings-pages items are merged. Four of its developers work in that module
-  now, and no other ready item is left for them (92.md).
+**The draft for akmaier, on `main`:** MOD-settings-pages.md's `uses` and Uses name MOD-participant-list.reachedThrough
+and MOD-participant-list.participantsOf, for the participants route's subagents and its list. This item waits for its
+acceptance.
 
 ## Acceptance
 

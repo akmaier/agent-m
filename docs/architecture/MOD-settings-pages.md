@@ -54,6 +54,8 @@ uses:
   - MOD-artifact-edits.saveFile
   - MOD-artifact-edits.reviewLayoutCommit
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
+  - MOD-participant-list.reachedThrough
   - MOD-product-process.declarationSchema
   - MOD-source-register.sourceSchemas
   - MOD-source-register.registrationCommits
@@ -245,8 +247,9 @@ reaches.
 - MOD-documents.readDocument, MOD-documents.readRegister, MOD-documents.writeDocument — registers of the common shape and
   the text a save writes; MOD-artifact-edits.saveFile — a person's edit of one register, only on the blob it was opened
   on; MOD-artifact-edits.reviewLayoutCommit — the review layout of a new product.
-- MOD-participant-list.participantSchema — the participant register; MOD-product-process.declarationSchema — the
-  products and roles that use a participant.
+- MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the participant register and its
+  participants; MOD-participant-list.reachedThrough — the CLI agent a subagent is reached through, kept when its row is
+  changed; MOD-product-process.declarationSchema — the products and roles that use a participant.
 - MOD-source-register.sourceSchemas, MOD-source-register.registrationCommits, MOD-source-register.versionCommits,
   MOD-source-register.linkedVersion, MOD-source-register.affectedRequirements, MOD-source-register.changedPassages,
   MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links;
