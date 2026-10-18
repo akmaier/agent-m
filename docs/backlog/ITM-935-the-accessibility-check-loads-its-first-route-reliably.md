@@ -40,7 +40,20 @@ flake is this race too.
 
 - `openWindow` returns only once the page has committed the address it opened (`location.href` is that address). A test
   with a server that holds its first answer shows it, with a counter-proof (returning on the target list alone).
+- The entry that opens the window does not quit when its first load is superseded (`ERR_ABORTED`), and still quits on a
+  genuine failure such as `ERR_CONNECTION_REFUSED`. Tests run the entry with a stand-in electron module, each with its
+  counter-proof.
 
 - The cause is removed in the boot the two checks share, within the total wait. A test with a fake session reproduces the
   case and shows the page then drawn, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Its cause, measured (sprint team1/91, developer-sonnet-e).** The probes `ITM-935-probe.mjs` and `-probe2.mjs` used real
+Electron 44.5.1, with `/__blank` held for 3 s:
+1. `openWindow` returns at `readyState` "loading".
+2. The first `Page.navigate` supersedes the pending load.
+3. `await window.loadURL(blank)` in the entry (`browser.mjs:98`) rejects with `ERR_ABORTED`.
+4. The entry's `catch` calls `electron.app.quit()`, so every later call is lost.
+With `/__blank` answered at once, the load finished first in 5 of 5 runs. The CI logs fit the mechanism but record no quit,
+because the child's stderr is not printed and `until` replaces the last error with "deadline" (ITM-938).
+
