@@ -27,6 +27,7 @@ import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
 import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
 import { axeSource, AXE_VERSION, RUN_AXE } from "./site-usability.d/axe.mjs";
+import { unrenderedFindings } from "./site-usability.d/inspect.mjs";
 
 const WIDTHS = [["phone", 390], ["desktop", 1280]];
 
@@ -75,7 +76,7 @@ before(async () => {
     for (const route of ROUTES) {
       await show(page, site, route.address);
       found.set(`${route.address} ${kind}`, { violations: await check(), text: await page.evaluate(`(document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ")`),
-        ticks: await page.evaluate(TICKS) });
+        ticks: await page.evaluate(TICKS), diagrams: await page.evaluate(`(${unrenderedFindings})()`) });
     }
     progress(`every route is checked at a ${kind}'s width`);
   }
@@ -89,6 +90,11 @@ before(async () => {
   // The same page with a tick box without a name planted besides: the counter-proof of the tick boxes' name.
   await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend", '<p><input type="checkbox" id="planted-tick"></p>')`);
   planted.afterTick = await check();
+  // The same page with a block that did not render planted, as `renderMermaid` returns one for a diagram that fails.
+  planted.diagramsBefore = await page.evaluate(`(${unrenderedFindings})()`);
+  await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
+    '<div id="planted-unrendered" class="unrendered"><p>Diagram error: planted</p><pre><code>flowchart LR</code></pre></div>')`);
+  planted.diagramsAfter = await page.evaluate(`(${unrenderedFindings})()`);
   // The same page with a box that scrolls and cannot take focus planted besides: the counter-proof of the rule scrollable-region-focusable.
   await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
     '<div id="planted-scroll" style="height:40px;overflow:auto"><p>one</p><p>two</p><p>three</p><p>four</p><p>five</p><p>six</p><p>seven</p><p>eight</p></div>')`);
@@ -173,6 +179,27 @@ test(`TST-905${String(number++).padStart(3, "0")}: a planted tick box without a 
   const rule = planted.afterTick.find((each) => each.id === "label");
   assert.ok(rule, `violations: ${planted.afterTick.map((each) => each.id).join(", ")}`);
   assert.ok(rule.first.includes("planted-tick"), `the first node is ${rule.first}`);
+});
+
+// A diagram that failed (ITM-927). A page whose diagram fails shows its source and the reason in a block with the class `unrendered`; a screen
+// reader meets that text where the diagram should be, so the route's check names each such block.
+// given: every route drawn at both widths; input: the blocks of the page with the class `unrendered`; expect: none
+for (const route of ROUTES) {
+  test(`TST-905${String(number++).padStart(3, "0")}: ${route.address} holds no block that did not render, such as a diagram that failed`, () => {
+    for (const [kind] of WIDTHS) {
+      const blocks = found.get(`${route.address} ${kind}`).diagrams;
+      assert.deepEqual(blocks, [], `${route.address} at a ${kind}'s width: ${blocks.join("; ")}`);
+    }
+  });
+}
+
+// The counter-proof: the page before the planting has no such block; with a failed diagram planted, the check names it with its reason.
+test(`TST-905${String(number++).padStart(3, "0")}: the page before the planting holds no block that did not render`, () => {
+  assert.deepEqual(planted.diagramsBefore, []);
+});
+
+test(`TST-905${String(number++).padStart(3, "0")}: a planted failed diagram fails the check and is named with its reason`, () => {
+  assert.deepEqual(planted.diagramsAfter, ['a block that did not render: "Diagram error: planted"']);
 });
 
 // ITM-931: the editor's preview (MOD-markdown-render) is the box that scrolls on the edit pages.
