@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { ssh2NodePath } from "./ssh2-fixture.mjs";
 
 const ssh2Cache = join(tmpdir(), "agent-m-284-release-ssh2-1.17.0");
 const source = new URL("../src/tunnels/index.mjs", import.meta.url).href;
@@ -26,11 +27,7 @@ function run(command, arguments_, options = {}) {
 function runtime() {
   if (runtimeFailure) throw runtimeFailure;
   try {
-    const staged = fileURLToPath(new URL("../src/bridge-build/node_modules", import.meta.url));
-    const nodePath = existsSync(join(staged, "ssh2", "package.json")) ? staged : join(ssh2Cache, "node_modules");
-    if (!existsSync(join(nodePath, "ssh2", "package.json"))) {
-      run("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
-    }
+    const nodePath = ssh2NodePath(ssh2Cache);
     const positive = run(process.execPath, ["--input-type=module", "-e", `
       import { createRequire } from "node:module";
       const require = createRequire(import.meta.url);
