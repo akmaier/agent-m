@@ -7,7 +7,7 @@ decision: rejected
 on:
   - a646bea3cc1afe8039c256c81d3c200db5db1cbe
   - https://github.com/akmaier/agent-m/pull/918
-date: 2026-10-18 17:33 UTC
+date: 2026-10-18 17:04 UTC
 ---
 # Development → Release testing: ITM-938, rejected — a window that fails to open loses its child's stderr, and the message says it wrote nothing
 
