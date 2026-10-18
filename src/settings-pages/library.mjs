@@ -26,7 +26,7 @@
 //   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`).
 
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
-import { readSetting } from "../browser-store/index.mjs";
+import { readSetting, secretValues } from "../browser-store/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { affectedRequirements, changedPassages, linkedVersion, permittedPlaces, readContent, recogniseLegalText, registrationCommits, sourceSchemas, versionCommits }
   from "../source-register/index.mjs";
@@ -204,7 +204,7 @@ async function commitPlan(context, plan, label) {
     let host = context.instance.host, web = instanceRepo;
     if (item.repository !== instanceRepo) {
       const address = parseAddress(item.repository);
-      host = connect(address, credentialsFor(context.store, address) ?? {});
+      host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
       web = address.web;
       try { await commitTo(host, item.files, `${label}: its content (Agent M dashboard)`); } catch (error) {
         if (["PermissionMissing", "NotFound", "TokenRefused"].includes(error?.name)) return { notice: tokenNotice(web, host, error) };
@@ -222,7 +222,7 @@ async function commitPlan(context, plan, label) {
 function holderOf(entry, context) {
   const named = permittedPlaces(entry) === "any" ? null : entry.fields.content_repository;
   let host = context.instance.host;
-  if (named) { const address = parseAddress(named); host = connect(address, credentialsFor(context.store, address) ?? {}); }
+  if (named) { const address = parseAddress(named); host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) }); }
   const asked = new Map();
   let info = null;
   return { repositoryInfo: () => (info ??= host.repositoryInfo()), readSnapshot: (ref) => { if (!asked.has(ref)) asked.set(ref, host.readSnapshot(ref)); return asked.get(ref); } };
@@ -233,7 +233,7 @@ function readProducts(context) {
   return Promise.all((readSetting(context.store, "products") ?? []).map(async (web) => {
     try {
       const address = parseAddress(web);
-      const host = connect(address, credentialsFor(context.store, address) ?? {});
+      const host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
       const opened = await openLinks(host);
       return { web: address.web, host, ...opened, links: opened.text === null ? null : readDocument(LINKS, "docs/sources.md", opened.text) };
     } catch (error) {
@@ -540,7 +540,7 @@ export const route = {
       state.repo = null;
       try {
         const address = parseAddress(repositoryAddress.value.trim());
-        const host = connect(address, credentialsFor(context.store, address) ?? {});
+        const host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
         const { defaultBranch } = await host.repositoryInfo();
         const snapshot = await host.readSnapshot(defaultBranch);
         state.repo = { address: address.web, commit: snapshot.commit };
