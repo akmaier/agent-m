@@ -34,7 +34,7 @@
 
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { reviewLayoutCommit } from "../artifact-edits/index.mjs";
-import { readSetting, writeSetting } from "../browser-store/index.mjs";
+import { readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
 export const TOKEN_DAYS = 90;
@@ -238,7 +238,7 @@ function githubStepABody(context, address, out, afterCheck) {
     err.textContent = "";
     out.replaceChildren();
     out.textContent = `Reading ${address.web}…`;
-    const result = await checkProduct(address, { token: value, tokenName });
+    const result = await checkProduct(address, { token: value, tokenName, secrets: secretValues(context.store) });
     out.replaceChildren();
     out.append(checkResultNotice(address.web, result));
     afterCheck(result);
@@ -312,7 +312,7 @@ function gitlabStepBBody(context, address, afterCheck) {
     checkBtn.addEventListener("click", async () => {
       out.replaceChildren();
       out.textContent = `Reading ${address.web}…`;
-      const result = await checkProduct(address, { token: already.token, tokenName: already.tokenName });
+      const result = await checkProduct(address, { token: already.token, tokenName: already.tokenName, secrets: secretValues(context.store) });
       out.replaceChildren();
       out.append(checkResultNotice(address.web, result));
       afterCheck(result);
@@ -329,7 +329,7 @@ function gitlabStepBBody(context, address, afterCheck) {
     context.tokenStored?.();
     out.replaceChildren();
     out.textContent = `Reading ${address.web}…`;
-    const result = await checkProduct(address, { token: value, tokenName });
+    const result = await checkProduct(address, { token: value, tokenName, secrets: secretValues(context.store) });
     out.replaceChildren();
     out.append(checkResultNotice(address.web, result));
     afterCheck(result);
@@ -368,7 +368,7 @@ function stepCSection(context, address, onWriteRefused) {
     btn.disabled = true;
     out.replaceChildren();
     out.textContent = `Reading ${address.web} and writing what is missing…`;
-    const host = connect(address, credentials);
+    const host = connect(address, { ...credentials, secrets: secretValues(context.store) });
     try {
       const layout = await reviewLayoutCommit(host);
       rememberProduct(context.store, address.web);
@@ -452,7 +452,7 @@ function renderSteps(container, context, text) {
       stepBOut.replaceChildren();
       stepBOut.textContent = `Reading ${address.web}…`;
       const credentials = credentialsFor(context.store, address);
-      const result = await checkProduct(address, credentials ?? {});
+      const result = await checkProduct(address, { ...credentials, secrets: secretValues(context.store) });
       stepBOut.replaceChildren();
       stepBOut.append(checkResultNotice(address.web, result));
       afterCheck(result);
