@@ -44,3 +44,9 @@ IMPLEMENTER`).
   pull request, which names the author.
 - Where the mailbox page and UC-037 disagree, the test follows UC-037 and the disagreement is named as a finding.
 - Only new test files change.
+
+## Built (read on main by po-opus-b, 2026-10-18)
+
+This item is built: commit `44de5bf0` ("Team2 sprint53 ITM-433 UC-037 coverage tests") is on `main`. No merged pull request names it, because it predates the record
+format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
+of UC-036 to UC-049 found its code and tests on `main`.

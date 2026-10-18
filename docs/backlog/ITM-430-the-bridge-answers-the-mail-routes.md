@@ -43,3 +43,9 @@ password. A fault the tests find is fixed in the folder of the module it names.
 - The existing tests stay green, with no expected result changed.
 - Only `src/desktop-shell/`, `src/mail-protocols/`, `src/bridge-http/` and the tests that name one of these modules
   change.
+
+## Built (read on main by po-opus-b, 2026-10-18)
+
+This item is built: commit `88148a89` ("Team2 sprint46 ITM-430 compose mail handlers") is on `main`. No merged pull request names it, because it predates the record
+format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
+of UC-036 to UC-049 found its code and tests on `main`.
