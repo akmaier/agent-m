@@ -82,7 +82,8 @@ async function rejection(promise) {
   assert.fail("the call was not refused");
 }
 async function until(condition, what) {
-  for (let turn = 0; turn < 500; turn++) {
+  // The bound only ends a wait that can never be met; a machine running other suites beside this one takes seconds to start an agent.
+  for (const stop = Date.now() + 60_000; Date.now() < stop;) {
     const found = await condition();
     if (found) return found;
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -183,6 +184,7 @@ test("POST /v1/ask and GET /v1/ask/{ask} — an ask running, then done with its 
     const second = await call(handlers, "POST /v1/ask", { body: { agent: "opencode", input: "Draft again." } });
     assert.notEqual(second.ask, posted.ask, "each ask has an identifier of its own");
     assert.deepEqual(await read(), done, "the first ask is still answered as it was");
+    await until(async () => (await call(handlers, "GET /v1/ask/{ask}", { params: { ask: second.ask } })).state === "done", "the second ask to be done");
     assert.ok(machine.calls().some((line) => line.includes("Draft the thing.")), "the agent was given the prompt");
   });
 });
@@ -218,7 +220,8 @@ test("POST /v1/ask — an agent not offered, one without a working folder and an
     const handlers = jobHandlers({ agents: [{ name: "opencode", folder: machine.folders.opencode }, { name: "claude", folder: "" }] });
     const ask = (body) => call(handlers, "POST /v1/ask", { body });
 
-    assert.equal(typeof (await ask({ agent: "opencode", input: "Draft." })).ask, "string", "known positive");
+    const first = await ask({ agent: "opencode", input: "Draft." });
+    assert.equal(typeof first.ask, "string", "known positive");
     await until(() => machine.calls().some((line) => /opencode run/.test(line)), "the first ask to start");
     const before = machine.calls().length;
     for (const body of [{ agent: "codex", input: "Draft." }, { agent: "nobody", input: "Draft." }, { agent: "claude", input: "Draft." },
@@ -227,6 +230,7 @@ test("POST /v1/ask — an agent not offered, one without a working folder and an
     }
     assert.equal(machine.calls().length, before, "no agent was started by a refused ask");
     assert.equal((await rejection(call(handlers, "GET /v1/ask/{ask}", { params: { ask: "nobody-asked" } }))).code, "not-found");
+    await until(async () => (await call(handlers, "GET /v1/ask/{ask}", { params: { ask: first.ask } })).state === "done", "the first ask to be done");
   });
 });
 

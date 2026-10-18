@@ -58,7 +58,8 @@ const call = (handlers, key, { params = {}, body = {} } = {}) => handlers[key]({
 const post = (handlers, body) => call(handlers, "POST /v1/ask", { body });
 const read = (handlers, ask) => call(handlers, "GET /v1/ask/{ask}", { params: { ask } });
 async function until(condition, what) {
-  for (let turn = 0; turn < 500; turn++) {
+  // The bound only ends a wait that can never be met; a machine running other suites beside this one takes seconds to start an agent.
+  for (const stop = Date.now() + 60_000; Date.now() < stop;) {
     const found = await condition();
     if (found) return found;
     await new Promise((resolve) => setTimeout(resolve, 10));
