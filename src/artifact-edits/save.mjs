@@ -7,11 +7,22 @@
 //
 // Module: MOD-artifact-edits
 //
-// The pages that save through it are src/review-pages/file-edit.mjs and src/review-pages/file-drafts.mjs. Of the refusals the
-// module file names, a group file whose items stand in more than one place is not refused yet.
+// The pages that save through it are src/review-pages/file-edit.mjs and src/review-pages/file-drafts.mjs.
 
 import { blobSha } from "../text-tools/index.mjs";
 import { artifactSchemaOf, readDocument } from "../documents/index.mjs";
+import { parseGroupFile, hierarchy } from "../group-document/index.mjs";
+
+const GROUP_FILE = /^docs\/groups\/[^/]+\.md$/;
+const ONE_PLACE = "AN ITEM HAS ONE PLACE IN ITS HIERARCHY";
+
+// The items a group file names in more than one place, read by MOD-group-document's parseGroupFile and hierarchy: each is named
+// by the finding under ONE_PLACE, whose `what` begins with the identifier. [] for a file that is no group file.
+function itemsInSeveralPlaces(path, text) {
+  if (!GROUP_FILE.test(path)) return [];
+  const { findings } = hierarchy(parseGroupFile(path, text), []);
+  return [...new Set(findings.filter((f) => f.rule === ONE_PLACE).map((f) => f.what.split(" ")[0]))];
+}
 
 // The identifier a text declares, read by the schema of its kind: the `id` of its front matter, null where it has none — and
 // for a path of no schema, whose identifier this module cannot read.
@@ -23,7 +34,8 @@ export function declaredId(path, text) {
 
 // saveFile(host: Host, edit | edits: { path: string, text: string, openedBlob: string | null, openedId: string | null,
 // trailers?: string[] }) -> Promise<{ commit: string, blob: string | string[] } | { refused: "changed meanwhile", current: string |
-// null, currentBlob: string | null } | { refused: "identifier changed", openedId: string, nowId: string | null }>
+// null, currentBlob: string | null } | { refused: "identifier changed", openedId: string, nowId: string | null } | { refused:
+// "not one place", items: string[] }>
 // — one edit, or several: the files one instruction by prompt changed. In the order of the edits, for a file opened with an
 // identifier (openedId; a caller that gives none, or null, is not asked) whose text now declares another, or none, it writes
 // nothing and returns both identifiers (AN EDITED FILE KEEPS ITS IDENTIFIER); for a file whose blob on the default branch that
@@ -31,7 +43,9 @@ export function declaredId(path, text) {
 // it writes nothing and returns the text and the blob the branch holds now, each null where it holds no such file. The first
 // refusal is the one returned, and nothing is written for any of the files. Otherwise it commits all the texts in one commit on
 // the head it read, and returns that commit as the host's commitFiles names it, with the blob of the text — a list of blobs, in
-// the order of the edits, when the edits came as a list. The message names the files and ends, after a blank line, with the
+// the order of the edits, when the edits came as a list. A group file (docs/groups/<kind>.md) in which an item stands in more
+// than one place is refused, before anything is read from the host, with { refused: "not one place", items } (AN ITEM HAS ONE
+// PLACE IN ITS HIERARCHY); the check follows the identifier check of the same edit. The message names the files and ends, after a blank line, with the
 // trailers of the edits, each line once (a job's provenance lines; none for a person's own edit); the files hold none. The commit
 // is made with the token the host was connected with, so it is under the person's account. Crosses the network, through the host.
 // Fails with the host's failures, unchanged: Moved (the branch moved after it was read), SecretRefused, TokenRefused,
@@ -45,6 +59,8 @@ export async function saveFile(host, given) {
       const nowId = declaredId(path, text);
       if (nowId !== openedId) return { refused: "identifier changed", openedId, nowId };
     }
+    const items = itemsInSeveralPlaces(path, text);
+    if (items.length) return { refused: "not one place", items };
     if (head === null) {
       branch = (await host.repositoryInfo()).defaultBranch;
       head = await host.readSnapshot(branch);
@@ -70,4 +86,11 @@ export function keptIdentifier(text, openedId) {
   if (!front) return text;
   const fixed = front[0].replace(/^(id:[ \t]*)([^\r\n]*)/m, (line, _key, value) => (value.trim() === openedId ? line : `id: ${openedId}`));
   return fixed + text.slice(front[0].length);
+}
+
+// saveGroupFile(host, { kind, text, openedBlob }) -> the result of saveFile — saveFile for the group file docs/groups/<kind>.md:
+// that file and nothing else, in one commit on the default branch (A REGROUPING IS COMMITTED DIRECTLY); openedBlob null creates it
+// only while it does not exist; refused with "changed meanwhile" or "not one place" as saveFile refuses; the errors of saveFile.
+export function saveGroupFile(host, { kind, text, openedBlob }) {
+  return saveFile(host, { path: `docs/groups/${kind}.md`, text, openedBlob, openedId: null });
 }
