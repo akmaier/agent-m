@@ -29,6 +29,7 @@ const ELI_PATH = /^\/eli\/([a-z_]+)\/(\d{4})\/(\d+)(?:\/(oj))?(?:\/[a-z]{3})?\/?
  */
 export function recogniseLegalText(address) {
   if (typeof address !== "string") return null;
+  if (CELEX.test(address)) return { celex: address };
   let url;
   try { url = new URL(address); } catch { return null; }
   if (url.protocol !== "https:" && url.protocol !== "http:") return null;
