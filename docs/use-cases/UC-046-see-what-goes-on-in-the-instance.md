@@ -61,7 +61,7 @@ to the pages where its work is reviewed and done.
    product's repository and its records; none is stored.
 4. **The build.** For a product in implementation, the card shows the steps of its implementation plan or its backlog items
    in progress, each with the job working on it — its participant, its state and its elapsed time (UC-036) —, and keeps
-   them current while the page is open; a step or an item moves on to *done* when its pull request is merged.
+   them current while the page is shown; a step or an item moves on to *done* when its pull request is merged.
 5. Below the products, Agent M lists what waits for a person across the instance: open use cases, open SPEC changes, gates
    waiting for a decision, and failed jobs, each linked to the page where it is decided.
 
