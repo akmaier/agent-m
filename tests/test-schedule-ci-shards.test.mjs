@@ -1,21 +1,25 @@
 // The node shards of the pull-request CI keep the test files that need the controlled Electron apart (ITM-945): the partition that
 // .github/workflows/tests.yml writes as level.mjs in its node job and runs once per shard puts no two of those files into one shard,
-// however many files sort before them, and leaves every other file in the shard its place in the sorted list gives it.
+// however many files sort before them, leaves every other file in the shard its place in the sorted list gives it, and fails the job,
+// naming the files and the shard count, when there are more of them than shards. The files that need the Electron are found here by the
+// partition's own rule (ITM-947), read from the workflow's script, and no list of them is kept.
 // Run: node --test tests/test-schedule-ci-shards.test.mjs
 //
 // Module: MOD-test-schedule
 // Guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES; A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY
 // Level: unit
 //
-// The expected results are written here, in the cases, and none is read from a document. The files that need the Electron are named in
-// ELECTRON below, each by what it does today: it takes the lock of the one Electron fixture the node tests share, or stages the Electron
-// through tests/site-usability.d/browser.mjs. A test cannot take two of them at once, and a job that gives one shard three of them waits
-// on the lock and runs past its two minutes.
+// The expected results are written here, in the cases, and none is read from a document. A file needs the Electron when its text matches
+// the rule that the workflow's script holds as `startsElectron`; this file reads that rule out of the script and does not repeat it (a
+// repetition in this file would also make this file one of them). A test cannot take the Electron fixture's lock twice at once, and a job
+// that gives one shard three of them waits on the lock and runs past its two minutes.
 // Readings, each adding no word to the sentence it reads (ITM-945's Acceptance, "No two test files that start Electron share a node shard,
-// in every mode"):
+// in every mode"; ITM-947's, "builds exactly as many such files as shards, whatever the real count is"):
 //   - "every mode" is the two modes the workflow runs, `all` (a pull request into the default branch) and `rest` (a pull request into a
 //     sprint's branch, which leaves out the files of level release); the shard count is the node job's eight.
 //   - "a list with files added before them" is the repository's files with files added whose paths sort before every path of tests/.
+//   - "as many such files as shards" is the repository's files that match the rule plus copies of one of them, under other names and added
+//     before them, up to eight; "one more than shards" is nine. "A smaller copy" is the repository's other files with seven copies only.
 // The counter-proof of the whole file is plain `index % 8` over the same sorted list: the cases state, from the same lists, that it puts two
 // of these files into one shard, so that the lists are able to show the fault. Planted in a scratch copy of the workflow, the partition
 // reduced to `index % count` fails the cases that look for distinct shards; the run is recorded in the pull request.
@@ -24,22 +28,13 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = new URL("..", import.meta.url).pathname;
 const SHARDS = 8;
-const ELECTRON = [
-  "tests/dashboard-backlog-layout.test.mjs",
-  "tests/desktop-shell.test.mjs",
-  "tests/markdown-render-918-diagram-drawn.test.mjs",
-  "tests/release-itm-276-desktop-shell.test.mjs",
-  "tests/release-itm-290-public-settings-layout.test.mjs",
-  "tests/site-accessibility.test.mjs",
-  "tests/site-usability.test.mjs",
-];
-// Of level release, which mode `rest` leaves out.
-const RELEASE = ["tests/release-itm-276-desktop-shell.test.mjs", "tests/release-itm-290-public-settings-layout.test.mjs"];
+// A file the rule is known to match, for the known positive of the rule read from the workflow.
+const KNOWN = "tests/site-usability.test.mjs";
 
 const work = mkdtempSync(join(tmpdir(), "agent-m-945-"));
 after(() => rmSync(work, { recursive: true, force: true }));
@@ -56,14 +51,28 @@ function workflowScript() {
   const indent = lines[first].match(/^ */)[0].length;
   return `${lines.slice(first, last).map((line) => line.slice(indent)).join("\n")}\n`;
 }
+const scriptText = workflowScript();
 const script = join(work, "level.mjs");
-writeFileSync(script, workflowScript());
+writeFileSync(script, scriptText);
+
+// The partition's own rule: the regular expression the script tests a file's text with.
+const ruleMatch = /startsElectron = \(f\) => \/(.+)\/\.test\(/.exec(scriptText);
+assert.ok(ruleMatch, "the workflow's script holds its rule as startsElectron");
+const rule = new RegExp(ruleMatch[1]);
+const starts = (file) => rule.test(readFileSync(isAbsolute(file) ? file : join(root, file), "utf8"));
 
 const repositoryFiles = () => readdirSync(join(root, "tests")).filter((name) => name.endsWith(".test.mjs")).map((name) => `tests/${name}`);
+const needing = (files) => files.filter(starts);
 // Files added before every path of tests/ (an absolute path sorts before "tests/"): small unit tests, none needing the Electron.
 const added = (count) => Array.from({ length: count }, (_, number) => {
   const path = join(work, `a-added-${number}.test.mjs`);
   writeFileSync(path, "// Level: unit\n");
+  return path;
+});
+// Copies of a file the rule matches, under other names and before every path of tests/: files that need the Electron too.
+const electronCopies = (count) => Array.from({ length: Math.max(count, 0) }, (_, number) => {
+  const path = join(work, `a-electron-copy-${number}.test.mjs`);
+  copyFileSync(join(root, KNOWN), path);
   return path;
 });
 
@@ -92,13 +101,13 @@ const shared = (where, names) => {
 // What plain `index % 8` gives the files the partition handed out: Map<file, shard> over their sorted list.
 const plain = (where) => new Map([...where.keys()].sort().map((file, index) => [file, index % SHARDS]));
 
-const modes = [["all", ELECTRON], ["rest", ELECTRON.filter((name) => !RELEASE.includes(name))]];
-
-// The files of ELECTRON that the mode runs stand in shards of their own, over the repository's files and over the same with two files added.
-function standApart(mode, names) {
+// The files that need the Electron among those the mode runs stand in shards of their own, over the repository's files and over the same
+// with two files added. They are found by the rule among the files the partition handed out.
+function standApart(mode) {
   for (const count of [0, 2]) {
     const where = shards(mode, [...added(count), ...repositoryFiles()], `${mode}-${count}`);
-    for (const name of names) assert.equal(where.has(name), true, `${name} is in a shard (${count} files added)`);
+    const names = needing([...where.keys()]);
+    assert.equal(names.includes(KNOWN), true, `${count} files added: the rule finds ${KNOWN}`);
     assert.deepEqual(shared(where, names), [], `${count} files added: shards that hold two files needing the Electron`);
   }
 }
@@ -109,20 +118,20 @@ function standApart(mode, names) {
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
 // given: the repository's test files, and the same files with two small test files added before them; the node job's partition of mode `all` (a pull request into the default branch), of eight shards
 // input: the partition run for each shard 0..7 over each list
-// expect: the seven files that need the Electron (dashboard-backlog-layout, desktop-shell, markdown-render-918-diagram-drawn, site-accessibility, site-usability and the two release files) stand in seven different shards, in both lists
+// expect: the files that the partition's rule finds among those it handed out (at least the known site-usability) stand in different shards, one each, in both lists
 test("TST-945001 · mode all: the files that need the Electron stand in shards of their own, over the repository's files and over files added before them", () => {
-  standApart("all", modes[0][1]);
+  standApart("all");
 });
 
 // TST-945002
 // level: unit
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: the same two lists, and the partition of mode `rest` (a pull request into a sprint's branch), which leaves out the two release files
+// given: the same two lists, and the partition of mode `rest` (a pull request into a sprint's branch), which leaves out the files of level release
 // input: the partition run for each shard 0..7 over each list
-// expect: the five files that need the Electron and are not of level release stand in five different shards, in both lists
+// expect: the files that the rule finds among those handed out stand in different shards, one each, in both lists
 test("TST-945002 · mode rest: the files that need the Electron stand in shards of their own, over the repository's files and over files added before them", () => {
-  standApart("rest", modes[1][1]);
+  standApart("rest");
 });
 
 // TST-945003
@@ -131,13 +140,12 @@ test("TST-945002 · mode rest: the files that need the Electron stand in shards 
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
 // given: the repository's test files in mode `rest`, with a file added before them that is a copy of tests/site-usability.test.mjs under another name, so that it needs the Electron too
 // input: the partition run for each shard 0..7
-// expect: the added copy and the five files that need the Electron in mode `rest` stand in six different shards: a file is taken to need the Electron by what it does, not by its name
+// expect: the added copy and the files the rule finds among those handed out stand in different shards: a file is taken to need the Electron by what it does, not by its name
 test("TST-945003 · a file added before them that needs the Electron stands apart from the others", () => {
-  const copy = join(work, "a-electron-copy.test.mjs");
-  copyFileSync(join(root, "tests/site-usability.test.mjs"), copy);
-  const names = [copy, ...modes[1][1]];
+  const [copy] = electronCopies(1);
   const where = shards("rest", [copy, ...repositoryFiles()], "rest-copy");
-  for (const name of names) assert.equal(where.has(name), true, `${name} is in a shard`);
+  const names = needing([...where.keys()]);
+  assert.equal(names.includes(copy), true, "the copy is found by the rule and stands in a shard");
   assert.deepEqual(shared(where, names), []);
 });
 
@@ -147,13 +155,13 @@ test("TST-945003 · a file added before them that needs the Electron stands apar
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
 // given: the repository's test files in mode `all`, alone and with two small test files added before them
 // input: the partition run for each shard 0..7
-// expect: every file that does not need the Electron stands in shard (its place in the sorted list) % 8, as it does with plain `index % 8`
+// expect: every file the rule does not find stands in shard (its place in the sorted list) % 8, as it does with plain `index % 8`
 test("TST-945004 · every other file keeps the shard its place in the sorted list gives it", () => {
   for (const count of [0, 2]) {
     const where = shards("all", [...added(count), ...repositoryFiles()], `all-${count}`);
     const sorted = [...where.keys()].sort();
     assert.equal(sorted.length, count + repositoryFiles().length, "every file stands in a shard");
-    const moved = sorted.map((file, index) => [file, index % SHARDS]).filter(([file, shard]) => !ELECTRON.includes(file) && where.get(file) !== shard).map(([file]) => file);
+    const moved = sorted.map((file, index) => [file, index % SHARDS]).filter(([file, shard]) => !starts(file) && where.get(file) !== shard).map(([file]) => file);
     assert.deepEqual(moved, [], `${count} files added: files that left the shard their place gives them`);
   }
 });
@@ -163,37 +171,38 @@ test("TST-945004 · every other file keeps the shard its place in the sorted lis
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
 // given: the files the partition handed out for the lists of TST-945001 and TST-945002, and the plain rule `index % 8` over the same sorted files
-// input: the shards `index % 8` gives to the files that need the Electron
+// input: the shards `index % 8` gives to the files the rule finds
 // expect: in every one of the four lists (two modes, with none and with two files added) `index % 8` puts at least two of those files into one shard, which the partition of the workflow does not
 test("TST-945005 · counter-proof: plain index % 8 puts two files that need the Electron into one shard over the same lists", () => {
-  for (const [mode, names] of modes) {
+  for (const mode of ["all", "rest"]) {
     for (const count of [0, 2]) {
       const where = shards(mode, [...added(count), ...repositoryFiles()], `${mode}-${count}`);
+      const names = needing([...where.keys()]);
       assert.notDeepEqual(shared(plain(where), names), [], `${mode}, ${count} files added: plain index % 8 keeps them apart, so these lists cannot show the fault`);
       assert.deepEqual(shared(where, names), [], `${mode}, ${count} files added: the partition of the workflow keeps them apart`);
     }
   }
 });
 
-// Copies of tests/site-usability.test.mjs under other names, added before every path of tests/: files that need the Electron too.
-const electronCopies = (count) => Array.from({ length: count }, (_, number) => {
-  const path = join(work, `a-electron-copy-${number}.test.mjs`);
-  copyFileSync(join(root, "tests/site-usability.test.mjs"), path);
-  return path;
-});
+// The repository's files plus as many copies as bring the files that need the Electron to `total`, whatever the repository holds of them.
+const listWith = (total) => {
+  const files = repositoryFiles();
+  return { copies: electronCopies(total - needing(files).length), files };
+};
 
 // TST-945006
 // level: unit
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: the repository's test files in mode `all` with two copies of tests/site-usability.test.mjs added before them: nine files that need the Electron for eight shards
+// given: the repository's test files in mode `all` with as many copies of tests/site-usability.test.mjs added before them as make nine files that need the Electron for eight shards, whatever the repository holds of them
 // input: the partition run for the shards 0 and 7
 // expect: each run ends with a non-zero status and no file list, and its error text names all nine files and "8 shards", instead of letting two of them share a lock
 test("TST-945006 · more files that need the Electron than shards: the partition fails and names the files and the number of shards", () => {
-  const copies = electronCopies(2);
-  const names = [...copies, ...ELECTRON];
+  const { copies, files } = listWith(SHARDS + 1);
+  const names = needing([...copies, ...files]);
+  assert.equal(names.length, SHARDS + 1);
   for (const shard of [0, 7]) {
-    const run = spawnSync(process.execPath, [script, "all", String(shard), String(SHARDS), ...copies, ...repositoryFiles()], { cwd: root, encoding: "utf8" });
+    const run = spawnSync(process.execPath, [script, "all", String(shard), String(SHARDS), ...copies, ...files], { cwd: root, encoding: "utf8" });
     assert.notEqual(run.status, 0, `shard ${shard} ends with a failure`);
     assert.equal(run.stdout.trim(), "", `shard ${shard} hands out no files`);
     for (const name of names) assert.equal(run.stderr.includes(name), true, `shard ${shard}: the error names ${name}`);
@@ -205,13 +214,27 @@ test("TST-945006 · more files that need the Electron than shards: the partition
 // level: unit
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: the repository's test files in mode `all` with one copy of tests/site-usability.test.mjs added before them: eight files that need the Electron for eight shards
+// given: the repository's test files in mode `all` with as many copies of tests/site-usability.test.mjs added before them as make exactly eight files that need the Electron for eight shards, whatever the repository holds of them
 // input: the partition run for each shard 0..7
 // expect: every run succeeds and the eight files stand in eight different shards (the limit is more files than shards, not as many)
 test("TST-945007 · as many files that need the Electron as shards: the partition succeeds and each has a shard of its own", () => {
-  const copies = electronCopies(1);
-  const names = [...copies, ...ELECTRON];
-  const where = shards("all", [...copies, ...repositoryFiles()], "all-eight");
-  for (const name of names) assert.equal(where.has(name), true, `${name} is in a shard`);
+  const { copies, files } = listWith(SHARDS);
+  const where = shards("all", [...copies, ...files], "all-eight");
+  const names = needing([...where.keys()]);
+  assert.equal(names.length, SHARDS);
   assert.deepEqual(shared(where, names), []);
+});
+
+// TST-945008
+// level: unit
+// module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: a smaller copy of the repository: the files the rule does not find, and seven copies of tests/site-usability.test.mjs added before them, in mode `all`
+// input: the partition run for each shard 0..7
+// expect: every run succeeds and the seven files that need the Electron stand in seven different shards
+test("TST-945008 · over a smaller copy with seven files that need the Electron, each has a shard of its own", () => {
+  const copies = electronCopies(7);
+  const where = shards("all", [...copies, ...repositoryFiles().filter((file) => !starts(file))], "smaller");
+  assert.equal(needing([...where.keys()]).length, 7);
+  assert.deepEqual(shared(where, copies), []);
 });
