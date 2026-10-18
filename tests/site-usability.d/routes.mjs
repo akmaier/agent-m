@@ -7,44 +7,68 @@
 
 import { again, until } from "./browser.mjs";
 
+// testId(series, number) -> string — the identifier `TST-<nnn>` of a generated test: the series (904 for the look check, 905 for the accessibility check)
+// and its number, which the route table or CASES holds (MOD-identifiers: the numbered kinds count up, and a number once used stays used).
+export const testId = (series, number) => `TST-${series}${String(number).padStart(3, "0")}`;
+
+// The checks of a route that have a number in each series, in the order a route is given its numbers.
+const CHECKS = { 904: ["drawn", "sheets", "targets", "widths", "diagrams"], 905: ["drawn", "wcag", "diagrams"] };
+// withRoute(table, route, cases = CASES) -> route[] — a copy of `table` with `route` at its front, given the next free numbers: each check of each series
+// takes the next number above the highest the table and `cases` hold for that series, counted up in the order of CHECKS. The numbers of the others stay.
+export function withRoute(table, route, cases = CASES) {
+  const ids = {};
+  for (const series of [904, 905]) {
+    let next = Math.max(0, ...Object.values(cases[series]), ...table.flatMap((each) => Object.values(each.ids[series]))) + 1;
+    ids[series] = Object.fromEntries(CHECKS[series].map((check) => [check, next++]));
+  }
+  return [{ ...route, ids }, ...table];
+}
+
 // Each route: its address, and a text it must show — the known positive that the page was drawn with content before anything is said
-// about its widths. `#` addresses are the review pages' fragments; `/` is the main page.
+// about its widths. `#` addresses are the review pages' fragments; `/` is the main page. `ids` holds the numbers of the route's generated tests in each
+// series (904: the look check, 905: the accessibility check), assigned once and kept: a new route takes the next free numbers (`withRoute`).
 const SECTION = encodeURIComponent("## 1. Reading");
 const NAME = encodeURIComponent("A MISSING FILE IS NAMED, NEVER GUESSED AT");
 export const ROUTES = [
-  { address: "/", shows: "What waits for a person" },
-  { address: "#uc", shows: "UC-001" },
-  { address: "#uc/UC-001", shows: "UC-001 Read a file at a pinned commit" },
-  { address: "#review/uc", shows: "Review all — Use cases" },
-  { address: "#use-case/id=draft", shows: "Draft use cases" },
-  { address: "#use-case/id=UC-002/edit=1", shows: "Edit UC-002" },
-  { address: "#arc", shows: "Architecture decisions" },
-  { address: "#arc/ARC-001", shows: "ARC-001 The pages are a static client" },
-  { address: "#arc/MOD-reader", shows: "MOD-reader Reads files at a pinned commit" },
-  { address: "#review/arc", shows: "Review all — the whole architecture" },
-  { address: "#decision/id=draft", shows: "Draft the architecture" },
-  { address: "#decision/id=ARC-001/edit=1", shows: "Edit ARC-001" },
-  { address: "#module", shows: "Module files" },
-  { address: "#module/id=MOD-reader/edit=1", shows: "Edit MOD-reader" },
-  { address: "#spec", shows: "SPEC changes" },
-  { address: "#spec/2026-10-18_sample/01", shows: "2026-10-18_sample · entry 01" },
-  { address: "#spec-entry/id=all", shows: "Review all — SPEC changes" },
-  { address: "#spec-entry/id=spec-2026-10-18_sample-01/edit=1", shows: "Edit entry 01 of 2026-10-18_sample" },
-  { address: `#requirement/name=${NAME}`, shows: "Edit A MISSING FILE IS NAMED, NEVER GUESSED AT What is this? Other open proposals on this section" },
-  { address: `#requirements/section=${SECTION}`, shows: "New requirement What is this? Other open proposals on this section" },
-  { address: "#draft/subject=none", shows: "The draft of the conversation" },
-  { address: "#how", shows: "How acceptance works" },
-  { address: "#settings", shows: "Settings" },
-  { address: "#add", shows: "Add a product" },
-  { address: "#endpoints", shows: "Configure a model endpoint" },
-  { address: "#setup", shows: "Finish setting up your instance" },
-  { address: "#bridge", shows: "Connect a Bridge" },
-  { address: "#backlog", shows: "Backlog" },
-  { address: "#process", shows: "How this product is developed" },
-  { address: "#release", shows: "New release" },
-  { address: "#roles", shows: "Who fills the roles" },
-  { address: "#release-report/id=all", shows: "Review all — Release test reports" },
+  { address: "/", shows: "What waits for a person", ids: { 904: { drawn: 2, sheets: 34, targets: 35, widths: 36, diagrams: 134 }, 905: { drawn: 1, wcag: 33, diagrams: 72 } } },
+  { address: "#uc", shows: "UC-001", ids: { 904: { drawn: 3, sheets: 37, targets: 38, widths: 39, diagrams: 135 }, 905: { drawn: 2, wcag: 34, diagrams: 73 } } },
+  { address: "#uc/UC-001", shows: "UC-001 Read a file at a pinned commit", ids: { 904: { drawn: 4, sheets: 40, targets: 41, widths: 42, diagrams: 136, box: 168 }, 905: { drawn: 3, wcag: 35, diagrams: 74 } } },
+  { address: "#review/uc", shows: "Review all — Use cases", ids: { 904: { drawn: 5, sheets: 43, targets: 44, widths: 45, diagrams: 137, box: 169 }, 905: { drawn: 4, wcag: 36, diagrams: 75 } } },
+  { address: "#use-case/id=draft", shows: "Draft use cases", ids: { 904: { drawn: 6, sheets: 46, targets: 47, widths: 48, diagrams: 138 }, 905: { drawn: 5, wcag: 37, diagrams: 76 } } },
+  { address: "#use-case/id=UC-002/edit=1", shows: "Edit UC-002", ids: { 904: { drawn: 7, sheets: 49, targets: 50, widths: 51, diagrams: 139 }, 905: { drawn: 6, wcag: 38, diagrams: 77 } } },
+  { address: "#arc", shows: "Architecture decisions", ids: { 904: { drawn: 8, sheets: 52, targets: 53, widths: 54, diagrams: 140 }, 905: { drawn: 7, wcag: 39, diagrams: 78 } } },
+  { address: "#arc/ARC-001", shows: "ARC-001 The pages are a static client", ids: { 904: { drawn: 9, sheets: 55, targets: 56, widths: 57, diagrams: 141 }, 905: { drawn: 8, wcag: 40, diagrams: 79 } } },
+  { address: "#arc/MOD-reader", shows: "MOD-reader Reads files at a pinned commit", ids: { 904: { drawn: 10, sheets: 58, targets: 59, widths: 60, diagrams: 142 }, 905: { drawn: 9, wcag: 41, diagrams: 80 } } },
+  { address: "#review/arc", shows: "Review all — the whole architecture", ids: { 904: { drawn: 11, sheets: 61, targets: 62, widths: 63, diagrams: 143 }, 905: { drawn: 10, wcag: 42, diagrams: 81 } } },
+  { address: "#decision/id=draft", shows: "Draft the architecture", ids: { 904: { drawn: 12, sheets: 64, targets: 65, widths: 66, diagrams: 144 }, 905: { drawn: 11, wcag: 43, diagrams: 82 } } },
+  { address: "#decision/id=ARC-001/edit=1", shows: "Edit ARC-001", ids: { 904: { drawn: 13, sheets: 67, targets: 68, widths: 69, diagrams: 145 }, 905: { drawn: 12, wcag: 44, diagrams: 83 } } },
+  { address: "#module", shows: "Module files", ids: { 904: { drawn: 14, sheets: 70, targets: 71, widths: 72, diagrams: 146 }, 905: { drawn: 13, wcag: 45, diagrams: 84 } } },
+  { address: "#module/id=MOD-reader/edit=1", shows: "Edit MOD-reader", ids: { 904: { drawn: 15, sheets: 73, targets: 74, widths: 75, diagrams: 147 }, 905: { drawn: 14, wcag: 46, diagrams: 85 } } },
+  { address: "#spec", shows: "SPEC changes", ids: { 904: { drawn: 16, sheets: 76, targets: 77, widths: 78, diagrams: 148 }, 905: { drawn: 15, wcag: 47, diagrams: 86 } } },
+  { address: "#spec/2026-10-18_sample/01", shows: "2026-10-18_sample · entry 01", ids: { 904: { drawn: 17, sheets: 79, targets: 80, widths: 81, diagrams: 149 }, 905: { drawn: 16, wcag: 48, diagrams: 87 } } },
+  { address: "#spec-entry/id=all", shows: "Review all — SPEC changes", ids: { 904: { drawn: 18, sheets: 82, targets: 83, widths: 84, diagrams: 150 }, 905: { drawn: 17, wcag: 49, diagrams: 88 } } },
+  { address: "#spec-entry/id=spec-2026-10-18_sample-01/edit=1", shows: "Edit entry 01 of 2026-10-18_sample", ids: { 904: { drawn: 19, sheets: 85, targets: 86, widths: 87, diagrams: 151 }, 905: { drawn: 18, wcag: 50, diagrams: 89 } } },
+  { address: `#requirement/name=${NAME}`, shows: "Edit A MISSING FILE IS NAMED, NEVER GUESSED AT What is this? Other open proposals on this section", ids: { 904: { drawn: 20, sheets: 88, targets: 89, widths: 90, diagrams: 152 }, 905: { drawn: 19, wcag: 51, diagrams: 90 } } },
+  { address: `#requirements/section=${SECTION}`, shows: "New requirement What is this? Other open proposals on this section", ids: { 904: { drawn: 21, sheets: 91, targets: 92, widths: 93, diagrams: 153 }, 905: { drawn: 20, wcag: 52, diagrams: 91 } } },
+  { address: "#draft/subject=none", shows: "The draft of the conversation", ids: { 904: { drawn: 22, sheets: 94, targets: 95, widths: 96, diagrams: 154 }, 905: { drawn: 21, wcag: 53, diagrams: 92 } } },
+  { address: "#how", shows: "How acceptance works", ids: { 904: { drawn: 23, sheets: 97, targets: 98, widths: 99, diagrams: 155 }, 905: { drawn: 22, wcag: 54, diagrams: 93 } } },
+  { address: "#settings", shows: "Settings", ids: { 904: { drawn: 24, sheets: 100, targets: 101, widths: 102, diagrams: 156 }, 905: { drawn: 23, wcag: 55, diagrams: 94 } } },
+  { address: "#add", shows: "Add a product", ids: { 904: { drawn: 25, sheets: 103, targets: 104, widths: 105, diagrams: 157 }, 905: { drawn: 24, wcag: 56, diagrams: 95 } } },
+  { address: "#endpoints", shows: "Configure a model endpoint", ids: { 904: { drawn: 26, sheets: 106, targets: 107, widths: 108, diagrams: 158 }, 905: { drawn: 25, wcag: 57, diagrams: 96 } } },
+  { address: "#setup", shows: "Finish setting up your instance", ids: { 904: { drawn: 27, sheets: 109, targets: 110, widths: 111, diagrams: 159 }, 905: { drawn: 26, wcag: 58, diagrams: 97 } } },
+  { address: "#bridge", shows: "Connect a Bridge", ids: { 904: { drawn: 28, sheets: 112, targets: 113, widths: 114, diagrams: 160 }, 905: { drawn: 27, wcag: 59, diagrams: 98 } } },
+  { address: "#backlog", shows: "Backlog", ids: { 904: { drawn: 29, sheets: 115, targets: 116, widths: 117, diagrams: 161 }, 905: { drawn: 28, wcag: 60, diagrams: 99 } } },
+  { address: "#process", shows: "How this product is developed", ids: { 904: { drawn: 30, sheets: 118, targets: 119, widths: 120, diagrams: 162 }, 905: { drawn: 29, wcag: 61, diagrams: 100 } } },
+  { address: "#release", shows: "New release", ids: { 904: { drawn: 31, sheets: 121, targets: 122, widths: 123, diagrams: 163 }, 905: { drawn: 30, wcag: 62, diagrams: 101 } } },
+  { address: "#roles", shows: "Who fills the roles", ids: { 904: { drawn: 32, sheets: 124, targets: 125, widths: 126, diagrams: 164 }, 905: { drawn: 31, wcag: 63, diagrams: 102 } } },
+  { address: "#release-report/id=all", shows: "Review all — Release test reports", ids: { 904: { drawn: 33, sheets: 127, targets: 128, widths: 129, diagrams: 165 }, 905: { drawn: 32, wcag: 64, diagrams: 103 } } },
 ];
+
+// The numbers of the generated tests that are no route's, by series: the planted cases and the tests over several routes at once.
+export const CASES = {
+  904: { routes: 1, plantedBefore: 130, plantedTable: 131, plantedButton: 132, plantedSheet: 133, diagramBefore: 166, diagramAfter: 167 },
+  905: { plantedBefore: 65, plantedButton: 66, plantedImage: 67, labels: 68, ticks: 69, tickBefore: 70, plantedTick: 71, diagramBefore: 104, diagramAfter: 105, scrollEdits: 106, scrollBefore: 107, plantedScroll: 108, changedKeyboard: 109, changedRule: 110, plantedDiff: 111 },
+};
 
 // In every document the browser opens, before its scripts: the time of the last change anywhere in the document.
 export const OBSERVE = `window.__lastChange = performance.now(); new MutationObserver(() => { window.__lastChange = performance.now(); }).observe(document, { subtree: true, childList: true, attributes: true, characterData: true });`;
