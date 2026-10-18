@@ -15,14 +15,12 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installDocument, byTag, click as clickOnce, turn } from "./settings-pages-harness.mjs";
-import { freshStore, tick, untick } from "./settings-pages-setup.d/dom.mjs";
-import { githubWorld, installWorld, isWrite, registerEntry, sectionOf, settled, withClass } from "./settings-pages-sources.d/github.mjs";
+import { installDocument, byTag } from "./settings-pages-harness.mjs";
+import { tick, untick } from "./settings-pages-setup.d/dom.mjs";
+import { isWrite, registerEntry, sectionOf, withClass } from "./settings-pages-sources.d/github.mjs";
+import { visit as visitFrame, click, go } from "./settings-pages-sources.d/frame.mjs";
 
 installDocument();
-const { view } = await import("../src/settings-pages/index.mjs");
-const { startPage } = await import("../src/site-frame/index.mjs");
-const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 
 const INSTANCE = "akmaier/agent-m";
 const PRODUCT = "https://github.com/alice/thesis-tool";
@@ -49,35 +47,12 @@ const IEC_B = `| SRC-iec-62304 | IEC 62304:2006+AMD1:2015 | ${H.iec} | safety cl
 const TOKEN = "github_pat_INSTANCE0123456789abcdefghij";
 const PRODUCT_TOKEN = "github_pat_PRODUCT0123456789abcdefghijk";
 
-// A person opens the page at `fragment`: a window that announces a change of the fragment, the location of the instance's Pages address, this browser's store with the instance's token
-// and the product with its own, the world's fetch, and the frame started on the module view of MOD-settings-pages.
-async function visit(t, fragment, { productFiles = { "SPEC.md": SPEC } } = {}) {
-  const world = githubWorld({ [INSTANCE]: { files: REGISTER }, [PRODUCT_REPO]: { files: productFiles } });
-  installWorld(t, world);
-  current = world;
-  const scripted = new EventTarget();
-  Object.assign(scripted, globalThis.window);
-  globalThis.window = scripted;
-  const location = { hostname: "akmaier.github.io", pathname: "/agent-m/docs/index.html", host: "akmaier.github.io", protocol: "https:", hash: fragment };
-  Object.defineProperty(globalThis, "location", { configurable: true, value: location });
-  const realInterval = globalThis.setInterval;
-  globalThis.setInterval = () => 1;
-  t.after(() => { globalThis.setInterval = realInterval; });
-  const store = freshStore(INSTANCE);
-  writeSetting(store, "github-token", { value: TOKEN, name: "Agent M · akmaier/agent-m", expires: "2027-01-01" });
-  writeSetting(store, "products", [PRODUCT]);
-  writeSetting(store, `github-token:${PRODUCT_REPO}`, { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" });
-  await startPage({ page: "review", views: [view] });
-  const page = { world, location, scripted, main: () => byTag(document.body, "main")[0] };
-  await settle();
-  return page;
-}
-let current = null; // the world of the page opened last
-const settle = async () => { await turn(); await settled(current); };
-// A person's click, and the time a save through the host takes to finish.
-const click = async (button) => { await clickOnce(button); await settle(); };
-// The fragment changes, as when a person follows a link or presses back, and the frame shows the route it names.
-const go = async (page, fragment) => { page.location.hash = fragment; page.scripted.dispatchEvent(new Event("hashchange")); await settle(); };
+// A person opens the page at `fragment`: the frame started on the module view of MOD-settings-pages, over this browser's store with the instance's token and the product with its own.
+const visit = (t, fragment, { productFiles = { "SPEC.md": SPEC } } = {}) => visitFrame(t, fragment, {
+  repositories: { [INSTANCE]: { files: REGISTER }, [PRODUCT_REPO]: { files: productFiles } },
+  settings: { "github-token": { value: TOKEN, name: "Agent M · akmaier/agent-m", expires: "2027-01-01" }, products: [PRODUCT],
+    [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M · alice/thesis-tool", expires: "2027-01-01" } },
+});
 const field = (page, id, className) => withClass(sectionOf(page.main(), id), className)[0];
 const save = (page) => withClass(page.main(), "sources-save")[0];
 const result = (page) => withClass(page.main(), "sources-result")[0].textContent;

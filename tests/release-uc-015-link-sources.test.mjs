@@ -2,7 +2,7 @@
 // real GitHub host answered by a fake of fetch. Written by developer-sonnet-b, who built none of the route (ITM-590). Each test states its input and its expected result in its own text (given / input /
 // expect); every expected value is taken from the use case's step as quoted in the test or from the fixture the test builds, none from the code and none read from a document when the test runs. The page is found
 // by what the use case names - the heading "Requirement sources", a source by its title, the box to tick, the version, the part, the button "Save", the folded "What is this?" - never by the route's class names or ids.
-// The harness is the helpers of the module's own tests: tests/settings-pages-harness.mjs, tests/settings-pages-setup.d/dom.mjs and tests/settings-pages-sources.d/github.mjs (a fixture DOM, a fake localStorage, GitHub).
+// The harness is the helpers of the module's own tests: tests/settings-pages-harness.mjs, tests/settings-pages-setup.d/dom.mjs, tests/settings-pages-sources.d/github.mjs and tests/settings-pages-sources.d/frame.mjs (a fixture DOM, a fake localStorage, GitHub, the frame opened at a fragment).
 // Run: node --test tests/release-uc-015-link-sources.test.mjs
 //
 // Module: MOD-settings-pages; MOD-site-frame
@@ -11,14 +11,12 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { installDocument, byTag, click as clickOnce, turn } from "./settings-pages-harness.mjs";
-import { freshStore, tick, untick } from "./settings-pages-setup.d/dom.mjs";
-import { githubWorld, installWorld, isWrite, registerEntry, settled } from "./settings-pages-sources.d/github.mjs";
+import { installDocument, byTag } from "./settings-pages-harness.mjs";
+import { tick, untick } from "./settings-pages-setup.d/dom.mjs";
+import { isWrite, registerEntry } from "./settings-pages-sources.d/github.mjs";
+import { visit as visitFrame, click, go } from "./settings-pages-sources.d/frame.mjs";
 
 installDocument();
-const { view } = await import("../src/settings-pages/index.mjs");
-const { startPage } = await import("../src/site-frame/index.mjs");
-const { writeSetting } = await import("../src/browser-store/index.mjs");
 
 const INSTANCE = "akmaier/agent-m";
 const PRODUCT = "https://github.com/alice/thesis-tool";
@@ -48,35 +46,12 @@ const SPEC = [
   "**NOTHING IS NAMED** *(PO B. Example)*", "The tool starts.", "*Check:* `tests/start.test.mjs`", ""].join("\n");
 const SOURCES_FILE = (...rows) => ["# Requirement sources of thesis-tool", "", "| Source | Version | Hash | Part |", "|---|---|---|---|", ...rows, ""].join("\n");
 
-let current = null; // the world of the page opened last
-const settle = async () => { await turn(); await settled(current); };
-const click = async (button) => { await clickOnce(button); await settle(); };
-
-// A person opens the page at `fragment`: a window that announces a change of the fragment, the location of the instance's Pages address, this browser's store with the instance's token and the product with its
-// own, the world's fetch, and the frame started on the module view of MOD-settings-pages.
-async function visit(t, fragment, { productFiles = { "SPEC.md": SPEC } } = {}) {
-  const world = githubWorld({ [INSTANCE]: { files: LIBRARY }, [PRODUCT_REPO]: { files: productFiles } });
-  installWorld(t, world);
-  current = world;
-  const scripted = new EventTarget();
-  Object.assign(scripted, globalThis.window);
-  globalThis.window = scripted;
-  const location = { hostname: "akmaier.github.io", pathname: "/agent-m/docs/index.html", host: "akmaier.github.io", protocol: "https:", hash: fragment };
-  Object.defineProperty(globalThis, "location", { configurable: true, value: location });
-  const realInterval = globalThis.setInterval;
-  globalThis.setInterval = () => 1;
-  t.after(() => { globalThis.setInterval = realInterval; });
-  const store = freshStore(INSTANCE);
-  writeSetting(store, "github-token", { value: TOKEN, name: "Agent M - akmaier/agent-m", expires: "2027-01-01" });
-  writeSetting(store, "products", [PRODUCT]);
-  writeSetting(store, `github-token:${PRODUCT_REPO}`, { value: PRODUCT_TOKEN, name: "Agent M - alice/thesis-tool", expires: "2027-01-01" });
-  await startPage({ page: "review", views: [view] });
-  const page = { world, location, scripted, main: () => byTag(document.body, "main")[0] };
-  await settle();
-  return page;
-}
-// The fragment changes, as when a person follows a link or presses back, and the frame shows the route it names.
-const go = async (page, fragment) => { page.location.hash = fragment; page.scripted.dispatchEvent(new Event("hashchange")); await settle(); };
+// A person opens the page at `fragment`: the frame started on the module view of MOD-settings-pages, over this browser's store with the instance's token and the product with its own.
+const visit = (t, fragment, { productFiles = { "SPEC.md": SPEC } } = {}) => visitFrame(t, fragment, {
+  repositories: { [INSTANCE]: { files: LIBRARY }, [PRODUCT_REPO]: { files: productFiles } },
+  settings: { "github-token": { value: TOKEN, name: "Agent M - akmaier/agent-m", expires: "2027-01-01" }, products: [PRODUCT],
+    [`github-token:${PRODUCT_REPO}`]: { value: PRODUCT_TOKEN, name: "Agent M - alice/thesis-tool", expires: "2027-01-01" } },
+});
 
 // What the use case names, found by what a person sees.
 const heading = (page) => byTag(page.main(), "h2")[0]?.textContent;
