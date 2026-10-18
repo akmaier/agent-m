@@ -1,8 +1,8 @@
 // MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Built: the types View,
 // Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, the last two with the
-// start of the prompt bar (subject.mjs gives it the subject of the route shown); menuOf (menu.mjs); instanceOf; chosenProduct
+// start of the prompt bar (subject.mjs gives it the subject of the route shown); embedRoute; menuOf (menu.mjs); instanceOf; chosenProduct
 // (routing.mjs); explain; readProblem; runPanel (run-panel.mjs); confirmDecision (decision.mjs); notice (notices.mjs); schemaForm (forms.mjs), without its options secretKeys
-// and readOnly. Not built yet: embedRoute and the frame's own check of the topics.
+// and readOnly. Not built yet: the frame's own check of the topics.
 //
 // Module: MOD-site-frame
 //
@@ -148,6 +148,27 @@ export function instanceOf(location) {
   return instanceOfPagesAddress(location) ?? UPSTREAM;
 }
 
+// The page started last: its kind, the routes its views serve, and the context of the route shown now. embedRoute reads it; each start replaces it.
+let started = null;
+
+/**
+ * embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void> — renders the route `name` of a view loaded on the same page inside
+ * `target`, with `params` and the context of the route shown now, so one view shows another's part without using it. For a route that no view of the page serves,
+ * and before any page is started, it puts a link to the route in `target` — a <a> holding "Open <name>", at the address `go` writes for it — and rejects with an Error
+ * named RouteNotLoaded. A failure of the route's own `render` rejects as it is.
+ */
+export async function embedRoute(name, target, params = {}) {
+  const route = started?.routes.find((candidate) => candidate.name === name);
+  if (route) return route.render(target, started.context(), params);
+  const product = started?.context()?.product?.address;
+  const fragment = fragmentOf(name, product && !("product" in params) ? { ...params, product } : params);
+  const link = document.createElement("a");
+  link.setAttribute("href", started?.page === "main" ? `docs/index.html${fragment}` : fragment);
+  link.textContent = `Open ${name}`;
+  target.replaceChildren(link);
+  throw Object.assign(new Error(`The route ${name} is not on this page.`), { name: "RouteNotLoaded" });
+}
+
 // The header of every page: the lab's logo and the site's name; the Bridge's window names its section, "Bridge".
 function sharedHeader(section = null) {
   const head = document.head ?? document.getElementsByTagName("head")[0];
@@ -231,6 +252,7 @@ async function startSite({ page, views }) {
 
   // The route shown now, with the parameters and the context it was rendered with: what the prompt bar's subject is read from.
   let shown = null;
+  started = { page, routes, context: () => shown?.context ?? null };
   let shownName = routes[0]?.name ?? "";
   const drawMenu = (active, product) => {
     menu.replaceChildren(...entries.map((entry) => {
@@ -385,6 +407,7 @@ async function startBridge({ page, views }) {
 
   // The route shown and the fragment it was drawn for, asked by askBeforeShowing before another route is shown.
   let shown = null;
+  started = { page, routes, context: () => shown?.context ?? null };
   const show = async () => {
     const selected = routeOf(location.hash);
     const route = routes.find((candidate) => candidate.name === selected.name) ?? first;
@@ -392,9 +415,9 @@ async function startBridge({ page, views }) {
       target.textContent = "This Bridge page has no view yet.";
       return;
     }
-    shown = { route, fragment: location.hash ?? "" };
     const context = { page, instance: { repository, host }, product: null, store,
       go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
+    shown = { route, fragment: location.hash ?? "", context };
     await route.render(target, context, route.name === selected.name ? selected.params : {});
   };
   const browser = globalThis.window ?? globalThis;
