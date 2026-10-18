@@ -16,7 +16,9 @@ const MARKERS = ["//", "#", "--", ";", "*"];
 const PACK_SEPARATOR = " · ";
 const FIRST_LINE = /^TST-(\d+)$/;
 const KEY_LINE = /^([a-z]+):(.*)$/;
-const HEADING = /^### (TST-\d+)\b/;
+const HEADING = /^### (TST-\d+)\b(.*)$/;
+const STRING_LITERAL = /"([^"]*)"|'([^']*)'|`([^`]*)`/;
+const DEFINED_NAME = /\b(?:def|function|func)\s+([A-Za-z_]\w*)/;
 const FIELD_KEYS = ["level", "module", "guards", "given", "input", "expect", "runs", "phrasings", "paid"];
 
 // A test file (MOD-test-document, Data): a file under a folder named `test`, `tests` or `__tests__`, or a file named as tests are
@@ -54,9 +56,19 @@ function applyField(fields, key, rawValue) {
   else fields[key] = value;
 }
 
+// The title a test case gives itself on `line`, the first line after its declaration (MOD-test-document, Data): its first
+// string literal, or else the name it defines; `null` where `line` is absent or holds neither.
+function titleOn(line) {
+  if (line === undefined) return null;
+  const literal = STRING_LITERAL.exec(line);
+  if (literal !== null) return literal[1] ?? literal[2] ?? literal[3];
+  const defined = DEFINED_NAME.exec(line);
+  return defined === null ? null : defined[1];
+}
+
 // One declaration under construction (its identifier, fields, path and first line), flattened to a TestDeclaration.
 function toDeclaration(entry) {
-  return { id: entry.id, ...entry.fields, path: entry.path, line: entry.line };
+  return { id: entry.id, title: entry.title, ...entry.fields, path: entry.path, line: entry.line };
 }
 
 // isTestFile(path: string) -> boolean — whether a path is a test file, as defined above. The folders of a path are all its parts
@@ -83,16 +95,17 @@ function commentDeclarations(path, text) {
   const lines = splitLines(text);
   for (let i = 0; i < lines.length; i += 1) {
     const content = commentContent(lines[i]);
-    if (content === null) { current = null; continue; }
+    if (content === null) { if (current !== null) current.title = titleOn(lines[i]); current = null; continue; }
     if (current !== null) {
       const key = KEY_LINE.exec(content);
       if (key !== null) { applyField(current.fields, key[1], key[2]); continue; }
+      current.title = titleOn(lines[i]);
       current = null; // this comment line does not continue the declaration — it may still start a new one below
     }
     const parts = content.split(PACK_SEPARATOR);
     const id = FIRST_LINE.exec(parts[0].trim());
     if (id === null) continue;
-    current = { id: parts[0].trim(), fields: emptyFields(), path, line: i + 1 };
+    current = { id: parts[0].trim(), title: null, fields: emptyFields(), path, line: i + 1 };
     for (const part of parts.slice(1)) {
       const key = KEY_LINE.exec(part.trim());
       if (key !== null) applyField(current.fields, key[1], key[2]);
@@ -116,7 +129,7 @@ function markdownDeclarations(path, text) {
     }
     const heading = HEADING.exec(line);
     if (heading === null) continue;
-    current = { id: heading[1], fields: emptyFields(), path, line: i + 1 };
+    current = { id: heading[1], title: heading[2].trim() || null, fields: emptyFields(), path, line: i + 1 };
     declarations.push(current);
   }
   return declarations.map(toDeclaration);

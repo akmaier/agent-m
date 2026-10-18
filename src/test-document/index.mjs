@@ -12,6 +12,7 @@
  * `### TST-<nnn> <title>` of a Markdown file. A missing key reads `null`.
  * @typedef {{
  *   id: string,
+ *   title: string | null,
  *   level: "unit" | "component" | "system" | "release" | "user" | null,
  *   module: string | null,
  *   guards: string[] | null,
