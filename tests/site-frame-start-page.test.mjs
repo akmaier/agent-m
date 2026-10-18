@@ -7,7 +7,7 @@
 //
 // Module: MOD-site-frame
 // Guards: THE MENU FOLLOWS THE PROCESS; EVERY STEP EXPLAINS ITSELF; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A PRODUCT IS
-//   NAMED BY ITS ADDRESS; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+//   NAMED BY ITS ADDRESS; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; UC-008; UC-020
 // Level: unit
 //
 // Each test names its input and states its expected values in its own text; none reads an expected result from the SPEC, a use
@@ -20,6 +20,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { all, changeFragment, installPage, offline, outside } from "./site-frame-start.d/dom.mjs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { HostError } from "../src/repository-hosts/index.mjs";
 
 const { startPage, menuOf } = await import("../src/site-frame/index.mjs");
 
@@ -305,4 +306,72 @@ test("TST-506008 the pages of this file ask only the offline fetch, and no reque
   assert.ok(outside.seen.length > 0, "the bar did read the instance, so the offline fetch saw it");
   assert.deepEqual([...new Set(outside.seen)], ["https://api.github.com/repos/acme/instance"]);
   assert.deepEqual(outside.reached, []);
+});
+
+// The view whose route alpha draws part of its page and then fails with `error`, and a route beta that draws.
+const failing = (error) => ({ routes: [{ name: "alpha", entry: "requirements", title: "alpha", async render(target) { target.textContent = "half drawn"; throw error; } }, route("beta", "tests")], strategies: [] });
+const problems = (page) => all(page.target, "p").filter((paragraph) => paragraph.className === "problem");
+
+// TST-865003 · level: unit · module: MOD-site-frame
+// guards: UC-008; UC-020
+// given: the review page with a route alpha that writes "half drawn" into its area and then throws a ReferenceError "draw is not defined"; no token stored
+// input: startPage with the fragment #alpha
+// expect: the start resolves; the main area holds exactly one <p class="problem"> and nothing else, its text exactly "This page could not be drawn: draw is not defined"; "half drawn" is gone; no link anywhere in the area
+test("TST-865003 a route that fails with an error of its own is replaced by a fault of the page, with no link to a token", async () => {
+  const page = await start({ fragment: "#alpha", views: [failing(new ReferenceError("draw is not defined"))] });
+  await settle();
+  assert.equal(page.target.children.length, 1, "the area holds one element");
+  assert.deepEqual(problems(page).map((paragraph) => paragraph.textContent), ["This page could not be drawn: draw is not defined"]);
+  assert.equal(page.target.textContent.includes("half drawn"), false);
+  assert.equal(all(page.target, "a").length, 0, "no link");
+});
+
+// TST-865004 · level: unit · module: MOD-site-frame
+// guards: UC-008; UC-020
+// given: the same route alpha, now failing with a host's failure, a RateLimited HostError with the message "the request limit is used up", at the instance
+// input: startPage with #alpha, once with no token stored and once with the instance's token stored
+// expect: with none, the area holds one <p class="problem"> whose text is exactly "the request limit is used up Store a token" and one link, href "#add-product"; with the token, the text is exactly "the request limit is used up" and no link
+test("TST-865004 a host's failure in a route is shown by readProblem: its message, and the link to store a token only where none is stored", async () => {
+  const limit = new HostError("RateLimited", {}, "the request limit is used up");
+  const without = await start({ fragment: "#alpha", views: [failing(limit)] });
+  await settle();
+  assert.deepEqual(problems(without).map((paragraph) => paragraph.textContent), ["the request limit is used up Store a token"]);
+  assert.deepEqual(all(without.target, "a").map((link) => link.getAttribute("href")), ["#add-product"]);
+  const kept = await start({ fragment: "#alpha", views: [failing(limit)], tokens: { "github-token": "github_pat_X" } });
+  await settle();
+  assert.deepEqual(problems(kept).map((paragraph) => paragraph.textContent), ["the request limit is used up"]);
+  assert.equal(all(kept.target, "a").length, 0);
+});
+
+// TST-865005 · level: unit · module: MOD-site-frame
+// guards: UC-008; UC-020
+// given: a browser that keeps the product https://github.com/acme/widget and stores the instance's token but not the product's; the route alpha fails with the same RateLimited HostError
+// input: startPage with #alpha/product=<the widget>; then the same with the product's own token (github-token:acme/widget) stored too
+// expect: without the product's token the text is exactly "the request limit is used up Store a token" with one link (the instance's token does not count for the product); with it, exactly "the request limit is used up" and no link
+test("TST-865005 on a product's page the problem asks about the product's own token", async () => {
+  const limit = new HostError("RateLimited", {}, "the request limit is used up");
+  const fragment = `#alpha/product=${encoded(WIDGET)}`;
+  const without = await start({ fragment, products: [WIDGET], views: [failing(limit)], tokens: { "github-token": "github_pat_X" } });
+  await settle();
+  assert.deepEqual(problems(without).map((paragraph) => paragraph.textContent), ["the request limit is used up Store a token"]);
+  assert.equal(all(without.target, "a").length, 1);
+  const kept = await start({ fragment, products: [WIDGET], views: [failing(limit)], tokens: { "github-token": "github_pat_X", "github-token:acme/widget": "github_pat_Y" } });
+  await settle();
+  assert.deepEqual(problems(kept).map((paragraph) => paragraph.textContent), ["the request limit is used up"]);
+  assert.equal(all(kept.target, "a").length, 0);
+});
+
+// TST-865006 · level: unit · module: MOD-site-frame
+// guards: UC-008; UC-020
+// given: the route alpha failing with an Error("boom"), and a route beta that draws "beta {}"
+// input: startPage with #alpha; then the fragment changes to #beta
+// expect: first the area holds the fault "This page could not be drawn: boom"; after the change it reads exactly "beta {}" and holds no problem — the failed page does not stay in the way of the next route
+test("TST-865006 after a failed route the next route is drawn in its place", async () => {
+  const page = await start({ fragment: "#alpha", views: [failing(new Error("boom"))] });
+  await settle();
+  assert.deepEqual(problems(page).map((paragraph) => paragraph.textContent), ["This page could not be drawn: boom"]);
+  changeFragment(page, "#beta");
+  await settle();
+  assert.equal(page.target.textContent, "beta {}");
+  assert.equal(problems(page).length, 0);
 });
