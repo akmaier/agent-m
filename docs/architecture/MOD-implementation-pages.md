@@ -63,6 +63,9 @@ uses:
   - MOD-run-planner.runOf
   - MOD-run-planner.nextActions
   - MOD-run-planner.raiseLimits
+  - MOD-run-planner.finishRun
+  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.moduleRows
   - MOD-run-planner.runStrategies
   - MOD-progress-measures.productFacts
   - MOD-progress-measures.progressIn
@@ -181,7 +184,9 @@ Its formats are those of the modules it uses.
     actions `nextActions` returns, each on its route; while the page is open, the run's next actions of this page's route
     started as the records change; *Stop run*, which cancels every job of the run that has not ended, and then the run itself, through `cancelJob`,
     which records each end; and
-    *Continue* once the person has raised the limit that stopped it.
+    *Continue* once the person has raised the limit that stopped it; on `finish`, the run's end through `finishRun`, and
+    for a finished run its validation beside its jobs: for each module of the selection what it realises, its code and
+    tests and every gap, by MOD-trace-graph's `moduleRows` at the commit its end names (UC-043).
   - `progress` — the progress in the model's measure — the grid of requirements by phases with the steps of the plan,
     the burn-down of each team's running sprint, or the board's cumulative flow —, the gates passed, pending and not reached, what is
     blocked, who works on what; a cell, card or point leads to the trace page of what is behind it.
@@ -229,8 +234,10 @@ product's `docs/sources.md`.
   plans, backlogs, sprints, their states, and what the teams' sprints hold;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.startSprint,
   MOD-work-plans.endSprint, MOD-work-plans.closeSprint — every save of a plan, a backlog or a sprint.
-- MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits — a run, its next actions, and the
+- MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits, MOD-run-planner.finishRun — a run,
+  its next actions, its end, and the
   limits a person raises to continue it.
+- MOD-trace-graph.traceGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names.
 - MOD-progress-measures.productFacts, MOD-progress-measures.progressIn, MOD-progress-measures.gateOverview,
   MOD-progress-measures.blocked, MOD-progress-measures.whoWorksOnWhat — the product's facts and its progress.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the

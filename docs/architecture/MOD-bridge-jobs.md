@@ -35,6 +35,7 @@ uses:
   - MOD-runtimes.queueJob
   - MOD-run-planner.runOf
   - MOD-run-planner.nextActions
+  - MOD-run-planner.finishRun
   - MOD-product-process.declarationSchema
   - MOD-product-process.gateStates
   - MOD-work-plans.sprintFacts
@@ -182,7 +183,8 @@ clones. Nothing else.
 - `MOD-runtimes.queueJob` — queueing the next actions of other routes.
 - `MOD-progress-measures.productFacts` — the facts of a served product, read through the local clone, from which its runs'
   next actions are computed.
-- `MOD-run-planner.runOf`, `MOD-run-planner.nextActions` — the runs it serves and their next actions.
+- `MOD-run-planner.runOf`, `MOD-run-planner.nextActions`, `MOD-run-planner.finishRun` — the runs it serves, their next
+  actions, and a run's end on `finish`.
 - `MOD-product-process.gateStates` — whether a waiting job's gate is decided.
 - `MOD-work-plans.sprintFacts`, `MOD-work-plans.sprintsToClose` — a sprint's facts, and whether it has ended and who
   closes it.

@@ -39,6 +39,7 @@ uses:
   - MOD-runtimes.routeStrategies
   - MOD-run-planner.runOf
   - MOD-run-planner.nextActions
+  - MOD-run-planner.finishRun
   - MOD-run-planner.runStrategies
   - MOD-product-process.declarationSchema
   - MOD-product-process.workflowOf
@@ -251,7 +252,7 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-runtimes.queueJob` — queueing the actions of other routes.
 - `MOD-progress-measures.productFacts` — the product's facts, read once per entry, from which the next actions of its
   runs are computed.
-- `MOD-run-planner.runOf`, `nextActions` — the runs and their next actions.
+- `MOD-run-planner.runOf`, `nextActions`, `finishRun` — the runs, their next actions, and a run's end on `finish`.
 - `MOD-trace-graph.publishGraph`, `MOD-approvals.statuses`, `lastAcceptedText`, `MOD-progress-measures.publishOverview` —
   the records `onMainChanged` stores for each commit of the default branch.
 - `MOD-product-process.declarationSchema`, `workflowOf`, `gateSchema`, `gateStates`, `doneCheck` — the workflow, the
