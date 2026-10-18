@@ -1,7 +1,8 @@
 // Every route of the instance's site, drawn in a browser at a phone's width and at a desktop's: it uses the site's style sheets only,
 // offers no button or link below the minimum target size, and holds no element wider than the window. The routes that fail today are
 // named as todos, each with its route and its finding; a planted table wider than a phone, a planted button below the minimum and a
-// planted embedded style sheet each fail the same checks.
+// planted embedded style sheet each fail the same checks. A route that holds a block that did not render (a `.unrendered` block, which is
+// what MOD-markdown-render shows for a diagram that fails) is a finding of that route, and a planted failed diagram fails it.
 // Run: node --test tests/site-usability.test.mjs
 //
 // Module: MOD-site-frame
@@ -36,7 +37,7 @@ import { stageElectron, openWindow, configure } from "./site-usability.d/browser
 import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
-import { styleSheetFindings, targetFindings, widthFindings } from "./site-usability.d/inspect.mjs";
+import { styleSheetFindings, targetFindings, unrenderedFindings, widthFindings } from "./site-usability.d/inspect.mjs";
 import { view as reviewPages } from "../src/review-pages/index.mjs";
 import { DASHBOARD, builtViews } from "../src/site/views.mjs";
 
@@ -60,8 +61,8 @@ const TODAY = {
 
 const MEASURE = (width) => `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 100));
-  const styleSheetFindings = ${styleSheetFindings}, targetFindings = ${targetFindings}, widthFindings = ${widthFindings};
-  return { sheets: styleSheetFindings(), targets: targetFindings(${MINIMUM}), widths: widthFindings(${width}),
+  const styleSheetFindings = ${styleSheetFindings}, targetFindings = ${targetFindings}, widthFindings = ${widthFindings}, unrenderedFindings = ${unrenderedFindings};
+  return { sheets: styleSheetFindings(), targets: targetFindings(${MINIMUM}), widths: widthFindings(${width}), diagrams: unrenderedFindings(),
     controls: document.querySelectorAll("a[href], button").length,
     text: (document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ") };
 })()`;
@@ -104,6 +105,10 @@ before(async () => {
       + '<p id="planted-button-row"><button style="width:10px;height:10px;padding:0">x</button><button style="width:10px;height:10px;padding:0;margin-left:2px">x</button></p>'
       + '<style id="planted-style">.planted { color: red; }</style>'); })()`);
   planted.after = await page.evaluate(MEASURE(390));
+  // The counter-proof of the failed diagram: the same page with a block that did not render planted, as `renderMermaid` returns one.
+  await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
+    '<div id="planted-unrendered" class="unrendered"><p>Diagram error: planted</p><pre><code>flowchart LR</code></pre></div>')`);
+  planted.afterDiagram = await page.evaluate(MEASURE(390));
   console.log(`site-usability ${JSON.stringify([...measured].map(([key, value]) => [key, value.sheets, value.targets.length, value.widths.length]))}`);
 }, { timeout: 110000 });
 
@@ -169,4 +174,25 @@ test(`TST-904${String(number++).padStart(3, "0")}: a planted button 10 px square
 
 test(`TST-904${String(number++).padStart(3, "0")}: a planted embedded style sheet fails the style-sheet check`, () => {
   assert.deepEqual(planted.after.sheets, ["an embedded <style> element"]);
+});
+
+// ---------------------------------------------------------------- a diagram that failed
+
+// given: every route drawn at both widths; input: the blocks of the page with the class `unrendered`, which MOD-markdown-render shows for a diagram that fails; expect: none
+for (const route of ROUTES) {
+  test(`TST-904${String(number++).padStart(3, "0")}: ${route.address} holds no block that did not render, such as a diagram that failed`, () => {
+    for (const [kind] of WIDTHS) {
+      const found = measured.get(`${route.address} ${kind}`).diagrams;
+      assert.deepEqual(found, [], `${route.address} at a ${kind}'s width: ${found.join("; ")}`);
+    }
+  });
+}
+
+// The counter-proof: the page before the planting has no such block; with a failed diagram planted, the check names it with its reason.
+test(`TST-904${String(number++).padStart(3, "0")}: the page before the planting holds no block that did not render`, () => {
+  assert.deepEqual(planted.before.diagrams, []);
+});
+
+test(`TST-904${String(number++).padStart(3, "0")}: a planted failed diagram fails the check and is named with its reason`, () => {
+  assert.deepEqual(planted.afterDiagram.diagrams, ['a block that did not render: "Diagram error: planted"']);
 });

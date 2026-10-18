@@ -372,7 +372,7 @@ test("opening one use case reads that use case, the history of its record and th
   const page = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
   assert.deepEqual(files(page.requests), [...recordOf(repo, "UC-002"), UC2].sort());
   assert.deepEqual(page.requests.filter((r) => r.startsWith("history ")), [`history ${recordOf(repo, "UC-002")[0]}`]);
-  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era changes", "era commit", "era tree", `era file ${UC2}`]);
+  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era commit", "era tree", `era file ${UC2}`]);
   assert.equal(count(page.requests, "commit"), 1);
   assert.equal(count(page.requests, "tree"), 1);
   assert.match(page.main(), /Show the status/);
