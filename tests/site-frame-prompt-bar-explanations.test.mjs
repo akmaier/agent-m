@@ -18,7 +18,7 @@
 // when it runs. The only file read is explanations.md, the data under test, and only to find out whether it holds the topic. The
 // counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
