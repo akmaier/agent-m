@@ -681,11 +681,15 @@ test("release · UC-006 4d: an entry waits for the entry that creates its headin
   assert.equal(inMain().querySelector("button.accept"), null, "02 is not offered alone");
   assert.match(stripTags(page.main()), /\b0?1\b/);
   assert.match(stripTags(page.main()), /entry 0?1/i, "the entry it needs is named");
-  // The SPEC changes list holds a tick for each entry of the queue, the waiting one too.
+  // The SPEC changes list holds a tick for each open entry of the queue, the waiting one too, in its first part (open or changed); the list of every entry below it holds none.
   await page.go("#spec");
+  const firstPart = inMain().querySelectorAll("section.open-changes")[0];
+  assert.ok(firstPart, "the open entries stand in a first part");
+  const ticksOfB = firstPart.querySelectorAll("tr").filter((row) => (row.getAttribute("data-id") ?? "").includes("new-section")).flatMap((row) => row.querySelectorAll("input.tick"));
+  assert.equal(ticksOfB.length, 2, "a tick for each of the two entries");
   const queueOfB = inMain().querySelectorAll("section.queue").find((section) => section.textContent.includes("new section"));
-  assert.equal(queueOfB.querySelectorAll("input.tick").length, 2, "a tick for each of the two entries");
-  for (const box of queueOfB.querySelectorAll("input.tick")) { box.checked = true; box.fire("change", {}); }
+  assert.equal(queueOfB.querySelectorAll("input.tick").length, 0, "the list of every entry holds no tick");
+  for (const box of ticksOfB) { box.checked = true; box.fire("change", {}); }
   await page.click(".accept-ticked");
   assert.equal(w.server.writes.length, 1, "one commit");
   const files = w.server.writes[0].files;
