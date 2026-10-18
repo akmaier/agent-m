@@ -37,4 +37,5 @@ The fix covers every call the boot makes and stays within the total wait, with n
 - A call of the boot that is not answered, `Page.navigate` included, is sent again within the same total, or its effect is
   awaited by the page's own state. A test with a fake session that drops the first `Page.navigate` shows that the page is
   drawn, with a counter-proof (no resend).
-- Both checks pass in a shard beside other Electron files.
+- Both checks pass in the sprint pull request's mode=all run. CI places the files in shards, so the item cannot bring about
+  a shard shared with other Electron files; the deterministic tests show the resend.
