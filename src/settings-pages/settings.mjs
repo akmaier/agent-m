@@ -968,6 +968,10 @@ async function productControls(context) {
   const agreed = el("input", "settings-collaborator-agreed"); agreed.type = "checkbox";
   const agreedDate = el("input", "settings-collaborator-agreed-date"); agreedDate.type = "date"; agreedDate.value = new Date().toISOString().slice(0, 10);
   const add = el("button", "settings-collaborator-save btn primary", "Save collaborator"); const collabResult = el("p", "settings-collaborator-result");
+  // The host's refusal of a save (SecretRefused, Moved, …) is shown in the result line, as the recording's write shows it, and the save does not go on.
+  const saveCollaborators = async (text) => {
+    try { return await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob }); } catch (error) { collabResult.textContent = error?.message ?? String(error); return null; }
+  };
   const removeName = el("input", "settings-collaborator-remove-name"), removeAccount = el("input", "settings-collaborator-remove-account");
   const remove = el("button", "settings-collaborator-remove btn", "Remove collaborator consent");
   add.addEventListener("click", async (event) => {
@@ -977,7 +981,7 @@ async function productControls(context) {
     if (legacyRows.length || /\| Name \| Account \| Agreed on \|/.test(collaboratorsBytes)) {
       const date = agreedDate.value;
       const text = `${collaboratorsBytes}${collaboratorsBytes.endsWith("\n") ? "" : "\n"}| ${name.value.trim()} | @${account.value.trim().replace(/^@/, "")} | ${date} |\n`;
-      const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
+      const result = await saveCollaborators(text); if (!result) return;
       if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
       collaboratorsBlob = result.blob; collaboratorsBytes = text;
       const records = el("li", null, `${name.value.trim()} · @${account.value.trim().replace(/^@/, "")} · agreed on ${date}`);
@@ -987,7 +991,7 @@ async function productControls(context) {
     const rows = collaboratorsDocument.sections[0]?.rows ?? [];
     const edited = { ...collaboratorsDocument, sections: [{ ...(collaboratorsDocument.sections[0] ?? { heading: "# Collaborators of this product", line: 1, text: "", rows: [] }), rows: [...rows, { line: null, cells: { Name: name.value.trim(), Account: account.value.trim(), Agreed: "yes" } }] }] };
     const text = writeDocument(collaborators, edited) || `${newCollaborators}| ${name.value.trim()} | ${account.value.trim()} | yes |\n`;
-    const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
+    const result = await saveCollaborators(text); if (!result) return;
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
     collaboratorRecords.append(el("li", null, `${name.value.trim()} · @${account.value.trim().replace(/^@/, "")} · agreed on recorded`));
@@ -1007,7 +1011,7 @@ async function productControls(context) {
       if (kept.length === rows.length) { collabResult.textContent = "No matching consenting collaborator is stored."; return; }
       text = writeDocument(collaborators, { ...collaboratorsDocument, sections: [{ ...collaboratorsDocument.sections[0], rows: kept }] });
     }
-    const result = await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob });
+    const result = await saveCollaborators(text); if (!result) return;
     if (result.refused) { collabResult.textContent = "Collaborators changed meanwhile; nothing was written."; return; }
     collaboratorsBlob = result.blob; collaboratorsBytes = text; collaboratorsDocument = readDocument(collaborators, collaborators.path, text);
     collaboratorRecords.replaceChildren(...Array.from(collaboratorRecords.childNodes).filter((node) => !node.textContent.startsWith(`${wantedName} · @${wantedAccount} ·`)));
