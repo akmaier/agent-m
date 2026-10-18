@@ -18,6 +18,8 @@
 //     added test file without any declaration is one finding.
 //   - The gates before the merge are those that leave a phase at or before the phase that produces MOD (the job's phase), reached along the transitions that are not `back`; without such a phase, every
 //     gate. Each must be `passed` by gateStates, over the blobs of the head texts of the artifacts its record names.
+//   - Of the gate records, those count that are this pull request's: a record whose `on` names a commit or an address counts when one of them is a commit of the pull request or its address; a record
+//     whose `on` names neither (only `<path>@<blob>` entries) is tied to no pull request and counts.
 //   - A declared `check: <name>` holds when the head has that check with state success; `gate: <gate>` when gateStates says that gate `passed`; `review: <n> …` when n distinct reviewers have an
 //     `approved` review. That the reviewers are other than the implementer is not in the facts and is not checked.
 
@@ -52,6 +54,14 @@ function gatesBeforeMerge(workflow) {
   }
   if (!distance.has(work.name)) return workflow.gates;
   return workflow.gates.filter((gate) => distance.has(gate.from) && distance.get(gate.from) <= distance.get(work.name));
+}
+
+// A record is the pull request's own when its `on` names one of the pull request's commits or its address; one that names a commit or an address of another pull request is not. An entry that is
+// neither (`<path>@<blob>`) names no pull request.
+const PULL_ENTRY = /^(?:[0-9a-f]{7,64}|https?:\/\/\S+)$/;
+function belongsTo(record, facts) {
+  const entries = (Array.isArray(record.fields?.on) ? record.fields.on : []).map(String).filter((entry) => PULL_ENTRY.test(entry));
+  return !entries.length || entries.some((entry) => entry === facts.pullRequest.url || facts.commits.some((commit) => commit.sha === entry));
 }
 
 const assertionLines = (text) => (text ?? "").split(/\r?\n/).map((line) => line.trim()).filter((line) => ASSERTION.test(line));
@@ -123,8 +133,9 @@ export async function doneCheck(facts, workflow, modules, gates, job) {
   }
 
   // Every gate before the merge is recorded, on the texts that hold now; and the conditions the declaration adds.
+  const own = gates.filter((record) => belongsTo(record, facts));
   const texts = {};
-  for (const record of gates) {
+  for (const record of own) {
     for (const entry of Array.isArray(record.fields?.on) ? record.fields.on : []) {
       const named = /^([^\s@]+)@[0-9a-f]{7,64}$/.exec(String(entry));
       if (named && !(named[1] in texts)) {
@@ -133,7 +144,7 @@ export async function doneCheck(facts, workflow, modules, gates, job) {
       }
     }
   }
-  const states = gateStates(workflow, gates, texts);
+  const states = gateStates(workflow, own, texts);
   const stateOf = (name) => states.find((each) => each.gate === name);
   for (const gate of gatesBeforeMerge(workflow)) {
     const state = stateOf(gate.name);
