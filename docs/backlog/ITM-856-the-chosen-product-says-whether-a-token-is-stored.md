@@ -6,6 +6,7 @@ realises:
   - UC-046
 modules:
   - MOD-site-frame
+  - MOD-main-page
 builds_on:
 tests:
   - unit
