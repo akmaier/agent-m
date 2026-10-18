@@ -68,14 +68,14 @@ const TYPE_WORDS = {
 const describe = (spec) => (typeof spec === "string" ? TYPE_WORDS[spec] : spec.type === "identifier"
   ? `an identifier ${spec.of.join(" or ")}` : spec.type === "enum" ? `one of ${spec.values.join(", ")}` : TYPE_WORDS[spec.type] ?? spec.type);
 
-// Why one value — not a list — does not fit a type, or null. `where` is where it stands: "front matter", "line" (a key: value
-// line of a record or a section) or "cell"; `inList` whether it is an item of a list, which a line or a cell separates by
-// commas.
+// Why one value — not a list — does not fit a type, or null. `where` is where it stands: "front matter" or "record" (a key:
+// value line of a record of the shape lines), where an item of a list has a line of its own, "line" (a key: value line of a
+// section) or "cell"; `inList` whether it is an item of a list, which a section's line or a cell separates by commas.
 function itemProblem(value, spec, where, inList) {
   if (spec.type === "number") return typeof value === "number" && Number.isFinite(value) ? null : `${shown(value)} is not a number`;
   if (typeof value !== "string") return `${shown(value)} is not ${describe(spec)}`;
   if (/[\r\n]/.test(value)) return `${shown(value)} holds a line break`;
-  if (inList && where !== "front matter" && value.includes(",")) {
+  if (inList && where !== "front matter" && where !== "record" && value.includes(",")) {
     return `the item ${shown(value)} holds a comma, which separates the items of a list in a ${where}`;
   }
   switch (spec.type) {
