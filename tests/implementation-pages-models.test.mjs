@@ -79,7 +79,8 @@ function headerOf(init, name) {
 }
 // GitHub's API as the host reads it: the repository, its default branch's commit, the commit's tree, and a file; every repository is private, so a request without its own token
 // is answered 404.
-function github(url, authorization) {
+function github(url, authorization, body) {
+  if (url.host === "api.github.com" && url.pathname === "/graphql") return graphql(authorization, JSON.parse(body));
   const api = /^\/repos\/([^/]+\/[^/]+)(\/.*)?$/.exec(decodeURIComponent(url.pathname));
   if (url.host !== "api.github.com" || !api) return null;
   const [, name, rest = ""] = api;
@@ -92,11 +93,22 @@ function github(url, authorization) {
   if (file && files[file[1]] !== undefined) return text(files[file[1]]);
   return json(404, { message: "Not Found" });
 }
+// The batch read of MOD-repository-hosts: one aliased field `f<i>:object(expression:"<commit>:<path>")` for each path, answered with the text of the file in the repository the variables name.
+function graphql(authorization, { query, variables }) {
+  const name = `${variables.owner}/${variables.name}`;
+  if (!REPOSITORIES[name] || authorization !== `Bearer ${TOKENS[name]}`) return json(200, { data: { repository: null } });
+  const repository = {};
+  for (const [, alias, expression] of query.matchAll(/(f\d+):object\(expression:("[^"]*")\)/g)) {
+    const body = REPOSITORIES[name][JSON.parse(expression).split(":").slice(1).join(":")];
+    repository[alias] = body === undefined ? null : { text: body, isTruncated: false };
+  }
+  return json(200, { data: { repository } });
+}
 function install() {
   spy.unrouted = [];
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
-    const served = github(url, headerOf(init, "authorization"));
+    const served = github(url, headerOf(init, "authorization"), init?.body);
     if (served) return served;
     spy.unrouted.push(url.href);
     throw new TypeError(`no request leaves the fixtures: ${url.href}`);
@@ -145,14 +157,14 @@ const NO_TOKEN = "was not found — a private repository is found only with a to
 // given: the instance acme/agent-m, which holds the models scrum-wip (pulled) and broken-wip (pulled) under docs/process-models/, and the catalogue's five shipped models
 // input: the route `models` drawn
 // expect: the section of the shipped models holds waterfall (planned), v-model (planned), reuse-oriented (planned), scrum (pulled) and kanban (pulled), in the catalogue's order; the section of the
-//   instance's own models holds scrum-wip (pulled) and broken-wip (pulled); each model's kind is the text of its kind element
+//   instance's own models holds broken-wip (pulled) and scrum-wip (pulled), in the order of their paths; each model's kind is the text of its kind element
 test("TST-778001 the shipped catalogue and the instance's own models are listed, each with its kind of work", async () => {
   const target = await draw();
   const kindOf = (model) => [model.getAttribute("data-model"), byClass(model, "kind")[0].textContent];
   assert.equal(byClass(target, "shipped-models").length, 1, "known positive: the section of the shipped models is found");
   assert.deepEqual(modelsIn(byClass(target, "shipped-models")[0]).map(kindOf),
     [["waterfall", "planned"], ["v-model", "planned"], ["reuse-oriented", "planned"], ["scrum", "pulled"], ["kanban", "pulled"]]);
-  assert.deepEqual(modelsIn(byClass(target, "own-models")[0]).map(kindOf), [["scrum-wip", "pulled"], ["broken-wip", "pulled"]]);
+  assert.deepEqual(modelsIn(byClass(target, "own-models")[0]).map(kindOf), [["broken-wip", "pulled"], ["scrum-wip", "pulled"]]);
 });
 
 // TST-778002 · level: unit · module: MOD-implementation-pages

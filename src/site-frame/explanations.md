@@ -27,6 +27,37 @@ their work from an ordered backlog: Scrum in sprints, Kanban as a steady flow wi
 model shows the risk it manages well, the risk it accepts and a project it suits. In the book *Vibe Coding*: chapter 6
 for the plan-driven models, chapter 7 for the agile ones.
 
+## models-shipped
+
+The shipped models are the book's process models: waterfall, V-model and reuse-oriented, which run the whole accepted
+SPEC through every phase, and Scrum and Kanban, which pull their items from a backlog. A shipped model cannot be edited
+in an instance. Choose *Adapt* instead: it opens a copy under a new name of your own, and the shipped catalogue stays as
+the book has it. In the book *Vibe Coding*: chapter 6 for the plan-driven models, chapter 7 for Scrum and Kanban.
+
+## models-own
+
+The instance's own models are definitions of how products are developed, each a data file under `docs/process-models/` of
+this instance. *Edit* opens one of them. *+ New model* starts from nothing and first asks for the kind of work, planned or
+pulled. A model that is saved appears in the catalogue of every product of the instance. A definition with an error can
+be declared by no product. In the book *Vibe Coding*: chapter 6 for the plan-driven models, chapter 7 for Scrum and Kanban.
+
+## model-kind
+
+The kind of work is *planned* or *pulled*. In a planned model the whole accepted SPEC runs through every phase. In a
+pulled model, items are pulled from a backlog. In the book *Vibe Coding*: chapter 6 for the plan-driven models, chapter 7
+for the pulled ones.
+
+## model-products
+
+These are the products of this browser whose declaration names the model. A product keeps the version of the definition
+it declared, until its author opens *How this product is developed* and saves the product's declaration again. A product
+that cannot be read is named above the models, with its reason.
+
+## model-findings
+
+A finding names a rule that the definition breaks, for example a transition that leads to a phase the model does not
+define, or a gate without a decider. A definition with an error can be declared by no product.
+
 ## roles-and-participants
 
 A model names its roles. For each role it says whether a person, an agent or either may hold it, whether one participant
