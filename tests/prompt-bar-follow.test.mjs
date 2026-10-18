@@ -2,7 +2,7 @@
 // record cannot be read. Run: node --test tests/prompt-bar-follow.test.mjs
 //
 // Module: MOD-prompt-bar
-// Guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049 (5a)
+// Guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049
 // Level: unit
 //
 // The host is a fixture in memory: repositoryInfo, readSnapshot and listCiRuns; nothing reaches a network, sleeps or waits.
