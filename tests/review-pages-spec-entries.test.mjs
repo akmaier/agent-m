@@ -494,13 +494,103 @@ test("spec-entry/<id> — the flow's answer to a write the token may not make: t
 // guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006 (step 6)
 // given: the list with a token whose name is "Agent M · thesis-tool", entry 07 ticked
 // input: a click on Accept ticked
-// expect: the commit's message names that person; and the list offers no Review all, a queue having no page of the kind
-test("spec-entry — Accept ticked names the person; the list has no Review all", async () => {
+// expect: the commit's message names that person; and the list offers Review all (MOD-review-pages `<k>/all`, every kind), as TST-909004 states
+test("spec-entry — Accept ticked names the person", async () => {
   const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES });
   const target = await show(fake);
-  assert.equal(byClass(target, "a", "review-all").length, 0);
+  assert.equal(byClass(target, "a", "review-all").length, 1);
   tick(byClass(rowOf(target, E07), "input", "tick")[0]);
   click(byClass(target, "button", "accept-ticked")[0]);
   await until(() => fake.writes().length === 1, "the commit");
   assert.ok(fake.writes()[0].change.message.includes(TOKEN.name), fake.writes()[0].change.message);
+});
+
+// ---------------------------------------------------------------- Review all (ITM-909)
+// The accepted lines (docs/architecture/MOD-review-pages.md, `<k>/all`): "every open or changed file of the kind in sequence ... and *Accept all N shown*: one commit
+// with one record per file shown; a file that changed after it was shown ... is left out and named (`SEVERAL FILES ARE ACCEPTED IN ONE CLICK`)"; and, `<k>`: "a link to
+// <k>/all" on the list. Two queues: 2026-03-01_sample holds entry 07 (open, replaces section 2); 2026-02-01_older holds entry 01 (open, replaces section 1) and entry 02
+// (decided: its decisions row names its approval record).
+const OLDER = "docs/spec-freigaben/2026-02-01_older";
+const olderFiles = (rows = []) => ({
+  [`${OLDER}/index.md`]: text("# SPEC approvals — queue 2026-02-01 · older", "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
+    "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|",
+    "| 01 | `SPEC.md` | ## 1. Reading | — | — |", "| 02 | `SPEC.md` | ## 9. Decided | — | — |"),
+  [`${OLDER}/01-older.md`]: READING_NEW, [`${OLDER}/01-older.begruendung.md`]: rationale({ anchor: "## 1. Reading" }),
+  [`${OLDER}/02-decided.md`]: text("**A DECIDED RULE** *(Fixture PO)*", "A decided rule."),
+  [`${OLDER}/entscheidungen.md`]: text("# Decisions", "", "| 2026-02-01 10:00 UTC | 2 | uebernommen | approval:spec-2026-02-01_older-02-aaaaaaaaaaaa.md |", ...rows),
+});
+const OLDER_01 = "spec-2026-02-01_older-01", OLDER_02 = "spec-2026-02-01_older-02";
+const twoQueues = () => ({ ...productFiles([E07]), ...olderFiles(), ...SOURCE_FILES });
+const reviewFiles = (target) => byClass(target, "section", "review-file");
+
+// TST-909001 · level: unit · module: MOD-review-pages
+// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
+// given: entry 07 open in one queue, entry 01 open and entry 02 decided in a second queue; a token
+// input: the route spec-entry with the id all
+// expect: the heading "Review all — SPEC changes"; two sections, one for 01 and one for 07 in the order of their identifiers, none for 02; each holds the section that holds now, the proposal and their difference; the button "Accept all 2 shown"; nothing written
+test("spec-entry/all — every open entry of every queue in sequence, the decided one not", async () => {
+  const fake = fakeHost(twoQueues());
+  const target = await show(fake, { id: "all" });
+  assert.match(find(target, (node) => node.localName === "h2")[0].textContent, /^Review all — SPEC changes$/);
+  assert.deepEqual(reviewFiles(target).map((section) => section.getAttribute("data-id")), [OLDER_01, idOf(E07)]);
+  for (const section of reviewFiles(target)) {
+    for (const part of ["current", "proposal", "difference"]) assert.equal(byClass(section, "section", part).length, 1, `${section.getAttribute("data-id")} holds its ${part}`);
+  }
+  assert.ok(!target.textContent.includes(OLDER_02), "the decided entry is not shown");
+  assert.equal(byClass(target, "button", "accept-all")[0].textContent, "Accept all 2 shown");
+  assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-909002 · level: unit · module: MOD-review-pages
+// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
+// given: the page of TST-909001
+// input: a click on "Accept all 2 shown"
+// expect: one commit on the head that was read, holding the record of entry 01, the record of entry 07, both decisions files and the SPEC with section 1 and section 2 as proposed
+test("spec-entry/all — Accept all shown writes one commit holding both entries", async () => {
+  const fake = fakeHost(twoQueues());
+  const read = fake.head();
+  const target = await show(fake, { id: "all" });
+  click(byClass(target, "button", "accept-all")[0]);
+  await until(() => fake.writes().length === 1, "the commit");
+  const files = written(fake);
+  assert.equal(fake.writes()[0].change.expectedHead, read, "on the head that was read");
+  const recordOlder = `docs/approvals/${OLDER_01}-${blobOf(READING_NEW).slice(0, 12)}.md`;
+  assert.deepEqual(Object.keys(files).sort(), [recordOlder, recordPath(E07), `${OLDER}/entscheidungen.md`, `${QUEUE}/entscheidungen.md`, "SPEC.md"].sort());
+  assert.equal(files["SPEC.md"], HEAD + READING_NEW + WRITING_NEW);
+});
+
+// TST-909003 · level: unit · module: MOD-review-pages
+// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A STALE APPROVAL IS NOT APPLIED; UC-006
+// given: the page of TST-909001; then another writer changes the proposal of entry 07 on main
+// input: a click on "Accept all 2 shown"
+// expect: one commit holding entry 01's record and not entry 07's; the SPEC with section 1 changed and section 2 as it was; the page says that entry 07 was left out
+test("spec-entry/all — an entry whose proposal changed after it was shown is left out and named", async () => {
+  const fake = fakeHost(twoQueues());
+  const target = await show(fake, { id: "all" });
+  fake.land({ [proposalPath(E07)]: WRITING_NEW.replace("entirely.", "in one piece.") });
+  click(byClass(target, "button", "accept-all")[0]);
+  await until(() => fake.writes().length === 1, "the commit");
+  const files = written(fake);
+  assert.ok(Object.keys(files).some((path) => path.includes(OLDER_01)), "entry 01 is accepted");
+  assert.ok(!Object.keys(files).some((path) => path.includes(idOf(E07))), "entry 07 is not");
+  assert.equal(files["SPEC.md"], HEAD + READING_NEW + WRITING);
+  await until(() => byClass(target, "p", "result").length === 1, "the answer");
+  assert.match(byClass(target, "p", "result")[0].textContent, new RegExp(`${idOf(E07)} was left out`));
+});
+
+// TST-909004 · level: unit · module: MOD-review-pages
+// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
+// given: the list with entries 01 and 07 open and entry 02 decided; and, as a second input, a repository whose every entry is decided
+// input: the route spec-entry with no id; the route spec-entry with the id all on the second repository
+// expect: the list has one link of class review-all to #spec-entry/id=all reading "Review all 2 not accepted"; the second repository's page reads "Nothing to review: every SPEC change entry is accepted." and offers no Accept all
+test("spec-entry — the list links Review all with the number open; with none open the page says nothing is to review", async () => {
+  const list = await show(fakeHost(twoQueues()));
+  const links = byClass(list, "a", "review-all");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].getAttribute("href"), "#spec-entry/id=all");
+  assert.equal(links[0].textContent, "Review all 2 not accepted");
+  const decided = { ...olderFiles(["| 2026-02-01 10:00 UTC | 1 | uebernommen | approval:spec-2026-02-01_older-01-bbbbbbbbbbbb.md |"]) };
+  const none = await show(fakeHost({ ...productFiles([]), ...decided, ...SOURCE_FILES }), { id: "all" });
+  assert.equal(byClass(none, "p", "nothing")[0].textContent, "Nothing to review: every SPEC change entry is accepted.");
+  assert.equal(byClass(none, "button", "accept-all").length, 0);
 });
