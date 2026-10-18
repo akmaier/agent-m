@@ -79,7 +79,11 @@ const ENTRY = `import electron from "electron"; const start = async () => { cons
 
 async function session(url) {
   const socket = new WebSocket(url);
-  await new Promise((resolve, reject) => { socket.addEventListener("open", resolve, { once: true }); socket.addEventListener("error", reject, { once: true }); });
+  await until("the DevTools socket opens", () => new Promise((resolve, reject) => {
+    if (socket.readyState === 1) resolve(true);
+    socket.addEventListener("open", () => resolve(true), { once: true });
+    socket.addEventListener("error", () => reject(new Error("the DevTools socket failed")), { once: true });
+  }), 15000);
   let nextId = 1;
   const pending = new Map();
   socket.addEventListener("message", ({ data }) => {
@@ -110,8 +114,11 @@ async function session(url) {
 export async function stageElectron() {
   await acquireLock();
   try {
+    const started = Date.now();
     const executable = runtime();
+    console.log(`site-usability staging: Electron ready after ${Date.now() - started} ms`);
     electronCommand(executable, []);
+    console.log(`site-usability staging: display and window manager ready after ${Date.now() - started} ms`);
     return executable;
   } finally { rmdirSync(nativeFixtureLock); }
 }

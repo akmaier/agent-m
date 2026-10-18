@@ -120,17 +120,29 @@ async function show(page, site, address) {
     await page.call("Page.navigate", { url: target });
     await until(`${address} is loaded`, () => page.evaluate(`location.href === ${JSON.stringify(target)} && document.readyState === "complete"`));
   }
-  await until(`${address} is drawn`, () => page.evaluate(DRAWN), 30000);
+  try {
+    await until(`${address} is drawn`, () => page.evaluate(DRAWN), 20000);
+  } catch (failure) {
+    const state = await page.evaluate(`({ href: location.href, ready: document.readyState, pending: window.__pending, quiet: performance.now() - window.__lastChange,
+      text: (document.querySelector("main")?.innerText ?? "no main").replace(/\\s+/g, " ").slice(0, 300) })`).catch((error) => String(error));
+    throw new Error(`${failure.message}; the page: ${JSON.stringify(state)}`);
+  }
 }
 
 const measured = new Map(); // "<address> <width name>" -> { sheets, targets, widths, text }
 const planted = {};
 let site = null, browser = null;
 
+const started = Date.now();
+const progress = (step) => console.log(`site-usability ${((Date.now() - started) / 1000).toFixed(1)} s: ${step}`);
+
 before(async () => {
   site = await serveSite({ files: await files(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
+  progress("the site is served");
   const executable = await stageElectron();
+  progress("Electron is staged");
   browser = await openWindow(executable, `${site.address}/__blank`);
+  progress("the window is open");
   const page = browser.page;
   await page.call("Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
   for (const [kind, width] of WIDTHS) {
@@ -139,6 +151,7 @@ before(async () => {
       await show(page, site, route.address);
       measured.set(`${route.address} ${kind}`, await page.evaluate(MEASURE(width)));
     }
+    progress(`every route is drawn at a ${kind}'s width`);
   }
   // The counter-proofs: the same page at a phone's width, first as it is, then with a table 600 px wide, a button 10 px square and an
   // embedded style sheet planted in it.
