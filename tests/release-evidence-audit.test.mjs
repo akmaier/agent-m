@@ -275,29 +275,42 @@ test("TST-757002 auditRows — no report on the default branch gives report null
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; AN APPROVAL NAMES THE EXACT TEXT
 // given: the fixture with the report and no approval record; then the report's text changed after it was accepted, the old record still there
 // input: auditRows(...).evidence
-// expect: in both cases the report is given with its current blob, no record names it, acceptance is null, and summary.limitations names the blob that no record names
+// expect: in both cases the report is given with its current blob, acceptance is null, and summary.limitations names the blob that no record names; records: none in the first case, and in the second the old record, which still names the report (the acceptance alone is bound to the current blob)
 test("TST-757003 auditRows — no approval record names the report's current text: acceptance null, and the gap is named", async () => {
   const missing = await audit({ head: { [RECORD]: null } });
   const changed = await audit({ head: { [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } });
-  for (const [result, blob] of [[missing, gitBlob(REPORT_TEXT)], [changed, gitBlob(`${REPORT_TEXT}Changed afterwards.\n`)]]) {
+  const old = [{ path: RECORD, blob: gitBlob(approvalOf(LIMITATIONS)) }];
+  for (const [result, blob, records] of [[missing, gitBlob(REPORT_TEXT), []], [changed, gitBlob(`${REPORT_TEXT}Changed afterwards.\n`), old]]) {
     assert.deepEqual(result.evidence.report, { path: REPORT, blob });
-    assert.deepEqual([result.evidence.records, result.evidence.acceptance], [[], null]);
+    assert.deepEqual([result.evidence.records, result.evidence.acceptance], [records, null]);
     assert.ok(result.summary.limitations.some((line) => line.includes(blob)), result.summary.limitations.join("\n"));
   }
 });
 
 // TST-757004 · level: unit · module: MOD-release-evidence
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
-// given: the fixture, with the record of the accepted report, and beside it an approval record of an earlier release and a record of this release that names another text
+// given: the fixture, with the record of the accepted report, beside it an approval record of an earlier release (another tag, another report) and a second record of this release that names the same report with another blob
 // input: auditRows(...).evidence.records
-// expect: only the record that names the report's current blob; the others are not listed
-test("TST-757004 auditRows — only an approval record that names this report's text is evidence", async () => {
-  const other = approvalOf(["TST-756104 — flaky"]).replace(gitBlob(REPORT_TEXT), "a".repeat(40));
+// expect: the two records that name this report, in path order; the record of the earlier release is not listed
+test("TST-757004 auditRows — every approval record that names this report is evidence, and no other", async () => {
+  const second = `docs/approvals/release-${TAG}-aaaaaaaaaaaa.md`;
   const { evidence } = await audit({ head: {
-    "docs/approvals/release-v2026.3.0-bbbbbbbbbbbb.md": approvalOf([]).replace(gitBlob(REPORT_TEXT), "b".repeat(40)),
-    [`docs/approvals/release-${TAG}-aaaaaaaaaaaa.md`]: other,
+    "docs/approvals/release-v2026.3.0-bbbbbbbbbbbb.md": approvalOf([]).replace(gitBlob(REPORT_TEXT), "b".repeat(40)).replace(REPORT, "docs/tests/releases/v2026.3.0.md"),
+    [second]: approvalOf(["TST-756104 — flaky"]).replace(gitBlob(REPORT_TEXT), "a".repeat(40)),
   } });
-  assert.deepEqual(evidence.records.map((record) => record.path), [RECORD]);
+  assert.deepEqual(evidence.records.map((record) => record.path), [second, RECORD]);
+});
+
+// TST-757009 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; AN APPROVAL NAMES THE EXACT TEXT
+// given: the fixture whose report was changed after it was accepted: the one record names the report's earlier text
+// input: auditRows(...).evidence
+// expect: records lists that record with its own blob — it names the report — while acceptance is null, since no record names the current text
+// counter-proof: keeping only the records of the current blob gives [] and fails the first assertion
+test("TST-757009 auditRows — a report changed after acceptance still lists the records that name it", async () => {
+  const { evidence } = await audit({ head: { [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } });
+  assert.deepEqual(evidence.records, [{ path: RECORD, blob: gitBlob(approvalOf(LIMITATIONS)) }]);
+  assert.equal(evidence.acceptance, null);
 });
 
 // TST-757005 · level: unit · module: MOD-release-evidence
@@ -353,7 +366,8 @@ test("TST-934005 auditRows — the record of a green release, with no limitation
   const accepted = (await audit({ head: { [RECORD]: green } })).summary;
   assert.deepEqual([accepted.accepted, accepted.limitations], [true, []]);
   const changed = (await audit({ head: { [RECORD]: green, [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } })).summary;
-  assert.deepEqual([changed.accepted, changed.limitations], [false, []]);
+  assert.equal(changed.accepted, false);
+  assert.match(changed.limitations.join("\n"), /approval record/);
 });
 
 // TST-756009 · level: unit · module: MOD-release-evidence
