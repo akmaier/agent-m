@@ -958,7 +958,8 @@ async function productControls(context) {
     const edited = { ...settingsDocument, fields: { ...settingsDocument.fields, pseudonymisation: off.checked ? "off" : "on" } };
     const text = legacy.test(settingsBytes) ? (off.checked ? settingsBytes.replace(legacy, "$1- pseudonymisation: off") : settingsBytes.replace(legacy, ""))
       : (writeDocument(settings, edited) || `---\npseudonymisation: ${off.checked ? "off" : "on"}\n---\n# Settings of this product\n`);
-    const result = await saveFile(context.product.host, { path: settings.path, text, openedBlob: settingsBlob });
+    let result;
+    try { result = await saveFile(context.product.host, { path: settings.path, text, openedBlob: settingsBlob }); } catch (error) { pseudoResult.textContent = error?.message ?? String(error); return; }
     if (result.refused) { pseudoResult.textContent = "Product settings changed meanwhile; nothing was written."; return; }
     settingsBlob = result.blob; settingsBytes = text; settingsDocument = readDocument(settings, settings.path, text);
     state.textContent = `Pseudonymisation is ${settingState(settingsDocument, settingsBytes)}.`;
