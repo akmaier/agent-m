@@ -5,7 +5,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
+// readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
 // createBranch(name, from), startWorkflow(workflow, ref, inputs), setPipelineSchedule(schedule), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
@@ -164,7 +164,8 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     // its files, up to 100 to a page, read page by page for a commit that changed more. A server of GitLab 18.10 or later
     // follows a file across a rename unless `follow` is false: the commits asked for are those of the path itself, as GitHub's
     // `path` gives them. A commit's author is named by name and e-mail, not by account: the entry's account is null.
-    async history(path, { ref, limit } = {}) {
+    // With `changes: false` no commit's diff is read: every entry's changes is empty and the history costs one request per page of commits.
+    async history(path, { ref, limit, changes: withChanges } = {}) {
       const what = ref ? `${address.web} at ${ref}` : address.web;
       const per = limit === undefined ? PAGE : Math.max(1, Math.min(PAGE, limit));
       const query = `per_page=${per}${ref ? `&ref_name=${encodeURIComponent(ref)}` : ""}${path ? `&path=${encodeURIComponent(path)}&follow=false` : ""}`;
@@ -176,7 +177,7 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       }
       const entries = [];
       for (const c of limit === undefined ? listed : listed.slice(0, limit)) {
-        const changes = await commitChanges(c.id);
+        const changes = withChanges === false ? [] : await commitChanges(c.id);
         entries.push({ commit: c.id, parents: c.parent_ids, author: { account: null, name: c.author_name },
           date: c.committed_date, message: c.message, changes });
       }
