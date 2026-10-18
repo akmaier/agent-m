@@ -75,8 +75,11 @@ test("the dashboard reads the artifacts in batches when a requirement is opened,
   const html = page.main();
   assert.ok(html.includes('href="#use-case/id=UC-001"'), "known positive: the traces are shown");
   assert.ok(!html.includes("Open proposals"));
-  // The queue's entries are listed above the specification (MOD-review-pages' route); the opened requirement links none of them.
-  assert.ok(!/requirement-opened[^]*spec-entry/.test(html), "the opened requirement shows no proposal");
+  // The waiting entries are listed above the specification and the page ends with the links to the list and the history of the SPEC changes
+  // (MOD-trace-pages' specification view); the opened requirement's own row links none of them.
+  const openedRow = /<tr class="requirement-opened">[^]*?<\/tr>/.exec(html)?.[0] ?? "";
+  assert.ok(openedRow.includes("UC-001"), "known positive: the opened requirement's row is the one examined");
+  assert.ok(!openedRow.includes("spec-entry"), "the opened requirement shows no proposal");
   assert.deepEqual(opening.filter((request) => request.includes("spec-freigaben")), []);
   const batches = opening.filter((request) => request.startsWith("handler POST"));
   assert.ok(batches.length >= 1 && batches.length < Object.keys(FILES).length, `${batches.length} batch queries for ${Object.keys(FILES).length} files`);

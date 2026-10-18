@@ -1,6 +1,6 @@
 // MOD-trace-graph — the trace graph and everything derived from it (docs/architecture/MOD-trace-graph.md): its
-// interface. Of it, traceGraph, graphFindings, tracesTo, requirementImpact, architectureImpact, coverageGaps and
-// selfSufficiencyFindings are built.
+// interface: traceGraph, graphFindings, tracesTo, requirementImpact, architectureImpact, coverageGaps, moduleRows and
+// selfSufficiencyFindings.
 // traceGraph reads, of its Data, SPEC.md through MOD-spec-document, the test files through MOD-test-document, the use cases, the
 // architecture decisions, the module files, the plan steps and the backlog items through MOD-documents, and the group files through
 // MOD-group-document, so that its graph holds every requirement, test, document and group with the edges it states and the facts
@@ -11,7 +11,7 @@
 // requirements and use cases that lack a counterpart and the names that match nothing. architectureImpact derives the architecture-change list from those facts and
 // supplied before/after texts. traceGraph also reads the code files, a node of the kind `code` for each by its path, and, for
 // JavaScript, TypeScript, Python and CSS, their imports (code.mjs): an `imports` edge from the code node to each other module whose
-// folder holds the path imported. moduleOrder, moduleRows and compareGraphs are not built yet.
+// folder holds the path imported. moduleRows gives one row per module and the gaps of UC-025.
 //
 // Module: MOD-trace-graph
 //
@@ -127,4 +127,4 @@
 
 export { traceGraph } from "./build.mjs";
 export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
-export { architectureImpact, coverageGaps, requirementImpact, tracesTo } from "./derive.mjs";
+export { architectureImpact, coverageGaps, moduleRows, requirementImpact, tracesTo } from "./derive.mjs";

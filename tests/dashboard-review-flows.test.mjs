@@ -459,7 +459,7 @@ test("UC-006 4c: an approval committed on GitHub's page and not yet written is s
 // TST-474024 · level: component · module: MOD-settings-pages
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: entry 06 replacing a heading that entry 05 creates
-// input: open entry 06, then the list; tick both entries, then Accept ticked
+// input: open entry 06, then the list (#spec-entry); tick both entries, then Accept ticked
 // expect: entry 06 has no Accept of its own and names entry 05; ticked together they are written in one commit in the queue's order with both records and decisions
 test("UC-006 4d: an entry whose heading another creates is offered only together with it, naming it; Accept ticked writes both in the queue's order in one commit", async () => {
   const srv = await ucServer();
@@ -467,7 +467,7 @@ test("UC-006 4d: an entry whose heading another creates is offered only together
   const html = page.main();
   assert.match(html, /entry 05/, "it names the entry it needs");
   assert.doesNotMatch(html, /<button class="btn accept" type="button">Accept<\/button>/, "no Accept of its own");
-  await page.go("#spec");
+  await page.go("#spec-entry");
   const boxes = globalThis.document.getElementById("main").querySelectorAll(".tick");
   assert.equal(boxes.length, 2, "both entries can be ticked");
   for (const box of boxes) await tick(srv, box);
@@ -490,7 +490,7 @@ test("UC-006 4d: an entry whose heading another creates is offered only together
 // expect: nothing is written, and the page names the entry it needs
 test("UC-006 4d counter-proof: the dependent entry ticked alone cannot be accepted — the page names the entry it needs", async () => {
   const srv = await ucServer();
-  const page = await openDashboard({ server: srv, hash: "#spec" });
+  const page = await openDashboard({ server: srv, hash: "#spec-entry" });
   const [first, second] = globalThis.document.getElementById("main").querySelectorAll(".tick");
   assert.ok(first && second);
   // The list is in the queue's order: 05 then 06.

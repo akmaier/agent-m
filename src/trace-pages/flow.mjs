@@ -17,6 +17,7 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
+import { queues } from "../spec-changes/index.mjs";
 import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -243,7 +244,7 @@ async function showGaps(box, shown) {
 function reviewLink(className, text, route, params) {
   const anchor = el("a", `${className} btn small`, text);
   const parts = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-  anchor.setAttribute("href", `#${route}/${parts.join("/")}`);
+  anchor.setAttribute("href", parts.length ? `#${route}/${parts.join("/")}` : `#${route}`);
   return anchor;
 }
 
@@ -309,6 +310,32 @@ function overview(spec, editable, shown) {
   }
   if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
   return page;
+}
+
+// The entries of the change queues that wait for acceptance — open, stale, or waiting for the anchor another entry creates — each as a link to its page
+// in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. A queue that cannot be read gives none.
+async function waitingSection(snapshot) {
+  if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return null;
+  let all;
+  try {
+    all = await queues(snapshot);
+  } catch {
+    return null;
+  }
+  const waiting = all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
+    .map((entry) => ({ queue, entry })));
+  if (!waiting.length) return null;
+  const items = waiting.map(({ queue, entry }) => {
+    const name = `${queue.folder.slice(queue.folder.lastIndexOf("/") + 1)}-${String(entry.number).padStart(2, "0")}`;
+    return el("li", null, reviewLink("spec-waiting-entry", `${name} — ${entry.anchor}`, "spec-entry", { id: `spec-${name}` }), ` ${entry.state}`);
+  });
+  return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), el("ul", "list", ...items));
+}
+
+// The links from the specification to the review pages' lists of the SPEC change entries and of their history, on the default branch only.
+function specChangeLinks() {
+  return el("p", "spec-change-links", reviewLink("spec-entries-link", "All SPEC change entries", "spec-entry", {}),
+    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }));
 }
 
 // Whether the ref on view is the repository's default branch, which the Host names: editing is offered there only (UC-018). A Host that cannot say is read as no.
@@ -453,7 +480,10 @@ export const route = {
           fill = () => showGaps(place, shown);
         } else {
           if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
-          body = overview(shown.spec, shown.onDefaultBranch, shown);
+          const waiting = shown.onDefaultBranch ? await waitingSection(snapshot) : null;
+          body = shown.onDefaultBranch
+            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(shown.spec, true, shown), specChangeLinks())
+            : overview(shown.spec, false, shown);
         }
       } catch (error) {
         if (!chosen) throw error;

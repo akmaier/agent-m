@@ -463,16 +463,17 @@ test("a list nothing fills reads none, and where the version holds no artifact o
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: a Host that names main the default branch and gives the tag v2026.1.0, whose tree holds the same files, queues included
 // input: the route rendered at main, v2026.1.0 chosen, ALPHA RULE opened
-// expect: the detail lists ALPHA RULE's use cases (known positive) and has no Open proposals section; no file of docs/spec-freigaben is read at all; a fault fails the case within 10 s of the clock
+// expect: the detail lists ALPHA RULE's use cases (known positive) and has no Open proposals section; no file of docs/spec-freigaben is read from the moment the tag is chosen (the draw at main before it reads the queues for the waiting section); a fault fails the case within 10 s of the clock
 test("at a released version the traces are shown, no open proposals, and the queues are not read", { timeout: 10000 }, async () => {
   const productHost = treeHost({ trees: { main: TRACE_FILES, "v2026.1.0": TRACE_FILES }, tags: ["v2026.1.0"] });
   const target = await render(productHost, mainParams);
+  const readBeforeTheChoice = productHost.log.reads.length;
   choose(target, "v2026.1.0");
   await until(() => productHost.log.snapshots.length === 2 && asOf(target).length === 1);
   const row = await openRequirement(target, "ALPHA RULE");
   assert.equal(listed(row, "Use cases").length, 3, "known positive: the traces are shown at the tag");
   assert.equal(traceSection(row, "Open proposals") === undefined, true, "no Open proposals section");
-  assert.deepEqual(productHost.log.reads.filter((path) => path.startsWith("docs/spec-freigaben/")), []);
+  assert.deepEqual(productHost.log.reads.slice(readBeforeTheChoice).filter((path) => path.startsWith("docs/spec-freigaben/")), []);
 });
 
 // CASE ITM-597-15
@@ -480,14 +481,16 @@ test("at a released version the traces are shown, no open proposals, and the que
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture on the default branch, whose queues hold open entries that change ALPHA RULE (known positive: its use cases are listed)
 // input: ALPHA RULE opened
-// expect: the detail has no Open proposals section and no stale note, and no file of docs/spec-freigaben is read: the open proposals wait for ITM-648
+// expect: the detail has no Open proposals section and no stale note, and opening it reads no file of docs/spec-freigaben (the draw reads them for the waiting section): the open proposals wait for ITM-648
 test("an opened requirement shows no open proposals and reads no queue", { timeout: 10000 }, async () => {
   const productHost = mainOnly();
-  const row = await openRequirement(await render(productHost, mainParams), "ALPHA RULE");
+  const target = await render(productHost, mainParams);
+  const readByTheDraw = productHost.log.reads.length;
+  const row = await openRequirement(target, "ALPHA RULE");
   assert.equal(listed(row, "Use cases").length, 3, "known positive: the traces are shown");
   assert.equal(traceSection(row, "Open proposals") === undefined, true, "no Open proposals section");
   assert.equal(find(row, (node) => node.className === "stale-note").length, 0);
-  assert.deepEqual(productHost.log.reads.filter((path) => path.startsWith("docs/spec-freigaben/")), []);
+  assert.deepEqual(productHost.log.reads.slice(readByTheDraw).filter((path) => path.startsWith("docs/spec-freigaben/")), []);
 });
 
 // CASE ITM-597-08
@@ -512,12 +515,16 @@ test("the names that match no requirement and that the listed artifacts also nam
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture on the default branch
 // input: the route drawn; ALPHA RULE opened; BETA RULE opened; ALPHA RULE closed and opened again
-// expect: drawing reads SPEC.md alone and calls readMany never; after ALPHA RULE is opened, UC-001's file has been named to readMany once and read once; after BETA RULE and the second opening both counts are still one
+// expect: drawing reads SPEC.md and the queue files of the default branch (the waiting section) and no artifact of the trace graph; after ALPHA RULE is opened, UC-001's file has been named to readMany once and read once; after BETA RULE and the second opening both counts are still one
 test("the trace graph is built when a requirement is opened, not when the tree is drawn, and kept for every later opening", async () => {
   const productHost = mainOnly();
   const target = await render(productHost, mainParams);
-  assert.deepEqual(productHost.log.reads, ["SPEC.md"]);
-  assert.deepEqual(productHost.log.manys, []);
+  // The waiting section reads the queue files of the default branch (the heads of the three queues, then the SPEC each open entry targets) and no artifact of the trace graph.
+  const queueFile = (path) => path.startsWith("docs/spec-freigaben/");
+  assert.equal(productHost.log.reads[0], "SPEC.md");
+  assert.equal(productHost.log.reads.filter((path) => path !== "SPEC.md" && !queueFile(path)).length, 0, "no artifact of the trace graph is read");
+  assert.equal(productHost.log.reads.filter(queueFile).length, 6, "known positive: the heads of the three queues are read");
+  assert.deepEqual(productHost.log.manys.map((paths) => paths.every((path) => path === "SPEC.md" || queueFile(path))), [true, true], "the readMany batches name queue files and the targeted SPEC only");
   const uc = "docs/use-cases/UC-001-first.md";
   const counts = () => [productHost.log.manys.filter((paths) => paths.includes(uc)).length, productHost.log.reads.filter((path) => path === uc).length];
   await openRequirement(target, "ALPHA RULE");

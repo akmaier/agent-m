@@ -7,8 +7,11 @@
 // Module: MOD-settings-pages
 //
 // Where the texts leave a reading open, this file states the one it takes:
-//   - + New version records files: a version's identifier and date, and the files hashed in the browser, as the registration of documents does; a file only hashed asks for its note. What
+//   - + New version of a fetched EU legal text (an entry the page reads as one, with a version) starts the fetch run for the entry (startWorkflow with the input \`source\`) and offers no file; every other source:
+//     + New version records files: a version's identifier and date, and the files hashed in the browser, as the registration of documents does; a file only hashed asks for its note. What
 //     versionCommits refuses (SameBytes, NoteMissing) is shown as the module words it; the page adds no check of its own. A fetched EU legal text is given its versions by the fetch.
+//   - A source whose `identifier` is a repository's address (and no EU legal text's) is a source of kind repository: its + New version offers no files and, when saved, reads the commit the
+//     repository's default branch stands at now, as the registration of a repository does, and records it (versionCommits' `version.commit`); the same commit as an existing version is refused as SameBytes.
 //   - The products on older versions are the products this browser keeps (the setting `products`), each read through its own host: the product's `docs/sources.md` is read once, when the
 //     entry is opened. A product is on an older version when its link names a version of an earlier row of the entry's `## Versions` than the last, the newest.
 //   - Move lists the requirements affectedRequirements names, read from the product's SPEC.md at the commit the links file was read at, and the passages of the two versions: for each file
@@ -20,7 +23,7 @@
 //   - An EU legal text is registered as its entry alone, with no version row: the later download (UC-004 7) records the version, and registrationCommits needs a first row.
 //   - The content goes to its repository before the entry goes to the instance, so that an entry never names content that was not stored.
 //   - A source is already in the library when its identifier, its title or, for a standard, its designation equals an entry's (as a requirement's source item names one).
-//   - The form is MOD-site-frame's schemaForm over the entry's schema (the schema names its rule since ITM-458): the page's own checks (an unlinked or restricted source, a missing file or
+//   - The form is MOD-site-frame's schemaForm over the entry's schema: the page's own checks (an unlinked or restricted source, a missing file or
 //     pin, a source already in the library) are its extraChecks; the checks of the schema are documentFindings'.
 //   - A choice outside the form (the route's own part, the files, the named repository) builds the form again, keeping what the person typed in it.
 //   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`).
@@ -134,6 +137,21 @@ function fetchState(entry, failures, startFetch) {
     }
   });
   return el("div", "library-fetch", state, again);
+}
+
+// The commit a repository's default branch stands at, read through a host connected with the stored credentials and secrets (the registration of a repository pins it, + New version of one records it).
+async function currentCommit(context, address) {
+  const host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  return { commit: snapshot.commit, branch: defaultBranch };
+}
+
+// The repository address of a source of kind repository: its `identifier`, when it is a repository's address and no EU legal text's; null for any other source.
+function repositoryOf(entry) {
+  const identifier = entry.fields.identifier;
+  if (typeof identifier !== "string" || isLegalText(entry)) return null;
+  try { return parseAddress(identifier); } catch { return null; }
 }
 
 // The commit of one repository's files: the branch's head read just before, the commit made on it.
@@ -312,7 +330,7 @@ function movePanel(entry, entries, item, context, moved) {
 
 // UC-016 steps 1 and 3: the entry of a source with + New version and the products on older versions. The products are read after the entry is drawn, once; a new version recorded
 // from this page is drawn from the plan that recorded it, with no read.
-async function entryPage(target, first, entries, context) {
+async function entryPage(target, first, entries, context, branch) {
   const instanceRepo = context.instance.repository;
   let entry = first;
   let products = null;
@@ -330,8 +348,12 @@ async function entryPage(target, first, entries, context) {
   const result = el("p", "library-version-result");
   const save = el("button", "library-version-save btn primary", "Save new version");
   for (const input of [versionId, versionDate]) { input.autocomplete = "off"; input.spellcheck = false; }
-  const files = () => state.files.map((file) => ({ name: file.name, bytes: file.bytes, keep: !file.onlyHashed, note: file.note }));
-  const describe = () => { statement.textContent = statementOf(entry.fields, state.files, instanceRepo); };
+  const repository = repositoryOf(entry);
+  const files = () => (repository ? [] : state.files.map((file) => ({ name: file.name, bytes: file.bytes, keep: !file.onlyHashed, note: file.note })));
+  const describe = () => {
+    statement.textContent = repository ? `Becomes public: the register entry, always, in the instance repository ${instanceRepo}. No file is stored: the commit ${repository.web} stands at when you save is recorded.`
+      : statementOf(entry.fields, state.files, instanceRepo);
+  };
 
   const drawOlder = (message) => {
     if (products === null) { older.replaceChildren(el("p", "library-older-reading", "Reading the products this browser keeps.")); return; }
@@ -349,14 +371,27 @@ async function entryPage(target, first, entries, context) {
   };
   const drawTop = () => top.replaceChildren(entryView(entry, context));
 
-  open.addEventListener("click", () => { panel.hidden = false; versionDate.value = today(); describe(); versionId.focus(); });
+  // + New version of a fetched EU legal text starts the fetch run for the entry, which appends the newer text it fetches; the other sources get the panel.
+  const fetchRun = isLegalText(first) && versionsOf(first).length > 0;
+  open.addEventListener("click", async (event) => {
+    if (!fetchRun) { panel.hidden = false; versionDate.value = today(); describe(); versionId.focus(); return; }
+    if (!event.isTrusted) return;
+    result.textContent = "";
+    try {
+      await context.instance.host.startWorkflow(FETCH_WORKFLOW, branch, { source: entry.id });
+      result.textContent = `✓ The fetch workflow was started for ${entry.id}: a newer text is recorded as a further version, the same text is not recorded again.`;
+    } catch (error) {
+      result.textContent = `✗ The fetch workflow could not be started for ${entry.id}: ${error?.message ?? error}.`;
+    }
+  });
   filesInput.addEventListener("change", () => chooseFiles(filesInput, state, fileRows, describe));
   save.addEventListener("click", async (event) => {
     if (!event.isTrusted) return;
     result.textContent = "";
     const id = versionId.value.trim();
     try {
-      const plan = await versionCommits(entry, files(), { version: id, date: versionDate.value.trim(), repository: instanceRepo });
+      const commit = repository ? (await currentCommit(context, repository)).commit : undefined;
+      const plan = await versionCommits(entry, files(), { version: id, date: versionDate.value.trim(), repository: instanceRepo, commit });
       const committed = await commitPlan(context, plan, `New version ${id} of ${entry.id}`);
       if (committed.notice) { result.append(committed.notice); return; }
       const written = plan.find((item) => item.repository === instanceRepo).files.find((file) => file.path === entry.path).content;
@@ -372,10 +407,10 @@ async function entryPage(target, first, entries, context) {
   });
 
   panel.append(el("h3", null, "Add a new version"), explain("source-new-version"), el("p", null, el("label", null, "Version, its official identifier or edition ", versionId)),
-    el("p", null, el("label", null, "Date ", versionDate)), el("p", null, el("label", null, "Files ", filesInput)), fileRows, explain("file-only-hashed"), statement, explain("source-public"),
+    el("p", null, el("label", null, "Date ", versionDate)), ...(repository ? [] : [el("p", null, el("label", null, "Files ", filesInput)), fileRows, explain("file-only-hashed")]), statement, explain("source-public"),
     el("p", null, save), result);
   drawTop(); drawOlder();
-  target.replaceChildren(top, el("p", null, open), panel, older);
+  target.replaceChildren(top, el("p", null, open), fetchRun ? result : panel, older);
   products = await readProducts(context);
   drawOlder();
 }
@@ -396,7 +431,7 @@ export const route = {
     }
     if (typeof params.source === "string" && params.source) {
       const entry = entries.find((each) => each.id === params.source);
-      if (entry) await entryPage(target, entry, entries, context);
+      if (entry) await entryPage(target, entry, entries, context, branch);
       else target.replaceChildren(el("p", null, `The library holds no source ${params.source}.`));
       return;
     }
@@ -406,7 +441,7 @@ export const route = {
     const showList = () => list.replaceChildren(...entries.map((entry) => {
       const name = el("button", "library-source-name btn", entry.fields.title ?? entry.id);
       name.addEventListener("click", () => context.go("library", { source: entry.id }));
-      const startFetch = () => context.instance.host.startWorkflow(FETCH_WORKFLOW, branch, {});
+      const startFetch = () => context.instance.host.startWorkflow(FETCH_WORKFLOW, branch, { source: entry.id });
       return el("section", "library-source panel", el("h3", null, name), el("p", null, `${entry.id} · ${entry.fields.kind} · ${entry.fields.authority}`),
         el("p", null, versionsOf(entry).length ? `Versions: ${versionsOf(entry).map((row) => unquoted(row.cells.Version)).join(", ")}` : "No version recorded yet."),
         fetchState(entry, failures, startFetch) ?? "");
@@ -540,11 +575,9 @@ export const route = {
       state.repo = null;
       try {
         const address = parseAddress(repositoryAddress.value.trim());
-        const host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
-        const { defaultBranch } = await host.repositoryInfo();
-        const snapshot = await host.readSnapshot(defaultBranch);
-        state.repo = { address: address.web, commit: snapshot.commit };
-        repositoryCommit.textContent = `Pinned to commit ${snapshot.commit} on ${defaultBranch}.`;
+        const { commit, branch } = await currentCommit(context, address);
+        state.repo = { address: address.web, commit };
+        repositoryCommit.textContent = `Pinned to commit ${commit} on ${branch}.`;
       } catch (error) {
         repositoryCommit.textContent = `The repository could not be read: ${error?.message ?? error}.`;
       }

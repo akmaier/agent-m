@@ -17,10 +17,11 @@ import { readDocument, writeDocument } from "../documents/index.mjs";
 import { entrySections } from "./sections.mjs";
 import { el } from "./common.mjs";
 
+const ENTRY_PREFIX = "spec-";
 const pad2 = (number) => String(number).padStart(2, "0");
 const shortOf = (folder) => folder.slice(folder.lastIndexOf("/") + 1);
 // The identifier of an entry by the folder of its queue and its number, the form of its approval record.
-export const entryId = (folder, number) => `spec-${shortOf(folder)}-${pad2(number)}`;
+export const entryId = (folder, number) => `${ENTRY_PREFIX}${shortOf(folder)}-${pad2(number)}`;
 const idOf = (queue, number) => entryId(queue.folder, number);
 // An entry a person may accept: one that no record or decision decides.
 const acceptable = (item) => item.state === "open" || item.state === "stale";
@@ -97,6 +98,8 @@ async function described(all, queue, item, snapshot, context, hrefOf) {
 
 export const queueService = {
   idOf: (each) => entryId(each.queue, each.entry),
+  // Whether an approval record's identifier is a SPEC change entry's, the form entryId gives.
+  owns: () => (id) => id.startsWith(ENTRY_PREFIX),
   // A product's SPEC is written with the product's own token, whichever server it is on.
   tokenRequired: (context) => Boolean(context.product),
   tokenNote: "A product's SPEC is written with the product's own token. ",

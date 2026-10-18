@@ -94,7 +94,6 @@ test("recogniseLegalText — an address of another site, or of no text, gives nu
     "https://eur-lex.europa.eu/other/eli/reg/2024/1689/oj",
     "https://data.europa.eu/data/datasets/ai-act",
     "ftp://eur-lex.europa.eu/eli/reg/2024/1689/oj",
-    "32024R1689",
     "/eli/reg/2024/1689/oj",
     "",
     "not an address",

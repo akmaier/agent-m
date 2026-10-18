@@ -1,15 +1,15 @@
-// Derive — what traceGraph's graph alone answers (MOD-trace-graph, Parts). Built so far: tracesTo, which gives a requirement the
+// Derive — what traceGraph's graph alone answers (MOD-trace-graph, Parts): tracesTo, which gives a requirement the
 // sources its node keeps and the use cases, decisions, modules, tests and items that name it, read through the edges that point at
 // it, requirementImpact, which lists every place an artifact names a requirement, read through the edges that point at it, and
 // coverageGaps, which lists the requirements and use cases that lack a counterpart and the names that match nothing.
-// architectureImpact derives the architecture-change list from the graph's facts and the caller's before/after texts. The module order
-// and rows and the comparison of two graphs are not built yet.
+// architectureImpact derives the architecture-change list from the graph's facts and the caller's before/after texts, and moduleRows
+// the module rows with their gaps.
 //
 // Module: MOD-trace-graph
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { identifiersIn } from "../identifiers/index.mjs";
-import { isCodePath } from "./code.mjs";
+import { isCodePath, moduleFinder, readsImports } from "./code.mjs";
 
 const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -160,4 +160,88 @@ export function coverageGaps(graph) {
     unknownNames: [...unknown].sort(([a], [b]) => byText(a, b))
       .map(([name, places]) => ({ name, namedBy: places.sort((a, b) => byText(a.id, b.id)) })),
   };
+}
+
+// moduleRows(graph: Graph) -> { rows: ModuleRow[], gaps: ModuleGap[] } — one row per module, as UC-025 shows it, and the gaps (MODULE GAPS
+// ARE REPORTED, NOT FORBIDDEN; none blocks anything). A row: the module; its `subsystem`, the decision its file follows, null where it
+// follows none; the requirements its tests guard (`realises`), the tests being those that exercise it; the path of the file that
+// describes it; its code, the code files whose path begins with its folder (the longest folder where two begin it); its tests; the
+// modules its code files import; and whether the imports of all its code files could be read (`importsRead`). Rows come by module, gaps
+// by kind, artifact and text. A gap: its `kind`, the `artifact` it concerns, the `path` of that artifact's file and `what` is missing.
+const GAPS = {
+  noSubsystem: "module-in-no-subsystem", notNamed: "subsystem-does-not-name-module", realisesNothing: "realises-nothing",
+  noModule: "requirement-without-module", noTest: "module-without-test", noCode: "module-without-code",
+  codeOutside: "code-without-module", importNotUsed: "import-not-in-uses", folderInside: "module-folder-inside-another",
+  unknownName: "unknown-name", folderNamed: "folder-named-by-no-module",
+};
+// A name a module or a test states that matches no requirement, use case, decision or module (UC-025 step 4); for `uses` the module
+// before the dot.
+const NAME_VIAS = new Set(["realises", "forced_by", "guards", "follows", "uses"]);
+const NAME_KINDS = new Set(["requirement", "UC", "ARC", "MOD"]);
+export function moduleRows(graph) {
+  const nodes = [...graph.nodes.values()];
+  const modules = nodes.filter((node) => node.kind === "MOD").sort((a, b) => byText(a.id, b.id));
+  const moduleOf = moduleFinder(modules.filter((module) => module.folder));
+  const edgesVia = (via, from) => graph.edges.filter((edge) => edge.via === via && (from === undefined || edge.from === from));
+  const codeOf = new Map(modules.map((module) => [module.id, []]));
+  const codeOutside = [];
+  for (const file of nodes.filter((node) => node.kind === "code").sort((a, b) => byText(a.path, b.path))) {
+    const own = moduleOf(file.path);
+    (own === null ? codeOutside : codeOf.get(own)).push(file.path);
+  }
+  const imported = edgesVia("imports");
+  const rows = modules.map((module) => {
+    const code = codeOf.get(module.id);
+    const tests = unique(graph.edges.filter((edge) => edge.via === "exercises" && edge.to === module.id).map((edge) => edge.from));
+    return {
+      module: module.id,
+      subsystem: edgesVia("follows", module.id).map((edge) => edge.to).find((to) => graph.nodes.get(to)?.kind === "ARC") ?? null,
+      realises: unique(edgesVia("realises", module.id).map((edge) => edge.to)),
+      describedBy: module.path,
+      code,
+      tests,
+      imports: unique(imported.filter((edge) => code.includes(edge.from)).map((edge) => edge.to)),
+      importsRead: code.every(readsImports),
+    };
+  });
+
+  const gaps = [];
+  const gap = (kind, artifact, path, what) => gaps.push({ kind, artifact, path, what });
+  const designed = new Set(edgesVia("designs").map((edge) => `${edge.from} ${edge.to}`));
+  const where = (folder) => folder.replace(/\/+$/, "");
+  for (const row of rows) {
+    const module = graph.nodes.get(row.module);
+    if (row.subsystem === null) gap(GAPS.noSubsystem, row.module, module.path, `${row.module} follows no decision, so it is in no subsystem`);
+    else if (!designed.has(`${row.subsystem} ${row.module}`)) {
+      gap(GAPS.notNamed, row.module, module.path, `${row.module} follows ${row.subsystem}, which does not name it among the modules it designs`);
+    }
+    if (!row.realises.some((name) => graph.nodes.get(name)?.kind === "requirement")) gap(GAPS.realisesNothing, row.module, module.path, `${row.module} realises no requirement`);
+    if (row.tests.length === 0) gap(GAPS.noTest, row.module, module.path, `no test exercises ${row.module}`);
+    if (row.code.length === 0) gap(GAPS.noCode, row.module, module.path, `${row.module} has no code file in its folder`);
+    const outer = module.folder && modules.find((other) => other !== module && other.folder && where(module.folder).startsWith(`${where(other.folder)}/`));
+    if (outer) gap(GAPS.folderInside, row.module, module.path, `the folder ${module.folder} of ${row.module} lies inside the folder ${outer.folder} of ${outer.id}`);
+  }
+  const realised = new Set(rows.flatMap((row) => row.realises));
+  for (const requirement of nodes.filter((node) => node.kind === "requirement")) {
+    if (!realised.has(requirement.id)) gap(GAPS.noModule, requirement.id, requirement.path, `no module realises ${requirement.id}`);
+  }
+  for (const path of codeOutside) gap(GAPS.codeOutside, path, path, `${path} lies in the folder of no module`);
+  for (const folder of unique(codeOutside.filter((path) => path.includes("/")).map((path) => path.slice(0, path.lastIndexOf("/"))))) {
+    gap(GAPS.folderNamed, folder, folder, `no module names the folder ${folder}, which holds code files`);
+  }
+  const used = new Set(edgesVia("uses").map((edge) => `${edge.from} ${edge.to.split(".")[0]}`));
+  const reported = new Set();
+  for (const edge of imported) {
+    const own = moduleOf(edge.from);
+    const key = `${edge.from} ${edge.to}`;
+    if (own === null || used.has(`${own} ${edge.to}`) || reported.has(key)) continue;
+    reported.add(key);
+    gap(GAPS.importNotUsed, edge.from, edge.from, `${edge.from} imports ${edge.to}, which the file of ${own} does not name among the interfaces it uses`);
+  }
+  for (const edge of graph.edges) {
+    if (!NAME_VIAS.has(edge.via) || NAME_KINDS.has(graph.nodes.get(edge.via === "uses" ? edge.to.split(".")[0] : edge.to)?.kind)) continue;
+    gap(GAPS.unknownName, edge.from, edge.path, `${edge.via} "${edge.to}" matches no requirement, use case, decision or module`);
+  }
+  gaps.sort((a, b) => byText(a.kind, b.kind) || byText(a.artifact, b.artifact) || byText(a.what, b.what));
+  return { rows, gaps };
 }

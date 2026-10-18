@@ -96,6 +96,17 @@ function resolve(importer, specifier) {
 }
 
 /**
+ * The function that tells which module a path belongs to: the module whose `folder` is the longest beginning of the path, or null.
+ * @param {{ id: string, folder: string }[]} modules
+ * @returns {(path: string) => string | null}
+ */
+export function moduleFinder(modules) {
+  const folders = modules.map(({ id, folder }) => ({ id, folder: folder.endsWith("/") ? folder : `${folder}/` }))
+    .sort((a, b) => b.folder.length - a.folder.length);
+  return (path) => folders.find(({ folder }) => `${path}/`.startsWith(folder))?.id ?? null;
+}
+
+/**
  * The `imports` edges of the code files: for each import, an edge from the importing file to the module whose folder begins the
  * path the specifier names, unless that is the module the importing file is in.
  * @param {{ from: string, imports: { specifier: string, line: number }[] }[]} files
@@ -103,9 +114,7 @@ function resolve(importer, specifier) {
  * @returns {{ from: string, to: string, path: string, line: number }[]}
  */
 export function importEdges(files, modules) {
-  const folders = modules.map(({ id, folder }) => ({ id, folder: folder.endsWith("/") ? folder : `${folder}/` }))
-    .sort((a, b) => b.folder.length - a.folder.length);
-  const moduleOf = (path) => folders.find(({ folder }) => `${path}/`.startsWith(folder))?.id ?? null;
+  const moduleOf = moduleFinder(modules);
   const edges = [];
   for (const { from, imports } of files) {
     const own = moduleOf(from);

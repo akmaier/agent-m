@@ -25,7 +25,7 @@ import { loadSchema, writeDocument } from "../documents/index.mjs";
 import { finding, lineDiff, sha256 } from "../text-tools/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { strategiesOf } from "./strategies.mjs";
-import { failure, filesOf, linkOf, unquoted, versionHash, versionRecord } from "./content.mjs";
+import { commitOf, failure, filesOf, linkOf, unquoted, versionHash, versionRecord } from "./content.mjs";
 
 export { readContent } from "./content.mjs";
 export { personAccount, personSource } from "./person.mjs";
@@ -180,7 +180,8 @@ function appendVersionSection(text, cells, block) {
   return `${leading}${lines.join("\n")}`;
 }
 
-function readFrom(version) {
+function readFrom(entry, version) {
+  if (version?.commit) return [entry.fields.identifier, `commit ${version.commit}`].filter(Boolean).join(" ");
   if (version?.readFrom) return String(version.readFrom);
   if (version?.retrieved || version?.repositoryVersion) {
     const parts = ["publication repository"];
@@ -193,12 +194,15 @@ function readFrom(version) {
 
 /**
  * versionCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[], version: {
- * version: string, date: string }) -> Promise<CommitPlan> — what to commit when a source receives a new version: the entry
+ * version: string, date: string, commit?: string }) -> Promise<CommitPlan> — what to commit when a source receives a new version: the entry
  * with one row appended to `## Versions`, the new version's file hashes under `### Files of <version>` — with the `note` of
  * a file not kept in the column `Kept at`, as registrationCommits writes it —, and the kept files in the repository that
  * holds the content. `version.repository`, when supplied by the caller, names the instance repository that holds the
- * register entry; without it the plan uses the empty string for that current instance. Throws SameBytes { version } when
- * the file set equals an already recorded version, and NoteMissing { file } for a file not kept that has no note.
+ * register entry; without it the plan uses the empty string for that current instance. For a source of kind repository,
+ * `version.commit` is the commit read: the row's `Read from` records it after the entry's `identifier`, `<address> commit
+ * <commit>`, and the files may be none, since the version's bytes are that commit. Throws SameBytes { version } when the file
+ * set — or, with a commit, the commit instead — equals that of an already recorded version, and NoteMissing { file } for a file not
+ * kept that has no note.
  * @param {Document} entry
  */
 export async function versionCommits(entry, files, version) {
@@ -207,9 +211,12 @@ export async function versionCommits(entry, files, version) {
   requireNotes(files);
   const listed = await listedFiles(files);
   const hash = await versionHash(listed);
+  const commit = typeof version?.commit === "string" && version.commit !== "" ? version.commit : null;
   for (const row of versions.rows ?? []) {
     const existing = unquoted(row.cells.Version);
-    if (await versionHash(filesOf(versions, existing)) === hash) {
+    // A version of a repository is that commit: its bytes are compared by the commit, not by a file set, which it may not have.
+    const same = commit !== null ? commitOf(row) === commit : await versionHash(filesOf(versions, existing)) === hash;
+    if (same) {
       throw failure("SameBytes", `${entry.id} already records the same bytes as ${existing}`, { version: existing });
     }
   }
@@ -225,7 +232,7 @@ export async function versionCommits(entry, files, version) {
     Version: `\`${id}\``,
     Date: String(version?.date ?? ""),
     Edition: String(version?.edition ?? "-"),
-    "Read from": readFrom(version),
+    "Read from": readFrom(entry, version),
     Files: filesCell(files, listed, hash),
   };
   const section = { ...versions, text: appendVersionSection(versions.text, cells, filesBlock(id, listed)),

@@ -1,0 +1,109 @@
+// The Spec page (MOD-trace-pages' view `specification`) shows first the SPEC change entries that wait for acceptance, each linked, and none of
+// that where none waits; below them the SPEC; and it leads to the list of all SPEC change entries and to their history, which open on request (ITM-878).
+// Accepted texts: MOD-trace-pages.md, the view `specification`: "first, only while an entry of a change queue waits for acceptance, those entries, each with
+// its status and a link to it (MOD-review-pages' `spec-entry/<id>`), and nothing where none waits; then the tree of `docs/groups/requirements.md` …" and
+// "*History of SPEC changes*, which opens MOD-review-pages' `spec-entry/history`"; MOD-site-frame.md: "the list of SPEC change entries and their history are opened
+// from it". Run: node --test tests/trace-pages-waiting-changes.test.mjs
+//
+// Module: MOD-trace-pages
+// Guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006; UC-018
+// Level: unit
+//
+// Readings, each adding no word to the quoted sentences: an entry "waits for acceptance" when MOD-spec-changes' state for it is open, stale or waiting for its
+// anchor (the entries a person may tick on the review pages); the section is drawn on the default branch only, as the view's links to the review pages are, so a
+// released version shows none and reads no queue; the link to the list of all entries is `#spec-entry` and the link to the history `#spec-entry/id=history`
+// (the address form the frame reads). The calls are the public route's, with the Host of tests/trace-pages-harness.mjs. Expected results are stated in each case.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { document, find, treeHost } from "./trace-pages-harness.mjs";
+
+const { view } = await import("../src/trace-pages/index.mjs");
+const route = view.routes.find((candidate) => candidate.name === "trace");
+
+const SPEC = "# Fixture — Specification\n\n## First section\n\n**FIRST REQUIREMENT** *(Source one)*\nFirst rule.\n*Check:* at review.\n";
+const TICK = "`";
+// The files of one queue with one entry: its index, its decisions (a row when the entry is decided) and the entry.
+function queue(folder, anchor, decided) {
+  const base = `docs/spec-freigaben/${folder}`;
+  return {
+    [`${base}/index.md`]: [`# SPEC approvals — queue ${folder.slice(0, 10)} · ${folder}`, "", `**Zieldatei aller Einträge:** ${TICK}SPEC.md${TICK}`, "",
+      "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", `| 01 | ${TICK}SPEC.md${TICK} | ${anchor} | — | — |`, ""].join("\n"),
+    [`${base}/entscheidungen.md`]: [`# Decisions — queue ${folder.slice(0, 10)}`, "", "Append-only.", "", ...(decided ? [`| 2026-10-08 10:00 UTC | 1 | uebernommen | ${"c".repeat(40)} |`] : []), ""].join("\n"),
+    [`${base}/01-entry.md`]: `${anchor}\n\n**FIRST REQUIREMENT** *(Source one)*\nFirst rule, changed.\n*Check:* at review.\n`,
+  };
+}
+const OPEN = "2026-10-09_open", DONE = "2026-10-08_done";
+const withOpen = { "SPEC.md": SPEC, ...queue(OPEN, "## First section", false), ...queue(DONE, "## Second section", true) };
+const onlyDecided = { "SPEC.md": SPEC, ...queue(DONE, "## Second section", true) };
+
+async function render(files, ref = "main", tags = []) {
+  const productHost = treeHost({ trees: { main: files, "v2026.1.0": files }, tags });
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, { product: { host: productHost } }, { key: "specification", ref });
+  return { target, productHost };
+}
+const anchors = (target) => find(target, (node) => node.localName === "a");
+const hrefs = (target) => anchors(target).map((node) => node.getAttribute("href"));
+const waitingSection = (target) => find(target, (node) => node.localName === "section" && node.className.includes("spec-waiting"))[0];
+const text = (node) => node.textContent.replace(/\s+/g, " ");
+
+// TST-878001 · level: unit · module: MOD-trace-pages
+// guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
+// given: the default branch, whose queues hold an open entry (2026-10-09_open, entry 01) and a decided one (2026-10-08_done, entry 01)
+// input: the specification view drawn at main
+// expect: a section "SPEC changes waiting for acceptance" stands before the section "Current requirements"; it links #spec-entry/id=spec-2026-10-09_open-01 and
+//         names its status open; the decided entry is not in it (the counter-proof: no link to spec-2026-10-08_done-01 anywhere on the page)
+test("TST-878001 the open entry is linked first, above the SPEC, and the decided entry is not listed", async () => {
+  const { target } = await render(withOpen);
+  const waiting = waitingSection(target);
+  assert.ok(waiting, "known positive: the waiting section is drawn");
+  assert.ok(text(waiting).includes("SPEC changes waiting for acceptance") && text(waiting).includes("open"));
+  assert.deepEqual(hrefs(waiting), [`#spec-entry/id=spec-${OPEN}-01`]);
+  const overview = find(target, (node) => node.localName === "section" && node.className.includes("current-requirements"))[0];
+  assert.ok(overview, "known positive: the SPEC is drawn");
+  const order = find(target, (node) => node === waiting || node === overview);
+  assert.deepEqual(order, [waiting, overview], "the waiting entries stand above the SPEC");
+  assert.equal(hrefs(target).some((href) => href.includes(`spec-${DONE}-01`)), false, "the decided entry is not listed");
+});
+
+// TST-878002 · level: unit · module: MOD-trace-pages
+// guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
+// given: the default branch, whose only queue is decided
+// input: the specification view drawn at main
+// expect: no waiting section at all (counter-proof of TST-878001: the same page with an open queue has one), and the SPEC is shown
+test("TST-878002 where no entry waits there is no such section", async () => {
+  const { target } = await render(onlyDecided);
+  assert.equal(waitingSection(target), undefined);
+  assert.equal(text(target).includes("waiting for acceptance"), false);
+  assert.ok(text(target).includes("FIRST REQUIREMENT"), "known positive: the SPEC is shown");
+  assert.ok(waitingSection((await render(withOpen)).target), "counter-proof: with an open entry the section is there");
+});
+
+// TST-878003 · level: unit · module: MOD-trace-pages
+// guards: UC-006; UC-018
+// given: the default branch with an open entry
+// input: the specification view drawn at main, and at the tag v2026.1.0 (a released version)
+// expect: at main the page links "All SPEC change entries" to #spec-entry and "History of SPEC changes" to #spec-entry/id=history; at the tag it has neither link
+//         and no waiting section
+test("TST-878003 the list of all entries and the history are links on the default branch's page only", async () => {
+  const { target } = await render(withOpen);
+  const link = (label) => anchors(target).find((node) => node.textContent === label);
+  assert.equal(link("All SPEC change entries")?.getAttribute("href"), "#spec-entry");
+  assert.equal(link("History of SPEC changes")?.getAttribute("href"), "#spec-entry/id=history");
+  const released = (await render(withOpen, "v2026.1.0", ["v2026.1.0"])).target;
+  assert.equal(anchors(released).some((node) => node.textContent === "All SPEC change entries" || node.textContent === "History of SPEC changes"), false);
+  assert.equal(waitingSection(released), undefined);
+});
+
+// TST-878004 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a default branch whose snapshot holds no file under docs/spec-freigaben/
+// input: the specification view drawn at main
+// expect: no readMany call and no read of a queue file — a read the page already has the answer to (there is no queue) is not made
+test("TST-878004 a repository without a change queue costs the page no queue read", async () => {
+  const { productHost } = await render({ "SPEC.md": SPEC });
+  assert.deepEqual(productHost.log.manys, []);
+  assert.deepEqual(productHost.log.reads, ["SPEC.md"]);
+});
