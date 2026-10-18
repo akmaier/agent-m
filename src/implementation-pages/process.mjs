@@ -33,7 +33,8 @@
 //
 // Module: MOD-implementation-pages
 
-import { explain, schemaForm } from "../site-frame/index.mjs";
+import { explain, schemaForm, chosenProduct } from "../site-frame/index.mjs";
+import { readSetting } from "../browser-store/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
@@ -392,3 +393,75 @@ function lostArtifacts(before, after) {
   if (!missing.length) return "";
   return `${before.name} produced ${missing.join(", ")}, which ${after.name} does not; nothing is deleted.`;
 }
+
+// ---- The route `models` — the instance's process models (UC-031 steps 1 and 2b). It lists the catalogue of the instance's snapshot: the shipped
+// models, then the instance's own, each with its kind of work, the products of this browser whose declaration names it (each address of the
+// setting `products` connected with MOD-site-frame's `chosenProduct`, its `docs/process.md` read with that product's host; an address that
+// cannot be read is shown with its reason) and the catalogue's findings for it. A shipped model offers *Adapt*, an instance's model *Edit*,
+// the page *+ New model*; they lead to `#models/name=<name>`, `+ New model` to `#models/name=` (the frame reads only `key=value` parts).
+
+function link(label, className, href) {
+  const anchor = el("a", className, label);
+  anchor.setAttribute("href", href);
+  return anchor;
+}
+
+// The model file each product of this browser declares, or the reason it could not be read: { address, modelFile } | { address, reason }.
+// modelFile is null for a product without a declaration.
+async function declarationsOf(context) {
+  const { store } = context;
+  return Promise.all((readSetting(store, "products") ?? []).map(async (address) => {
+    try {
+      const product = await chosenProduct({ store, fragment: `#models/product=${encodeURIComponent(address)}` });
+      const { defaultBranch } = await product.host.repositoryInfo();
+      const declaration = await (await product.host.readSnapshot(defaultBranch)).read(DECLARATION_PATH);
+      const modelFile = declaration == null ? null : String(readDocument(declarationSchema, DECLARATION_PATH, declaration).fields.model_file ?? "");
+      return { address, modelFile };
+    } catch (failure) {
+      return { address, reason: String(failure?.message ?? failure) };
+    }
+  }));
+}
+
+export const modelsRoute = {
+  name: "models",
+  entry: "implementation",
+  title: "Process models",
+
+  async render(target, context) {
+    const { instance } = context;
+    const { defaultBranch } = await instance.host.repositoryInfo();
+    const [cat, declarations] = await Promise.all([
+      instance.host.readSnapshot(defaultBranch).then((snapshot) => catalogue(snapshot)), declarationsOf(context)]);
+
+    const row = (model, button) => {
+      const declaring = declarations.filter((declaration) => declaration.modelFile === model.path);
+      const findings = cat.findings[model.path] ?? [];
+      const item = el("li", "model", el("h4", null, model.name),
+        el("span", "kind", model.kind), explain("model-kind"),
+        el("ul", "products", ...declaring.map((declaration) => el("li", null, declaration.address))), explain("model-products"));
+      if (findings.length) {
+        item.append(el("ul", "findings", ...findings.map((finding) => el("li", null, `${finding.kind}: ${finding.what}`))), explain("model-findings"));
+      }
+      item.setAttribute("data-model", model.name);
+      item.append(button);
+      return item;
+    };
+    const to = (model) => `#models/name=${encodeURIComponent(model.name)}`;
+    const isOwn = (model) => model.path.startsWith(INSTANCE_MODELS);
+
+    const shipped = el("section", "shipped-models", el("h3", null, "Shipped models"), explain("models-shipped"),
+      el("ul", null, ...cat.models.filter((model) => !isOwn(model)).map((model) => row(model, link("Adapt", "adapt", to(model))))));
+    const own = el("section", "own-models", el("h3", null, "This instance's models"), explain("models-own"),
+      el("ul", null, ...cat.models.filter(isOwn).map((model) => row(model, link("Edit", "edit", to(model))))),
+      link("+ New model", "new-model", "#models/name="));
+
+    const unreadable = declarations.filter((declaration) => declaration.reason !== undefined);
+    const page = el("article", "models-page", el("h2", null, "Process models"));
+    if (unreadable.length) {
+      page.append(el("ul", "unreadable", ...unreadable.map((declaration) => el("li", "source", `${declaration.address}: ${declaration.reason}`))));
+    }
+    page.append(shipped, own);
+    target.replaceChildren(page);
+  },
+};
