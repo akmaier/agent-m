@@ -177,7 +177,8 @@ const ARC2_PATH = "docs/architecture/ARC-002-the-storage.md", ARC2 = decision("A
 const ALPHA_PATH = "docs/architecture/MOD-alpha.md", ALPHA = moduleFile("MOD-alpha", "Alpha");
 const BETA_PATH = "docs/architecture/MOD-beta.md", BETA = moduleFile("MOD-beta", "Beta"), BETA_EARLIER = moduleFile("MOD-beta", "Beta before");
 const ARCHITECTURE_PATHS = [ARC1_PATH, ARC2_PATH, ALPHA_PATH, BETA_PATH, MODULE_PATH];
-const ARCHITECTURE_FILES = { ...FILES, [ARC1_PATH]: ARC1, [ARC2_PATH]: ARC2, [ALPHA_PATH]: ALPHA, [BETA_PATH]: BETA,
+const { [MODULE_PATH]: _sample, ...WITHOUT_SAMPLE } = FILES;
+const ARCHITECTURE_FILES = { ...WITHOUT_SAMPLE, [ARC1_PATH]: ARC1, [ARC2_PATH]: ARC2, [ALPHA_PATH]: ALPHA, [BETA_PATH]: BETA, [MODULE_PATH]: MODULE,
   ...Object.fromEntries([record("ARC-001", "architecture-decision", ARC1_PATH, ARC1), record("MOD-alpha", "module", ALPHA_PATH, ALPHA),
     record("MOD-beta", "module", BETA_PATH, BETA_EARLIER)]) };
 const snapshotOf = (files) => ({ ...SNAPSHOT, paths: Object.keys(files), read: async (path) => (path in files ? files[path] : null),
@@ -284,7 +285,7 @@ const OWNER = "tests/approvals-strategies.test.mjs";
 const part = (name, body) => ({ name, text: body, sources: [], required: true, size: 0 });
 const STAND_INS = {
   recipes: { "whole-spec": async () => [part("SPEC.md", SPEC)], "chapters-for-architecture": async () => [part("chapters 9 to 12", "B")] },
-  checks: Object.fromEntries(["document-schema", "graph-checks", "candidate-classes"].map((name) => [name, () => []])),
+  checks: Object.fromEntries(["document-schema", "graph-checks", "identifier-kept", "candidate-classes"].map((name) => [name, () => []])),
   steps: { "due-diligence": async (draft) => ({ draft, findings: [] }) },
   writers: { "open-files": async () => ({ commits: [], files: [], pullRequest: null, shown: null }) },
 };
@@ -312,6 +313,7 @@ const jobContextOf = (kind, params) => ({ kind, params, ...architectureContext(p
 // expect: it does not throw UnknownStrategy; the parts of the recipe whole-architecture are the five files, none left out; with architecture: true the job is blocked by one finding naming the files not accepted, without it nothing blocks
 test("prepareJob — change-architecture finds every strategy it names, and its whole-architecture parts are every architecture file", async () => {
   register("recipes", "use-cases", approvalStrategies?.recipes?.["use-cases"]);
+  register("recipes", "accepted-use-cases", approvalStrategies?.recipes?.["accepted-use-cases"]);
   register("recipes", "whole-architecture", approvalStrategies?.recipes?.["whole-architecture"]);
   register("preconditions", "rests-on-accepted", approvalStrategies?.preconditions?.["rests-on-accepted"]);
   const kind = await kindOf("change-architecture");
