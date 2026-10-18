@@ -429,6 +429,8 @@ export async function listJobs(products, live) {
         source = { reachable: false, reason: error.message };
       }
       const jobLive = live.get(record.id) ?? null;
+      // A record that was read, whose runtime does not answer: the state stays as its record says, the source is not reachable.
+      if (source.reachable && jobLive && jobLive.reachable === false) source = { reachable: false, reason: jobLive.reason };
       rows.push({
         record, product: address, state: jobState(record, jobLive), elapsed: elapsedOf(record, jobLive),
         cost: costOf(record, jobLive), source,
