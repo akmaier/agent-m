@@ -69,7 +69,10 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 - `cards.mjs` — a card per product or Agent M's own card, its stage bar, whose stages are links, and its build.
 - `waits.mjs` — what waits for a person.
 - `reread.mjs` — the readings again: the jobs' states of the cards drawn, and nothing else.
-- `jobs.mjs` — the list of every job and a job's detail.
+- `jobs.mjs` — the list of every job and a job's detail. It also gives the parts of reading jobs that the cards share
+  with it: `bridgesOf`, a handle for each Bridge the records of jobs not ended name, and `liveStatesOf`, the live state
+  of each job whose record has not ended; and `sourcesOf`, the sources of the list — the instance's repository, then
+  each product this browser keeps.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `index.html`: named here as the main page, whose place the Pages site fixes; it loads `start.mjs` with this module's view; its greeting is drawn by `greeting.mjs`, and its footer by MOD-site-frame's `footer.mjs`.
   - `src/home/home.mjs`, `src/home/cards.mjs`, `src/home/home.css`: moved into this folder as the route `home` and its parts `cards.mjs` and `waits.mjs`, and removed from `src/home/`.
