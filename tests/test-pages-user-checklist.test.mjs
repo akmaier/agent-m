@@ -101,7 +101,7 @@ test("checklist — a release candidate's page lists its user-level tests with t
   assert.match(textOf(byClass(checklist(shown), "assigned")[0]), /akmaier/);
   assert.match(textOf(byClass(itemOf(shown, "TST-762901"), "expected")[0]), /the report lists every requirement with its evidence/);
   assert.match(textOf(byClass(itemOf(shown, "TST-762902"), "expected")[0]), /the tag of the release appears/);
-  assert.equal(checklist(await page({ schedule: SCHEDULE }, PLAIN)), undefined);
+  assert.ok(!checklist(await page({ schedule: SCHEDULE }, PLAIN)), "no checklist on a commit without a release candidate");
 });
 
 // TST-762002 · level: unit · module: MOD-test-pages
