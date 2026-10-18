@@ -30,6 +30,13 @@ const LABEL = { open: "open", accepted: "accepted", changed: "changed since acce
 const REVIEW_ALL = "all";
 // The id of the page that drafts files of a kind that has a job to draft them: #<route>/id=draft.
 const DRAFT = "draft";
+// The id of the page that shows the approval records of a kind, newest first: #<route>/id=history.
+const HISTORY = "history";
+// The commits of docs/approvals a page of the history reads.
+const HISTORY_PAGE = 20;
+// Where the approval records stand, and the identifier a record's name carries: docs/approvals/<identifier>-<blob12>.md.
+const APPROVALS = "docs/approvals";
+const RECORD_NAME = /^docs\/approvals\/(.+)-[0-9a-f]{12}\.md$/;
 // The kind of job whose record holds the rounds of the architecture shown.
 const ARCHITECTURE_JOB = "derive-architecture";
 
@@ -114,6 +121,11 @@ const approvalsService = {
     return [{ key: kind.kind, title: null, entries }];
   },
   accept: (where, shown, person) => acceptShown(where.host, shown, person),
+  // Whether an approval record's identifier is one of the kind's files in this snapshot.
+  owns(snapshot, kind) {
+    const ids = new Set([...statuses(snapshot).values()].filter((each) => each.kind === kind.kind).map((each) => each.id));
+    return (id) => ids.has(id);
+  },
 };
 const SERVICES = { approvals: approvalsService, queue: queueService };
 
@@ -154,6 +166,7 @@ export function reviewRoute(kind) {
     }
     else if (params.edit && params.id && kind.save === "entry") editor = (await showEntryEdit(where, kind, params.id)) ?? null;
     else if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
+    else if (params.id === HISTORY) await showHistory(where, params);
     else if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
     else if (params.id && service.view) await showEntry(where, params.id);
     else if (params.id) await showOne(where, params.id);
@@ -228,6 +241,36 @@ export function reviewRoute(kind) {
     }
     target.append(...tables);
     if (bar) target.append(bar);
+    target.append(link(`#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
+  }
+
+  // The history of the kind's changes: its approval records, newest first, each with the file it names, the person who committed it and the date. One readHistory of
+  // docs/approvals gives the commits and the records each added; only the texts of the kind's records are read, in a batch where the host has one.
+  async function showHistory(where, params) {
+    const { target, snapshot, host } = where;
+    const owns = service.owns(snapshot, kind);
+    const added = [];
+    // Twenty commits to a page, from the snapshot's commit, or from the parent of the last commit of the page before (`before`).
+    const commits = await host.readHistory(APPROVALS, { ref: params.before ?? snapshot.commit ?? undefined, limit: HISTORY_PAGE });
+    for (const entry of commits) {
+      for (const change of entry.changes) {
+        const id = change.change === "added" ? RECORD_NAME.exec(change.path)?.[1] : undefined;
+        if (id !== undefined && owns(id)) added.push({ id, path: change.path, entry });
+      }
+    }
+    await snapshot.readMany?.(added.map((record) => record.path));
+    const rows = el("tbody");
+    for (const { id, path, entry } of added) {
+      const body = await snapshot.read(path);
+      const fields = body === null ? {} : readDocument(approvalSchema, path, body).fields;
+      const row = el("tr", null, el("td", null, fields.file ?? fields.proposal ?? path), el("td", null, entry.author.account ?? entry.author.name), el("td", null, entry.date));
+      row.setAttribute("data-id", id);
+      rows.append(row);
+    }
+    target.append(el("h2", null, `History of ${kind.plural}`), explain(kind.explain.list),
+      el("table", "list history", el("thead", null, el("tr", null, el("th", null, "File"), el("th", null, "Person"), el("th", null, "Date"))), rows));
+    const parent = commits.length === HISTORY_PAGE ? commits.at(-1).parents[0] : undefined;
+    if (parent) target.append(link(`#${kind.route}/id=${HISTORY}/before=${encodeURIComponent(parent)}`, "older-link", "Older"));
   }
 
   // The file as it will be accepted, rendered with its diagrams; of the whole architecture's further decisions with their due diligence. Below its difference
