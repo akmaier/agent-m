@@ -73,9 +73,11 @@ uses:
   - MOD-resource-list.readPin
   - MOD-resource-list.checkPlan
   - MOD-resource-list.newerState
+  - MOD-resource-list.namedBy
   - MOD-resource-list.resourceStrategies
   - MOD-reuse-facts.registryFacts
   - MOD-reuse-facts.hubFacts
+  - MOD-reuse-facts.repositoryFacts
   - MOD-personal-data.settingsSchemas
   - MOD-personal-data.pseudonymisationOf
   - MOD-personal-data.namedPersonFindings
@@ -169,7 +171,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
     whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
     reason and the routes that would work when a browser may not call it; *Clear*.
-  - `participants` — the instance's participants in a form from the participant schema: type, model, context and price,
+  - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the
+    parameters `type` and `address` where the route is opened with them: type, model, context and price,
     capabilities, processing place, route; for a CLI or sandboxed agent, the Bridge it runs on, chosen among this
     browser's Bridges, the agents that Bridge offers, and *Test* through it — or, for a subagent, the CLI agent that
     starts it, which it is reached through and which the prompt bar talks to instead (UC-017 step 3); for a model
@@ -188,8 +191,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     with the requirements that name the source listed first.
   - `resources`, `resources/instance` — a product's or the instance's resources in a form from the resource schema; the
     pin, licence and maintainer read where they can be; the route; the secret by name only; the processing place;
-    *Check* through the Bridge the route names, or as a check job on its runner with its run panel; a newer state
-    upstream with *Move*;
+    *Check* through the Bridge the route names, or as a check job on its runner with its run panel; for a repository, the
+    facts of MOD-reuse-facts' `repositoryFacts`; for a key kept in this browser (secret `browser`), its field, stored as
+    `resource-key:<name>`; a newer state upstream with *Move*, and on *Move* and on *Remove* the jobs and tests that name
+    the resource (MOD-resource-list's `namedBy`), listed and not changed; for an endpoint or agent that also works on the
+    product, *Add as participant*, which opens `participants` with its parameters `type` and `address` filled in;
     *Copy from the instance*.
   - `mailbox` — the route recognised from the address; for Microsoft 365 the app registration's steps and the sign-in
     with its permissions named before the provider's window opens; for every other mailbox the servers and ports, the
@@ -257,8 +263,9 @@ reaches.
 - MOD-text-tools.sha256 — the files of a source hashed in the browser; MOD-text-tools.finding — the findings a form's
   checks give.
 - MOD-resource-list.resourceSchema, MOD-resource-list.resourceFindings, MOD-resource-list.readPin,
-  MOD-resource-list.checkPlan, MOD-resource-list.newerState — resources; MOD-resource-list.resourceStrategies — the
-  recipe of a check job, handed to the frame; MOD-reuse-facts.registryFacts, MOD-reuse-facts.hubFacts — what a
+  MOD-resource-list.checkPlan, MOD-resource-list.newerState, MOD-resource-list.namedBy — resources, and the jobs and
+  tests that name one; MOD-resource-list.resourceStrategies — the
+  recipe of a check job, handed to the frame; MOD-reuse-facts.registryFacts, MOD-reuse-facts.hubFacts, MOD-reuse-facts.repositoryFacts — what a
   repository or the Hugging Face Hub says about a resource.
 - MOD-personal-data.settingsSchemas, MOD-personal-data.pseudonymisationOf, MOD-personal-data.namedPersonFindings — a
   product's pseudonymisation and collaborators, and the files that still name a collaborator who withdrew.

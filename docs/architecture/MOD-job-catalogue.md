@@ -139,7 +139,8 @@ the cases it was handed, each with its counter-proof.
 For `derive-requirements`, `change-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the
 latter for tests that pass before any code exists (UC-024, UC-034); for `write-tests`, `before-merge`. `implement`,
-`refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`.
+`refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`, and each of them names among its recipes
+MOD-resource-list's `resource-pins`, which gives the job the product's resources its route reaches with their pins.
 
 A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it — the linked
 register entry that MOD-source-register's `personSource` names for their account —, so that every requirement it drafts
