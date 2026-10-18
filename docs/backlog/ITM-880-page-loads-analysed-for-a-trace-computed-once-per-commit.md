@@ -61,31 +61,25 @@ tree alone, or also of something outside it:
 
 Only results of the first kind can be computed once per commit.
 
-**3. Weigh where a once-per-commit result would live and who writes it.** For each option, state the gain against step 1's
-numbers, and what CI costs within the two-minute limit per job. The options to compare:
+**3. Weigh where in the repository a once-per-commit result lives and who writes it.** akmaier's direction: the result is
+"precomputed and read from git". For each place, state the gain against step 1's numbers, and what CI costs within the
+two-minute limit per job. The places to compare:
 - a file committed by CI on each commit to `main`;
-- a file on a separate branch;
-- a CI artifact;
-- GitHub Pages;
-- a cache keyed by the commit in the browser.
+- a file on a separate branch, named by the commit it was computed from.
 
-**4. Check the design against the SPEC as a whole.** Quote these binding sentences and state, for each, whether the design
-meets it as written, or needs a change for akmaier:
-- `THE TRACEABILITY MATRIX IS DERIVED` — "computed from the artifacts and is never stored as a separately edited document";
-- `PROGRESS AND JOB STATE ARE DERIVED, NOT STORED` — "Neither dashboard stores a status of its own";
-- `STATUS IS DERIVED FROM THE RECORDS`;
-- `THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK` — a writer other than the dashboard;
-- `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
-
-Also state what a page shows when the precomputed result is missing, or names a commit other than the one shown. Check the
-design against the design principles of AGENTS.md §2 and the book's chapters 10 and 12.
+**4. Check the design against the SPEC as a whole.** akmaier's ruling of 2026-10-18: "There is no violation of spec: a
+precomputed state, is part of the repo, not the dashboard." The precomputed result is part of the repository, so the
+dashboard derives what it shows from the repository and stores no status of its own; this item does not draft a SPEC change
+for it. State what a page shows when the precomputed result is missing, or names a commit other than the one shown, and keep
+`A PAGE LOAD READS THE REPOSITORY IN BATCHES` for every file still read. Check the design against the design principles of
+AGENTS.md §2 and the book's chapters 10 and 12.
 
 ## Acceptance
 
 - A MEASUREMENT under `docs/measurements/` gives step 1's numbers for every page named, with its method and a known
   positive for each count (AGENTS.md §6a.2), on a named commit.
 - The measurement states, for each computed result, whether it depends on the commit alone (step 2).
-- The measurement compares the options of step 3 by gain and cost, and recommends one, or none if the gain is small.
-- For the recommendation, each SPEC sentence of step 4 is quoted and judged. What needs a change is drafted for akmaier as
-  a SPEC change and module text drafts, never committed as binding.
+- The measurement compares the places of step 3 by gain and cost, and recommends one, or none if the gain is small.
+- For the recommendation, the module texts it changes are drafted for akmaier's acceptance (step 4), never committed as
+  accepted.
 - The build items the recommendation needs are registered, each building on this item.
