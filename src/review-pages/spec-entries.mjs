@@ -26,6 +26,15 @@ const idOf = (queue, number) => entryId(queue.folder, number);
 const acceptable = (item) => item.state === "open" || item.state === "stale";
 // An entry a person may tick: also one that waits for its anchor, which goes with the entry that creates it.
 const tickable = (item) => acceptable(item) || item.state === "waiting for its anchor";
+// The rows Review all shows: the entries a click may accept, and those that wait for an anchor an entry of the sequence creates. rows: { id, state, after }.
+const sequenceOf = (rows) => {
+  const inside = new Set(rows.filter((row) => row.state === "open" || row.state === "stale").map((row) => row.id));
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const row of rows) if (row.state === "waiting for its anchor" && row.after && inside.has(row.after) && !inside.has(row.id)) { inside.add(row.id); grew = true; }
+  }
+  return rows.filter((row) => inside.has(row.id));
+};
 const shownOf = (queue, item, view) => ({ queue: queue.folder, entry: item.number, proposalBlob: view.proposal.blob, sectionBlob: view.current?.blob ?? "" });
 // The tick of the list: the proposal's blob from the queue's tree, the section that holds now from its target read once (no impact list).
 const tickOf = async (queue, item, readOnce) => {
@@ -70,6 +79,7 @@ async function described(all, queue, item, snapshot, context, hrefOf) {
   const result = { title: `${shortOf(queue.folder)} · entry ${pad2(item.number)}`, status: view.state.replaceAll(" ", "-"), label: view.state,
     nodes: entrySections(view, others, order, hrefOf), hold: null, shown: null, record: null, edit: view.state === "open" };
   if (view.state === "waiting for its anchor") {
+    result.shown = [shownOf(queue, item, view)];
     result.hold = el("p", "waits", view.createdBy === null ? "Its heading is in no entry of the queue: it cannot be accepted."
       : `It goes only with or after entry ${pad2(view.createdBy)}, which creates its heading: accept them together.`);
     return result;
@@ -101,7 +111,7 @@ export const queueService = {
       for (const item of queue.entries) {
         let tick = null;
         if (token && tickable(item)) tick = await tickOf(queue, item, readOnce);
-        entries.push({ id: idOf(queue, item.number), name: pad2(item.number), title: item.anchor, status: item.state.replaceAll(" ", "-"), label: item.state, tick });
+        entries.push({ after: item.createdBy === null || item.createdBy === undefined ? null : idOf(queue, item.createdBy), id: idOf(queue, item.number), name: pad2(item.number), title: item.anchor, status: item.state.replaceAll(" ", "-"), label: item.state, tick });
       }
       groups.push({ key: shortOf(queue.folder), title: queue.title || shortOf(queue.folder), entries });
     }
@@ -119,19 +129,20 @@ export const queueService = {
     return described(all, queue, item, snapshot, context, hrefOf);
   },
 
-  // Review all: every entry a click may accept (open, or stale), each as view gives it, in the order of the entries' identifiers; the files of all of them are asked for in one batch.
+  // Review all: every entry a click may accept (open, or stale) or that waits for an entry of the sequence, each as view gives it, in the order of the entries' identifiers; the files of all of them are asked for in one batch.
   async all({ snapshot, context }, hrefOf) {
     const all = await queues(snapshot);
-    const reviewable = all.flatMap((queue) => queue.entries.filter(acceptable).map((item) => ({ queue, item, id: idOf(queue, item.number) })))
-      .sort((a, b) => a.id.localeCompare(b.id));
+    const rows = all.flatMap((queue) => queue.entries.map((item) => ({ queue, item, id: idOf(queue, item.number), state: item.state,
+      after: item.createdBy === null ? null : idOf(queue, item.createdBy) })));
+    const reviewable = sequenceOf(rows).sort((a, b) => a.id.localeCompare(b.id));
     await snapshot.readMany?.([...new Set(reviewable.flatMap(({ item }) => [item.file, item.proposal.path, item.rationale]).concat(sourcePaths(snapshot, context)).filter(Boolean))]);
     const entries = [];
-    for (const { queue, item, id } of reviewable) entries.push({ id, ...(await described(all, queue, item, snapshot, context, hrefOf)) });
+    for (const { queue, item, id, after } of reviewable) entries.push({ id, after, ...(await described(all, queue, item, snapshot, context, hrefOf)) });
     return entries;
   },
 
   // How many entries Review all shows, from the groups of the list.
-  count: (groups) => groups.flatMap((group) => group.entries).filter((entry) => entry.label === "open" || entry.label === "stale").length,
+  count: (groups) => sequenceOf(groups.flatMap((group) => group.entries).map((entry) => ({ id: entry.id, state: entry.label, after: entry.after }))).length,
 
   // The entries of `shown` whose proposal or section is no longer what was shown, read from the default branch now: { entry, reason }.
   async changedSince({ host }, shown) {

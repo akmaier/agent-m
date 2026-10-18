@@ -341,7 +341,18 @@ export function reviewRoute(kind) {
         accept.disabled = true;
         try {
           const changed = await service.changedSince(where, shown);
+          // An entry that waits for an anchor goes only with the entry that creates it: left out with it, and named.
           const left = new Set(changed.map((out) => out.path));
+          for (let grew = true; grew;) {
+            grew = false;
+            for (const entry of entries) {
+              if (entry.shown && entry.after && left.has(entry.after) && !left.has(entry.id)) {
+                left.add(entry.id);
+                changed.push({ path: entry.id, reason: `it goes with ${entry.after}, which was left out`, names: [] });
+                grew = true;
+              }
+            }
+          }
           const rest = shown.filter((each) => !left.has(service.idOf(each)));
           const result = rest.length ? await service.accept(where, rest, token.name) : { commit: null, leftOut: [] };
           const message = result.refusal ? el("p", "result problem", result.refusal)
