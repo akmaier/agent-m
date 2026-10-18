@@ -36,7 +36,7 @@ const FULL = {
 };
 
 function fullExpected(id, path, line) {
-  return { id, path, line, ...FULL };
+  return { id, title: null, path, line, ...FULL };
 }
 
 // The text of a test file, every key of FULL on its own line in `marker`'s comment, the identifier `id` on the first.
@@ -119,7 +119,7 @@ test("a Markdown heading declaration is read with every key — MOD-test-documen
     "",
   ].join("\n");
   assert.deepEqual(testDeclarations(path, text), [
-    { id: "TST-003", path, line: 3, ...FULL, level: "user" },
+    { id: "TST-003", title: "A sample manual test", path, line: 3, ...FULL, level: "user" },
   ]);
 });
 
@@ -143,6 +143,7 @@ test("a declaration missing a key is read with that key null — MOD-test-docume
   ].join("\n");
   assert.deepEqual(testDeclarations(path, text), [{
     id: "TST-004",
+    title: null,
     level: "unit",
     module: "MOD-sample",
     guards: ["A SAMPLE REQUIREMENT"],
@@ -187,11 +188,11 @@ test("a declaration ends at the first line not of its form, and a later one stil
   ].join("\n");
   assert.deepEqual(testDeclarations(path, text), [
     {
-      id: "TST-005", level: "unit", module: "MOD-sample", guards: ["A SAMPLE REQUIREMENT"],
+      id: "TST-005", title: null, level: "unit", module: "MOD-sample", guards: ["A SAMPLE REQUIREMENT"],
       given: null, input: null, expect: null, runs: null, phrasings: null, paid: null, path, line: 1,
     },
     {
-      id: "TST-006", level: "component", module: "MOD-other", guards: ["UC-900"],
+      id: "TST-006", title: null, level: "component", module: "MOD-other", guards: ["UC-900"],
       given: "a second precondition", input: "a second input", expect: "a second expected result",
       runs: null, phrasings: null, paid: null, path, line: 10,
     },
@@ -223,6 +224,7 @@ test("a following line whose value holds ' · ' does not end the declaration —
   ].join("\n");
   assert.deepEqual(testDeclarations(path, text), [{
     id: "TST-014",
+    title: null,
     level: "unit",
     module: "MOD-text-tools",
     guards: ["A FINDING READS LIKE A COMPILER MESSAGE"],
@@ -260,4 +262,84 @@ test("a file without a declaration yields none — MOD-test-document", () => {
     "",
   ].join("\n");
   assert.deepEqual(testDeclarations("fixtures/no-declaration.md", markdown), []);
+});
+
+// ---------------------------------------------------------------- the title of a declaration (ITM-888)
+//
+// MOD-test-document, Data: the title is, for a manual test, the heading's `<title>`; for a test in code, the name the test case
+// gives itself on the first line after the declaration — its first string literal, or else the name it defines —; null where
+// neither is found.
+
+// The declaration of a test, as lines in `marker`'s comment, ending where the test case's own first line begins.
+function declared(marker, id) {
+  return [`${marker} ${id} · level: unit · module: MOD-sample`, `${marker} guards: A SAMPLE REQUIREMENT`];
+}
+
+// TST-888001 · level: unit · module: MOD-test-document
+// guards: UC-029; EVERY TEST HAS ONE LEVEL
+// given: a JavaScript file whose declaration TST-701 is followed by the line `test("a sample case — MOD-sample", () => {` and TST-702 by `it('a second case', () => {})`
+// input: that file's text
+// expect: the titles "a sample case — MOD-sample" and "a second case", the first string literal of each line
+test("a JavaScript test case's title is its first string literal — MOD-test-document", () => {
+  const path = "fixtures/title-js.test.mjs";
+  const text = [
+    ...declared("//", "TST-701"),
+    'test("a sample case — MOD-sample", () => {',
+    "});",
+    ...declared("//", "TST-702"),
+    "it('a second case', () => {})",
+    "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations(path, text).map((d) => [d.id, d.title]), [
+    ["TST-701", "a sample case — MOD-sample"],
+    ["TST-702", "a second case"],
+  ]);
+});
+
+// TST-888002 · level: unit · module: MOD-test-document
+// guards: UC-029; EVERY TEST HAS ONE LEVEL
+// given: a Python file whose declaration TST-703 is followed by the line `def test_sample_case(tmp_path):`, and one whose declaration TST-704 is followed by `def test_with_default(label="a literal"):`
+// input: each file's text
+// expect: the title "test_sample_case", the name it defines, for TST-703; and "a literal", the first string literal, for TST-704
+test("a Python test case's title is the name it defines, a string literal first — MOD-test-document", () => {
+  const first = [...declared("#", "TST-703"), "def test_sample_case(tmp_path):", "    pass", ""].join("\n");
+  const second = [...declared("#", "TST-704"), 'def test_with_default(label="a literal"):', "    pass", ""].join("\n");
+  assert.deepEqual(testDeclarations("fixtures/title.py", first).map((d) => d.title), ["test_sample_case"]);
+  assert.deepEqual(testDeclarations("fixtures/title.py", second).map((d) => d.title), ["a literal"]);
+});
+
+// TST-888003 · level: unit · module: MOD-test-document
+// guards: UC-029; EVERY TEST HAS ONE LEVEL
+// given: a declaration TST-705 at the end of a file, one followed by a blank line and then `test("not on the first line", …)`, and one followed by a line `setup();` that holds neither a string literal nor a definition
+// input: that file's text
+// expect: the title of each is null
+test("a declaration with no string literal and no name on its next line has the title null — MOD-test-document", () => {
+  const path = "fixtures/title-none.test.mjs";
+  const text = [
+    ...declared("//", "TST-705"),
+    "",
+    'test("not on the first line", () => {});',
+    ...declared("//", "TST-706"),
+    "setup();",
+    ...declared("//", "TST-707"),
+  ].join("\n");
+  assert.deepEqual(testDeclarations(path, text).map((d) => [d.id, d.title]), [
+    ["TST-705", null], ["TST-706", null], ["TST-707", null],
+  ]);
+});
+
+// TST-888004 · level: unit · module: MOD-test-document
+// guards: UC-029; EVERY TEST HAS ONE LEVEL
+// given: a Markdown file with the headings '### TST-709 Open the review page' and '### TST-710' (no title) and a JavaScript file whose declaration TST-708 is followed by `function check() {}`
+// input: each file's text
+// expect: the titles "Open the review page" and null for the headings; "check" for TST-708, the name the function defines
+test("a manual test's title is its heading's title; a function's name is a title — MOD-test-document", () => {
+  const manual = [
+    "### TST-709 Open the review page", "level: user", "", "### TST-710", "level: user", "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations("fixtures/manual.md", manual).map((d) => [d.id, d.title]), [
+    ["TST-709", "Open the review page"], ["TST-710", null],
+  ]);
+  const code = [...declared("//", "TST-708"), "function check() {}", ""].join("\n");
+  assert.deepEqual(testDeclarations("fixtures/title-function.test.mjs", code).map((d) => d.title), ["check"]);
 });
