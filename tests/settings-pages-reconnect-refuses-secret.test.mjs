@@ -20,8 +20,8 @@
 // into a repository managed by Agent M") and from the sentence of MOD-repository-hosts' `commitFiles` that a file whose text holds a
 // configured secret refuses the whole commit with `SecretRefused` and writes nothing; none is read from a document when a test runs.
 // A key stored as the key of a model endpoint is such a credential. After each of the places above, the commit of a text that holds
-// it is refused as `SecretRefused` (the product's: the rejection of the button's handler; the instance's: the message the page shows,
-// which names the file and says that it holds a configured secret) and no write request reaches either server. The known positives
+// it is refused as `SecretRefused` (on either host: the message the page shows in its result line, which names the file and says that
+// it holds a configured secret) and no write request reaches either server. The known positives
 // (AGENTS.md 6a.2): after each of the places, a collaborator named "Alice Example", whose name holds no secret, is committed to the
 // product (one write, with that name); and where no endpoint key is stored, the switch of recording conversations is saved to the
 // instance after a place (one write, with `recording: on`). The instance's text is fixed by the page, so SECRET is the value
@@ -121,6 +121,8 @@ const PLACES = {
   },
 };
 
+const byResult = (nodes) => controls(nodes(), "settings-collaborator-result")[0].textContent;
+
 // Save a collaborator named `name` through the product host the page holds. -> the error the press rejects with, or null.
 async function collaborate(nodes, name) {
   controls(nodes(), "settings-collaborator-name")[0].value = name;
@@ -138,7 +140,9 @@ async function productRefuses(place) {
   await PLACES[place](page);
   const refused = await collaborate(page.nodes, SECRET);
   await settle(page.srv);
-  assert.equal(refused?.name, "SecretRefused", `the commit of a collaborator named by the stored secret is refused as SecretRefused (it was ${refused?.name ?? "not refused"})`);
+  assert.equal(refused, null, `the press of Save collaborator does not reject (it rejected with ${refused?.name})`);
+  const shown = byResult(page.nodes);
+  assert.equal(/docs\/collaborators\.md holds a configured secret — nothing was written/.test(shown), true, `the commit of a collaborator named by the stored secret is refused, and the result line says so (it says: ${shown})`);
   assert.deepEqual(page.product.writes.map((write) => write.message), [], "nothing was written to the product");
   const accepted = await collaborate(page.nodes, "Alice Example");
   await settle(page.srv);
@@ -173,7 +177,7 @@ async function instanceRefuses(place) {
 // guards: NO SECRET IN THE REPOSITORY
 // given: the live page on a GitHub product's pages that has drawn Settings, SECRET stored as the key of the endpoint ep1, the instance's token and the product's own token stored
 // input: go through the place named, then save a collaborator named SECRET, then one named "Alice Example"
-// expect: the first commit is refused as SecretRefused and writes nothing; the second is written, once, with that name, and no write holds SECRET
+// expect: the first press resolves, the result line says docs/collaborators.md holds a configured secret and nothing was written, and nothing is written; the second is written, once, with that name, and no write holds SECRET
 test("TST-868001 · after Clear on the line of the GitHub token, the product host refuses a commit that holds a stored secret", async () => {
   await productRefuses("Clear on the line of the GitHub token");
 });
