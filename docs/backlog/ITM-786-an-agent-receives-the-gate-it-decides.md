@@ -9,6 +9,7 @@ realises:
 modules:
   - MOD-product-process
 builds_on:
+  - ITM-632
 tests:
   - unit
 origin:
@@ -47,3 +48,13 @@ names them. The writer `gate-record` takes the same keys. MOD-job-ledger is not 
 Who starts a `decide-gate` job is no part of this item (its Acceptance asks for `prepareJob`). The item is buildable as it
 stands. While team 1's sprint 87 runs, MOD-product-process is used by MOD-settings-pages and MOD-trace-pages, so the
 item is held.
+
+**Stopped at its stop clause (sprint team1/92, developer-sonnet-a).** `prepareJob` reads each part's `sources` to check
+the participant's place (`src/job-runner/prepare.mjs:34-45`, `:70`). A gate's artifact under a `context.places.contents`
+path must carry its source, which MOD-job-runner's `sourcesOf` gives (MOD-job-runner.md:313-315). `sourcesOf` is not
+built (ITM-632), and MOD-product-process.md does not name it in its uses. The draft for akmaier adds it. This item waits
+for that acceptance and for ITM-632, as ITM-615 and ITM-618 did at sprint team1/61.
+- **Read at its start:** no item adds `processStrategies` to the composers' strategy lists
+  (`src/workflow-entries/compose.mjs:129-131`, `src/desktop-shell/compose.mjs:16-18`, `src/prompt-bar/hand-over.mjs:43`).
+  Whether this item or another registers it is read against those modules' texts when it starts.
+
