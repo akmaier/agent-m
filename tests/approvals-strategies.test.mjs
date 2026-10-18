@@ -3,8 +3,10 @@
 // carrying its use case as an artifact keyed by the key of its format; the recipe use-case-with-neighbours, the use case the
 // job's parameters name, every requirement it realises with its text from the SPEC, and every other use case; and the
 // precondition rests-on-accepted for requirements and use cases, an error finding that names every one of the job's selection
-// that is not accepted. The recipes accepted-use-cases and whole-architecture, the precondition architecture-ready and the
-// architecture's part of rests-on-accepted are not part of this item (ITM-332).
+// that is not accepted. The recipes accepted-use-cases, the precondition architecture-ready are not part of this item (ITM-332).
+// The recipe whole-architecture — every architecture decision and module file, one part per file, carrying its file as an artifact
+// keyed by the key of its format — and the architecture's part of rests-on-accepted are ITM-724's, below: the module file names no
+// parameter that asks for the architecture, so this file takes the reading of the item, the parameter `architecture: true`.
 // Run: node --test tests/approvals-strategies.test.mjs
 //
 // Module: MOD-approvals
@@ -26,6 +28,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import * as approvalsModule from "../src/approvals/index.mjs";
+import { kindOf } from "../src/job-catalogue/index.mjs";
+import { prepareJob, registerStrategies } from "../src/job-runner/index.mjs";
 
 // A name the module does not provide yet is undefined here, so that each test fails by itself and not the whole file at once.
 const { approvalStrategies } = approvalsModule;
@@ -159,4 +163,167 @@ test("rests-on-accepted — a selection of accepted requirements and use cases p
 
   assert.equal(await rests(contextOf({ requirements: ["A SAMPLE RULE", "ANOTHER SAMPLE RULE"], useCases: ["UC-001"] })), null);
   assert.equal(await rests(contextOf({})), null);
+});
+
+// ---------------------------------------------------------------- the architecture (ITM-724)
+
+// The same product with an architecture: two decisions, ARC-001 whose current text a record names (accepted) and ARC-002 that no record
+// names (open); and three module files, MOD-alpha accepted, MOD-beta whose record names an earlier text (changed), and MOD-sample of the
+// product above (open). The paths stand in this order; ARC_OPEN_PARTS is the order the parts are expected in.
+const decision = (id, title) => text("---", `id: ${id}`, `title: ${title}`, "forced_by:", "  - UC-001", "---", `# ${id} ${title}`);
+const moduleFile = (id, title) => text("---", `id: ${id}`, `title: ${title}`, "folder: src/x/", "---", `# ${id} ${title}`);
+const ARC1_PATH = "docs/architecture/ARC-001-the-system.md", ARC1 = decision("ARC-001", "The system");
+const ARC2_PATH = "docs/architecture/ARC-002-the-storage.md", ARC2 = decision("ARC-002", "The storage");
+const ALPHA_PATH = "docs/architecture/MOD-alpha.md", ALPHA = moduleFile("MOD-alpha", "Alpha");
+const BETA_PATH = "docs/architecture/MOD-beta.md", BETA = moduleFile("MOD-beta", "Beta"), BETA_EARLIER = moduleFile("MOD-beta", "Beta before");
+const ARCHITECTURE_PATHS = [ARC1_PATH, ARC2_PATH, ALPHA_PATH, BETA_PATH, MODULE_PATH];
+const { [MODULE_PATH]: _sample, ...WITHOUT_SAMPLE } = FILES;
+const ARCHITECTURE_FILES = { ...WITHOUT_SAMPLE, [ARC1_PATH]: ARC1, [ARC2_PATH]: ARC2, [ALPHA_PATH]: ALPHA, [BETA_PATH]: BETA, [MODULE_PATH]: MODULE,
+  ...Object.fromEntries([record("ARC-001", "architecture-decision", ARC1_PATH, ARC1), record("MOD-alpha", "module", ALPHA_PATH, ALPHA),
+    record("MOD-beta", "module", BETA_PATH, BETA_EARLIER)]) };
+const snapshotOf = (files) => ({ ...SNAPSHOT, paths: Object.keys(files), read: async (path) => (path in files ? files[path] : null),
+  blob: (path) => (path in files ? blobOf(files[path]) : null) });
+const architectureContext = (params = {}, files = ARCHITECTURE_FILES) =>
+  ({ params, product: { address: ADDRESS, snapshot: snapshotOf(files), host: null } });
+// The files not accepted, and the files accepted.
+const NOT_ACCEPTED_PATHS = [ARC2_PATH, BETA_PATH, MODULE_PATH], ACCEPTED_PATHS = [ARC1_PATH, ALPHA_PATH];
+
+// TST-724001 · level: unit · module: MOD-approvals
+// guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; UC-023
+// given: the product above, whose files hold two decisions (one accepted, one open), three module files (accepted, changed, open), three use cases and a SPEC
+// input: the recipe whole-architecture, with the job's context and no parameter
+// expect: five parts, one per decision and module file and none for a use case, the SPEC or a record, in the order the files stand: each part's name holds its file's path and its status, its text is the whole file, and it carries one artifact — the identifier and the key of its format (a decision's title, a module's identifier)
+test("whole-architecture — one part per decision and module file, with its status, carrying the file as an artifact keyed by its format", async () => {
+  const parts = await approvalStrategies.recipes["whole-architecture"](architectureContext(), {});
+
+  const expected = [[ARC1_PATH, "accepted", ARC1, "ARC-001", "The system"], [ARC2_PATH, "open", ARC2, "ARC-002", "The storage"],
+    [ALPHA_PATH, "accepted", ALPHA, "MOD-alpha", "MOD-alpha"], [BETA_PATH, "changed", BETA, "MOD-beta", "MOD-beta"],
+    [MODULE_PATH, "open", MODULE, "MOD-sample", "MOD-sample"]];
+  assert.equal(parts.length, 5);
+  expected.forEach(([path, status, body, id, key], at) => {
+    const name = parts[at].name;
+    assert.ok(name.includes(path) && name.includes(status), `${name} holds ${path} and ${status}`);
+    assert.equal(parts[at].text, body);
+    assert.deepEqual(parts[at].artifacts, [{ id, keys: [key] }]);
+  });
+});
+
+// TST-724002 · level: unit · module: MOD-approvals
+// guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; UC-023
+// given: the use-case-only product of the tests above, which holds a module file but no decision, and a product without any architecture file
+// input: the recipe whole-architecture for each
+// expect: the first gives its one module file as one part; the second gives no part (an empty list), not a failure
+test("whole-architecture — a product with no decision gives only its module files, and one with no architecture file gives none", async () => {
+  const recipe = approvalStrategies.recipes["whole-architecture"];
+
+  assert.deepEqual((await recipe(contextOf(), {})).map((each) => each.text), [MODULE]);
+
+  const bare = Object.fromEntries(Object.entries(FILES).filter(([path]) => path !== MODULE_PATH));
+  assert.deepEqual(await recipe(architectureContext({}, bare), {}), []);
+});
+
+// TST-724003 · level: unit · module: MOD-approvals
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; UC-023
+// given: the architecture product above; the parameter architecture: true
+// input: the precondition rests-on-accepted, with the job's context
+// expect: one finding, an error under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED in one line, that names by path the open decision, the changed module file and the open module file — and neither accepted file
+test("rests-on-accepted — asked for the architecture, an open and a changed file of it are named and the accepted ones are not", async () => {
+  const found = await approvalStrategies.preconditions["rests-on-accepted"](architectureContext({ architecture: true }));
+
+  assert.equal(found.kind, "error");
+  assert.equal(found.rule, ACCEPTED_FIRST);
+  assert.ok(Number.isInteger(found.line) && found.line >= 1);
+  for (const path of NOT_ACCEPTED_PATHS) assert.ok(found.what.includes(path), `${path} is named in: ${found.what}`);
+  for (const path of ACCEPTED_PATHS) assert.ok(!found.what.includes(path), `${path} is not named in: ${found.what}`);
+  for (const own of [found.what, found.fix]) assert.match(own, /^[^\n]+$/);
+});
+
+// TST-724004 · level: unit · module: MOD-approvals
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-023
+// given: the architecture product above, with the files not accepted; the known positive of the test before; then the parameter architecture absent, false, and a selection of accepted requirements and use cases only; then an architecture all of whose files are accepted, with architecture: true
+// input: the precondition rests-on-accepted, with the job's context for each
+// expect: the known positive gives a finding; without the parameter or with false it gives none (null), the architecture is not asked; with every file accepted it gives none
+test("rests-on-accepted — nothing of the architecture is named when it is not asked for, and nothing when all of it is accepted", async () => {
+  const rests = approvalStrategies.preconditions["rests-on-accepted"];
+  assert.notEqual(await rests(architectureContext({ architecture: true })), null, "known positive: files not accepted are found when asked");
+
+  assert.equal(await rests(architectureContext({})), null);
+  assert.equal(await rests(architectureContext({ architecture: false })), null);
+  assert.equal(await rests(architectureContext({ requirements: ["A SAMPLE RULE"], useCases: ["UC-001"] })), null);
+
+  const accepted = { [ARC1_PATH]: ARC1, [ALPHA_PATH]: ALPHA, ...Object.fromEntries([record("ARC-001", "architecture-decision", ARC1_PATH, ARC1),
+    record("MOD-alpha", "module", ALPHA_PATH, ALPHA)]) };
+  assert.equal(await rests(architectureContext({ architecture: true }, { ...FILES, ...accepted, ...Object.fromEntries([
+    record("MOD-sample", "module", MODULE_PATH, MODULE)]) })), null);
+});
+
+// TST-724005 · level: unit · module: MOD-approvals
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-023
+// given: the architecture product above; the selection of TST-472024 (A PROPOSED RULE, UC-002, UC-003, UC-099 not accepted; A SAMPLE RULE and UC-001 accepted), with and without architecture: true
+// input: the precondition rests-on-accepted, with the job's context for each
+// expect: without the parameter the finding names exactly what TST-472024 expects and none of the architecture's paths; with it, the same finding names those and, in the same finding, the three files not accepted
+test("rests-on-accepted — the findings for requirements and use cases stay as they are beside the architecture's", async () => {
+  const rests = approvalStrategies.preconditions["rests-on-accepted"];
+  const selection = { requirements: ["A SAMPLE RULE", "A PROPOSED RULE"], useCases: ["UC-001", "UC-002", "UC-003", "UC-099"] };
+
+  const plain = await rests(architectureContext(selection));
+  const asked = await rests(architectureContext({ ...selection, architecture: true }));
+
+  for (const found of [plain, asked]) {
+    for (const [name, expected] of [["A PROPOSED RULE", true], ["UC-002", true], ["UC-003", true], ["UC-099", true],
+      ["A SAMPLE RULE", false], ["UC-001", false]]) assert.equal(found.what.includes(name), expected, `${name}: ${found.what}`);
+  }
+  for (const path of ARCHITECTURE_PATHS) assert.equal(plain.what.includes(path), false, `${path} in: ${plain.what}`);
+  for (const path of NOT_ACCEPTED_PATHS) assert.ok(asked.what.includes(path), `${path} in: ${asked.what}`);
+  for (const path of ACCEPTED_PATHS) assert.ok(!asked.what.includes(path), `${path} in: ${asked.what}`);
+});
+
+// ---------------------------------------------------------------- the job runner
+
+// The strategies change-architecture names besides this module's: stand-ins, each skipped where a module registered the name.
+const OWNER = "tests/approvals-strategies.test.mjs";
+const part = (name, body) => ({ name, text: body, sources: [], required: true, size: 0 });
+const STAND_INS = {
+  recipes: { "whole-spec": async () => [part("SPEC.md", SPEC)], "chapters-for-architecture": async () => [part("chapters 9 to 12", "B")] },
+  checks: Object.fromEntries(["document-schema", "graph-checks", "identifier-kept", "candidate-classes"].map((name) => [name, () => []])),
+  steps: { "due-diligence": async (draft) => ({ draft, findings: [] }) },
+  writers: { "open-files": async () => ({ commits: [], files: [], pullRequest: null, shown: null }) },
+};
+const register = (category, name, strategy) => {
+  try {
+    registerStrategies(OWNER, { [category]: { [name]: strategy } });
+  } catch (error) {
+    if (error.name !== "DuplicateStrategy") throw error;
+  }
+};
+for (const [category, strategies] of Object.entries(STAND_INS)) {
+  for (const [name, strategy] of Object.entries(strategies)) register(category, name, strategy);
+}
+const DRAFTER = { name: "drafter-a", type: "CLI agent", model: "example-model", context: 200000, price: null,
+  capabilities: ["draft text", "read the repository"], place: "this machine", route: "bridge lab-pc agent claude" };
+const jobContextOf = (kind, params) => ({ kind, params, ...architectureContext(params),
+  instance: { snapshot: null, host: null }, connect: async () => { throw new Error("no repository is opened here"); },
+  participants: [DRAFTER], places: { sources: {}, mailbox: null }, gates: [], person: "alice",
+  now: new Date("2026-10-11T08:00:00Z"), agentM: { version: "unreleased", commit: "0".repeat(40) }, jobId: null });
+
+// TST-724006 · level: unit · module: MOD-approvals
+// guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; UC-023
+// given: the kind change-architecture, whose recipes name use-cases and whole-architecture and whose precondition is rests-on-accepted; this module's strategies registered, stand-ins for the strategies of other modules; the architecture product above
+// input: prepareJob("change-architecture", context, { drafter, reviewers: [] }), with architecture: true and without a parameter
+// expect: it does not throw UnknownStrategy; the parts of the recipe whole-architecture are the five files, none left out; with architecture: true the job is blocked by one finding naming the files not accepted, without it nothing blocks
+test("prepareJob — change-architecture finds every strategy it names, and its whole-architecture parts are every architecture file", async () => {
+  register("recipes", "use-cases", approvalStrategies?.recipes?.["use-cases"]);
+  register("recipes", "accepted-use-cases", approvalStrategies?.recipes?.["accepted-use-cases"]);
+  register("recipes", "whole-architecture", approvalStrategies?.recipes?.["whole-architecture"]);
+  register("preconditions", "rests-on-accepted", approvalStrategies?.preconditions?.["rests-on-accepted"]);
+  const kind = await kindOf("change-architecture");
+
+  const free = await prepareJob("change-architecture", jobContextOf(kind, {}), { drafter: DRAFTER, reviewers: [] });
+  const whole = free.parts.filter((each) => each.recipe === "whole-architecture");
+  assert.deepEqual(whole.map((each) => each.text), [ARC1, ARC2, ALPHA, BETA, MODULE]);
+  assert.deepEqual(free.blocking, []);
+
+  const asked = await prepareJob("change-architecture", jobContextOf(kind, { architecture: true }), { drafter: DRAFTER, reviewers: [] });
+  assert.equal(asked.blocking.length, 1);
+  for (const path of NOT_ACCEPTED_PATHS) assert.ok(asked.blocking[0].what.includes(path), `${path} in: ${asked.blocking[0].what}`);
 });

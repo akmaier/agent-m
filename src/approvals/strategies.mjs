@@ -1,14 +1,15 @@
 // strategies.mjs — the recipes and the precondition of approvalStrategies (MOD-approvals, Parts: strategies.mjs; Interfaces:
 // approvalStrategies). Of it, ITM-332 builds the recipes `use-cases` and `use-case-with-neighbours` and the precondition
 // `rests-on-accepted` for requirements and use cases. ITM-437 builds the recipe `accepted-use-cases` and the precondition
-// `architecture-ready`, ITM-465 its reading of a decision row; the recipe `whole-architecture` and the architecture's part of `rests-on-accepted` are not built yet.
+// `architecture-ready`, ITM-465 its reading of a decision row; ITM-724 the recipe `whole-architecture` and the architecture's part of
+// `rests-on-accepted`.
 //
 // Module: MOD-approvals
 //
 // Strategies, JobContext and Part are MOD-job-runner's types, Finding MOD-text-tools'. A strategy reads the product of the
 // job's context through its snapshot: the use cases and the SPEC, and the status of every use case from the records beside
 // them (statuses). The job's parameters are read by name: `useCase`, the identifier of the use case a change is asked of;
-// `requirements`, the names, and `useCases`, the identifiers, of the selection a job rests on.
+// `requirements`, the names, and `useCases`, the identifiers, of the selection a job rests on; `architecture`, true when the job rests on the architecture too.
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
@@ -31,6 +32,19 @@ async function useCasesOf(snapshot) {
     if (kind !== "use-case") continue;
     const text = await snapshot.read(path);
     found.push({ id, path, status, text, document: readDocument(artifactSchemas().useCase, path, text) });
+  }
+  return found;
+}
+
+// Every architecture decision and module file of the product, in the order its files stand: its identifier, path, status and text,
+// and the document that the schema of its format reads from the text.
+async function architectureOf(snapshot) {
+  const schemas = { "architecture-decision": artifactSchemas().decision, module: artifactSchemas().module };
+  const found = [];
+  for (const [path, { id, kind, status }] of statuses(snapshot)) {
+    if (!(kind in schemas)) continue;
+    const text = await snapshot.read(path);
+    found.push({ id, path, status, text, document: readDocument(schemas[kind], path, text), schema: schemas[kind] });
   }
   return found;
 }
@@ -96,9 +110,12 @@ const NOT_ACCEPTED = { open: "is open", changed: "has changed since it was accep
  *   FIRST ARCHITECTURE IS DESIGNED AS A WHOLE naming, by its proposal's path, each SPEC change that is open — an entry of a
  *   change queue that neither an approval record nor a decision row naming the commit that wrote it into the SPEC decides (a
  *   record of an earlier text of its proposal makes it stale, not open); none when the product is ready;
+ * - recipe `whole-architecture`: every architecture decision and module file as one part, in the order the files stand, like the
+ *   parts of `use-cases`; the part carries the file as an artifact, its identifier and the key of its format (artifactSchemas);
  * - precondition `rests-on-accepted`: one error finding, under NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, that names every
  *   requirement of the parameter `requirements` that the SPEC does not hold and every use case of the parameter `useCases` that
- *   no record names the current text of, or that is no use case of the product; none when all are accepted, or when the job
+ *   no record names the current text of, or that is no use case of the product, and, when the parameter `architecture` is true,
+ *   by its path every decision and module file that is open or changed; none when all are accepted, or when the job
  *   names no selection.
  */
 export const approvalStrategies = {
@@ -106,6 +123,8 @@ export const approvalStrategies = {
     "use-cases": async (context) => (await useCasesOf(context.product.snapshot)).map((each) => ({ ...partOf(each),
       artifacts: [{ id: each.id,
         keys: artifactSchemas().useCase.key.map((field) => String(each.document.fields[field] ?? "")) }] })),
+    "whole-architecture": async (context) => (await architectureOf(context.product.snapshot)).map((each) => ({ ...partOf(each),
+      artifacts: [{ id: each.id, keys: each.schema.key.map((field) => String(each.document.fields[field] ?? "")) }] })),
     "accepted-use-cases": async (context) => (await useCasesOf(context.product.snapshot))
       .filter((each) => each.status === "accepted").map(partOf),
     "use-case-with-neighbours": async (context, params) => {
@@ -151,6 +170,9 @@ export const approvalStrategies = {
           .map((name) => `the requirement ${name} is not in the SPEC`),
         ...useCases.filter((id) => status.get(id) !== "accepted").map((id) =>
           `the use case ${id} ${NOT_ACCEPTED[status.get(id)] ?? "is no use case of the product"}`),
+        ...(context.params.architecture === true ? [...statuses(snapshot)]
+          .filter(([, each]) => each.kind !== "use-case" && each.status !== "accepted")
+          .map(([path, each]) => `the architecture file ${path} ${NOT_ACCEPTED[each.status]}`) : []),
       ];
       return open.length === 0 ? null : finding({ artifact: address, line: 1, kind: "error", rule: ACCEPTED_FIRST,
         what: `the job rests on what is not accepted: ${open.join("; ")}`,
