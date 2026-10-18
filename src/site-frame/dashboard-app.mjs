@@ -582,7 +582,7 @@ function reviewTargets(kind, a, b) {
     if (a === "arc") return [{ name: "decision", params: { id: "all" } }];
     return [{ name: "use-case", params: {} }];
   }
-  if (kind === "spec") return [{ name: "spec-entry", params: a && b ? { id: `spec-${decoded(a)}-${b}` } : {} }];
+  if (kind === "spec") return a && b ? [{ name: "spec-entry", params: { id: `spec-${decoded(a)}-${b}` } }] : [];
   if (REVIEW_ROUTES.has(kind)) return [{ name: kind, params: routeOf(location.hash).params }];
   return null;
 }
@@ -671,9 +671,9 @@ async function renderReviewPages(targets, lead = []) {
   main().replaceChildren(...lead, ...boxes);
   loading += 1;
   try {
+    if (!targets.length) await renderSpecification(context);
     for (const [at, { name, params }] of targets.entries()) {
       await reviewPages.routes.find((route) => route.name === name).render(boxes[at], context, params);
-      if (name === "spec-entry" && !params.id) await renderSpecification(context);
       if (name === "module" && !params.id) await renderComponents(context);
     }
   } finally {

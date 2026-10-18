@@ -682,7 +682,7 @@ test("release · UC-006 4d: an entry waits for the entry that creates its headin
   assert.match(stripTags(page.main()), /\b0?1\b/);
   assert.match(stripTags(page.main()), /entry 0?1/i, "the entry it needs is named");
   // The SPEC changes list holds a tick for each open entry of the queue, the waiting one too, in its first part (open or changed).
-  await page.go("#spec");
+  await page.go("#spec-entry");
   const firstPart = inMain().querySelectorAll("section.open-changes")[0];
   assert.ok(firstPart, "the open entries stand in a first part");
   const ticksOfB = firstPart.querySelectorAll("tr").filter((row) => (row.getAttribute("data-id") ?? "").includes("new-section")).flatMap((row) => row.querySelectorAll("input.tick"));
