@@ -36,7 +36,27 @@ const ARCHITECTURE_JOB = "derive-architecture";
 const recordOf = (id, kind, path, blob) => ({ path: `docs/approvals/${id}-${blob.slice(0, 12)}.md`,
   text: writeDocument(approvalSchema, { fields: { kind, file: path, blob } }) });
 
-const shortBody = (body) => body.replace(/^---\n[^]*?\n---\n/, "");
+// A difference shows every line of the file, each marked as it is, so that its first change can stand in the middle of its box (`context` as large as the file).
+const WHOLE = { context: Infinity };
+// Opens each difference box in `scope` with its first changed line in the middle of the box: the line's middle at the box's middle, never above the box's start.
+// The box must stand in the page, which gives it its geometry.
+function centreFirstChange(scope) {
+  const boxes = [];
+  (function collect(node) {
+    for (const kid of node.childNodes) {
+      if (kid.nodeType !== 1) continue;
+      if (kid.localName === "pre" && kid.className.split(" ").includes("diff")) boxes.push(kid); else collect(kid);
+    }
+  })(scope);
+  for (const box of boxes) {
+    const change = [...box.childNodes].find((node) => node.nodeType === 1 && /\bd(add|del)\b/.test(node.className));
+    if (!change || typeof change.getBoundingClientRect !== "function") continue; // a page without geometry leaves the box at its start
+    const line = change.getBoundingClientRect(), frame = box.getBoundingClientRect();
+    box.scrollTop = Math.max(0, line.top - frame.top + box.scrollTop + line.height / 2 - box.clientHeight / 2);
+  }
+}
+
+const shortBody =(body) => body.replace(/^---\n[^]*?\n---\n/, "");
 
 // What an acceptance of several files came to: the commit, and each file left out with its reason and the names it rests on.
 const reasonOf = (out) => `${out.reason}${out.names.length ? ` (${out.names.join(", ")})` : ""}`;
@@ -237,7 +257,7 @@ export function reviewRoute(kind) {
         let last = null;
         try {
           last = await lastAcceptedText(file.id, host);
-          if (last) diff.append(showDifference(last.text, body));
+          if (last) diff.append(showDifference(last.text, body, WHOLE));
         } catch (failure) {
           diff.append(el("p", "problem", failure.message));
         }
@@ -260,6 +280,7 @@ export function reviewRoute(kind) {
       }
       if (withImpact) records.push({ file, record: recordOf(file.id, file.kind, file.path, blob), blob });
       target.append(section);
+      centreFirstChange(section);
     }
     if (kind.whole) {
       const rounds = await draftingRounds(where);
@@ -347,11 +368,12 @@ export function reviewRoute(kind) {
       const diff = el("section", "accepted-diff", el("h3", null, "Changed since it was last accepted"), explain(kind.explain.changed));
       try {
         last = await lastAcceptedText(file.id, host);
-        if (last) diff.append(showDifference(last.text, body));
+        if (last) diff.append(showDifference(last.text, body, WHOLE));
       } catch (failure) {
         diff.append(el("p", "problem", failure.message));
       }
       target.append(diff);
+      centreFirstChange(diff);
     }
     target.append(file.status === "changed" ? el("section", "rendered", el("h3", null, "The file as it will be accepted"), renderArtifact(shortBody(body))) : renderArtifact(shortBody(body)));
     if (kind.save === "file" && (token || parseServer(where.context) !== "gitlab")) {
