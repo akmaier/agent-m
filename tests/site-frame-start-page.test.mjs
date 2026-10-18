@@ -141,7 +141,8 @@ test("TST-531004 watchForAcceptance is started once on the review and the main p
 // expect: the first route gets repository acme/instance, a host with repositoryInfo and no product; the second gets the product
 //   { address: the widget address, kind: "github" } and a host whose request carries Bearer github_pat_WIDGET and not the
 //   instance's token, while the instance's request carries Bearer github_pat_INSTANCE; the third { address: the app address,
-//   kind: "gitlab" }
+//   kind: "gitlab" }; the widget's product has tokenStored true (its own token is kept) and the app's has tokenStored false (the
+//   browser keeps no token of it)
 test("TST-531005 the instance and the product the fragment names are connected, each with its own token", async () => {
   const requests = [];
   globalThis.fetch = async (url, init) => { requests.push({ url: String(url), authorization: init?.headers?.Authorization ?? null }); throw new TypeError("offline"); };
@@ -157,10 +158,12 @@ test("TST-531005 the instance and the product the fragment names are connected, 
   const [withWidget] = rendered;
   assert.equal(withWidget.context.product.address, WIDGET);
   assert.equal(withWidget.context.product.kind, "github");
+  assert.equal(withWidget.context.product.tokenStored, true);
   await withWidget.context.product.host.repositoryInfo().catch(() => {});
   await start({ ...kept, fragment: `#alpha/product=${encoded(APP)}` });
   assert.equal(rendered[0].context.product.address, APP);
   assert.equal(rendered[0].context.product.kind, "gitlab");
+  assert.equal(rendered[0].context.product.tokenStored, false);
   const toInstance = requests.find((request) => request.url.includes("/repos/acme/instance"));
   const toWidget = requests.find((request) => request.url.includes("/repos/acme/widget"));
   assert.equal(toInstance.authorization, "Bearer github_pat_INSTANCE");

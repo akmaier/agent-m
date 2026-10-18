@@ -35,9 +35,10 @@ import assert from "node:assert/strict";
 import { view } from "../src/main-page/index.mjs";
 import { sourceStrategies } from "../src/source-register/index.mjs";
 import { productCard } from "../src/main-page/cards.mjs";
+import { chosenProduct } from "../src/site-frame/index.mjs";
 import {
   INSTANCE, OTHER, PRODUCT, INSTANCE_TOKEN, INSTANCE_URL, MISSING_URL, OTHER_TOKEN, OTHER_URL, PRODUCT_TOKEN, PRODUCT_URL, RATE_RESET,
-  browser, buildOf, byClass, cardsOf, click, currentOf, draw, endedJob, failedJob, instanceFiles, network, productFiles, runningJob, smallProduct, stagesOf, timers, waitsOf, withEnd,
+  browser, buildOf, byClass, cardsOf, click, countReads, currentOf, draw, endedJob, failedJob, instanceFiles, network, productFiles, runningJob, smallProduct, stagesOf, timers, waitsOf, withEnd,
 } from "./main-page-home-harness.mjs";
 
 const home = view.routes.find((candidate) => candidate.name === "home");
@@ -622,4 +623,33 @@ test("TST-847013 a used-up limit with no reset time given is tried again at the 
   await timers.fire(at("12:01"));
   assert.deepEqual(problemsOf(target), ["The jobs' states could not be read again. alice/product: GitHub's request limit for the account these requests are made with is used up; GitHub does not tell this page when it resets."]);
   assert.deepEqual(waitingDelays(), [60000]);
+});
+
+// ---------------------------------------------------------------- whether a token is stored is the frame's to say (ITM-856)
+
+// TST-856004 · level: unit · module: MOD-main-page
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046 (step 4)
+// given: this browser keeps the product alice/product, with its own token github-token:alice/product; and, for the counter-proof, the same browser with no token of that product; the pages are counted by the
+// reads of that one key from the browser's local storage — the number of reads one call of MOD-site-frame's chosenProduct makes for the product, and the number the route home makes in drawing its card
+// input: chosenProduct({ store, fragment: "#home/product=<the product>" }) called alone, its reads of the key counted; then the route home drawn on a fresh browser of the same kind, its reads counted
+// expect: the call alone reads the key at least once (known positive: the count sees a read) and the route home reads it exactly as often as that call alone, with a token and without — the route reads nothing for "is a token
+// stored" besides what the frame's chosenProduct reads and says — , and the card, drawn with the token, sets the timer of the readings again (one timer of 60000 milliseconds) and, drawn without it, sets none
+test("TST-856004 the route home reads the product's token key no oftener than the frame's chosenProduct does, and takes from it whether a token is stored", async () => {
+  const key = `github-token:${PRODUCT}`;
+  for (const [tokens, delays] of [[{ [PRODUCT]: PRODUCT_TOKEN }, [60000]], [{}, []]]) {
+    net = network({ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() });
+    net.install();
+    const alone = browser({ tokens });
+    const aloneReads = countReads(alone.store, key);
+    await chosenProduct({ store: alone.store, fragment: `#home/product=${encodeURIComponent(PRODUCT_URL)}` });
+    assert.ok(aloneReads.count >= 1, "known positive: the count sees the read chosenProduct makes");
+
+    const context = browser({ tokens });
+    const reads = countReads(context.store, key);
+    await draw(home, context);
+    assert.equal(reads.count, aloneReads.count);
+    assert.deepEqual(waitingDelays(), delays);
+    net.restore();
+    timers.restore();
+  }
 });
