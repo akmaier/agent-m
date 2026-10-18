@@ -38,3 +38,14 @@ fact, for `importsRead`.
   as an `imports` edge, for each of the four languages; a file of another language marked as not read.
 - The existing tests of `traceGraph` and `architectureImpact` stay green with their expected results.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Measured before its selection (sprint team1/84, 2026-10-18, developer-sonnet-c, read-only).**
+- **Consumers.** Sixteen files hold the eighteen calls of `traceGraph`. None reads a `code` node, an `imports` edge or
+  `graph.unread`. `derive.mjs:46-48` reads the kind of an edge's `from`; an imports edge's `from` is a code node, which
+  exists.
+- **Requests.** On the 4,898 tracked files of `40927afd`, with a token, a `traceGraph` call goes from 22 requests to 24 with
+  code files and imports. That is two more batches for 249 files of 2.0 MB. Without a token it goes from 1,930 to 2,179
+  single reads.
+- **The tests that pin the absence today,** quoted at the start: `tests/trace-graph-architecture-impact.test.mjs:114-115`
+  (TST-554001), and `tests/trace-graph-read-many.test.mjs:131` and `:133` (TST-479008).
+- **Its acceptance commits the count** as a test on a recorded fixture, because the probe's counts move with the repository.
