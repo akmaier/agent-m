@@ -204,7 +204,8 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   —, and the host's.
 - `endSprint(host: Host, sprint: string, context: { head: string, now: Date, trailers: string[] }) -> Promise<{ commit:
   string }>` — **End sprint** (UC-032 6b): appends `## Ended` with the date to a sprint without a time box. Errors:
-  `NotEndable` for a sprint with a time box, whose end is its date, or one already ended; and the host's.
+  `NotFound { path }` for a sprint with no record, `NotEndable` for a sprint with a time box, whose end is its date, or one
+  already ended — nothing is written in either case —; and the host's.
 - `closeSprint(host: Host, close: { sprint: string, review: { feedback: Array<{ line: string, goes: "new item" | "change
   to an item" | "noted", item: string | null }>, tookPart: string[], sources: string[] | null }, unfinished: Array<{ item:
   string, to: "backlog" | "next sprint", reason: string }>, retrospective: Array<{ text: string, kind: "went well" | "did
@@ -214,7 +215,7 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   **Close sprint** (UC-041 step 6): appends `## Review` — the increment and the items not done from `facts`, the feedback,
   who took part, for an agent the sources of its feedback —, `## Unfinished items` and `## Retrospective` to the sprint's
   file; adds the feedback's new items to the backlog as `saveItems` does, and records for each unfinished item whether it
-  goes back to the backlog or into the team's next sprint; all in one commit. Errors: `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
+  goes back to the backlog or into the team's next sprint; all in one commit. Errors: `NotFound { path }` for a sprint with no record, `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
   without a decision, `AlreadyClosed`, `ItemsRefused { findings }`, and the host's.
 - `workStrategies: Strategies` — the strategies this module offers the job runner (ARC-046):
   - recipe `architecture-and-model` — the decision that states the system, the subsystems' decisions, the module files,

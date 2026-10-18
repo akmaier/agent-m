@@ -140,7 +140,8 @@ never written.
   - recipe `whole-architecture` — every architecture decision and module file, one part per file, which carries its
     file as an artifact keyed by the key of its format;
   - precondition `rests-on-accepted` — an error finding naming every requirement or use case the job's selection names
-    that is not accepted, and, where the parameters ask for it, every file of the architecture that is not accepted
+    that is not accepted, and, when the parameter `architecture` is true, every architecture decision and module file
+    that is not accepted; the requirements and use cases are those of the parameters `requirements` and `useCases`
     (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`, `ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES`);
   - precondition `architecture-ready` — an error finding when a use case is open or changed (naming each) or when the
     product already has an architecture (pointing to UC-023); a warning finding naming every open SPEC change — an

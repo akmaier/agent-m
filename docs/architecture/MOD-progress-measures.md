@@ -202,7 +202,9 @@ The six stages of the main page, each a share between 0 and 1:
   null, difference: string | null, addedBy: { requirement: string, source: string } | null }>` — the workflow's gates in
   their order: passed with who decided, when and on which text, and the record; pending with what it still needs; not
   reached; a gate whose record names a text that has changed since, as passed on an earlier text, with the difference;
-  each gate a process requirement adds, with its requirement and source.
+  each gate a process requirement adds, with its requirement and source. `decided` is given for each gate whose state
+  rests on a record — passed, passed on an earlier text, rejected — and is null for a pending or not reached one; a
+  workflow that is null or `"unknown"` has no gate to list, and the list is empty.
 - `blocked(facts: Facts) -> Array<{ item: string, reason: "failed job" | "waiting at a gate" | "requirement not
   accepted" | "work-in-progress limit" | "held by another team's sprint", detail: string }>` — every item or plan entry
   that cannot move, each with its reason; for a gate, the role or check that decides it; for a held module, the other
