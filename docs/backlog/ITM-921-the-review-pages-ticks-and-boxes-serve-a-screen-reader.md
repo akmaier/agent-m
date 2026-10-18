@@ -27,6 +27,7 @@ Each finding is a todo in `tests/site-accessibility.test.mjs`.
 
 ## Acceptance
 
-- Each tick names the file it accepts, and each scrolling box can be focused. The todos for these rules on these routes are
-  removed, and the check passes there, with a counter-proof each.
+- Each tick names the file it accepts, and each difference box that scrolls can be focused. The `label` todos on these
+  routes are removed, and the check passes there, with a counter-proof each. The `scrollable-region-focusable` todos that
+  belong to other modules stay, each with its own item.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
