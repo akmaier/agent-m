@@ -209,7 +209,7 @@ export function reviewRoute(kind) {
       }
     }
     target.append(el("h2", null, kind.title));
-    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${notAccepted(where.snapshot).length} not accepted`));
+    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${service.count ? service.count(groups) : notAccepted(where.snapshot).length} not accepted`));
     if (kind.draft) target.append(link(`#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
     target.append(explain(kind.explain.list));
     if (bar) {
@@ -242,6 +242,7 @@ export function reviewRoute(kind) {
   // full — and, below them, the acceptance of exactly what is shown. For the architecture it is the page of the whole architecture:
   // decisions and module files in their order, a further decision with its due diligence, and the rounds of the job that drafted them.
   async function showAll(where) {
+    if (service.all) { await showAllEntries(where); return; }
     const { target, snapshot, token, host, context } = where;
     const reviewed = notAccepted(snapshot);
     const texts = new Map();
@@ -315,6 +316,59 @@ export function reviewRoute(kind) {
         const offered = fallbackAcceptLink(record, snapshot);
         target.append(el("p", "github-fallback", `${file.id}: `, link(offered.url, "github-page", "Open GitHub's page to commit the record")));
       }
+    }
+  }
+
+  // Review all of a change queue's kind: every open entry of every queue in sequence, as its page draws it, and below them the acceptance of exactly what is shown,
+  // in one commit; an entry that changed after it was shown is left out and named.
+  async function showAllEntries(where) {
+    const { target, token, context } = where;
+    const entries = await service.all(where, (other) => `#${kind.route}/id=${encodeURIComponent(other)}`);
+    target.append(el("h2", null, `Review all — ${kind.title}`), explain(kind.explain.all));
+    if (entries.length === 0) {
+      target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
+      return;
+    }
+    for (const entry of entries) {
+      const section = el("section", "review-file", el("h3", null, entry.title), badge(entry.status, entry.label), ...entry.nodes);
+      section.setAttribute("data-id", entry.id);
+      target.append(section);
+    }
+    const shown = entries.flatMap((entry) => entry.shown);
+    if (token) {
+      const accept = button("btn accept-all", `Accept all ${shown.length} shown`);
+      accept.addEventListener("click", async () => {
+        accept.disabled = true;
+        try {
+          const changed = await service.changedSince(where, shown);
+          // An entry that waits for an anchor goes only with the entry that creates it: left out with it, and named.
+          const left = new Set(changed.map((out) => out.path));
+          for (let grew = true; grew;) {
+            grew = false;
+            for (const entry of entries) {
+              if (entry.shown && entry.after && left.has(entry.after) && !left.has(entry.id)) {
+                left.add(entry.id);
+                changed.push({ path: entry.id, reason: `it goes with ${entry.after}, which was left out`, names: [] });
+                grew = true;
+              }
+            }
+          }
+          const rest = shown.filter((each) => !left.has(service.idOf(each)));
+          const result = rest.length ? await service.accept(where, rest, token.name) : { commit: null, leftOut: [] };
+          const message = result.refusal ? el("p", "result problem", result.refusal)
+            : result.commit ? acceptedMessage({ ...result, leftOut: changed }, (path) => path)
+              : el("p", "result problem", changed.map((out) => `${out.path} was left out: ${reasonOf(out)}.`).join(" "));
+          await redraw(where, { id: REVIEW_ALL }, message);
+        } catch (failure) {
+          accept.disabled = false;
+          target.append(el("p", "result problem", refusedText(failure, (path) => path)));
+        }
+      });
+      target.append(accept);
+    } else if (context.product) {
+      target.append(el("p", "problem", service.tokenNote, tokenStep(context)));
+    } else {
+      for (const entry of entries) if (entry.shown) offerRecord(target, entry.record, where.snapshot, context);
     }
   }
 
