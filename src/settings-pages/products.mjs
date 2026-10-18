@@ -234,6 +234,7 @@ function githubStepABody(context, address, out, afterCheck) {
     if (!value || !expiresOn) { err.textContent = "Paste the token and its expiry date first."; return; }
     const tokenName = productTokenName(address.path);
     writeSetting(context.store, tokenSettingKey(address), { value, name: tokenName, expires: expiresOn, stored: today() });
+    context.tokenStored?.();
     err.textContent = "";
     out.replaceChildren();
     out.textContent = `Reading ${address.web}…`;
@@ -325,6 +326,7 @@ function gitlabStepBBody(context, address, afterCheck) {
     if (!value || !expiresOn) { out.textContent = "Paste the token and its expiry date first."; return; }
     const tokenName = "Agent M";
     writeSetting(context.store, key, { value, name: tokenName, expires: expiresOn, stored: today() });
+    context.tokenStored?.();
     out.replaceChildren();
     out.textContent = `Reading ${address.web}…`;
     const result = await checkProduct(address, { token: value, tokenName });
