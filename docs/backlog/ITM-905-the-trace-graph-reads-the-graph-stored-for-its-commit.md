@@ -1,5 +1,5 @@
 ---
-id: ITM-904
+id: ITM-905
 title: traceGraph reads the graph stored for its commit
 level: module
 realises:
@@ -17,7 +17,7 @@ tests:
 origin:
   - akmaier's request of 2026-10-18 to analyse the page loads and precompute the trace once per commit
 ---
-# ITM-904 traceGraph reads the graph stored for its commit
+# ITM-905 traceGraph reads the graph stored for its commit
 
 **REGISTER**
 

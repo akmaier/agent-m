@@ -1,5 +1,5 @@
 ---
-id: ITM-903
+id: ITM-904
 title: architectureImpact reads each test's guards from one pass over the edges
 level: module
 realises:
@@ -14,7 +14,7 @@ tests:
 origin:
   - akmaier's request of 2026-10-18 to analyse the page loads, answered in docs/measurements/2026-10-18_page-loads-once-per-commit.md
 ---
-# ITM-903 architectureImpact reads each test's guards from one pass over the edges
+# ITM-904 architectureImpact reads each test's guards from one pass over the edges
 
 **REGISTER**
 

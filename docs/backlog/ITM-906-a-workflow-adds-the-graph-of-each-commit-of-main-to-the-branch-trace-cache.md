@@ -1,5 +1,5 @@
 ---
-id: ITM-905
+id: ITM-906
 title: A workflow adds the graph of each commit of main to the branch trace-cache
 level: module
 realises:
@@ -9,13 +9,13 @@ modules:
   - MOD-trace-graph
 builds_on:
   - ITM-880
-  - ITM-904
+  - ITM-905
 tests:
   - unit
 origin:
   - akmaier's request of 2026-10-18 to analyse the page loads and precompute the trace once per commit
 ---
-# ITM-905 A workflow adds the graph of each commit of main to the branch trace-cache
+# ITM-906 A workflow adds the graph of each commit of main to the branch trace-cache
 
 **REGISTER**
 
