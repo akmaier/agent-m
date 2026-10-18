@@ -9,6 +9,7 @@ modules:
   - MOD-trace-pages
   - MOD-site-frame
 builds_on:
+  - ITM-879
 tests:
   - unit
 origin:
