@@ -216,6 +216,12 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     jump host's web-server configuration for every Bridge reached through it; *Test* of a Bridge at its address — for one
     reached through the jump host its HTTPS address —, a certificate the browser does not trust named as a possible
     cause.
+  - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
+    with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key
+    `github-token`, the product for its own key, and for *Change* the repository its setting's key names. A refusal of
+    `connect`, a token of the other kind of server, stores nothing and shows a line that names the setting and never the
+    token. The form of a token is `connect`'s alone, here as in the import; a setting whose key names no readable
+    repository has no host to refuse it, and is stored as pasted.
 
 ## Files
 
