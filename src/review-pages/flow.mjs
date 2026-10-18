@@ -57,6 +57,7 @@ function centreFirstChange(scope) {
     }
   })(scope);
   for (const box of boxes) {
+    box.setAttribute("tabindex", "0");
     const change = [...box.childNodes].find((node) => node.nodeType === 1 && /\bd(add|del)\b/.test(node.className));
     if (!change || typeof change.getBoundingClientRect !== "function") continue; // a page without geometry leaves the box at its start
     const line = change.getBoundingClientRect(), frame = box.getBoundingClientRect();
@@ -225,6 +226,7 @@ export function reviewRoute(kind) {
       if (withTick && token && file.tick) {
         const box = el("input", "tick");
         box.type = "checkbox";
+        box.setAttribute("aria-label", `Accept ${file.id}`);
         box.addEventListener("change", () => {
           if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
           bar.disabled = ticks.size === 0;
