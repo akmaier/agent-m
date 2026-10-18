@@ -21,6 +21,7 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.readHistory
   - MOD-text-tools.blobSha
   - MOD-text-tools.formatFinding
   - MOD-documents.artifactSchemas
@@ -257,7 +258,9 @@ and `docs/participants.md` of the instance.
 - MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job in the tab needs;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.webLinks — the
-  product's files, whether the person may write and the repository's visibility, GitHub's own pages.
+  product's files, whether the person may write and the repository's visibility, GitHub's own pages;
+  MOD-repository-hosts.readHistory — on `<k>/history` only, the commits that added the approval records under
+  `docs/approvals/`, each with its author and date.
 - MOD-text-tools.blobSha — the blob of each text as it was shown, which an acceptance names (`AN APPROVAL NAMES THE EXACT
   TEXT`); MOD-text-tools.formatFinding — a finding the loop left, shown in its one fixed text form (`A FINDING READS
   LIKE A COMPILER MESSAGE`).

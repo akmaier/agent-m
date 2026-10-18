@@ -40,7 +40,9 @@ accepting or changing the draft.
 ## Acceptance
 
 - The list of a kind shows its open and changed files first, and no such part when there are none; then every file with
-  its status; then a link to its history. Tests check both cases for the use cases and the architecture, each with a
-  counter-proof.
-- `<k>/history` lists the kind's approval records, newest first, with file, person and date. A test checks this.
+  its status. Tests check both cases for the use cases and the architecture, each with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Split at its stop clause (sprint team1/87).** No interface in MOD-review-pages' Uses gives an approval record's
+committer and date, so `<k>/history` and the link to it are ITM-898's. This item builds the list's two parts.
+
