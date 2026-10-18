@@ -102,9 +102,12 @@ function fakeGitHub({ files = HEAD_FILES, commits = COMMITS, refuseList = false 
     if (url.pathname === `${prefix}/git/trees/${head}`) return json({ tree: Object.entries(files).map(([path, body]) => ({ path, type: "blob", sha: blobOf(body) })) });
     if (url.pathname === `${prefix}/commits`) {
       if (refuseList) return json({ message: "API rate limit exceeded" }, 403, { "x-ratelimit-remaining": "0", "x-ratelimit-limit": "60", "x-ratelimit-reset": "1790000000" });
-      const under = url.searchParams.get("path");
-      const found = commits.filter((commit) => !under || commit.added.some((path) => path.startsWith(under)));
-      return json(found.map((commit) => ({ sha: commit.sha, parents: [], author: commit.login ? { login: commit.login } : null,
+      // "List commits": the commits that changed the path, from the commit `sha` (the head where none is given), newest first, `per_page` to a page.
+      const under = url.searchParams.get("path"), from = url.searchParams.get("sha");
+      const per = Number(url.searchParams.get("per_page") ?? 30), page = Number(url.searchParams.get("page") ?? 1);
+      const found = commits.slice(from ? commits.findIndex((commit) => commit.sha === from) : 0).filter((commit) => !under || commit.added.some((path) => path.startsWith(under)));
+      return json(found.slice((page - 1) * per, page * per).map((commit) => ({ sha: commit.sha,
+        parents: commits[commits.indexOf(commit) + 1] ? [{ sha: commits[commits.indexOf(commit) + 1].sha }] : [], author: commit.login ? { login: commit.login } : null,
         commit: { author: { name: commit.name, date: commit.date }, committer: { date: commit.date }, message: "a commit" } })));
     }
     const detail = new RegExp(`^${prefix}/commits/([0-9a-f]{40})$`).exec(url.pathname);
@@ -122,7 +125,10 @@ function fakeGitHub({ files = HEAD_FILES, commits = COMMITS, refuseList = false 
     counts: () => ({ repository: count((u) => u.pathname === prefix), commit: count((u) => u.pathname === `${prefix}/commits/main`), tree: count((u) => u.pathname.startsWith(`${prefix}/git/trees/`)),
       list: count((u) => u.pathname === `${prefix}/commits`), detail: count((u) => /\/commits\/[0-9a-f]{40}$/.test(u.pathname)), batch: count((u) => u.pathname === "/graphql"),
       raw: count((u) => u.origin === "https://raw.githubusercontent.com"), contents: count((u) => u.pathname.startsWith(`${prefix}/contents/`)), all: requests.length }),
-    lists: () => requests.filter((request) => request.url.pathname === `${prefix}/commits`).map((request) => request.url.searchParams.get("path")) };
+    lists: () => requests.filter((request) => request.url.pathname === `${prefix}/commits`).map((request) => request.url.searchParams.get("path")),
+    // What each "List commits" asked for: the path, the commit it starts from, and the size and number of the page.
+    listQueries: () => requests.filter((request) => request.url.pathname === `${prefix}/commits`).map(({ url }) => ({ path: url.searchParams.get("path")?.replace(/\/$/, ""),
+      from: url.searchParams.get("sha"), per: url.searchParams.get("per_page"), page: url.searchParams.get("page") })) };
 }
 
 // ---------------------------------------------------------------- the page
@@ -308,3 +314,106 @@ test("TST-898009 use-case history when the list of the commits is refused — th
   const problems = problemsOf(target);
   assert.deepEqual([problems.length, problems[0]?.startsWith("GitHub's request limit for this network, for requests without a token is used up"), rowsOf(target).length], [1, true, 0]);
 });
+
+// ---------------------------------------------------------------- twenty commits to a page, and Older
+//
+// The accepted text (MOD-review-pages.md, `<k>/history`): "…read twenty commits of `docs/approvals/` at a time, and *Older* for the next twenty, read from the parent of the last
+// commit shown", through readHistory's `ref` and `limit` (MOD-repository-hosts.md:179). Readings the tests take:
+//   - The first page starts from the commit of the default branch's snapshot; *Older* is an <a> whose text is "Older", on a page that shows twenty commits whose last has a parent, and
+//     whose address (#<route>/id=history/<name>=<value> …) the tests follow by drawing the route with the parameters that address carries, whatever their names.
+//   - The next page starts from the parent of the last commit shown, whether or not that parent touched `docs/approvals/`.
+//   - A page of twenty commits may show fewer than twenty rows: a commit that added only the records of another kind adds no row to this kind's page.
+//   - TST-898005 and TST-898006 keep their numbers (10 and 14): their repository has five commits that touched `docs/approvals/`, which one page of twenty holds.
+
+const pad = (k) => String(k).padStart(3, "0");
+const stamp = (k) => new Date(Date.UTC(2026, 8, 1, 0, k)).toISOString().replace(".000Z", "Z");
+// n commits that each added one record, oldest first: UC-<k>'s, but ARC-<k>'s where k is a multiple of three; one commit of code on top, and, directly older than the commits in `gaps`, one more
+// commit of code. The use cases and decisions the records name stand on the default branch.
+function longHistory(n, gaps = [26, 6]) {
+  const files = { "README.md": "# Thesis tool\n", "src/code.mjs": "export {};\n" }, commits = [];
+  for (let k = n; k >= 1; k -= 1) {
+    const arc = k % 3 === 0, id = `${arc ? "ARC" : "UC"}-${pad(k)}`, path = arc ? `docs/architecture/ARC-${pad(k)}-decision.md` : `docs/use-cases/UC-${pad(k)}-case.md`;
+    const body = text(`# ${id} Number ${k}`), [recordPath, recordText] = recordOf(id, arc ? "architecture-decision" : "use-case", path, body);
+    files[path] = body;
+    files[recordPath] = recordText;
+    commits.push({ sha: `a${String(k).padStart(39, "0")}`, login: "alice-a", name: "Alice A", date: stamp(k), added: [recordPath] });
+    if (gaps.includes(k)) commits.push({ sha: `b${String(k).padStart(39, "0")}`, login: "alice-a", name: "Alice A", date: stamp(k), added: ["src/code.mjs"] });
+  }
+  commits.unshift({ sha: `c${"0".repeat(39)}`, login: "alice-a", name: "Alice A", date: stamp(n + 1), added: ["src/code.mjs"] });
+  return { files, commits };
+}
+const useCaseRows = (ks) => ks.map((k) => [`UC-${pad(k)}`, `docs/use-cases/UC-${pad(k)}-case.md`, "alice-a", stamp(k)]);
+// The address of the link whose text is "Older" as the parameters the route is drawn with: #<route>/<name>=<value>/… without the product.
+function olderOf(target) {
+  const link = elements(target).find((node) => node.localName === "a" && node.textContent === "Older");
+  if (!link) return null;
+  return Object.fromEntries(link.getAttribute("href").slice(1).split("/").slice(1).filter((part) => !part.startsWith("product=")).map((part) => {
+    const at = part.indexOf("=");
+    return [part.slice(0, at), decodeURIComponent(part.slice(at + 1))];
+  }));
+}
+
+// TST-898010 · level: component · module: MOD-review-pages
+// guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
+// given: 45 commits that each added one record — UC-<k> by commit k, but ARC-<k> where k is a multiple of three — beneath a commit of code, with one more commit of code directly older than commit 26
+// input: the route use-case drawn with the id history, a token stored
+// expect: the rows of the twenty newest commits that touched docs/approvals (commits 45 down to 26): the 13 use cases among them, newest first — 44, 43, 41, 40, 38, 37, 35, 34, 32, 31, 29, 28, 26 —
+//   and a link Older; "List commits" asked once, for docs/approvals, from the head, 20 to a page, page 1
+test("TST-898010 use-case history, first page — twenty commits, the rows of the use cases among them, and Older", async () => {
+  const fake = fakeGitHub(longHistory(45));
+  const { target } = await draw("use-case", { id: "history" }, fake);
+  assert.deepEqual(rowsOf(target), useCaseRows([44, 43, 41, 40, 38, 37, 35, 34, 32, 31, 29, 28, 26]));
+  assert.notEqual(olderOf(target), null);
+  assert.deepEqual(fake.listQueries(), [{ path: "docs/approvals", from: `c${"0".repeat(39)}`, per: "20", page: "1" }]);
+});
+
+// TST-898011 · level: component · module: MOD-review-pages
+// guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
+// given: the same 45 commits; the first page drawn
+// input: the link Older of the first page followed (the route drawn with the parameters of its address)
+// expect: the rows of the next twenty commits that touched docs/approvals (25 down to 6): 25, 23, 22, 20, 19, 17, 16, 14, 13, 11, 10, 8, 7 — and a link Older; "List commits" asked once, for docs/approvals,
+//   from the parent of the last commit shown (commit 26), which is the commit of code directly older than it, 20 to a page, page 1
+test("TST-898011 use-case history, Older — the next twenty commits, read from the parent of the last commit shown", async () => {
+  const history = longHistory(45);
+  const first = await draw("use-case", { id: "history" }, fakeGitHub(history));
+  const fake = fakeGitHub(history);
+  const { target } = await draw("use-case", { id: "history", ...olderOf(first.target) }, fake);
+  assert.deepEqual(rowsOf(target), useCaseRows([25, 23, 22, 20, 19, 17, 16, 14, 13, 11, 10, 8, 7]));
+  assert.notEqual(olderOf(target), null);
+  assert.deepEqual(fake.listQueries(), [{ path: "docs/approvals", from: `b${String(26).padStart(39, "0")}`, per: "20", page: "1" }]);
+});
+
+// TST-898012 · level: component · module: MOD-review-pages
+// guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
+// given: the same 45 commits; the second page drawn by Older
+// input: the link Older of the second page followed
+// expect: the rows of the last five commits (5 down to 1): 5, 4, 2, 1 (commit 3 added a decision's record); no link Older; "List commits" asked from the commit of code directly older than commit 6, the parent of the last commit shown
+test("TST-898012 use-case history, the last page — the rest of the commits and no Older", async () => {
+  const history = longHistory(45);
+  const first = await draw("use-case", { id: "history" }, fakeGitHub(history));
+  const second = await draw("use-case", { id: "history", ...olderOf(first.target) }, fakeGitHub(history));
+  const fake = fakeGitHub(history);
+  const { target } = await draw("use-case", { id: "history", ...olderOf(second.target) }, fake);
+  assert.deepEqual(rowsOf(target), useCaseRows([5, 4, 2, 1]));
+  assert.equal(olderOf(target), null);
+  assert.deepEqual(fake.listQueries().map((query) => query.from), [`b${String(6).padStart(39, "0")}`]);
+});
+
+// TST-898013 · level: component · module: MOD-review-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: this repository's size: 236 commits that each added one record (158 use cases', and 78 decisions' where k is a multiple of three) — the 45-commit fixture's rule; the unbounded page of the first version of this item cost 244 and 423 on the real repository
+// input: one click on the history of the use cases, then one on Older, with a token and without
+// expect: a page costs the snapshot (3), one "List commits" (1), "Get a commit" for each of the twenty commits (20) and the texts of the use-case records of the page — with a token 1 GraphQL batch, without
+//   one request each on the raw host. First page (commits 236 to 217: 14 use cases): 25 requests with a token, 38 without. Second page (216 to 197: 13 use cases): 25 with, 37 without. Neither
+//   depends on the 236 commits
+for (const token of [true, false]) {
+  test(`TST-898013 use-case history at this repository's size — 20 commits to a page, ${token ? "with" : "without"} a token`, async () => {
+    const history = longHistory(236);
+    const one = fakeGitHub(history), two = fakeGitHub(history);
+    const first = await draw("use-case", { id: "history" }, one, { token });
+    await draw("use-case", { id: "history", ...olderOf(first.target) }, two, { token });
+    assert.deepEqual([one.counts(), two.counts()], token
+      ? [{ repository: 1, commit: 1, tree: 1, list: 1, detail: 20, batch: 1, raw: 0, contents: 0, all: 25 }, { repository: 1, commit: 1, tree: 1, list: 1, detail: 20, batch: 1, raw: 0, contents: 0, all: 25 }]
+      : [{ repository: 1, commit: 1, tree: 1, list: 1, detail: 20, batch: 0, raw: 14, contents: 0, all: 38 }, { repository: 1, commit: 1, tree: 1, list: 1, detail: 20, batch: 0, raw: 13, contents: 0, all: 37 }]);
+  });
+}
