@@ -33,6 +33,7 @@ uses:
   - MOD-release-evidence.reportsAwaitingAcceptance
   - MOD-test-document.TestDeclaration
   - MOD-test-document.testDeclarations
+  - MOD-test-document.isTestFile
   - MOD-trace-graph.Graph
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.tracesTo
@@ -148,14 +149,14 @@ The six stages of the main page, each a share between 0 and 1:
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
   records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
   With the scope `all`, the default, it reads everything once: the default branch of the product — through a
-  local clone, the branch it has checked out — and what the repository says about it, the trace graph, the approval
+  local clone, the branch it has checked out — and what the repository says about it, the approval
   records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
   commit the declaration's `model_version` names, read with `instanceAt`, and the history of the declaration, the
   instance's participants, the plan or the backlog
   and the sprints, the gate records, the job records and the live state of every job that has not ended — from the CI
   service, from the Bridges given in `bridges` and from this tab, through MOD-runtimes' `liveState` —, the pull
   requests — and, for the head commits MOD-work-plans' `undecidedHeads` names, whether the default branch contains them,
-  through the host's `containsCommit`, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations and the resource list.
+  through the host's `containsCommit`, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations of the files MOD-test-document's `isTestFile` names and the resource list. It builds no trace graph: `graph` is `"unknown"` in both scopes, and a view that shows traces builds them with MOD-trace-graph's `traceGraph` when it is drawn.
   Considers:
   - `instance` is the instance as the caller reads it, for its participants, process models and `SPEC.md`: on a page
     its default branch; in CI the checkout of the instance at the commit of Agent M that runs (MOD-workflow-entries).
@@ -272,8 +273,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   CI configuration is generated from it.
 - MOD-result-records.resultsAt — the outcomes recorded for the default branch.
 - MOD-release-evidence.reportsAwaitingAcceptance — the release test report that waits for acceptance, if one does.
-- MOD-test-document.TestDeclaration, testDeclarations, MOD-trace-graph.Graph, traceGraph, tracesTo — which tests guard
-  which requirement, and the traces behind a cell of the grid.
+- MOD-test-document.TestDeclaration, testDeclarations, isTestFile, MOD-trace-graph.Graph, traceGraph, tracesTo — which
+  tests guard which requirement, which files are test files, and the traces behind a cell of the grid.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.
 - MOD-runtimes.liveState, jobWorkflowFiles, ResourceNeed — the live state of jobs that have not ended, the paths of the
   job workflow, and the type of a resource need.
