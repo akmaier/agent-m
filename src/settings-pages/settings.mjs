@@ -897,6 +897,14 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
   );
 }
 
+// The ways from a product's section to the guided pages of what the product's repository keeps (UC-015 step 1: "In the product's view, the author opens Requirement sources").
+// The frame's `go` adds the chosen product to the address.
+function productLinks(context) {
+  const sources = el("button", "settings-product-sources btn", "Requirement sources");
+  sources.addEventListener("click", () => context.go("sources", {}));
+  return el("p", "settings-product-links", sources);
+}
+
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
@@ -906,7 +914,7 @@ async function productControls(context) {
   try { repository = await context.product.host.repositoryInfo(); }
   catch (error) {
     return el("section", "settings-product panel",
-      el("h3", null, `Product · ${context.product.address}`),
+      el("h3", null, `Product · ${context.product.address}`), productLinks(context),
       el("p", "settings-product-read-only", `Repository metadata is unavailable: ${error.message}`),
       explain("settings-product-unavailable"));
   }
@@ -938,7 +946,7 @@ async function productControls(context) {
     tokenStep.addEventListener("click", () => context.go("add-product", { address: context.product.address }));
     const reason = credential?.token ? "The repository reports this credential cannot write." : "This browser has no token that can write to this product.";
     return el("section", "settings-product panel",
-      el("h3", null, `Product · ${context.product.address}`),
+      el("h3", null, `Product · ${context.product.address}`), productLinks(context),
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
       state,
@@ -1021,7 +1029,7 @@ async function productControls(context) {
   });
   const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product panel",
-    el("h3", null, `Product · ${context.product.address}`), state,
+    el("h3", null, `Product · ${context.product.address}`), productLinks(context), state,
     explain("settings-product-records"),
     workflow,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
