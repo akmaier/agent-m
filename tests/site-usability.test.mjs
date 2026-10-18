@@ -114,7 +114,7 @@ const setUp = async () => {
   planted.afterDiagram = await page.evaluate(MEASURE(390));
   console.log(`site-usability ${JSON.stringify([...measured].map(([key, value]) => [key, value.sheets, value.targets.length, value.widths.length]))}`);
 };
-before(async () => { try { await setUp(); } catch (failure) { throw withStderr(failure, browser?.stderr()); } }, { timeout: 110000 });
+before(async () => { try { await setUp(); } catch (failure) { throw browser ? withStderr(failure, browser.stderr()) : failure; } }, { timeout: 110000 });
 
 after(async () => {
   browser?.close();

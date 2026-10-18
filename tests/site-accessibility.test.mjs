@@ -108,7 +108,7 @@ const setUp = async () => {
   progress("the counter-proofs are checked");
   for (const [key, value] of found) console.log(`site-accessibility ${key}: ${value.violations.map((each) => `${each.id}/${each.impact}/${each.nodes}[${each.first.slice(0, 70)}]`).join(" ")}`);
 };
-before(async () => { try { await setUp(); } catch (failure) { throw withStderr(failure, browser?.stderr()); } }, { timeout: 110000 });
+before(async () => { try { await setUp(); } catch (failure) { throw browser ? withStderr(failure, browser.stderr()) : failure; } }, { timeout: 110000 });
 
 after(async () => {
   browser?.close();

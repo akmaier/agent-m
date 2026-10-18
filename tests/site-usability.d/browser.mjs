@@ -138,6 +138,7 @@ async function session(url) {
 // withStderr(failure, stderr) -> Error — `failure` with the tail of the Electron child's stderr (its last 500 characters) after its message, or the word that the child wrote
 // nothing; the child's stderr is kept in memory by openWindow (`stderr()` of its result) and no other line writes it.
 export function withStderr(failure, stderr) {
+  if (stderr === undefined) return failure;
   const text = String(stderr ?? "").trim();
   const shown = text ? `the Electron child's stderr, its last ${Math.min(text.length, 500)} characters: ${text.slice(-500)}` : "the Electron child wrote nothing to its stderr";
   const error = new Error(`${failure?.message ?? failure}; ${shown}`, { cause: failure });
@@ -159,8 +160,9 @@ export async function stageElectron() {
 
 // openWindow(executable, address) -> Promise<{ page, close, stderr }> — a hidden Electron window that has loaded `address`; `page` is the
 // DevTools session of its page (call, evaluate, close). `close` ends the page's session and the Electron, and removes its folder. `stderr()` is the
-// tail of what the Electron wrote to its stderr so far (4000 characters at most).
-export async function openWindow(executable, address) {
+// tail of what the Electron wrote to its stderr so far (4000 characters at most). A failure of openWindow carries that tail (withStderr); `limit` is how long the
+// window's page may take to appear among the debugging targets.
+export async function openWindow(executable, address, { limit = 30000 } = {}) {
   const debug = await freePort();
   const folder = mkdtempSync(join(tmpdir(), "agent-m-904-entry-"));
   const entry = join(folder, "main.mjs");
@@ -183,10 +185,10 @@ export async function openWindow(executable, address) {
     const target = await until("the window's page appears among the debugging targets", async () => {
       if (spawnError || child.exitCode !== null) throw new Error(`Electron stopped; exit=${child.exitCode}; error=${spawnError?.code ?? null}; stdout=${stdout}; stderr=${stderr}`);
       return (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl;
-    });
+    }, limit);
     page = await session(target);
     await readyPage(page);
     await until(`the window shows ${address}`, async () => (await page.evaluate("location.href", 3000)) === address);
     return { page, close, stderr: () => stderr };
-  } catch (failure) { close(); throw failure; }
+  } catch (failure) { close(); throw stderr.trim() && failure.message.includes(stderr.trim()) ? failure : withStderr(failure, stderr); }
 }
