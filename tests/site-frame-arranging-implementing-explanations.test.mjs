@@ -125,10 +125,12 @@ test("explain — coding-participants: the three kinds compared in setup, speed 
     [/install a self-hosted runner/, "the CI agent's setup: a self-hosted runner on the agent's machine"],
     [/only connects out/, "the CI agent's setup: the runner only connects out"],
     [/takes the time of a workflow run/, "the CI agent's speed: a job takes the time of a workflow run"],
+    [/no key is needed and your\s+subscription pays/, "the CLI agent's cost: its own login, so no key and the person's subscription"],
     [/Setup/, "it compares setup"],
     [/Speed/, "it compares speed"],
     [/Isolation/, "it compares isolation"],
   ]);
+  assert.doesNotMatch(bodyText("coding-participants"), /billed/, "no accepted text bills the self-hosted CI agent's calls, so the topic bills none");
 });
 
 // TST-725005 · level: unit · module: MOD-site-frame

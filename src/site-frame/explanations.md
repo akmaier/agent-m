@@ -399,18 +399,17 @@ the repository* and *run code and tests* is offered, each with the place where i
 they differ in setup, speed and isolation.
 
 A CLI agent, such as Claude Code or Codex, runs on a computer of yours and is reached through the local Bridge on it.
-Setup: the Bridge runs on that computer, and the agent signs in with its own login there. Speed: it starts at once.
-Isolation: the work happens on your machine, in a working folder of its own.
+Setup: the Bridge runs on that computer, and the agent signs in with its own login there, so no key is needed and your
+subscription pays. Speed: it starts at once. Isolation: the work happens on your machine, in a working folder of its own.
 
 A sandboxed agent is a CLI agent inside a virtual machine or a container, reached through a tunnel to the Bridge in it.
-Setup: you set up the sandbox and the Bridge in it, and the tunnel to it. Isolation: it sees only what the sandbox holds, so
+Setup: the Bridge runs inside the sandbox, and the tunnel reaches it. Isolation: it sees only what the sandbox holds, so
 it is the choice when the agent should not touch the rest of your computer. The texts of Agent M give it no speed of its own.
 
 A CI agent runs in a workflow on a self-hosted runner on the agent's machine. Setup: you install a self-hosted runner, a
 program, on that machine; the workflow's job then reaches the agent locally, with no inbound SSH and no key stored on GitHub,
-and the runner only connects out, so a machine behind NAT works too. Speed: a job takes the time of a workflow run, and the
-agent's calls are billed per use by its provider. Isolation: the job runs on that machine, and a self-hosted runner serves
-private repositories only.
+and the runner only connects out, so a machine behind NAT works too. Speed: a job takes the time of a workflow run.
+Isolation: the job runs on that machine, and a self-hosted runner serves private repositories only.
 
 ## capabilities-and-place
 
