@@ -28,6 +28,7 @@ uses:
   - MOD-repository-hosts.RepositoryInfo
   - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.listTags
+  - MOD-browser-store.Store
   - MOD-browser-store.readSetting
   - MOD-browser-store.writeSetting
   - MOD-job-runner.Strategies
@@ -84,14 +85,14 @@ are kept by Access in this browser.
   be reached; an issue that cannot be written to is named, and its mail stays proposable.
 - `MailDecision` — `{ kind: "create", product: string, title: string, text: string, label: "defect" | "change" } | {
   kind: "add", product: string, issue: number } | { kind: "not-an-issue" }`.
-- `decideMail(mail: { id: string, people: People }, decision: MailDecision, host: Host | null) -> Promise<{ issue:
-  number | null }>` — carries out the person's one click on a mail (`A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK`):
+- `decideMail(mail: { id: string, people: People }, decision: MailDecision, host: Host | null, store: Store) ->
+  Promise<{ issue: number | null }>` — carries out the person's one click on a mail (`A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK`):
   *create* searches the title and text once more for the mail's people and refuses on a hit, then creates the issue in
   the product's tracker with the person's token, labelled `defect` or `change`, its text ending with the mail's
   identifier (`THE PRODUCT ISSUE CARRIES NO PERSONAL DATA`, `AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE`); *add* lists
   the mail on an existing issue by a `mail-added` note (`A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE`); *not an
-  issue* adds the identifier to this browser's marks. Errors: `PersonFound` with the hits — nothing written —, and
-  Access's `TokenRefused` and `MissingPermission` naming the product.
+  issue* adds the identifier to this browser's marks in `store`, the store the page opened for the instance. Errors:
+  `PersonFound` with the hits — nothing written —, and Access's `TokenRefused` and `PermissionMissing` naming the product.
 - `RepliesDue` — `{ toAnswer: Due[], answerReceived: Due[], open: Due[] }`, where `Due` is `{ product: string, issue:
   number, closedBy: string | null, release: string | null, mails: { id: string, mail: Mail | null, draft: DraftRef |
   null, noted: boolean }[] }`; `mail` is `null` for a mail no longer in the named folders.
@@ -145,5 +146,6 @@ the mailbox through MOD-mail-routes, and the marks *not an issue* through Access
   `mail-batch`.
 - `MOD-repository-hosts.listPullRequests`, `MOD-repository-hosts.listTags` — what solved an issue, and the release that
   contains it.
-- `MOD-browser-store.readSetting`, `MOD-browser-store.writeSetting` — the identifiers marked *not an issue*.
+- `MOD-browser-store.Store`, `MOD-browser-store.readSetting`, `MOD-browser-store.writeSetting` — the identifiers marked
+  *not an issue*, in the store the page hands in.
 - `MOD-job-runner.Strategies` — the type of `mailStrategies`.
