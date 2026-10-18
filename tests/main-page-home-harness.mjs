@@ -198,6 +198,14 @@ export function browser({ products = [PRODUCT_URL], tokens = { [PRODUCT]: PRODUC
     go: (route, params = {}) => { went.push([route, params]); }, went };
 }
 
+/** A count of the reads of the setting `key` from the store's local storage, from now on: `reads.count`. The reading itself is passed on unchanged. */
+export function countReads(store, key) {
+  const reads = { count: 0 };
+  const getItem = store.storage.getItem.bind(store.storage);
+  store.storage.getItem = (name) => { if (name === store.prefix + key) reads.count += 1; return getItem(name); };
+  return reads;
+}
+
 /** Draws a route into a new element at the fixed clock, with the timers of `timers` in place of the real ones, and returns the element. */
 export async function draw(route, context) {
   const target = document.createElement("div");

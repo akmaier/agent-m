@@ -282,7 +282,7 @@ function chosenSource(choices, list) {
 }
 
 async function showRequirementsDraft(where, kind) {
-  const { target, token } = where;
+  const { target, token, context } = where;
   target.append(el("h2", null, "Derive requirements"), sourceExplain(kind.explain.draft.source), link(`#${kind.route}`, null, `All ${kind.plural}`));
   let loaded, choices;
   try {
@@ -493,7 +493,7 @@ function noReviewer(drafter, participants, needs, places) {
  * the run panel and Run. Nothing is sent before Run.
  */
 async function showArchitectureDraft(where, kind) {
-  const { target, snapshot, token } = where;
+  const { target, snapshot, token, context } = where;
   target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), link(`#${kind.route}`, null, `All ${kind.plural}`));
   let graph, loaded, places, found, reviewing;
   try {

@@ -51,7 +51,8 @@ export function addressWriter(page, pageAddress, instance, products) {
 export const tokenKeyOf = (address) => address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`;
 
 // chosenProduct({ store, fragment }) -> Promise<ProductContext | null> — the product the fragment names among those this browser
-// keeps, connected with its own token to its own server only; null when the fragment names none. Throws UnknownProduct { address }
+// keeps, connected with its own token to its own server only, with `tokenStored` true when that token is kept; null when the
+// fragment names none. Throws UnknownProduct { address }
 // for a product this browser does not keep.
 export async function chosenProduct({ store, fragment }) {
   const named = productOf(fragment);
@@ -63,7 +64,7 @@ export async function chosenProduct({ store, fragment }) {
   if (!address) throw Object.assign(new Error(`This browser does not keep the product ${named}.`), { name: "UnknownProduct", address: named });
   const token = readSetting(store, tokenKeyOf(address));
   const host = connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null, secrets: secretValues(store) });
-  return { address: address.web, kind: address.server, host };
+  return { address: address.web, kind: address.server, host, tokenStored: token !== null };
 }
 
 // viewAddress(slug) -> the address of a view module: `../<slug>/index.mjs`, relative to the folder of the frame.

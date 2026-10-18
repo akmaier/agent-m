@@ -83,8 +83,12 @@ async function sourcesOf(shown) {
   const { entry, links } = sourceSchemas();
   let holder = snapshot;
   if (context.instance?.host) holder = await context.instance.host.readSnapshot((await context.instance.host.repositoryInfo()).defaultBranch);
-  const register = await Promise.all(holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path))
-    .map(async (path) => readDocument(entry, path, (await holder.read(path)) ?? "")));
+  const entries = holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
+  // The files are named to Snapshot.readMany before they are read, as subject.mjs' personsSource names them: one batch where the links file and the register are
+  // one snapshot, the register's own where they are two (the links file, a batch of one, by its read); a host that cannot batch reads nothing ahead.
+  if (holder === snapshot) await snapshot.readMany?.(["docs/sources.md", ...entries]);
+  else await holder.readMany?.(entries);
+  const register = await Promise.all(entries.map(async (path) => readDocument(entry, path, (await holder.read(path)) ?? "")));
   return { links: readDocument(links, "docs/sources.md", (await snapshot.read("docs/sources.md")) ?? ""), register };
 }
 
