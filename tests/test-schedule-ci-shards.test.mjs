@@ -174,3 +174,44 @@ test("TST-945005 · counter-proof: plain index % 8 puts two files that need the 
     }
   }
 });
+
+// Copies of tests/site-usability.test.mjs under other names, added before every path of tests/: files that need the Electron too.
+const electronCopies = (count) => Array.from({ length: count }, (_, number) => {
+  const path = join(work, `a-electron-copy-${number}.test.mjs`);
+  copyFileSync(join(root, "tests/site-usability.test.mjs"), path);
+  return path;
+});
+
+// TST-945006
+// level: unit
+// module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: the repository's test files in mode `all` with two copies of tests/site-usability.test.mjs added before them: nine files that need the Electron for eight shards
+// input: the partition run for the shards 0 and 7
+// expect: each run ends with a non-zero status and no file list, and its error text names all nine files and "8 shards", instead of letting two of them share a lock
+test("TST-945006 · more files that need the Electron than shards: the partition fails and names the files and the number of shards", () => {
+  const copies = electronCopies(2);
+  const names = [...copies, ...ELECTRON];
+  for (const shard of [0, 7]) {
+    const run = spawnSync(process.execPath, [script, "all", String(shard), String(SHARDS), ...copies, ...repositoryFiles()], { cwd: root, encoding: "utf8" });
+    assert.notEqual(run.status, 0, `shard ${shard} ends with a failure`);
+    assert.equal(run.stdout.trim(), "", `shard ${shard} hands out no files`);
+    for (const name of names) assert.equal(run.stderr.includes(name), true, `shard ${shard}: the error names ${name}`);
+    assert.equal(run.stderr.includes("8 shards"), true, `shard ${shard}: the error names the number of shards`);
+  }
+});
+
+// TST-945007
+// level: unit
+// module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: the repository's test files in mode `all` with one copy of tests/site-usability.test.mjs added before them: eight files that need the Electron for eight shards
+// input: the partition run for each shard 0..7
+// expect: every run succeeds and the eight files stand in eight different shards (the limit is more files than shards, not as many)
+test("TST-945007 · as many files that need the Electron as shards: the partition succeeds and each has a shard of its own", () => {
+  const copies = electronCopies(1);
+  const names = [...copies, ...ELECTRON];
+  const where = shards("all", [...copies, ...repositoryFiles()], "all-eight");
+  for (const name of names) assert.equal(where.has(name), true, `${name} is in a shard`);
+  assert.deepEqual(shared(where, names), []);
+});
