@@ -375,3 +375,26 @@ test("TST-865006 after a failed route the next route is drawn in its place", asy
   assert.equal(page.target.textContent, "beta {}");
   assert.equal(problems(page).length, 0);
 });
+
+// TST-865007 · level: unit · module: MOD-site-frame
+// guards: UC-008; UC-020
+// given: the Bridge's window (page "bridge") with a route alpha that writes "half drawn" and then fails; three runs, the failure being a ReferenceError "draw is not defined", a RateLimited HostError "the request limit is used up" (no token stored), and a TokenRefused HostError { tokenName: "Agent M", renewal: "https://example.test/renew" }
+// input: startPage with each
+// expect: each start resolves; for the ReferenceError the main area holds exactly one <p class="problem"> with the text "This page could not be drawn: draw is not defined", no link, and no "half drawn"; for the RateLimited one the text is exactly "the request limit is used up Store a token" with one link; for the refused token the area holds no problem and the page shows one notice of kind token-refused
+test("TST-865007 the Bridge's window also shows a failing route as a problem, except a refused token, which is a notice", async () => {
+  const fault = await start({ page: "bridge", views: [failing(new ReferenceError("draw is not defined"))] });
+  await settle();
+  assert.equal(fault.target.children.length, 1);
+  assert.deepEqual(problems(fault).map((paragraph) => paragraph.textContent), ["This page could not be drawn: draw is not defined"]);
+  assert.equal(all(fault.target, "a").length, 0);
+  assert.equal(fault.target.textContent.includes("half drawn"), false);
+  const limit = await start({ page: "bridge", views: [failing(new HostError("RateLimited", {}, "the request limit is used up"))] });
+  await settle();
+  assert.deepEqual(problems(limit).map((paragraph) => paragraph.textContent), ["the request limit is used up Store a token"]);
+  assert.equal(all(limit.target, "a").length, 1);
+  const refusal = new HostError("TokenRefused", { tokenName: "Agent M", renewal: "https://example.test/renew" }, "rejected");
+  const refused = await start({ page: "bridge", views: [failing(refusal)] });
+  await settle();
+  assert.equal(problems(refused).length, 0);
+  assert.deepEqual(all(refused.body, "p").filter((p) => p.className.startsWith("notice ")).map((p) => p.className), ["notice token-refused"]);
+});
