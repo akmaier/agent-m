@@ -32,3 +32,20 @@ change's impact list.
 - In a small DOM with a fixture draft of a module file, the route shows its impact list, a breaking use marked.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Each test states its expected values in its own text.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): done, built by ITM-729
+
+Sprint 88's record names it built already (`docs/backlog/sprints/team2/88.md:84-85`). Its Acceptance, line by line, on
+`main`:
+- *"In a small DOM with a fixture draft of a module file, the route shows its impact list, a breaking use marked."* —
+  TST-729003 (`tests/review-pages-impact-list.test.mjs:141-160`) keeps a `change-architecture` draft of a module file,
+  draws `draft`, and asserts the `change-impact` section beside the due diligence, "MOD-tree-view breaks — uses an
+  interface that is removed" first, one `breaks` mark, and the same list as on `module/<id>`. The code:
+  `src/review-pages/conversation-draft.mjs:55-69`. `node --test tests/review-pages-impact-list.test.mjs`: 3 of 3 pass.
+- *"The first commit holds only the tests, and CI is red on it."* — `373e412e` adds only that test file; gate record
+  `docs/gates/20261018-0149-development-release-testing-8c02.md`: red in run 39087329438 on exactly TST-729003.
+- *"Each test states its expected values in its own text."* — the literals stand in the test file (`MODULE_LIST`,
+  `MODULE_LINES`).
+
+So the item is done with ITM-729 (#834, merged with team 2's sprint 86). A file the draft adds gets no impact list on
+`draft` (`conversation-draft.mjs:61-62`, noted in the same gate record). Its Acceptance does not ask for that.

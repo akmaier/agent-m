@@ -8,6 +8,7 @@ modules:
   - MOD-test-pages
 builds_on:
   - ITM-760
+  - ITM-889
 tests:
   - unit
 origin:
@@ -42,3 +43,19 @@ server's page of runs, `webLinks().actions`, which needs no request.
   `test-results` and to the run.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/test-pages/` and the tests that name MOD-test-pages change.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (b), a module text change only
+
+The question for akmaier in this item's Outcome: a `WebLinks` page for a branch, and where the run's identifier comes
+from when nothing can be read. UC-028 2b: "links to the branch `test-results` and to the run on the server"
+(UC-028:108-109). `WebLinks` (MOD-repository-hosts.md:144-147) has no branch page; `run(id)` needs an identifier that 2b
+cannot read. No identifier is needed: the route `runs/<commit>` knows the commit, and both servers have a page of one
+commit's runs, which needs no request.
+
+**The draft**, committed as `c2f0a91e`: `WebLinks` gains `commitRuns(commit)`, the page of the runs or pipelines of one commit,
+and `branch(name)`, the page of a branch's files; MOD-test-pages' use of `webLinks` names them. Principles: *one
+responsibility* — server addresses stay in `web-links.mjs`; *no special first case* — the same entries on both servers.
+
+ITM-889 builds the entries in MOD-repository-hosts; this item builds on it, since its Acceptance changes only
+`src/test-pages/`. MOD-test-pages uses MOD-site-frame, which ITM-878 changes, so the item is held while team 1's sprint 87
+runs.

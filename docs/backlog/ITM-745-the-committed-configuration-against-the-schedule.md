@@ -33,3 +33,20 @@ did not generate, the triggers it has and which rows they run, as far as they ca
 - A foreign workflow with `push` and `schedule` triggers is read as such.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/test-schedule/` and the tests that name MOD-test-schedule change.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (b), a module text change only
+
+The question sprint 79 left for akmaier (`docs/backlog/sprints/team2/79.md:208-211`): where does `configurationDrift` get
+the resources and the participants? The generated text depends on both: the secrets come from the resources
+(`src/test-schedule/generate.mjs:94`, `:103`), the runner label from the participants (`:70-73`, `:102`). The signature
+(MOD-test-schedule.md:131-133) passes neither; `ciConfiguration` takes both (:125-126). The files cannot hold the
+participants, which are the instance's (MOD-test-schedule.md:166). Both callers already read them (MOD-test-pages.md,
+Uses: "the product's resources and the instance's participants"; MOD-progress-measures' `productFacts`).
+
+**The draft**, committed as `c2f0a91e`: `configurationDrift(files, schedule, target, resources: Document, participants:
+Document)` — where the committed configuration differs from the one `ciConfiguration` generates from the same schedule,
+target, resources and participants. Principles: *no special first case* — the same parameters as `ciConfiguration`;
+*nothing twice* — the comparison is with what `ciConfiguration` generates, not a second reading of the committed lines.
+
+The item builds on the acceptance of that draft. While team 1's sprint 87 runs, MOD-trace-pages (ITM-878) uses
+MOD-test-schedule, so the item is held.

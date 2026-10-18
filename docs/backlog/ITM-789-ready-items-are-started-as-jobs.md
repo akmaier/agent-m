@@ -43,3 +43,18 @@ item builds its start, as the module's file states it:
   above the limit, is not started, and its reasons are named; with no startable item nothing starts.
 - A started item has one start record under `docs/jobs/` naming a holder of the implementing role.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (a), answered by the texts
+
+The question sprint 84 left for akmaier (`docs/backlog/sprints/team2/84.md:124-127`): where does the author's choice of
+who merges live? UC-034 step 8: "the pull request is merged: by the coding agent, or by a person, as the author chose when
+starting the jobs" (UC-034:132-134). A job's record holds, in `## Parameters`, "the parameters the kind's recipes read —
+…—, so that every route runs the job from its record alone" (MOD-job-ledger.md:83-85). The sentence names what the block
+holds; it does not say *only* those (AGENTS.md §6a.7), and the choice must reach every route that runs the job.
+
+**The reading:** the choice is the parameter `merges` (`"agent"` or `"person"`) of each `implement` job's start, written
+by *Start jobs* into `## Parameters`; the route `implement` shows it as "who merges" (MOD-implementation-pages.md:172).
+Acting on `"agent"` is ITM-734's (the merge), not this item's.
+
+The item is buildable as it stands. While team 1's sprint 87 runs, ITM-878 changes MOD-site-frame, which
+MOD-implementation-pages uses, so the item is held.

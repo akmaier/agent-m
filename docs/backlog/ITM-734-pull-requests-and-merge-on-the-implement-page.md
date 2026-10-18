@@ -18,6 +18,7 @@ builds_on:
   - ITM-733
   - ITM-748
   - ITM-789
+  - ITM-891
 tests:
   - unit
 origin:
@@ -45,3 +46,16 @@ sprint's branch where the product sets one, and the default branch otherwise.
   holding, merged on its head; one missing a condition shows it and offers no *Merge*; a moved head refused with
   `NotMergeable` and nothing claimed merged.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): which gate records the done check reads (a)
+
+Sprint 87's record left for akmaier which of the product's gate records a pull request's done check reads
+(`docs/backlog/sprints/team2/87.md:57-68`): with all 918 records, `doneCheck` reported #834 "not recorded as passed:
+rejected", because the newest record of the gate was #835's. The texts answer it. SPEC.md:1807-1811: a pull request is
+done when "every gate the workflow places before the merge is recorded" — its own gates; THE GATE IS RECORDED: "who
+decided, when, and on which text" (SPEC.md:845-846); a record's `on` names "`<path>@<blob>` per artifact, or the commit"
+(MOD-product-process.md:116). `gates` are "the product's gate records" (:192), handed to the check; the sentence does not
+say each of them counts for every pull request (AGENTS.md §6a.7).
+
+**The reading:** a record counts for a pull request when its `on` names one of the pull request's commits or the pull
+request itself. ITM-891 fixes `doneCheck` so; this item builds on it.

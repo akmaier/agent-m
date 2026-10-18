@@ -14,6 +14,7 @@ modules:
   - MOD-release-evidence
 builds_on:
   - ITM-254
+  - ITM-887
 tests:
   - unit
 origin:
@@ -54,3 +55,29 @@ It also handles:
 - A release test whose author is the implementer by the job ledger is counted.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/release-evidence/` and the tests that name MOD-release-evidence change.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (b) for two questions, (a) for the third
+
+Sprint 86's three questions for akmaier (`docs/backlog/sprints/team2/86.md:144-151`):
+
+1. **Which snapshot holds the release report and its approval record: (b).** `acceptAndRelease` commits them on the
+   default branch, then tags the candidate's commit (`src/release-evidence/report.mjs:393-399`), as SPEC.md:1544-1546
+   asks ("sets the release tag on the tested commit"). The tagged snapshot never holds them, so MOD-release-evidence.md
+   :155 ("Reads the product at the tagged commit — …, the report, the approval records —") cannot hold, and `statusOf`
+   needs the report and its records in one snapshot (MOD-approvals.md:104-106). UC-030's precondition asks only that the
+   report "is in the product repository" (UC-030:50-51). The module already reads the default branch's
+   `docs/tests/releases/` for `reportsAwaitingAcceptance` (MOD-release-evidence.md:158).
+2. **The source register as a parameter: (b).** `linkedVersion(links, register: Document[], source)`
+   (MOD-source-register.md:155) needs the instance's register, which the signature does not pass. The form has a known
+   positive: `acceptEntries(…, sources: { links, register })` (MOD-spec-changes.md:180-181).
+3. **`statusOf` first: (a).** It is accepted text (MOD-approvals.md:104), and not built (`src/approvals/index.mjs:7`).
+   That is an order of the backlog: an item builds it, and this item builds on it. ITM-887 is that item.
+
+**The draft**, committed as `c2f0a91e`: `auditRows(at, results, head: Snapshot, release, gates, instanceSpec, register:
+Document[])`, `head` the default branch, which holds the report and its approval record that `acceptAndRelease` commits
+after the tagged commit; `register` the instance's source register; the Files line reads the report and its record on
+the default branch. Principles: *one responsibility* — the caller reads, as it reads `gates` and `instanceSpec`;
+*nothing twice* — `statusOf`'s one-snapshot rule and `linkedVersion`'s `register`, as they stand.
+
+The item builds on the acceptance of that draft and on ITM-887. While team 1's sprint 87 runs, MOD-release-evidence is
+used by MOD-review-pages and MOD-trace-pages, so the item is held.

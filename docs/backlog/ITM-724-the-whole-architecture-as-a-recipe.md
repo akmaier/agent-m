@@ -41,3 +41,23 @@ This item builds them as the file states them:
 - `rests-on-accepted` names an open and a changed architecture file when asked, and nothing of the architecture when not
   asked; the existing findings for requirements and use cases stay as they are.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (a), answered by the texts
+
+The question sprint 85 left for akmaier (`docs/backlog/sprints/team2/85.md:67-69`): which parameter asks
+`rests-on-accepted` for the architecture, or does `change-architecture` always ask? The texts answer both halves.
+
+- **Not always.** UC-023's precondition is "The use cases the change concerns are accepted (UC-008)"
+  (`docs/use-cases/UC-023-modify-the-architecture.md:69-70`), and SPEC.md:1287 "An architecture is drafted or changed
+  only against use cases whose current text an approval record names." The architecture is a precondition of other use
+  cases (UC-024, UC-032, UC-043, UC-045), whose kinds ask for it; this item builds the check, not their callers.
+- **The parameter.** MOD-approvals.md:142-143 names no parameter for the requirements and use cases either ("the job's
+  selection names"); the code names them `requirements` and `useCases` in `src/approvals/strategies.mjs:99-102`, and
+  TST-472024 and TST-472025 call them. `JobContext.params` is `Record<string, unknown>` (MOD-job-runner.md:202), and a
+  job's `## Parameters` hold "the parameters the kind's recipes read" (MOD-job-ledger.md:83-84), so the strategy names
+  its own. **The reading:** the parameter is `architecture: true`, named in `strategies.mjs`' header beside
+  `requirements` and `useCases`. With it, every architecture file whose status is not `accepted` is named; without it,
+  nothing of the architecture.
+
+The item is buildable as it stands. Its module, MOD-approvals, is changed by no item of team 1's sprint 87; MOD-review-
+pages uses it, so it is held while that sprint runs.

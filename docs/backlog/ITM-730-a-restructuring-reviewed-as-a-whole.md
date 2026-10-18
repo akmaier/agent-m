@@ -35,3 +35,30 @@ impact list (`architectureImpact` with `after: null`). *Accept all N shown* is u
 - In a small DOM with a fixture snapshot holding a changed decision, a new module file and a removed module file: each
   changed and removed file with its impact list, the new file in full, and one commit with one record per file shown.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (b), a module text change, not drafted now
+
+The question sprint 88 left for akmaier (`docs/backlog/sprints/team2/88.md:77-82`): what does the acceptance of a removal
+record? It needs no SPEC or use case change: UC-023:98-100 asks for "every removed decision with its impact list, and
+**Accept all N shown** for all of them in one commit", and SPEC.md:1034-1037 for "one approval record per file, each
+naming the text shown". What lacks is the form of that record and how a removed file is found, both MOD-approvals':
+- its statuses are those of files present (MOD-approvals.md:96-98);
+- `acceptShown` leaves a removed file out as "changed since shown", since the head holds no blob of it
+  (`src/approvals/accept.mjs:77`; sprint 88's call `kp88-730.mjs`).
+
+**The draft to write**, in the form of the module files:
+- MOD-approvals, `blob`: for a removed decision or module file, the blob of the empty text, which is what the default
+  branch holds of it. So a record keeps one format, and a removal is no special case.
+- MOD-approvals, a new interface `removedFiles(snapshot)`: every decision or module file a record names whose identifier
+  the snapshot holds no file of, and whose removal no record accepts. It is computed in the same pass as `statuses`.
+- MOD-approvals, `acceptShown`: a shown file with the empty text's blob is a removal, recorded while the head holds no
+  file of its identifier.
+- MOD-review-pages, `<k>/all`: for the architecture, every file `removedFiles` names, with its impact list
+  (`architectureImpact` with `after: null`); its Uses gain `MOD-approvals.removedFiles`.
+
+Principles: *no special first case* (one record form); *one responsibility* (the records' owner finds the removals);
+*nothing twice* (one pass over `docs/approvals/`).
+
+**Not drafted now.** MOD-review-pages is changed by team 1's sprint 87 (ITM-874 to ITM-879), so its file is not drafted
+while that sprint runs. The draft of both files is written once that sprint is merged, and the item builds on its
+acceptance.

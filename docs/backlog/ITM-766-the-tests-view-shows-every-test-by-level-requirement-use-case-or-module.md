@@ -12,6 +12,7 @@ realises:
 modules:
   - MOD-trace-pages
 builds_on:
+  - ITM-888
 tests:
   - unit
 origin:
@@ -44,3 +45,20 @@ path MOD-result-records' file fixes. MOD-trace-pages reads it through `readSnaps
   level, the Incomplete group, the broken link, and 1b.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (b), a module text change only
+
+The question sprint 83 left for akmaier (`docs/backlog/sprints/team2/83.md:68-70`): does `TestDeclaration` carry the
+title, or does the view show none? UC-029 step 1 answers the second half: "each test shows its `TST-` identifier, a
+one-line title and its outcome" (`docs/use-cases/UC-029-*.md:35-37`). `TestDeclaration` (MOD-test-document.md:71-74)
+has no title; the same block holds `paid` (the known positive). The only title of the format is the manual test's
+heading `### TST-<nnn> <title>`, which `src/test-document/declarations.mjs` reads and drops.
+
+**The draft**, committed as `c2f0a91e`: MOD-test-document's Data gain the **title** of a declaration — for a manual test the
+heading's `<title>`; for a test in code the name the test case gives itself on the first line after the declaration, its
+first string literal or else the name it defines; none where neither is found —, and `TestDeclaration` gains `title:
+string | null`. Principles: *one responsibility* — MOD-test-document stays the one reader of test files; *no special
+first case* — manual and coded tests get the same field.
+
+ITM-888 builds the field in MOD-test-document; this item builds on it, since its Acceptance changes only
+`src/trace-pages/`. While team 1's sprint 87 runs, ITM-878 changes MOD-trace-pages, so the item is held.

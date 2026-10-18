@@ -46,3 +46,19 @@ The host's `createBranch`, `commitFiles` and `openPullRequest` are built.
   - `null` on GitHub.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/test-schedule/` and the tests that name MOD-test-schedule change.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (b), a module text change only
+
+The question left for akmaier (`docs/backlog/sprints/team2/82.md:83-89`): MOD-test-schedule's Uses do not name `repositoryInfo`. `proposeSchedule` opens its pull request into the default branch (`openPullRequest` needs `base`, MOD-repository-hosts.md:201), and `applyPipelineSchedule(host, schedule)` sets a schedule on it. The default branch is given
+only by `RepositoryInfo.defaultBranch` (MOD-repository-hosts.md:136, `repositoryInfo()` at :185-186): a `Snapshot`'s
+`ref` is what it was read at (:106, :168), here a commit. Its Uses name `readSnapshot`, `createBranch`, `commitFiles`, `openPullRequest` and `setPipelineSchedule` one by one, so the absence reads as a gap of the Uses;
+`grep -c repositoryInfo` gives 0 for MOD-test-schedule.md and 3 for MOD-runtimes.md (the known positive).
+
+**The draft**, committed as `c2f0a91e`: MOD-test-schedule's Uses gain `MOD-repository-hosts.repositoryInfo`, for the default branch
+a schedule's pull request goes into and the pipeline schedule runs on,
+in the form 13 other module files name it (e.g. MOD-runtimes.md:261). Principles: *no special first case* — named like
+the module's other host functions; *nothing twice* — the default branch comes from the host the function already
+receives, not from a second copy in a context.
+
+The item builds on the acceptance of that draft. While team 1's sprint 87 runs, MOD-test-schedule is used by its modules
+(MOD-trace-pages), so the item is held.

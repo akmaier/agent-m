@@ -41,3 +41,22 @@ builds.
 - The route lists the five shipped models and a fixture instance's own model, each with its kind and the products that
   declare it; a shipped model offers *Adapt* only.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (a), answered by the texts
+
+The question sprint 84 left for akmaier (`docs/backlog/sprints/team2/84.md:118-120`): may MOD-implementation-pages connect
+each product of this browser (`parseAddress` and `connect`), or does the page show only the chosen product? Neither is
+needed. MOD-implementation-pages uses `MOD-site-frame.chosenProduct` (MOD-implementation-pages.md:10, :199), and
+`chosenProduct(context: { store, fragment })` gives "the product the address's fragment or the selector names, among the
+products this browser keeps, connected with its own token to its own server only" (MOD-site-frame.md:154-156), with its
+`host` (`ProductContext`). It parses the address itself (`src/site-frame/routing.mjs:57-62`).
+
+**The reading:** for each address of `readSetting(store, "products")`, the route calls `chosenProduct` with the fragment
+`#models/product=<address>` and reads the declaration with that product's `host` (`repositoryInfo`, `readSnapshot`,
+both in the Uses); an address that cannot be connected is shown with its reason. The known positive is the same call on
+the main page: `src/main-page/jobs.mjs:36` calls `chosenProduct` with the fragment `#jobs/product=<address>` and takes
+its `host`; and
+`tests/site-frame-chosen-product.test.mjs` with several products.
+
+The item is buildable as it stands. While team 1's sprint 87 runs, ITM-878 changes MOD-site-frame, whose
+`explanations.md` this item writes, so the item is held.
