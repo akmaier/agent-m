@@ -60,3 +60,15 @@ This item switches the live page. It does not switch it until every route `home`
 **Noted at ITM-854's gate (sprint team1/80, 2026-10-17, po-opus).** The old `src/home/home.mjs` connects the notifications'
 host once, with the token of the moment, as the frame did before ITM-854. It goes when this item switches the main page, and
 the new page's notifications follow the store as the frame's do.
+
+**Noted at ITM-880's gate (sprint team2/89, 2026-10-18, po-opus-b).** The live main page breaks `A PAGE LOAD READS THE
+REPOSITORY IN BATCHES` (SPEC.md:672). The main page is "the dashboard of what goes on in the instance" (SPEC.md:902). With a
+token it reads the texts its cards and its waits list show one by one.
+- Replayed at `dccd7cc3` through `tests/app-harness.mjs`, with every text file of the commit: `index.html`'s
+  `src/home/home.mjs` sends 1,072 requests, with a token and without.
+- Of these, 1,069 are single file reads: 691 backlog items, 372 job records, 5 files of change queues and `SPEC.md`.
+  The cause is that `read` (`src/home/home.mjs:46-57`) hands `productFacts` `snapshot.read` and never calls `readMany`.
+- The same facts through MOD-main-page's route `home` (ITM-826, ITM-827) take 50 requests with a token (measurement
+  `docs/measurements/2026-10-18_page-loads-once-per-commit.md` §2).
+- The file belongs to no module, so it is not fixed in place (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`,
+  SPEC.md:1441). This item's switch is the fix.
