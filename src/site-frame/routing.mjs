@@ -50,6 +50,23 @@ export function addressWriter(page, pageAddress, instance, products) {
 // The key a product's own token is kept under (MOD-browser-store, Data).
 export const tokenKeyOf = (address) => address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`;
 
+// The host of each product this page has connected, by the store and the product's address: a navigation that keeps the product keeps its host, so that
+// the blobs the host has read are not read again (MOD-repository-hosts keeps them for as long as a host it returned is used). A host is replaced when the
+// product's token or any stored secret changed since it was connected (A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY).
+const connected = new WeakMap();
+
+function hostOf(store, address, token) {
+  const secrets = secretValues(store);
+  const stamp = JSON.stringify([token?.value ?? null, token?.name ?? null, secrets]);
+  const held = connected.get(store) ?? new Map();
+  connected.set(store, held);
+  const had = held.get(address.web);
+  if (had && had.stamp === stamp) return had.host;
+  const host = connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null, secrets });
+  held.set(address.web, { stamp, host });
+  return host;
+}
+
 // chosenProduct({ store, fragment }) -> Promise<ProductContext | null> — the product the fragment names among those this browser
 // keeps, connected with its own token to its own server only, with `tokenStored` true when that token is kept; null when the
 // fragment names none. Throws UnknownProduct { address }
@@ -63,7 +80,7 @@ export async function chosenProduct({ store, fragment }) {
   const address = kept.find((candidate) => candidate && candidate.web === wanted);
   if (!address) throw Object.assign(new Error(`This browser does not keep the product ${named}.`), { name: "UnknownProduct", address: named });
   const token = readSetting(store, tokenKeyOf(address));
-  const host = connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null, secrets: secretValues(store) });
+  const host = hostOf(store, address, token);
   return { address: address.web, kind: address.server, host, tokenStored: token !== null };
 }
 
