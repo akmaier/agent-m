@@ -20,6 +20,10 @@ export const unquoted = (text) => String(text ?? "").trim().replace(/^`|`$/g, ""
 export const linkOf = (links, entry) => links.sections.flatMap((section) => section.rows ?? [])
   .find((row) => unquoted(row.cells.Source) === entry.id);
 
+// The commit a version's row records in its `Read from` cell, which names a repository's version as `<repository address>
+// commit <commit>` (registrationCommits' caller writes it so, versionCommits writes it so); null where the row records none.
+export const commitOf = (row) => /(?:^|\s)commit (\S+)\s*$/.exec(String(row.cells["Read from"] ?? ""))?.[1] ?? null;
+
 // The files of a version and their SHA-256, as the table under `### Files of <version>` in the entry's `## Versions` lists
 // them — the version written with or without backticks. A file is stored unless the Files cell of the version's row names it
 // after `not stored:`, the names of the files only hashed separated by a comma and a space (registrationCommits writes it).
