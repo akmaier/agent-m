@@ -35,5 +35,6 @@ UC-014 steps 1 to 5, from "A guided page opens; it asks for the person's GitHub 
 **Stopped before its first test (sprint team1/92, developer-sonnet-a).** Steps 1 and 2 need `webLinks().fork` and
 `.pagesSettings`. MOD-repository-hosts.md:146-151 states them, but `src/repository-hosts/web-links.mjs` does not build
 them, so ITM-950 builds them first. Step 4 needs MOD-identifiers.pagesAddress, which MOD-settings-pages.md's Uses do not
-name. That line is drafted for akmaier. This item waits for ITM-950's merge and for akmaier's acceptance of the draft.
+name. That line is a draft for akmaier, held until sprint team1/92's MOD-settings-pages items are merged. This item
+waits for ITM-950's merge and for akmaier's acceptance of the draft.
 

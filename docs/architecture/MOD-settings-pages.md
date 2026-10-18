@@ -33,7 +33,6 @@ uses:
   - MOD-repository-hosts.startWorkflow
   - MOD-repository-hosts.listReleaseAssets
   - MOD-repository-hosts.webLinks
-  - MOD-identifiers.pagesAddress
   - MOD-bridge-client.settingsOf
   - MOD-bridge-client.bridgeAt
   - MOD-bridge-client.pair
@@ -232,8 +231,6 @@ reaches.
   files; MOD-repository-hosts.startWorkflow — *Fetch again*; MOD-repository-hosts.listReleaseAssets — the Bridge's files
   with their sizes and SHA-256; MOD-repository-hosts.webLinks — the server's token, fork, Pages, Actions, secrets and
   access-token pages.
-- MOD-identifiers.pagesAddress — the instance's dashboard address: the page *Open your dashboard* opens in
-  `get-your-own` (UC-014 step 4), and the return address of a mailbox's app registration.
 - MOD-bridge-client.settingsOf, MOD-bridge-client.bridgeAt, MOD-bridge-client.pair, MOD-bridge-client.testBridge,
   MOD-bridge-client.probe — each Bridge's address, pairing, tests, the agents a Bridge offers, a resource's check;
   MOD-bridge-client.allocatePort, MOD-bridge-client.tunnelCommands, MOD-bridge-client.proxyConfiguration — the Bridges
