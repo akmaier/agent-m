@@ -84,7 +84,8 @@ It keeps nothing but the screen. It builds a handle for each Bridge this browser
 live states, logs and cancels of jobs on Bridges reach them. While the page is open it reads the jobs' states again at
 an interval the repository servers' rate limits allow, so the build stays current, except while its tab is hidden
 (`document.visibilityState` is `hidden`): then it starts no reading, and when `visibilitychange` shows the tab again it
-reads at once each card whose reading fell due meanwhile. It stores nothing between readings.
+reads at once each card whose reading fell due meanwhile. A card whose repository this browser keeps no token for is read
+once, when the page is drawn, and never again (UC-046 4b). It stores nothing between readings.
 
 ## Interfaces
 

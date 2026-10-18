@@ -89,6 +89,9 @@ sequenceDiagram
   when implementation starts (UC-024, step 1).
 - **4a. A job's runtime cannot be reached** — for example the bridge of another machine. The card says that jobs running
   there are not shown (UC-036).
+- **4b. No token is stored for a product's repository** — or for the instance's, on Agent M's own card. The card is read
+  once, when the page is drawn, and its build is not kept current while the page is shown. Reloading the page reads it
+  again.
 
 ## Postcondition
 
