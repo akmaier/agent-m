@@ -32,7 +32,7 @@
 import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stageElectron, openWindow } from "./site-usability.d/browser.mjs";
+import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
 import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
@@ -51,9 +51,7 @@ const CLAUSES = [
 // What the pages do today that the check names: route -> clause -> the finding, as measured in the controlled Electron at a phone's width
 // (at a desktop's width every route passes). Each is a todo until the module of its route fixes it; each fix is an item of that module.
 const TODAY = {
-  "#uc/UC-001": { widths: "the Markdown table and the run of code of the use case are wider than a phone's window and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
-  "#arc": { widths: "the source of the component diagram stands in a code block wider than a phone's window (MOD-trace-pages' modules view)" },
-  "#module": { widths: "the source of the component diagram stands in a code block wider than a phone's window (MOD-trace-pages' modules view)" },
+  "#uc/UC-001": { widths: "its diagram is drawn; what remains is the Markdown table and the run of code of the use case, wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
   "#backlog": { widths: "the sprint and backlog tables and both burn-down charts are wider than a phone's window (docs/assets/dashboard/backlog-view.mjs)" },
   "#roles": { widths: "the table of roles is wider than a phone's window and the page scrolls sideways (MOD-implementation-pages)" },
 };
@@ -83,9 +81,9 @@ before(async () => {
   browser = await openWindow(executable, `${site.address}/__blank`);
   progress("the window is open");
   const page = browser.page;
-  await page.call("Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
+  await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
   for (const [kind, width] of WIDTHS) {
-    await page.call("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
+    await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
     const took = [];
     for (const route of ROUTES) {
       const at = Date.now();
@@ -98,7 +96,7 @@ before(async () => {
   }
   // The counter-proofs: the same page at a phone's width, first as it is, then with a table 600 px wide, a button 10 px square and an
   // embedded style sheet planted in it.
-  await page.call("Emulation.setDeviceMetricsOverride", { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
+  await configure(page, "Emulation.setDeviceMetricsOverride", { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
   await show(page, site, "#how");
   planted.before = await page.evaluate(MEASURE(390));
   await page.evaluate(`(() => { const main = document.querySelector("main");

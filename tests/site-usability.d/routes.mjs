@@ -5,7 +5,7 @@
 // Module: MOD-site-frame
 // Level: system
 
-import { until } from "./browser.mjs";
+import { again, until } from "./browser.mjs";
 
 // Each route: its address, and a text it must show — the known positive that the page was drawn with content before anything is said
 // about its widths. `#` addresses are the review pages' fragments; `/` is the main page.
@@ -52,18 +52,22 @@ export const OBSERVE = `window.__lastChange = performance.now(); new MutationObs
 export const DRAWN = `(() => { const main = document.querySelector("main"); if (!main) return false;
   return window.__pending === 0 && performance.now() - window.__lastChange > 400 && !/(^|\\n)\\s*(Loading|Reading)…\\s*($|\\n)/.test(main.innerText)
     && [...document.querySelectorAll(".mermaid")].every((diagram) => diagram.querySelector("svg") !== null); })()`;
-// show(page, site, address, { answerWithin = 3000, limit = 30000 }) — opens the address and waits until it is drawn. An evaluation in the page is given
-// `answerWithin` ms to answer and is sent again when it does not, until `limit` ms of the wait are over: an evaluation sent while the document is replaced
-// is sometimes never answered, and a single evaluation that is given the whole wait cannot be sent again.
+// show(page, site, address, { answerWithin = 3000, limit = 30000 }) — opens the address and waits until it is drawn. A call or an evaluation in the page is
+// given `answerWithin` ms to answer and is sent again when it does not, until `limit` ms of the wait are over: one sent while the document is replaced is
+// sometimes never answered, and a single one that is given the whole wait cannot be sent again. The navigation is sent again until it is answered, and the
+// wait for the load is the same wait: the address asked for twice is the same address.
 export async function show(page, site, address, { answerWithin = 3000, limit = 30000 } = {}) {
-  const ask = (name, expression) => until(name, async () => ({ value: await page.evaluate(expression, answerWithin) }), limit).then((answer) => answer.value);
+  const ask = (name, expression) => again(name, (within) => page.evaluate(expression, within), { answerWithin, limit });
   const here = await ask(`${address} asks where the page is`, "location.pathname + location.hash");
   if (address.startsWith("#") && here.startsWith("/docs/")) {
     await ask(`${address} is set`, `window.__lastChange = performance.now(); location.hash = ${JSON.stringify(address)}`);
   } else {
     const target = address === "/" ? `${site.address}/` : `${site.address}/docs/${address}`;
-    await page.call("Page.navigate", { url: target });
-    await until(`${address} is loaded`, () => page.evaluate(`location.href === ${JSON.stringify(target)} && document.readyState === "complete"`, answerWithin), limit);
+    let navigated = false;
+    await until(`${address} is loaded`, async () => {
+      if (!navigated) { await page.call("Page.navigate", { url: target }, answerWithin); navigated = true; }
+      return await page.evaluate(`location.href === ${JSON.stringify(target)} && document.readyState === "complete"`, answerWithin);
+    }, limit);
   }
   try {
     await until(`${address} is drawn`, () => page.evaluate(DRAWN, answerWithin), Math.min(limit, 20000));

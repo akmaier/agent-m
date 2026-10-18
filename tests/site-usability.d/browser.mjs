@@ -36,6 +36,26 @@ export async function until(name, condition, limitMs = 30000) {
   throw new Error(`${name} did not hold within ${limitMs / 1000} s; last error: ${lastError?.message ?? "none"}`);
 }
 
+// again(name, attempt, { answerWithin = 3000, limit = 30000 }) -> Promise<any> — what `attempt(answerWithin)` gives. An attempt is given `answerWithin` ms
+// to answer and is made again when it does not, until `limit` ms are over; at the limit it throws as `until` does. A command or an evaluation sent while a
+// document is replaced is sometimes never answered, and one that is given the whole wait cannot be sent again. Only a call that does no harm when it runs
+// twice is made through `again`: a slow call that is still running is not sent again and again, so it is given `answerWithin` of its own.
+export async function again(name, attempt, { answerWithin = 3000, limit = 30000 } = {}) {
+  const answer = await until(name, async () => ({ value: await attempt(answerWithin) }), limit);
+  return answer.value;
+}
+
+// configure(page, method, params, options) -> Promise<object> — the answer of a command that sets up the window's page or the check; the command is sent
+// again, within `options.limit`, until it is answered.
+export const configure = (page, method, params = {}, options) => again(`${method} is answered`, (within) => page.call(method, params, within), options);
+
+// readyPage(page, options) -> Promise<void> — the setup of a window's page, which openWindow runs: the page domain is enabled, so that a script can be added
+// to every new document, and a first evaluation has run in the document that is open, or the first one after a navigation is never answered.
+export async function readyPage(page, options) {
+  await configure(page, "Page.enable", {}, options);
+  await again("the open document answers", (within) => page.evaluate("document.readyState", within), options);
+}
+
 async function acquireLock() {
   for (let n = 0; n < 240; n += 1) {
     try { mkdirSync(nativeFixtureLock); return; } catch (error) { if (error.code !== "EEXIST") throw error; }
@@ -151,10 +171,7 @@ export async function openWindow(executable, address) {
       return (await (await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find((item) => item.url.startsWith("http://127.0.0.1"))?.webSocketDebuggerUrl;
     });
     page = await session(target);
-    // The page domain must be enabled for a script to be added to every new document, and a first evaluation must have run in the
-    // document that is open, or the first one after a navigation is never answered.
-    await page.call("Page.enable");
-    await page.evaluate("document.readyState");
+    await readyPage(page);
     return { page, close };
   } catch (failure) { close(); throw failure; }
 }

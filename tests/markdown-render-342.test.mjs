@@ -248,7 +248,7 @@ test("TST-342005 an artifact without a diagram loads no diagram library", async 
   const acquired = [];
   let calls;
   body.appendChild = function appendVendorScript(node) {
-    acquired.push(node);
+    if (node.localName === "script") acquired.push(node);
     const result = appendChild.call(this, node);
     if (node.getAttribute("src")?.includes("mermaid.min.js")) {
       calls = installMermaid();

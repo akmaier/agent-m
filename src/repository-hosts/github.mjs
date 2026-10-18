@@ -4,7 +4,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), history(path, { ref, limit }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
+// readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
 // createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
@@ -204,7 +204,8 @@ export function githubAdapter(address, { token, tokenName }, links) {
     // none is given), at most `limit` of them (all where none is given), each with the files it changed. "List commits" (sha,
     // path, per_page up to 100, page) names the commits, page by page as listTags reads the tags; "Get a commit" gives the
     // files of one, up to 100 to a page here, read page by page for a commit that changed more.
-    async history(path, { ref, limit } = {}) {
+    // With `changes: false` no commit's files are read: every entry's changes is empty and the history costs one request per page of commits.
+    async history(path, { ref, limit, changes: withChanges } = {}) {
       const what = ref ? `${address.web} at ${ref}` : address.web;
       const per = limit === undefined ? PAGE : Math.max(1, Math.min(PAGE, limit));
       const query = `per_page=${per}${ref ? `&sha=${encodeURIComponent(ref)}` : ""}${path ? `&path=${encodeURIComponent(path)}` : ""}`;
@@ -216,7 +217,7 @@ export function githubAdapter(address, { token, tokenName }, links) {
       }
       const entries = [];
       for (const c of limit === undefined ? listed : listed.slice(0, limit)) {
-        const changes = await commitChanges(c.sha);
+        const changes = withChanges === false ? [] : await commitChanges(c.sha);
         entries.push({ commit: c.sha, parents: c.parents.map((p) => p.sha), author: { account: c.author?.login ?? null, name: c.commit.author.name },
           date: c.commit.committer.date, message: c.commit.message, changes });
       }
