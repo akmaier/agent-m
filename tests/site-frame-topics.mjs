@@ -7,7 +7,7 @@
 //   - the double-quoted literals that stand as values in an object literal bound to a name that contains "explain" or "topic" (in any case):
 //     `explain: { list: "accepting", draft: { whole: "what-is-an-architecture" } }` and `const TYPE_TOPIC = { person: "participant-person" }`. A literal
 //     followed by a colon is a key, not a topic.
-// Comments are skipped. It is code only; it holds no expected result. The one copy: tests/site-frame-topics-check.test.mjs uses it.
+// Comments are skipped. It is code only; it holds no expected result. The one copy: tests/site-frame.test.mjs uses it.
 //
 // Module: MOD-site-frame
 // Level: unit
