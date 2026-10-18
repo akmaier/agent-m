@@ -15,6 +15,7 @@ uses:
   - MOD-repository-hosts.parseAddress
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.HostError
   - MOD-job-runner.registerStrategies
   - MOD-job-runner.Strategies
   - MOD-job-runner.Prepared
@@ -130,7 +131,8 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
   notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
-  change of the fragment. A fragment that names no loaded route shows the first route of its menu entry, or says that
+  change of the fragment. A route whose rendering fails is replaced in its place by `readProblem` of that failure, except
+  a refused token, which is shown as a notice. A fragment that names no loaded route shows the first route of its menu entry, or says that
   the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
   `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of the address of a
   route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
@@ -174,8 +176,10 @@ It keeps nothing but what is on the screen. It owns these formats:
   a field the person fills in, as for rejecting a gate or recording a limitation.
 - `readProblem(failure: Error, tokenStored: boolean) -> Element` — the problem a failed read of a repository shows on a
   page: for `NotFound` while this browser stores no token that reaches it, that the repository is private or does not
-  exist and no token reaches it, with the link to store one (UC-008 1a, UC-020 2a); otherwise the host's own message,
-  and the link to store a token where none is stored.
+  exist and no token reaches it, with the link to store one (UC-008 1a, UC-020 2a); for any other host's failure
+  (`HostError`), the host's own message, and the link to store a token where none is stored; for an error that is no
+  host's failure, a fault of the page itself: that this page could not be drawn, with the error's message, and no link
+  to a token.
 - `notice(kind: "token-expiring" | "token-refused" | "rate-limit" | "unreachable" | "setup" | "moved" | "info", detail:
   { text: string, link?: { label: string, href: string } }) -> void` — shows a notice in the page's one place for them;
   the frame itself shows a token's expiry from fourteen days before it (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`) with
@@ -201,7 +205,8 @@ It writes nothing.
   MOD-browser-store.expiringSoon — the expiry notice; MOD-browser-store.secretValues — handed to every host it connects,
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
-  each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token.
+  each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token; MOD-repository-hosts.HostError —
+  to tell a host's failure from a fault of the page itself.
 - MOD-job-runner.registerStrategies — the strategies the loaded views and the prompt bar hand it; MOD-job-runner.Strategies,
   MOD-job-runner.Prepared — the types of `View` and of the run panel.
 - MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema.
