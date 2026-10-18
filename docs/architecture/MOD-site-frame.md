@@ -146,7 +146,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then Maintenance and Settings; each
   `{ key, label, href: string | null, title }`; on the review pages `href` null and `title` saying *not built yet* for an
   entry no loaded view serves. On the main page each entry links into the review pages, which say there when an entry
-  is not built yet, so that the main page loads none of their views.
+  is not built yet, so that the main page loads none of their views. The entry Requirements leads to MOD-trace-pages'
+  view `specification`; the list of SPEC change entries and their history are opened from it.
 - `instanceOf(location: { hostname: string, pathname: string }) -> string` — the instance repository `owner/name` from
   the Pages address the page is served from (`AN INSTANCE IS A FORK OF AGENT M`), read with MOD-identifiers'
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.
