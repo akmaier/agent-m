@@ -1,6 +1,7 @@
 // MOD-repository-hosts' readHistory (ITM-309), as the accepted text of docs/architecture/MOD-repository-hosts.md states it:
-// "readHistory(path: string | null, options: { ref?: string, limit?: number }) -> Promise<HistoryEntry[]> — the commits that
-// changed a path, or the repository, newest first. Crosses the network; fails as readSnapshot", a HistoryEntry being { commit,
+// "readHistory(path: string | null, options: { ref?: string, limit?: number, changes?: boolean }) -> Promise<HistoryEntry[]> — the commits that
+// changed a path, or the repository, newest first. With `changes: false`, each entry's `changes` is empty and the history costs one request per
+// page of commits; otherwise each entry lists its changes. Crosses the network; fails as readSnapshot", a HistoryEntry being { commit,
 // parents, author: { account, name }, date, message, changes: { path, change, from? }[] }. Through GitHub's and GitLab's REST
 // APIs. Deterministic, no network: the servers are fakes of `fetch` that answer as the real APIs document —
 // GitHub: "List commits" (GET /repos/{owner}/{repo}/commits: sha, path, per_page up to 100, page; the author a user or an empty
@@ -18,7 +19,7 @@
 // Run: node --test tests/repository-hosts-history.test.mjs
 //
 // Module: MOD-repository-hosts
-// Guards: UC-007; UC-008; UC-018; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; THE NAME IS THE ID AND IT SURVIVES; A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+// Guards: UC-007; UC-008; UC-018; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; THE NAME IS THE ID AND IT SURVIVES; A REMOTE INTERFACE NAMES HOW IT FAILS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // Level: unit
 //
 // One history serves every test: five commits of a repository, oldest first, by Alice, Bob and Carol — Carol's e-mail linked to
@@ -308,6 +309,82 @@ test("MOD-repository-hosts readHistory — a null path gives the history of the 
   assert.deepEqual(ghBulk, onGitHub(bulk[0]), "GitHub: all 250 changes");
   assert.deepEqual(glBulk, onGitLab(bulk[0]), "GitLab: all 250 changes");
   assert.equal(ghBulk[0].changes.length, 250, "known positive: the fixture commit changed 250 files");
+});
+
+// ---------------------------------------------------------------- changes: false
+
+// The request counts below are of GitHub's fake; the expected numbers are stated in each test's own text (ITM-916).
+const emptied = (entries) => entries.map((e) => ({ ...e, changes: [] }));
+
+// TST-916001 · level: unit · module: MOD-repository-hosts
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the history of five commits above on a GitHub repository, read with a token; SPEC.md was changed by the first, third and fifth commit
+// input: readHistory("SPEC.md", { changes: false }) and readHistory(null, { changes: false }); for contrast readHistory("SPEC.md", {}) and readHistory("SPEC.md", { changes: true }), each on a fake of its own
+// expect: with changes false, the entries of the commits as without it but every `changes` an empty list; the requests: 1 "List commits" and no "Get a commit" for the file's 3 commits, 1 and none for the repository's 5. Known positive: without the option, and with `changes: true`, the same fake counts 1 "List commits" and 3 "Get a commit", and the entries carry their changes
+test("MOD-repository-hosts readHistory — changes: false sends one request for the commits and none for their changes (GitHub)", async () => {
+  const run = async (path, options) => {
+    const gh = fakeGitHub();
+    const entries = await using(gh.fetch, () => connect(GITHUB, { token: GH_TOKEN }).readHistory(path, options));
+    return { entries, list: gh.listRequests().length, detail: gh.detailRequests().length, all: gh.requests.length };
+  };
+  const file = await run("SPEC.md", { changes: false });
+  assert.deepEqual(file.entries, emptied(onGitHub(C5, C3, C1)), "the file's commits, changes empty");
+  assert.deepEqual([file.list, file.detail, file.all], [1, 0, 1], "the file: 1 list, no detail, 1 request");
+  const repository = await run(null, { changes: false });
+  assert.deepEqual(repository.entries, emptied(onGitHub(C5, C4, C3, C2, C1)), "the repository's commits, changes empty");
+  assert.deepEqual([repository.list, repository.detail, repository.all], [1, 0, 1], "the repository: 1 list, no detail, 1 request");
+
+  for (const [label, options] of [["no option", {}], ["changes true", { changes: true }]]) {
+    const read = await run("SPEC.md", options);
+    assert.deepEqual(read.entries, onGitHub(C5, C3, C1), `known positive, ${label}: the changes are listed`);
+    assert.deepEqual([read.list, read.detail, read.all], [1, 3, 4], `known positive, ${label}: 1 list and 3 details`);
+  }
+});
+
+// TST-916002 · level: unit · module: MOD-repository-hosts
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a repository of 130 commits that each add a file, and one whose only commit adds 250 files (a commit whose changes take three pages of "Get a commit")
+// input: readHistory(null, { limit: 120, changes: false }) and readHistory(null, { limit: 1, changes: false }) on the first; readHistory(null, { changes: false }) on the second
+// expect: the 120 newest commits, in order, each with empty changes, for 2 requests — one for each of the two pages of 100 commits the 120 span — and no "Get a commit"; the newest commit for 1 request; the 250-file commit with empty changes for 1 request, not the 3 that its changes take
+test("MOD-repository-hosts readHistory — changes: false costs one request for each page of commits, however many commits or files there are (GitHub)", async () => {
+  const long = chain(Array.from({ length: 130 }, (_, i) => commit(1000 + i, ALICE, new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString()
+    .replace(".000Z", "Z"), `Change ${i + 1}`, [{ path: `notes/n${String(i + 1).padStart(3, "0")}.md`, change: "added" }])));
+  const newest = [...long].reverse();
+  const many = async (history, options) => {
+    const gh = fakeGitHub({ history });
+    const entries = await using(gh.fetch, () => connect(GITHUB, { token: GH_TOKEN }).readHistory(null, options));
+    return { entries, list: gh.listRequests().length, detail: gh.detailRequests().length, all: gh.requests.length };
+  };
+  const spanning = await many(long, { limit: 120, changes: false });
+  assert.deepEqual(spanning.entries, emptied(onGitHub(...newest.slice(0, 120))), "the 120 newest, changes empty");
+  assert.deepEqual([spanning.list, spanning.detail, spanning.all], [2, 0, 2], "2 pages of commits, no detail");
+  const one = await many(long, { limit: 1, changes: false });
+  assert.deepEqual(one.entries, emptied(onGitHub(newest[0])), "the newest commit, changes empty");
+  assert.deepEqual([one.list, one.detail, one.all], [1, 0, 1], "1 request");
+
+  const bulk = chain([commit(2000, BOB, "2026-09-10T08:00:00Z", "Add the generated files",
+    Array.from({ length: 250 }, (_, i) => ({ path: `generated/g${String(i + 1).padStart(3, "0")}.md`, change: "added" })))]);
+  const wide = await many(bulk, { changes: false });
+  assert.deepEqual(wide.entries, emptied(onGitHub(bulk[0])), "the commit of 250 files, changes empty");
+  assert.deepEqual([wide.list, wide.detail, wide.all], [1, 0, 1], "1 request, not 3 more for the pages of its changes");
+  const read = await many(bulk, {});
+  assert.deepEqual([read.detail, read.entries[0].changes.length], [3, 250], "known positive: without the option the same commit takes 3 detail requests and lists 250 changes");
+});
+
+// TST-916003 · level: unit · module: MOD-repository-hosts
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// given: a GitHub repository that lists the commits well and answers every "Get a commit" with a used-up rate limit (403, X-RateLimit-Remaining 0)
+// input: readHistory("SPEC.md", { changes: false }); and readHistory("SPEC.md", {})
+// expect: the first gives the 3 commits with empty changes, since no commit's changes are asked for; the second fails with RateLimited (known positive: the fake refuses what it is asked)
+test("MOD-repository-hosts readHistory — changes: false asks for no commit's changes, so a server that refuses them does not fail it (GitHub)", async () => {
+  const limited = { "X-RateLimit-Limit": "5000", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "1790000000" };
+  const refusing = () => fakeGitHub({ answer: (r) => (/\/commits\/[0-9a-f]{40}$/.test(r.path) ? json(403, { message: "API rate limit exceeded" }, limited) : null) });
+  const without = refusing();
+  const entries = await using(without.fetch, () => connect(GITHUB, { token: GH_TOKEN }).readHistory("SPEC.md", { changes: false }));
+  assert.deepEqual(entries, emptied(onGitHub(C5, C3, C1)));
+  assert.equal(without.listRequests().length, 1, "the list was read");
+  const reading = await using(refusing().fetch, () => failure(connect(GITHUB, { token: GH_TOKEN }).readHistory("SPEC.md", {})));
+  assert.equal(reading?.name, "RateLimited", "known positive: reading the changes meets the refusal");
 });
 
 // ---------------------------------------------------------------- a path no commit touched
