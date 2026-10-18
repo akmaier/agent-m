@@ -1,11 +1,12 @@
 # The gaps of UC-036 to UC-049: the proposals not yet registered
 
-**MEASUREMENT** — 2026-10-18, `main` at `ee5d1364`. Method: for each use case, each step and extension compared with the
+**MEASUREMENT** — 2026-10-18, `main` at `ee5d1364`, re-read at `b0b9cdae`. Method: for each use case, each step and extension compared with the
 accepted module texts and with `src/` and `tests/` on `main`, each found gap written as an item, each quote checked against
 the current blob, and each module checked with MOD-work-plans' `conflicts` against team 1's sprints. Registered from it:
-ITM-959 to ITM-994 (ITM-994 in place of ITM-958, which team 1 registered at the same time). The rest stand here.
+ITM-959 to ITM-994 (ITM-994 in place of ITM-958, which team 1 registered at the same time). ITM-960 is registered and
+waits: its interface is not fixed by an accepted text (see the item). The rest stand here.
 
-The proposals of the gap analysis of UC-036 to UC-049 that are not registered as items yet, verified on `main` at `ee5d1364`.
+The proposals of the gap analysis of UC-036 to UC-049 that are not registered as items yet, verified on `main` at `b0b9cdae`.
 Item numbers are `ITM-<nnn>` (MOD-identifiers.md:54; `src/identifiers/scheme.mjs:24`), and ITM-959 to ITM-994 are taken
 by this registration. ITM-995 to ITM-999 are left for team 1. The rest wait until akmaier decides whether an item number
 may have more digits.
@@ -344,7 +345,34 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-1 hubFacts reads a model's or dataset's revision, licence and access from the Hugging Face Hub
 
+**REGISTER**
+
+## Outcome
+
+UC-040.md:100-101: "**data / model on Hugging Face:** Agent M reads the current revision and the licence from the Hub
+and pins the revision — where the Hub answers the browser, which is not yet measured (3b)." MOD-reuse-facts.md:108-110
+states: "`hubFacts(id: string) -> Promise<Fact[]>` — a model's or dataset's revision, licence and whether it is gated or
+private, read from the Hugging Face Hub, across the network, each with its address and date; a Hub that does not answer a
+browser is named in the failure `HubBlocked { reason }`, and `NotFound { address }` for an unknown identifier."
+
+`src/reuse-facts/index.mjs:329-333` throws `NotBuilt` ("hubFacts is not part of ITM-435"). ITM-435 (merged, team2/28)
+built `registryFacts` and left `hubFacts` to "a later backlog item"; none exists. MOD-settings-pages' resources page
+(ITM-642) reads the Hub through it (MOD-settings-pages.md:75-76, :258-259), and MOD-resource-list's `readPin` takes the
+Hub reader from its caller (MOD-resource-list.md:93-96). The Hub's addresses are data in `registries.md`
+(MOD-reuse-facts.md:43-44).
+
+## Acceptance
+
+- Unit tests that name MOD-reuse-facts, over a fake fetch: a public model's revision, licence and *not gated*, each with
+  its address and date; a gated or private one marked so; an unknown identifier `NotFound` with the address; a refused
+  call `HubBlocked` with the reason and no facts. Counter-proof: a fact without address or date fails.
+- The first commit holds only the tests, and CI is red on it. No stub is committed.
+- Only `src/reuse-facts/` and the tests that name MOD-reuse-facts change.
+
+**READY.** **TOUCHES-TEAM1** MOD-settings-pages, which uses `MOD-reuse-facts.hubFacts` (MOD-settings-pages.md:76) and is held
+by team1/92.md:114: "MOD-settings-pages: ITM-638, ITM-642, ITM-639, ITM-703;". Startable once that hold ends.
 ````
 
 ## NEW-040-3 — READY — TOUCHES-TEAM1
@@ -365,7 +393,34 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-3 A model or data pinned to a branch name is named, as a repository is
 
+**REGISTER**
+
+## Outcome
+
+UC-040.md:168-169 (3b): "The author pastes the revision from the Hub's *Files and versions* page; Agent M accepts only a
+full commit hash, not a branch name such as `main`." MOD-resource-list.md:89-90: `resourceFindings` checks "the pin's form
+for the kind — a full commit, not a branch name such as `main` —", and its Data (:58) pins data and a model to "a revision
+or the SHA-256 of every file".
+
+`src/resource-list/rules.mjs:49-51` checks the form for a repository only. Measured at `8bc49c6f`: `resourceFindings` of an
+entry pinned to `main` gives `A RESOURCE IS PINNED TO AN EXACT STATE` for a repository (the known positive) and nothing for
+a model or for data.
+
+**Reading taken (AGENTS.md §6a.6):** a revision on the Hub is its 40-hex commit, so a data or model pin is a 40-hex
+revision, or the per-file SHA-256 map the Data names. If the developer finds the schema's language cannot hold the map, the
+item stops and reports it.
+
+## Acceptance
+
+- A model and a data entry pinned to `main`, a seven-digit abbreviation or a tag each give an error naming the rule, the
+  resource and the pin; a 40-hex revision gives none. Counter-proof: the repository cases of TST-472587 stay as they are.
+- The first commit holds only the tests, and CI is red on it. No stub is committed.
+- Only `src/resource-list/` and the tests that name MOD-resource-list change.
+
+**READY.** **TOUCHES-TEAM1** MOD-settings-pages, which uses `MOD-resource-list.resourceFindings` (MOD-settings-pages.md:70),
+held by team1/92.md:114: "MOD-settings-pages: ITM-638, ITM-642, ITM-639, ITM-703;".
 ````
 
 ## NEW-040-4 — READY — TOUCHES-TEAM1
@@ -386,7 +441,31 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-4 The explanations of declaring a resource
 
+**REGISTER**
+
+## Outcome
+
+UC-040 asks for folded texts at: step 1, "A folded **What is this?** explains the three-way difference above with the
+examples" (:92-93); step 2, "each kind carries one sentence and an example" (:94-95); step 5, "The folded explanation
+repeats ch. 10's warning that a leaked key is like a published credit-card number" (:114-115); 2b and 4b, links to UC-015
+and UC-004 (:160-161, :174-176); 4c, "the folded explanation of the PEAKS example from ch. 6 §5" (:177-178).
+MOD-site-frame.md:78 names "`explanations.md` — the folded explanations, as data", and :99 "one section `## <topic>` per
+topic".
+
+`src/site-frame/explanations.md` has no topic for resources (its `## source-kinds` at :495 and the source page's text at
+:782, which links UC-040, are the known positives of the search). ITM-642's page draws these topics.
+
+## Acceptance
+
+- `explanations.md` holds the topics above, each worded from UC-040's table (:48-53) and kinds (:65-72), with the links
+  to UC-015, UC-004 and UC-017 as the source page's topic links UC-040.
+- The frame's check of topics (ITM-646 where it is merged, else a unit test) finds every topic the resources route names;
+  counter-proof: a removed topic is reported.
+- The first commit holds only the tests, and CI is red on it.
+
+**READY.** **TOUCHES-TEAM1** MOD-site-frame, team1/92.md:115: "MOD-site-frame: ITM-915, ITM-646, ITM-641;".
 ````
 
 ## NEW-040-5 — READY — TOUCHES-TEAM1
@@ -416,7 +495,29 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-5 The system and release tests of UC-040
 
+**REGISTER**
+
+## Outcome
+
+UC-040's postcondition (:193-199): "`docs/resources.md` of the product repository names every resource the product is
+built with, tested on or calls at runtime ... No credential and no restricted content is in the product repository. Jobs
+that need a resource run only where it is reachable, against the pinned state." No test file guards UC-040's flow
+(`tests/*uc-040*` is empty; `tests/release-uc-037-connect-mailbox.test.mjs` is the known positive).
+
+## Acceptance
+
+- A system test through the frame's routes `resources` and `resources/instance` over a fake host and a fake Bridge: main
+  flow steps 1-8 for a repository, a compute resource on a Bridge and one on a runner; 1b, 2c, 3a, 4a, 7a, 7b, 7c, 9a, 9b.
+  It checks: one commit of `docs/resources.md` per *Save*; no secret value and no restricted content in any commit; the
+  instance's list unchanged by a product's save, and the reverse; *Move* the only change of a pin.
+- A release test of the same flow, written by a participant other than the implementer of ITM-642
+  (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`). Counter-proof: a fault planted in the page's save fails it.
+- Steps that wait on a NEEDS-ARCH item (NEW-040-6 to NEW-040-10) are left out and named in the test's header.
+
+**READY** for the parts the accepted text states; it starts after ITM-642. **TOUCHES-TEAM1** MOD-settings-pages,
+team1/92.md:114: "MOD-settings-pages: ITM-638, ITM-642, ITM-639, ITM-703;".
 ````
 
 ## NEW-040-6 — NEEDS-ARCH — TOUCHES-TEAM1
@@ -439,7 +540,26 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-6 A repository resource's licence file, last commit and committers of the last year
 
+**REGISTER**
+
+## Outcome
+
+UC-040.md:97-99: for a repository, Agent M "shows the licence file if there is one, the date of the last commit and how
+many people committed in the last year — the due-diligence view of ch. 6 §5."
+
+**NEEDS-ARCH.** No interface gives these facts. MOD-reuse-facts' `Candidate` has `ecosystem: "npm" | "pypi" | "crates" |
+"maven"` and `Fact.what` lists registry facts only (MOD-reuse-facts.md:95-99); MOD-settings-pages names `registryFacts`
+and `hubFacts` for "what a repository or the Hugging Face Hub says about a resource" (:258-259), but `registryFacts` takes a
+package candidate. Missing: the function (in MOD-reuse-facts, or a reading named in MOD-repository-hosts) that reads a
+repository's licence file, last commit date and number of committers in the last year, with its type and failures.
+
+## Acceptance
+
+- Written once the architecture names the function.
+
+**TOUCHES-TEAM1** MOD-settings-pages (its user), team1/92.md:114.
 ````
 
 ## NEW-040-7 — NEEDS-ARCH — TOUCHES-TEAM1
@@ -463,7 +583,26 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-7 A resource's key kept in this browser goes only to its resource
 
+**REGISTER**
+
+## Outcome
+
+UC-040.md:112-114: the credential may be held "as a **key in this browser**, stored in `localStorage` and sent only to that
+resource's server"; 3c (:170-171): "Agent M asks for a Hugging Face token at step 5 and uses it only for requests to
+Hugging Face." MOD-resource-list's Secret column allows `browser` (MOD-resource-list.md:64).
+
+**NEEDS-ARCH.** MOD-browser-store's catalogue (MOD-browser-store.md:64-81) has no key for a resource's credential, and "A
+key outside this catalogue is never written" (:83-84). No module states which request carries the key (for the Hub,
+`hubFacts` takes only `id`, MOD-reuse-facts.md:108). Missing: the catalogue key (for example `resource-key:<name>`) and the
+interface that attaches it only to the resource's own origin.
+
+## Acceptance
+
+- Written once the architecture names the key and the request that carries it.
+
+**TOUCHES-TEAM1**: MOD-settings-pages uses MOD-browser-store (MOD-settings-pages.md:18-27), team1/92.md:114.
 ````
 
 ## NEW-040-8 — NEEDS-ARCH — TOUCHES-TEAM1
@@ -486,7 +625,25 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-8 A job that needs the product's resources names their pinned states in its inputs
 
+**REGISTER**
+
+## Outcome
+
+UC-040.md:126-128: "when a job that needs the resource is started (UC-010, UC-011), Agent M offers only the runtimes and
+participants that reach it by its route, and names the pinned state in the job's inputs."
+
+The routes are built (`src/runtimes/routes.mjs:68-85`). **NEEDS-ARCH** for the inputs: MOD-job-catalogue's `resources:
+product` decides only the routes (MOD-job-catalogue.md:57), and `resourceStrategies` offers only `resource-check`
+(MOD-resource-list.md:112-113). Missing: the recipe (or part) that gives a job of a kind with `resources: product` the
+resources it needs with their pins, and which kinds use it.
+
+## Acceptance
+
+- Written once the architecture names the recipe.
+
+**TOUCHES-TEAM1** if placed in MOD-resource-list (used by MOD-settings-pages, team1/92.md:114).
 ````
 
 ## NEW-040-9 — NEEDS-ARCH — TOUCHES-TEAM1
@@ -510,7 +667,25 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-9 Removing a resource, or a newer state of it, lists the jobs and tests that name it
 
+**REGISTER**
+
+## Outcome
+
+UC-040.md:151-152 (1a): "Agent M lists the jobs and tests that name it; they are listed, not changed". UC-040.md:185-187
+(9a): "The dashboard shows it beside the pin with the jobs that use the resource".
+
+**NEEDS-ARCH.** The resources route (accepted 447a1a58:186-190) states "a newer state upstream with *Move*" and nothing of
+removal or of the jobs and tests that use a resource. No module provides "the jobs and tests that name a resource".
+Missing: that function (its owner and what "names" means — a job record's inputs, a test's header) and its place in the
+resources route's text.
+
+## Acceptance
+
+- Written once the architecture names the function.
+
+**TOUCHES-TEAM1** MOD-settings-pages, team1/92.md:114.
 ````
 
 ## NEW-040-10 — NEEDS-ARCH — TOUCHES-TEAM1
@@ -534,7 +709,29 @@ tests:
 origin:
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
+# NEW-040-10 A system that also works on the product opens the participant form prefilled
 
+**REGISTER**
+
+## Outcome
+
+UC-040.md:156-159 (2a): "a link opens UC-017 with type and address prefilled. The two entries share no fields."
+
+**NEEDS-ARCH.** MOD-settings-pages' `participants` route (MOD-settings-pages.md:170-178) states no prefill handed from
+another route. Missing: how the resources route hands the type and address to the `participants` route (route
+parameters), in MOD-settings-pages' text.
+
+## Acceptance
+
+- Written once the architecture states the hand-over.
+
+**TOUCHES-TEAM1** MOD-settings-pages, team1/92.md:114.
+
+## Summary
+
+10 gaps: READY 5 (NEW-040-1 to 5), NEEDS-ARCH 5 (NEW-040-6 to 10). INDEPENDENT: ITM-960 only. Open items that cover
+steps: ITM-642 (page, team 1, waits for MOD-settings-pages' acceptance), ITM-843 (`resourceNeeds`, team 1). No step was
+found built without a test.
 ````
 
 ## NEW-041-5 — NEEDS-ARCH — TOUCHES-TEAM1
