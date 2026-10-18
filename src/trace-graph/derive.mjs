@@ -9,7 +9,7 @@
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { identifiersIn } from "../identifiers/index.mjs";
-import { isTestFile } from "../test-document/index.mjs";
+import { isCodePath } from "./code.mjs";
 
 const byText = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -69,16 +69,6 @@ function interfaceDeclarations(document) {
   return declarations;
 }
 
-// Paths only, not code reads or an import graph. The language extensions follow the existing code-path model.
-const CODE_EXTENSIONS = new Set(["js", "mjs", "cjs", "ts", "tsx", "jsx", "mts", "cts", "py", "rb", "go", "rs", "java", "kt", "kts", "scala",
-  "c", "h", "cc", "cpp", "hpp", "cs", "swift", "m", "php", "pl", "lua", "r", "jl", "sh", "bash", "zsh", "ps1", "sql", "css", "scss",
-  "html", "vue", "svelte", "dart", "ex", "exs", "erl", "hs", "ml", "fs", "clj"]);
-function codePath(path) {
-  const parts = path.split("/");
-  return !path.startsWith("docs/") && !isTestFile(path) && !parts.some((part) => ["vendor", "node_modules"].includes(part))
-    && CODE_EXTENSIONS.has(/\.([A-Za-z0-9]+)$/.exec(path)?.[1].toLowerCase());
-}
-
 // architectureImpact(graph, changes) -> ArchitectureImpact. All relationships come from the existing graph; only the supplied
 // changed texts are parsed. Removed modules keep their before folder even when the current graph has no node for them.
 export function architectureImpact(graph, changes) {
@@ -123,7 +113,7 @@ export function architectureImpact(graph, changes) {
   const tests = unique(graph.edges.filter((edge) => edge.via === "exercises" && modules.has(edge.to)).map((edge) => edge.from));
   return {
     modules: [...modules.values()].sort((a, b) => priority[b.why] - priority[a.why] || byText(a.id, b.id)),
-    codeFiles: unique(graph.files.filter((path) => codePath(path) && [...folders].some((folder) => path.startsWith(folder)))),
+    codeFiles: unique(graph.files.filter((path) => isCodePath(path) && [...folders].some((folder) => path.startsWith(folder)))),
     tests: tests.map((id) => ({ id, guards: unique(graph.edges.filter((edge) => edge.via === "guards" && edge.from === id).map((edge) => edge.to)) })),
     named: { added: unique([...afterNames].filter((name) => !beforeNames.has(name))),
       removed: unique([...beforeNames].filter((name) => !afterNames.has(name))) },

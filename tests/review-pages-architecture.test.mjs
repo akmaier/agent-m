@@ -187,18 +187,22 @@ test("MOD-review-pages view — the routes decision and module join the use case
 test("MOD-review-pages decision and module — the lists: every file with its status and a tick", async () => {
   const fake = fakeHost();
   const decisions = await show(fake, "decision");
-  assert.deepEqual(rowsOf(decisions), ["ARC-001", "ARC-002", "ARC-003", "ARC-004"]);
-  assert.deepEqual(rowsOf(decisions).map((id) => badgeOf(rowOf(decisions, id))), ["accepted", "open", "changed since acceptance", "open"]);
+  const whole = (page) => find(page, (node) => node.localName === "table" && node.parentNode === page)[0];
+  const firstPart = (page) => find(page, (node) => node.localName === "section" && node.className.split(" ").includes("open-changes"))[0];
+  assert.deepEqual(rowsOf(whole(decisions)), ["ARC-001", "ARC-002", "ARC-003", "ARC-004"]);
+  assert.deepEqual(rowsOf(firstPart(decisions)), ["ARC-002", "ARC-003", "ARC-004"], "the open and changed files first");
+  assert.deepEqual(rowsOf(whole(decisions)).map((id) => badgeOf(rowOf(decisions, id))), ["accepted", "open", "changed since acceptance", "open"]);
   assert.match(rowOf(decisions, "ARC-003").textContent, /Loans are dated/);
   assert.equal(find(rowOf(decisions, "ARC-003"), (node) => node.localName === "a")[0].getAttribute("href"), "#decision/id=ARC-003");
-  assert.deepEqual(rowsOf(decisions).filter((id) => byClass(rowOf(decisions, id), "input", "tick").length), ["ARC-002", "ARC-003", "ARC-004"]);
+  assert.deepEqual(rowsOf(whole(decisions)).filter((id) => byClass(rowOf(decisions, id), "input", "tick").length), ["ARC-002", "ARC-003", "ARC-004"]);
 
   const modules = await show(fake, "module");
-  assert.deepEqual(rowsOf(modules), ["MOD-finer", "MOD-lister", "MOD-reader", "MOD-writer"]);
-  assert.deepEqual(rowsOf(modules).map((id) => badgeOf(rowOf(modules, id))), ["open", "changed since acceptance", "accepted", "open"]);
+  assert.deepEqual(rowsOf(whole(modules)), ["MOD-finer", "MOD-lister", "MOD-reader", "MOD-writer"]);
+  assert.deepEqual(rowsOf(firstPart(modules)), ["MOD-finer", "MOD-lister", "MOD-writer"], "the open and changed files first");
+  assert.deepEqual(rowsOf(whole(modules)).map((id) => badgeOf(rowOf(modules, id))), ["open", "changed since acceptance", "accepted", "open"]);
   assert.match(rowOf(modules, "MOD-lister").textContent, /Listing books/);
   assert.equal(find(rowOf(modules, "MOD-lister"), (node) => node.localName === "a")[0].getAttribute("href"), "#module/id=MOD-lister");
-  assert.deepEqual(rowsOf(modules).filter((id) => byClass(rowOf(modules, id), "input", "tick").length), ["MOD-finer", "MOD-lister", "MOD-writer"]);
+  assert.deepEqual(rowsOf(whole(modules)).filter((id) => byClass(rowOf(modules, id), "input", "tick").length), ["MOD-finer", "MOD-lister", "MOD-writer"]);
   assert.ok(byClass(decisions, "details", "explain").length >= 1 && byClass(modules, "details", "explain").length >= 1, "a folded What is this?");
   assert.equal(fake.writes().length, 0, "nothing written");
 });

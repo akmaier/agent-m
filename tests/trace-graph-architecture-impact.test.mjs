@@ -98,7 +98,7 @@ function canonical(impact) {
 // given: the fixture has a reader folder, interface users, exercised tests and both backlog and plan items
 // input: public traceGraph, then requirementImpact for RULE ONE
 // expect: folder src/reader/, all three provided interfaces, the readFile uses edge, reader exercises and guards edges,
-// expect: ITM-101 and ITM-102 changes edges, src/reader/read.mjs in files but no code node/read, and the positive TST-101 guards row
+// expect: ITM-101 and ITM-102 changes edges, src/reader/read.mjs in files and read, one code node for each of the eight code files of FILES in the order of the paths (src/reader/read.mjs, src/reader/nested/types.ts, src/review/view.py, src/tree-view/view.js, src/stable-view/view.css, src/follower/follow.mjs, src/writer/write.mjs, src/reader-extra/unrelated.mjs, the last in no module's folder), and the positive TST-101 guards row
 test("TST-554001 public graph facts and requirement impact are positive before architecture impact", async () => {
   const { graph, reads } = await fixture();
   assert.equal(graph.nodes.get("MOD-reader").folder, "src/reader/");
@@ -111,8 +111,10 @@ test("TST-554001 public graph facts and requirement impact are positive before a
     .map(({ from, to }) => [from, to]), [["ITM-101", "MOD-reader"], ["ITM-102", "MOD-review"]]);
   assert.ok(graph.files.includes("src/reader/read.mjs"));
   assert.ok(reads.includes(READER), "positive control: artifact reads took place");
-  assert.equal(reads.includes("src/reader/read.mjs"), false);
-  assert.deepEqual([...graph.nodes.values()].filter((node) => node.kind === "code"), []);
+  assert.equal(reads.includes("src/reader/read.mjs"), true);
+  assert.deepEqual([...graph.nodes.values()].filter((node) => node.kind === "code").map((node) => node.id),
+    ["src/reader/read.mjs", "src/reader/nested/types.ts", "src/review/view.py", "src/tree-view/view.js", "src/stable-view/view.css",
+      "src/follower/follow.mjs", "src/writer/write.mjs", "src/reader-extra/unrelated.mjs"]);
   assert.deepEqual(trace.requirementImpact(graph, "RULE ONE").filter((row) => row.id === "TST-101"),
     [{ id: "TST-101", kind: "TST", path: "tests/reader.test.mjs", line: 1, via: "guards" }]);
 });

@@ -104,8 +104,8 @@ test("the start page sends its commit and tree once and one batch of the files i
   const page = await openDashboard({ server: srv });
   assert.match(page.main(), /UC-001/);
   assert.match(page.main(), /UC-002/);
-  assert.match(page.main(), /<span class="badge accepted">accepted<\/span>/);
-  assert.match(page.main(), /<span class="badge changed">changed since acceptance<\/span>/);
+  assert.match(page.main(), /<span class="badge b-accepted">accepted<\/span>/);
+  assert.match(page.main(), /<span class="badge b-changed">changed since acceptance<\/span>/);
   assert.deepEqual(page.requests, ["commit", "tree", "batch 2", "repository"]);
   assert.deepEqual(srv.batches.map(sorted), [sorted([UC1, UC2])]);
 });
@@ -156,8 +156,8 @@ test("#spec: the app reads the SPEC and the queues' heads in one batch and the o
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(files(page.requests).filter((p) => p !== "SPEC.md"), [], "the app reads no file by itself");
   const main = page.main();
-  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-02_open-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge open">open<\/span>/);
-  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-01_done-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge in-SPEC">in SPEC<\/span>/);
+  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-02_open-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge b-open">open<\/span>/);
+  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-01_done-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge b-applied">in SPEC<\/span>/);
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -441,10 +441,10 @@ test("without Cache Storage the page still works; it sends the same requests", a
 test("a use case is accepted exactly when a record names its current text", async () => {
   const repo = await product();
   const honest = await openDashboard({ server: await server(repo), hash: "#uc/UC-001" });
-  assert.match(honest.main(), /<span class="badge accepted">accepted<\/span>/);
+  assert.match(honest.main(), /<span class="badge b-accepted">accepted<\/span>/);
   assert.doesNotMatch(honest.main(), /<button class="btn accept"/);
   const changed = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
-  assert.match(changed.main(), /<span class="badge changed">changed since acceptance<\/span>/);
+  assert.match(changed.main(), /<span class="badge b-changed">changed since acceptance<\/span>/);
   assert.match(changed.main(), /<button class="btn accept" type="button">Accept<\/button>/);
 });
 

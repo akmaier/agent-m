@@ -13,7 +13,7 @@ import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, button, parseServer, readJobRecords, readPlace, tokenStep } from "./common.mjs";
+import { el, link, button, badge, parseServer, readJobRecords, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -36,7 +36,27 @@ const ARCHITECTURE_JOB = "derive-architecture";
 const recordOf = (id, kind, path, blob) => ({ path: `docs/approvals/${id}-${blob.slice(0, 12)}.md`,
   text: writeDocument(approvalSchema, { fields: { kind, file: path, blob } }) });
 
-const shortBody = (body) => body.replace(/^---\n[^]*?\n---\n/, "");
+// A difference shows every line of the file, each marked as it is, so that its first change can stand in the middle of its box (`context` as large as the file).
+const WHOLE = { context: Infinity };
+// Opens each difference box in `scope` with its first changed line in the middle of the box: the line's middle at the box's middle, never above the box's start.
+// The box must stand in the page, which gives it its geometry.
+function centreFirstChange(scope) {
+  const boxes = [];
+  (function collect(node) {
+    for (const kid of node.childNodes) {
+      if (kid.nodeType !== 1) continue;
+      if (kid.localName === "pre" && kid.className.split(" ").includes("diff")) boxes.push(kid); else collect(kid);
+    }
+  })(scope);
+  for (const box of boxes) {
+    const change = [...box.childNodes].find((node) => node.nodeType === 1 && /\bd(add|del)\b/.test(node.className));
+    if (!change || typeof change.getBoundingClientRect !== "function") continue; // a page without geometry leaves the box at its start
+    const line = change.getBoundingClientRect(), frame = box.getBoundingClientRect();
+    box.scrollTop = Math.max(0, line.top - frame.top + box.scrollTop + line.height / 2 - box.clientHeight / 2);
+  }
+}
+
+const shortBody =(body) => body.replace(/^---\n[^]*?\n---\n/, "");
 
 // What an acceptance of several files came to: the commit, and each file left out with its reason and the names it rests on.
 const reasonOf = (out) => `${out.reason}${out.names.length ? ` (${out.names.join(", ")})` : ""}`;
@@ -102,6 +122,9 @@ export function reviewRoute(kind) {
   const files = (snapshot) => [...statuses(snapshot)].filter(([, file]) => file.kind === kind.kind)
     .map(([path, file]) => ({ path, ...file })).sort((a, b) => a.id.localeCompare(b.id));
   const idOf = (path, snapshot) => statuses(snapshot).get(path)?.id ?? path;
+  // The files Review all shows: those of the kind — for the architecture, of the whole of it — that are not accepted.
+  const notAccepted = (snapshot) => [...statuses(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
+    .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
 
   // The editor of the page drawn last, or null where that page opened none: what the route's `leave` asks.
   let editor = null;
@@ -150,26 +173,34 @@ export function reviewRoute(kind) {
     const bar = token ? button("btn accept-ticked", "Accept ticked (0)") : null;
     if (bar) bar.disabled = true;
     const tables = [];
+    const rowFor = (file, withTick) => {
+      const first = el("td");
+      if (withTick && token && file.tick) {
+        const box = el("input", "tick");
+        box.type = "checkbox";
+        box.addEventListener("change", () => {
+          if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
+          bar.disabled = ticks.size === 0;
+          bar.textContent = `Accept ticked (${ticks.size})`;
+        });
+        first.append(box);
+      }
+      const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
+        el("td", null, file.title), el("td", null, badge(file.status, file.label)));
+      row.setAttribute("data-id", file.id);
+      return row;
+    };
+    const head = () => el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status")));
+    const waiting = groups.flatMap((group) => group.entries).filter((file) => file.status !== "accepted" && file.status !== "in-SPEC");
+    if (waiting.length) {
+      const rows = el("tbody");
+      for (const file of waiting) rows.append(rowFor(file, true));
+      tables.push(el("section", "open-changes", el("h3", null, "Open or changed"), el("table", "list", head(), rows)));
+    }
     for (const group of groups) {
       const rows = el("tbody");
-      for (const file of group.entries) {
-        const first = el("td");
-        if (token && file.tick) {
-          const box = el("input", "tick");
-          box.type = "checkbox";
-          box.addEventListener("change", () => {
-            if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
-            bar.disabled = ticks.size === 0;
-            bar.textContent = `Accept ticked (${ticks.size})`;
-          });
-          first.append(box);
-        }
-        const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
-          el("td", null, file.title), el("td", null, el("span", `badge ${file.status}`, file.label)));
-        row.setAttribute("data-id", file.id);
-        rows.append(row);
-      }
-      const table = el("table", "list", el("thead", null, el("tr", null, el("th"), el("th", null, "Id"), el("th", null, "Title"), el("th", null, "Status"))), rows);
+      for (const file of group.entries) rows.append(rowFor(file, false));
+      const table = el("table", "list", head(), rows);
       if (group.title === null) tables.push(table);
       else {
         const section = el("section", "queue", el("h3", null, group.title), table);
@@ -178,7 +209,7 @@ export function reviewRoute(kind) {
       }
     }
     target.append(el("h2", null, kind.title));
-    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "review-all", "Review all"));
+    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${notAccepted(where.snapshot).length} not accepted`));
     if (kind.draft) target.append(link(`#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
     target.append(explain(kind.explain.list));
     if (bar) {
@@ -199,13 +230,20 @@ export function reviewRoute(kind) {
     if (bar) target.append(bar);
   }
 
+  // The file as it will be accepted, rendered with its diagrams; of the whole architecture's further decisions with their due diligence. Below its difference
+  // a changed file's rendering stands in a section of its own (UC-008 3e, 2a, step 2).
+  function renderedFile(file, body, changed) {
+    const { rest, section: diligence } = kind.whole && file.kind === "architecture-decision" ? splitDueDiligence(shortBody(body)) : { rest: shortBody(body), section: null };
+    const nodes = [renderArtifact(rest), ...(diligence !== null ? [dueDiligenceSection(diligence)] : [])];
+    return changed ? [el("section", "rendered", el("h4", null, "The file as it will be accepted"), ...nodes)] : nodes;
+  }
+
   // Review all: every file not yet accepted in sequence — a changed one as its difference to the last accepted text, a new one in
   // full — and, below them, the acceptance of exactly what is shown. For the architecture it is the page of the whole architecture:
   // decisions and module files in their order, a further decision with its due diligence, and the rounds of the job that drafted them.
   async function showAll(where) {
     const { target, snapshot, token, host, context } = where;
-    const reviewed = [...statuses(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
-      .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
+    const reviewed = notAccepted(snapshot);
     const texts = new Map();
     await snapshot.readMany?.(reviewed.map((file) => file.path));
     for (const file of reviewed) texts.set(file.path, (await snapshot.read(file.path)) ?? "");
@@ -219,7 +257,7 @@ export function reviewRoute(kind) {
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
-      const section = el("section", "review-file", el("h3", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]));
+      const section = el("section", "review-file", el("h3", null, kind.heading(body)), badge(file.status, LABEL[file.status]));
       section.setAttribute("data-id", file.id);
       let withImpact = true;
       if (file.status === "changed") {
@@ -227,20 +265,18 @@ export function reviewRoute(kind) {
         let last = null;
         try {
           last = await lastAcceptedText(file.id, host);
-          if (last) diff.append(showDifference(last.text, body));
+          if (last) diff.append(showDifference(last.text, body, WHOLE));
         } catch (failure) {
           diff.append(el("p", "problem", failure.message));
         }
-        section.append(diff);
+        section.append(diff, ...renderedFile(file, body, true));
         if (kind.restsOn && last) {
           const impact = await changeImpact(file, last, body, graphOf);
           withImpact = !impact.problem;
           section.append(impact.problem ?? impact.shown);
         }
       } else {
-        const { rest, section: diligence } = kind.whole && file.kind === "architecture-decision" ? splitDueDiligence(shortBody(body)) : { rest: shortBody(body), section: null };
-        section.append(renderArtifact(rest));
-        if (diligence !== null) section.append(dueDiligenceSection(diligence));
+        section.append(...renderedFile(file, body, false));
       }
       if (kind.restsOn) {
         const open = await acceptanceBlockers(file.path, snapshot);
@@ -252,6 +288,7 @@ export function reviewRoute(kind) {
       }
       if (withImpact) records.push({ file, record: recordOf(file.id, file.kind, file.path, blob), blob });
       target.append(section);
+      centreFirstChange(section);
     }
     if (kind.whole) {
       const rounds = await draftingRounds(where);
@@ -303,7 +340,7 @@ export function reviewRoute(kind) {
       target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
-    target.append(el("h2", null, entry.title), el("span", `badge ${entry.status}`, entry.label),
+    target.append(el("h2", null, entry.title), badge(entry.status, entry.label),
       ...(entry.status === "approved" ? [el("p", "approved-note", APPROVED_NOTE)] : []), explain(kind.explain.one), ...entry.nodes);
     if (entry.edit) target.append(link(`#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
     if (entry.hold) { target.append(entry.hold); return; }
@@ -332,20 +369,21 @@ export function reviewRoute(kind) {
     }
     const body = await snapshot.read(file.path);
     const blob = snapshot.blob(file.path);
-    target.append(el("h2", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]),
+    target.append(el("h2", null, kind.heading(body)), badge(file.status, LABEL[file.status]),
       el("p", "shown", `Text shown: blob ${blob.slice(0, 12)}`), explain(kind.explain.one));
     let last = null;
     if (file.status === "changed") {
       const diff = el("section", "accepted-diff", el("h3", null, "Changed since it was last accepted"), explain(kind.explain.changed));
       try {
         last = await lastAcceptedText(file.id, host);
-        if (last) diff.append(showDifference(last.text, body));
+        if (last) diff.append(showDifference(last.text, body, WHOLE));
       } catch (failure) {
         diff.append(el("p", "problem", failure.message));
       }
       target.append(diff);
+      centreFirstChange(diff);
     }
-    target.append(renderArtifact(shortBody(body)));
+    target.append(file.status === "changed" ? el("section", "rendered", el("h3", null, "The file as it will be accepted"), renderArtifact(shortBody(body))) : renderArtifact(shortBody(body)));
     if (kind.save === "file" && (token || parseServer(where.context) !== "gitlab")) {
       target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
     }

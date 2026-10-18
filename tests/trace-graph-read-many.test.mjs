@@ -114,7 +114,7 @@ test("traceGraph on a server that serves no GraphQL reads each file on its own",
 // guards: UC-006
 // given: a TextSource listing SPEC.md, a use case, a backlog item, a README and a code file, with readMany and read that record their calls in one log
 // input: traceGraph(source)
-// expect: the log starts with one call readMany(["SPEC.md", "docs/use-cases/UC-001-a.md", "docs/backlog/ITM-001-a.md"]) — the three artifacts the graph reads, in the order of source.paths — and all reads come after it; README.md and src/a.mjs are not named
+// expect: the log starts with one call readMany(["SPEC.md", "docs/use-cases/UC-001-a.md", "docs/backlog/ITM-001-a.md", "src/a.mjs"]) — the three artifacts and the code file the graph reads, in the order of source.paths — and all reads come after it, in the same order; README.md is not named
 test("traceGraph tells readMany every path it will read, once, before the first read", async () => {
   const held = {
     "SPEC.md": "# Spec\n\n**A THING IS DONE** *(Product Owner)*\n\nIt is done.\n",
@@ -128,9 +128,9 @@ test("traceGraph tells readMany every path it will read, once, before the first 
     readMany: async (paths) => { log.push(["readMany", [...paths]]); },
     read: async (path) => { log.push(["read", path]); return held[path] ?? null; } };
   const graph = await traceGraph(source);
-  assert.deepEqual(log[0], ["readMany", ["SPEC.md", "docs/use-cases/UC-001-a.md", "docs/backlog/ITM-001-a.md"]]);
+  assert.deepEqual(log[0], ["readMany", ["SPEC.md", "docs/use-cases/UC-001-a.md", "docs/backlog/ITM-001-a.md", "src/a.mjs"]]);
   assert.equal(log.filter(([what]) => what === "readMany").length, 1);
-  assert.deepEqual(log.slice(1).map(([, path]) => path), ["SPEC.md", "docs/use-cases/UC-001-a.md", "docs/backlog/ITM-001-a.md"]);
+  assert.deepEqual(log.slice(1).map(([, path]) => path), ["SPEC.md", "docs/use-cases/UC-001-a.md", "docs/backlog/ITM-001-a.md", "src/a.mjs"]);
   assert.equal(graph.nodes.has("UC-001"), true);
 });
 

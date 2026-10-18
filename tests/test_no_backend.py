@@ -286,6 +286,27 @@ MERMAID_VENDOR_CHANNELS = {
     "@import": (1, "the name of the at-rule in mermaid's CSS parser, not a style sheet", None),
 }
 
+IMPORT_FORMS = "MOD-trace-graph reads the import forms of code files; a comment or the reader's pattern, never a request"
+
+
+def _in_comment(text: str, at: int) -> bool:
+    """The match stands in a `//` comment line or between `/*` and `*/`."""
+    line_start = text.rfind("\n", 0, at) + 1
+    return text[line_start:at].lstrip().startswith("//") or text.rfind("/*", 0, at) > text.rfind("*/", 0, at)
+
+
+def _trace_graph_comment(text: str, at: int) -> bool:
+    """src/trace-graph/code.mjs names `import("x")` in a comment, as the module file names the form; it calls no import()."""
+    return _in_comment(text, at)
+
+
+def _trace_graph_css_form(text: str, at: int) -> bool:
+    """src/trace-graph/code.mjs names `@import` in a comment, or in the one pattern CSS_IMPORT it declares for the form."""
+    line_start = text.rfind("\n", 0, at) + 1
+    declared = text.startswith("const CSS_IMPORT = /", line_start) and len(re.findall(r"^const CSS_IMPORT = /", text, re.M)) == 1
+    return _in_comment(text, at) or declared
+
+
 # (file or module folder, channel) -> (how often, why it calls no other origin, evidence(text, offset) -> bool or None).
 # An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
 # read of its own data files and requires none.
@@ -326,6 +347,8 @@ PERMITTED_CHANNELS = {
     ("src/site-frame/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("src/site-frame/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
+    ("src/trace-graph/code.mjs", "import()"): (1, IMPORT_FORMS, _trace_graph_comment),
+    ("src/trace-graph/code.mjs", "@import"): (3, IMPORT_FORMS, _trace_graph_css_form),
     **{(path, channel): rule for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js")
        for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
 }
@@ -561,6 +584,27 @@ class NoServer(unittest.TestCase):
         elsewhere = {"src/home/home.mjs": accepted}
         self.assertEqual(len(channel_findings(elsewhere)), 1)
         self.assertEqual(foreign_by_file(elsewhere), {"src/home/home.mjs": ["entra.microsoft.com", "myapps.microsoft.com"]})
+
+    def test_counter_proof_trace_graph_import_forms_are_comments_or_the_one_pattern(self):
+        # MOD-trace-graph (docs/architecture/MOD-trace-graph.md, Data) reads the import forms of code files: `import("x")` and `@import`
+        # are named in its comments and, for CSS, in the one pattern CSS_IMPORT it declares; none is a request. The file's one `import(`
+        # match and three `@import` matches are allowed, each only in a comment or, for `@import`, in that pattern.
+        path = "src/trace-graph/code.mjs"
+        accepted = ('// An `import("x")` is a dynamic import.\n'
+                    '// CSS: `@import "x"` and `@import url("x")`.\n'
+                    'const CSS_IMPORT = /@import\\s+(["\'])x\\1/g;\n')
+        self.assertEqual(channel_findings({path: accepted}), [])
+        # Planted: a real import() call, a CSS @import string outside the pattern, and one more match than the count are found.
+        call = accepted + 'const lazy = await import("./x.mjs");\n'
+        self.assertEqual(channel_findings({path: call}), [f"{path}:4: import(): not {IMPORT_FORMS}",
+                                                           f"{path}: import() found 2 times, permitted 1 ({IMPORT_FORMS})"])
+        string = accepted + 'const css = "@import \'x\';";\n'
+        self.assertEqual(channel_findings({path: string}), [f"{path}:4: @import: not {IMPORT_FORMS}",
+                                                             f"{path}: @import found 4 times, permitted 3 ({IMPORT_FORMS})"])
+        above = accepted + "// another `import(\"x\")` in a comment\n"
+        self.assertEqual(channel_findings({path: above}), [f"{path}: import() found 2 times, permitted 1 ({IMPORT_FORMS})"])
+        # What the file is allowed is the file's alone: the same text in another file is found, each match.
+        self.assertEqual(len(channel_findings({"src/home/home.mjs": accepted})), 4)
 
     def test_counter_proof_mail_routes_graph_requests_are_allowed_beside_the_lookup(self):
         # MOD-mail-routes (docs/architecture/MOD-mail-routes.md, Mailbox: "Every operation crosses the network — to Microsoft Graph") and ITM-425
