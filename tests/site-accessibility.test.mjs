@@ -41,10 +41,10 @@ const RULE = {
 };
 const PER_ROUTE = {
   "/": ["brand"],
-  "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "scroll", "target"],
+  "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "target"],
   "#arc": ["menu", "contrast"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
-  "#decision/id=ARC-001/edit=1": ["menu", "scroll", "target"], "#module": ["menu", "contrast"],
-  "#module/id=MOD-reader/edit=1": ["menu", "scroll", "target"], "#backlog": ["menu", "contrast", "scroll"],
+  "#decision/id=ARC-001/edit=1": ["menu", "target"], "#module": ["menu", "contrast"],
+  "#module/id=MOD-reader/edit=1": ["menu", "target"], "#backlog": ["menu", "contrast", "scroll"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
 
@@ -89,6 +89,10 @@ before(async () => {
   // The same page with a tick box without a name planted besides: the counter-proof of the tick boxes' name.
   await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend", '<p><input type="checkbox" id="planted-tick"></p>')`);
   planted.afterTick = await check();
+  // The same page with a box that scrolls and cannot take focus planted besides: the counter-proof of the rule scrollable-region-focusable.
+  await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
+    '<div id="planted-scroll" style="height:40px;overflow:auto"><p>one</p><p>two</p><p>three</p><p>four</p><p>five</p><p>six</p><p>seven</p><p>eight</p></div>')`);
+  planted.afterScroll = await check();
   progress("the counter-proofs are checked");
   for (const [key, value] of found) console.log(`site-accessibility ${key}: ${value.violations.map((each) => `${each.id}/${each.impact}/${each.nodes}[${each.first.slice(0, 70)}]`).join(" ")}`);
 }, { timeout: 110000 });
@@ -169,4 +173,28 @@ test(`TST-905${String(number++).padStart(3, "0")}: a planted tick box without a 
   const rule = planted.afterTick.find((each) => each.id === "label");
   assert.ok(rule, `violations: ${planted.afterTick.map((each) => each.id).join(", ")}`);
   assert.ok(rule.first.includes("planted-tick"), `the first node is ${rule.first}`);
+});
+
+// ITM-931: the editor's preview (MOD-markdown-render) is the box that scrolls on the edit pages.
+const EDITS = ["#use-case/id=UC-002/edit=1", "#decision/id=ARC-001/edit=1", "#module/id=MOD-reader/edit=1"];
+
+// given: the edit pages of a use case, an architecture decision and a module file, drawn at both widths; input: axe-core's rule `scrollable-region-focusable` over each; expect: no violation of it (the whole-page tests above stay todos while the menu or a summary violates)
+test(`TST-905${String(number++).padStart(3, "0")}: no box that scrolls on the edit pages ${EDITS.join(", ")} is out of the keyboard's reach (rule scrollable-region-focusable)`, () => {
+  for (const address of EDITS) {
+    for (const [kind] of WIDTHS) {
+      const violations = found.get(`${address} ${kind}`).violations.filter((each) => each.id === "scrollable-region-focusable").map((each) => `${each.id} (${each.nodes}: ${each.first})`);
+      assert.deepEqual(violations, [], `${address} at a ${kind}'s width violates`);
+    }
+  }
+});
+
+// The counter-proof: the page before the planting has no violation of scrollable-region-focusable; with a box that scrolls and has no tabindex planted, the rule finds it.
+test(`TST-905${String(number++).padStart(3, "0")}: the page before the planting has no violation of scrollable-region-focusable`, () => {
+  assert.equal(planted.before.some((each) => each.id === "scrollable-region-focusable"), false);
+});
+
+test(`TST-905${String(number++).padStart(3, "0")}: a planted box that scrolls and cannot be focused fails the check with the rule scrollable-region-focusable`, () => {
+  const rule = planted.afterScroll.find((each) => each.id === "scrollable-region-focusable");
+  assert.ok(rule, `violations: ${planted.afterScroll.map((each) => each.id).join(", ")}`);
+  assert.ok(rule.first.includes("planted-scroll"), `the first node is ${rule.first}`);
 });
