@@ -173,12 +173,12 @@ test("new version — a repository that cannot be read records nothing, and the 
 
 // TST-705007 · level: unit · module: MOD-settings-pages
 // guards: UC-016 1; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
-// given: SRC-guide as an EU legal text: kind regulation, identifier https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689 (an address that reads as a GitLab project's), one version
+// given: SRC-guide as an EU legal text: kind regulation, identifier https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689 (an address that reads as a GitLab project's), no version row yet (it waits for its fetch; a fetched one starts the fetch run instead, tests/settings-pages-library-legal-text-version.test.mjs)
 // input: render library/SRC-guide; press + New version
 // expect: the panel offers the field for files, as for any source that is no repository (the page reads the repository of no EU legal text), and its statement begins "Becomes public: the register entry, always"
 // without the words "No file is stored"; the page sent no request to eur-lex.europa.eu
 test("new version — an EU legal text whose identifier reads as a repository's address is no repository source", async (t) => {
-  const legal = [...FRONT(ELI_URL, "regulation"), `| \`2025-08-02\` | 2025-08-02 | — | publication repository | 1 file, listed below; version hash \`${"a".repeat(64)}\` |`, ""].join("\n");
+  const legal = [...FRONT(ELI_URL, "regulation"), ""].join("\n");
   const page = await open(t, { entryText: legal, repository: false });
   await click(one(page.target, "library-new-version"));
   assert.equal(byClass(page.target, "library-version-files").length, 1, "the field for files");

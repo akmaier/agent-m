@@ -480,7 +480,7 @@ test("library — an EU legal text is registered as its entry alone, a repositor
 // guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; ONE CLICK PER DECISION; UC-004 7, 7a
 // given: the library holds three EU legal-text entries: one whose identifier is an EUR-Lex address and has no version rows, one fetched with a version row, and one waiting whose latest onSourcesCommitted run failed naming that source
 // input: the route `library`, then the waiting source's Fetch again button
-// expect: the first source is shown as waiting with Fetch again; the fetched source is shown fetched from its entry; the failed source shows the failure from the run log; Fetch again starts `fetch-sources.yml` once on the default branch and commits nothing from the page itself
+// expect: the first source is shown as waiting with Fetch again; the fetched source is shown fetched from its entry; the failed source shows the failure from the run log; Fetch again starts `fetch-sources.yml` once on the default branch with the input source = that entry, and commits nothing from the page itself
 test("library — legal text fetch state is derived from the entry and workflow runs, and Fetch again starts the workflow", async (t) => {
   const waiting = entryText({ id: "SRC-ai-waiting", title: "AI Act waiting", kind: "regulation", authority: "normative",
     licence: "may be republished - EU law", identifier: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689" });
@@ -499,7 +499,7 @@ test("library — legal text fetch state is derived from the entry and workflow 
   assert.match(row("AI Act fetched").textContent, /fetched/i);
   assert.match(row("AI Act failed").textContent, /publication offline/);
   await click(descendants(row("AI Act waiting"), (node) => (node.className ?? "").split(" ").includes("library-fetch-again"))[0]);
-  assert.deepEqual(b.started, [{ workflow: "fetch-sources.yml", ref: "main", inputs: {} }]);
+  assert.deepEqual(b.started, [{ workflow: "fetch-sources.yml", ref: "main", inputs: { source: "SRC-ai-waiting" } }]);
   assert.deepEqual(b.commits, [], "the page does not write fetch state");
 });
 

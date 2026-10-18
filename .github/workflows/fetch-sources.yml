@@ -6,6 +6,10 @@ on:
     branches: [main]
     paths: ["docs/sources/**"]
   workflow_dispatch:
+    inputs:
+      source:
+        description: "The register entry (SRC-...) of an EU legal text to fetch a newer version of; empty fetches only the texts that wait for their fetch"
+        required: false
 
 permissions:
   contents: write
