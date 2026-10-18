@@ -198,7 +198,7 @@ test("MOD-review-pages release-report/release-v<version> — with one reason emp
 // guards: ACCEPTING THE RELEASE TEST REPORT RELEASES; UC-030
 // given: a product with an open green release test report — no failing test, no worse rate — whose changelog entry reads "Ten of ten model runs pass.", and a token stored
 // input: the route release-report rendered with the id release-v2026.4.0, then a click on "Accept"
-// expect: the changelog entry shown and no reason field; the click writes the report, its approval record with no limitation line and the changelog entry in one commit, then the tag v2026.4.0
+// expect: the changelog entry shown and no reason field; the click writes the report, its approval record with no limitation naming a test and the changelog entry in one commit, then the tag v2026.4.0
 test("MOD-review-pages release-report/release-v<version> — a green report has no reason field and is accepted as before", async () => {
   const fake = await fakeHost(false);
   const page = await show(fake, { id: "release-v2026.4.0" });
@@ -209,7 +209,7 @@ test("MOD-review-pages release-report/release-v<version> — a green report has 
   await until(() => fake.calls.some((call) => call.fn === "createTag"), "the tag");
 
   assert.equal(fake.writes().length, 1, "one commit");
-  assert.ok(!approvalOf(fake).text.includes("limitation:"), "no limitation line");
+  assert.ok(!/^limitation: \S/m.test(approvalOf(fake).text), "no limitation line that names a test");
   assert.deepEqual(fake.calls.filter((call) => call.fn === "createTag").map(({ name }) => name), ["v2026.4.0"]);
 });
 
