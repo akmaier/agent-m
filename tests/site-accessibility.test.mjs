@@ -22,7 +22,7 @@
 
 import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
-import { stageElectron, openWindow } from "./site-usability.d/browser.mjs";
+import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
 import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
@@ -64,14 +64,14 @@ before(async () => {
   const executable = await stageElectron();
   browser = await openWindow(executable, `${site.address}/__blank`);
   const page = browser.page;
-  await page.call("Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
+  await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
   // axe-core is added to the document after the page has drawn, so that its script is no part of what is checked.
   const check = async () => {
     await page.evaluate(`typeof axe === "undefined" ? (0, eval)(${JSON.stringify(axe)}) : 0`);
     return await page.evaluate(RUN_AXE);
   };
   for (const [kind, width] of WIDTHS) {
-    await page.call("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
+    await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
     for (const route of ROUTES) {
       await show(page, site, route.address);
       found.set(`${route.address} ${kind}`, { violations: await check(), text: await page.evaluate(`(document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ")`),
@@ -80,7 +80,7 @@ before(async () => {
     progress(`every route is checked at a ${kind}'s width`);
   }
   // The counter-proofs: a page as it is, then the same page with a button without a name and an image without a text alternative planted.
-  await page.call("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await configure(page, "Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
   await show(page, site, "#how");
   planted.before = await check();
   await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
