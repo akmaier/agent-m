@@ -57,12 +57,25 @@ function computer({ claude = null, codex = null, opencode = null } = {}) {
   return { root, bin, folders, calls: () => readFileSync(calls, "utf8").trim().split("\n").filter(Boolean),
     release: () => closeSync(openSync(gate, "w")) };
 }
+// Every ask the test posted; onComputer refuses to remove the machine's folder while one of them still runs, since its agent writes there.
+const asked = [];
 async function onComputer(machine, work) {
   const prior = process.env.PATH;
   process.env.PATH = machine.bin;
-  try { return await work(); } finally { process.env.PATH = prior; rmSync(machine.root, { recursive: true, force: true }); }
+  asked.length = 0;
+  try {
+    const result = await work();
+    const running = [];
+    for (const { handlers, ask } of asked) if ((await handlers["GET /v1/ask/{ask}"]({ params: { ask }, query: {}, body: {} })).state === "running") running.push(ask);
+    assert.deepEqual(running, [], "the test returned while an ask it started still ran, and its agent still writes into the folder that is removed next");
+    return result;
+  } finally { process.env.PATH = prior; rmSync(machine.root, { recursive: true, force: true }); }
 }
-const call = (handlers, key, { params = {}, body = {} } = {}) => handlers[key]({ params, query: {}, body });
+const call = async (handlers, key, { params = {}, body = {} } = {}) => {
+  const answer = await handlers[key]({ params, query: {}, body });
+  if (key === "POST /v1/ask") asked.push({ handlers, ask: answer.ask });
+  return answer;
+};
 const offered = (machine, ...names) => names.map((name) => ({ name, folder: machine.folders[name] }));
 async function rejection(promise) {
   try { await promise; } catch (error) { return error; }
