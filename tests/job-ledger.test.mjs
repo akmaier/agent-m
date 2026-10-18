@@ -537,3 +537,32 @@ test("recordsNewestFirst — yields only the newest record until its caller asks
   assert.equal(first.value.path, newest);
   assert.deepEqual(reads, [newest]);
 });
+
+// ---------------------------------------------------------------- listJobs: the source of a job whose runtime is unreachable
+
+// TST-881001 · level: unit · module: MOD-job-ledger
+// guards: ONE DASHBOARD SHOWS EVERY JOB
+// given: one record, taken and not ended, in a fixture snapshot
+// input: listJobs of it with (a) an unreachable live state with a reason, (b) a reachable live state that knows the job, (c) no live state
+// expect: (a) state "running", source { reachable: false, reason: "Unreachable: runtime gone" }; (b) and (c) state "running", source { reachable: true, reason: null }
+test("listJobs — a taken job whose runtime is unreachable is listed with its source not reachable and the live state's reason", async () => {
+  const path = "docs/jobs/JOB-20261011-2300-f922.md";
+  const text = recordedRun("JOB-20261011-2300-f922", "2026-10-11 23:00 UTC")
+    + "\n## Taken\n\nat: 2026-10-11 23:01 UTC\nby: ci hosted\n";
+  const products = [{ address: "org/repo", snapshot: snapshotOf({ [path]: text }) }];
+  const listed = async (live) => (await listJobs(products, live))[0];
+
+  const gone = await listed(new Map([["JOB-20261011-2300-f922",
+    { reachable: false, reason: "Unreachable: runtime gone", known: false, running: false, cancelling: false }]]));
+  assert.equal(gone.state, "running");
+  assert.deepEqual(gone.source, { reachable: false, reason: "Unreachable: runtime gone" });
+
+  const knows = await listed(new Map([["JOB-20261011-2300-f922",
+    { reachable: true, known: true, running: true, cancelling: false }]]));
+  assert.equal(knows.state, "running");
+  assert.deepEqual(knows.source, { reachable: true, reason: null });
+
+  const none = await listed(new Map());
+  assert.equal(none.state, "running");
+  assert.deepEqual(none.source, { reachable: true, reason: null });
+});
