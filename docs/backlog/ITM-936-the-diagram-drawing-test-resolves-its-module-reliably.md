@@ -32,3 +32,9 @@ path resolved before the page's base, or a race in the page's load. No change co
 - The cause is removed, and a test shows that the page's import resolves only once the server answers, with a
   counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Not built separately (sprint team1/91).** Its cause is a fault of `openWindow` in `tests/site-usability.d/browser.mjs`,
+shared by every caller, and the fix belongs there once, in ITM-935. A second helper beside it would copy `openWindow` and
+leave the fault in place. Pull request #909 is closed without merging. At ITM-935's gate, the 918 test is checked to resolve
+its module under a held server answer. If it does, this item is done by ITM-935. If not, it is read again.
+

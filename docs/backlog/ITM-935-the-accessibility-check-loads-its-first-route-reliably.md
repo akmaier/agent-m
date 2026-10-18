@@ -28,7 +28,18 @@ the check loads. #905 was opened after ITM-930's resends reached `main`, so they
 **First task:** read both jobs' logs and name what the wait for "/ is loaded" saw: a navigation that never committed, a page
 that loaded and was not recognised, or a slow staging. No change comes before the cause is named.
 
+**Also its cause, found on ITM-936 (sprint team1/91, developer-sonnet-d).** `openWindow`
+(`tests/site-usability.d/browser.mjs:149-171`) returns once `/json/list` shows a target whose url starts with
+`http://127.0.0.1`, which can be the pending url. Electron's `loadURL` (`:98`) does not report when the navigation
+commits, and `readyPage` waits only for `document.readyState` (`:54-57`). So the document can still be the initial
+`about:blank`. Measured: with the server holding its answer 2500 ms, `openWindow` returned in 448 ms at `about:blank`
+(probe `ITM-936-probe.mjs`). Every caller of `openWindow` shares this. ITM-935's first task checks whether its "/ is loaded"
+flake is this race too.
+
 ## Acceptance
+
+- `openWindow` returns only once the page has committed the address it opened (`location.href` is that address). A test
+  with a server that holds its first answer shows it, with a counter-proof (returning on the target list alone).
 
 - The cause is removed in the boot the two checks share, within the total wait. A test with a fake session reproduces the
   case and shows the page then drawn, with a counter-proof.
