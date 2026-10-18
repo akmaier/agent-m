@@ -327,14 +327,13 @@ const MANY = {
   "tests/many-f.test.mjs": testText("TST-116", "MOD-reader", ["RULE TWO"]),
 };
 
-// Counts the passes over an edge list: each call of an array method that walks it and each iterator taken from it.
+// Counts every read of an edge, however the code walks the list: a method, an iterator, a copy made by slice or spread, or an
+// indexed loop all read the elements through the proxy. One pass is as many reads as the list has edges.
 function spyOnEdges(graph) {
-  const counter = { passes: 0 };
-  const walking = new Set(["filter", "map", "forEach", "some", "every", "find", "findIndex", "findLast", "reduce", "flatMap",
-    "indexOf", "includes", "slice", "entries", "values", "keys", Symbol.iterator]);
-  const edges = new Proxy(graph.edges, { get(target, key) {
-    const value = Reflect.get(target, key, target);
-    return walking.has(key) && typeof value === "function" ? (...args) => { counter.passes += 1; return value.apply(target, args); } : value;
+  const counter = { reads: 0, size: graph.edges.length, get passes() { return this.reads / this.size; } };
+  const edges = new Proxy(graph.edges, { get(target, key, receiver) {
+    if (typeof key === "string" && /^\d+$/.test(key)) counter.reads += 1;
+    return Reflect.get(target, key, receiver);
   } });
   return { graph: { ...graph, edges }, counter };
 }
@@ -366,9 +365,9 @@ test("TST-906001 the guards of each listed test equal the list built edge by edg
 // module: MOD-trace-graph
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
 // given: two graphs of the same repository, one with one test exercising MOD-reader, one with seven; graph.edges is a spy that counts
-// given: every array method that walks it and every iterator taken from it
+// given: every read of an edge, by method, iterator, copy or index
 // input: architectureImpact of the same reader prose change on each graph
-// expect: the number of passes over graph.edges is the same for both, and the seven-test graph lists seven tests (positive control)
+// expect: the reads of edges, in passes over the list (reads divided by its length), are the same for both, and the seven-test graph lists seven tests (positive control)
 test("TST-906002 the passes over graph.edges do not grow with the number of tests", async () => {
   const after = READER_BEFORE.replace("One concern.", "Reads each file whole.");
   const changes = [{ path: READER, before: READER_BEFORE, after }];
