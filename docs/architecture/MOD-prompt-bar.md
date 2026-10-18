@@ -25,6 +25,8 @@ uses:
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-participant-list.reachedThrough
+  - MOD-participant-list.eligible
+  - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
   - MOD-job-runner.Prepared
   - MOD-job-runner.JobResult
@@ -170,8 +172,12 @@ IN THE REPOSITORY`).
   `target`, fixed to the bottom of the window, and keeps it for the life of the page. It offers each participant of the
   instance's list whose type is a model endpoint, a CLI agent or a sandboxed agent, that `reachedThrough` names no other
   participant for, and whose route this browser reaches — an endpoint its store keeps, an agent on a Bridge its store
-  keeps (UC-049 precondition); with none, it draws nothing and says nothing (UC-049 1a); with one, it names it; with
-  several, a small selector above the input chooses, each named with its processing place. A folded *What is this?*
+  keeps (UC-049 precondition); with none reached, it draws nothing and says nothing (UC-049 1a). Of those reached it
+  offers, for the page shown, only each that can do the subject's kind: `eligible` judges them against the `needs` of
+  `kindOf`'s definition of that kind, so that the offer follows the subject (UC-019 2). Where some are reached and none can
+  do the kind, it says so, names the capabilities the kind needs, and links the route `participants` through `go`
+  (UC-019 3a). With one offered, it names it; with several, a small selector above the input chooses, each named with its
+  processing place. A folded *What is this?*
   explains the bar. On *Send* — the decision to send — it asks the subject for the kind and the parameters, adds the
   person's words as `instruction`, the conversation so far as `conversation`, the subject's `entry` as `entry` and its
   `refuses` as `refuses`, prepares the job with MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
@@ -236,7 +242,8 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
 - MOD-documents.loadSchema, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister — its two
   files and the participant list.
 - MOD-participant-list.Participant, MOD-participant-list.participantSchema, MOD-participant-list.participantsOf,
-  MOD-participant-list.reachedThrough — the participants, and those reached only through another.
+  MOD-participant-list.reachedThrough — the participants, and those reached only through another;
+  MOD-participant-list.eligible, MOD-job-catalogue.kindOf — which of them can do the subject's kind.
 - MOD-job-runner.prepareJob, MOD-job-runner.Prepared, MOD-job-runner.JobResult — a message prepared and checked to fit,
   and its result; MOD-job-runner.Strategies — the type of `handOverStrategies`.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
