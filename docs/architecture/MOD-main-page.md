@@ -35,6 +35,9 @@ uses:
   - MOD-runtimes.jobLog
   - MOD-runtimes.cancelJob
   - MOD-runtimes.retryJob
+  - MOD-runtimes.jobTrail
+  - MOD-runtimes.revertAfterCancel
+  - MOD-work-plans.startable
   - MOD-prompt-bar.currentJob
   - MOD-source-register.sourceStrategies
 provides:
@@ -93,10 +96,11 @@ an interval the repository servers' rate limits allow, so the build stays curren
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
     runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason.
-  - `job` (`params.id`) — one job: its inputs, its commits and pull request, its CI runs, its log while it runs, its
+  - `job` (`params.id`) — one job: its inputs, its commits and pull request and its CI runs (MOD-runtimes' `jobTrail`), its log while it runs, its
     cost — or *unknown* (`NO COST IS GUESSED`); *Cancel* for a queued, running or waiting job, whose end, cancelled,
-    MOD-runtimes' `cancelJob` appends once its runtime confirms; *Retry* for a failed, cancelled or ended job,
-    as a new job, with the same participant or another holder of its role on a route offered for it; for a job waiting
+    MOD-runtimes' `cancelJob` appends once its runtime confirms, and beside a commit written after the cancel, *Revert*
+    (`revertAfterCancel`); *Retry* for a failed, cancelled or ended job whose step or item is still startable
+    (MOD-work-plans' `startable` — otherwise the reasons are shown and nothing is queued, UC-036 7a), as a new job, with the same participant or another holder of its role on a route offered for it; for a job waiting
     at a gate, the gate — what it checks, what to examine, who decides — and, for a person who may decide it, *Pass gate*
     and *Reject* with a reason. *Pass gate* stays unavailable, with the role and its holders named, for a person who does
     not hold the deciding role or did the work the gate checks (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT
@@ -132,4 +136,5 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
   MOD-runtimes.liveState, MOD-runtimes.jobLog,
   MOD-runtimes.cancelJob, MOD-runtimes.retryJob — live states, logs, cancel and retry at each job's route, the Bridges
-  handed in.
+  handed in; MOD-runtimes.jobTrail, MOD-runtimes.revertAfterCancel — a job's commits, pull request and CI runs, and the
+  revert of what it wrote after its cancel; MOD-work-plans.startable — whether a retried job's step or item may start.
