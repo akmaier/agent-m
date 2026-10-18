@@ -5,7 +5,7 @@
 // Module: MOD-settings-pages
 
 import { saveFile } from "../artifact-edits/index.mjs";
-import { listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { listSettings, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { bridgeAt, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
@@ -249,7 +249,7 @@ function productHostOf(context, web) {
   const injected = context.productHosts instanceof Map ? context.productHosts.get(web) : context.productHosts?.[web];
   if (injected) return injected;
   const address = parseAddress(web);
-  return connect(address, credentialsFor(context.store, address) ?? {});
+  return connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
 }
 
 function browserProducts(store) {

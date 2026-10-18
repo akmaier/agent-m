@@ -180,7 +180,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     becomes public stated before *Save*, which commits the entry and its content where its licence allows — the instance,
     or the repository the person names; *+ New version*, refused when its bytes equal an existing version's, the
     products on older versions, *Move* with the requirements affected and the passages changed; *Fetch again* for a
-    legal text whose fetch failed; for the chosen product, the linked sources with version and part, and removing a link
+    legal text whose fetch failed, and *+ New version* of a fetched one, each starting the fetch run for that entry
+    (MOD-repository-hosts' `startWorkflow` with the input `source`); for the chosen product, the linked sources with version and part, and removing a link
     with the requirements that name the source listed first.
   - `resources`, `resources/instance` — a product's or the instance's resources in a form from the resource schema; the
     pin, licence and maintainer read where they can be; the route; the secret by name only; the processing place;
