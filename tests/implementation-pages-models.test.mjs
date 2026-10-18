@@ -19,8 +19,8 @@
 //     data-model="<name>" inside one of them, holding a <span class="kind"> with the kind of work as the catalogue names it ("planned" or "pulled"), a <ul class="products"> with one
 //     <li> for each address of this browser's products that declares it (none when no product does), a <ul class="findings"> with one <li> for each finding of the catalogue, "<kind>: <what>"
 //     (present only when the model has one), and <a> elements for its buttons.
-//   - *Adapt*, *Edit* and *+ New model* are links (<a>) with that text. Adapt and Edit lead to "#models/<name>" (the name encoded as a path part); *+ New model* is the one link with the class
-//     new-model, in the section of the instance's own models.
+//   - *Adapt*, *Edit* and *+ New model* are links (<a>) with that text. Adapt and Edit lead to "#models/name=<name>" (the name percent-encoded; the frame reads only key=value parts after the route's name); *+ New model*
+//     leads to "#models/name=" and is the one link with the class new-model, in the section of the instance's own models.
 //   - A product that cannot be connected or read is an <li class="source"> of a <ul class="unreadable">, "<address>: <the reason its host gives>".
 //   - A product declares a model when its docs/process.md names the model's file in model_file, as the route `process` reads the declaration.
 //   - The folded What is this? is the <details class="explain"> that explain(topic) returns.
@@ -31,6 +31,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { routeOf } from "../src/site-frame/routing.mjs";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 
 const { view } = await import("../src/implementation-pages/index.mjs");
@@ -184,15 +185,15 @@ test("TST-778002 each model lists the products of this browser whose declaration
 // guards: UC-031 (step 1 and 2b: a shipped model is adapted, never edited in place; the page offers + New model)
 // given: the same page
 // input: the route `models` drawn
-// expect: every shipped model's links are exactly ["Adapt"], leading to "#models/<name>"; every model of the instance's own has exactly ["Edit"], leading to "#models/<name>"; the page
+// expect: every shipped model's links are exactly ["Adapt"], leading to "#models/name=<name>"; every model of the instance's own has exactly ["Edit"], leading to "#models/name=<name>"; the page
 //   has one link "+ New model"
 test("TST-778003 a shipped model offers Adapt only, an instance's model Edit, and the page + New model", async () => {
   const target = await draw();
   for (const name of SHIPPED) {
-    assert.deepEqual(linksOf(modelOf(target, name)).map((link) => [link.textContent, link.getAttribute("href")]), [["Adapt", `#models/${name}`]], name);
+    assert.deepEqual(linksOf(modelOf(target, name)).map((link) => [link.textContent, link.getAttribute("href")]), [["Adapt", `#models/name=${name}`]], name);
   }
   for (const name of ["scrum-wip", "broken-wip"]) {
-    assert.deepEqual(linksOf(modelOf(target, name)).map((link) => [link.textContent, link.getAttribute("href")]), [["Edit", `#models/${name}`]], name);
+    assert.deepEqual(linksOf(modelOf(target, name)).map((link) => [link.textContent, link.getAttribute("href")]), [["Edit", `#models/name=${name}`]], name);
   }
   assert.deepEqual(byClass(target, "new-model").map((link) => link.textContent), ["+ New model"]);
 });
@@ -243,4 +244,19 @@ test("TST-778006 every part of the page carries a folded What is this?", async (
     assert.equal(summary.textContent, "What is this?");
     assert.ok(body.textContent.trim().length > 40, "the body is a text, not an empty fold");
   }
+});
+
+// TST-778007 · level: unit · module: MOD-implementation-pages
+// guards: UC-031 (step 2: the editor opens on the model chosen; 2a: + New model); MOD-site-frame `Route` (the parts after the route's name are key=value)
+// given: the page drawn, and the frame's routing (MOD-site-frame routeOf), which reads a fragment as a route name and its parameters
+// input: the href of every button of the page, read by routeOf
+// expect: Adapt of v-model gives route "models" with name "v-model"; Edit of scrum-wip gives "models" with name "scrum-wip"; every shipped and own model's button gives its own name; + New model gives
+//   "models" with the empty name ""; known positive: routeOf("#models/name=v-model") gives { name: "models", params: { name: "v-model" } }
+test("TST-778007 each button's address, read by the frame's routing, carries its model's name", async () => {
+  assert.deepEqual(routeOf("#models/name=v-model"), { name: "models", params: { name: "v-model" } });
+  const target = await draw();
+  for (const name of [...SHIPPED, "scrum-wip", "broken-wip"]) {
+    assert.deepEqual(routeOf(linksOf(modelOf(target, name))[0].getAttribute("href")), { name: "models", params: { name } }, name);
+  }
+  assert.deepEqual(routeOf(byClass(target, "new-model")[0].getAttribute("href")), { name: "models", params: { name: "" } });
 });

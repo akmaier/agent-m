@@ -5,8 +5,7 @@
 //
 // Module: MOD-implementation-pages
 
-import { route as process } from "./process.mjs";
+import { route as process, modelsRoute as models } from "./process.mjs";
 import { route as roles } from "./roles.mjs";
-import { route as models } from "./models.mjs";
 
 export const view = { routes: [process, roles, models], strategies: [] };
