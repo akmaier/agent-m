@@ -114,7 +114,7 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 
 | Part of the schema | Value |
 |---|---|
-| front matter | `gate` (the gate as the workflow names it, `<phase> → <phase>` or the requirement that adds it); `job` (the job waiting there, or empty for a phase's gate); `decider` (a participant's name, or `check: <CI check name>`); `role` (the deciding role); `decision` (`passed` or `rejected`); `on` (what was checked: `<path>@<blob>` per artifact, or the commit); `date` |
+| front matter | `gate` (the gate as the workflow names it, `<phase> → <phase>` or the requirement that adds it); `job` (the job waiting there, or empty for a phase's gate); `decider` (a participant's name, or `check: <CI check name>`); `role` (the deciding role); `decision` (`passed` or `rejected`); `on` (what was checked: `<path>@<blob>` per artifact, or the commit, and, for a pull request's gate, the pull request's address); `date` |
 | `## Reason` | required for `rejected`; an agent's reasoning for either |
 
 ## Interfaces
@@ -190,7 +190,9 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 - `doneCheck(facts: PullRequestFacts, workflow: Workflow, modules: Document[], gates: Document[], job: { kind: "implement"
   | "refactor" | "fix-bug", modules: string[] }) -> Finding[]` — every condition of the product's Definition of Done the
   pull request does not meet, as findings; empty when it holds. `facts` are the pull request's commits in order with their
-  changed files and CI results, and the texts of changed files on both sides; `gates` the product's gate records.
+  changed files and CI results, and the texts of changed files on both sides; `gates` the product's gate records, of
+  which those count whose `on` names one of the pull request's commits or its address, or names neither (only
+  `<path>@<blob>` entries).
   Considers: it is run by the product's CI, through the job `agent-m done`, so that it holds whoever merges.
 - `processStrategies: Strategies` — the strategies this module offers the job runner (ARC-046):
   - recipe `gate-inputs` — for an agent that decides a gate: the gate, what it checks and its condition, the texts of the
