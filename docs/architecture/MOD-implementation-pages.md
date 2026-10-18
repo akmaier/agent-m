@@ -48,6 +48,7 @@ uses:
   - MOD-work-plans.planSchemas
   - MOD-work-plans.itemStates
   - MOD-work-plans.startable
+  - MOD-work-plans.giveUpIncrement
   - MOD-work-plans.heldItems
   - MOD-work-plans.conflicts
   - MOD-work-plans.planFindings
@@ -154,7 +155,8 @@ Its formats are those of the modules it uses.
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
     every phase, *Save* only without errors, with `saveFile`.
   - `plan` — the architecture's subsystems and modules beside the plan's steps with their derived states and what each
-    waits for; *Draft the plan* with its run panel, run in this tab and attended, whose result waits for the planner; the
+    waits for, a step marked where `planFindings` with the history names its module or subsystem changed or removed since
+    the step was saved, and a module without a step named (UC-045); *Draft the plan* with its run panel, run in this tab and attended, whose result waits for the planner; the
     draft reviewed in order, reordered, split, merged or edited where its dependencies allow; *Save plan*, which lets the
     drafted plan go on as the planner left it, or writes a plan made by hand with `savePlan`; *+ Step*.
   - `backlog`, `board` — the items, each after the items it builds on, with their derived states, the requirements and
@@ -167,7 +169,8 @@ Its formats are those of the modules it uses.
   - `sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines, the unfinished items' decisions, the
     retrospective with the sprint's numbers as material; *Close sprint* with `closeSprint`, offered only with a
     retrospective entry and a decision for every unfinished item; *Merge increment* as a pull request whose CI must be
-    green, for a sprint with a branch of its own.
+    green, for a sprint with a branch of its own; after the close, for an increment not merged, *Give up increment* with
+    a reason, through `giveUpIncrement`.
   - `implement` — the steps of the plan or the ready items, each with its state and, if it cannot start, the reasons;
     the participants that hold the implementing role in the item's role assignment and can write and run tests, the attempt limit, who merges, the
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
@@ -220,7 +223,8 @@ product's `docs/sources.md`.
   Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
   where the process requirements stand, and with the catalogue at the commit the declaration names, read with
   MOD-repository-hosts' `readSnapshot`.
-- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.planFindings,
+- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.giveUpIncrement,
+  MOD-work-plans.planFindings,
   MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
   plans, backlogs, sprints, their states, and what the teams' sprints hold;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.startSprint,

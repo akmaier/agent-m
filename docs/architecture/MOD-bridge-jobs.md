@@ -38,6 +38,7 @@ uses:
   - MOD-product-process.declarationSchema
   - MOD-product-process.gateStates
   - MOD-work-plans.sprintFacts
+  - MOD-work-plans.sprintsToClose
 provides:
   - jobHandlers
   - startWatching
@@ -123,8 +124,9 @@ settings (MOD-desktop-shell).
   whose record now exists are resumed (`A JOB STOPS AT EVERY GATE`); the next actions of every run of a served product
   are computed from the product's facts, those of this route taken and those of other routes queued by their start
   records; a sprint whose close
-  the product assigned to one of this Bridge's agents is closed by that agent when its time box ends or every selected
-  item is done. A product that cannot be read is skipped with its reason, and read again at the next interval.
+  the product assigned to one of this Bridge's agents is closed by that agent, once,
+  when MOD-work-plans' `sprintsToClose` names it — its time box ended, or, without one, every selected item done or
+  ended by the Product Owner. A product that cannot be read is skipped with its reason, and read again at the next interval.
 - `stopWatching(reason: "pause" | "quit") -> Promise<void>` — stops taking jobs; on *quit* every job still running is
   stopped and its record ends as cancelled, naming that the Bridge was quit.
 - `testAccess(config: { instance: string, products: string[] }) -> Promise<{ repository: string, reachable: boolean,
@@ -182,4 +184,5 @@ clones. Nothing else.
   next actions are computed.
 - `MOD-run-planner.runOf`, `MOD-run-planner.nextActions` — the runs it serves and their next actions.
 - `MOD-product-process.gateStates` — whether a waiting job's gate is decided.
-- `MOD-work-plans.sprintFacts` — whether a sprint has ended, and who closes it.
+- `MOD-work-plans.sprintFacts`, `MOD-work-plans.sprintsToClose` — a sprint's facts, and whether it has ended and who
+  closes it.

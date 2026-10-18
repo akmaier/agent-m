@@ -162,9 +162,10 @@ jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
   workflow names as its decider: the gate's record — decided by that check, passed or not, on which commit (`A GATE NAMES
   WHO DECIDES IT`, `THE GATE IS RECORDED`) —, written through Process's `recordGateDecision`, whose push resumes the
   waiting job.
-- `onSchedule(env: CiEnvironment) -> Promise<EntryStatus>` — on the product's schedule: the events in time, such as the
-  end of a sprint's time box, whose close, if the product assigned it to an agent, is queued for that agent's route (`A
-  SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`).
+- `onSchedule(env: CiEnvironment) -> Promise<EntryStatus>` — on the product's schedule: the events in time. Each sprint
+  that MOD-work-plans' `sprintsToClose` names — its time box ended, or, without one, every selected item done or the
+  Product Owner's `## Ended` — whose closer is an agent gets its close, a job of kind `close-sprint`, queued for that
+  agent's route, unless a close of it is already queued or running (`A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`).
 - `onDispatch(env: CiEnvironment) -> Promise<EntryStatus>` — on a run started from the CI service's own page with the
   inputs the dashboard named (UC-024): writes the job's start record, those inputs its parameters, and runs it as
   `onRecordsChanged` runs a job. On a run a hand-over started (UC-049 4a), whose input `job` names a queued record whose
@@ -259,7 +260,7 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-test-schedule.applyPipelineSchedule` — the nightly pipeline schedule on GitLab once a run's CI is merged.
 - `MOD-result-records.parseOutcomes`, `appendResult` — a run's outcomes read from its JUnit XML report, and its result
   record.
-- `MOD-work-plans.sprintFacts` — the sprints whose time box ended.
+- `MOD-work-plans.sprintFacts`, `MOD-work-plans.sprintsToClose` — a sprint's facts, and the sprints whose close starts now.
 - `MOD-issue-handling.closeWithLinks` — closing the issues a merged pull request names, in `onPullRequestClosed`.
 - `MOD-spec-changes.applyApproved` — applying the instance's approved SPEC changes.
 - `MOD-source-register.recogniseLegalText`, `fetchLegalText`, `versionCommits` — fetching EU legal texts.
