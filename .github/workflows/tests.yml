@@ -67,7 +67,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -112,5 +112,5 @@ jobs:
         run: |
           mode=all
           if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then mode=rest; fi
-          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 8 tests/*.test.mjs)
+          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 16 tests/*.test.mjs)
           node --test $files
