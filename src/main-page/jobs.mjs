@@ -5,8 +5,8 @@
 //
 // ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; NO COST IS GUESSED. The page computes no state, no elapsed time and no cost of a record: listJobs derives them
 // (MOD-job-ledger) from the records and from the live state each job's runtime reports (MOD-runtimes), asked once when the list is drawn. It stores nothing. It reads each repository through
-// the host connected with the token this browser keeps for it, and sends no token anywhere else (MOD-repository-hosts). Uses MOD-browser-store, MOD-bridge-client, MOD-repository-hosts,
-// MOD-job-ledger, MOD-runtimes and MOD-prompt-bar only through their index.mjs.
+// the host the frame connected for it — the instance's from the ViewContext, a product's by MOD-site-frame's chosenProduct, with its own token and the stored secrets the host refuses to write — and sends no
+// token anywhere else (MOD-repository-hosts). Uses MOD-site-frame, MOD-browser-store, MOD-bridge-client, MOD-repository-hosts, MOD-job-ledger, MOD-runtimes and MOD-prompt-bar only through their index.mjs.
 //
 // How a list is drawn: each source's default branch is read; listJobs reads the records once (without live states) to name the jobs whose record has no end; each of those is asked once with
 // liveState, and listJobs derives the rows again with what was reported — the records are not fetched twice, since a snapshot reads a file once. A Bridge handle is made as the prompt bar and
@@ -14,37 +14,38 @@
 
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
-import { parseAddress, connect } from "../repository-hosts/index.mjs";
+import { parseAddress } from "../repository-hosts/index.mjs";
+import { chosenProduct } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { liveState } from "../runtimes/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
-// The key a repository's own token is kept under (MOD-browser-store, Data): `github-token:<owner>/<repository>` or `gitlab-token:<server>/<project>`; the instance's is `github-token`.
-const tokenKeyOf =(address) => (address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`);
-
-// The sources, each connected with the token this browser keeps for it: the instance, then each address of the setting `products` that parses, once.
-function sourcesOf(context) {
+// The sources, each with the host the frame connected: the instance's own (the ViewContext's), then each address of the setting `products` that parses, once, through MOD-site-frame's chosenProduct,
+// which connects it with its own token to its own server only and with the stored secrets the host refuses to write. A product the frame cannot connect is { address, reason }.
+export async function sourcesOf(context) {
   const { store, instance } = context;
-  const asked = [{ address: parseAddress(`https://github.com/${instance.repository}`), key: "github-token" }];
+  const own = parseAddress(`https://github.com/${instance.repository}`).web;
+  const seen = new Set([own]);
+  const sources = [{ address: own, host: instance.host }];
   for (const text of readSetting(store, "products") ?? []) {
-    try { asked.push({ address: parseAddress(text), key: null }); } catch { /* an address that is none names no source */ }
+    let web;
+    try { web = parseAddress(text).web; } catch { continue; /* an address that is none names no source */ }
+    if (seen.has(web)) continue;
+    seen.add(web);
+    try { sources.push({ address: web, host: (await chosenProduct({ store, fragment: `#jobs/product=${encodeURIComponent(web)}` })).host }); } catch (failure) { sources.push({ address: web, reason: String(failure?.message ?? failure) }); }
   }
-  const seen = new Set();
-  return asked.filter(({ address }) => !seen.has(address.web) && seen.add(address.web)).map(({ address, key }) => {
-    const token = readSetting(store, key ?? tokenKeyOf(address));
-    return { address, token };
-  });
+  return sources;
 }
 
-// One source read: its host, and its default branch as a snapshot. A source that fails is { address, reason }.
-async function readSource({ address, token }) {
+// One source read: its default branch as a snapshot. A source that fails is { address, reason }.
+async function readSource({ address, host, reason }) {
+  if (reason !== undefined) return { address, reason };
   try {
-    const host = connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null });
     const { defaultBranch } = await host.repositoryInfo();
-    return { address: address.web, host, snapshot: await host.readSnapshot(defaultBranch) };
+    return { address, host, snapshot: await host.readSnapshot(defaultBranch) };
   } catch (failure) {
-    return { address: address.web, reason: String(failure?.message ?? failure) };
+    return { address, reason: String(failure?.message ?? failure) };
   }
 }
 
@@ -130,7 +131,7 @@ function drawList(rows) {
 
 async function render(target, context) {
   target.replaceChildren(el("h2", null, "Every job"), el("p", "reading", "Reading…"));
-  const sources = await Promise.all(sourcesOf(context).map(readSource));
+  const sources = await Promise.all((await sourcesOf(context)).map(readSource));
   const readable = sources.filter((source) => source.snapshot);
   const products = readable.map(({ address, snapshot }) => ({ address, snapshot }));
   const first = await listJobs(products, new Map());
