@@ -174,9 +174,9 @@ test("UC-006 3b: the requests one load of an entry makes, with an empty and with
   const one = await count("01");
   // A new dashboard load has a fresh in-memory file cache, so it reads the same requests again.
   assert.deepEqual(one.warm, one.cold);
-  // The list reads the use cases, the architecture files and the tests of the commit, in one batch, each once — and no other code file.
+  // The list reads the use cases, the architecture files and the tests of the commit, in one batch, each once — and the code files, which the trace graph reads for their imports.
   const batch = srv.batches.at(-1);
   for (const p of [UC1, UC2, UC3, ARC1, MODR, T1, T3]) assert.ok(srv.batches.flat().includes(p), p);
-  assert.ok(!srv.batches.flat().includes("src/reader.mjs"), "a code file that is no test names no requirement and is not read");
+  assert.ok(srv.batches.flat().includes("src/reader.mjs"), "a code file is a code node of the trace graph and is read for its imports");
   assert.ok(batch.length > 0);
 });

@@ -5,8 +5,9 @@
 // the group files through MOD-group-document, so that it holds each of them with its title and blob, with every edge its front
 // matter states and with every name its text writes. Of what it reads it keeps the facts a check across artifacts needs, so that
 // none is decided by reading a file again: the facts of a node's kind, the interface a `uses` edge names, the path of every file,
-// the links the documents write and the references by position in their texts. The code files and the imports between modules
-// (UC-025) are not among the paths this file selects.
+// the links the documents write and the references by position in their texts. The code files and the imports between module
+// folders (UC-025) are code.mjs's: a code file is a node of the kind `code`, and its imports are read for the modules whose folders
+// the graph has found.
 //
 // Module: MOD-trace-graph
 
@@ -15,6 +16,7 @@ import { parseGroupFile } from "../group-document/index.mjs";
 import { identifiersIn, kindOfIdentifier, positionalReferences } from "../identifiers/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
+import { importEdges, importsOf, isCodePath, readsImports } from "./code.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -165,13 +167,17 @@ async function groupFileGraph(path, text) {
   return { nodes, edges: [] };
 }
 
+// A code file's node: its path is its identifier, it stands on line 1 and has no title, blob or other fact.
+const codeNode = (path) => withFacts({ id: path, kind: "code", path, line: 1, title: null, blob: null });
+
 // The function that reads a path into its nodes, edges, links and positions, or null for a path the graph does not read.
 function readerOf(path) {
   if (path === SPEC_PATH) return (_path, text) => ({ nodes: requirementNodes(text), edges: [] });
   if (isTestFile(path)) return testFileGraph;
   const document = DOCUMENTS.find((entry) => entry.path.test(path));
   if (document) return (_path, text) => documentGraph(document, path, text);
-  return GROUP_FILE.test(path) ? groupFileGraph : null;
+  if (GROUP_FILE.test(path)) return groupFileGraph;
+  return isCodePath(path) && readsImports(path) ? (_path, text) => ({ nodes: [codeNode(path)], edges: [], imports: importsOf(path, text) }) : null;
 }
 
 // traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph> — reads, in the order source.paths lists
@@ -181,11 +187,14 @@ function readerOf(path) {
 // is the reason —, and the graph holds the others. Rejects only when source.read itself rejects.
 export async function traceGraph(source, options = {}) {
   const nodes = new Map();
-  const edges = [], links = [], positions = [], unread = [];
+  const edges = [], links = [], positions = [], unread = [], imported = [];
   await source.readMany?.(source.paths.filter((path) => readerOf(path)));
   for (const path of source.paths) {
     const read = readerOf(path);
-    if (!read) continue;
+    if (!read) {
+      if (isCodePath(path)) nodes.set(path, codeNode(path));
+      continue;
+    }
     const text = await source.read(path);
     if (text === null) { unread.push({ path, reason: UNREADABLE }); continue; }
     let found;
@@ -199,6 +208,9 @@ export async function traceGraph(source, options = {}) {
     edges.push(...found.edges);
     links.push(...(found.links ?? []));
     positions.push(...(found.positions ?? []));
+    if (found.imports) imported.push({ from: path, imports: found.imports });
   }
+  const modules = [...nodes.values()].filter((node) => node.kind === "MOD" && node.folder !== null);
+  for (const { from, to, path, line } of importEdges(imported, modules)) edges.push(edge(from, to, "imports", path, line));
   return { commit: options.commit ?? null, nodes, edges, files: [...source.paths], links, positions, unread };
 }

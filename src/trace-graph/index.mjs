@@ -9,8 +9,9 @@
 // instance's repository or dashboard; both are in checks.mjs. tracesTo gives a requirement the sources its node keeps and the use
 // cases, decisions, modules, tests and items that name it, requirementImpact every place an artifact names it, and coverageGaps the
 // requirements and use cases that lack a counterpart and the names that match nothing. architectureImpact derives the architecture-change list from those facts and
-// supplied before/after texts. The code files and their imports, moduleOrder, moduleRows and
-// compareGraphs are not built yet.
+// supplied before/after texts. traceGraph also reads the code files, a node of the kind `code` for each by its path, and, for
+// JavaScript, TypeScript, Python and CSS, their imports (code.mjs): an `imports` edge from the code node to each other module whose
+// folder holds the path imported. moduleOrder, moduleRows and compareGraphs are not built yet.
 //
 // Module: MOD-trace-graph
 //
