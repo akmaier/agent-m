@@ -7,6 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { ssh2NodePath } from "./ssh2-fixture.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const ssh2Cache = join(tmpdir(), "agent-m-284-ssh2-1.17.0");
@@ -22,9 +23,7 @@ function run(command, arguments_, options = {}) {
 function runtime() {
   if (runtimeFailure) throw runtimeFailure;
   try {
-    if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
-      run("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
-    }
+    const nodePath = ssh2NodePath(ssh2Cache);
     const positive = run(process.execPath, ["--input-type=module", "-e", `
       import { createRequire } from "node:module";
       const require = createRequire(import.meta.url);
@@ -56,9 +55,9 @@ function runtime() {
         crypto.generateKeyPairSync = generateKeyPairSync;
       }
       console.log("ssh2-known-positive");
-    `], { env: { ...process.env, NODE_PATH: join(ssh2Cache, "node_modules") } });
+    `], { env: { ...process.env, NODE_PATH: nodePath } });
     assert.match(positive.stdout, /ssh2-known-positive/);
-    return join(ssh2Cache, "node_modules");
+    return nodePath;
   } catch (error) { runtimeFailure = error; throw error; }
 }
 

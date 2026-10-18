@@ -20,6 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import test from "node:test";
+import { ssh2NodePath } from "./ssh2-fixture.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const sourceRoot = process.env.AGENT_M_294_SOURCE_ROOT ?? new URL("../src/", import.meta.url).pathname;
@@ -39,13 +40,7 @@ function requireSuccess(commandName, args, options = {}) {
 }
 
 function stageSsh2() {
-  if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) {
-    requireSuccess("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
-  }
-  const nodePath = join(ssh2Cache, "node_modules");
-  const positive = requireSuccess(process.execPath, ["-e", "const ssh2=require('ssh2');if(require('ssh2/package.json').version!=='1.17.0'||typeof ssh2.Server!=='function')throw Error('ssh2 known positive');console.log('ssh2-known-positive')"], { env: { ...process.env, NODE_PATH: nodePath } });
-  assert.match(positive.stdout, /ssh2-known-positive/);
-  return nodePath;
+  return ssh2NodePath(ssh2Cache);
 }
 
 function ensureWebServers() {

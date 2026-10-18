@@ -69,3 +69,16 @@ test("endSprint — refused with NotEndable, nothing written, for a sprint with 
     assert.deepEqual(committed(host), []);
   }
 });
+
+// TST-481901 · level: unit · module: MOD-work-plans
+// guards: UC-032 6b; ONE CLICK PER DECISION
+// given: a product whose files hold team2's sprint 01 only; no record of team2/99
+// input: endSprint(host, "team2/99", { head: HEAD, now, trailers })
+// expect: NotFound naming the path docs/backlog/sprints/team2/99.md, and nothing committed
+test("endSprint — a sprint with no record is refused with NotFound naming its path, nothing written", async () => {
+  const host = hostWith({ [PATH]: record("") });
+  const refused = await failure(endSprint(host, "team2/99", { head: HEAD, now: new Date("2026-10-18T14:30:00Z"), trailers: TRAILERS }));
+  assert.equal(refused?.name, "NotFound", String(refused));
+  assert.equal(refused.path, "docs/backlog/sprints/team2/99.md");
+  assert.deepEqual(committed(host), []);
+});

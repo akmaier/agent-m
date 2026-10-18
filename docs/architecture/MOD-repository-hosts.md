@@ -104,14 +104,16 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   no commit may contain.
 - `Host` — the object `connect` returns; the functions below, from `readSnapshot` on, are its functions.
 - `Snapshot` — `{ repository: RepositoryAddress, ref: string, commit: string | null, paths: string[], read(path: string) ->
-  Promise<string | null>, readMany(paths: string[]) -> Promise<void>, blob(path: string) -> string | null }`: one
+  Promise<string | null>, readMany(paths: string[]) -> Promise<void>, readOn(branch: string, path: string) -> Promise<string | null>, blob(path:
+  string) -> string | null }`: one
   repository at one commit; `read` fetches a file's text once and returns `null` for a path the commit does not hold;
   `readMany` fetches the texts of many files ahead of their `read`s, in as few requests as the server allows — on GitHub
   with a token, many files in one request of the same server's GraphQL API, which the token alone reaches (`A TOKEN GOES
   ONLY TO THE SERVER THAT ISSUED IT`), every limit of that API read from GitHub's documentation; on any other server, in a
   clone or without a token, it reads nothing ahead and each `read` fetches its file as before —, so that a caller that
   reads hundreds of files makes a handful of requests; a file the batch could not give is fetched by its own
-  `read`, and `readMany` fails only as `readSnapshot` fails; `blob` gives its blob SHA from the tree, without a
+  `read`, and `readMany` fails only as `readSnapshot` fails; `readOn` gives the text of a file on another branch of the same repository, in one request, and `null` when the branch or
+  the file does not exist; `blob` gives its blob SHA from the tree, without a
   request. On GitHub, a repository without any commit yet — an empty one — is a snapshot whose `commit` is `null` and
   which holds no path.
 - `HistoryEntry` — `{ commit: string, parents: string[], author: { account: string | null, name: string }, date: string,
