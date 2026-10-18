@@ -118,7 +118,8 @@ person reviews it. Its formats are those of the modules it uses.
     solved it and each listed mail found in the mailbox with its draft; *Draft replies* with its run panel, or a reply
     written without a participant; each draft complete — recipient, subject, body, attachments — and editable; *Send* with
     its confirmation repeating recipient and subject; a reply sent but not noted, its note offered again; *No reply*; *Ask
-    the reporter* and *Send and wait*; removing the label `waiting-for-reporter`; *Reopen* and *Leave closed* for a mail
+    the reporter* — a question drafted with *Draft question*, the run panel of `draft-replies` with the person's point as
+    its parameter `question`, or written by hand — and *Send and wait*; removing the label `waiting-for-reporter`; *Reopen* and *Leave closed* for a mail
     that arrived in a closed issue's thread; *Close and reply*.
 
   Each route gives the prompt bar its subject, of the kind `converse` (UC-049 3b): on a route that shows mail, the

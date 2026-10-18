@@ -124,7 +124,8 @@ are kept by Access in this browser.
     `RepositoryInfo`; one part with the titles and numbers of their open issues. Each mail's people go into the job's
     context for the check `people-search`, never into a part.
   - recipe `reply-inputs` — for drafting replies: the issue, what solved it — the closing pull request or commit, and the
-    release that contains it, where known —, and each listed mail without a reply.
+    release that contains it, where known —, and each listed mail without a reply. With the parameter `question`, for an
+    open issue: the issue, the person's point to ask, and the one listed mail the question answers (UC-039 1a).
   - writer `mail-drafts` — the drafted texts stored as drafts through `storeReplies`; it sends nothing.
 
 `Host` is the host Access's `connect` returns; `People` is MOD-personal-data's.

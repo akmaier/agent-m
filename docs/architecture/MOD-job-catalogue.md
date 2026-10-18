@@ -104,7 +104,7 @@ built into MOD-job-runner.
 | `propose-issues` | UC-038 | draft text | | `mail-batch` | `people-search` | | | `none` · `return-draft` | one proposal per mail |
 | `rewrite-without-persons` | UC-038 | draft text | | `report-data` | `people-search` | `check-for-persons` × 3 | | `none` · `return-draft` | the rewritten text |
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
-| `draft-replies` | UC-039 | draft text | | `reply-inputs` | | | | `none` · `mail-drafts` | one reply per mail |
+| `draft-replies` | UC-039 | draft text | | `reply-inputs` | | | | `none` · `mail-drafts` | one reply per mail of a closed issue; or, with the parameter `question` — the person's point to ask —, one question to the reporter of a listed mail of an open issue (UC-039 1a) |
 | `check-resource` | UC-040 | run code and tests | | `resource-check` | | | | `none` · `return-draft` | what answered |
 | `converse` | UC-049 | draft text | | `page`, `conversation`, `instruction`, `chapters-for-page?` | `document-schema`, `graph-checks` | | | `person` · `return-draft` | the answer, and the edits the participant proposed |
 
