@@ -39,3 +39,26 @@ nothing at this repository's state, the item stops and reports it.
   counts the records read on a fixture, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - It waits for akmaier's acceptance of the draft in MOD-review-pages.md.
+
+**Stopped at its first task (sprint team1/89, developer-sonnet-d), back to the backlog.** The count on the 372 real
+records (`ITM-897-count.mjs`):
+
+| Fixture | Today | With `recordsNewestFirst` |
+|---|---|---|
+| This repository | 372 records in 4 batched requests | 372 records in 372 single reads |
+| Drafting job is the newest | 373 in 4 | 1 in 1 |
+| Drafting job at rank 50 | 373 in 4 | 50 in 50 |
+
+- `docs/jobs/` holds no `derive-architecture` record, so newest first reads to the end. The counting is sound: the same
+  count finds the implement records.
+- `recordsNewestFirst` reads one record per request. It saves requests only when the drafting job is among about the four
+  newest, and otherwise it sends more than today's batches. That would go against `A PAGE LOAD READS THE REPOSITORY IN
+  BATCHES` (SPEC.md:672).
+- A version that saves requests needs `recordsNewestFirst` to read in batches of at most 100. That is an interface
+  decision of MOD-job-ledger that no accepted text makes. The item is not buildable as specified (sprint 79's agreement)
+  and waits for such a draft. The accepted line in MOD-review-pages' Uses stays unbuilt until then.
+- **Also found:** `jobNotes` (`src/review-pages/jobs.mjs:224`, called from `flow.mjs:445` on the file page of a kind with
+  drafts) reads every record through `readJobRecords` and `listJobs` too. It collects every job whose end names the file,
+  so stopping at the newest cannot help it. It reads in batches and breaks no sentence. It is noted here for the same
+  draft.
+
