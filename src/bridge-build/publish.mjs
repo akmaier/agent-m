@@ -14,6 +14,10 @@ import { checksumsText, sha256Hex, signBytes, signatureHolds } from "./sign.mjs"
 const PLATFORMS = ["macos", "windows", "linux"];
 const KEY = "BRIDGE_UPDATE_KEY";
 const MANIFEST = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+const LOCK = JSON.parse(readFileSync(new URL("./package-lock.json", import.meta.url), "utf8")).packages;
+// The packages the app carries: "the packages above that the app needs at run time" — the manifest's run-time packages, and electron, the
+// runtime the app ships, which stands under devDependencies because electron-builder requires it there. electron-builder builds, it is not carried.
+const CARRIED = [...new Set(["electron", ...Object.keys(MANIFEST.dependencies ?? {})])];
 
 // One failure, named by `name`, with its fields (MOD-bridge-build, Interfaces): BuildMissing { platform } · SignatureInvalid { file } ·
 // LicenceNotCompatible { package } · ChecksumMismatch { file } · SecretMissing { secret }.
@@ -66,7 +70,7 @@ function checkedFiles(folders, privatePem) {
 // The due diligence of every package the app carries at run time, read again, against Agent M's licence.
 async function dueDiligence() {
   const read = [];
-  for (const name of Object.keys(MANIFEST.dependencies ?? {})) {
+  for (const name of CARRIED) {
     const facts = await registryFacts({ name, ecosystem: "npm", repository: null }, MANIFEST.license);
     if (facts.licence === "not known to be compatible") {
       throw new ReleaseError("LicenceNotCompatible", { package: name }, `${name}: its licence is not known to be compatible with ${MANIFEST.license}`);
@@ -79,7 +83,7 @@ async function dueDiligence() {
 function notesOf(version, commit, facts) {
   const lines = facts.map((each) => {
     const licence = each.facts.find((fact) => fact.what === "licence")?.value ?? "none read";
-    return `- ${each.candidate.name} (${each.candidate.ecosystem}): ${licence}, ${each.licence} with ${MANIFEST.license}, read ${each.facts[0]?.read ?? "-"}`;
+    return `- ${each.candidate.name} ${LOCK[`node_modules/${each.candidate.name}`]?.version ?? ""} (${each.candidate.ecosystem}): ${licence}, ${each.licence} with ${MANIFEST.license}, read ${each.facts[0]?.read ?? "-"}`;
   });
   return `Agent M Bridge ${version}\n\nVersion: ${version}\nCommit: ${commit}\n\nDue diligence read before this release:\n${lines.join("\n")}\n`;
 }
