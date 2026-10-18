@@ -1,6 +1,6 @@
 // MOD-settings-pages' implemented Settings slice: the endpoint settings MOD-browser-store already enumerates.
 
-import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
+import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -411,7 +411,7 @@ function exportImportControls(context, signIn) {
 // A host keeps the token it was connected with. After a token is cleared or stored, the page connects its instance and its product again with what the
 // store holds (MOD-repository-hosts.connect, as repositoryLine's Test does with the stored token), so that no later request carries a cleared token and the next one carries a stored one.
 function reconnectHosts(context) {
-  const reconnect = (address) => connect(address, credentialsFor(context.store, address) ?? {});
+  const reconnect = (address) => connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
   if (context.instance?.host) context.instance.host = reconnect(parseAddress(`https://github.com/${context.instance.repository}`));
   if (context.product?.host) context.product.host = reconnect(parseAddress(context.product.address));
 }
