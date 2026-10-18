@@ -58,8 +58,26 @@ MOD-mail-records, and changes none of them.
   - it changes nothing in the mailbox;
   - `decideMail` *create* with a person's name in the title refuses with `PersonFound` and writes nothing. Without one,
     it creates one issue labelled `defect` whose text ends with the identifier;
-  - *add* writes one `mail-added` note, and *not an issue* stores the mark.
+  - *add* writes one `mail-added` note; *not an issue* throws a `TypeError` naming ITM-956 and writes nothing.
 - Counter-proofs: a `readNewMail` that ignores the marks fails, and so does a `decideMail` that skips the second people
   search.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/mail-handling/` and the tests that name MOD-mail-handling change.
+
+## Split at its start (po-opus-b)
+
+developer-sonnet-h stopped before the first commit (rule 1). `decideMail` cannot write the mark *not an issue*: it
+receives no `Store`, which MOD-browser-store's `readSetting` and `writeSetting` take (MOD-browser-store.md:106-108). The
+draft `0fbe0bf0` hands it the store, for akmaier.
+
+So this item builds what the accepted text supports:
+- `readNewMail` in full;
+- `MailDecision`;
+- `decideMail`'s *create* and *add*.
+`decideMail`'s *not an issue* goes to ITM-956, which waits for the draft. In this item, *not an issue* throws a
+`TypeError` naming ITM-956. The Acceptance line on the mark is changed to that, and the mark is ITM-956's.
+
+Resolved at the start, to be named in the pull request:
+- an issue comment's `date` (MOD-repository-hosts' `Issue`) is read as MOD-mail-records' `IssueText` `createdAt`;
+- Access's errors pass unchanged. MOD-repository-hosts names the error `PermissionMissing`. The draft `0fbe0bf0`
+  corrects MOD-mail-handling's `MissingPermission` to that name.
