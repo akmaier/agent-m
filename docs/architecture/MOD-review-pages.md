@@ -168,25 +168,30 @@ ReviewKind = {
   `approvalStrategies`, `editStrategies`, `sourceStrategies`, `reuseStrategies`. Its routes, for each kind `<k>`, the key
   of its descriptor, are also the addresses by which other pages and the browser's notifications lead to a kind's list
   and to a file (MOD-main-page, MOD-notifications):
-  - `<k>` — the files of the kind with their status — open, accepted, changed since acceptance —, each with a tick. A
+  - `<k>` — first, only while a file of the kind is open or changed since acceptance, those files, each with its status
+    and a tick, and no such part where none is; then every file of the kind with its status — open, accepted, changed
+    since acceptance —; and a link to `<k>/history`. A
     SPEC entry's tick names the blob of its proposal, from the tree, and the blob of the section that holds now, from the
     SPEC read once with `sectionText` and `blobSha`; the list builds no impact list, which is built for an entry only
     when it is opened. An entry of the instance's own SPEC whose approval record is committed but whose section is not
     written, because the instance's workflows are not turned on, is shown *approved*, not *in SPEC*, with why and a link
     to the Actions step of MOD-settings-pages' `get-your-own` (UC-014 step 4, 4a).
+  - `<k>/history` — the history of the kind's changes: its approval records, newest first, each with the file it names,
+    the person who committed it and the date; opened only from the link on `<k>`.
   - `<k>/<id>` — one file, `<id>` the identifier an approval record names it by (MOD-approvals): `UC-<nnn>`,
     `ARC-<nnn>`, `MOD-<slug>`, `spec-<queue>-<NN>` for an entry of a change queue, `release-v<version>` for a release
     test report — one part of the address's fragment, since none of them holds a `/`. The file rendered, with its
     diagram; changed since acceptance, its difference to the text the most recent approval record of its identifier
-    names (`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT`); its extra sections; beside an open file a job
+    names (`A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT`), in a box of its own that scrolls, opened with its
+    first change in the middle of the box; its extra sections; beside an open file a job
     wrote, the notes of that job's end record — a realised name it removed, a use case that realises none (UC-007 4a,
     4b); *Accept*, *Edit*. Its subject for the prompt bar names the descriptor's change kind and the file as its target —
     the use case, or the architecture file —, with `draft` as its draft route. Without a token for GitHub, *Accept* and
     *Edit* open GitHub's prefilled pages, the text never in the
     address (`NO TEXT TRAVELS IN A URL`); for a GitLab product without a token, neither is offered, and the token's step
     is linked.
-  - `<k>/all` — *Review all*: every open or changed file of the kind in sequence, a changed one as its difference, a new
-    one in full, and *Accept all N shown*: one commit with one record per file shown; a file that changed after it was
+  - `<k>/all` — *Review all*: every open or changed file of the kind in sequence, a changed one as its difference, in a box
+    of its own that scrolls, opened with its first change in the middle of the box, a new one in full, and *Accept all N shown*: one commit with one record per file shown; a file that changed after it was
     shown, or that names a requirement or use case not yet accepted, is left out and named (`SEVERAL FILES ARE ACCEPTED IN
     ONE CLICK`, `ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`). For the architecture, this is the review page of the whole
     architecture: the decision that states the system first, then the subsystems' decisions, the module files, the

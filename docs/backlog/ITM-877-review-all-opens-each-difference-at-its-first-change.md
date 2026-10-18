@@ -32,8 +32,7 @@ It needs akmaier's acceptance of a sentence in MOD-review-pages.md, which this i
 **The draft sentence for akmaier**, to follow "a changed one as its difference" in MOD-review-pages.md's `<k>/all` and
 `<k>/<id>`: "each difference in a box of its own that scrolls, opened with its first change in the middle of the box".
 
-MOD-review-pages is held by team 2's ITM-728 now, so the draft is committed once that hold ends. It is written here so
-that akmaier can accept it at once.
+The draft is committed to MOD-review-pages.md (`<k>/<id>` and `<k>/all`), so that akmaier can accept it on the dashboard.
 
 ## Acceptance
 

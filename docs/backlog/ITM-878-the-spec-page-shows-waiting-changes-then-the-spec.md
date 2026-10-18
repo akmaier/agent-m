@@ -46,13 +46,12 @@ opened at request."
 - **MOD-trace-pages.md:111**, the view `specification`, at its start: "first, only while an entry of a change queue waits
   for acceptance, those entries, each with its status and a link to it (MOD-review-pages' `spec-entry/id=…`), and
   nothing where none waits; then".
-- **MOD-trace-pages.md**, the same row's links: "*History of SPEC changes*, which opens MOD-review-pages' list
-  `spec-entry`".
+- **MOD-trace-pages.md**, the same row's links: "*History of SPEC changes*, which opens MOD-review-pages'
+  `spec-entry/history`". That is the history route of every kind (ITM-879), with no special case for the SPEC.
 - **MOD-site-frame.md**, `startPage` or the menu: "the entry Requirements opens MOD-trace-pages' view `specification`
   first; the list of SPEC change entries is opened from it".
 
-MOD-site-frame is held by team 2's ITM-725 and MOD-review-pages by ITM-728, so the drafts go into the module files once
-those holds end. They are written here so that akmaier can accept them at once. This item is apart from the regression
+The drafts are committed to MOD-trace-pages.md and MOD-site-frame.md, so that akmaier can accept them on the dashboard. This item is apart from the regression
 items ITM-874 to ITM-877.
 
 ## Acceptance
