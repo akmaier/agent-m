@@ -22,6 +22,7 @@ uses:
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.webLinks
   - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.readFileAt
   - MOD-text-tools.blobSha
   - MOD-text-tools.formatFinding
   - MOD-documents.artifactSchemas
@@ -41,6 +42,7 @@ uses:
   - MOD-trace-graph.coverageGaps
   - MOD-trace-graph.requirementImpact
   - MOD-trace-graph.architectureImpact
+  - MOD-trace-graph.storedImpacts
   - MOD-approvals.statuses
   - MOD-approvals.statusOf
   - MOD-approvals.lastAcceptedText
@@ -200,6 +202,12 @@ ReviewKind = {
     ONE CLICK`, `ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`). For the architecture, this is the review page of the whole
     architecture: the decision that states the system first, then the subsystems' decisions, the module files, the
     further decisions with their due diligence, and the rounds of the job that drafted them.
+  - For a changed decision or module file, on `<k>/<id>` and in `<k>/all`, the page first reads the impact lists stored for
+    the commit it shows (MOD-trace-graph's `storedImpacts`, one request). Where an entry's blob is the file's blob, the
+    page takes the file's impact list from it. It reads the last accepted text at the entry's `before` commit with one
+    `readFileAt` per file, and calls neither `traceGraph` nor `lastAcceptedText` for them. Where no
+    entry fits, it derives both as before. The stored lists are records of the repository, derived from that commit
+    alone by `onMainChanged` (MOD-workflow-entries), never kept in the browser.
   - `<k>/<id>/edit`, and `requirement/<name>/edit` and `requirements/new` for a requirement — whose subject for the
     prompt bar is the file, or the requirement with `change-requirements`, as on the file's route — the editor with live
     preview and the descriptor's marks, whose unsaved changes the route's `leave` keeps by the editor's `close` (UC-018
@@ -274,7 +282,8 @@ and `docs/participants.md` of the instance.
   MOD-group-document.hierarchy — arranging.
 - MOD-trace-graph.traceGraph, MOD-trace-graph.graphFindings, MOD-trace-graph.coverageGaps,
   MOD-trace-graph.requirementImpact, MOD-trace-graph.architectureImpact — the marks across artifacts, the requirements
-  no use case realises, and the impact lists.
+  no use case realises, and the impact lists; MOD-trace-graph.storedImpacts and MOD-repository-hosts.readFileAt — the
+  impact lists stored for the commit, and the last accepted texts they name.
 - MOD-approvals.statuses, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses and acceptance; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.

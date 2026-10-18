@@ -52,6 +52,10 @@ uses:
   - MOD-issue-handling.closeWithLinks
   - MOD-issue-handling.issueStrategies
   - MOD-spec-changes.applyApproved
+  - MOD-trace-graph.publishGraph
+  - MOD-approvals.statuses
+  - MOD-approvals.lastAcceptedText
+  - MOD-progress-measures.publishOverview
   - MOD-spec-changes.specStrategies
   - MOD-approvals.approvalStrategies
   - MOD-artifact-edits.editStrategies
@@ -79,6 +83,7 @@ provides:
   - onApprovalsCommitted
   - onSourcesCommitted
   - onReleaseTagged
+  - onMainChanged
   - CiEnvironment
 ---
 # MOD-workflow-entries The entries CI runs, in a product and in the instance
@@ -120,7 +125,7 @@ the file names, in a checkout of the repository the event concerns. In a product
 `onDoneCheck` in its Definition-of-Done job and `onTestsFinished` after each run's tests; on GitLab each file is included
 from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its entries —
 `onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and on dispatch
-for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag — and does nothing but run it, so that a change between
+for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the default branch — and does nothing but run it, so that a change between
 jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
 
 ## Interfaces
@@ -190,6 +195,16 @@ jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
   nothing and ends the entry `failed`, its summary naming the register entry and the failure, which the library shows
   beside the entry with *Fetch again* (UC-004 7a); nothing is guessed (`AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL
   REPOSITORY`).
+- `onMainChanged(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance, on every push to the default branch: what
+  a page would otherwise derive from that commit at the moment it is opened, computed once and stored as records the page
+  reads. It reads the commit's snapshot once.
+  - It adds the commit's graph and the impact lists of its decision and module files that are not accepted
+    (MOD-trace-graph's `publishGraph`). Each such file comes with the text it was last accepted at and that text's commit:
+    MOD-approvals' `statuses` names the files, and `lastAcceptedText` gives each one's text, read once per file here.
+  - It adds the commit's overview of the main page (MOD-progress-measures' `publishOverview`).
+  - A file the branches already hold for that commit is left as it is: `nothing to do`. A failure of one leaves the other
+    written and ends the entry `failed`, naming it. The pages then derive what is missing as before, so nothing is
+    wrong, only slower.
 - `onReleaseTagged(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance, on a release tag: on each platform's
   runner, the Bridge's file of that platform, signed; then the files, checksums, signatures and update feed published as
   the release of the tag (`THE BRIDGE IS SIGNED BY ITS PUBLISHER`); nothing is published when a signature cannot be
@@ -236,6 +251,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-progress-measures.productFacts` — the product's facts, read once per entry, from which the next actions of its
   runs are computed.
 - `MOD-run-planner.runOf`, `nextActions` — the runs and their next actions.
+- `MOD-trace-graph.publishGraph`, `MOD-approvals.statuses`, `lastAcceptedText`, `MOD-progress-measures.publishOverview` —
+  the records `onMainChanged` stores for each commit of the default branch.
 - `MOD-product-process.declarationSchema`, `workflowOf`, `gateSchema`, `gateStates`, `doneCheck` — the workflow, the
   gates and the Definition of Done, checked by `onDoneCheck`; `recordGateDecision` — a CI check's decision on a gate.
   The workflow is read with the instance's SPEC, where the process requirements stand.
