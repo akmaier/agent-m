@@ -68,7 +68,7 @@ test("statusOf — a renamed file keeps its status", () => {
 
 // TST-887005 · level: unit · module: MOD-approvals
 // guards: STATUS IS DERIVED FROM THE RECORDS
-// given: a snapshot holding docs/architecture/ARC-020-sample-decision.md and, of other kinds, the records docs/approvals/UC-020-b2b2b2b2b2b2.md, docs/approvals/MOD-020-b2b2b2b2b2b2.md and docs/approvals/spec-queue-020-b2b2b2b2b2b2.md, each with the first twelve digits of the file's blob; and docs/approvals/ARC-020-b2b2b2b2b2b2.md only in a second snapshot
+// given: a snapshot holding docs/architecture/ARC-020-sample-decision.md and, of other kinds, the records docs/approvals/UC-020-b2b2b2b2b2b2.md, docs/approvals/MOD-020-b2b2b2b2b2b2.md and docs/approvals/spec-queue-020-b2b2b2b2b2b2.md, each with the first twelve digits of the file's blob
 // input: statusOf of the decision in the first snapshot
 // expect: "open" — none of the three records is of the kind architecture-decision, so none is counted
 test("statusOf — a record of another kind is not counted", () => {

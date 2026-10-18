@@ -1,6 +1,6 @@
 // status.mjs — statuses: the status of every reviewed file of a snapshot, from one pass over docs/approvals/; and
-// lastAcceptedText: the text that the most recent record of an identifier names (MOD-approvals, Interfaces). statusOf is not
-// built yet (ITM-233 builds statuses, ITM-334 lastAcceptedText).
+// statusOf: the status of one reviewed file; lastAcceptedText: the text that the most recent record of an identifier names
+// (MOD-approvals, Interfaces). ITM-233 builds statuses, ITM-334 lastAcceptedText, ITM-887 statusOf.
 //
 // Module: MOD-approvals
 //
@@ -80,6 +80,31 @@ export function statuses(snapshot) {
     out.set(path, { id: file.id, kind: file.kind, status });
   }
   return out;
+}
+
+// A release test report's identifier and kind from its path docs/tests/releases/v<YYYY.MINOR.PATCH>.md — the record's
+// identifier is release-v<version> (MOD-approvals, Data) — or null for a path that is none. Only statusOf reads it.
+function releaseReport(path) {
+  const m = /^docs\/tests\/releases\/(v\d{4}\.\d+\.\d+)\.md$/.exec(path);
+  return m ? { id: `release-${m[1]}`, kind: "release-report" } : null;
+}
+
+/**
+ * statusOf(path: string, blob: string, snapshot: Snapshot) -> "open" | "accepted" | "changed" — the status of one reviewed
+ * file from the records in the same snapshot, matched by the identifier in the file name, so a renamed file keeps its
+ * status: accepted when a record of the identifier names `blob`, changed when records name only earlier texts, open when
+ * none exists. A record whose identifier is another kind's is not counted: only the record names of the file's own
+ * identifier are. Reads no record's text. Throws NotReviewed for a path that is no reviewed file.
+ * @param {string} path
+ * @param {string} blob
+ * @param {{ paths: string[] }} snapshot
+ * @returns {"open" | "accepted" | "changed"}
+ */
+export function statusOf(path, blob, snapshot) {
+  const file = reviewedFile(path) ?? releaseReport(path);
+  if (!file) throw Object.assign(new Error(`statusOf: ${path} is no reviewed file`), { name: "NotReviewed" });
+  const blob12s = snapshot.paths.map(approvalRecord).filter((record) => record?.id === file.id).map((record) => record.blob12);
+  return blob12s.some((blob12) => blob.startsWith(blob12)) ? "accepted" : blob12s.length ? "changed" : "open";
 }
 
 /**
