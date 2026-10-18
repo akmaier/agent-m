@@ -35,3 +35,18 @@ stops and the draft goes to akmaier.
 - A new version whose identifier an existing version already has is refused, naming the identifier, and nothing is
   recorded. A test checks it, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its first task (sprint team1/90, developer-sonnet-a): no accepted text refuses an existing identifier.**
+- `versionCommits` refuses only `SameBytes` and `NoteMissing`. SPEC.md:206-213, UC-016 1a, UC-004,
+  MOD-settings-pages.md:181 and MOD-workflow-entries.md:189 compare bytes only.
+- Measured on the base (probe `ITM-925-probe.mjs`): a second `cellar-1` with other bytes appends a second row
+  (`src/source-register/index.mjs:229-239`). It plans `docs/sources/SRC-ai-act/cellar-1/act.xhtml`, the existing version's
+  file (`:242-245`), and `readContent` would then report `HashMismatch` for the old version. In effect it overwrites a
+  version.
+- **The draft for akmaier, on `main`:** MOD-source-register.md, `versionCommits` also throws "`VersionExists { version }`
+  when `version.version` is the identifier of an existing version whose bytes differ". `SameBytes` keeps precedence,
+  since `onSourcesCommitted` (`src/workflow-entries/instance.mjs:111`) catches only that one.
+- The Acceptance names `VersionExists`. In the workflow it ends the entry `failed`, which is right, and a test of that
+  would be MOD-workflow-entries' item, not this one.
+- It waits for akmaier's acceptance.
+
