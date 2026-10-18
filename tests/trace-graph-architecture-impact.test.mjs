@@ -327,15 +327,38 @@ const MANY = {
   "tests/many-f.test.mjs": testText("TST-116", "MOD-reader", ["RULE TWO"]),
 };
 
-// Counts every read of an edge, however the code walks the list: a method, an iterator, a copy made by slice or spread, or an
-// indexed loop all read the elements through the proxy. One pass is as many reads as the list has edges.
-function spyOnEdges(graph) {
-  const counter = { reads: 0, size: graph.edges.length, get passes() { return this.reads / this.size; } };
-  const edges = new Proxy(graph.edges, { get(target, key, receiver) {
-    if (typeof key === "string" && /^\d+$/.test(key)) counter.reads += 1;
-    return Reflect.get(target, key, receiver);
-  } });
-  return { graph: { ...graph, edges }, counter };
+// Measures how often architectureImpact reads the edges of `graph`, whatever walks them and whatever list it walks.
+// 1. Each edge is wrapped once, and the same wrapper sits in graph.edges and in every array made from it (a slice, a spread, a
+//    filter result). Every read of a property of an edge is counted for that edge and that property; `edgeReads` is the most
+//    any one property of any one edge is read. A scan for each test raises it with the number of tests; one pass does not.
+// 2. A copy made of new objects (`{ ...edge }`, Object.assign, structuredClone) holds no wrapper, so a scan of it cannot be seen.
+//    Two things are counted instead. Copying an edge asks the wrapper for its keys: `copies` counts those asks. And while the
+//    function runs, each call of an array method, or of the iterator, on an array of exactly as many entries as graph.edges
+//    is counted in `arrayScans`. The patch is undone before the call returns; the call is synchronous.
+const SCANNING = ["filter", "map", "forEach", "some", "every", "find", "findIndex", "findLast", "findLastIndex", "reduce",
+  "reduceRight", "indexOf", "lastIndexOf", "includes", "flatMap", "flat", "slice", "join", "entries", "keys", "values", Symbol.iterator];
+function measureEdgeReads(graph, changes) {
+  const perEdge = [];
+  let copies = 0;
+  const edges = graph.edges.map((edge) => { const counts = new Map(); perEdge.push(counts);
+    return new Proxy(edge, {
+      get(target, key, receiver) {
+        if (typeof key === "string") counts.set(key, (counts.get(key) ?? 0) + 1);
+        return Reflect.get(target, key, receiver);
+      },
+      ownKeys(target) { copies += 1; return Reflect.ownKeys(target); },
+    }); });
+  const size = edges.length;
+  const originals = SCANNING.map((name) => [name, Array.prototype[name]]);
+  let arrayScans = 0;
+  for (const [name, original] of originals) {
+    Array.prototype[name] = function (...args) { if (this.length === size) arrayScans += 1; return original.apply(this, args); };
+  }
+  let impact;
+  try { impact = trace.architectureImpact({ ...graph, edges }, changes); }
+  finally { for (const [name, original] of originals) Array.prototype[name] = original; }
+  const edgeReads = Math.max(0, ...perEdge.flatMap((counts) => [...counts.values()]));
+  return { impact, edgeReads, arrayScans, copies };
 }
 
 // TST-906001
@@ -364,18 +387,19 @@ test("TST-906001 the guards of each listed test equal the list built edge by edg
 // level: unit
 // module: MOD-trace-graph
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
-// given: two graphs of the same repository, one with one test exercising MOD-reader, one with seven; graph.edges is a spy that counts
-// given: every read of an edge, by method, iterator, copy or index
+// given: two graphs of the same repository, one with one test exercising MOD-reader, one with seven; every edge is wrapped so that each
+// given: read of one of its properties is counted, in graph.edges and in any copy of it, and array calls on a list of as many entries are counted
 // input: architectureImpact of the same reader prose change on each graph
-// expect: the reads of edges, in passes over the list (reads divided by its length), are the same for both, and the seven-test graph lists seven tests (positive control)
-test("TST-906002 the passes over graph.edges do not grow with the number of tests", async () => {
+// expect: the most any property of any edge is read, and the array scans of a list of edge length, are the same for both graphs,
+// expect: and no edge is copied into a new object; the one-test graph lists one test and the seven-test graph seven, and the counters are above zero (positive controls)
+test("TST-906002 the reads of each edge do not grow with the number of tests, through a copy too", async () => {
   const after = READER_BEFORE.replace("One concern.", "Reads each file whole.");
   const changes = [{ path: READER, before: READER_BEFORE, after }];
-  const few = spyOnEdges((await fixture({ [READER]: after })).graph);
-  const many = spyOnEdges((await fixture({ ...MANY, [READER]: after })).graph);
-  const fewImpact = trace.architectureImpact(few.graph, changes), manyImpact = trace.architectureImpact(many.graph, changes);
-  assert.equal(fewImpact.tests.length, 1, "positive control: one test exercises the module");
-  assert.equal(manyImpact.tests.length, 7, "positive control: seven tests exercise the module");
-  assert.ok(few.counter.passes > 0, "positive control: the spy sees the passes");
-  assert.equal(many.counter.passes, few.counter.passes);
+  const few = measureEdgeReads((await fixture({ [READER]: after })).graph, changes);
+  const many = measureEdgeReads((await fixture({ ...MANY, [READER]: after })).graph, changes);
+  assert.equal(few.impact.tests.length, 1, "positive control: one test exercises the module");
+  assert.equal(many.impact.tests.length, 7, "positive control: seven tests exercise the module");
+  assert.ok(few.edgeReads > 0 && few.arrayScans > 0, "positive control: the spy sees the reads");
+  assert.deepEqual({ edgeReads: many.edgeReads, arrayScans: many.arrayScans }, { edgeReads: few.edgeReads, arrayScans: few.arrayScans });
+  assert.deepEqual({ few: few.copies, many: many.copies }, { few: 0, many: 0 }, "no edge is copied into a new object, where a scan of it would go unseen");
 });
