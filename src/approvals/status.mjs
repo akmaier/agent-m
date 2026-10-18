@@ -21,10 +21,9 @@ import { HostError } from "../repository-hosts/index.mjs";
 import { approvalSchema } from "./index.mjs";
 
 // The approval record's `kind` for a reviewed file's identifier kind (MOD-approvals, Data: kind is one of use-case,
-// architecture-decision, module, spec, release-report). This item derives only the three a reviewed file's own folder
-// gives by the identifier scheme — UC in docs/use-cases/, ARC and MOD in docs/architecture/; spec and release-report
-// name no such file and are no part of it (statuses' Files: docs/use-cases/UC-*.md, docs/architecture/ARC-*.md,
-// docs/architecture/MOD-*.md).
+// architecture-decision, module, spec, release-report). reviewedFile derives the three a reviewed file's own folder gives
+// by the identifier scheme — UC in docs/use-cases/, ARC and MOD in docs/architecture/; a release test report is
+// releaseReport's (below), and spec names no such file.
 const RECORD_KIND = { UC: "use-case", ARC: "architecture-decision", MOD: "module" };
 
 // A reviewed file's identifier and kind from its path, by the naming rules ONE USE CASE, ONE FILE
@@ -71,7 +70,7 @@ export function statuses(snapshot) {
   }
   const out = new Map();
   for (const path of snapshot.paths) {
-    const file = reviewedFile(path);
+    const file = reviewedFileOrReport(path);
     if (!file) continue;
     const blob12s = recordsById.get(file.id) ?? [];
     const blob = snapshot.blob(path);
@@ -83,10 +82,16 @@ export function statuses(snapshot) {
 }
 
 // A release test report's identifier and kind from its path docs/tests/releases/v<YYYY.MINOR.PATCH>.md — the record's
-// identifier is release-v<version> (MOD-approvals, Data) — or null for a path that is none. Only statusOf reads it.
+// identifier is release-v<version> (MOD-approvals, Data) — or null for a path that is none.
 function releaseReport(path) {
   const m = /^docs\/tests\/releases\/(v\d{4}\.\d+\.\d+)\.md$/.exec(path);
   return m ? { id: `release-${m[1]}`, kind: "release-report" } : null;
+}
+
+// Every reviewed file a snapshot's statuses lists — a use case, an architecture decision, a module, a release test report
+// (MOD-approvals, Responsibility) — by its identifier and kind, or null; statuses and statusOf both read it.
+function reviewedFileOrReport(path) {
+  return reviewedFile(path) ?? releaseReport(path);
 }
 
 /**
@@ -101,7 +106,7 @@ function releaseReport(path) {
  * @returns {"open" | "accepted" | "changed"}
  */
 export function statusOf(path, blob, snapshot) {
-  const file = reviewedFile(path) ?? releaseReport(path);
+  const file = reviewedFileOrReport(path);
   if (!file) throw Object.assign(new Error(`statusOf: ${path} is no reviewed file`), { name: "NotReviewed" });
   const blob12s = snapshot.paths.map(approvalRecord).filter((record) => record?.id === file.id).map((record) => record.blob12);
   return blob12s.some((blob12) => blob.startsWith(blob12)) ? "accepted" : blob12s.length ? "changed" : "open";
