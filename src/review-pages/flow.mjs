@@ -21,7 +21,7 @@ import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
 import { queueService } from "./spec-entries.mjs";
-import { splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, changeImpact, graphOnce } from "./sections.mjs";
+import { reportSections, splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, changeImpact, graphOnce } from "./sections.mjs";
 
 // What the status approved means (UC-006 4c): the record is committed, the section is not yet written into the SPEC.
 const APPROVED_NOTE = "Approval recorded, not yet written into the SPEC — the apply workflow writes it after an approval committed on GitHub's page; " +
@@ -143,15 +143,16 @@ const approvalsService = {
   },
 };
 
-// Accepting a release test report releases it (MOD-release-evidence.acceptAndRelease): one release for each report shown, on the person's click. A report that
+// Accepting a release test report releases it (MOD-release-evidence.acceptAndRelease): one release for each report shown, on the person's click, with the reasons the
+// person typed for its failing tests and worse rates (`limitations` of each file shown). A report that
 // cannot be released — a failing test without its reason, a tag that stands — is left out with the service's words; when none can be, the first failure is thrown.
 async function releaseShown(where, shown, person) {
   const today = new Date().toISOString().slice(0, 10);
   const recorded = [], leftOut = [];
   let commit = null, first = null;
-  for (const { path, blob } of shown) {
+  for (const { path, blob, limitations } of shown) {
     try {
-      ({ commit } = await acceptAndRelease(where.host, { path, blob }, { limitations: {} }, person, today));
+      ({ commit } = await acceptAndRelease(where.host, { path, blob }, { limitations: limitations ?? {} }, person, today));
       recorded.push(path);
     } catch (failure) {
       first ??= failure;
@@ -333,7 +334,7 @@ export function reviewRoute(kind) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
       return;
     }
-    const records = [], graphOf = graphOnce(snapshot);
+    const records = [], graphOf = graphOnce(snapshot), asked = new Map();
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
@@ -366,6 +367,7 @@ export function reviewRoute(kind) {
           section.append(el("section", "rests-on", el("h4", null, "Rests on what is not accepted"), names));
         }
       }
+      if (kind.limitations) { asked.set(file.path, reportSections(body)); section.append(...asked.get(file.path).nodes); }
       if (withImpact) records.push({ file, record: recordOf(file.id, file.kind, file.path, blob), blob });
       target.append(section);
       centreFirstChange(section);
@@ -380,7 +382,7 @@ export function reviewRoute(kind) {
       accept.addEventListener("click", async () => {
         accept.disabled = true;
         try {
-          const result = await service.accept(where, records.map(({ file, blob }) => ({ path: file.path, blob })), token.name);
+          const result = await service.accept(where, records.map(({ file, blob }) => ({ path: file.path, blob, ...(asked.has(file.path) && { limitations: asked.get(file.path).reasons() }) })), token.name);
           await redraw(where, { id: REVIEW_ALL }, acceptedMessage(result, (path) => idOf(path, snapshot)));
         } catch (failure) {
           accept.disabled = false;
@@ -529,6 +531,8 @@ export function reviewRoute(kind) {
       }
     }
     if (file.status === "accepted") return;
+    const asked = kind.limitations ? reportSections(body) : null;
+    if (asked) target.append(...asked.nodes);
     if (kind.restsOn && last) {
       const impact = await changeImpact(file, last, body, graphOnce(snapshot));
       if (impact.problem) { target.append(impact.problem); return; }
@@ -553,7 +557,7 @@ export function reviewRoute(kind) {
       accept.addEventListener("click", async () => {
         accept.disabled = true;
         try {
-          const done = await service.accept(where, [{ path: file.path, blob }], token.name);
+          const done = await service.accept(where, [{ path: file.path, blob, ...(asked && { limitations: asked.reasons() }) }], token.name);
           await redraw(where, { id }, el("p", "result", `Accepted in commit ${done.commit.slice(0, 7)}.`));
         } catch (failure) {
           accept.disabled = false;
