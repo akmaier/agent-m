@@ -341,6 +341,21 @@ test("TST-757007 auditDocument — the document of the fixture audit holds what 
   assert.ok(!/https?:\/\//.test(text), "no address");
 });
 
+// TST-934005 · level: unit · module: MOD-release-evidence
+// guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture, whose default branch holds the report and the approval record of a green release — the record as acceptAndRelease writes it, with no `limitation` line
+// input: auditRows(...).summary
+// expect: accepted true and no limitations — auditRows is a caller of the record, and a record without the key reads as none
+// counter-proof: with the report's text changed after it was accepted, the same record no longer accepts it (accepted false), so the case does not pass for want of a check
+test("TST-934005 auditRows — the record of a green release, with no limitation line, is an accepted report with no limitations", async () => {
+  const green = writeDocument(approvalSchema, { fields: { kind: "release-report", file: REPORT, blob: gitBlob(REPORT_TEXT) } });
+  assert.equal(green.includes("limitation"), false);
+  const accepted = (await audit({ head: { [RECORD]: green } })).summary;
+  assert.deepEqual([accepted.accepted, accepted.limitations], [true, []]);
+  const changed = (await audit({ head: { [RECORD]: green, [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } })).summary;
+  assert.deepEqual([changed.accepted, changed.limitations], [false, []]);
+});
+
 // TST-756009 · level: unit · module: MOD-release-evidence
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
 // given: a release before Agent M's records — the branch test-results holds no record of the commit and the tag holds no release test report; the SPEC and tests are there

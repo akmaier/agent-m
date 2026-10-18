@@ -1,7 +1,7 @@
 // facts.mjs — productFacts: one product's facts, read once from its default branch through its host
 // (docs/architecture/MOD-progress-measures.md, Interfaces: Facts, productFacts; STATUS IS DERIVED FROM THE RECORDS, PROGRESS AND
-// JOB STATE ARE DERIVED, NOT STORED). The scope `work` reads what is listed below; the scope `all` adds the requirements, the trace
-// graph, the tests, the branch `test-results`, the tags and `info`. Every other fact is "unknown". The files are read ahead through
+// JOB STATE ARE DERIVED, NOT STORED). The scope `work` reads what is listed below; the scope `all` adds the requirements, the tests,
+// the branch `test-results`, the tags and `info`; `graph` stays "unknown" in both. Every other fact is "unknown". The files are read ahead through
 // Snapshot.readMany, in batches of a hundred where the host can.
 //
 // Module: MOD-progress-measures
@@ -27,8 +27,7 @@ import { participantSchema, participantsOf } from "../participant-list/index.mjs
 import { listJobs } from "../job-ledger/index.mjs";
 import { heldItems, itemStates, planSchemas, undecidedHeads } from "../work-plans/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { testDeclarations } from "../test-document/index.mjs";
-import { traceGraph } from "../trace-graph/index.mjs";
+import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 
 const DECLARATION = "docs/process.md";
 const PARTICIPANTS = "docs/participants.md";
@@ -124,22 +123,24 @@ async function resultsBranch(host) {
   }
 }
 
-// The facts only the scope `all` reads: the requirements of the SPEC, the trace graph, the declarations of the tests the graph found
-// (the paths of its test nodes; their texts are read already), the branch `test-results` and the tags.
+// The facts only the scope `all` reads: the requirements of the SPEC, the declarations of the test files (MOD-test-document's isTestFile
+// names them; they are told to the snapshot first, to be read in batches), the branch `test-results` and the tags. The trace graph is
+// not built: nothing reads Facts.graph, so `graph` is "unknown" in both scopes and no file only the graph would read is read.
 async function allFacts(host, snapshot) {
   const specText = await snapshot.read(SPEC);
   const requirements = specText === null ? [] : [...parseSpec(specText).requirements.keys()];
-  const [graph, results, tags] = await Promise.all([traceGraph(snapshot, { commit: snapshot.commit }), resultsBranch(host), orUnknown(() => host.listTags())]);
-  const testFiles = [...new Set([...graph.nodes.values()].filter((node) => node.kind === "TST").map((node) => node.path))];
-  const tests = (await Promise.all(testFiles.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
-  return { graph, requirements, tags, results, tests };
+  const testFiles = snapshot.paths.filter(isTestFile);
+  await snapshot.readMany?.(testFiles);
+  const [results, tags, tests] = await Promise.all([resultsBranch(host), orUnknown(() => host.listTags()),
+    Promise.all(testFiles.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))]);
+  return { requirements, tags, results, tests: tests.flat() };
 }
 
 /**
  * productFacts(host, instance, instanceAt, now, bridges, options?) -> Promise<Facts> — with the scope `work`, what
  * MOD-progress-measures' file lists for it, read once from the product's default branch through `host`; every other field is
- * "unknown". With the scope `all`, the default, it adds the requirements of SPEC.md, the trace graph, the tests the graph found, the
- * branch `test-results`, the tags and the repository's information; modelSince, schedule, ci and resourceNeeds stay "unknown".
+ * "unknown". With the scope `all`, the default, it adds the requirements of SPEC.md, the declarations of the test files, the
+ * branch `test-results`, the tags and the repository's information; graph, modelSince, schedule, ci and resourceNeeds stay "unknown".
  * @param {object} host MOD-repository-hosts' Host of the product
  * @param {object} instance the instance's Snapshot, for its participants and SPEC
  * @param {(commit: string) => Promise<object>} instanceAt the instance's Snapshot at a commit, for the commit a declaration names
@@ -196,9 +197,9 @@ export async function productFacts(host, instance, instanceAt, now, bridges, opt
     }
   }
 
-  const more = all ? await allFacts(host, snapshot) : { graph: "unknown", requirements: "unknown", tags: "unknown", results: "unknown", tests: "unknown" };
+  const more = all ? await allFacts(host, snapshot) : { requirements: "unknown", tags: "unknown", results: "unknown", tests: "unknown" };
   return {
-    address, info: all ? info : "unknown", snapshot, graph: more.graph, requirements: more.requirements, statuses: approvals, queues: changeQueues,
+    address, info: all ? info : "unknown", snapshot, graph: "unknown", requirements: more.requirements, statuses: approvals, queues: changeQueues,
     declaration, workflow, model, modelUnread, modelSince: "unknown", participants,
     plan: { order, items, states: planStates }, sprints, assignments, held: heldItems(sprints, items, modules, pullRequests, onDefault),
     gates, gateStates: states, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: more.tags, results: more.results,
