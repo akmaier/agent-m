@@ -7,59 +7,20 @@
 // Guards: EVERY STEP EXPLAINS ITSELF; UC-021; UC-024
 // Level: unit
 //
-// It owns the smallest browser fixture explain needs, the small DOM of tests/release-itm-275-bridge-frame.test.mjs, and
-// imports no other test file. What a test pins of a topic is what the use case says of the step, claim by claim; the
+// It imports the module's existing browser harness, tests/site-frame.test.mjs, unchanged, as the other explanation tests do:
+// the small DOM of tests/release-itm-275-bridge-frame.test.mjs cannot sanitise, so renderArtifact there shows the source
+// escaped, and a test of the rendered text would test that fallback. What a test pins of a topic is what the use case says of the step, claim by claim; the
 // three kinds of participant are pinned by the claims of UC-024's actors and step 5 and of the participant topics that
 // already stand. Each test states its input and its expected result before it runs (given / input / expect).
 
+import "./site-frame.test.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-class FrameElement extends EventTarget {
-  constructor(document, localName) {
-    super();
-    this.ownerDocument = document;
-    this.localName = localName;
-    this.children = [];
-    this.attributes = new Map();
-    this.className = "";
-    this.value = "";
-    this._html = "";
-    this._parent = null;
-  }
-  get parentNode() { return this._parent; }
-  get firstChild() { return this.children[0] ?? null; }
-  get textContent() { return this.children.map((child) => typeof child === "string" ? child : child.textContent).join("") || this._html.replace(/<[^>]*>/g, ""); }
-  set textContent(value) { this.replaceChildren(String(value)); }
-  get innerHTML() { return this._html || this.children.map((child) => typeof child === "string" ? child : child.innerHTML).join(""); }
-  set innerHTML(value) { this._html = String(value); this.children = []; }
-  append(...children) { for (const child of children) { this.children.push(child); if (typeof child !== "string") child._parent = this; } }
-  replaceChildren(...children) { this._html = ""; this.children = []; this.append(...children); }
-  remove() { if (!this._parent) return; this._parent.children = this._parent.children.filter((child) => child !== this); this._parent = null; }
-  setAttribute(name, value) { this.attributes.set(name, String(value)); if (name === "class") this.className = String(value); }
-  getAttribute(name) { return this.attributes.get(name) ?? null; }
-  getElementsByTagName(name) {
-    const found = [];
-    for (const child of this.children) if (typeof child !== "string") {
-      if (child.localName === name) found.push(child);
-      found.push(...child.getElementsByTagName(name));
-    }
-    return found;
-  }
-}
-
-const document = {
-  createElement: (name) => new FrameElement(document, name),
-  getElementsByTagName(name) { return [this.head, this.body].flatMap((element) => element.localName === name ? [element] : element.getElementsByTagName(name)); },
-};
-document.head = document.createElement("head");
-document.body = document.createElement("body");
-globalThis.document = document;
-globalThis.window = { document };
-const { explain } = await import("../src/site-frame/index.mjs");
-const { renderArtifact } = await import("../src/markdown-render/index.mjs");
+import { renderArtifact } from "../src/markdown-render/index.mjs";
+import { explain } from "../src/site-frame/index.mjs";
 
 const EXPLANATIONS = readFileSync(new URL("../src/site-frame/explanations.md", import.meta.url), "utf8");
 // The Markdown under `## <topic>`, up to the next such line; undefined where the file holds no such line.
@@ -90,7 +51,7 @@ test("explain — each topic of arranging and of implementing is a folded What i
     const folded = explain(topic);
     assert.equal(folded.localName, "details", `${topic}: it is expandable`);
     assert.equal(folded.className, "explain", `${topic}: it uses the shared explanation presentation`);
-    assert.equal(folded.getAttribute("open"), null, `${topic}: it is folded`);
+    assert.equal(folded.hasAttribute("open"), false, `${topic}: it is folded`);
     const [summary, body, ...more] = folded.children;
     assert.deepEqual([summary.localName, summary.textContent, more.length], ["summary", "What is this?", 0], topic);
     assert.equal(body.innerHTML, renderArtifact(text).innerHTML, `${topic}: its body is its text, rendered`);
