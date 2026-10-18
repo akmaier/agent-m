@@ -31,10 +31,10 @@ function browserSide(token) {
 
 const TYPES = { ".mjs": "text/javascript", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".html": "text/html", ".md": "text/markdown" };
 
-// serveSite({ files, handlers }) -> Promise<{ address, repository, close }> — `address` is the origin of the served site, `repository`
+// serveSite({ files, history, handlers }) -> Promise<{ address, repository, close }> — `address` is the origin of the served site, `repository`
 // the fake repository of tests/app-harness.mjs (its `requests` list every request the pages sent).
-export async function serveSite({ files, handlers = [] }) {
-  const repository = await repoServer({ files, handlers });
+export async function serveSite({ files, history = [], handlers = [] }) {
+  const repository = await repoServer({ files, history, handlers });
   const server = createServer(async (request, response) => {
     const raw = decodeURIComponent(new URL(request.url, "http://site").pathname);
     if (raw === "/__github" && request.method === "POST") {

@@ -36,7 +36,7 @@ import { readFileSync } from "node:fs";
 import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
 import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
-import { files, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
+import { files, history, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
 import { styleSheetFindings, targetFindings, unrenderedFindings, widthFindings } from "./site-usability.d/inspect.mjs";
 import { view as reviewPages } from "../src/review-pages/index.mjs";
 import { DASHBOARD, builtViews } from "../src/site/views.mjs";
@@ -53,6 +53,7 @@ const CLAUSES = [
 // (at a desktop's width every route passes). Each is a todo until the module of its route fixes it; each fix is an item of that module.
 const TODAY = {
   "#uc/UC-001": { widths: "its diagram is drawn; what remains is the Markdown table and the run of code of the use case, wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
+  "#review/uc": { widths: "Review all draws the changed use case UC-001 rendered, with its Markdown table and run of code wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
   "#backlog": { widths: "the sprint and backlog tables and both burn-down charts are wider than a phone's window (docs/assets/dashboard/backlog-view.mjs)" },
   "#roles": { widths: "the table of roles is wider than a phone's window and the page scrolls sideways (MOD-implementation-pages)" },
 };
@@ -63,6 +64,7 @@ const MEASURE = (width) => `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 100));
   const styleSheetFindings = ${styleSheetFindings}, targetFindings = ${targetFindings}, widthFindings = ${widthFindings}, unrenderedFindings = ${unrenderedFindings};
   return { sheets: styleSheetFindings(), targets: targetFindings(${MINIMUM}), widths: widthFindings(${width}), diagrams: unrenderedFindings(),
+    boxes: [...document.querySelectorAll("main pre.diff")].map((box) => box.getAttribute("tabindex")),
     controls: document.querySelectorAll("a[href], button").length,
     text: (document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ") };
 })()`;
@@ -75,7 +77,7 @@ const started = Date.now();
 const progress = (step) => console.log(`site-usability ${((Date.now() - started) / 1000).toFixed(1)} s: ${step}`);
 
 before(async () => {
-  site = await serveSite({ files: await files(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
+  site = await serveSite({ files: await files(), history: await history(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
   progress("the site is served");
   const executable = await stageElectron();
   progress("Electron is staged");
@@ -196,3 +198,17 @@ test(`TST-904${String(number++).padStart(3, "0")}: the page before the planting 
 test(`TST-904${String(number++).padStart(3, "0")}: a planted failed diagram fails the check and is named with its reason`, () => {
   assert.deepEqual(planted.afterDiagram.diagrams, ['a block that did not render: "Diagram error: planted"']);
 });
+
+// ---------------------------------------------------------------- a changed file
+
+// given: the fixture's use case UC-001, accepted at an earlier text and changed since; input: the routes that draw it, at both widths, and each `pre.diff` in <main>;
+// expect: the route draws at least one difference box (the known positive that the checks above meet it), and each has tabindex "0" (ITM-921)
+for (const address of ["#uc/UC-001", "#review/uc"]) {
+  test(`TST-904${String(number++).padStart(3, "0")}: ${address} draws the difference box of the changed use case, which the keyboard reaches`, () => {
+    for (const [kind] of WIDTHS) {
+      const boxes = measured.get(`${address} ${kind}`).boxes;
+      assert.equal(boxes.length > 0, true, `${address} at a ${kind}'s width draws a difference box`);
+      assert.deepEqual(boxes.filter((tabindex) => tabindex !== "0"), [], `${address} at a ${kind}'s width: boxes without tabindex 0`);
+    }
+  });
+}
