@@ -3,7 +3,12 @@
 // on this commit" with the occasions that would run it —; a level's tests with outcome, rate and its runs (beside the last release's), what each guards as a link, the participant and date; a
 // failed test's expected result beside the observed one, with its log; records that cannot be read, with the link to the server's page of runs; a record marked uncommitted, shown and not counted.
 //
-// Not part of this item: Run on this commit and the release candidate's checklist (ITM-761, ITM-762), the link to the branch `test-results` and to the run itself where the records cannot be
+// ITM-762 adds the release candidate's checklist of user-level tests: for a commit with a tag v<version>-rc.<N>, each user-level test with its expected result, the people the schedule's row `user` assigns
+// (none where it names none), the name field of the release panel's Accept and release, Passed and Failed buttons that append one result record (occasion release-candidate) through appendResult, and
+// what is still missing. Readings: a failed outcome is entered with what the person saw, which goes into the record's Failures row with the declaration's expected result and the log cell "entered by hand"; a
+// `|` or a line break in that text is written as `/` or a space, so that it stays one cell.
+//
+// Not part of this item: Run on this commit (ITM-761), the link to the branch `test-results` and to the run itself where the records cannot be
 // read (ITM-855). The page builds no folded explanation: explanations.md holds no topic of runs and the frame's file is not this module's.
 //
 // Readings the texts leave open: the log of a failed test is asked of ciRunLog with the id that ends the record's `run` address, when webLinks().run(id) gives that address back; the last release
@@ -11,7 +16,7 @@
 //
 // Module: MOD-test-pages
 
-import { resultSchema, resultsAt, flakyTests, rateComparison } from "../result-records/index.mjs";
+import { resultSchema, resultsAt, flakyTests, rateComparison, appendResult } from "../result-records/index.mjs";
 import { scheduleSchema, defaultSchedule, occasionsOf } from "../test-schedule/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
@@ -105,6 +110,58 @@ async function testRow(host, test, declaration, { graph, documents, rate, flaky 
   return item;
 }
 
+const RC_TAG = /^v\d+\.\d+\.\d+-rc\.\d+$/;
+const cell = (text) => String(text ?? "").replace(/\|/g, "/").replace(/\s*\n\s*/g, " ").trim();
+
+// The text of a result record of one user-level test's outcome, at runs/<commit>/<yyyymmdd>-<hhmm>-release-candidate-<4 hex>.md.
+function userRecord(commit, who, declaration, outcome, seen) {
+  const now = new Date();
+  const iso = now.toISOString().replace(/\.\d+Z$/, "Z");
+  const hex = [...crypto.getRandomValues(new Uint8Array(2))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const path = `runs/${commit}/${iso.slice(0, 10).replaceAll("-", "")}-${iso.slice(11, 16).replace(":", "")}-release-candidate-${hex}.md`;
+  const failure = outcome === "failed"
+    ? `\n## Failures\n\n| Test | Expected | Observed | Log |\n|---|---|---|---|\n| ${declaration.id} | ${cell(declaration.expect)} | ${cell(seen)} | entered by hand |\n` : "";
+  const text = `---\ncommit: ${commit}\nlevels:\n  - user\noccasion: release-candidate\nparticipant: ${cell(who)}\ndate: ${iso}\n---\n`
+    + `## Outcomes\n\n| Test | Level | Outcome | Runs |\n|---|---|---|---|\n| ${declaration.id} | user | ${outcome} | |\n${failure}`;
+  return readDocument(resultSchema.run, path, text);
+}
+
+function checklistOf(host, { declarations, levels, schedule, commit, again }) {
+  const assigned = (schedule.sections.find((section) => section.heading === "## Levels")?.rows ?? []).find((row) => row.cells.Row === "user")?.cells["runs on"] ?? "";
+  const outcomes = new Map((levels.find((level) => level.level === "user")?.tests ?? []).map((test) => [test.id, test.outcome]));
+  const tests = declarations.filter((declaration) => declaration.level === "user");
+  const missing = tests.filter((declaration) => (outcomes.get(declaration.id) ?? "not run") === "not run");
+  const person = el("input", "person");
+  person.placeholder = "Your name";
+  const result = el("p", "result");
+  const items = tests.map((declaration) => {
+    const seen = el("input", "seen");
+    seen.placeholder = "What you saw (for Failed)";
+    const record = async (outcome) => {
+      if (!(person.value ?? "").trim()) { result.textContent = "Enter your name first."; return; }
+      if (outcome === "failed" && !(seen.value ?? "").trim()) { result.textContent = "Say what you saw first."; return; }
+      try {
+        await appendResult(host, userRecord(commit, person.value, declaration, outcome, seen.value));
+        await again();
+      } catch (error) {
+        result.textContent = error?.message ?? String(error);
+      }
+    };
+    const passed = el("button", "passed", "Passed");
+    const failed = el("button", "failed", "Failed");
+    passed.addEventListener("click", () => record("passed"));
+    failed.addEventListener("click", () => record("failed"));
+    const item = el("li", "user-test", el("span", "id", declaration.id), " ", el("span", "outcome", outcomes.get(declaration.id) ?? "not run"), " ",
+      el("div", "expected", declaration.expect ?? ""), seen, passed, " ", failed);
+    item.setAttribute("data-checklist", declaration.id);
+    return item;
+  });
+  return el("section", "checklist", el("h3", null, "Checklist of user-level tests"),
+    el("p", "assigned", assigned ? `Assigned to: ${assigned}` : "No one assigned: the schedule's row user names no one."),
+    el("p", "missing", missing.length ? `Still missing: ${missing.map((declaration) => declaration.id).join(", ")}` : "Nothing is missing."),
+    el("label", null, "Your name ", person), el("ul", null, ...items), result);
+}
+
 async function detail(target, context, commit) {
   const { host } = context.product;
   const entry = (await host.readHistory(null, { ref: commit, limit: 1, changes: false }))[0];
@@ -144,7 +201,9 @@ async function detail(target, context, commit) {
   }
   const uncommitted = [...documents.entries()].filter(([, document]) => document.fields.uncommitted === "true")
     .map(([path, document]) => el("p", "uncommitted", `${document.fields.participant}, ${document.fields.date}: uncommitted changes, not counted (${path})`));
-  target.replaceChildren(head, ...sections, ...uncommitted);
+  const candidate = tags.some((tag) => tag.commit === commit && RC_TAG.test(tag.name));
+  const checklist = candidate ? [checklistOf(host, { declarations, levels, schedule, commit, again: () => detail(target, context, commit) })] : [];
+  target.replaceChildren(head, ...sections, ...uncommitted, ...checklist);
 }
 
 async function render(target, context, params = {}) {
