@@ -392,6 +392,25 @@ A sandboxed agent is a CLI agent inside a virtual machine or a container, reache
 can do what a CLI agent does, but isolated: it sees only what the sandbox holds. You control it by what you put in the sandbox,
 so it is the choice when the agent should not touch the rest of your computer.
 
+## coding-participants
+
+A coding participant writes a job's tests and then its code. Only a holder of the implementing role that declares *write to
+the repository* and *run code and tests* is offered, each with the place where it processes data. There are three kinds, and
+they differ in setup, speed and isolation.
+
+A CLI agent, such as Claude Code or Codex, runs on a computer of yours and is reached through the local Bridge on it.
+Setup: the Bridge runs on that computer, and the agent signs in with its own login there, so no key is needed and your
+subscription pays. Speed: it starts at once. Isolation: the work happens on your machine, in a working folder of its own.
+
+A sandboxed agent is a CLI agent inside a virtual machine or a container, reached through a tunnel to the Bridge in it.
+Setup: the Bridge runs inside the sandbox, and the tunnel reaches it. Isolation: it sees only what the sandbox holds, so
+it is the choice when the agent should not touch the rest of your computer. The texts of Agent M give it no speed of its own.
+
+A CI agent runs in a workflow on a self-hosted runner on the agent's machine. Setup: you install a self-hosted runner, a
+program, on that machine; the workflow's job then reaches the agent locally, with no inbound SSH and no key stored on GitHub,
+and the runner only connects out, so a machine behind NAT works too. Speed: a job takes the time of a workflow run.
+Isolation: the job runs on that machine, and a self-hosted runner serves private repositories only.
+
 ## capabilities-and-place
 
 Capabilities say what a participant can do: draft text, read the repository, write to the repository, run code and tests, use
@@ -818,3 +837,27 @@ architecture until an implementation job changes it. In the book *Vibe Coding*: 
 Computed from the module files at the commit shown: one box per module, inside the box of its subsystem — the first decision it follows;
 a module that follows none stands outside every subsystem's box. One arrow from a module to each module it uses, however many of that
 module's interfaces it uses. A used module that has no file is drawn as a box of its own, dashed and marked missing.
+
+## group-is-a-heading
+
+A group is only a heading. It gives a title to a stretch of the list, so that a hundred items read as a few chapters, and that
+is all it does. A group has no identifier, so no artifact refers to it; nothing realises it and no test guards it. Moving an
+item into another group, or a group into another, changes where the item is listed and nothing about the item: its
+identifier, its file and its approval stay as they were. Renaming a group changes only its title. A group holds one kind of
+artifact, and an item has one place in its hierarchy; an item that is in no group is shown at the top level. Saving an
+arrangement commits only the group file of that kind, so the SPEC and every artifact file stay byte-identical.
+
+## implementation-route
+
+The product's process model decides how the software is assembled: what one implementation job is, where its work comes from,
+in which order it is done and where it stops at a gate. This is the route each kind of model prescribes:
+
+| Process model | The work comes from | One job implements | Order |
+|---|---|---|---|
+| plan-driven — V-model, waterfall, reuse-oriented | the implementation plan | one step of the plan: a module, a subsystem's integration, or the system | the plan's order; a phase's jobs start after the gate that closes the phase before |
+| Scrum | the team's sprint selection from the backlog | one backlog item | after the items it builds on, within the sprint |
+| Kanban | the ready items of the backlog | one backlog item | pulled as its developers choose, after the items it builds on, under the work-in-progress limit |
+
+Every job is the same at its core: a coding participant writes failing tests first, then the code, on a branch, and the pull
+request is merged once the product's Definition of Done holds. In the book *Vibe Coding*: chapter 6 for the plan-driven
+models, chapter 7 for the agile ones.
