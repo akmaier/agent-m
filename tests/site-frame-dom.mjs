@@ -1,8 +1,8 @@
 // The fixture DOM of the tests of MOD-site-frame and of the views that load the frame: the part of a browser's DOM that MOD-site-frame's explain() and the
 // renderer it uses (MOD-markdown-render, DOMPurify) need, brought in as tests/markdown-render.test.mjs brings it in, with what a browser does with the focus.
 // Importing this file installs the document as the globals `document` and `window`, before the modules of the page are loaded by the importer's own dynamic import;
-// it exports that document. It is code only; it holds no expected result and no test. It is the one copy: the tests of MOD-site-frame import it, and
-// tests/site-frame.test.mjs, which the tests of other modules still import for it, imports it.
+// it exports that document. It is code only; it holds no expected result and no test. It is the one copy: the tests of MOD-site-frame and of the views import it, and
+// tests/site-frame.test.mjs imports it too.
 //
 // Module: MOD-site-frame
 // Level: unit

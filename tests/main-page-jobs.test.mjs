@@ -8,7 +8,7 @@
 // Guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; NO COST IS GUESSED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SECRET IN THE REPOSITORY; DEVELOP AGAINST INTERFACES; UC-036; UC-046; UC-049
 // Level: unit
 //
-// This imports the shared small DOM of tests/site-frame.test.mjs unchanged, as the other tests of the views do. The real MOD-job-ledger, MOD-runtimes, MOD-bridge-client, MOD-repository-hosts,
+// This imports the shared small DOM of tests/site-frame-dom.mjs unchanged, as the other tests of the views do. The real MOD-job-ledger, MOD-runtimes, MOD-bridge-client, MOD-repository-hosts,
 // MOD-browser-store and MOD-prompt-bar run as they are; the only thing that is faked is the global `fetch`, which is a spy: it keeps every request, answers the fixtures' three GitHub
 // repositories and two Bridges, and refuses any other address with a TypeError (the request is then kept as `unrouted`). No request leaves the fixtures.
 //
@@ -22,7 +22,7 @@
 //   - A source that cannot be read is an <li class="source"> of a <ul class="unreadable"> above the list, "<address>: <the reason its host gives>".
 //   - The instance is connected as the product is, with the token `github-token`, from the address https://github.com/<its repository>.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
