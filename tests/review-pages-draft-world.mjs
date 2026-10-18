@@ -32,7 +32,8 @@ globalThis.fetch = async (url) => { fetched.push(String(url)); throw new Error(`
 
 export const text = (...lines) => `${lines.join("\n")}\n`;
 export const blobOf = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
-export const failure = (name, message, fields = {}) => Object.assign(new Error(message), { name }, fields);
+const { HostError } = await import("../src/repository-hosts/index.mjs");
+export const failure = (name, message, fields = {}) => new HostError(name, fields, message);
 export const GITHUB = { server: "github", origin: "https://github.com", path: "alice/thesis-tool", web: "https://github.com/alice/thesis-tool" };
 export const PRODUCT = encodeURIComponent(GITHUB.web);
 export const TOKEN = { value: "github_pat_ALICEthesisTOOL0123456789abcdef", name: "Agent M · thesis-tool", expires: "2027-01-01" };
