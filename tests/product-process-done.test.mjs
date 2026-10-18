@@ -391,3 +391,21 @@ test("TST-409109: doneCheck reports every broken rule, in order, and changes not
   assert.deepEqual(await check(broken, { gates: [] }), found);
   assert.equal(JSON.stringify(broken.commits) + JSON.stringify(broken.files), frozen);
 });
+
+// TST-891001 · level: unit · module: MOD-product-process
+// guards: THE GATE IS RECORDED; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES; UC-034
+// given: the passing pull request #7 (commits "1"x40 and "2"x40, address https://example.test/pull/7) with its own passing record of the gate Development → Sprint Review at 10:00, naming its commit "2"x40 and its address; and a newer rejecting record of the same gate at 11:00 naming another pull request's commit "9"x40 and address https://example.test/pull/8
+// input: doneCheck over both records; over the rejecting record of the other pull request alone; over the own record naming only the commit; over the own record naming only the address
+// expect: no finding for both records; one finding under THE GATE IS RECORDED naming the gate Development → Sprint Review as rejected for the other pull request's record alone; no finding when the own record names only the commit or only the address, beside the newer rejection of the other
+test("TST-891001: doneCheck counts only the gate records that name the pull request's commits or its address", async () => {
+  const own = gateRecord({ on: ["2".repeat(40), "https://example.test/pull/7"], at: "10:00" });
+  const other = gateRecord({ decision: "rejected", on: ["9".repeat(40), "https://example.test/pull/8"], at: "11:00" });
+  assert.deepEqual(await check(example(), { gates: [own, other] }), [], "the newer rejection of another pull request does not decide this one's gate");
+  const alone = await check(example(), { gates: [other] });
+  assert.deepEqual(rules(alone), ["THE GATE IS RECORDED"], "known positive: the rejection alone is a finding");
+  assert.match(alone[0].what, /Development → Sprint Review is not recorded as passed: rejected/);
+  const byCommit = gateRecord({ on: ["1".repeat(40)], at: "10:00" });
+  const byAddress = gateRecord({ on: ["https://example.test/pull/7"], at: "10:00" });
+  assert.deepEqual(await check(example(), { gates: [byCommit, other] }), [], "a record naming one of its commits");
+  assert.deepEqual(await check(example(), { gates: [byAddress, other] }), [], "a record naming its address");
+});
