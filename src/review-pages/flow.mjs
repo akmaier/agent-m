@@ -13,7 +13,7 @@ import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, button, parseServer, readJobRecords, readPlace, tokenStep } from "./common.mjs";
+import { el, link, button, badge, parseServer, readJobRecords, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -102,6 +102,9 @@ export function reviewRoute(kind) {
   const files = (snapshot) => [...statuses(snapshot)].filter(([, file]) => file.kind === kind.kind)
     .map(([path, file]) => ({ path, ...file })).sort((a, b) => a.id.localeCompare(b.id));
   const idOf = (path, snapshot) => statuses(snapshot).get(path)?.id ?? path;
+  // The files Review all shows: those of the kind — for the architecture, of the whole of it — that are not accepted.
+  const notAccepted = (snapshot) => [...statuses(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
+    .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
 
   // The editor of the page drawn last, or null where that page opened none: what the route's `leave` asks.
   let editor = null;
@@ -165,7 +168,7 @@ export function reviewRoute(kind) {
           first.append(box);
         }
         const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
-          el("td", null, file.title), el("td", null, el("span", `badge ${file.status}`, file.label)));
+          el("td", null, file.title), el("td", null, badge(file.status, file.label)));
         row.setAttribute("data-id", file.id);
         rows.append(row);
       }
@@ -178,7 +181,7 @@ export function reviewRoute(kind) {
       }
     }
     target.append(el("h2", null, kind.title));
-    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "review-all", "Review all"));
+    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${notAccepted(where.snapshot).length} not accepted`));
     if (kind.draft) target.append(link(`#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
     target.append(explain(kind.explain.list));
     if (bar) {
@@ -204,8 +207,7 @@ export function reviewRoute(kind) {
   // decisions and module files in their order, a further decision with its due diligence, and the rounds of the job that drafted them.
   async function showAll(where) {
     const { target, snapshot, token, host, context } = where;
-    const reviewed = [...statuses(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
-      .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
+    const reviewed = notAccepted(snapshot);
     const texts = new Map();
     await snapshot.readMany?.(reviewed.map((file) => file.path));
     for (const file of reviewed) texts.set(file.path, (await snapshot.read(file.path)) ?? "");
@@ -219,7 +221,7 @@ export function reviewRoute(kind) {
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
-      const section = el("section", "review-file", el("h3", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]));
+      const section = el("section", "review-file", el("h3", null, kind.heading(body)), badge(file.status, LABEL[file.status]));
       section.setAttribute("data-id", file.id);
       let withImpact = true;
       if (file.status === "changed") {
@@ -303,7 +305,7 @@ export function reviewRoute(kind) {
       target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
-    target.append(el("h2", null, entry.title), el("span", `badge ${entry.status}`, entry.label),
+    target.append(el("h2", null, entry.title), badge(entry.status, entry.label),
       ...(entry.status === "approved" ? [el("p", "approved-note", APPROVED_NOTE)] : []), explain(kind.explain.one), ...entry.nodes);
     if (entry.edit) target.append(link(`#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
     if (entry.hold) { target.append(entry.hold); return; }
@@ -332,7 +334,7 @@ export function reviewRoute(kind) {
     }
     const body = await snapshot.read(file.path);
     const blob = snapshot.blob(file.path);
-    target.append(el("h2", null, kind.heading(body)), el("span", `badge ${file.status}`, LABEL[file.status]),
+    target.append(el("h2", null, kind.heading(body)), badge(file.status, LABEL[file.status]),
       el("p", "shown", `Text shown: blob ${blob.slice(0, 12)}`), explain(kind.explain.one));
     let last = null;
     if (file.status === "changed") {

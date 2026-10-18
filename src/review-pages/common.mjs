@@ -16,6 +16,10 @@ export function el(name, className, ...children) {
   node.append(...children);
   return node;
 }
+// The status badge of a file or an entry: the class `b-<status>` is the one the page's style colours (docs/assets/style.css). A SPEC entry in the state
+// "in SPEC" (status `in-SPEC`) is coloured by the rule `b-applied`.
+const STYLED_AS = { "in-SPEC": "applied" };
+export const badge = (status, text) => el("span", `badge b-${STYLED_AS[status] ?? status}`, text);
 export const link = (href, className, text) => {
   const a = el("a", className, text);
   a.setAttribute("href", href);
