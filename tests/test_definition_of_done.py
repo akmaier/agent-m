@@ -35,7 +35,7 @@ const records = input.gates.map((decision, i) => documents.readDocument(productP
   ['---', `gate: ${gate}`, 'job:', 'decider: po-opus-b', 'role: Product Owner', `decision: ${decision}`, 'on:',
    '  - ' + 'c'.repeat(40), '  - https://github.com/instance/agent-m/pull/834', `date: 2026-10-18 01:0${i} UTC`, '---', '# gate', '', '**REGISTER**', ''].join('\\n')));
 const texts = input.case.facts.texts;
-const facts = { ...input.case.facts, read: async (path, side) => texts[`${side}:${path}`] ?? null };
+const facts = { ...input.case.facts, pullRequest: { ...input.case.facts.pullRequest, url: 'https://github.com/instance/agent-m/pull/834' }, read: async (path, side) => texts[`${side}:${path}`] ?? null };
 const modules = [{ fields: { id: 'MOD-product-process', folder: 'src/product-process/' } }];
 const found = await productProcess.doneCheck(facts, workflow, modules, records, input.case.job);
 return { done: workflow.done, findings: found.map((f) => [f.artifact, f.rule, f.what]) };
