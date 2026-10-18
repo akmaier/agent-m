@@ -55,3 +55,7 @@ through its scheduler's command on this computer"). No accepted text fixes what 
 The proposal was marked READY by mistake. The item waits for a draft of MOD-bridge-jobs, MOD-bridge-http and
 MOD-bridge-client for akmaier that fixes these. Until then it is not selected.
 
+
+The draft is written: `01ef6da1` and `66ee0c57` (MOD-endpoint-calls `listModels`; the probes' args and answers in
+MOD-bridge-http; `sinfo` and the errors in MOD-bridge-jobs; `probe`'s overloads in MOD-bridge-client). The item becomes
+ready once akmaier accepts it.

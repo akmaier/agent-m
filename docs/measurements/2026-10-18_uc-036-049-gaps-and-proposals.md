@@ -2060,3 +2060,19 @@ touches team 1 (as NEW-044-7).
   No workflow sets it (`.github/workflows/nightly.yml`), and Linux needs a display (xvfb) for the packaged app. Whether
   macOS Electron's `appData` follows `$HOME` is not verified. This is wiring of the nightly run (MOD-test-schedule, held by
   team 1), or a change between jobs.
+
+## The drafts for the NEEDS-ARCH proposals (po-opus-b, 2026-10-18)
+
+Each NEEDS-ARCH proposal above has its architecture drafted for akmaier, with no approval record. A proposal becomes READY
+once its draft is accepted, and is then registered from ITM-1001 on.
+
+| Draft | Modules | Proposals |
+|---|---|---|
+| `01ef6da1`, `66ee0c57` | MOD-endpoint-calls, MOD-bridge-http, MOD-bridge-jobs, MOD-bridge-client | NEW-040-2 (ITM-960) |
+| `b085c774` | MOD-runtimes, MOD-main-page, MOD-job-ledger, MOD-browser-store | NEW-036-3, NEW-036-5, NEW-036-8, NEW-036-9 |
+| `48002942` | MOD-job-catalogue, MOD-mail-handling, MOD-maintenance-pages | NEW-039-4 |
+| `ac0889c6` | MOD-reuse-facts, MOD-browser-store, MOD-resource-list, MOD-job-catalogue, MOD-settings-pages | NEW-040-6 to NEW-040-10 |
+| `7cecd3d3` | MOD-work-plans, MOD-workflow-entries, MOD-bridge-jobs, MOD-implementation-pages | NEW-041-5, NEW-041-6, NEW-041-7, NEW-045-4 |
+| `f29fb96e` | MOD-run-planner, MOD-implementation-pages, MOD-workflow-entries, MOD-bridge-jobs | NEW-043-12 |
+| `3d7b6767` | MOD-agent-processes, MOD-bridge-http, MOD-desktop-shell | NEW-044-13, NEW-044-14 |
+| `cb78445a` | MOD-implementation-pages, MOD-prompt-bar | NEW-048-3, NEW-049-1 |
