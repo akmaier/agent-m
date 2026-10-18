@@ -18,11 +18,12 @@
 //
 // Readings the tests rest on, each quoted from the text that gives it (the module file is docs/architecture/MOD-trace-graph.md):
 // - Interfaces, `moduleRows`: "one row per module, as UC-025 shows it". UC-025 step 3 gives "belongs to — its subsystem, by the
-//   decision that states it", "realises — the requirements its tests guard", "described by — its file", "code — the files in its
-//   folder" and "tests — the tests that exercise it". So `subsystem` is the decision the module's file follows (`null` where it
-//   follows none), `realises` the requirements that tests exercising the module guard, `describedBy` the path of its file, `code`
-//   the paths of the code files whose path begins with its folder, `tests` the identifiers of the tests that exercise it, and
-//   `imports` the modules its code files import.
+//   decision that states it", "described by — its file", "code — the files in its folder" and "tests — the tests that exercise
+//   it". So `subsystem` is the decision the module's file follows (`null` where it follows none), `describedBy` the path of its
+//   file, `code` the paths of the code files whose path begins with its folder, `tests` the identifiers of the tests that exercise
+//   it, and `imports` the modules its code files import. `realises` is the module's own front-matter `realises` (the Product
+//   Owner's ruling of sprint 89 on point 5, consistent with coverageGaps' requirementsWithoutModule): "a module that realises no
+//   requirement" is a module whose `realises` names none, whatever its tests guard.
 // - Data, "The module imported is the one whose `folder` is the beginning of the resolved path": a code file belongs to the module
 //   whose folder is the longest beginning of its path.
 // - Interfaces, `ModuleRow`: "`importsRead: boolean`" and "Where imports could not be read for a file's language, `importsRead` is
@@ -33,10 +34,12 @@
 //   gives no word for a kind. The kinds written here are the gaps' own words, and the rows and the gaps come sorted: the rows by
 //   module, the gaps by kind and then by artifact. `artifact` is the module, the requirement, the code file or the test the gap
 //   concerns and `path` its file.
-// - Interfaces, `moduleRows`: "a code file outside every module's folder, or a folder no module names": each code file outside
-//   every module's folder is a gap; a folder no module names is shown by the files in it.
-// - Interfaces, `moduleRows`: "a name that matches nothing" — the names `coverageGaps` lists, a `realises`, `forced_by` or `guards`
-//   that is no requirement and no use case.
+// - Interfaces, `moduleRows`: "a code file outside every module's folder, or a folder no module names": both are built (the Product
+//   Owner's ruling, point 2): a gap for each code file outside every module's folder, and, besides, one gap for each folder that
+//   holds such files, the folder being the directory of the file.
+// - Interfaces, `moduleRows`: "a name that matches nothing", read with UC-025 step 4, "a name that matches no requirement, use case,
+//   decision or module" (ruling, point 4): a `realises`, `forced_by`, `guards`, `follows` or `uses` whose name — for `uses` the
+//   module before the dot — is none of those four.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -58,9 +61,9 @@ function source(files) {
 const lines = (...rows) => rows.join("\n") + "\n";
 
 // A module file: the fields given, a list written one name to a line.
-function moduleFile(id, { folder, follows = [], uses = [], provides = [] }) {
+function moduleFile(id, { folder, realises = [], follows = [], uses = [], provides = [] }) {
   const list = (key, names) => (names.length ? [`${key}:`, ...names.map((name) => `  - ${name}`)] : [`${key}: []`]);
-  return lines("---", `id: ${id}`, `title: ${id}`, `folder: ${folder}`, ...list("realises", []), ...list("follows", follows),
+  return lines("---", `id: ${id}`, `title: ${id}`, `folder: ${folder}`, ...list("realises", realises), ...list("follows", follows),
     ...list("uses", uses), ...list("provides", provides), "---", `# ${id}`);
 }
 
@@ -80,10 +83,10 @@ const FIXTURE = {
   "docs/architecture/ARC-001-the-whole.md": lines("---", "id: ARC-001", "title: The whole", "forced_by:", "  - RULE ALPHA", "---", "# ARC-001 The whole"),
   "docs/architecture/ARC-002-the-subsystem.md": lines("---", "id: ARC-002", "title: The subsystem", "refines: ARC-001", "forced_by:", "  - RULE BETA",
     "designs:", "  - MOD-alpha", "  - MOD-beta", "  - MOD-inner", "---", "# ARC-002 The subsystem"),
-  "docs/architecture/MOD-alpha.md": moduleFile("MOD-alpha", { folder: "src/alpha/", follows: ["ARC-002"], uses: ["MOD-beta.run"], provides: ["go"] }),
-  "docs/architecture/MOD-beta.md": moduleFile("MOD-beta", { folder: "src/beta/", follows: ["ARC-002"], provides: ["run"] }),
-  "docs/architecture/MOD-inner.md": moduleFile("MOD-inner", { folder: "src/alpha/inner/", follows: ["ARC-002"] }),
-  "docs/architecture/MOD-orphan.md": moduleFile("MOD-orphan", { folder: "src/orphan/" }),
+  "docs/architecture/MOD-alpha.md": moduleFile("MOD-alpha", { folder: "src/alpha/", realises: ["RULE ALPHA"], follows: ["ARC-002"], uses: ["MOD-beta.run"], provides: ["go"] }),
+  "docs/architecture/MOD-beta.md": moduleFile("MOD-beta", { folder: "src/beta/", realises: ["RULE BETA"], follows: ["ARC-002"], provides: ["run"] }),
+  "docs/architecture/MOD-inner.md": moduleFile("MOD-inner", { folder: "src/alpha/inner/", realises: ["RULE ALPHA"], follows: ["ARC-002"] }),
+  "docs/architecture/MOD-orphan.md": moduleFile("MOD-orphan", { folder: "src/orphan/", uses: ["MOD-ghost.run"] }),
   "docs/architecture/MOD-stray.md": moduleFile("MOD-stray", { folder: "src/stray/", follows: ["ARC-002"] }),
   "src/alpha/a.mjs": 'import { run } from "../beta/b.mjs";\nexport const go = run;\n',
   "src/alpha/legacy.rb": "require 'x'\n",
@@ -91,8 +94,9 @@ const FIXTURE = {
   "src/beta/b.mjs": 'import { go } from "../alpha/a.mjs";\nexport const run = go;\n',
   "src/stray/s.mjs": "export const s = 1;\n",
   "loose/outside.mjs": "export const o = 1;\n",
+  "loose/second.mjs": "export const t = 1;\n",
   "tests/alpha.test.mjs": declared("TST-100001", "MOD-alpha", "RULE ALPHA"),
-  "tests/beta.test.mjs": declared("TST-100002", "MOD-beta", "RULE BETA"),
+  "tests/beta.test.mjs": declared("TST-100002", "MOD-beta", "RULE BETA", "ARC-001"),
   "tests/stray.test.mjs": declared("TST-100003", "MOD-stray", "RULE BETA", "A RULE NOBODY WROTE"),
 };
 
@@ -102,10 +106,10 @@ const gapPairs = (result) => result.gaps.map((gap) => [gap.kind, gap.artifact]);
 
 // TST-692001 · level: unit · module: MOD-trace-graph
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
-// given: the fixture of five module files — MOD-alpha (src/alpha/, code a.mjs and legacy.rb, one test), MOD-beta (src/beta/, code b.mjs, one test), MOD-inner (src/alpha/inner/, code i.mjs, no test), MOD-orphan (src/orphan/, nothing, follows no decision) and MOD-stray (src/stray/, code s.mjs, one test) — where ARC-002 designs MOD-alpha, MOD-beta and MOD-inner and MOD-alpha uses MOD-beta.run
+// given: the fixture of five module files — MOD-alpha (src/alpha/, code a.mjs and legacy.rb, one test), MOD-beta (src/beta/, code b.mjs, one test), MOD-inner (src/alpha/inner/, code i.mjs, no test, realises RULE ALPHA in its file), MOD-orphan (src/orphan/, nothing, follows no decision, uses MOD-ghost.run) and MOD-stray (src/stray/, code s.mjs, one test that guards RULE BETA, its file realising nothing) — where MOD-alpha and MOD-beta state RULE ALPHA and RULE BETA under realises, ARC-002 designs MOD-alpha, MOD-beta and MOD-inner and MOD-alpha uses MOD-beta.run
 // input: moduleRows over the graph traceGraph builds from it
-// expect: five rows, in the order of the module identifiers, each exactly as written below — among them MOD-alpha with code a.mjs and legacy.rb (not i.mjs, which belongs to the module whose folder is longer), realising RULE ALPHA through the test that exercises it, importing MOD-beta and importsRead false because of the .rb file; MOD-orphan with subsystem null, no code and no tests, and importsRead true
-test("TST-692001 one row per module: its subsystem, the requirements its tests guard, its file, code, tests and imports", async () => {
+// expect: five rows, in the order of the module identifiers, each exactly as written below — among them MOD-alpha with code a.mjs and legacy.rb (not i.mjs, which belongs to the module whose folder is longer), realising RULE ALPHA as its file states; MOD-stray realising nothing although its test guards RULE BETA (ruling 5: a row's realises is the file's own realises); importing MOD-beta and importsRead false because of the .rb file; MOD-orphan with subsystem null, no code and no tests, and importsRead true
+test("TST-692001 one row per module: its subsystem, what its file realises, its file, code, tests and imports", async () => {
   const graph = await graphOf(FIXTURE);
   assert.ok(graph.nodes.has("MOD-alpha") && graph.nodes.has("src/alpha/inner/i.mjs"), "positive control: the module files and the code files are read");
   const row = (module, rest) => ({ module, describedBy: MODULE_FILE(module), ...rest });
@@ -114,9 +118,9 @@ test("TST-692001 one row per module: its subsystem, the requirements its tests g
       imports: ["MOD-beta"], importsRead: false }),
     row("MOD-beta", { subsystem: "ARC-002", realises: ["RULE BETA"], code: ["src/beta/b.mjs"], tests: ["TST-100002"],
       imports: ["MOD-alpha"], importsRead: true }),
-    row("MOD-inner", { subsystem: "ARC-002", realises: [], code: ["src/alpha/inner/i.mjs"], tests: [], imports: [], importsRead: true }),
+    row("MOD-inner", { subsystem: "ARC-002", realises: ["RULE ALPHA"], code: ["src/alpha/inner/i.mjs"], tests: [], imports: [], importsRead: true }),
     row("MOD-orphan", { subsystem: null, realises: [], code: [], tests: [], imports: [], importsRead: true }),
-    row("MOD-stray", { subsystem: "ARC-002", realises: ["RULE BETA"], code: ["src/stray/s.mjs"], tests: ["TST-100003"],
+    row("MOD-stray", { subsystem: "ARC-002", realises: [], code: ["src/stray/s.mjs"], tests: ["TST-100003"],
       imports: [], importsRead: true }),
   ]);
 });
@@ -125,23 +129,26 @@ test("TST-692001 one row per module: its subsystem, the requirements its tests g
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN; EVERY CODE FILE BELONGS TO A MODULE; A MODULE IS A FOLDER; A MODULE BELONGS TO ONE SUBSYSTEM
 // given: the fixture of TST-692001
 // input: moduleRows over its graph
-// expect: exactly these gaps, as [kind, artifact], in the order of kind and then artifact — code-without-module loose/outside.mjs; import-not-in-uses src/beta/b.mjs; module-folder-inside-another MOD-inner; module-in-no-subsystem MOD-orphan; module-without-code MOD-orphan; module-without-test MOD-inner and MOD-orphan; realises-nothing MOD-inner and MOD-orphan; requirement-without-module RULE LOOSE; subsystem-does-not-name-module MOD-stray; unknown-name TST-100003; no gap for MOD-alpha, which has everything
+// expect: exactly these gaps, as [kind, artifact], in the order of kind and then artifact — code-without-module loose/outside.mjs and loose/second.mjs; folder-named-by-no-module loose (one, for the two files); import-not-in-uses src/beta/b.mjs; module-folder-inside-another MOD-inner; module-in-no-subsystem MOD-orphan; module-without-code MOD-orphan; module-without-test MOD-inner and MOD-orphan; realises-nothing MOD-orphan and MOD-stray (not MOD-inner, which states a realises); requirement-without-module RULE LOOSE; subsystem-does-not-name-module MOD-stray; unknown-name MOD-orphan (MOD-ghost) and TST-100003 (no gap for TST-100002, which guards a decision); no gap for MOD-alpha, which has everything
 test("TST-692002 every gap of the module file is listed with the artifact it concerns", async () => {
   const graph = await graphOf(FIXTURE);
   const result = moduleRows(graph);
   assert.ok(result.rows.length === 5, "positive control: the rows are there");
   assert.deepEqual(gapPairs(result), [
     ["code-without-module", "loose/outside.mjs"],
+    ["code-without-module", "loose/second.mjs"],
+    ["folder-named-by-no-module", "loose"],
     ["import-not-in-uses", "src/beta/b.mjs"],
     ["module-folder-inside-another", "MOD-inner"],
     ["module-in-no-subsystem", "MOD-orphan"],
     ["module-without-code", "MOD-orphan"],
     ["module-without-test", "MOD-inner"],
     ["module-without-test", "MOD-orphan"],
-    ["realises-nothing", "MOD-inner"],
     ["realises-nothing", "MOD-orphan"],
+    ["realises-nothing", "MOD-stray"],
     ["requirement-without-module", "RULE LOOSE"],
     ["subsystem-does-not-name-module", "MOD-stray"],
+    ["unknown-name", "MOD-orphan"],
     ["unknown-name", "TST-100003"],
   ]);
 });
@@ -165,6 +172,9 @@ test("TST-692003 a gap names the file of its artifact and says what is missing",
   assert.equal(by("import-not-in-uses", "src/beta/b.mjs").path, "src/beta/b.mjs");
   assert.equal(by("unknown-name", "TST-100003").path, "tests/stray.test.mjs");
   assert.ok(by("unknown-name", "TST-100003").what.includes("A RULE NOBODY WROTE"));
+  assert.equal(by("unknown-name", "MOD-orphan").path, MODULE_FILE("MOD-orphan"));
+  assert.ok(by("unknown-name", "MOD-orphan").what.includes("MOD-ghost"));
+  assert.equal(by("folder-named-by-no-module", "loose").path, "loose");
   assert.ok(by("import-not-in-uses", "src/beta/b.mjs").what.includes("MOD-alpha") && by("import-not-in-uses", "src/beta/b.mjs").what.includes("MOD-beta"));
   assert.ok(by("module-folder-inside-another", "MOD-inner").what.includes("MOD-alpha"));
 });
@@ -208,7 +218,7 @@ test("TST-692006 a product whose files all belong to its modules lists no gap; a
   const product = {
     "SPEC.md": lines("# Fixture", "", "**RULE ONE** *(Product Owner)*", "The rule.", "*Check:* none", ""),
     "docs/architecture/ARC-001-the-whole.md": lines("---", "id: ARC-001", "title: The whole", "forced_by:", "  - RULE ONE", "designs:", "  - MOD-one", "---", "# ARC-001"),
-    "docs/architecture/MOD-one.md": moduleFile("MOD-one", { folder: "src/one/", follows: ["ARC-001"] }),
+    "docs/architecture/MOD-one.md": moduleFile("MOD-one", { folder: "src/one/", realises: ["RULE ONE"], follows: ["ARC-001"] }),
     "src/one/one.mjs": "export const one = 1;\n",
     "tests/one.test.mjs": declared("TST-100010", "MOD-one", "RULE ONE"),
   };
@@ -217,7 +227,7 @@ test("TST-692006 a product whose files all belong to its modules lists no gap; a
   assert.deepEqual(clean.gaps, []);
   const { "src/one/one.mjs": code, ...rest } = product;
   const outside = moduleRows(await graphOf({ ...rest, "loose/one.mjs": code }));
-  assert.deepEqual(gapPairs(outside), [["code-without-module", "loose/one.mjs"], ["module-without-code", "MOD-one"]]);
+  assert.deepEqual(gapPairs(outside), [["code-without-module", "loose/one.mjs"], ["folder-named-by-no-module", "loose"], ["module-without-code", "MOD-one"]]);
 });
 
 // TST-692007 · level: unit · module: MOD-trace-graph
@@ -236,4 +246,48 @@ test("TST-692007 the rows and gaps do not depend on the order the repository lis
   const reversed = Object.fromEntries(Object.entries(FIXTURE).reverse());
   assert.deepEqual(moduleRows(await graphOf(reversed)), first);
   assert.deepEqual(moduleRows(graph), first);
+});
+
+// TST-692008 · level: unit · module: MOD-trace-graph
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: the fixture of TST-692001, where MOD-inner states realises RULE ALPHA and has no test, and MOD-stray has a test that guards RULE BETA and states no realises
+// input: moduleRows over its graph
+// expect: MOD-inner's row realises RULE ALPHA and it has no realises-nothing gap; MOD-stray's row realises nothing and it has that gap; only RULE LOOSE is a requirement-without-module
+test("TST-692008 a row's realises is the module's own realises, whatever its tests guard", async () => {
+  const result = moduleRows(await graphOf(FIXTURE));
+  const row = (module) => result.rows.find((r) => r.module === module);
+  assert.deepEqual(row("MOD-inner").tests, [], "positive control: MOD-inner has no test");
+  assert.deepEqual(row("MOD-inner").realises, ["RULE ALPHA"]);
+  assert.deepEqual(row("MOD-stray").tests, ["TST-100003"], "positive control: MOD-stray has its test");
+  assert.deepEqual(row("MOD-stray").realises, []);
+  const pairs = gapPairs(result);
+  assert.equal(pairs.some(([kind, artifact]) => kind === "realises-nothing" && artifact === "MOD-inner"), false);
+  assert.equal(pairs.some(([kind, artifact]) => kind === "realises-nothing" && artifact === "MOD-stray"), true);
+  assert.deepEqual(pairs.filter(([kind]) => kind === "requirement-without-module"), [["requirement-without-module", "RULE LOOSE"]]);
+});
+
+// TST-692009 · level: unit · module: MOD-trace-graph
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// given: the fixture of TST-692001, where TST-100002 guards the decision ARC-001, MOD-alpha uses MOD-beta.run, MOD-orphan uses MOD-ghost.run, which no file describes, and TST-100003 guards A RULE NOBODY WROTE
+// input: moduleRows over its graph
+// expect: exactly two unknown-name gaps, for MOD-orphan and TST-100003; none for a name that is a decision (ARC-001) or a module (MOD-beta)
+test("TST-692009 a name that matches no requirement, use case, decision or module is a gap; a decision or a module is a match", async () => {
+  const unknown = moduleRows(await graphOf(FIXTURE)).gaps.filter((gap) => gap.kind === "unknown-name");
+  assert.deepEqual(unknown.map((gap) => gap.artifact), ["MOD-orphan", "TST-100003"]);
+});
+
+// TST-692010 · level: unit · module: MOD-trace-graph
+// guards: UC-025; EVERY CODE FILE BELONGS TO A MODULE
+// given: the fixture of TST-692001 with a third code file at other/deep/x.mjs, in no module's folder, and a copy where loose/outside.mjs, loose/second.mjs and other/deep/x.mjs stand in the folder of MOD-beta
+// input: moduleRows over each graph
+// expect: for the first, the folder gaps are loose and other/deep, one each, beside three code-without-module gaps; for the copy, no folder gap and no code-without-module gap
+test("TST-692010 a folder no module names is one gap, besides the gap of each code file in it", async () => {
+  const outside = { ...FIXTURE, "other/deep/x.mjs": "export const x = 1;\n" };
+  const first = gapPairs(moduleRows(await graphOf(outside)));
+  assert.deepEqual(first.filter(([kind]) => kind === "folder-named-by-no-module"),
+    [["folder-named-by-no-module", "loose"], ["folder-named-by-no-module", "other/deep"]]);
+  assert.equal(first.filter(([kind]) => kind === "code-without-module").length, 3);
+  const { "loose/outside.mjs": a, "loose/second.mjs": b, "other/deep/x.mjs": c, ...rest } = outside;
+  const inside = gapPairs(moduleRows(await graphOf({ ...rest, "src/beta/a.mjs": a, "src/beta/b2.mjs": b, "src/beta/c.mjs": c })));
+  assert.deepEqual(inside.filter(([kind]) => kind === "folder-named-by-no-module" || kind === "code-without-module"), []);
 });
