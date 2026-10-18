@@ -82,8 +82,11 @@ server's or the agent's own message; `paused` (503).
   route of `bridgeApi` to `(request: { params: object, body: object }) -> Promise<object>`; a handler throws an error of
   `bridgeApi` by its code.
 - `serveBridge(config: { host: string, port: number, origin: string, dataFolder: string, paused: () => boolean }, handlers:
-  BridgeHandlers) -> Promise<{ address: string, token: string, close: () -> Promise<void> }>` — starts the server, and
-  returns its address and the pairing token in force, made on the first start, for the Bridge's window. It refuses any
+  BridgeHandlers) -> Promise<{ address: string, token: string, pairedWith: () -> string | null, close: () -> Promise<void>
+  }>` — starts the server, and returns its address and the pairing token in force, made on the first start, for the
+  Bridge's window; `pairedWith()` is the origin of the first request since this start that carried the token in force and
+  came from `origin`, and `null` before one did and again after `pairAnew` (UC-044, pairing). It is kept in memory
+  only. It refuses any
   `host`
   but `127.0.0.1`, `::1` or `localhost` with `BindRefused`, and a port in use with `PortInUse`. It answers a request only
   with the pairing token, whatever its route; it answers cross-origin requests, and the browser's preflight for a request
