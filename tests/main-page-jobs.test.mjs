@@ -5,7 +5,7 @@
 // Run: node --test tests/main-page-jobs.test.mjs
 //
 // Module: MOD-main-page
-// Guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; NO COST IS GUESSED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-036; UC-046; UC-049
+// Guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; NO COST IS GUESSED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SECRET IN THE REPOSITORY; DEVELOP AGAINST INTERFACES; UC-036; UC-046; UC-049
 // Level: unit
 //
 // This imports the shared small DOM of tests/site-frame.test.mjs unchanged, as the other tests of the views do. The real MOD-job-ledger, MOD-runtimes, MOD-bridge-client, MOD-repository-hosts,
@@ -26,7 +26,8 @@ import "./site-frame.test.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { readdir, readFile } from "node:fs/promises";
+import { openStore, writeSetting, secretValues } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
@@ -161,18 +162,18 @@ test.afterEach(() => { globalThis.fetch = realFetch; globalThis.Date = RealDate;
 // ---------------------------------------------------------------- the page
 
 // The browser: the store of acme/agent-m with the two tokens, the products, and the Bridges lab-pc-4 and lab-pc-5 (lab-pc-3 is not kept).
-function browser({ products = [LIBRARY, ATLAS, MISSING], tokens = TOKENS, libraryToken = true, bridges = true } = {}) {
+function browser({ products = [LIBRARY, ATLAS, MISSING], tokens = TOKENS, libraryToken = true, bridges = true, instanceTokenInStore = true, instanceHostToken = tokens["acme/agent-m"] } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const store = openStore("acme/agent-m");
   writeSetting(store, "products", products);
-  writeSetting(store, "github-token", { value: tokens["acme/agent-m"], name: "instance token", expires: "2027-01-01" });
+  if (instanceTokenInStore) writeSetting(store, "github-token", { value: tokens["acme/agent-m"], name: "instance token", expires: "2027-01-01" });
   if (libraryToken) writeSetting(store, "github-token:acme/library", { value: tokens["acme/library"], name: "library token", expires: "2027-01-01" });
   if (bridges) {
     writeSetting(store, "bridge:lab-pc-4", { address: "http://127.0.0.1:4711", token: "pairing-token-four" });
     writeSetting(store, "bridge:lab-pc-5", { address: "http://127.0.0.1:4712", token: "pairing-token-five" });
   }
-  const context = { page: "main", instance: { repository: "acme/agent-m", host: connect(parseAddress(INSTANCE), { token: tokens["acme/agent-m"] }) }, product: null, store, go() {} };
+  const context = { page: "main", instance: { repository: "acme/agent-m", host: connect(parseAddress(INSTANCE), { token: instanceHostToken }) }, product: null, store, go() {} };
   return { store, context };
 }
 async function draw(it, moment = NOW) {
@@ -372,4 +373,68 @@ test("TST-509007 the view hands the frame the route jobs and the strategies of t
   assert.equal(typeof route.render, "function");
   assert.equal(view.strategies.length, 1);
   assert.equal(view.strategies[0], sourceStrategies);
+});
+
+// TST-866001 · level: unit · module: MOD-main-page
+// guards: NO SECRET IN THE REPOSITORY; DEVELOP AGAINST INTERFACES; UC-046
+// given: the same browser, whose store also holds a model endpoint's key, a stored secret; the sources of the route `jobs` as `sourcesOf` gives them
+// input: a commit of a file whose text holds that stored secret, handed to the host of each product source (acme/library, acme/atlas, acme/missing); the same commit with a text that holds none
+// expect: the sources are the instance, acme/library, acme/atlas and acme/missing, in that order; every product's host refuses the commit with SecretRefused naming docs/a.md, its message not repeating the secret, and sends no request; known positive: the commit without the secret reaches the network (at least one request) in the same hosts
+test("TST-866001 the host the route reads a product with still refuses a commit that holds a stored secret", async () => {
+  install();
+  const SECRET = "sk-fixture-ITM866-0123456789";
+  const it = browser();
+  writeSetting(it.store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: SECRET });
+  assert.equal(secretValues(it.store).includes(SECRET), true, "known positive: the store holds the key as a secret");
+  const { sourcesOf } = await import("../src/main-page/jobs.mjs");
+  assert.equal(typeof sourcesOf, "function");
+  const sources = await sourcesOf(it.context);
+  assert.deepEqual(sources.map((source) => source.address), [INSTANCE, LIBRARY, ATLAS, MISSING]);
+  const commit = (host, body) => host.commitFiles({ branch: "main", expectedHead: sha("acme/library@main"), message: "m", files: [{ path: "docs/a.md", text: body }] }).then(() => null, (failure) => failure);
+  for (const source of sources.slice(1)) {
+    spy.requests = [];
+    const refused = await commit(source.host, `key: ${SECRET}\n`);
+    assert.deepEqual([refused?.name, refused?.path], ["SecretRefused", "docs/a.md"], source.address);
+    assert.equal(String(refused.message).includes(SECRET), false, "named by file, never by value");
+    assert.deepEqual(spy.requests, [], `${source.address}: nothing is sent`);
+    await commit(source.host, "key: kept in the browser\n");
+    assert.ok(spy.requests.length > 0, `${source.address}: known positive, the commit without the secret is sent`);
+  }
+});
+
+// TST-866002 · level: unit · module: MOD-main-page
+// guards: ONE DASHBOARD SHOWS EVERY JOB; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; DEVELOP AGAINST INTERFACES; UC-046
+// given: the instance acme/agent-m is private; the browser's store holds no `github-token` while the ViewContext's instance host carries the instance's token; then the store holds the token while the host carries none
+// input: the route `jobs` drawn in each
+// expect: with the token in the host only, the seven jobs are listed and every request to acme/agent-m carries the instance's token; with the token in the store only, the instance is named as unreadable ("https://github.com/acme/agent-m: https://github.com/acme/agent-m was not found — a private repository is found only with a token that reaches it.") and its two jobs are gone, five rows stay
+test("TST-866002 the instance is read through the host the frame handed the route, not one the route connects", async () => {
+  install();
+  const hostOnly = await draw(browser({ instanceTokenInStore: false }));
+  assert.equal(rowsOf(hostOnly).length, 7);
+  const own = spy.requests.filter((request) => request.url.host === "api.github.com" && request.url.pathname.startsWith("/repos/acme/agent-m"));
+  assert.ok(own.length > 0, "the instance was read");
+  assert.deepEqual([...new Set(own.map((request) => request.authorization))], [`Bearer ${TOKENS["acme/agent-m"]}`]);
+
+  install();
+  const storeOnly = await draw(browser({ instanceHostToken: null }));
+  assert.deepEqual(byClass(storeOnly, "source").map((node) => node.textContent).filter((line) => line.startsWith(INSTANCE)),
+    [`${INSTANCE}: ${INSTANCE} was not found — a private repository is found only with a token that reaches it.`]);
+  assert.equal(rowsOf(storeOnly).length, 5);
+});
+
+// TST-866003 · level: unit · module: MOD-main-page
+// guards: DEVELOP AGAINST INTERFACES; UC-046
+// given: the files of src/main-page/, and src/site-frame/routing.mjs, which holds the frame's rule for the key a repository's token is kept under
+// input: each file's text searched for the form of that key, `github-token:` or `gitlab-token:`
+// expect: known positive: the frame's routing.mjs holds it, and jobs.mjs and home.mjs are among the files read; no file of src/main-page/ holds it
+test("TST-866003 src/main-page holds no rule for the key of a repository's token", async () => {
+  const rule = /(github|gitlab)-token:/;
+  const frame = await readFile(new URL("../src/site-frame/routing.mjs", import.meta.url), "utf8");
+  assert.equal(rule.test(frame), true, "known positive: the frame holds the rule");
+  const folder = new URL("../src/main-page/", import.meta.url);
+  const files = (await readdir(folder)).filter((name) => name.endsWith(".mjs"));
+  assert.equal(files.includes("jobs.mjs") && files.includes("home.mjs"), true, "known positive: the module's files are read");
+  const holding = [];
+  for (const name of files) if (rule.test(await readFile(new URL(name, folder), "utf8"))) holding.push(name);
+  assert.deepEqual(holding, []);
 });
