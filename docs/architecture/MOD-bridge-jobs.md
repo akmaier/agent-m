@@ -10,6 +10,7 @@ uses:
   - MOD-bridge-http.BridgeHandlers
   - MOD-endpoint-calls.EndpointConfig
   - MOD-endpoint-calls.testEndpoint
+  - MOD-endpoint-calls.listModels
   - MOD-endpoint-calls.endpointDriver
   - MOD-endpoint-calls.endpointExchange
   - MOD-repository-hosts.connect
@@ -102,12 +103,15 @@ settings (MOD-desktop-shell).
     MOD-endpoint-calls' `endpointDriver` in Node and answered the same way (`A RUNTIME IS INTERCHANGEABLE`) — or, where
     the request carries one exchange of a tool loop, with `endpointExchange`, answered with the endpoint's text, its tool
     calls and the usage. The correction loop and the tool loop stay in the page, which carries every tool call out.
-  - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` lists the
-    models an endpoint on this computer serves; `endpoint-test` receives the valid endpoint configuration of an endpoint
+  - `POST /v1/probes/{kind}` — a harmless request: `agent` asks an agent a short question; `endpoint-models` receives the
+    endpoint configuration as `endpoint-test` does, calls MOD-endpoint-calls' `listModels` in Node once, and returns its
+    `{ models }` or `{ diagnosis }` unchanged; `endpoint-test` receives the valid endpoint configuration of an endpoint
     whose configuration in the page names this Bridge, maps its fields to MOD-endpoint-calls' `EndpointConfig`,
     calls `testEndpoint` in Node once, and returns the structurally corresponding `{ works: true, model }` or
     `{ works: false, diagnosis }` answer unchanged; `partitions` lists a cluster's
-    partitions through its scheduler's command on this computer (UC-003, UC-017, UC-040). An invalid endpoint-test body
+    partitions through its scheduler's command on this computer — SLURM's `sinfo --noheader --format=%P|%a`, each line a
+    partition's name and its state — as `{ partitions: [{ name, state }] }` (UC-003, UC-017, UC-040); a computer without
+    `sinfo`, or a command that fails, is `upstream-failed` naming the command and its message. An invalid endpoint-test body
     is `invalid-request`; a provider or local-endpoint failure is the returned diagnosis; `upstream-failed` names another
     probe-handler failure.
 - `startWatching(config: { bridgeName: string, agents: { name: string, folder: string }[], products: { address: string
@@ -133,7 +137,7 @@ pinned inputs —, prepared by the job runner on the job's working clone. No per
 its kind's writer writes at once, and a kind that hands its draft back leaves it in the record's end as `draft:`, from
 which the page shows it and a run starts the job that follows.
 
-An endpoint configuration and its key — of a test or of an ask — exist only for that request. The handler retains
+An endpoint configuration and its key — of a test, of a models listing or of an ask — exist only for that request. The handler retains
 neither in a clone, job record, log, disk file, shell setting nor process command.
 
 Access's local clone does files and commits only — no pull request, issue or CI run. On a Bridge the coding agent opens
@@ -167,8 +171,8 @@ clones. Nothing else.
 - `MOD-documents.readDocument`, `MOD-documents.readRegister`, `MOD-participant-list.participantSchema`,
   `MOD-product-process.declarationSchema` — the participants of this Bridge and the product's declaration.
 - `MOD-agent-processes.installedAgents`, `agentDriver`, `testAgent` — the agents of this computer and their driver.
-- `MOD-endpoint-calls.EndpointConfig`, `testEndpoint`, `endpointDriver` — an endpoint's test and the requests of a job of
-  the page to a model endpoint.
+- `MOD-endpoint-calls.EndpointConfig`, `testEndpoint`, `listModels`, `endpointDriver` — an endpoint's test, its models'
+  listing and the requests of a job of the page to a model endpoint.
 - `MOD-job-runner.JobContext`, `Prepared`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of any kind
   from its record, unattended.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `takeJob`, `appendToRecord`, `jobState` — taking, resuming and ending jobs in
