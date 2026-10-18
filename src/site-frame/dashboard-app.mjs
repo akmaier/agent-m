@@ -36,7 +36,7 @@ import { menuHtml, entryOf } from "../site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
-import { openStore } from "../browser-store/index.mjs";
+import { openStore, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { view as settingsPages } from "../settings-pages/index.mjs";
@@ -204,14 +204,16 @@ const ghToken = () => store.getToken();
 // USES A PROJECT ACCESS TOKEN), never the GitHub token; a GitHub product's own token, or the instance's while it has none (A
 // GITHUB PRODUCT USES A TOKEN OF ITS OWN).
 const token = () => store.tokenFor(T.product);
+// The values of every secret stored at this moment, which no commit made through a host the app connects may hold (NO SECRET IN THE REPOSITORY).
+const secrets = () => secretValues(openStore(T.instance));
 // A Host retains the credential it was connected with. Reuse its Snapshot and blob memory while the selected repository and
 // actual credential are unchanged; create a new Host after Settings changes or clears that credential.
 function currentHost() {
   const address = T.product.address;
-  const currentToken = token() || null;
+  const currentToken = JSON.stringify([token() || null, secrets()]);
   if (!host || hostAddress !== address || hostToken !== currentToken) {
     const changed = Boolean(host);
-    host = connect(parseAddress(address), { token: currentToken });
+    host = connect(parseAddress(address), { token: token() || null, secrets: secrets() });
     hostAddress = address;
     hostToken = currentToken;
     if (changed) {
@@ -434,8 +436,8 @@ function showBanner() {
   tokenNotices.replaceChildren();
   const address = parseAddress(T.product.address);
   const isInstance = address.server === "github" && address.path === T.instance;
-  showTokenNotices({ store: openStore(T.instance), instance: { host: connect(parseAddress(`https://github.com/${T.instance}`)) },
-    product: isInstance ? null : { address: T.product.address, host: connect(address) } });
+  showTokenNotices({ store: openStore(T.instance), instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { secrets: secrets() }) },
+    product: isInstance ? null : { address: T.product.address, host: connect(address, { secrets: secrets() }) } });
   // The slot holds the place only while it holds a notice, so that it stays empty (and hidden by the page's style) otherwise.
   slot.replaceChildren(...(tokenNotices.children.length ? [tokenNotices] : []));
 }
@@ -531,9 +533,9 @@ function instanceHostFollowingToken() {
   const address = parseAddress(`https://github.com/${T.instance}`);
   let held = null, heldToken = null;
   const current = () => {
-    const stored = ghToken() || null;
+    const stored = JSON.stringify([ghToken() || null, secrets()]);
     if (!held || stored !== heldToken) {
-      held = connect(address, { token: stored });
+      held = connect(address, { token: ghToken() || null, secrets: secrets() });
       heldToken = stored;
     }
     return held;
@@ -651,7 +653,7 @@ function reviewContext() {
   const isInstance = address.server === "github" && address.path === T.instance;
   return {
     page: "review",
-    instance: { repository: T.instance, host: isInstance ? shown : connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
+    instance: { repository: T.instance, host: isInstance ? shown : connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken(), secrets: secrets() }) },
     product: isInstance ? null : { address: T.product.address, kind: address.server, host: shown, tokenStored: Boolean(token()) },
     store: openStore(T.instance),
     // The step that stores a product's token is this page's #add; any other route is written as the frame writes it.
@@ -763,9 +765,9 @@ async function route() {
       await settings.render(main(), {
         instance: {
           repository: T.instance,
-          host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }),
+          host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken(), secrets: secrets() }),
         },
-        product: { address: T.product.address, kind: address.server, host: connect(address, { token: store.tokenFor(T.product) }) },
+        product: { address: T.product.address, kind: address.server, host: connect(address, { token: store.tokenFor(T.product), secrets: secrets() }) },
         store: settingsStore,
         go(route, params = {}) {
           if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
