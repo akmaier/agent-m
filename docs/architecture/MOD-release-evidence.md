@@ -134,10 +134,13 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   the records through the snapshot; fails with their errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
   `Unreachable` —, and with `NotSupported` through a host that does no server operations, such as a local clone.
 - `auditRows(at: Snapshot, results: Snapshot, head: Snapshot, release: { tag: string, commit: string }, gates: Array<{
-  requirement: string, gate: string, record: string }>, instanceSpec: string, register: Document[]) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
+  requirement: string, gate: string, record: string }>, instanceSpec: string, register: Document[], accepted: { person:
+  string, date: string } | null) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
   worse: number, byImplementer: number, accepted: boolean, limitations: string[] }, rows: Array<{ requirement: string,
   constrains: "product" | "process", sources: Array<{ id: string, authority: string, version: string, hashes: string[] }>,
-  tests: Array<{ id: string, level: string, outcome: string, counterProof: string | null }>, gates: string[] }> }` — one
+  tests: Array<{ id: string, level: string, outcome: string, counterProof: string | null }>, gates: string[] }>,
+  evidence: { report: { path: string, blob: string } | null, records: Array<{ path: string, blob: string }>, acceptance:
+  { person: string, date: string, blob: string } | null } }` — one
   row per requirement valid at the release, a requirement without a test or without a passing outcome included and
   counted: each requirement of the product's SPEC at the release, which constrains the product, and each process
   requirement whose gate the product's workflow holds — a requirement of the instance's SPEC, `instanceSpec`, which
@@ -145,8 +148,15 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   caller reads through Process, since Process lies above this subsystem. A release before Agent M's records says which parts
   cannot be derived: `summary.limitations` names them, and each test's `outcome` is `cannot be derived`. The implementer of a
   release test is a participant of an `implement` job whose `worksOn` names an item or use case that traces to the requirement;
-  its writer is a participant of a `write-tests` job whose `results` name the test's file.
-- `auditDocument(audit: { summary: object, rows: object[] }, release: { tag: string, commit: string }) -> string` — the
+  its writer is a participant of a `write-tests` job whose `results` name the test's file. `evidence` is read from `head`:
+  the report `docs/tests/releases/v<version>.md` with its blob; every approval record that names it,
+  `docs/approvals/release-v<version>-<blob12>.md`, with its blob; and the acceptance: the person and date of the commit
+  that added the record naming the report's current blob, with the blob that record names. `accepted` is that commit's
+  author and date, which the caller reads through MOD-repository-hosts' `readHistory` of the record's path with
+  `changes: false`, as it reads `gates`, since this module reads no history. A release with no report or no such record
+  on `head` gives `report: null` or `acceptance: null`, and `summary.limitations` names what is missing.
+- `auditDocument(audit: { summary: object, rows: object[], evidence: object }, release: { tag: string, commit: string })
+  -> string` — the
   self-contained Markdown document of the audit; the browser saves it, and a person with write access may commit it to
   `docs/audits/<tag>.md`.
 

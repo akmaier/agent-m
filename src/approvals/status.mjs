@@ -1,6 +1,6 @@
 // status.mjs — statuses: the status of every reviewed file of a snapshot, from one pass over docs/approvals/; and
 // statusOf: the status of one reviewed file; lastAcceptedText: the text that the most recent record of an identifier names
-// (MOD-approvals, Interfaces). ITM-233 builds statuses, ITM-334 lastAcceptedText, ITM-887 statusOf.
+// (MOD-approvals, Interfaces).
 //
 // Module: MOD-approvals
 //
@@ -134,7 +134,7 @@ export async function lastAcceptedText(id, host) {
   const records = head.paths.filter((path) => approvalRecord(path)?.id === id);
   if (records.length === 0) return null;
   const added = await Promise.all(records.map(async (path) => {
-    const [adding] = await host.readHistory(path, { ref: head.commit, limit: 1 });
+    const [adding] = await host.readHistory(path, { ref: head.commit, limit: 1, changes: false });
     return { path, commit: adding.commit, at: Date.parse(adding.date) };
   }));
   const last = added.reduce((newest, each) => (each.at > newest.at ? each : newest));

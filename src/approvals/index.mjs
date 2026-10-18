@@ -1,10 +1,10 @@
 // MOD-approvals — approval records and the status of reviewed files (docs/architecture/MOD-approvals.md): its interface.
-// Of it, ITM-233 builds approvalSchema, the approval record's schema, and statuses, the status — open, accepted or
-// changed — of every reviewed file of a snapshot from one pass over docs/approvals/ (status.mjs). ITM-332 builds
-// approvalStrategies with the recipes use-cases and use-case-with-neighbours and the precondition rests-on-accepted for
-// requirements and use cases (strategies.mjs); its other recipes and preconditions are not built yet. ITM-333 builds
-// acceptShown, acceptanceBlockers and fallbackAcceptLink (accept.mjs). ITM-334 builds lastAcceptedText, the text the most
-// recent record of an identifier names (status.mjs). ITM-887 builds statusOf, the status of one reviewed file (status.mjs).
+// It provides approvalSchema, the approval record's schema, and statuses, the status — open, accepted or
+// changed — of every reviewed file of a snapshot from one pass over docs/approvals/ (status.mjs); approvalStrategies with
+// the recipes use-cases and use-case-with-neighbours and the precondition rests-on-accepted for requirements and use cases
+// (strategies.mjs), its other recipes and preconditions are not built yet; acceptShown, acceptanceBlockers and
+// fallbackAcceptLink (accept.mjs); lastAcceptedText, the text the most recent record of an identifier names (status.mjs);
+// and statusOf, the status of one reviewed file (status.mjs).
 //
 // Module: MOD-approvals
 //

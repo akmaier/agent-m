@@ -2,8 +2,8 @@
 // sources its node keeps and the use cases, decisions, modules, tests and items that name it, read through the edges that point at
 // it, requirementImpact, which lists every place an artifact names a requirement, read through the edges that point at it, and
 // coverageGaps, which lists the requirements and use cases that lack a counterpart and the names that match nothing.
-// architectureImpact derives the architecture-change list from the graph's facts and the caller's before/after texts, and moduleRows
-// the module rows with their gaps.
+// architectureImpact derives the architecture-change list from the graph's facts and the caller's before/after texts, moduleOrder the
+// order of the modules by the interfaces they use, and moduleRows the module rows with their gaps.
 //
 // Module: MOD-trace-graph
 
@@ -111,10 +111,12 @@ export function architectureImpact(graph, changes) {
   }
   for (const id of modules.keys()) keepFolder(graph.nodes.get(id)?.folder);
   const tests = unique(graph.edges.filter((edge) => edge.via === "exercises" && modules.has(edge.to)).map((edge) => edge.from));
+  const guardsOf = new Map(tests.map((id) => [id, []]));
+  for (const edge of graph.edges) if (edge.via === "guards") guardsOf.get(edge.from)?.push(edge.to);
   return {
     modules: [...modules.values()].sort((a, b) => priority[b.why] - priority[a.why] || byText(a.id, b.id)),
     codeFiles: unique(graph.files.filter((path) => isCodePath(path) && [...folders].some((folder) => path.startsWith(folder)))),
-    tests: tests.map((id) => ({ id, guards: unique(graph.edges.filter((edge) => edge.via === "guards" && edge.from === id).map((edge) => edge.to)) })),
+    tests: tests.map((id) => ({ id, guards: unique(guardsOf.get(id)) })),
     named: { added: unique([...afterNames].filter((name) => !beforeNames.has(name))),
       removed: unique([...beforeNames].filter((name) => !afterNames.has(name))) },
     items: unique(graph.edges.filter((edge) => edge.via === "changes" && modules.has(edge.to)).map((edge) => edge.from)),
@@ -160,6 +162,35 @@ export function coverageGaps(graph) {
     unknownNames: [...unknown].sort(([a], [b]) => byText(a, b))
       .map(([name, places]) => ({ name, namedBy: places.sort((a, b) => byText(a.id, b.id)) })),
   };
+}
+
+// moduleOrder(graph: Graph) -> { order: string[] } | { cycle: string[] } — the modules in an order in which every module stands after every
+// module whose interfaces it uses, or the modules of a cycle when there is one (A RUN FOLLOWS THE MODULES' INTERFACES). It reads the
+// graph's module nodes and its `uses` edges, whose `to` is `MOD-<slug>.<name>`: the module is the part before the dot. A use of a module
+// the graph holds no node for orders nothing, graphFindings reports it. Modules that do not use each other stand in the order of their
+// identifiers, which the interface does not promise. A cycle is the modules of one cycle in the order of the uses, each using the next and
+// the last using the first, beginning with the first by identifier; a module that merely stands after a cycle is not in it.
+export function moduleOrder(graph) {
+  const modules = idsOf(graph, "MOD");
+  const uses = new Map(modules.map((id) => [id, new Set()]));
+  for (const edge of graph.edges) {
+    const used = edge.to.split(".")[0];
+    if (edge.via === "uses" && uses.has(edge.from) && uses.has(used)) uses.get(edge.from).add(used);
+  }
+  const order = [], placed = new Set();
+  for (;;) {
+    const ready = modules.filter((id) => !placed.has(id) && [...uses.get(id)].every((used) => placed.has(used)));
+    if (ready.length === 0) break;
+    ready.forEach((id) => { order.push(id); placed.add(id); });
+  }
+  if (order.length === modules.length) return { order };
+  // Every module left uses a module that is left, so following the first of those from the first module left comes back to a module on the way.
+  const next = (id) => [...uses.get(id)].filter((used) => !placed.has(used)).sort(byText)[0];
+  const walk = [];
+  let at = modules.find((id) => !placed.has(id));
+  while (!walk.includes(at)) { walk.push(at); at = next(at); }
+  const loop = walk.slice(walk.indexOf(at)), first = loop.indexOf([...loop].sort(byText)[0]);
+  return { cycle: [...loop.slice(first), ...loop.slice(0, first)] };
 }
 
 // moduleRows(graph: Graph) -> { rows: ModuleRow[], gaps: ModuleGap[] } — one row per module, as UC-025 shows it, and the gaps (MODULE GAPS

@@ -24,6 +24,7 @@ uses:
   - MOD-progress-measures.currentStage
   - MOD-progress-measures.buildInProgress
   - MOD-progress-measures.waitingForAPerson
+  - MOD-progress-measures.storedOverview
   - MOD-product-process.mayDecide
   - MOD-product-process.recordGateDecision
   - MOD-job-ledger.listJobs
@@ -83,6 +84,11 @@ an interval the repository servers' rate limits allow, so the build stays curren
     working on it, its participant, state and elapsed time; without a product, Agent M's own card from the instance
     repository and *+ Add product*; a card whose repository cannot be read says which and links the token's setting;
     below the cards, what waits for a person across the instance, each item linked to the page where it is decided.
+    A card first reads the overview stored for its default branch's head (MOD-progress-measures' `storedOverview`, one
+    request). Where there is one, its stage bar and what waits come from it, and only the build is read, with
+    `productFacts`' scope `build`. Where there is none, the card reads the scope `all` as before. The stored overview is a
+    record of the repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
+    browser.
   - `jobs` — every job of every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
@@ -118,7 +124,7 @@ instance repository through their hosts, and the browser's store for the product
   setting and a run's page.
 - MOD-progress-measures.productFacts, MOD-progress-measures.stageShares, MOD-progress-measures.currentStage,
   MOD-progress-measures.buildInProgress, MOD-progress-measures.waitingForAPerson — the cards, the workflow and gate
-  states of a product, and what waits.
+  states of a product, and what waits; MOD-progress-measures.storedOverview — the overview stored for a commit.
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
   MOD-product-process.recordGateDecision — the decision.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;

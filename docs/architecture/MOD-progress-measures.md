@@ -33,6 +33,7 @@ uses:
   - MOD-release-evidence.reportsAwaitingAcceptance
   - MOD-test-document.TestDeclaration
   - MOD-test-document.testDeclarations
+  - MOD-test-document.isTestFile
   - MOD-trace-graph.Graph
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.tracesTo
@@ -59,6 +60,7 @@ uses:
   - MOD-repository-hosts.CiRun
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.listCiRuns
@@ -66,6 +68,8 @@ uses:
 provides:
   - Facts
   - productFacts
+  - publishOverview
+  - storedOverview
   - progressIn
   - stageShares
   - currentStage
@@ -101,7 +105,10 @@ notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in t
 
 ## Data
 
-It keeps nothing and owns no file. It owns the structure `Facts`, which MOD-run-planner and the pages read.
+It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read. It owns one kind of file:
+`<commit>.json` on the branch `overview-cache` of a repository, the main page's overview of that commit, which
+`publishOverview` adds and no one changes or deletes: `{ commit, shares, waiting }`, as `stageShares` and
+`waitingForAPerson` give them for the facts of that commit.
 
 The six stages of the main page, each a share between 0 and 1:
 
@@ -142,20 +149,22 @@ The six stages of the main page, each a share between 0 and 1:
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
 - `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date, bridges:
-  Record<string, Bridge>, options?: { scope: "all" | "work" }) -> Promise<Facts>` — with the scope `work`, what MOD-prompt-bar
+  Record<string, Bridge>, options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
+  `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the live state of every job
+  that has not ended, and the pull requests —; with the scope `work`, what MOD-prompt-bar
   asks before a hand-over starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
   records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
   With the scope `all`, the default, it reads everything once: the default branch of the product — through a
-  local clone, the branch it has checked out — and what the repository says about it, the trace graph, the approval
+  local clone, the branch it has checked out — and what the repository says about it, the approval
   records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
   commit the declaration's `model_version` names, read with `instanceAt`, and the history of the declaration, the
   instance's participants, the plan or the backlog
   and the sprints, the gate records, the job records and the live state of every job that has not ended — from the CI
   service, from the Bridges given in `bridges` and from this tab, through MOD-runtimes' `liveState` —, the pull
   requests — and, for the head commits MOD-work-plans' `undecidedHeads` names, whether the default branch contains them,
-  through the host's `containsCommit`, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations and the resource list.
+  through the host's `containsCommit`, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations of the files MOD-test-document's `isTestFile` names and the resource list. It builds no trace graph: `graph` is `"unknown"` in both scopes, and a view that shows traces builds them with MOD-trace-graph's `traceGraph` when it is drawn.
   Considers:
   - `instance` is the instance as the caller reads it, for its participants, process models and `SPEC.md`: on a page
     its default branch; in CI the checkout of the instance at the commit of Agent M that runs (MOD-workflow-entries).
@@ -222,6 +231,15 @@ The six stages of the main page, each a share between 0 and 1:
   string }>` — what waits for a person in the product: open use cases, open SPEC change entries, gates whose decider is a
   person and that are pending, failed jobs; `path` is the file or record it concerns, from which the page links to where
   it is decided.
+- `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` — adds
+  `<commit>.json` to the branch `overview-cache` by `commitFiles`, on the head it read: the stage shares and what waits
+  for a person, from `facts` read with the scope `all` at the snapshot's commit. `written` is `false` when the branch
+  holds the file already. Crosses the network; fails as `commitFiles` fails, with `NotFound` naming the branch when the
+  repository has none.
+- `storedOverview(snapshot: Snapshot) -> Promise<{ shares: Array<{ stage: string, share: number | null, detail: string }>,
+  waiting: Array<{ kind: string, id: string, path: string }> } | null>` — the overview stored for the snapshot's commit,
+  read with the snapshot's `readOn` in one request; `null` when the branch or the file is missing or holds another
+  format.
 - `waitingForAcceptance(host: Host, snapshot: Snapshot) -> Promise<Array<{ kind: "SPEC change" | "use case" |
   "architecture decision" | "module" | "release test report", id: string, path: string, blob: string }>>` — what waits
   for the person's acceptance in one repository, the instance's or a product's, the snapshot being its default branch
@@ -255,7 +273,7 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
   `docs/use-cases/` and `docs/architecture/`; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
   only while a release candidate is pending, `docs/jobs/` back to the first run of a candidate.
-- Writes nothing.
+- Writes, for `publishOverview`, `<commit>.json` on the branch `overview-cache`, only by adding.
 
 ## Uses
 
@@ -272,8 +290,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   CI configuration is generated from it.
 - MOD-result-records.resultsAt — the outcomes recorded for the default branch.
 - MOD-release-evidence.reportsAwaitingAcceptance — the release test report that waits for acceptance, if one does.
-- MOD-test-document.TestDeclaration, testDeclarations, MOD-trace-graph.Graph, traceGraph, tracesTo — which tests guard
-  which requirement, and the traces behind a cell of the grid.
+- MOD-test-document.TestDeclaration, testDeclarations, isTestFile, MOD-trace-graph.Graph, traceGraph, tracesTo — which
+  tests guard which requirement, which files are test files, and the traces behind a cell of the grid.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.
 - MOD-runtimes.liveState, jobWorkflowFiles, ResourceNeed — the live state of jobs that have not ended, the paths of the
   job workflow, and the type of a resource need.
@@ -284,4 +302,5 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   module files among them.
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,
   listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it; the snapshots
-  `instanceAt` gives of the instance at the commit a declaration names.
+  `instanceAt` gives of the instance at the commit a declaration names; `commitFiles` — `publishOverview`'s one commit
+  to the branch `overview-cache`.

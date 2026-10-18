@@ -30,6 +30,29 @@ export function dueDiligenceSection(section) {
   return el("section", "due-diligence", el("h4", null, "Due diligence"), renderArtifact(section));
 }
 
+// The text of a section of a report, under its heading `## <heading>`, or null where the report has none.
+const sectionOf = (body, heading) => new RegExp(`^## ${heading}[ \\t]*\\n([^]*?)(?=^## |(?![^]))`, "m").exec(body)?.[1] ?? null;
+
+// The extra sections of a release test report (MOD-review-pages, the table of kinds): the changelog entry the report holds, which the person confirms by accepting,
+// and, where the report names a failing test or a worse rate in its `## Limitations`, a field for the reason of each. { nodes, reasons } — the sections to draw, and
+// `reasons()`, the reasons as typed so far, by the identifier of the test or rate: the `limitations` of MOD-release-evidence.acceptAndRelease's decision.
+export function reportSections(body) {
+  const ids = [...(sectionOf(body, "Limitations") ?? "").matchAll(/^- ([^\s:]+):/gm)].map((found) => found[1]);
+  const fields = new Map(ids.map((id) => {
+    const field = el("input", "reason");
+    field.setAttribute("data-id", id);
+    field.setAttribute("aria-label", `Reason for ${id}`);
+    return [id, field];
+  }));
+  const nodes = [el("section", "changelog-entry", el("h3", null, "Changelog entry"), el("p", null, (sectionOf(body, "Changelog entry") ?? "").trim()))];
+  if (ids.length) {
+    const list = el("ul");
+    for (const [id, field] of fields) list.append(el("li", null, el("label", null, `${id} `, field)));
+    nodes.push(el("section", "limitations", el("h3", null, "Limitations"), el("p", null, "A reason is needed for every failing test and every rate worse than the running version's."), list));
+  }
+  return { nodes, reasons: () => Object.fromEntries([...fields].map(([id, field]) => [id, (field.value ?? "").trim()])) };
+}
+
 // A finding in the compiler's form, as MOD-text-tools writes it: <artifact>:<line>: <kind>: <what> [<rule>] — <fix>.
 const findingText = (found) => `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}`;
 const answerText = (answer) => (answer.text ? `${answer.how}: ${answer.text}` : answer.how);

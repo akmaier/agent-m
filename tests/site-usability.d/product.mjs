@@ -1,5 +1,5 @@
 // The fixture product the pages of tests/site-usability.test.mjs are drawn over: a SPEC of two sections and five requirements, three use
-// cases (one accepted, one open, one with a table, a diagram and a long line), an architecture decision and three modules (one accepted),
+// cases (one accepted and changed since, one open, one with a table, a diagram and a long line), an architecture decision and three modules (one accepted),
 // a queue of two SPEC change entries, a group file, the process declaration of a product with two teams, a backlog of five items, the
 // sprint of each team and three pull requests. Names and titles are as long as the repository's own, so that a page meets the widths
 // it meets in use. It is test data; it holds no expected result.
@@ -178,6 +178,13 @@ const ITEMS = [
   [5, "Count the items of a sprint left at its start, after each merge of one of them, and now", ["MOD-progress-measures"]],
 ];
 
+// The text of use case UC-001 when it was accepted: its goal said less. The file at the default branch is the changed one, so that its page and
+// Review all draw the difference to the last accepted text.
+const ACCEPTED_FIRST = () => useCase("UC-001", "Read a file at a pinned commit", TABLE + DIAGRAM).replace("exactly as the pinned commit holds it", "as the pinned commit holds it");
+
+// history() -> string[] — the texts of the earlier commits that the fixture's approval records name and its default branch no longer holds.
+export const history = async () => [ACCEPTED_FIRST()];
+
 // files() -> Promise<{ path: text }> — the fixture product's repository at its default branch.
 export async function files() {
   const first = useCase("UC-001", "Read a file at a pinned commit", TABLE + DIAGRAM);
@@ -186,7 +193,7 @@ export async function files() {
   const pages = moduleFile("MOD-pages", "The pages every reader sees", ["MOD-reader.read"]);
   const reader = moduleFile("MOD-reader", "Reads files at a pinned commit");
   const progress = moduleFile("MOD-progress-measures", "Derives the progress of a product", ["MOD-reader.read"]);
-  const records = [await approval("use-case", "docs/use-cases/UC-001-read-a-file-at-a-pinned-commit.md", first),
+  const records = [await approval("use-case", "docs/use-cases/UC-001-read-a-file-at-a-pinned-commit.md", ACCEPTED_FIRST()),
     await approval("decision", "docs/architecture/ARC-001-static-client.md", decision), await approval("module", "docs/architecture/MOD-reader.md", reader)];
   return {
     "SPEC.md": SPEC,

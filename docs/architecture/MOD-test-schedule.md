@@ -11,6 +11,7 @@ uses:
   - MOD-documents.loadSchema
   - MOD-documents.readDocument
   - MOD-documents.readRegister
+  - MOD-documents.writeDocument
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
@@ -171,8 +172,8 @@ module. The file holds:
 
 ## Uses
 
-- MOD-documents.Schema, Document, loadSchema, readDocument, readRegister — the schedule, the participants and the resources by their
-  schemas.
+- MOD-documents.Schema, Document, loadSchema, readDocument, readRegister, writeDocument — the schedule, the participants and the
+  resources by their schemas, and the schedule's text to commit.
 - MOD-participant-list.participantSchema, participantsOf, eligible — the instance's register, its participants and which
   may run a row on a self-hosted runner.
 - MOD-resource-list.resourceSchema — the services the tests call and the names of their secrets.

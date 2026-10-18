@@ -316,3 +316,90 @@ test("TST-554010 code files follow the accepted folder exclusions without legacy
   assert.deepEqual([...actual].sort(), ["src/reader/.git/local.js", "src/reader/nested/types.ts", "src/reader/read.mjs",
     "src/reader/third-party/adapt.py", "src/reader/third_party/adapt.mjs"]);
 });
+
+// Extra tests that all exercise MOD-reader (ITM-906): guards in a different order, a guard stated twice, a test that guards nothing.
+const MANY = {
+  "tests/many-a.test.mjs": testText("TST-111", "MOD-reader", ["UC-001", "RULE TWO", "RULE ONE"]),
+  "tests/many-b.test.mjs": testText("TST-112", "MOD-reader", ["RULE TWO", "RULE TWO"]),
+  "tests/many-c.test.mjs": testText("TST-113", "MOD-reader", []),
+  "tests/many-d.test.mjs": testText("TST-114", "MOD-reader", ["UC-001"]),
+  "tests/many-e.test.mjs": testText("TST-115", "MOD-reader", ["RULE ONE", "UC-001"]),
+  "tests/many-f.test.mjs": testText("TST-116", "MOD-reader", ["RULE TWO"]),
+};
+
+// Measures how often architectureImpact reads the edges of `graph`, whatever walks them and whatever list it walks.
+// 1. Each edge is wrapped once, and the same wrapper sits in graph.edges and in every array made from it (a slice, a spread, a
+//    filter result). Every read of a property of an edge is counted for that edge and that property; `edgeReads` is the most
+//    any one property of any one edge is read. A scan for each test raises it with the number of tests; one pass does not.
+// 2. A copy made of new objects (`{ ...edge }`, Object.assign, structuredClone) holds no wrapper, so a scan of it cannot be seen.
+//    Two things are counted instead. Copying an edge asks the wrapper for its keys: `copies` counts those asks. And while the
+//    function runs, each call of an array method, or of the iterator, on an array of exactly as many entries as graph.edges
+//    is counted in `arrayScans`. The patch is undone before the call returns; the call is synchronous.
+const SCANNING = ["filter", "map", "forEach", "some", "every", "find", "findIndex", "findLast", "findLastIndex", "reduce",
+  "reduceRight", "indexOf", "lastIndexOf", "includes", "flatMap", "flat", "slice", "join", "entries", "keys", "values", Symbol.iterator];
+function measureEdgeReads(graph, changes) {
+  const perEdge = [];
+  let copies = 0;
+  const edges = graph.edges.map((edge) => { const counts = new Map(); perEdge.push(counts);
+    return new Proxy(edge, {
+      get(target, key, receiver) {
+        if (typeof key === "string") counts.set(key, (counts.get(key) ?? 0) + 1);
+        return Reflect.get(target, key, receiver);
+      },
+      ownKeys(target) { copies += 1; return Reflect.ownKeys(target); },
+    }); });
+  const size = edges.length;
+  const originals = SCANNING.map((name) => [name, Array.prototype[name]]);
+  let arrayScans = 0;
+  for (const [name, original] of originals) {
+    Array.prototype[name] = function (...args) { if (this.length === size) arrayScans += 1; return original.apply(this, args); };
+  }
+  let impact;
+  try { impact = trace.architectureImpact({ ...graph, edges }, changes); }
+  finally { for (const [name, original] of originals) Array.prototype[name] = original; }
+  const edgeReads = Math.max(0, ...perEdge.flatMap((counts) => [...counts.values()]));
+  return { impact, edgeReads, arrayScans, copies };
+}
+
+// TST-906001
+// level: unit
+// module: MOD-trace-graph
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
+// given: seven tests exercise MOD-reader, among them guards in another order, a guard stated twice and a test that guards nothing
+// input: architectureImpact of a reader prose change, and for each listed test the guards built edge by edge from graph.edges
+// expect: tests TST-101, TST-111 to TST-116 in order, each with exactly the sorted, deduplicated guards of its guards edges, and
+// expect: the literal list below; the value is the one the function gave before the guards came from one pass
+test("TST-906001 the guards of each listed test equal the list built edge by edge", async () => {
+  const after = READER_BEFORE.replace("One concern.", "Reads each file whole.");
+  const { graph } = await fixture({ ...MANY, [READER]: after });
+  const impact = trace.architectureImpact(graph, [{ path: READER, before: READER_BEFORE, after }]);
+  const byEdge = impact.tests.map(({ id }) => ({ id, guards: [...new Set(graph.edges
+    .filter((edge) => edge.via === "guards" && edge.from === id).map((edge) => edge.to))].sort() }));
+  assert.deepEqual(impact.tests, byEdge);
+  assert.deepEqual(impact.tests, [
+    { id: "TST-101", guards: ["RULE ONE", "UC-001"] }, { id: "TST-111", guards: ["RULE ONE", "RULE TWO", "UC-001"] },
+    { id: "TST-112", guards: ["RULE TWO"] }, { id: "TST-113", guards: [] }, { id: "TST-114", guards: ["UC-001"] },
+    { id: "TST-115", guards: ["RULE ONE", "UC-001"] }, { id: "TST-116", guards: ["RULE TWO"] },
+  ]);
+});
+
+// TST-906002
+// level: unit
+// module: MOD-trace-graph
+// guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
+// given: two graphs of the same repository, one with one test exercising MOD-reader, one with seven; every edge is wrapped so that each
+// given: read of one of its properties is counted, in graph.edges and in any copy of it, and array calls on a list of as many entries are counted
+// input: architectureImpact of the same reader prose change on each graph
+// expect: the most any property of any edge is read, and the array scans of a list of edge length, are the same for both graphs,
+// expect: and no edge is copied into a new object; the one-test graph lists one test and the seven-test graph seven, and the counters are above zero (positive controls)
+test("TST-906002 the reads of each edge do not grow with the number of tests, through a copy too", async () => {
+  const after = READER_BEFORE.replace("One concern.", "Reads each file whole.");
+  const changes = [{ path: READER, before: READER_BEFORE, after }];
+  const few = measureEdgeReads((await fixture({ [READER]: after })).graph, changes);
+  const many = measureEdgeReads((await fixture({ ...MANY, [READER]: after })).graph, changes);
+  assert.equal(few.impact.tests.length, 1, "positive control: one test exercises the module");
+  assert.equal(many.impact.tests.length, 7, "positive control: seven tests exercise the module");
+  assert.ok(few.edgeReads > 0 && few.arrayScans > 0, "positive control: the spy sees the reads");
+  assert.deepEqual({ edgeReads: many.edgeReads, arrayScans: many.arrayScans }, { edgeReads: few.edgeReads, arrayScans: few.arrayScans });
+  assert.deepEqual({ few: few.copies, many: many.copies }, { few: 0, many: 0 }, "no edge is copied into a new object, where a scan of it would go unseen");
+});
