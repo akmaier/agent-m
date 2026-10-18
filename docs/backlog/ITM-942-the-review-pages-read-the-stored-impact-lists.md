@@ -41,3 +41,8 @@ the graph through `graphOnce`. Each call reads whole trees.
 - Counter-proof: ignoring the stored entry fails the count test.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/review-pages/` and the tests that name MOD-review-pages change.
+
+## Read at sprint team2/94's second plan (po-opus-b)
+
+The draft `c6baba33` is accepted in `8bf67a3b`. Each module's current blob is the draft's blob, so the quotes and their lines
+stand.

@@ -43,3 +43,10 @@ branch `trace-cache`. The work is 0.4 s of `traceGraph` and 6.2 MB of text; the 
 The drafts of MOD-trace-graph (`f90e1187`) and MOD-repository-hosts (`50b09201`) are accepted. The entry this item waited
 for is drafted for akmaier in `c6baba33`: MOD-workflow-entries' `onMainChanged`, run on every push to the default branch of
 the instance. It is not accepted yet, so this item still waits for it. ITM-941 builds the rest of that entry.
+
+## Read at sprint team2/94's second plan (po-opus-b)
+
+MOD-workflow-entries is accepted at blob `87d28597` (`8bf67a3b`). Its `onMainChanged` (MOD-workflow-entries.md:198) is the
+entry this item waited for, and it no longer waits. This item builds the workflow file, run on every push to the default
+branch, and the part of `onMainChanged` that adds the graph through `publishGraph` without `changed`. ITM-941 adds the
+impact lists and the overview.

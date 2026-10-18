@@ -41,7 +41,8 @@ the sentence is named at the start.
 ## Read at sprint team2/94's start decision (po-opus-b)
 
 The draft `f461209f` is accepted: MOD-progress-measures' approval record `c86862b9252b` names its blob (`234d3b66`). The
-sentence #904 was rejected on now reads, MOD-progress-measures.md:159 at blob `c86862b9`: "It builds no trace graph:
+sentence #904 was rejected on now reads, MOD-progress-measures.md:167 at the current accepted blob `30691d42` (`8bf67a3b`;
+it stood at :159 in `c86862b9`): "It builds no trace graph:
 `graph` is `"unknown"` in both scopes, and a view that shows traces builds them with MOD-trace-graph's `traceGraph`
 when it is drawn." So the accepted text changes the behaviour that TST-536015 (`tests/progress-measures-product-facts.test.mjs`)
 and TST-826005 (`tests/progress-measures-batches.test.mjs`) assert: `graph.commit` becomes `"unknown"`. This item

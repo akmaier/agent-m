@@ -37,3 +37,8 @@ The route `home` is still served by `src/home/`, which belongs to no module. ITM
 - Counter-proof: ignoring the stored overview fails the count test.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/main-page/` and the tests that name MOD-main-page change.
+
+## Read at sprint team2/94's second plan (po-opus-b)
+
+The draft `c6baba33` is accepted in `8bf67a3b`. Each module's current blob is the draft's blob, so the quotes and their lines
+stand.

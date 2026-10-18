@@ -41,3 +41,8 @@ ITM-908 adds the workflow file and the entry for the graph alone. This item hand
   - a failing `publishOverview` leaves the impacts written and ends `failed`, naming it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/workflow-entries/` and the tests that name MOD-workflow-entries change.
+
+## Read at sprint team2/94's second plan (po-opus-b)
+
+The draft `c6baba33` is accepted in `8bf67a3b`. Each module's current blob is the draft's blob, so the quotes and their lines
+stand.

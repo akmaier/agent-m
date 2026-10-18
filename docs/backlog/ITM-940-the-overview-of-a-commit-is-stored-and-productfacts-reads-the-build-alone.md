@@ -9,6 +9,7 @@ realises:
 modules:
   - MOD-progress-measures
 builds_on:
+  - ITM-907
 tests:
   - unit
 origin:
@@ -42,3 +43,8 @@ derived from one commit alone and is never edited, as the graph on `trace-cache`
 - Counter-proof: with the scope `build` reading as `all`, the count test fails.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/progress-measures/` and the tests that name MOD-progress-measures change.
+
+## Read at sprint team2/94's second plan (po-opus-b)
+
+The draft is accepted at blob `30691d42` (`8bf67a3b`), the same text as `c6baba33`, so the quotes stand. `storedOverview`
+reads "with the snapshot's `readOn`", which ITM-907 builds in MOD-repository-hosts, so this item builds on ITM-907.

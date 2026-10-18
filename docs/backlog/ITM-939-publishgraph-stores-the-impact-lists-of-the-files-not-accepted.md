@@ -41,3 +41,8 @@ ITM-908 builds `publishGraph` without `changed`. This item adds `changed`, the f
 - Counter-proof: an impact list computed without the before-text fails the first test.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/trace-graph/` and the tests that name MOD-trace-graph change.
+
+## Read at sprint team2/94's second plan (po-opus-b)
+
+The draft `c6baba33` is accepted in `8bf67a3b`. Each module's current blob is the draft's blob, so the quotes and their lines
+stand.
