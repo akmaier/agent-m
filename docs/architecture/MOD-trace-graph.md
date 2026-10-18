@@ -81,10 +81,29 @@ What it reads, and as what:
 | `docs/use-cases/UC-*.md`, `docs/architecture/ARC-*.md`, `docs/architecture/MOD-*.md`, `docs/plan/ITM-*.md`, `docs/backlog/ITM-*.md` | documents, through MOD-documents with the schemas it owns |
 | test files, as MOD-test-document's `isTestFile` tells them | test declarations, through MOD-test-document |
 | `docs/groups/<kind>.md` | the groups' titles, through MOD-group-document, so that a group's title named where an identifier is expected is found |
-| code files — files whose extension names a programming or style-sheet language, outside `docs/`, test files and folders named `vendor` or `node_modules` | paths, and for JavaScript, TypeScript, Python and CSS the modules they import |
+| code files — files whose extension is one of those listed below, outside `docs/`, test files and folders named `vendor` or `node_modules` | paths, and for JavaScript, TypeScript, Python and CSS the modules they import |
 
 A code file belongs to the module whose `folder` holds it; a module's folder is named after its identifier (`A MODULE IS
-A FOLDER`).
+A FOLDER`). The graph holds no field for it: a code node's module is the module whose `folder` is the beginning of its
+path, and a code file in no module's folder belongs to none.
+
+The extensions of the four languages whose imports are read, and what an import is in each:
+
+| Language | Extensions | An import is |
+|---|---|---|
+| JavaScript | `js`, `mjs`, `cjs`, `jsx` | a static `import … from "x"`, `import "x"` or `export … from "x"`, a `import("x")` and a `require("x")` whose argument is a string literal |
+| TypeScript | `ts`, `tsx`, `mts`, `cts` | as in JavaScript |
+| Python | `py` | `import a.b` and `from a.b import c`, where the dotted name is a path from the repository's root, and `from . import c` or `from ..a import c`, relative to the file's directory |
+| CSS | `css` | `@import "x"` and `@import url("x")` |
+
+The other extensions of code files, whose imports are not read: `rb`, `go`, `rs`, `java`, `kt`, `kts`, `scala`, `c`, `h`,
+`cc`, `cpp`, `hpp`, `cs`, `swift`, `m`, `php`, `pl`, `lua`, `r`, `jl`, `sh`, `bash`, `zsh`, `ps1`, `sql`, `scss`, `html`,
+`vue`, `svelte`, `dart`, `ex`, `exs`, `erl`, `hs`, `ml`, `fs`, `clj`.
+
+A specifier that begins with `.` is resolved against the importing file's directory, any other against the repository's
+root. The module imported is the one whose `folder` is the beginning of the resolved path. An `imports` edge is made only
+when that module is another than the importing file's own; a specifier that names no path of the repository (a package, a
+`node:` name) and a path in no module's folder make none.
 
 The graph keeps, while it is built, every fact a check across artifacts needs, so that each check is decided from the
 graph alone and no file is read twice:
@@ -116,7 +135,11 @@ identifier, and which register entry an item names is MOD-source-register's to s
   every node and every link, with the facts listed under Data: a node's field that its kind does not have is `null`, and a
   group's node is keyed `<path>:<line>`; an edge's `interface` is `null` but for `uses`; `files` every path the
   `TextSource` lists; `links` each link an artifact writes, `from` the artifact's identifier; `positions` the warnings of
-  `positionalReferences`, as it gives them; `unread` the files it could not read, with the reason.
+  `positionalReferences`, as it gives them; `unread` the files it could not read, with the reason; a code
+  node's `id` is its path, its `line` is 1 and its `title`, `blob` and other facts are `null`; an `imports` edge's `from` is
+  the importing code node's `id`, its `to` the identifier of the module imported, its `path` and `line` the file and line of
+  the import. A code file of another extension is a node and is not read, so `readMany` is not told it; that its imports
+  are not read follows from its extension, as `moduleRows`' `importsRead` says.
 - `Traces` — `{ sources: string[], useCases: string[], decisions: string[], modules: string[], tests: string[], items:
   string[] }`.
 - `Gaps` — `{ requirementsWithoutUseCase: string[], requirementsWithoutModule: string[], requirementsWithoutTest:
