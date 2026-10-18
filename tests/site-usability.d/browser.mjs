@@ -92,17 +92,18 @@ async function session(url) {
     pending.delete(value.id);
     if (value.error) done.reject(new Error(value.error.message)); else done.resolve(value.result);
   });
-  const call = (method, params = {}) => new Promise((resolve, reject) => {
+  const call = (method, params = {}, within = 30000) => new Promise((resolve, reject) => {
     const id = nextId++;
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} was not answered within 30 s`)); }, 30000);
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} was not answered within ${within / 1000} s`)); }, within);
     pending.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (failure) => { clearTimeout(timer); reject(failure); } });
     socket.send(JSON.stringify({ id, method, params }));
   });
   return {
     call,
     // evaluate(expression) -> the value the expression gives in the page, which may be a promise; an exception in the page throws here.
-    async evaluate(expression) {
-      const answer = await call("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+    // `within` is how long the answer may take: an evaluation sent while a document is being replaced can be lost, so a caller that can send it again gives it a short time.
+    async evaluate(expression, within = 30000) {
+      const answer = await call("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }, within);
       if (answer.exceptionDetails) throw new Error(`The page threw: ${answer.exceptionDetails.exception?.description ?? answer.exceptionDetails.text}`);
       return answer.result.value;
     },
