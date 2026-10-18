@@ -21,6 +21,10 @@ const ACCEPTED_FIRST = "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED";
 const ONLY_ACCEPTED = "ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES";
 const AS_A_WHOLE = "THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE";
 
+// The kinds of reviewed file that make up a product's architecture: a decision and a module file. A use case and a release test
+// report are reviewed files too, and no part of it.
+const ARCHITECTURE_KINDS = { "architecture-decision": true, module: true };
+
 // A failure of the module's own, by name, with the fields its message names.
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
 
@@ -147,7 +151,7 @@ export const approvalStrategies = {
       const notAccepted = reviewed.filter((each) => each.kind === "use-case" && each.status !== "accepted");
       const changes = await openSpecChanges(snapshot);
       const found = (kind, rule, what, fix) => finding({ artifact: address, line: 1, kind, rule, what, fix });
-      if (reviewed.some((each) => each.kind !== "use-case")) {
+      if (reviewed.some((each) => each.kind in ARCHITECTURE_KINDS)) {
         return found("error", AS_A_WHOLE, "the product has an architecture already: a first architecture is not drafted beside it",
           "change the architecture instead (UC-023)");
       }
@@ -171,7 +175,7 @@ export const approvalStrategies = {
         ...useCases.filter((id) => status.get(id) !== "accepted").map((id) =>
           `the use case ${id} ${NOT_ACCEPTED[status.get(id)] ?? "is no use case of the product"}`),
         ...(context.params.architecture === true ? [...statuses(snapshot)]
-          .filter(([, each]) => each.kind !== "use-case" && each.status !== "accepted")
+          .filter(([, each]) => each.kind in ARCHITECTURE_KINDS && each.status !== "accepted")
           .map(([path, each]) => `the architecture file ${path} ${NOT_ACCEPTED[each.status]}`) : []),
       ];
       return open.length === 0 ? null : finding({ artifact: address, line: 1, kind: "error", rule: ACCEPTED_FIRST,

@@ -67,12 +67,14 @@ const notAppendableHeading = (heading, why) => namedError("NotAppendable", `appe
 
 // ---------------------------------------------------------------- values
 
-// A value read by its specification: a list as a list of texts — in front matter one item per line, in a line or a cell
-// separated by commas —; a number as a number; every other value as the text it is. What does not fit is kept as it stands,
-// for writeDocument and documentFindings to name.
-function typed(raw, spec, where) {
+// A value read by its specification: a list as a list of texts — in front matter and in a record of lines one item per line
+// (`repeats`, the values of the record's lines of that key, in order), in a section's line or a cell separated by commas —; a
+// number as a number; every other value as the text it is. What does not fit is kept as it stands, for writeDocument and
+// documentFindings to name.
+function typed(raw, spec, where, repeats) {
   if (!spec) return Array.isArray(raw) ? raw.slice() : raw;
   if (spec.type === "list") {
+    if (where === "record") return (repeats ?? [raw]).filter((item) => item !== "");
     if (Array.isArray(raw)) return raw.slice();
     return where === "front matter" ? raw : raw.split(",").map((item) => item.trim()).filter(Boolean);
   }
@@ -83,12 +85,12 @@ function typed(raw, spec, where) {
 
 // The values of keys — front matter or lines — by their specifications, each typed by the variant that holds; `path` is the
 // document's, for a condition on it.
-function typedValues(raw, order, specs, where, path) {
+function typedValues(raw, order, specs, where, path, repeats) {
   const lookup = (name) => (name === PATH ? path : textOf(raw[name]));
   const out = {};
   for (const key of order) {
     const spec = specs?.[key];
-    out[key] = typed(raw[key], spec ? effective(spec, lookup) : null, where);
+    out[key] = typed(raw[key], spec ? effective(spec, lookup) : null, where, repeats?.[key]);
   }
   return out;
 }
@@ -225,14 +227,15 @@ export function readDocument(schema, path, text) {
   const compiled = compiledOf(schema);
   const source = typeof text === "string" ? text : String(text ?? "");
   if (schema.shape === "lines") {
-    const raw = {}, order = [];
+    const raw = {}, repeats = {}, order = [];
     for (const line of textLines(source)) {
       const m = FIELD_LINE.exec(line);
       if (!m) continue;
-      if (!Object.hasOwn(raw, m[1])) order.push(m[1]);
+      if (!Object.hasOwn(raw, m[1])) { order.push(m[1]); repeats[m[1]] = []; }
       raw[m[1]] = m[2].trim();
+      repeats[m[1]].push(raw[m[1]]);
     }
-    const fields = typedValues(raw, order, schema.lines, "line", path);
+    const fields = typedValues(raw, order, schema.lines, "record", path, repeats);
     return { kind: schema.schema, path, id: identifierOf(schema, compiled, path, fields), title: null, fields, sections: [],
       appended: [], body: source };
   }
@@ -281,7 +284,7 @@ export function readRegister(schema, path, text) {
 function checkValues(schema, compiled, document) {
   const fields = isObject(document.fields) ? document.fields : {};
   const specs = (schema.shape === "lines" ? schema.lines : schema.frontMatter) ?? {};
-  const where = schema.shape === "lines" ? "line" : "front matter";
+  const where = schema.shape === "lines" ? "record" : "front matter";
   for (const key of Object.keys(fields)) {
     if (fields[key] !== undefined && !Object.hasOwn(specs, key)) {
       throw fieldError(key, null, `is not a key of the format ${schema.schema}, whose schema lists ${Object.keys(specs).join(", ") || "none"}`);
@@ -437,8 +440,10 @@ export function writeDocument(schema, document) {
   checkValues(schema, compiled, document);
   const fields = isObject(document.fields) ? document.fields : {};
   if (schema.shape === "lines") {
+    const recordLine = (key, value) => (value === "" ? `${key}:\n` : `${key}: ${value}\n`);
     return Object.keys(schema.lines ?? {}).filter((key) => has(fields, key))
-      .map((key) => (lineText(fields[key]) === "" ? `${key}:\n` : `${key}: ${lineText(fields[key])}\n`)).join("");
+      .map((key) => (Array.isArray(fields[key]) && fields[key].length ? fields[key].map((item) => recordLine(key, String(item))).join("")
+        : recordLine(key, lineText(fields[key])))).join("");
   }
   const order = Object.keys(schema.frontMatter ?? {}).filter((key) => has(fields, key));
   const front = Object.fromEntries(order.map((key) => [key, Array.isArray(fields[key]) ? fields[key].map(String) : String(fields[key])]));

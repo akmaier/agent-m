@@ -43,6 +43,7 @@ export const ROUTES = [
   { address: "#process", shows: "How this product is developed" },
   { address: "#release", shows: "New release" },
   { address: "#roles", shows: "Who fills the roles" },
+  { address: "#release-report/id=all", shows: "Review all — Release test reports" },
 ];
 
 // In every document the browser opens, before its scripts: the time of the last change anywhere in the document.
