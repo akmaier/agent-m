@@ -74,6 +74,13 @@ export function targetFindings(minimum) {
   return [...new Set(found)];
 }
 
+// unrenderedFindings() -> string[] — each block of the page that did not render: MOD-markdown-render's `renderMermaid` and `render` show a diagram
+// that fails, and a part they cannot render, as a `.unrendered` block with the reason in its first paragraph. Each finding names the reason.
+export function unrenderedFindings() {
+  return [...document.querySelectorAll(".unrendered")]
+    .map((block) => `a block that did not render: "${(block.querySelector("p")?.textContent ?? block.textContent).replace(/\s+/g, " ").trim().slice(0, 120)}"`);
+}
+
 // widthFindings(windowWidth) -> string[] — each outermost element wider than the window (an element inside an SVG is its drawing's, and the
 // drawing is the element), and the document itself when it can be scrolled sideways.
 export function widthFindings(windowWidth) {
