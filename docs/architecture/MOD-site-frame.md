@@ -115,8 +115,9 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
-  Subject | null, leave?: () -> boolean }`. Before the frame shows another route on a change of the address, it asks the
-  route shown with `leave`; `false` keeps that route and puts its address back. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
+  Subject | null, leave?: () -> boolean, unsaved?: () -> boolean }`. Before the frame shows another route on a change of the address, it asks the
+  route shown with `leave`; `false` keeps that route and puts its address back. `unsaved` tells, without asking the
+  person anything, whether the route shown holds changes that leaving it would discard; a route that gives none holds none. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
   under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
@@ -133,7 +134,8 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
   notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
   change of the fragment. A route whose rendering fails is replaced in its place by `readProblem` of that failure, except
-  a refused token, which is shown as a notice. A fragment that names no loaded route shows the first route of its menu entry, or says that
+  a refused token, which is shown as a notice. While the route shown reports `unsaved` true, closing or reloading the tab
+  makes the browser ask first, in the words the browser gives that question. A fragment that names no loaded route shows the first route of its menu entry, or says that
   the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
   `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of the address of a
   route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
