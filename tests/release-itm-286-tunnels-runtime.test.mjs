@@ -9,6 +9,7 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { ssh2NodePath } from "./ssh2-fixture.mjs";
 
 const source = new URL("../src/tunnels/index.mjs", import.meta.url).href;
 const bridgeHttp = new URL("../src/bridge-http/index.mjs", import.meta.url).href;
@@ -21,19 +22,19 @@ function run(command, arguments_, options = {}) {
 }
 
 function dependency() {
-  if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) run("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
+  const nodePath = ssh2NodePath(ssh2Cache);
   const fixture = run(process.execPath, ["--input-type=module", "-e", `
     import { createRequire } from "node:module";
     const require=createRequire(new URL("../bridge-build/package.json", ${JSON.stringify(source)})),crypto=require("node:crypto"),fixturePrivateKey=crypto.createPrivateKey({key:{kty:"OKP",crv:"Ed25519",d:Buffer.from("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60","hex").toString("base64url"),x:Buffer.from("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a","hex").toString("base64url")},format:"jwk"}),fixturePublicKey=crypto.createPublicKey(fixturePrivateKey),ordinary=crypto.generateKeyPairSync;
     if(fixturePublicKey.export({type:"spki",format:"der"}).at(-32)===0)throw Error("fixture leading-zero public byte");crypto.generateKeyPairSync=(type,options)=>{if(type!=="ed25519")throw Error("fixture key type");return {privateKey:fixturePrivateKey.export(options.privateKeyEncoding),publicKey:fixturePublicKey.export(options.publicKeyEncoding)}};
     let pair;try{const {utils}=require("ssh2");if(require("ssh2/package.json").version!=="1.17.0")throw Error("ssh2 version");pair=utils.generateKeyPairSync("ed25519");const privateKey=utils.parseKey(pair.private),publicKey=utils.parseKey(pair.public);if(privateKey instanceof Error||publicKey instanceof Error||privateKey.type!=="ssh-ed25519"||privateKey.getPublicSSH().compare(publicKey.getPublicSSH())!==0)throw Error("pinned converter/parser positive")}finally{crypto.generateKeyPairSync=ordinary}console.log(JSON.stringify(pair));
-  `], { env: { ...process.env, NODE_PATH: join(ssh2Cache, "node_modules") } });
+  `], { env: { ...process.env, NODE_PATH: nodePath } });
   const positive = run(process.execPath, ["--input-type=module", "-e", `
     import { createRequire } from "node:module";
     const require=createRequire(new URL("../bridge-build/package.json", ${JSON.stringify(source)})),{Client,Server,utils}=require("ssh2");if(require("ssh2/package.json").version!=="1.17.0")throw Error("ssh2 version");const server=new Server({hostKeys:[utils.generateKeyPairSync("rsa",{bits:2048}).private]},client=>client.on("authentication",context=>context.accept()));await new Promise((ok,no)=>server.listen(0,"127.0.0.1",error=>error?no(error):ok()));const client=new Client();await new Promise((ok,no)=>client.once("ready",ok).once("error",no).connect({host:"127.0.0.1",port:server.address().port,username:"fixture",password:"fixture",hostVerifier:()=>true}));const closed=new Promise(ok=>client.once("close",ok));client.end();await closed;await new Promise(ok=>server.close(ok));console.log("ssh2-release-loopback-positive");
-  `], { env: { ...process.env, NODE_PATH: join(ssh2Cache, "node_modules") } });
+  `], { env: { ...process.env, NODE_PATH: nodePath } });
   assert.match(positive.stdout, /ssh2-release-loopback-positive/);
-  return { nodePath: join(ssh2Cache, "node_modules"), fixture: JSON.parse(fixture.stdout) };
+  return { nodePath, fixture: JSON.parse(fixture.stdout) };
 }
 
 function worker(script, folder) {

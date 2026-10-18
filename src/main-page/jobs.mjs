@@ -83,7 +83,7 @@ function listOf(jobRows, lives) {
     return {
       id: row.record.id, product: row.product, works: row.record.worksOn.join(", "), kind: row.record.kind ?? "", participant: row.record.participant ?? "",
       runs: row.record.taken?.by ?? "not taken", state: row.state, elapsed: clock(row.elapsed), cost: costText(row.cost),
-      reason: !row.source.reachable ? `could not be read: ${row.source.reason}` : live && !live.reachable ? `not reachable: ${live.reason}` : null,
+      reason: live && !live.reachable ? `not reachable: ${live.reason}` : !row.source.reachable ? `could not be read: ${row.source.reason}` : null,
     };
   });
   const tab = currentJob();

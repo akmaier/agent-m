@@ -90,9 +90,9 @@ export function followJob({ id, address, host, store, show }) {
       view.state = row.state;
       view.route = record.route;
       view.end = record.end;
-      view.problem = !row.source.reachable ? `The record could not be read: ${row.source.reason}` : live && !live.reachable ? `The runtime is not reachable: ${live.reason}` : null;
+      view.problem = live && !live.reachable ? `The runtime is not reachable: ${live.reason}` : !row.source.reachable ? `The record could not be read: ${row.source.reason}` : null;
       if (record.end && view.address === null && typeof record.end.log === "string") view.address = record.end.log;
-      await logOf(bridges);
+      if (!live || live.reachable) await logOf(bridges); // a runtime that has just not answered is not asked again for the log
     } catch (failure) {
       view.problem = `The job could not be followed. ${said(failure)}`;
     } finally {

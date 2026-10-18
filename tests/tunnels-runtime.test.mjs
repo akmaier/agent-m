@@ -9,6 +9,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { ssh2NodePath } from "./ssh2-fixture.mjs";
 
 const source = new URL("../src/tunnels/index.mjs", import.meta.url).href;
 const ssh2Cache = join(tmpdir(), "agent-m-286-ssh2-1.17.0");
@@ -20,7 +21,7 @@ function run(command, arguments_, options = {}) {
 }
 
 function runtime() {
-  if (!existsSync(join(ssh2Cache, "node_modules", "ssh2", "package.json"))) run("npm", ["install", "--no-save", "--prefix", ssh2Cache, "ssh2@1.17.0"]);
+  const nodePath = ssh2NodePath(ssh2Cache);
   const positive = run(process.execPath, ["--input-type=module", "-e", `
     import { createRequire } from "node:module";
     const require = createRequire(new URL("../bridge-build/package.json", ${JSON.stringify(source)}));
@@ -33,9 +34,9 @@ function runtime() {
     const closed = new Promise((resolve) => client.once("close", resolve));
     client.end(); await closed; await new Promise((resolve) => server.close(resolve));
     console.log("ssh2-loopback-known-positive");
-  `], { env: { ...process.env, NODE_PATH: join(ssh2Cache, "node_modules") } });
+  `], { env: { ...process.env, NODE_PATH: nodePath } });
   assert.match(positive.stdout, /ssh2-loopback-known-positive/);
-  return join(ssh2Cache, "node_modules");
+  return nodePath;
 }
 
 function invoke(folder, plan) {
