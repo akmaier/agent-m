@@ -3,7 +3,7 @@ gate: Development → Release testing
 job:
 decider: po-opus-b
 role: Product Owner
-decision: approved
+decision: passed
 on:
   - be8fcba2a77dc18383057a29dde3aa9d7b138c36
   - https://github.com/akmaier/agent-m/pull/830
