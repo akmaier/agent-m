@@ -73,8 +73,10 @@ are kept by Access in this browser.
 ## Interfaces
 
 - `NewMail` — `{ proposable: { mail: Mail, people: People }[], attached: { id: string, product: string, issue: number
-  }[], decided: number }`: the mails to propose, each with its people, kept in memory for the checks; the mails attached
-  to an issue of their thread; how many were left out as decided.
+  }[], decided: number, unwritten: { product: string, issue: number, error: string }[] }`: the mails to propose, each with
+  its people, kept in memory for the checks; the mails attached to an issue of their thread; how many were left out as
+  decided; and each issue of a thread that could not be written to, with the error's name, whose mail is among the
+  proposable.
 - `readNewMail(mailbox: Mailbox, products: { address: string, host: Host }[], marked: string[]) -> Promise<NewMail>` —
   reads the named folders without changing anything, names each mail by its identifier, reads the issues of every
   product and the identifiers they list, and leaves out every mail an issue lists or this browser marked *not an issue*
