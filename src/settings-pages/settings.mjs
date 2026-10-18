@@ -408,8 +408,8 @@ function exportImportControls(context, signIn) {
   );
 }
 
-// A host keeps the token it was connected with. After a token is cleared, the page connects its instance and its product again with what the
-// store holds (MOD-repository-hosts.connect, as repositoryLine's Test does with the stored token), so that no later request carries the cleared one.
+// A host keeps the token it was connected with. After a token is cleared or stored, the page connects its instance and its product again with what the
+// store holds (MOD-repository-hosts.connect, as repositoryLine's Test does with the stored token), so that no later request carries a cleared token and the next one carries a stored one.
 function reconnectHosts(context) {
   const reconnect = (address) => connect(address, credentialsFor(context.store, address) ?? {});
   if (context.instance?.host) context.instance.host = reconnect(parseAddress(`https://github.com/${context.instance.repository}`));
@@ -451,6 +451,7 @@ function repositoryLine(target, context, info) {
       if (typeof globalThis.confirm !== "function" || !globalThis.confirm("Clear all managed products and their stored tokens from this browser?")) return;
       for (const web of readSetting(context.store, "products") ?? []) clearProductToken(context.store, web);
       clearSetting(context.store, info.key);
+      reconnectHosts(context);
       status.textContent = "Cleared from this browser with every product's own token.";
       await route.render(target, context, {});
     });
@@ -521,6 +522,7 @@ function repositoryLine(target, context, info) {
     if (!acknowledgement.checked || !next || !expiry.value) { result.textContent = "Acknowledge the notice, paste the token, and enter its expiry date first."; return; }
     writeSetting(context.store, info.key, { ...stored, value: next, name: stored?.name ?? info.label, expires: expiry.value, stored: new Date().toISOString().slice(0, 10) });
     clearSetting(context.store, `last-test:${info.key}`);
+    reconnectHosts(context);
     status.textContent = repositoryStatus({ ...info, expires: expiry.value, lastTest: null }, readSetting(context.store, info.key));
     result.textContent = "Saved in this browser. Test it before using it.";
   });
@@ -707,6 +709,7 @@ function productListControls(target, context) {
       if (typeof globalThis.confirm !== "function" || !globalThis.confirm(`Remove ${web} and its stored token from this browser?`)) return;
       clearProductToken(context.store, web);
       writeSetting(context.store, "products", products.filter((candidate) => candidate !== web));
+      reconnectHosts(context);
       await route.render(target, context, {});
     });
     return el("section", "settings-product-list-item", el("h4", null, web),
