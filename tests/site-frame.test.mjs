@@ -14,7 +14,7 @@
 //   DECISION
 // Level: unit
 //
-// Not part of ITM-221, and not tested here: PageSetup, startPage, embedRoute, menuOf, instanceOf, chosenProduct, runPanel,
+// Not part of ITM-221, and not tested here: PageSetup, startPage, menuOf, instanceOf, chosenProduct, runPanel,
 // confirmDecision and notice; schemaForm's options secretKeys and readOnly; the frame's own check of the topics.
 //
 // Each test names the requirement it guards and states its input and its expected result before it runs (given / input /
