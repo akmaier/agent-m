@@ -61,8 +61,10 @@ function failureSummary(entry, error) {
 
 /**
  * onSourcesCommitted(env: CiEnvironment) -> Promise<EntryStatus> — in the instance: for each EU legal text source entry
- * that has no recorded version, fetches the official text and commits the completed version row and kept file in one commit.
- * A failed fetch writes nothing and names the source that failed.
+ * that has no recorded version, and for the entry a run started with the input `source` names, fetches the official text and commits
+ * the version row and kept file in one commit; for an entry that has versions, the text is appended as a further version, and nothing is
+ * written when it equals an existing version's (`nothing to do`, naming that version). A failed fetch writes nothing and names the source
+ * that failed; an input that names no register entry, or an entry that is no EU legal text, fails naming it.
  */
 export async function onSourcesCommitted(env) {
   if (!env.token) return { outcome: "not run", summary: "GITHUB_TOKEN is missing: the workflow's own token is passed to the step as GITHUB_TOKEN. Nothing was written.", findings: [] };
@@ -70,28 +72,47 @@ export async function onSourcesCommitted(env) {
   const { host } = composeInstance(env);
   const snapshot = await host.readSnapshot(env.branch);
   const { entry: schema } = sourceSchemas();
+  const named = env.event?.payload?.inputs?.source;
+  const asked = typeof named === "string" && named !== "" ? named : null;
   const waiting = [];
+  let found = false;
   for (const path of snapshot.paths.filter((each) => SOURCE_ENTRY.test(each)).sort()) {
     const text = await snapshot.read(path);
     if (text === null) continue;
     const entry = readDocument(schema, path, text);
+    if (asked !== null && entry.id === asked) {
+      found = true;
+      const identifier = recogniseLegalText(entry.fields.identifier);
+      if (!identifier) return { outcome: "failed", summary: `${asked} is no EU legal text: its identifier names no CELEX number or ELI. Nothing was written.`, findings: [] };
+      waiting.push({ entry, identifier });
+      continue;
+    }
     const identifier = isWaitingLegalText(entry);
     if (identifier) waiting.push({ entry, identifier });
   }
+  if (asked !== null && !found) return { outcome: "failed", summary: `${asked} names no register entry. Nothing was written.`, findings: [] };
   if (waiting.length === 0) return { outcome: "nothing to do", summary: "No EU legal text is waiting for its fetch.", findings: [] };
 
   const files = [];
-  const names = [];
+  const names = [], unchanged = [], settled = new Set();
   try {
     for (const { entry, identifier } of waiting) {
       const fetched = await fetchLegalText(identifier);
-      const plan = await versionCommits(entry, fetched.files.map((file) => ({ ...file, keep: true })), {
-        version: fetched.repositoryVersion,
-        date: fetched.retrieved,
-        retrieved: fetched.retrieved,
-        repositoryVersion: fetched.repositoryVersion,
-        repository: env.repository,
-      });
+      let plan;
+      try {
+        plan = await versionCommits(entry, fetched.files.map((file) => ({ ...file, keep: true })), {
+          version: fetched.repositoryVersion,
+          date: fetched.retrieved,
+          retrieved: fetched.retrieved,
+          repositoryVersion: fetched.repositoryVersion,
+          repository: env.repository,
+        });
+      } catch (error) {
+        if (error?.name !== "SameBytes") throw error;
+        unchanged.push(`${entry.id}: the fetched text equals ${error.version}; nothing was written.`);
+        settled.add(entry.id);
+        continue;
+      }
       for (const group of plan) {
         if (group.repository && group.repository !== env.repository) {
           throw Object.assign(new Error(`${entry.id} plans source files outside the instance repository`), { name: "ContentRepositoryOutsideInstance" });
@@ -99,14 +120,16 @@ export async function onSourcesCommitted(env) {
         files.push(...group.files.map(hostFile));
       }
       names.push(entry.id);
+      settled.add(entry.id);
     }
   } catch (error) {
-    const failed = waiting.find(({ entry }) => !names.includes(entry.id))?.entry ?? waiting[0].entry;
+    const failed = waiting.find(({ entry }) => !settled.has(entry.id))?.entry ?? waiting[0].entry;
     return { outcome: "failed", summary: failureSummary(failed, error), findings: [] };
   }
 
+  if (names.length === 0) return { outcome: "nothing to do", summary: unchanged.join(" "), findings: [] };
   const message = ["sources: fetched EU legal texts", "", ...names.map((name) => `fetched ${name}`),
     ...(env.agentM.commit ? ["", `Agent-M-Commit: ${env.agentM.commit}`] : [])].join("\n") + "\n";
   await host.commitFiles({ branch: env.branch, expectedHead: snapshot.commit, files, message });
-  return { outcome: "done", summary: `Fetched ${names.join(", ")}.`, findings: [] };
+  return { outcome: "done", summary: [`Fetched ${names.join(", ")}.`, ...unchanged].join(" "), findings: [] };
 }

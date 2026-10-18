@@ -7,7 +7,8 @@
 // Module: MOD-settings-pages
 //
 // Where the texts leave a reading open, this file states the one it takes:
-//   - + New version records files: a version's identifier and date, and the files hashed in the browser, as the registration of documents does; a file only hashed asks for its note. What
+//   - + New version of a fetched EU legal text (an entry the page reads as one, with a version) starts the fetch run for the entry (startWorkflow with the input \`source\`) and offers no file; every other source:
+//     + New version records files: a version's identifier and date, and the files hashed in the browser, as the registration of documents does; a file only hashed asks for its note. What
 //     versionCommits refuses (SameBytes, NoteMissing) is shown as the module words it; the page adds no check of its own. A fetched EU legal text is given its versions by the fetch.
 //   - A source whose `identifier` is a repository's address (and no EU legal text's) is a source of kind repository: its + New version offers no files and, when saved, reads the commit the
 //     repository's default branch stands at now, as the registration of a repository does, and records it (versionCommits' `version.commit`); the same commit as an existing version is refused as SameBytes.
@@ -329,7 +330,7 @@ function movePanel(entry, entries, item, context, moved) {
 
 // UC-016 steps 1 and 3: the entry of a source with + New version and the products on older versions. The products are read after the entry is drawn, once; a new version recorded
 // from this page is drawn from the plan that recorded it, with no read.
-async function entryPage(target, first, entries, context) {
+async function entryPage(target, first, entries, context, branch) {
   const instanceRepo = context.instance.repository;
   let entry = first;
   let products = null;
@@ -370,7 +371,19 @@ async function entryPage(target, first, entries, context) {
   };
   const drawTop = () => top.replaceChildren(entryView(entry, context));
 
-  open.addEventListener("click", () => { panel.hidden = false; versionDate.value = today(); describe(); versionId.focus(); });
+  // + New version of a fetched EU legal text starts the fetch run for the entry, which appends the newer text it fetches; the other sources get the panel.
+  const fetchRun = isLegalText(first) && versionsOf(first).length > 0;
+  open.addEventListener("click", async (event) => {
+    if (!fetchRun) { panel.hidden = false; versionDate.value = today(); describe(); versionId.focus(); return; }
+    if (!event.isTrusted) return;
+    result.textContent = "";
+    try {
+      await context.instance.host.startWorkflow(FETCH_WORKFLOW, branch, { source: entry.id });
+      result.textContent = `✓ The fetch workflow was started for ${entry.id}: a newer text is recorded as a further version, the same text is not recorded again.`;
+    } catch (error) {
+      result.textContent = `✗ The fetch workflow could not be started for ${entry.id}: ${error?.message ?? error}.`;
+    }
+  });
   filesInput.addEventListener("change", () => chooseFiles(filesInput, state, fileRows, describe));
   save.addEventListener("click", async (event) => {
     if (!event.isTrusted) return;
@@ -397,7 +410,7 @@ async function entryPage(target, first, entries, context) {
     el("p", null, el("label", null, "Date ", versionDate)), ...(repository ? [] : [el("p", null, el("label", null, "Files ", filesInput)), fileRows, explain("file-only-hashed")]), statement, explain("source-public"),
     el("p", null, save), result);
   drawTop(); drawOlder();
-  target.replaceChildren(top, el("p", null, open), panel, older);
+  target.replaceChildren(top, el("p", null, open), fetchRun ? result : panel, older);
   products = await readProducts(context);
   drawOlder();
 }
@@ -418,7 +431,7 @@ export const route = {
     }
     if (typeof params.source === "string" && params.source) {
       const entry = entries.find((each) => each.id === params.source);
-      if (entry) await entryPage(target, entry, entries, context);
+      if (entry) await entryPage(target, entry, entries, context, branch);
       else target.replaceChildren(el("p", null, `The library holds no source ${params.source}.`));
       return;
     }
@@ -428,7 +441,7 @@ export const route = {
     const showList = () => list.replaceChildren(...entries.map((entry) => {
       const name = el("button", "library-source-name btn", entry.fields.title ?? entry.id);
       name.addEventListener("click", () => context.go("library", { source: entry.id }));
-      const startFetch = () => context.instance.host.startWorkflow(FETCH_WORKFLOW, branch, {});
+      const startFetch = () => context.instance.host.startWorkflow(FETCH_WORKFLOW, branch, { source: entry.id });
       return el("section", "library-source panel", el("h3", null, name), el("p", null, `${entry.id} · ${entry.fields.kind} · ${entry.fields.authority}`),
         el("p", null, versionsOf(entry).length ? `Versions: ${versionsOf(entry).map((row) => unquoted(row.cells.Version)).join(", ")}` : "No version recorded yet."),
         fetchState(entry, failures, startFetch) ?? "");
