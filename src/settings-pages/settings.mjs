@@ -391,6 +391,7 @@ function exportImportControls(context, signIn) {
     if (!chosen) return;
     try {
       const imported = await importSettings(context.store, await chosen.text(), importPassphrase.value);
+      reconnectHosts(context);
       result.textContent = `Added: ${imported.added.join(", ") || "none"}. Kept: ${imported.kept.join(", ") || "none"}.`;
     } catch (error) {
       result.textContent = error.message;
