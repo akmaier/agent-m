@@ -10,6 +10,7 @@ modules:
   - MOD-workflow-entries
 builds_on:
   - ITM-591
+  - ITM-914
 tests:
   - unit
 origin:
