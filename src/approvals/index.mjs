@@ -4,7 +4,7 @@
 // approvalStrategies with the recipes use-cases and use-case-with-neighbours and the precondition rests-on-accepted for
 // requirements and use cases (strategies.mjs); its other recipes and preconditions are not built yet. ITM-333 builds
 // acceptShown, acceptanceBlockers and fallbackAcceptLink (accept.mjs). ITM-334 builds lastAcceptedText, the text the most
-// recent record of an identifier names (status.mjs); statusOf is not built yet.
+// recent record of an identifier names (status.mjs). ITM-887 builds statusOf, the status of one reviewed file (status.mjs).
 //
 // Module: MOD-approvals
 //
@@ -43,6 +43,6 @@ async function ownFile(url) {
 export const approvalSchema = loadSchema(
   disk ? disk.readFileSync(SCHEMA_FILE, "utf8") : await ownFile(SCHEMA_FILE), OWNER);
 
-export { statuses, lastAcceptedText } from "./status.mjs";
+export { statuses, statusOf, lastAcceptedText } from "./status.mjs";
 export { acceptShown, acceptanceBlockers, fallbackAcceptLink } from "./accept.mjs";
 export { approvalStrategies } from "./strategies.mjs";
