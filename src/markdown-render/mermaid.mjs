@@ -7,6 +7,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
 let ready = false;
 let loading;
 let libraryScript;
+let stage;
 let drawing = Promise.resolve();
 const failed = (source, error) => {
   const element = document.createElement("div");
@@ -16,8 +17,8 @@ const failed = (source, error) => {
 };
 const PRESENTATION = new Set(["fill", "stroke", "filter", "marker-start", "marker-mid", "marker-end", "clip-path", "mask", "cursor"]);
 function unsafeCss(value) {
-  if (/@|\\|\/\*|\bimage-set\s*\(/i.test(value)) return true;
-  const allowed = new Set(["url", "rgb", "rgba", "hsl", "hsla", "drop-shadow", "var", "not", "is", "where", "nth-child"]);
+  if (/@(?!keyframes\b)|\\|\/\*|\bimage-set\s*\(/i.test(value)) return true;
+  const allowed = new Set(["url", "rgb", "rgba", "hsl", "hsla", "drop-shadow", "var", "not", "is", "where", "nth-child", "nth-of-type"]);
   for (const match of value.matchAll(/\b([a-z-]+)\s*\(/gi)) {
     if (!allowed.has(match[1].toLowerCase())) return true;
   }
@@ -76,7 +77,19 @@ async function drawMermaid(source) {
     element.className = "mermaid";
     element.textContent = source;
     await rejectImageMetadata(m, source);
-    await m.run({ nodes: [element] });
+    // The library finds the SVG it draws again through the document, so the element stands in the document, out of sight, while it draws.
+    if (!stage) {
+      stage = document.createElement("div");
+      stage.setAttribute("style", "position:absolute;left:-10000px;top:0;visibility:hidden");
+    }
+    if (stage.parentNode !== document.body) document.body.append(stage);
+    stage.replaceChildren(element);
+    try {
+      await m.run({ nodes: [element] });
+    }
+    finally {
+      stage.replaceChildren();
+    }
     element.innerHTML = DOMPurify.sanitize(element.innerHTML, {
       USE_PROFILES: { svg: true, svgFilters: true },
       FORBID_TAGS: ["foreignObject", "image", "feImage"],

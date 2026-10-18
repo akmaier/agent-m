@@ -380,7 +380,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },
-    querySelectorAll: () => [], createElement: (tag) => domElement(tag), body: { contains: () => true }, head };
+    querySelectorAll: () => [], createElement: (tag) => domElement(tag), body: Object.assign(domElement("body"), { contains: () => true }), head };
   const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search, hash, origin: "https://akmaier.github.io",
     get href() { return `https://akmaier.github.io/agent-m/${this.search}${this.hash}`; } };
   const listeners = [];

@@ -41,9 +41,9 @@ const RULE = {
 };
 const PER_ROUTE = {
   "/": ["brand"],
-  "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast", "scroll"], "#use-case/id=UC-002/edit=1": ["menu", "scroll", "target"],
-  "#arc": ["menu", "contrast", "scroll"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
-  "#decision/id=ARC-001/edit=1": ["menu", "scroll", "target"], "#module": ["menu", "contrast", "scroll"],
+  "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "scroll", "target"],
+  "#arc": ["menu", "contrast"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
+  "#decision/id=ARC-001/edit=1": ["menu", "scroll", "target"], "#module": ["menu", "contrast"],
   "#module/id=MOD-reader/edit=1": ["menu", "scroll", "target"], "#backlog": ["menu", "contrast", "scroll"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
