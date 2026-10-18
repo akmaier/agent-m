@@ -241,11 +241,11 @@ export function connect(address, credentials = {}) {
       });
     },
 
-    // readHistory(path, { ref, limit }) -> HistoryEntry[] — the commits that changed a path, or, for a null path, the repository,
+    // readHistory(path, { ref, limit, changes }) -> HistoryEntry[] — the commits that changed a path, or, for a null path, the repository,
     // newest first, from the branch, tag or commit `ref` (the default branch where none is given), at most `limit` of them (all
     // where none is given). Each is { commit, parents, author: { account, name }, date, message, changes }: the account the
     // server names for the author, or null; the date the commit was committed; every file it changed, as added, modified,
-    // deleted or renamed — with the path it came from. Crosses the network; fails as readSnapshot.
+    // deleted or renamed — with the path it came from — or, with `changes: false`, none. Crosses the network; fails as readSnapshot.
     readHistory: (path, options) => adapter.history(path ?? null, options ?? {}),
 
     // listTags(pattern) -> { name, commit }[] — the tags of the repository, every one of them across however many pages the
