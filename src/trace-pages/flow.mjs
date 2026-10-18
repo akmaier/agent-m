@@ -22,7 +22,7 @@ import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
-import { opening, personsSource, subjectOf } from "./subject.mjs";
+import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
 
 const SPEC_PATH = "SPEC.md";
 
@@ -82,7 +82,7 @@ async function sourcesOf(shown) {
   const { snapshot, context } = shown;
   const { entry, links } = sourceSchemas();
   let holder = snapshot;
-  if (context.instance?.host) holder = await context.instance.host.readSnapshot((await context.instance.host.repositoryInfo()).defaultBranch);
+  if (context.instance?.host) holder = await instanceSnapshot(context);
   const entries = holder.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
   // The files are named to Snapshot.readMany before they are read, as subject.mjs' personsSource names them: one batch where the links file and the register are
   // one snapshot, the register's own where they are two (the links file, a batch of one, by its read); a host that cannot batch reads nothing ahead.

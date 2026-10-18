@@ -135,10 +135,9 @@ const REGISTER = Object.fromEntries(REGISTER_FILES.map((path) => [path, entryOf(
 const RELEASE_LINK = `#trace/key=specification/ref=v1.0.0/product=${encodeURIComponent(PRODUCT)}`;
 
 // The requests the product's and the instance's repositories are asked for by one click on the requirement, as { product, instance }.
-async function clickAlpha(t, { tokens }) {
-  const page = await visit(t, RELEASE_LINK, { token: tokens, instanceToken: tokens,
-    repositories: { [REPO]: { main: FILES, "v1.0.0": RELEASED }, [INSTANCE]: { main: REGISTER } } });
-  assert.match(mainText(), /ALPHA RULE/, "known positive: the specification at the tag is drawn");
+async function clickAlpha(t, { tokens, link = RELEASE_LINK, repositories = { [REPO]: { main: FILES, "v1.0.0": RELEASED }, [INSTANCE]: { main: REGISTER } } }) {
+  const page = await visit(t, link, { token: tokens, instanceToken: tokens, repositories });
+  assert.match(mainText(), /ALPHA RULE/, "known positive: the specification is drawn");
   const before = { product: page.product().length, instance: page.world.forRepository(INSTANCE).length };
   find(document.body, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0].dispatchEvent(new Event("click"));
   await until(() => /A person — version 2026-10-11/.test(mainText()));
@@ -175,4 +174,32 @@ test("without a token, an opened requirement reads each register entry by its ow
   assert.deepEqual(asked.instance.filter((request) => request.kind === "raw").map((request) => request.file).sort(), REGISTER_FILES);
   assert.deepEqual(counted(asked.product), { api: 0, graphql: 0, raw: 2 });
   assert.deepEqual(asked.product.filter((request) => request.kind === "raw").map((request) => request.file).sort(), ["docs/sources.md", "docs/use-cases/UC-001-first.md"]);
+});
+
+// An opened requirement on the default branch (ITM-867): the product's main holds the released text above (ALPHA RULE naming SRC-acme-person, docs/sources.md, UC-001), and the instance's main the
+// register. Drawing the page on the default branch reads the instance already, for the prompt bar's person, and the frame reads its information, commit and tree of its own for what it shows
+// around the page; the click is counted from the moment the page is drawn.
+const MAIN_LINK = `#trace/key=specification/ref=main/product=${encodeURIComponent(PRODUCT)}`;
+const ON_MAIN = { [REPO]: { main: RELEASED }, [INSTANCE]: { main: REGISTER } };
+
+// CASE ITM-867-SYSTEM-01
+// TST-867201 · level: system · module: MOD-trace-pages; MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: this browser keeps the product and the instance, each with its own token; the address of the specification at the default branch main is opened
+// input: the requirement ALPHA RULE is opened
+// expect: the opening asks the instance for no request at all — 0 REST calls, 0 GraphQL batches, 0 files from the raw host —, since the instance's commit, its tree and the register's entries were read when the page was drawn; known positive: the Sources read "A person — version 2026-10-11" (the opening of ITM-846-SYSTEM-01 at the tag, which the instance side asks for 3 REST calls and 1 GraphQL batch, is unchanged)
+test("with tokens, an opened requirement on the default branch asks the instance for nothing more", async (t) => {
+  const asked = await clickAlpha(t, { tokens: true, link: MAIN_LINK, repositories: ON_MAIN });
+  assert.deepEqual(counted(asked.instance), { api: 0, graphql: 0, raw: 0 });
+});
+
+// CASE ITM-867-SYSTEM-02
+// TST-867202 · level: system · module: MOD-trace-pages; MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the same, with no token stored
+// input: the requirement ALPHA RULE is opened
+// expect: the opening asks the instance for no request at all — 0 REST calls and 0 files from the raw host
+test("without a token, an opened requirement on the default branch asks the instance for nothing more", async (t) => {
+  const asked = await clickAlpha(t, { tokens: false, link: MAIN_LINK, repositories: ON_MAIN });
+  assert.deepEqual(counted(asked.instance), { api: 0, graphql: 0, raw: 0 });
 });
