@@ -9,6 +9,8 @@
 // Where the texts leave a reading open, this file states the one it takes:
 //   - + New version records files: a version's identifier and date, and the files hashed in the browser, as the registration of documents does; a file only hashed asks for its note. What
 //     versionCommits refuses (SameBytes, NoteMissing) is shown as the module words it; the page adds no check of its own. A fetched EU legal text is given its versions by the fetch.
+//   - A source whose `identifier` is a repository's address (and no EU legal text's) is a source of kind repository: its + New version offers no files and, when saved, reads the commit the
+//     repository's default branch stands at now, as the registration of a repository does, and records it (versionCommits' `version.commit`); the same commit as an existing version is refused as SameBytes.
 //   - The products on older versions are the products this browser keeps (the setting `products`), each read through its own host: the product's `docs/sources.md` is read once, when the
 //     entry is opened. A product is on an older version when its link names a version of an earlier row of the entry's `## Versions` than the last, the newest.
 //   - Move lists the requirements affectedRequirements names, read from the product's SPEC.md at the commit the links file was read at, and the passages of the two versions: for each file
@@ -20,7 +22,7 @@
 //   - An EU legal text is registered as its entry alone, with no version row: the later download (UC-004 7) records the version, and registrationCommits needs a first row.
 //   - The content goes to its repository before the entry goes to the instance, so that an entry never names content that was not stored.
 //   - A source is already in the library when its identifier, its title or, for a standard, its designation equals an entry's (as a requirement's source item names one).
-//   - The form is MOD-site-frame's schemaForm over the entry's schema (the schema names its rule since ITM-458): the page's own checks (an unlinked or restricted source, a missing file or
+//   - The form is MOD-site-frame's schemaForm over the entry's schema: the page's own checks (an unlinked or restricted source, a missing file or
 //     pin, a source already in the library) are its extraChecks; the checks of the schema are documentFindings'.
 //   - A choice outside the form (the route's own part, the files, the named repository) builds the form again, keeping what the person typed in it.
 //   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`).
@@ -134,6 +136,21 @@ function fetchState(entry, failures, startFetch) {
     }
   });
   return el("div", "library-fetch", state, again);
+}
+
+// The commit a repository's default branch stands at, read through a host connected with the stored credentials and secrets (the registration of a repository pins it, + New version of one records it).
+async function currentCommit(context, address) {
+  const host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  return { commit: snapshot.commit, branch: defaultBranch };
+}
+
+// The repository address of a source of kind repository: its `identifier`, when it is a repository's address and no EU legal text's; null for any other source.
+function repositoryOf(entry) {
+  const identifier = entry.fields.identifier;
+  if (typeof identifier !== "string" || isLegalText(entry)) return null;
+  try { return parseAddress(identifier); } catch { return null; }
 }
 
 // The commit of one repository's files: the branch's head read just before, the commit made on it.
@@ -330,8 +347,12 @@ async function entryPage(target, first, entries, context) {
   const result = el("p", "library-version-result");
   const save = el("button", "library-version-save btn primary", "Save new version");
   for (const input of [versionId, versionDate]) { input.autocomplete = "off"; input.spellcheck = false; }
-  const files = () => state.files.map((file) => ({ name: file.name, bytes: file.bytes, keep: !file.onlyHashed, note: file.note }));
-  const describe = () => { statement.textContent = statementOf(entry.fields, state.files, instanceRepo); };
+  const repository = repositoryOf(entry);
+  const files = () => (repository ? [] : state.files.map((file) => ({ name: file.name, bytes: file.bytes, keep: !file.onlyHashed, note: file.note })));
+  const describe = () => {
+    statement.textContent = repository ? `Becomes public: the register entry, always, in the instance repository ${instanceRepo}. No file is stored: the commit ${repository.web} stands at when you save is recorded.`
+      : statementOf(entry.fields, state.files, instanceRepo);
+  };
 
   const drawOlder = (message) => {
     if (products === null) { older.replaceChildren(el("p", "library-older-reading", "Reading the products this browser keeps.")); return; }
@@ -356,7 +377,8 @@ async function entryPage(target, first, entries, context) {
     result.textContent = "";
     const id = versionId.value.trim();
     try {
-      const plan = await versionCommits(entry, files(), { version: id, date: versionDate.value.trim(), repository: instanceRepo });
+      const commit = repository ? (await currentCommit(context, repository)).commit : undefined;
+      const plan = await versionCommits(entry, files(), { version: id, date: versionDate.value.trim(), repository: instanceRepo, commit });
       const committed = await commitPlan(context, plan, `New version ${id} of ${entry.id}`);
       if (committed.notice) { result.append(committed.notice); return; }
       const written = plan.find((item) => item.repository === instanceRepo).files.find((file) => file.path === entry.path).content;
@@ -372,7 +394,7 @@ async function entryPage(target, first, entries, context) {
   });
 
   panel.append(el("h3", null, "Add a new version"), explain("source-new-version"), el("p", null, el("label", null, "Version, its official identifier or edition ", versionId)),
-    el("p", null, el("label", null, "Date ", versionDate)), el("p", null, el("label", null, "Files ", filesInput)), fileRows, explain("file-only-hashed"), statement, explain("source-public"),
+    el("p", null, el("label", null, "Date ", versionDate)), ...(repository ? [] : [el("p", null, el("label", null, "Files ", filesInput)), fileRows, explain("file-only-hashed")]), statement, explain("source-public"),
     el("p", null, save), result);
   drawTop(); drawOlder();
   target.replaceChildren(top, el("p", null, open), panel, older);
@@ -540,11 +562,9 @@ export const route = {
       state.repo = null;
       try {
         const address = parseAddress(repositoryAddress.value.trim());
-        const host = connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
-        const { defaultBranch } = await host.repositoryInfo();
-        const snapshot = await host.readSnapshot(defaultBranch);
-        state.repo = { address: address.web, commit: snapshot.commit };
-        repositoryCommit.textContent = `Pinned to commit ${snapshot.commit} on ${defaultBranch}.`;
+        const { commit, branch } = await currentCommit(context, address);
+        state.repo = { address: address.web, commit };
+        repositoryCommit.textContent = `Pinned to commit ${commit} on ${branch}.`;
       } catch (error) {
         repositoryCommit.textContent = `The repository could not be read: ${error?.message ?? error}.`;
       }
