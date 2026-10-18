@@ -22,7 +22,7 @@
 
 import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
-import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
+import { stageElectron, openWindow, configure, withStderr } from "./site-usability.d/browser.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, history, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
 import { ROUTES, CASES, OBSERVE, show, testId } from "./site-usability.d/routes.mjs";
@@ -58,7 +58,8 @@ let site = null, browser = null;
 const started = Date.now();
 const progress = (step) => console.log(`site-accessibility ${((Date.now() - started) / 1000).toFixed(1)} s: ${step}`);
 
-before(async () => {
+// A failure after the window opened carries the tail of the browser child's stderr (withStderr), which nothing else writes.
+const setUp = async () => {
   const axe = axeSource();
   progress(`axe-core ${AXE_VERSION} is staged`);
   site = await serveSite({ files: await files(), history: await history(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
@@ -106,7 +107,8 @@ before(async () => {
   planted.afterBox = await check();
   progress("the counter-proofs are checked");
   for (const [key, value] of found) console.log(`site-accessibility ${key}: ${value.violations.map((each) => `${each.id}/${each.impact}/${each.nodes}[${each.first.slice(0, 70)}]`).join(" ")}`);
-}, { timeout: 110000 });
+};
+before(async () => { try { await setUp(); } catch (failure) { throw withStderr(failure, browser?.stderr()); } }, { timeout: 110000 });
 
 after(async () => {
   browser?.close();

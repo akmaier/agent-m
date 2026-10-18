@@ -33,7 +33,7 @@
 import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
+import { stageElectron, openWindow, configure, withStderr } from "./site-usability.d/browser.mjs";
 import { ROUTES, CASES, OBSERVE, show, testId } from "./site-usability.d/routes.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, history, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
@@ -76,7 +76,8 @@ let site = null, browser = null;
 const started = Date.now();
 const progress = (step) => console.log(`site-usability ${((Date.now() - started) / 1000).toFixed(1)} s: ${step}`);
 
-before(async () => {
+// A failure after the window opened carries the tail of the browser child's stderr (withStderr), which nothing else writes.
+const setUp = async () => {
   site = await serveSite({ files: await files(), history: await history(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
   progress("the site is served");
   const executable = await stageElectron();
@@ -112,7 +113,8 @@ before(async () => {
     '<div id="planted-unrendered" class="unrendered"><p>Diagram error: planted</p><pre><code>flowchart LR</code></pre></div>')`);
   planted.afterDiagram = await page.evaluate(MEASURE(390));
   console.log(`site-usability ${JSON.stringify([...measured].map(([key, value]) => [key, value.sheets, value.targets.length, value.widths.length]))}`);
-}, { timeout: 110000 });
+};
+before(async () => { try { await setUp(); } catch (failure) { throw withStderr(failure, browser?.stderr()); } }, { timeout: 110000 });
 
 after(async () => {
   browser?.close();

@@ -19,18 +19,20 @@ const nativeFixtureLock = join(tmpdir(), "agent-m-276-native-fixture-lock");
 const executableOf = (installed) => process.platform === "darwin" ? join(installed, "dist/Electron.app/Contents/MacOS/Electron") : join(installed, "dist/electron");
 
 // until(name, condition, limitMs = 30000) -> Promise<any> — the first truthy value `condition` returns; it is tried every 100 ms and a
-// try that has not answered by the deadline is given up. At the deadline it throws "<name> did not hold within <n> s" and the last error.
+// try that has not answered by the deadline is given up. At the deadline it throws "<name> did not hold within <n> s" and the last error that a try really gave
+// ("none" if none did): the deadline cutting off a try in flight is no error of the try.
 export async function until(name, condition, limitMs = 30000) {
   const deadline = Date.now() + limitMs;
   let lastError;
+  const cutOff = new Error("deadline");
   for (;;) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
     let timer;
     try {
-      const value = await Promise.race([condition(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("deadline")), remaining); })]);
+      const value = await Promise.race([condition(), new Promise((_, reject) => { timer = setTimeout(() => reject(cutOff), remaining); })]);
       if (value) return value;
-    } catch (failure) { lastError = failure; } finally { clearTimeout(timer); }
+    } catch (failure) { if (failure !== cutOff) lastError = failure; } finally { clearTimeout(timer); }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`${name} did not hold within ${limitMs / 1000} s; last error: ${lastError?.message ?? "none"}`);
@@ -133,6 +135,15 @@ async function session(url) {
   };
 }
 
+// withStderr(failure, stderr) -> Error — `failure` with the tail of the Electron child's stderr (its last 500 characters) after its message, or the word that the child wrote
+// nothing; the child's stderr is kept in memory by openWindow (`stderr()` of its result) and no other line writes it.
+export function withStderr(failure, stderr) {
+  const text = String(stderr ?? "").trim();
+  const shown = text ? `the Electron child's stderr, its last ${Math.min(text.length, 500)} characters: ${text.slice(-500)}` : "the Electron child wrote nothing to its stderr";
+  const error = new Error(`${failure?.message ?? failure}; ${shown}`, { cause: failure });
+  return error;
+}
+
 // stageElectron() -> Promise<string> — the Electron executable, fetched and ready, and openbox installed where the screen is virtual.
 export async function stageElectron() {
   await acquireLock();
@@ -146,8 +157,9 @@ export async function stageElectron() {
   } finally { rmdirSync(nativeFixtureLock); }
 }
 
-// openWindow(executable, address) -> Promise<{ page, close }> — a hidden Electron window that has loaded `address`; `page` is the
-// DevTools session of its page (call, evaluate, close). `close` ends the page's session and the Electron, and removes its folder.
+// openWindow(executable, address) -> Promise<{ page, close, stderr }> — a hidden Electron window that has loaded `address`; `page` is the
+// DevTools session of its page (call, evaluate, close). `close` ends the page's session and the Electron, and removes its folder. `stderr()` is the
+// tail of what the Electron wrote to its stderr so far (4000 characters at most).
 export async function openWindow(executable, address) {
   const debug = await freePort();
   const folder = mkdtempSync(join(tmpdir(), "agent-m-904-entry-"));
@@ -175,6 +187,6 @@ export async function openWindow(executable, address) {
     page = await session(target);
     await readyPage(page);
     await until(`the window shows ${address}`, async () => (await page.evaluate("location.href", 3000)) === address);
-    return { page, close };
+    return { page, close, stderr: () => stderr };
   } catch (failure) { close(); throw failure; }
 }
