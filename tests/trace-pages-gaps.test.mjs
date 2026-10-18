@@ -250,9 +250,11 @@ test("the graph of a version is built once, however often the gaps are opened at
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: one Host for main and the tag v2026.1.0; the specification view drawn at main and ALPHA RULE opened
 // input: v2026.1.0 chosen and ALPHA RULE opened; main chosen and ALPHA RULE opened again; then the gaps drawn at main with the same Host
-// expect: readMany has been told the paths once after the first opening, twice after the tag's, and still twice after the second opening at main and after the gaps — the graph of a version is the same for the two pages
+// expect: of the calls readMany has received, those that name UC-001's file — the files of the graph — are one after the first opening, two after the tag's, and still two after the second opening at main and after the gaps — the graph of a version is the same for the two pages; the calls that name docs/sources.md are the register's batch, one for each of the three drawings an opening was made in, and are not the graph's, so the graph's count leaves them out
 test("the specification and the gaps share the graph of a version", async () => {
   const productHost = hostOf();
+  const graphManys = () => productHost.log.manys.filter((paths) => paths.includes("docs/use-cases/UC-001-first.md")).length;
+  const registerManys = () => productHost.log.manys.filter((paths) => paths.includes("docs/sources.md")).length;
   const target = await render(productHost, { key: "specification", ref: "main" });
   const open = async (name) => {
     const button = find(target, (node) => node.localName === "button" && node.textContent === name)[0];
@@ -262,18 +264,19 @@ test("the specification and the gaps share the graph of a version", async () => 
     return row;
   };
   await open("ALPHA RULE");
-  assert.equal(productHost.log.manys.length, 1);
+  assert.equal(graphManys(), 1);
   choose(target, "v2026.1.0");
   await until(() => asOf(target).length === 1);
   await open("ALPHA RULE");
-  assert.equal(productHost.log.manys.length, 2);
+  assert.equal(graphManys(), 2);
   choose(target, "main");
   await until(() => find(target, (node) => node.localName === "button" && node.textContent === "GAMMA RULE").length === 1);
   await open("ALPHA RULE");
-  assert.equal(productHost.log.manys.length, 2, "the graph of main was kept");
+  assert.equal(graphManys(), 2, "the graph of main was kept");
+  assert.equal(registerManys(), 3, "known positive: each of the three drawings named the register to readMany once, in its first opening");
   const gaps = await render(productHost);
   assert.equal(titles(gaps).length, 5, "known positive: the gaps were drawn");
-  assert.equal(productHost.log.manys.length, 2, "the gaps use the graph the specification built");
+  assert.equal(graphManys(), 2, "the gaps use the graph the specification built");
 });
 
 // CASE ITM-599-08
