@@ -160,7 +160,7 @@ export async function stageElectron() {
 
 // openWindow(executable, address) -> Promise<{ page, close, stderr }> — a hidden Electron window that has loaded `address`; `page` is the
 // DevTools session of its page (call, evaluate, close). `close` ends the page's session and the Electron, and removes its folder. `stderr()` is the
-// tail of what the Electron wrote to its stderr so far (4000 characters at most). A failure of openWindow carries that tail (withStderr); `limit` is how long the
+// tail of what the Electron wrote to its stderr so far (4000 characters at most; on Linux its stdout too, where xvfb-run puts its stderr). A failure of openWindow carries that tail (withStderr); `limit` is how long the
 // window's page may take to appear among the debugging targets.
 export async function openWindow(executable, address, { limit = 30000 } = {}) {
   const debug = await freePort();
@@ -173,6 +173,8 @@ export async function openWindow(executable, address, { limit = 30000 } = {}) {
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
   child.stderr.on("data", (chunk) => { stderr = `${stderr}${chunk}`.slice(-4000); });
   child.on("error", (error) => { spawnError = error; });
+  // What the child wrote to its stderr. On Linux the child runs behind xvfb-run, which folds the child's stderr into its own stdout, so there it is the stdout too.
+  const written = () => `${stderr}${process.platform === "linux" ? stdout : ""}`;
   const close = () => {
     page?.close();
     if (child.exitCode === null) {
@@ -189,6 +191,6 @@ export async function openWindow(executable, address, { limit = 30000 } = {}) {
     page = await session(target);
     await readyPage(page);
     await until(`the window shows ${address}`, async () => (await page.evaluate("location.href", 3000)) === address);
-    return { page, close, stderr: () => stderr };
-  } catch (failure) { close(); throw stderr.trim() && failure.message.includes(stderr.trim()) ? failure : withStderr(failure, stderr); }
+    return { page, close, stderr: written };
+  } catch (failure) { close(); throw failure.message.includes("; stderr=") ? failure : withStderr(failure, written()); }
 }
