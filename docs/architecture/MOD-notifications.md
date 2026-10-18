@@ -79,11 +79,13 @@ notification's text — what waits and where — is what leads the person on.
 ## Interfaces
 
 - `NotificationState` — `{ on: boolean, permission: "default" | "granted" | "denied", available: "here" | "from the Home
-  Screen" | "no" }`: `on` whether the person has switched notifications on in this browser; `permission` the browser's
-  answer to its question, as `Notification.permission` gives it; `available` whether this browser can show notifications
-  for the dashboard as it is opened — `from the Home Screen` on an iPhone or iPad, whose Safari shows them only for a
-  site opened from the Home Screen (UC-047 1b), `no` where the browser offers a page no notifications or no service
-  worker, as in a private window of some browsers.
+  Screen" | "no", notified: number }`: `on` whether the person has switched notifications on in this browser; `permission`
+  the browser's answer to its question, as `Notification.permission` gives it; `available` whether this browser can show
+  notifications for the dashboard as it is opened — `from the Home Screen` on an iPhone or iPad, whose Safari shows them
+  only for a site opened from the Home Screen (UC-047 1b), `no` where the browser offers a page no notifications or no
+  service worker, as in a private window of some browsers; `notified` how many files `notified` holds, over every
+  repository: the files that wait for acceptance and were notified or, at the first check, taken as known — `0` while
+  `on` is false or the key is absent.
 - `watchForAcceptance(page: { store: Store, instance: { repository: string, host: Host }, addressOf: (route: string,
   params: Record<string, string>, repository: string) -> string }) -> void` — the checks of one page, started by the
   frame on the main and the review pages with this page's store, the instance as the frame connected it, and the frame's
@@ -106,8 +108,8 @@ notification's text — what waits and where — is what leads the person on.
   browser that pauses a page in the background holds its checks until it runs the page again (UC-047 2b). Where the
   browser has dropped the worker's registration, the check registers it again. It throws nothing: a store the browser
   refuses holds no switch, and no check runs.
-- `notificationState(store: Store) -> NotificationState` — the state of this browser, for the settings page; it asks
-  nothing and makes no request.
+- `notificationState(store: Store) -> NotificationState` — the state of this browser, for the settings page, `notified`
+  counted from the key `notified` with `readSetting`; it asks nothing and makes no request.
 - `switchOn(store: Store) -> Promise<NotificationState>` — the person's **Switch on**: asks the browser's permission to
   notify — the only call in Agent M that asks it —; once it is granted, registers the worker from this module's folder
   and stores the switch as on, with no check made yet. When the person or the browser refuses, nothing is registered or
