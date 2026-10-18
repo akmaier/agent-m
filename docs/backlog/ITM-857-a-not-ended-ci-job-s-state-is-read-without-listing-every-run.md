@@ -33,3 +33,15 @@ it.
 **Noted at ITM-847's gate (sprint team1/79, 2026-10-17, po-opus).** When the run listing meets a used-up limit,
 MOD-main-page's `liveStatesOf` shows the job as not reachable. A used-up limit is named as such (`A USED-UP RATE LIMIT IS
 NAMED`), not as an unreachable runtime. This item names it so, with a test.
+
+**Stopped at its record's stop clause (sprint team1/83, 2026-10-18, po-opus): it waits for a draft of MOD-runtimes.**
+- **Measured on the base:** 1, 3 and 6 not-ended CI jobs cost 1, 3 and 6 run listings.
+- **Sharing one listing needs an interface no module states.**
+  - MOD-runtimes' Data reads: "It keeps, in memory, the jobs running in this tab; nothing else".
+  - A wrapper in MOD-main-page would call `MOD-repository-hosts.listCiRuns`, which its Uses do not name.
+- **The draft for akmaier:** MOD-runtimes gives one call that reads the live states of many jobs with one listing per
+  workflow, and names a used-up limit. That keeps reading a CI run in the module that owns it (`DEVELOP AGAINST
+  INTERFACES`). The developer's draft patch is kept (`scratchpad/ITM-857-draft.patch`).
+- **The tests, read again after the stop:**
+  - TST-847010 (`main-page-home.test.mjs:543`) expects one listing per job, so it changes.
+  - The case of a used-up limit belongs with the route `jobs` (`main-page-jobs.test.mjs`), where `live.reachable` is shown.
