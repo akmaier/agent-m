@@ -5,7 +5,7 @@
 // "unknown"`). The counts are taken through the real MOD-repository-hosts host over the counting fake of GitHub of
 // tests/progress-measures-load.mjs; the callers of productFacts' scope `all` — MOD-main-page's route home, and MOD-progress-measures' own
 // stageShares, currentStage, buildInProgress and waitingForAPerson — are shown to run on the new value.
-// Run: node --test tests/progress-measures-no-graph.test.mjs
+// Run: node --test tests/main-page-progress-no-graph.test.mjs
 //
 // Module: MOD-progress-measures
 // Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
