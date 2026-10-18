@@ -28,12 +28,12 @@ const REPORT_PATH = "docs/tests/releases/v2026.1.0.md";
 const REPORT = text("# Release test report v2026.1.0", "", "All tests ran.");
 const MODULE_PATH = "docs/architecture/MOD-sample.md";
 const MODULE = text("---", "id: MOD-sample", "title: Sample", "folder: src/sample/", "realises:", "  - A SAMPLE RULE", "follows:", "uses:", "provides:", "---", "# MOD-sample Sample", "", "## Responsibility", "", "It samples.");
-const acceptedRecord = (path, body, kind) => ({ [`docs/approvals/${path.split("/").pop().replace(/-.*|\.md$/, "")}-${blobOf(body).slice(0, 12)}.md`]: text(`kind: ${kind}`, `file: ${path}`, `blob: ${blobOf(body)}`) });
+const acceptedRecord = (id, path, body, kind) => ({ [`docs/approvals/${id}-${blobOf(body).slice(0, 12)}.md`]: text(`kind: ${kind}`, `file: ${path}`, `blob: ${blobOf(body)}`) });
 
 const snapshotOf = (files) => ({ repository: { server: "github", origin: "https://github.com", path: "alice/product", web: "https://github.com/alice/product" },
   ref: "main", commit: null, paths: Object.keys(files), read: async (path) => (path in files ? files[path] : null),
   blob: (path) => (path in files ? blobOf(files[path]) : null) });
-const BASE = { "SPEC.md": SPEC, [UC_PATH]: UC, [REPORT_PATH]: REPORT, ...acceptedRecord(UC_PATH, UC, "use-case") };
+const BASE = { "SPEC.md": SPEC, [UC_PATH]: UC, [REPORT_PATH]: REPORT, ...acceptedRecord("UC-001", UC_PATH, UC, "use-case") };
 const contextOf = (files, params = {}) => ({ params, product: { address: "https://github.com/alice/product", host: null, snapshot: snapshotOf(files) } });
 
 // TST-913003 · level: unit · module: MOD-approvals
