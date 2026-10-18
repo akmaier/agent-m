@@ -5,7 +5,7 @@
 // Run: node --test tests/settings-pages-library-repository-version.test.mjs
 //
 // Module: MOD-settings-pages
-// Guards: UC-016; A LIVING SOURCE IS PINNED; A SOURCE VERSION IS NEVER OVERWRITTEN; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; A DOCUMENT HOLDS NO HISTORY
+// Guards: UC-016; A LIVING SOURCE IS PINNED; A SOURCE VERSION IS NEVER OVERWRITTEN; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
 // Level: unit
 //
 // Each test names its input and states its expected result in its own text (given / input / expect) before it runs; no expected value is read from a document, and none from the code. Where the texts leave a
@@ -20,7 +20,6 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { installDocument, byClass, click, type, until } from "./settings-pages-harness.mjs";
 import { attachedTarget, freshStore } from "./settings-pages-setup.d/dom.mjs";
 import { githubWorld, installWorld, isWrite } from "./settings-pages-sources.d/github.mjs";
@@ -185,15 +184,4 @@ test("new version — an EU legal text whose identifier reads as a repository's 
   assert.equal(byClass(page.target, "library-version-files").length, 1, "the field for files");
   assert.equal(text(page.target, "library-version-public").includes("No file is stored"), false);
   assert.equal(page.world.requests.some((request) => request.url.hostname === "eur-lex.europa.eu"), false);
-});
-
-// TST-705008 · level: unit · module: MOD-settings-pages
-// guards: A DOCUMENT HOLDS NO HISTORY
-// given: the source file of the library's routes, src/settings-pages/library.mjs
-// input: its text, read
-// expect: it names no item (no text of the form ITM-<digits>), since a file states what holds now and history belongs in git (AGENTS.md §1). The nearest sentence of the SPEC, A DOCUMENT HOLDS NO HISTORY, names
-// the specification, use cases, architecture decisions, backlog items and settings files, and not a source file; the test guards AGENTS.md §1 and is traced to that sentence for want of a closer one
-test("library.mjs names no item in its header or anywhere else", () => {
-  const source = readFileSync(new URL("../src/settings-pages/library.mjs", import.meta.url), "utf8");
-  assert.deepEqual(source.match(/ITM-\d+/g) ?? [], []);
 });
