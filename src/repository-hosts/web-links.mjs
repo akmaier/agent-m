@@ -53,6 +53,10 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
       secrets: `${address.web}/settings/secrets/actions`,
       actions: `${address.web}/actions`,
       run: (id) => `${address.web}/actions/runs/${encodeURIComponent(id)}`,
+      // ITM-889: the checks of one commit, a branch's files, and the page that shows the command to run on a self-hosted runner's machine.
+      commitRuns: (commit) => `${address.web}/commit/${encodeURIComponent(commit)}/checks`,
+      branch: (name) => `${address.web}/tree/${encodedPath(name)}`,
+      runners: `${address.web}/settings/actions/runners/new`,
     });
   }
   // A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the project's Access tokens page, where the person creates the project access
@@ -70,5 +74,9 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
     secrets: `${address.web}/-/settings/ci_cd`,
     actions: `${address.web}/-/pipelines`,
     run: (id) => `${address.web}/-/pipelines/${encodeURIComponent(id)}`,
+    // ITM-889: the pipelines of one commit, a branch's files, and Settings > CI/CD, where a project runner is created.
+    commitRuns: (commit) => `${address.web}/-/commit/${encodeURIComponent(commit)}/pipelines`,
+    branch: (name) => `${address.web}/-/tree/${encodedPath(name)}`,
+    runners: `${address.web}/-/settings/ci_cd`,
   });
 }
