@@ -24,7 +24,7 @@ import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
-import { files, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
+import { files, history, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
 import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
 import { axeSource, AXE_VERSION, RUN_AXE } from "./site-usability.d/axe.mjs";
 import { unrenderedFindings } from "./site-usability.d/inspect.mjs";
@@ -61,7 +61,7 @@ const progress = (step) => console.log(`site-accessibility ${((Date.now() - star
 before(async () => {
   const axe = axeSource();
   progress(`axe-core ${AXE_VERSION} is staged`);
-  site = await serveSite({ files: await files(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
+  site = await serveSite({ files: await files(), history: await history(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
   const executable = await stageElectron();
   browser = await openWindow(executable, `${site.address}/__blank`);
   const page = browser.page;
@@ -76,7 +76,8 @@ before(async () => {
     for (const route of ROUTES) {
       await show(page, site, route.address);
       found.set(`${route.address} ${kind}`, { violations: await check(), text: await page.evaluate(`(document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ")`),
-        ticks: await page.evaluate(TICKS), diagrams: await page.evaluate(`(${unrenderedFindings})()`) });
+        ticks: await page.evaluate(TICKS), diagrams: await page.evaluate(`(${unrenderedFindings})()`),
+        boxes: await page.evaluate(`[...document.querySelectorAll("main pre.diff")].map((box) => box.getAttribute("tabindex"))`) });
     }
     progress(`every route is checked at a ${kind}'s width`);
   }
@@ -99,6 +100,10 @@ before(async () => {
   await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
     '<div id="planted-scroll" style="height:40px;overflow:auto"><p>one</p><p>two</p><p>three</p><p>four</p><p>five</p><p>six</p><p>seven</p><p>eight</p></div>')`);
   planted.afterScroll = await check();
+  // The counter-proof of the difference box: the same page with a difference box that scrolls and has no tabindex planted besides.
+  await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
+    '<pre class="diff" id="planted-diff" style="overflow:auto;width:80px;height:24px">a line of a difference that is much longer than the box that holds it, so that the box scrolls</pre>')`);
+  planted.afterBox = await check();
   progress("the counter-proofs are checked");
   for (const [key, value] of found) console.log(`site-accessibility ${key}: ${value.violations.map((each) => `${each.id}/${each.impact}/${each.nodes}[${each.first.slice(0, 70)}]`).join(" ")}`);
 }, { timeout: 110000 });
@@ -224,4 +229,37 @@ test(`TST-905${String(number++).padStart(3, "0")}: a planted box that scrolls an
   const rule = planted.afterScroll.find((each) => each.id === "scrollable-region-focusable");
   assert.ok(rule, `violations: ${planted.afterScroll.map((each) => each.id).join(", ")}`);
   assert.ok(rule.first.includes("planted-scroll"), `the first node is ${rule.first}`);
+});
+
+// The difference box of a changed file (ITM-933). The fixture holds a use case changed since it was accepted, so that its page and Review all draw
+// the box of its difference to the last accepted text (`pre.diff`), which a person with a keyboard must be able to reach (ITM-921: tabindex 0).
+const CHANGED = ["#uc/UC-001", "#review/uc"];
+
+// given: the routes that draw the changed use case, at both widths; input: each `pre.diff` in <main>; expect: the route draws at least one (the known positive that the whole-page checks meet the box), and each has tabindex "0"
+test(`TST-905${String(number++).padStart(3, "0")}: the pages of the changed use case draw a difference box that the keyboard reaches`, () => {
+  for (const address of CHANGED) {
+    for (const [kind] of WIDTHS) {
+      const boxes = found.get(`${address} ${kind}`).boxes;
+      assert.equal(boxes.length > 0, true, `${address} at a ${kind}'s width draws a difference box`);
+      assert.deepEqual(boxes.filter((tabindex) => tabindex !== "0"), [], `${address} at a ${kind}'s width: boxes without tabindex 0`);
+    }
+  }
+});
+
+// given: the routes that draw the box, at both widths; input: axe-core's rule scrollable-region-focusable over each; expect: no violation of it
+test(`TST-905${String(number++).padStart(3, "0")}: the difference box of the changed use case meets the rule scrollable-region-focusable`, () => {
+  for (const address of CHANGED) {
+    for (const [kind] of WIDTHS) {
+      const violations = found.get(`${address} ${kind}`).violations.filter((each) => each.id === "scrollable-region-focusable").map((each) => `${each.id} (${each.nodes}: ${each.first})`);
+      assert.deepEqual(violations, [], `${address} at a ${kind}'s width violates`);
+    }
+  }
+});
+
+// The counter-proof: with a difference box that scrolls and has no tabindex planted beside the planted scrolling box, the rule finds one node more.
+test(`TST-905${String(number++).padStart(3, "0")}: a planted difference box that scrolls and cannot be focused is found by the rule scrollable-region-focusable`, () => {
+  const before = planted.afterScroll.find((each) => each.id === "scrollable-region-focusable");
+  const after = planted.afterBox.find((each) => each.id === "scrollable-region-focusable");
+  assert.ok(before && after, "the rule finds the planted boxes");
+  assert.equal(after.nodes, before.nodes + 1);
 });
