@@ -104,7 +104,7 @@ const DRAWN = `(() => { const main = document.querySelector("main"); if (!main) 
   return window.__pending === 0 && performance.now() - window.__lastChange > 400 && !/(^|\\n)\\s*(Loading|Reading)…\\s*($|\\n)/.test(main.innerText)
     && [...document.querySelectorAll(".mermaid")].every((diagram) => diagram.querySelector("svg") !== null); })()`;
 const MEASURE = (width) => `(async () => {
-  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  await new Promise((resolve) => setTimeout(resolve, 100));
   const styleSheetFindings = ${styleSheetFindings}, targetFindings = ${targetFindings}, widthFindings = ${widthFindings};
   return { sheets: styleSheetFindings(), targets: targetFindings(${MINIMUM}), widths: widthFindings(${width}),
     controls: document.querySelectorAll("a[href], button").length,
@@ -147,11 +147,15 @@ before(async () => {
   await page.call("Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
   for (const [kind, width] of WIDTHS) {
     await page.call("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
+    const took = [];
     for (const route of ROUTES) {
+      const at = Date.now();
       await show(page, site, route.address);
+      const drawn = Date.now() - at;
       measured.set(`${route.address} ${kind}`, await page.evaluate(MEASURE(width)));
+      took.push([route.address, drawn, Date.now() - at]);
     }
-    progress(`every route is drawn at a ${kind}'s width`);
+    progress(`every route is drawn at a ${kind}'s width; the slowest (drawn ms, measured ms): ${JSON.stringify(took.sort((a, b) => b[2] - a[2]).slice(0, 4))}`);
   }
   // The counter-proofs: the same page at a phone's width, first as it is, then with a table 600 px wide, a button 10 px square and an
   // embedded style sheet planted in it.
