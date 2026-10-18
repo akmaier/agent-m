@@ -28,6 +28,7 @@ uses:
   - MOD-prompt-bar.startPromptBar
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.handOverStrategies
+  - MOD-source-register.registerPaths
 provides:
   - View
   - Route
@@ -79,7 +80,7 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `explanations.md` — the folded explanations, as data.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes.
-  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`; removed once `docs/index.html` starts the site through `start.mjs`.
+  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); removed once `docs/index.html` starts the site through `start.mjs`.
   - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
   - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
   - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
@@ -217,3 +218,6 @@ It writes nothing.
 - MOD-prompt-bar.startPromptBar, MOD-prompt-bar.Subject — the prompt bar, started on the main and the review pages, and
   the type of a route's subject; MOD-prompt-bar.handOverStrategies — the strategies a hand-over of the bar is prepared
   with.
+- MOD-source-register.registerPaths — the register's entries among a tree's paths, so that the first wave of a page load names them beside the files its
+  route shows and `#spec` reads the register in the same batch as its other files (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); the frame keeps no copy
+  of the register's path.

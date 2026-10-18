@@ -28,6 +28,7 @@ provides:
   - LinkedVersion
   - CommitPlan
   - sourceSchemas
+  - registerPaths
   - registrationCommits
   - versionCommits
   - linkedVersion
@@ -66,7 +67,7 @@ in a browser and in Node; fetching a legal text runs in Node, in the instance's 
 - `index.mjs` — the interface.
 - `source.schema.md` — the schema of a register entry, in the schema language of MOD-documents.
 - `links.schema.md` — the schema of a product's links file.
-- `content.mjs` — where a version's files lie, and reading them with their hashes checked.
+- `content.mjs` — where the register's entries and a version's files lie, and reading them with their hashes checked.
 - `person.mjs` — the person who gives an instruction: their account (`personAccount`) and their own source
   (`personSource`).
 - `legal-text.mjs` — recognising an EU legal text, and fetching it.
@@ -143,6 +144,8 @@ names no source.
   where, for the caller to commit with the person's token.
 - `sourceSchemas() -> { entry: Schema, links: Schema }` — the schemas of a register entry and of a product's links file,
   for reading, writing and forms through MOD-documents.
+- `registerPaths(paths: string[]) -> string[]` — the paths among `paths` that are register entries, `docs/sources/SRC-<slug>.md`, in their
+  order: a caller that holds a tree's paths names the register's files without a copy of the pattern. No request is made.
 - `registrationCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[],
   instance: string) -> Promise<CommitPlan>` — the register entry with its first version, and the files: to the instance
   when the licence permits republishing, to the named repository otherwise, and nowhere when the person only hashed them,
