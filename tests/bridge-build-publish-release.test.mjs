@@ -29,8 +29,11 @@ import { publishRelease } from "../src/bridge-build/index.mjs";
 const TAG = "v2026.10.0";
 const VERSION = "2026.10.0";
 const COMMIT = "9f1c2b7e0a5d4c3b2a1908f7e6d5c4b3a2918070";
-const RUN_TIME = JSON.parse(readFileSync(new URL("../src/bridge-build/package.json", import.meta.url), "utf8")).dependencies;
-const PACKAGES = Object.keys(RUN_TIME);
+// The packages the app carries (Data: "the packages above that the app needs at run time"): Parts' list without electron-builder — electron,
+// electron-updater, imapflow, nodemailer, postal-mime, ssh2 — at the versions of the lockfile.
+const LOCK = JSON.parse(readFileSync(new URL("../src/bridge-build/package-lock.json", import.meta.url), "utf8")).packages;
+const PACKAGES = ["electron", "electron-updater", "imapflow", "nodemailer", "postal-mime", "ssh2"];
+const RUN_TIME = Object.fromEntries(PACKAGES.map((name) => [name, LOCK[`node_modules/${name}`].version]));
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
@@ -112,9 +115,9 @@ const rejection = async (promise) => { try { await promise; } catch (error) { re
 
 // TST-473955 · level: unit · module: MOD-bridge-build
 // guards: THE BRIDGE IS ONE FILE PER PLATFORM; THE BRIDGE IS SIGNED BY ITS PUBLISHER; UC-044
-// given: three platform folders, each with its files, their detached signatures and platform-build.json, all intact; every package of the app with an MIT licence in the fake registry; the update key in the environment; a fake host
+// given: three platform folders, each with its files, their detached signatures and platform-build.json, all intact; every one of the six packages the app carries, Electron included, with an MIT licence in the fake registry; the update key in the environment; a fake host
 // input: publishRelease(host, { tag: "v2026.10.0", folders })
-// expect: the host's publishRelease is called once for the tag, as the release "Agent M 2026.10.0", with every one of the seven build files, each `<file>.sig` holding the recorded signature, `SHA256SUMS` — one line `<sha256>  <name>` per build file, in the order of the names — and `SHA256SUMS.sig`, a signature of those bytes that the public half of the key verifies; the notes name the version, the commit and each package with its licence; the result lists the uploaded names and the due diligence of each of the five packages
+// expect: the host's publishRelease is called once for the tag, as the release "Agent M 2026.10.0", with every one of the seven build files, each `<file>.sig` holding the recorded signature, `SHA256SUMS` — one line `<sha256>  <name>` per build file, in the order of the names — and `SHA256SUMS.sig`, a signature of those bytes that the public half of the key verifies; the notes name the version, the commit and each package with its licence; the result lists the uploaded names and the due diligence of each of the six packages
 test("publishRelease — every file with its signature, SHA256SUMS and its signature are published as the release of the tag", async () => {
   const run = setting();
   try {
@@ -267,4 +270,19 @@ test("publishRelease — the update key is read from the environment and appears
     assert.ok(!String(error.message).includes(body));
     assert.equal(run.host.calls.length, 1);
   } finally { run.settle(); for (const spy of spies) spy.mock.restore(); }
+});
+
+// TST-473962 · level: unit · module: MOD-bridge-build
+// guards: A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S; UC-044
+// given: the intact three folders, and the fake registry giving electron — a package the app carries, standing under devDependencies — the licence GPL-3.0
+// input: publishRelease(host, { tag, folders })
+// expect: it rejects with LicenceNotCompatible naming package "electron", and the host's publishRelease is never called
+test("publishRelease — Electron's licence is read again too: one not known to be compatible gives LicenceNotCompatible", async () => {
+  const run = setting({ licences: { electron: "GPL-3.0" } });
+  try {
+    const error = await rejection(publishRelease(run.host, { tag: TAG, folders: run.folders }));
+    assert.equal(error.name, "LicenceNotCompatible");
+    assert.equal(error.package, "electron");
+    assert.equal(run.host.calls.length, 0);
+  } finally { run.settle(); }
 });
