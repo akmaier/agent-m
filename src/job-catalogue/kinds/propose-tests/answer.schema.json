@@ -55,6 +55,9 @@
           },
           "response": {
             "type": "string"
+          },
+          "paid": {
+            "type": "string"
           }
         },
         "required": [
