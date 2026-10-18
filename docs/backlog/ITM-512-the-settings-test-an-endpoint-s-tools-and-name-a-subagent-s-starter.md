@@ -35,5 +35,19 @@ preset from its last test and the CI secret of its key; and a folded explanation
 
 ## Acceptance
 
-- In a small DOM with fixture endpoints, both answers of the test are shown; a subagent's row is saved as `through
-  <participant>`, an endpoint's with ` secret <NAME>`.
+- In a small DOM with fixture endpoints, both answers of the test are shown, and a text-only endpoint's message is
+  folded. The participants' parts are ITM-998's and ITM-999's.
+
+**Narrowed at its stop (sprint team1/92, developer-sonnet-a).** This item builds the route `endpoints`' answer, *can use
+tools* or *text only*, with the message folded (MOD-settings-pages.md:168, UC-003 5a). `testEndpoint`'s branches were
+run against a fake fetch:
+- tools true;
+- text only, with a message;
+- empty;
+- a 400 "tools not supported";
+- a 401.
+
+The two other parts need what no accepted text gives:
+- the preset of *use tools* needs a stored source, which is ITM-998's;
+- the subagent's CLI agent needs `reachedThrough` in the module's uses, which is ITM-999's.
+
