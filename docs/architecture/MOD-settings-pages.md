@@ -24,6 +24,7 @@ uses:
   - MOD-browser-store.exportSettings
   - MOD-browser-store.importSettings
   - MOD-browser-store.expiringSoon
+  - MOD-browser-store.secretValues
   - MOD-repository-hosts.parseAddress
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.readSnapshot
@@ -221,7 +222,8 @@ reaches.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting, MOD-browser-store.writeSetting,
   MOD-browser-store.clearSetting, MOD-browser-store.clearEverything, MOD-browser-store.listSettings,
   MOD-browser-store.exportSettings, MOD-browser-store.importSettings, MOD-browser-store.expiringSoon — every browser
-  setting, its export and import.
+  setting, its export and import; MOD-browser-store.secretValues — the stored secrets a host it connects refuses to commit
+  (`NO SECRET IN THE REPOSITORY`).
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect, MOD-repository-hosts.readSnapshot,
   MOD-repository-hosts.repositoryInfo — products and the instance, a token's test, a repository's visibility;
   MOD-repository-hosts.commitFiles — the commit plans of a source's registration or new version, and the job workflow

@@ -31,3 +31,6 @@ does. The product host's own read is made observable in the test, which ITM-853 
 
 - After a token is stored on either page, the open page's next request carries it, and tests pin both.
 - The first commit holds only the tests, and CI is red on it if the lead holds. No stub is committed.
+
+**Narrowed at its gate (sprint team1/81, 2026-10-18, po-opus).** This item covers the add-product page. *Finish setting up*'s
+token reaches the next page through MOD-site-frame's `instance.host`, so it is ITM-869.
