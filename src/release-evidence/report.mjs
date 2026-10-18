@@ -169,7 +169,7 @@ function laterVersion(a, b) {
 // docs/tests/releases/ — each one a past release's own report, naming its tested commit in its front matter — or
 // null where none stands yet. `at` is the release candidate's own commit, so every release before it is already in
 // its tree.
-async function lastReleaseCommit(at, currentVersion) {
+export async function lastReleaseCommit(at, currentVersion) {
   let best = null;
   for (const path of at.paths) {
     const m = RELEASE_REPORT_PATH.exec(path);
