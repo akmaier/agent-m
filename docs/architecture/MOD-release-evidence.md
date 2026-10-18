@@ -142,7 +142,10 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   counted: each requirement of the product's SPEC at the release, which constrains the product, and each process
   requirement whose gate the product's workflow holds — a requirement of the instance's SPEC, `instanceSpec`, which
   constrains the development process (MOD-spec-document) — with its gate records. `gates` are those records, which the
-  caller reads through Process, since Process lies above this subsystem. A release before Agent M's records says which parts cannot be derived.
+  caller reads through Process, since Process lies above this subsystem. A release before Agent M's records says which parts
+  cannot be derived: `summary.limitations` names them, and each test's `outcome` is `cannot be derived`. The implementer of a
+  release test is a participant of an `implement` job whose `worksOn` names an item or use case that traces to the requirement;
+  its writer is a participant of a `write-tests` job whose `results` name the test's file.
 - `auditDocument(audit: { summary: object, rows: object[] }, release: { tag: string, commit: string }) -> string` — the
   self-contained Markdown document of the audit; the browser saves it, and a person with write access may commit it to
   `docs/audits/<tag>.md`.
@@ -153,9 +156,9 @@ tagged commit by `acceptAndRelease`; `register` is the instance's source registe
 
 ## Files
 
-- Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests —, the report and its approval record
-  on the default branch, the branch `test-results`, the schedule, and the instance's source register and `SPEC.md`, whose
-  requirements are the process requirements.
+- Reads the product at the tagged commit — `SPEC.md`, `docs/sources.md`, the tests, its `docs/jobs/` —, the report and its
+  approval record on the default branch, the branch `test-results`, the schedule, and the instance's source register and
+  `SPEC.md`, whose requirements are the process requirements.
 - Reads, for `reportsAwaitingAcceptance`, the tags, the default branch's `docs/tests/releases/`, and, only while a release
   candidate is pending, its `docs/jobs/` newest first back to the first run of a candidate.
 - Writes `docs/tests/releases/v<version>.md`, `docs/approvals/release-v<version>-<blob12>.md`, `CHANGELOG.md`, the tags
