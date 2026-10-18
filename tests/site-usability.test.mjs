@@ -34,7 +34,7 @@ import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stageElectron, openWindow, configure } from "./site-usability.d/browser.mjs";
-import { ROUTES, OBSERVE, show } from "./site-usability.d/routes.mjs";
+import { ROUTES, CASES, OBSERVE, show, testId } from "./site-usability.d/routes.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, history, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
 import { styleSheetFindings, targetFindings, unrenderedFindings, widthFindings } from "./site-usability.d/inspect.mjs";
@@ -121,7 +121,7 @@ after(async () => {
 
 // ---------------------------------------------------------------- the routes
 
-test("TST-904001: the routes drawn are the routes of the site: every route of MOD-review-pages and every view the dashboard builds", () => {
+test(`${testId(904, CASES[904].routes)}: the routes drawn are the routes of the site: every route of MOD-review-pages and every view the dashboard builds`, () => {
   const builtFiles = JSON.parse(readFileSync(new URL("../docs/assets/dashboard/built.json", import.meta.url), "utf8"));
   const named = new Set(ROUTES.filter((route) => route.address.startsWith("#")).map((route) => route.address.slice(1).split("/")[0]));
   const required = new Set([...reviewPages.routes.map((route) => route.name), ...builtViews(builtFiles),
@@ -132,9 +132,8 @@ test("TST-904001: the routes drawn are the routes of the site: every route of MO
   assert.ok(ROUTES.some((route) => route.address === "/"), "the main page is drawn");
 });
 
-let number = 2;
 for (const route of ROUTES) {
-  test(`TST-904${String(number++).padStart(3, "0")}: ${route.address} was drawn, with its content and its controls, at both widths`, () => {
+  test(`${testId(904, route.ids[904].drawn)}: ${route.address} was drawn, with its content and its controls, at both widths`, () => {
     for (const [kind] of WIDTHS) {
       const result = measured.get(`${route.address} ${kind}`);
       assert.ok(result.text.includes(route.shows), `${route.address} at a ${kind}'s width shows "${route.shows}"; it shows: ${result.text.slice(0, 200)}`);
@@ -146,7 +145,7 @@ for (const route of ROUTES) {
 for (const route of ROUTES) {
   for (const [clause, title] of CLAUSES) {
     const today = TODAY[route.address]?.[clause];
-    test(`TST-904${String(number++).padStart(3, "0")}: ${route.address} ${title}`,
+    test(`${testId(904, route.ids[904][clause])}: ${route.address} ${title}`,
       today ? { todo: `FINDING ${route.address} - ${today}` } : {}, () => {
         for (const [kind] of WIDTHS) {
           const found = measured.get(`${route.address} ${kind}`)[clause];
@@ -159,22 +158,22 @@ for (const route of ROUTES) {
 // ---------------------------------------------------------------- the counter-proofs
 
 // The page the counter-proofs plant in, as it is, has none of the planted faults — the known positive of the three that follow.
-test(`TST-904${String(number++).padStart(3, "0")}: the page before the planting has no table, button or embedded style sheet that the checks name`, () => {
+test(`${testId(904, CASES[904].plantedBefore)}: the page before the planting has no table, button or embedded style sheet that the checks name`, () => {
   assert.deepEqual(planted.before.sheets, [], "no style sheet finding before the planting");
   assert.equal(planted.before.widths.some((finding) => finding.startsWith("table#planted-table")), false);
   assert.equal(planted.before.targets.some((finding) => finding.includes('"x"')), false);
 });
 
-test(`TST-904${String(number++).padStart(3, "0")}: a planted table wider than a phone fails the width check`, () => {
+test(`${testId(904, CASES[904].plantedTable)}: a planted table wider than a phone fails the width check`, () => {
   assert.ok(planted.after.widths.some((finding) => finding.startsWith("table#planted-table is 600 px wide")), `findings: ${planted.after.widths.join("; ")}`);
   assert.ok(planted.after.widths.some((finding) => finding.startsWith("the page scrolls sideways")), `findings: ${planted.after.widths.join("; ")}`);
 });
 
-test(`TST-904${String(number++).padStart(3, "0")}: a planted button 10 px square fails the target-size check`, () => {
+test(`${testId(904, CASES[904].plantedButton)}: a planted button 10 px square fails the target-size check`, () => {
   assert.ok(planted.after.targets.includes('button "x" is 10 x 10 px'), `findings: ${planted.after.targets.join("; ")}`);
 });
 
-test(`TST-904${String(number++).padStart(3, "0")}: a planted embedded style sheet fails the style-sheet check`, () => {
+test(`${testId(904, CASES[904].plantedSheet)}: a planted embedded style sheet fails the style-sheet check`, () => {
   assert.deepEqual(planted.after.sheets, ["an embedded <style> element"]);
 });
 
@@ -182,7 +181,7 @@ test(`TST-904${String(number++).padStart(3, "0")}: a planted embedded style shee
 
 // given: every route drawn at both widths; input: the blocks of the page with the class `unrendered`, which MOD-markdown-render shows for a diagram that fails; expect: none
 for (const route of ROUTES) {
-  test(`TST-904${String(number++).padStart(3, "0")}: ${route.address} holds no block that did not render, such as a diagram that failed`, () => {
+  test(`${testId(904, route.ids[904].diagrams)}: ${route.address} holds no block that did not render, such as a diagram that failed`, () => {
     for (const [kind] of WIDTHS) {
       const found = measured.get(`${route.address} ${kind}`).diagrams;
       assert.deepEqual(found, [], `${route.address} at a ${kind}'s width: ${found.join("; ")}`);
@@ -191,11 +190,11 @@ for (const route of ROUTES) {
 }
 
 // The counter-proof: the page before the planting has no such block; with a failed diagram planted, the check names it with its reason.
-test(`TST-904${String(number++).padStart(3, "0")}: the page before the planting holds no block that did not render`, () => {
+test(`${testId(904, CASES[904].diagramBefore)}: the page before the planting holds no block that did not render`, () => {
   assert.deepEqual(planted.before.diagrams, []);
 });
 
-test(`TST-904${String(number++).padStart(3, "0")}: a planted failed diagram fails the check and is named with its reason`, () => {
+test(`${testId(904, CASES[904].diagramAfter)}: a planted failed diagram fails the check and is named with its reason`, () => {
   assert.deepEqual(planted.afterDiagram.diagrams, ['a block that did not render: "Diagram error: planted"']);
 });
 
@@ -204,7 +203,7 @@ test(`TST-904${String(number++).padStart(3, "0")}: a planted failed diagram fail
 // given: the fixture's use case UC-001, accepted at an earlier text and changed since; input: the routes that draw it, at both widths, and each `pre.diff` in <main>;
 // expect: the route draws at least one difference box (the known positive that the checks above meet it), and each has tabindex "0" (ITM-921)
 for (const address of ["#uc/UC-001", "#review/uc"]) {
-  test(`TST-904${String(number++).padStart(3, "0")}: ${address} draws the difference box of the changed use case, which the keyboard reaches`, () => {
+  test(`${testId(904, ROUTES.find((each) => each.address === address).ids[904].box)}: ${address} draws the difference box of the changed use case, which the keyboard reaches`, () => {
     for (const [kind] of WIDTHS) {
       const boxes = measured.get(`${address} ${kind}`).boxes;
       assert.equal(boxes.length > 0, true, `${address} at a ${kind}'s width draws a difference box`);
