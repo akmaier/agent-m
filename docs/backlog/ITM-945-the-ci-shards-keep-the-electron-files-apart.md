@@ -36,5 +36,8 @@ every other file's share as it is. MOD-test-schedule.md:70 names `.github/workfl
 - No two test files that start Electron share a node shard, in every mode. A test runs the partition over the repository's
   test files, and over a list with files added before them, and finds the Electron files in distinct shards. Its
   counter-proof is `index % 8` alone.
+- When there are more files that start Electron than node shards, the partition fails the job and names the files and the
+  number of shards, instead of letting two of them share a lock. A test with one Electron file more than shards finds
+  that failure.
 - Every node job of the next mode=all run stays within two minutes.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
