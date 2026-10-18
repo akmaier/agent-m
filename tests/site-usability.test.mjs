@@ -51,9 +51,7 @@ const CLAUSES = [
 // What the pages do today that the check names: route -> clause -> the finding, as measured in the controlled Electron at a phone's width
 // (at a desktop's width every route passes). Each is a todo until the module of its route fixes it; each fix is an item of that module.
 const TODAY = {
-  "#uc/UC-001": { widths: "the Markdown table and the run of code of the use case are wider than a phone's window and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
-  "#arc": { widths: "the source of the component diagram stands in a code block wider than a phone's window (MOD-trace-pages' modules view)" },
-  "#module": { widths: "the source of the component diagram stands in a code block wider than a phone's window (MOD-trace-pages' modules view)" },
+  "#uc/UC-001": { widths: "its diagram is drawn; what remains is the Markdown table and the run of code of the use case, wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
   "#backlog": { widths: "the sprint and backlog tables and both burn-down charts are wider than a phone's window (docs/assets/dashboard/backlog-view.mjs)" },
   "#roles": { widths: "the table of roles is wider than a phone's window and the page scrolls sideways (MOD-implementation-pages)" },
 };

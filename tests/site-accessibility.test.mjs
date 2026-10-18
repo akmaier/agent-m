@@ -42,9 +42,9 @@ const RULE = {
 };
 const PER_ROUTE = {
   "/": ["brand"],
-  "#uc": ["menu", "contrast", "label"], "#uc/UC-001": ["menu", "contrast", "scroll"], "#use-case/id=UC-002/edit=1": ["menu", "scroll", "target"],
-  "#arc": ["menu", "contrast", "label", "scroll"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
-  "#decision/id=ARC-001/edit=1": ["menu", "scroll", "target"], "#module": ["menu", "contrast", "label", "scroll"],
+  "#uc": ["menu", "contrast", "label"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "scroll", "target"],
+  "#arc": ["menu", "contrast", "label"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
+  "#decision/id=ARC-001/edit=1": ["menu", "scroll", "target"], "#module": ["menu", "contrast", "label"],
   "#module/id=MOD-reader/edit=1": ["menu", "scroll", "target"], "#spec": ["menu", "label"], "#backlog": ["menu", "contrast", "scroll"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
