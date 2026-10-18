@@ -7,6 +7,7 @@ realises:
   - THE TRACEABILITY MATRIX IS DERIVED
 modules:
   - MOD-trace-graph
+  - MOD-workflow-entries
 builds_on:
   - ITM-880
   - ITM-905
@@ -26,9 +27,9 @@ trace-cache and read from there", and the workflow that runs it on each push to 
 branch `trace-cache`. The work is 0.4 s of `traceGraph` and 6.2 MB of text; the fixed cost of a job around it is about 10 s
 (measurement, §4), against a limit of two minutes.
 
-**Open before it starts** (measurement, §6): whether `THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE` covers this
-workflow or it is written like `apply-approvals.yml`; the branch's first commit is made once by the workflow (git, orphan)
-and not by `commitFiles`.
+**Settled at ITM-880's gate (po-opus-b): the workflow is written like `apply-approvals.yml`, not generated from the schedule.** `THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE` (SPEC.md:1513) says the CI configuration "is generated from its declared test schedule", and its Check is that "the generated configuration triggers exactly the levels the schedule names for each event". A schedule declares which test levels run on which occasion (MOD-test-schedule.md:49-51). A workflow that writes the graph runs no test level, so the schedule holds nothing it could be generated from. The architecture draws the same line. MOD-test-schedule generates `agent-m-tests.yml` (MOD-test-schedule.md:70). The instance's own workflows belong to MOD-workflow-entries: "one file under `.github/workflows/` runs each of its entries … and does nothing but run it, so that a change between jobs may add it" (MOD-workflow-entries.md:121-124). `apply-approvals.yml` and `fetch-sources.yml` are two such files (MOD-workflow-entries.md:109). So this workflow is one more such file, and it runs an entry of MOD-workflow-entries that calls `publishGraph` on a push to `main`. MOD-workflow-entries' text has no such entry, so the item waits for a draft of MOD-workflow-entries for akmaier, beside the MOD-trace-graph draft. No SPEC change is needed, so the question does not go to akmaier.
+
+**Open before it starts:** the branch's first commit is made once by the workflow (git, orphan) and not by `commitFiles`.
 
 ## Acceptance
 
