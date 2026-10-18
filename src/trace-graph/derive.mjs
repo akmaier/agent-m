@@ -111,10 +111,12 @@ export function architectureImpact(graph, changes) {
   }
   for (const id of modules.keys()) keepFolder(graph.nodes.get(id)?.folder);
   const tests = unique(graph.edges.filter((edge) => edge.via === "exercises" && modules.has(edge.to)).map((edge) => edge.from));
+  const guardsOf = new Map(tests.map((id) => [id, []]));
+  for (const edge of graph.edges) if (edge.via === "guards") guardsOf.get(edge.from)?.push(edge.to);
   return {
     modules: [...modules.values()].sort((a, b) => priority[b.why] - priority[a.why] || byText(a.id, b.id)),
     codeFiles: unique(graph.files.filter((path) => isCodePath(path) && [...folders].some((folder) => path.startsWith(folder)))),
-    tests: tests.map((id) => ({ id, guards: unique(graph.edges.filter((edge) => edge.via === "guards" && edge.from === id).map((edge) => edge.to)) })),
+    tests: tests.map((id) => ({ id, guards: unique(guardsOf.get(id)) })),
     named: { added: unique([...afterNames].filter((name) => !beforeNames.has(name))),
       removed: unique([...beforeNames].filter((name) => !afterNames.has(name))) },
     items: unique(graph.edges.filter((edge) => edge.via === "changes" && modules.has(edge.to)).map((edge) => edge.from)),
