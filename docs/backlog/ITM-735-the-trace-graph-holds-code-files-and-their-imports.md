@@ -39,7 +39,8 @@ fact, for `importsRead`.
 - The existing tests of `traceGraph` and `architectureImpact` stay green with their expected results. The exceptions are
   the four assertions that pin the absence of code files, which change to what the module's Data states: TST-554001
   (`tests/trace-graph-architecture-impact.test.mjs:114-115`) and TST-479008 (`tests/trace-graph-read-many.test.mjs:131`,
-  `:133`).
+  `:133`). A fifth: `tests/dashboard-spec-impact.test.mjs:180`, `assert.ok(!srv.batches.flat().includes("src/reader.mjs"), …)`,
+  which pins the absence of the read this item adds.
 - A committed test counts the requests a `traceGraph` call sends with and without code files, on a recorded fixture.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
