@@ -36,7 +36,11 @@ fact, for `importsRead`.
 - With a fixture snapshot of two module folders, a code file outside every folder, a vendor folder and a test file: one
   `code` node per code file with its module, none for the excluded files; an import from one module folder into another
   as an `imports` edge, for each of the four languages; a file of another language marked as not read.
-- The existing tests of `traceGraph` and `architectureImpact` stay green with their expected results.
+- The existing tests of `traceGraph` and `architectureImpact` stay green with their expected results. The exceptions are
+  the four assertions that pin the absence of code files, which change to what the module's Data states: TST-554001
+  (`tests/trace-graph-architecture-impact.test.mjs:114-115`) and TST-479008 (`tests/trace-graph-read-many.test.mjs:131`,
+  `:133`).
+- A committed test counts the requests a `traceGraph` call sends with and without code files, on a recorded fixture.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
 **Measured before its selection (sprint team1/84, 2026-10-18, developer-sonnet-c, read-only).**
