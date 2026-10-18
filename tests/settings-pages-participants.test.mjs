@@ -8,11 +8,11 @@
 // Guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The route is driven only through MOD-settings-pages' public view. The DOM is the browser stand-in of tests/site-frame.test.mjs,
+// The route is driven only through MOD-settings-pages' public view. The DOM is the browser stand-in of tests/site-frame-dom.mjs,
 // because the route uses MOD-site-frame's schemaForm and folded explanations. The instance host is local to this file: it
 // exposes docs/participants.md and docs/sources/SRC-*.md, and records the one commit saveFile makes.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

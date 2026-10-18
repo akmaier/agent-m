@@ -7,7 +7,7 @@
 // Guards: UC-028; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; EVERY TEST RUN LEAVES A RESULT RECORD; A RESULT RECORD IS NEVER REWRITTEN; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged, as tests/test-pages-runs.test.mjs does. The product is a host of this file, kept to MOD-repository-hosts'
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged, as tests/test-pages-runs.test.mjs does. The product is a host of this file, kept to MOD-repository-hosts'
 // interface (repositoryInfo, readSnapshot, readHistory, listTags, listPullRequests, ciRunLog, webLinks, commitFiles); the branch test-results is held in memory: no request leaves the process.
 // Readings the texts leave open, which the tests take and the pull request names:
 //   - A commit is a release candidate when listTags holds a tag v<version>-rc.<N> on it.
@@ -16,7 +16,7 @@
 //   - "Still missing" is every user-level test of the commit whose outcome reads "not run" (resultsAt).
 // The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { until } from "./prompt-bar.d/until.mjs";
