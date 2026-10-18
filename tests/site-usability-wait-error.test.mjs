@@ -17,8 +17,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { until, withStderr } from "./site-usability.d/browser.mjs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { openWindow, until, withStderr } from "./site-usability.d/browser.mjs";
 
 const FILES = ["site-usability.test.mjs", "site-accessibility.test.mjs"];
 const forever = () => new Promise(() => {});
@@ -91,4 +93,53 @@ test("TST-938005: an empty stderr is named as empty", () => {
 test("TST-938006: both checks pass the child's stderr on when they fail", () => {
   const without = FILES.filter((file) => !readFileSync(new URL(`./${file}`, import.meta.url), "utf8").includes("withStderr"));
   assert.deepEqual(without, []);
+});
+
+// ---------------------------------------------------------------- a window that does not open (the gate's rejection of a646bea3)
+// openWindow runs the executable it is given. These give it a shell script that is no browser: it writes what the case says to its stderr, serves no page and
+// exposes no debugging target. `limit` (the third parameter of openWindow) is how long the window's page may take to appear among the debugging targets.
+
+// stand(body) -> { executable, remove } — a script of a folder of its own that runs `body`.
+function stand(body) {
+  const folder = mkdtempSync(join(tmpdir(), "agent-m-938-stand-in-"));
+  const executable = join(folder, "stand-in.sh");
+  writeFileSync(executable, `#!/bin/sh\n${body}\n`);
+  chmodSync(executable, 0o755);
+  return { executable, remove: () => rmSync(folder, { recursive: true, force: true }) };
+}
+async function failureOf(body, limit) {
+  const { executable, remove } = stand(body);
+  try {
+    await openWindow(executable, "http://127.0.0.1:1/__blank", { limit });
+    return null;
+  } catch (failure) { return failure; } finally { remove(); }
+}
+
+// TST-938007 · level: unit · module: MOD-site-frame
+// given: an executable that writes "STAND-IN-STDERR-ALIVE" to its stderr, stays alive and serves no page
+// input: openWindow(executable, address, { limit: 2000 })
+// expect: openWindow rejects, and its failure holds "STAND-IN-STDERR-ALIVE": the stderr of a child that was running is not lost with the window
+test("TST-938007: a window that does not open carries the stderr of the child that stayed alive", { timeout: 15000 }, async () => {
+  const failure = await failureOf('echo "STAND-IN-STDERR-ALIVE" >&2\nexec sleep 60', 2000);
+  assert.equal(failure instanceof Error, true);
+  assert.equal(failure.message.includes("STAND-IN-STDERR-ALIVE"), true, failure?.message);
+});
+
+// TST-938008 · level: unit · module: MOD-site-frame
+// given: an executable that writes nothing, stays alive and serves no page
+// input: openWindow(executable, address, { limit: 2000 })
+// expect: openWindow rejects; its failure says the child wrote nothing to its stderr and holds no "STAND-IN-STDERR" (the counter-proof of TST-938007: the line comes from the child)
+test("TST-938008: counter-proof — a child that wrote nothing is named as having written nothing", { timeout: 15000 }, async () => {
+  const failure = await failureOf("exec sleep 60", 2000);
+  assert.equal(failure instanceof Error, true);
+  assert.equal(failure.message.includes("wrote nothing to its stderr"), true, failure?.message);
+  assert.equal(failure.message.includes("STAND-IN-STDERR"), false);
+});
+
+// TST-938009 · level: unit · module: MOD-site-frame
+// given: a failure and no stderr at all: no window opened, so no child's stderr is held
+// input: withStderr(failure, undefined)
+// expect: the message is the failure's own: nothing claims that a child wrote nothing
+test("TST-938009: a failure with no window behind it is not said to have an empty stderr", () => {
+  assert.equal(withStderr(new Error("the window did not open"), undefined).message, "the window did not open");
 });
