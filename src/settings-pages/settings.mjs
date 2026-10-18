@@ -1108,6 +1108,8 @@ export const route = {
         await guided.render(place, inPlace, params);
       },
       endpointsChanged: listEndpoints,
+      // A form opened here that stores a token tells the page, which then connects its hosts with what the store holds.
+      tokenStored: () => reconnectHosts(context),
     };
     listEndpoints();
     const bridge = bridgeLine(target, inPlace);
