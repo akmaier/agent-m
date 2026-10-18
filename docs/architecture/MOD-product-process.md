@@ -181,7 +181,9 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   commit: string, path:
   string }>` — a decision on a gate — a person's on the page, an agent's through the writer `gate-record`, a CI check's
   through the Workflows — written as one gate record in one commit on the head that was read; `on` names each checked
-  artifact as `<path>@<blob>`, or the commit; `trailers` are a job's provenance lines, empty for a person's own decision.
+  artifact as `<path>@<blob>`, or the commit; `trailers` are a job's provenance lines, empty for a person's own decision. The
+  commit's message is the subject `gates: <gate> <decision> by <decider's name>`, then, after an empty line, the trailers,
+  one per line — the one subject of every gate record, whoever decides it.
   Considers: `mayDecide` runs first, and a decision that would not pass the gate is refused with nothing written; a
   rejection needs its reason; the waiting job is resumed by its route once the record is on the branch (MOD-runtimes'
   `resumeJob`; on CI the record's push). Crosses the network. Errors: `MayNotDecide { reason, holders }`, `ReasonMissing`,
