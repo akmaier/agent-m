@@ -144,8 +144,8 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 // input: open #spec with a token
 // expect: the app reads in two waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
 //         being the same blob —, then the proposals of the open queue — 1 file; no file twice, the accepted queue's proposal
-//         not at all, and no file by itself. Both queues are listed with their entry's status: the open entry open, the written one
-//         in SPEC.
+//         not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link; the written
+//         one does not.
 test("#spec: the app reads the SPEC and the queues' heads in one batch and the open queue's proposals in a second", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
@@ -156,8 +156,9 @@ test("#spec: the app reads the SPEC and the queues' heads in one batch and the o
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(files(page.requests).filter((p) => p !== "SPEC.md"), [], "the app reads no file by itself");
   const main = page.main();
-  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-02_open-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge b-open">open<\/span>/);
-  assert.match(main, /<a href="#spec-entry\/id=spec-2026-09-01_done-01">01<\/a><\/td><td>## 1\. Rules<\/td><td><span class="badge b-applied">in SPEC<\/span>/);
+  assert.match(main, /SPEC changes waiting for acceptance/);
+  assert.match(main, /href="#spec-entry\/id=spec-2026-09-02_open-01"[^>]*>2026-09-02_open-01 — ## 1\. Rules<\/a> open/);
+  assert.doesNotMatch(main, /spec-2026-09-01_done-01/, "the written entry is not among the waiting ones");
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES

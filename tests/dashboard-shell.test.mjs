@@ -74,7 +74,7 @@ test("every address of today is shown — use cases, architecture, SPEC changes,
   assert.equal(await heading("#uc"), "Use cases");
   assert.equal(await heading("#uc/UC-001"), "UC-001 Add a product");
   assert.equal(await heading("#arc"), "Architecture decisions");
-  assert.equal(await heading("#spec"), "SPEC changes");
+  assert.equal(await heading("#spec"), "Current requirements");
   await page.go("#how");
   assert.match(page.main(), /<details class="explain"[^>]*><summary>How acceptance works<\/summary>/);
   assert.match(page.main(), /Accepting is a commit made under your own account/);
@@ -137,7 +137,7 @@ test("the list of built files beside the views names exactly the files of the ta
   const handed = { "review-views.mjs": ["uc", "arc", "review"], "spec-changes-view.mjs": ["spec"], "how-view.mjs": ["how"] };
   assert.deepEqual(built.filter((f) => !isThere(f) && !handed[f]), [], "the list names only files that are there, or views handed to a module");
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
-  const shows = { uc: /<h2>Use cases<\/h2>/, arc: /<h2>Architecture decisions<\/h2>/, review: /<h2>Use cases<\/h2>/, spec: /<h2>SPEC changes<\/h2>/,
+  const shows = { uc: /<h2>Use cases<\/h2>/, arc: /<h2>Architecture decisions<\/h2>/, review: /<h2>Use cases<\/h2>/, spec: /<h2>Current requirements<\/h2>/,
     how: /<summary>How acceptance works<\/summary>/ };
   for (const [file, views] of Object.entries(handed)) {
     if (isThere(file) || !built.includes(file)) continue;

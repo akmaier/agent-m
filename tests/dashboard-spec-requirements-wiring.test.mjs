@@ -47,16 +47,18 @@ test("the fixture resolves its actual current head but refuses an unknown SHA", 
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the current fixture SPEC and one open legacy queue
 // input: open #spec through the dashboard's pinned snapshot and address the preserved queue control
-// expect: the public requirements view and the queue are both on the page, and the existing queue control remains reachable
-test("#spec composes the pinned requirements view with the open SPEC changes", async () => {
+// expect: the open entry of the queue stands first, as a link, under "SPEC changes waiting for acceptance", and the public requirements view below it; the queue's control (Accept ticked) is not on this page and is reachable on #spec-entry
+test("#spec shows the open SPEC changes first and the pinned requirements below; the queue control stays reachable on #spec-entry", async () => {
   const server = await repoServer({ files: FILES });
   const page = await openDashboard({ server, hash: "#spec" });
   const html = page.main();
-  const overview = html.indexOf("Current requirements"), history = html.indexOf("SPEC changes");
+  const waiting = html.indexOf("SPEC changes waiting for acceptance"), overview = html.indexOf("Current requirements");
   const requirement = html.indexOf("CURRENT REQUIREMENT"), queue = html.indexOf(`href="#spec-entry/id=spec-${QUEUE}-01"`);
   assert.ok(overview >= 0 && requirement >= 0, "known positive: the public overview is present");
-  assert.ok(history >= 0 && queue >= 0, "known positive: the preserved queue history is present");
+  assert.ok(waiting >= 0 && queue > waiting && queue < overview, "the open entry is linked in the waiting section, above the overview");
+  assert.equal(html.includes("accept-ticked"), false, "the list's controls are not on #spec");
   assert.deepEqual(server.writes, [], "opening the composed page writes nothing");
+  await page.go("#spec-entry");
   await page.click(".accept-ticked");
   assert.deepEqual(server.writes, [], "the preserved queue control remains reachable without writing");
 });
