@@ -25,6 +25,24 @@ export function opening(list, item, open, same = (a, b) => a === b) {
   if (open) list.push(item);
 }
 
+const instanceSnapshots = new WeakMap();
+
+/**
+ * instanceSnapshot(context) -> Promise<Snapshot> — the instance's snapshot at its default branch, through the host the frame gave the route
+ * (`context.instance.host`), read once for the context and handed to every caller of it, however often the version is drawn again
+ * (A PAGE LOAD READS THE REPOSITORY IN BATCHES: the commit and its tree once). A read that failed is not kept: the next caller reads again.
+ */
+export function instanceSnapshot(context) {
+  let held = instanceSnapshots.get(context);
+  if (held === undefined) {
+    const { host } = context.instance;
+    held = (async () => host.readSnapshot((await host.repositoryInfo()).defaultBranch))();
+    instanceSnapshots.set(context, held);
+    held.catch(() => { if (instanceSnapshots.get(context) === held) instanceSnapshots.delete(context); });
+  }
+  return held;
+}
+
 /**
  * personsSource(context, snapshot) -> Promise<string | null> — the identifier of the register entry of the person who prompts, which the
  * product links (THE PERSON WHO PROMPTS IS A SOURCE): the product's links file at `snapshot`, and the instance's register at its default branch,
@@ -33,8 +51,7 @@ export function opening(list, item, open, same = (a, b) => a === b) {
 export async function personsSource(context, snapshot) {
   try {
     const { entry, links } = sourceSchemas();
-    const { host } = context.instance;
-    const instance = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+    const instance = await instanceSnapshot(context);
     const entries = instance.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
     // The files are named to Snapshot.readMany before they are read (as MOD-trace-pages' moduleFilesOf does): one batch where the links file and the
     // register are one snapshot, the register's own where they are not; a host that cannot batch reads nothing ahead.
