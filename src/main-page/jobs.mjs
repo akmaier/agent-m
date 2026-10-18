@@ -21,7 +21,7 @@ import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
 // The key a repository's own token is kept under (MOD-browser-store, Data): `github-token:<owner>/<repository>` or `gitlab-token:<server>/<project>`; the instance's is `github-token`.
-export const tokenKeyOf = (address) => (address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`);
+const tokenKeyOf =(address) => (address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`);
 
 // The sources, each connected with the token this browser keeps for it: the instance, then each address of the setting `products` that parses, once.
 function sourcesOf(context) {

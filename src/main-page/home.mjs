@@ -21,7 +21,7 @@ import { parseAddress } from "../repository-hosts/index.mjs";
 import { chosenProduct } from "../site-frame/index.mjs";
 import { productFacts, stageShares, currentStage, buildInProgress, waitingForAPerson } from "../progress-measures/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { bridgesOf, liveStatesOf, tokenKeyOf } from "./jobs.mjs";
+import { bridgesOf, liveStatesOf } from "./jobs.mjs";
 import { el, productCard, readingCard, errorCard } from "./cards.mjs";
 import { waitsList } from "./waits.mjs";
 import { readAgain } from "./reread.mjs";
@@ -36,7 +36,7 @@ async function sourcesOf({ store, instance }) {
     const address = parseAddress(web), title = address.path;
     try {
       const product = await chosenProduct({ store, fragment: `#home/product=${encodeURIComponent(web)}` });
-      return { title, address: web, host: product.host, tokenStored: readSetting(store, tokenKeyOf(address)) !== null };
+      return { title, address: web, host: product.host, tokenStored: product.tokenStored };
     } catch (failure) {
       return { title, address: web, reason: reasonOf(failure) };
     }
