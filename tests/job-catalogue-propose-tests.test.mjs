@@ -48,14 +48,14 @@ test("propose-tests — a case with paid naming a service and a case without it 
 // guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026
 // given: the kind propose-tests of the catalogue, and an answer of one case with paid 5
 // input: the answer read by runJob
-// expect: the answer is unusable, and its one finding says "the answer cannot be read: draft.cases[0].paid is not a text"; the known positive is response 5, which says "draft.cases[0].response is not a text"
+// expect: the answer is unusable, and its one finding says "the answer cannot be read: the answer.draft.cases[0].paid is not a text"; the known positive is response 5, which says "draft.cases[0].response is not a text"
 test("propose-tests — a paid that is not a text is refused", async () => {
   const positive = await read([{ ...CASE, response: 5 }]);
   assert.equal(positive.stoppedBecause, "unusable");
-  assert.equal(positive.rounds[0].findings[0].what, "the answer cannot be read: draft.cases[0].response is not a text");
+  assert.equal(positive.rounds[0].findings[0].what, "the answer cannot be read: the answer.draft.cases[0].response is not a text");
   const result = await read([{ ...CASE, paid: 5 }]);
   assert.equal(result.stoppedBecause, "unusable");
-  assert.equal(result.rounds[0].findings[0].what, "the answer cannot be read: draft.cases[0].paid is not a text");
+  assert.equal(result.rounds[0].findings[0].what, "the answer cannot be read: the answer.draft.cases[0].paid is not a text");
 });
 
 // TST-890003 · level: unit · module: MOD-job-catalogue
