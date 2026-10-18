@@ -33,7 +33,7 @@ const NAMES_UNDER = { "use-case": "realises", "architecture-decision": "forced_b
  * acceptanceBlockers(path: string, snapshot: Snapshot) -> Promise<string[]> — the requirements and use cases the reviewed file at
  * `path` names that are not accepted, in the order the file names them: a requirement the SPEC of the snapshot does not hold,
  * a use case that no record of the snapshot names the current text of or that is none of the product's. Empty when the file
- * rests only on accepted artifacts, and for a path that holds no reviewed file. Reads the file, and the SPEC where the file
+ * rests only on accepted artifacts, for a release test report, and for a path that holds no reviewed file. Reads the file, and the SPEC where the file
  * names a requirement, through the snapshot.
  * @param {string} path
  * @param {{ paths: string[], blob: (path: string) => string | null, read: (path: string) => Promise<string | null> }} snapshot
@@ -42,7 +42,8 @@ const NAMES_UNDER = { "use-case": "realises", "architecture-decision": "forced_b
 export async function acceptanceBlockers(path, snapshot) {
   const reviewed = statuses(snapshot);
   const file = reviewed.get(path);
-  const body = file ? await snapshot.read(path) : null;
+  // A release test report names no requirement and no use case: it rests on nothing.
+  const body = file && file.kind !== "release-report" ? await snapshot.read(path) : null;
   if (body === null) return [];
   const named = [readDocument(artifactSchemas()[READ_BY[file.kind]], path, body).fields[NAMES_UNDER[file.kind]] ?? []].flat();
   const useCases = new Map([...reviewed.values()].filter((each) => each.kind === "use-case").map((each) => [each.id, each.status]));
