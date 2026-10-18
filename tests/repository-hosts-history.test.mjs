@@ -387,6 +387,76 @@ test("MOD-repository-hosts readHistory — changes: false asks for no commit's c
   assert.equal(reading?.name, "RateLimited", "known positive: reading the changes meets the refusal");
 });
 
+// TST-928001 · level: unit · module: MOD-repository-hosts
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the history of five commits above on a GitLab project, read with a token; SPEC.md was changed by the first, third and fifth commit
+// input: readHistory("SPEC.md", { changes: false }) and readHistory(null, { changes: false }); for contrast readHistory("SPEC.md", {}) and readHistory("SPEC.md", { changes: true }), each on a fake of its own
+// expect: with changes false, the entries of the commits as without it but every `changes` an empty list; the requests: 1 "List repository commits" and no diff for the file's 3 commits, 1 and none for the repository's 5. Known positive: without the option, and with `changes: true`, the same fake counts 1 list and 3 diff requests, and the entries carry their changes
+test("MOD-repository-hosts readHistory — changes: false sends one request for the commits and none for their changes (GitLab)", async () => {
+  const run = async (path, options) => {
+    const gl = fakeGitLab();
+    const entries = await using(gl.fetch, () => connect(GITLAB, { token: GL_TOKEN }).readHistory(path, options));
+    return { entries, list: gl.listRequests().length, detail: gl.detailRequests().length, all: gl.requests.length };
+  };
+  const file = await run("SPEC.md", { changes: false });
+  assert.deepEqual(file.entries, emptied(onGitLab(C5, C3, C1)), "the file's commits, changes empty");
+  assert.deepEqual([file.list, file.detail, file.all], [1, 0, 1], "the file: 1 list, no diff, 1 request");
+  const repository = await run(null, { changes: false });
+  assert.deepEqual(repository.entries, emptied(onGitLab(C5, C4, C3, C2, C1)), "the repository's commits, changes empty");
+  assert.deepEqual([repository.list, repository.detail, repository.all], [1, 0, 1], "the repository: 1 list, no diff, 1 request");
+
+  for (const [label, options] of [["no option", {}], ["changes true", { changes: true }]]) {
+    const read = await run("SPEC.md", options);
+    assert.deepEqual(read.entries, onGitLab(C5, C3, C1), `known positive, ${label}: the changes are listed`);
+    assert.deepEqual([read.list, read.detail, read.all], [1, 3, 4], `known positive, ${label}: 1 list and 3 diffs`);
+  }
+});
+
+// TST-928002 · level: unit · module: MOD-repository-hosts
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a GitLab project of 130 commits that each add a file, and one whose only commit adds 250 files (a commit whose diff takes three pages)
+// input: readHistory(null, { limit: 120, changes: false }) and readHistory(null, { limit: 1, changes: false }) on the first; readHistory(null, { changes: false }) on the second
+// expect: the 120 newest commits, in order, each with empty changes, for 2 requests — one for each of the two pages of 100 commits the 120 span — and no diff; the newest commit for 1 request; the 250-file commit with empty changes for 1 request, not the 3 more that reading its diff takes. Known positive: without the option that commit takes 3 diff requests and lists 250 changes
+test("MOD-repository-hosts readHistory — changes: false costs one request for each page of commits, however many commits or files there are (GitLab)", async () => {
+  const long = chain(Array.from({ length: 130 }, (_, i) => commit(1000 + i, ALICE, new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString()
+    .replace(".000Z", "Z"), `Change ${i + 1}`, [{ path: `notes/n${String(i + 1).padStart(3, "0")}.md`, change: "added" }])));
+  const newest = [...long].reverse();
+  const many = async (history, options) => {
+    const gl = fakeGitLab({ history });
+    const entries = await using(gl.fetch, () => connect(GITLAB, { token: GL_TOKEN }).readHistory(null, options));
+    return { entries, list: gl.listRequests().length, detail: gl.detailRequests().length, all: gl.requests.length };
+  };
+  const spanning = await many(long, { limit: 120, changes: false });
+  assert.deepEqual(spanning.entries, emptied(onGitLab(...newest.slice(0, 120))), "the 120 newest, changes empty");
+  assert.deepEqual([spanning.list, spanning.detail, spanning.all], [2, 0, 2], "2 pages of commits, no diff");
+  const one = await many(long, { limit: 1, changes: false });
+  assert.deepEqual(one.entries, emptied(onGitLab(newest[0])), "the newest commit, changes empty");
+  assert.deepEqual([one.list, one.detail, one.all], [1, 0, 1], "1 request");
+
+  const bulk = chain([commit(2000, BOB, "2026-09-10T08:00:00Z", "Add the generated files",
+    Array.from({ length: 250 }, (_, i) => ({ path: `generated/g${String(i + 1).padStart(3, "0")}.md`, change: "added" })))]);
+  const wide = await many(bulk, { changes: false });
+  assert.deepEqual(wide.entries, emptied(onGitLab(bulk[0])), "the commit of 250 files, changes empty");
+  assert.deepEqual([wide.list, wide.detail, wide.all], [1, 0, 1], "1 request, not more for the pages of its diff");
+  const read = await many(bulk, {});
+  assert.deepEqual([read.detail, read.entries[0].changes.length], [3, 250], "known positive: without the option the same commit takes 3 diff requests and lists 250 changes");
+});
+
+// TST-928003 · level: unit · module: MOD-repository-hosts
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// given: a GitLab project that lists the commits well and answers every diff of a commit with a used-up rate limit (429)
+// input: readHistory("SPEC.md", { changes: false }); and readHistory("SPEC.md", {})
+// expect: the first gives the 3 commits with empty changes, since no commit's diff is asked for; the second fails with RateLimited (known positive: the fake refuses what it is asked)
+test("MOD-repository-hosts readHistory — changes: false asks for no commit's diff, so a server that refuses it does not fail it (GitLab)", async () => {
+  const refusing = () => fakeGitLab({ answer: (r) => (/\/repository\/commits\/[0-9a-f]{40}\/diff$/.test(r.path) ? json(429, { message: "Retry later" }) : null) });
+  const without = refusing();
+  const entries = await using(without.fetch, () => connect(GITLAB, { token: GL_TOKEN }).readHistory("SPEC.md", { changes: false }));
+  assert.deepEqual(entries, emptied(onGitLab(C5, C3, C1)));
+  assert.equal(without.listRequests().length, 1, "the list was read");
+  const reading = await using(refusing().fetch, () => failure(connect(GITLAB, { token: GL_TOKEN }).readHistory("SPEC.md", {})));
+  assert.equal(reading?.name, "RateLimited", "known positive: reading the diff meets the refusal");
+});
+
 // ---------------------------------------------------------------- a path no commit touched
 
 // TST-472545 · level: unit · module: MOD-repository-hosts
