@@ -23,6 +23,9 @@ uses:
   - MOD-text-tools.blobSha
   - MOD-text-tools.finding
   - MOD-text-tools.Finding
+  - MOD-repository-hosts.Host
+  - MOD-repository-hosts.Snapshot
+  - MOD-repository-hosts.commitFiles
 provides:
   - TextSource
   - Graph
@@ -44,6 +47,9 @@ provides:
   - compareGraphs
   - selfSufficiencyFindings
   - systemDecisions
+  - graphText
+  - graphFromText
+  - publishGraph
 ---
 # MOD-trace-graph The trace graph and everything derived from it
 
@@ -54,8 +60,10 @@ identifier and of what names it — requirements, use cases, architecture decisi
 requirement names, and the code files in the modules' folders —, and derives from that graph alone what needs several
 artifacts at once: the checks across artifacts, the traces of a requirement, the coverage gaps, the impact lists of a
 change, the order of the modules by their uses, the module rows of UC-025, the comparison of two versions, and
-references to what exists only inside Agent M. The matrix is computed every time and never stored (`THE TRACEABILITY
-MATRIX IS DERIVED`). It runs in a browser and in Node; it reads only through the function it is given and writes nothing.
+references to what exists only inside Agent M. The matrix is derived from the files of one commit alone and edited by no one (`THE TRACEABILITY
+MATRIX IS DERIVED`): `traceGraph` builds it, and where the repository holds the graph of that very commit on its branch
+`trace-cache`, `traceGraph` returns that graph and reads no file. It runs in a browser and in Node; it reads only through the
+source it is given and writes only through `publishGraph`, which adds the graph of one commit to that branch.
 
 ## Parts
 
@@ -64,6 +72,7 @@ MATRIX IS DERIVED`). It runs in a browser and in Node; it reads only through the
 - `code.mjs` — code files by module folder, and the imports between module folders.
 - `checks.mjs` — the checks across artifacts.
 - `derive.mjs` — traces, gaps, impact lists, module order and rows, comparison.
+- `stored.mjs` — the graph of one commit as a text and back, and adding it to the branch `trace-cache`.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/assets/traceability.mjs`, `docs/assets/traceability/graph.mjs`: removed once this module gives `moduleRows`, which it states and does not build yet, and no file imports them.
   - `tests/test_coverage_report.py`: rewritten on `traceGraph` and `graphFindings`: it is the Check of `EVERY CODE FILE BELONGS TO A MODULE`.
@@ -71,7 +80,9 @@ MATRIX IS DERIVED`). It runs in a browser and in Node; it reads only through the
 
 ## Data
 
-It keeps nothing between calls. A graph lives as long as its caller holds it.
+It keeps nothing between calls. A graph lives as long as its caller holds it, or on the branch `trace-cache` of the repository,
+which only grows: the file `<commit>.json` is the text `graphText` gives for the graph of the commit it is named by, and no
+file of it is changed or deleted.
 
 What it reads, and as what:
 
@@ -123,9 +134,11 @@ identifier, and which register entry an item names is MOD-source-register's to s
 ## Interfaces
 
 - `TextSource` — `{ paths: string[], read(path: string) -> Promise<string | null>, readMany?: (paths: string[]) ->
-  Promise<void> }`: the files of one repository at one commit, as the caller hands them; a snapshot of Access fits it.
+  Promise<void>, readOn?: (branch: string, path: string) -> Promise<string | null> }`: the files of one repository at one commit, as the caller hands them; a snapshot of Access fits it.
   `readMany`, where the source offers it, is told every path the graph will read before the first `read`, so that a
-  source on a server reads them in batches.
+  source on a server reads them in batches. `readOn`, where the source offers it, reads a file of another branch of the
+  same repository, as a snapshot of Access does; a source without it, such as one that holds an edited text in place of a
+  file, never uses a stored graph.
 - `Graph` — `{ commit: string | null, nodes: Map<string, { id: string, kind: IdentifierKind | "code" | "group", path:
   string, line: number, title: string | null, blob: string | null, folder: string | null, provides: string[] | null,
   level: string | null, tests: string[] | null, sources: string[] | null }>, edges: { from: string, to: string, via:
@@ -156,7 +169,10 @@ identifier, and which register entry an item names is MOD-source-register's to s
   `moduleRows` lists.
 - `Comparison` — `{ requirements: { added: string[], changed: string[], removed: string[] }, coverage: { gained: { name:
   string, by: string }[], lost: { name: string, by: string }[] } }`.
-- `traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph>` — names to the source's `readMany`,
+- `traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph>` — first, where `options.commit` is
+  given and the source has `readOn`, reads `<commit>.json` on the branch `trace-cache` once; a text that `graphFromText`
+  restores for that commit is the result, and no file is read. A missing branch or file, a text of another format and a
+  text that names another commit are not failures: the graph is then built as follows. Names to the source's `readMany`,
   where it has one, every file it will read, then reads the repository's artifacts and
   code files as listed under Data and builds the graph, keeping the facts listed there. A file that cannot be read, or not
   read as its format, is listed
@@ -189,6 +205,14 @@ identifier, and which register entry an item names is MOD-source-register's to s
   tests that exercise those modules and the requirements those tests guard; the requirements and use cases the files name
   and no longer name; the plan steps and backlog items that name an affected module (`AN ARCHITECTURE CHANGE IS NOT
   ACCEPTED WITHOUT AN IMPACT LIST`).
+- `graphText(graph: Graph) -> string` — the graph as one text, the same text for the same graph, that names the commit the
+  graph was built for.
+- `graphFromText(text: string, commit: string) -> Graph | null` — the graph the text holds, or `null` for a text that is
+  no `graphText` or names a commit other than `commit`. Reads nothing.
+- `publishGraph(host: Host, snapshot: Snapshot) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the
+  snapshot's commit from its files and adds `<commit>.json` to the branch `trace-cache` by `commitFiles`, on the head it
+  read; `written` is `false` when the branch holds the file already, which it then leaves as it is. Crosses the network;
+  fails as `commitFiles` fails, with `NotFound` naming the branch when the repository has none.
 - `systemDecisions(graph: Graph) -> { system: string[], subsystems: string[] }` — the decisions that refine no other,
   and the subsystems' decisions: those that refine one of them and design at least one module; each list by identifier.
 - `moduleOrder(graph: Graph) -> { order: string[] } | { cycle: string[] }` — the modules in an order in which every module
@@ -210,7 +234,8 @@ identifier, and which register entry an item names is MOD-source-register's to s
 
 ## Files
 
-It reads, through the `TextSource` it is given, the files listed under Data. It writes no file.
+It reads, through the `TextSource` it is given, the files listed under Data, and the file `<commit>.json` of the branch
+`trace-cache`. It writes `<commit>.json` on that branch, only by adding, and only in `publishGraph`.
 
 ## Uses
 
@@ -225,3 +250,5 @@ It reads, through the `TextSource` it is given, the files listed under Data. It 
 - `MOD-group-document.parseGroupFile` — to read the groups' titles.
 - `MOD-text-tools.blobSha` — the blob of each node.
 - `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — the findings it reports.
+- `MOD-repository-hosts.Host`, `MOD-repository-hosts.Snapshot` and `MOD-repository-hosts.commitFiles` — `publishGraph`'s
+  reading of the branch head and its one commit.
