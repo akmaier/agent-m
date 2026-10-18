@@ -291,14 +291,14 @@ test("TST-757003 auditRows — no approval record names the report's current tex
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
 // given: the fixture, with the record of the accepted report, beside it an approval record of an earlier release (another tag, another report) and a second record of this release that names the same report with another blob
 // input: auditRows(...).evidence.records
-// expect: the two records that name this report, in path order; the record of the earlier release is not listed
+// expect: the two records that name this report, in the order of their paths; the record of the earlier release is not listed
 test("TST-757004 auditRows — every approval record that names this report is evidence, and no other", async () => {
   const second = `docs/approvals/release-${TAG}-aaaaaaaaaaaa.md`;
   const { evidence } = await audit({ head: {
     "docs/approvals/release-v2026.3.0-bbbbbbbbbbbb.md": approvalOf([]).replace(gitBlob(REPORT_TEXT), "b".repeat(40)).replace(REPORT, "docs/tests/releases/v2026.3.0.md"),
     [second]: approvalOf(["TST-756104 — flaky"]).replace(gitBlob(REPORT_TEXT), "a".repeat(40)),
   } });
-  assert.deepEqual(evidence.records.map((record) => record.path), [second, RECORD]);
+  assert.deepEqual(evidence.records.map((record) => record.path), [RECORD, second]);
 });
 
 // TST-757009 · level: unit · module: MOD-release-evidence
