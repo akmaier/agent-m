@@ -3,10 +3,10 @@
 **MEASUREMENT** — 2026-10-18, `main` at `ee5d1364`. Method: for each use case, each step and extension compared with the
 accepted module texts and with `src/` and `tests/` on `main`, each found gap written as an item, each quote checked against
 the current blob, and each module checked with MOD-work-plans' `conflicts` against team 1's sprints. Registered from it:
-ITM-958 to ITM-993. The rest stand here.
+ITM-959 to ITM-994 (ITM-994 in place of ITM-958, which team 1 registered at the same time). The rest stand here.
 
 The proposals of the gap analysis of UC-036 to UC-049 that are not registered as items yet, verified on `main` at `ee5d1364`.
-Item numbers are `ITM-<nnn>` (MOD-identifiers.md:54; `src/identifiers/scheme.mjs:24`), and ITM-958 to ITM-994 are taken
+Item numbers are `ITM-<nnn>` (MOD-identifiers.md:54; `src/identifiers/scheme.mjs:24`), and ITM-959 to ITM-994 are taken
 by this registration. ITM-995 to ITM-999 are left for team 1. The rest wait until akmaier decides whether an item number
 may have more digits.
 

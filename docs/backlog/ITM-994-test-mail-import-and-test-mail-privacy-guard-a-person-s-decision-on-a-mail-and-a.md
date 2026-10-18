@@ -1,5 +1,5 @@
 ---
-id: ITM-958
+id: ITM-994
 title: test_mail_import and test_mail_privacy guard a person's decision on a mail and a full run on test mails
 level: module
 realises:
@@ -21,7 +21,7 @@ origin:
   - the gap analysis of UC-036 to UC-049 on main, proposal NEW-038-4, verified against the accepted texts on main at ee5d1364
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
-# ITM-958 test_mail_import and test_mail_privacy guard a person's decision on a mail and a full run on test mails
+# ITM-994 test_mail_import and test_mail_privacy guard a person's decision on a mail and a full run on test mails
 
 **REGISTER**
 

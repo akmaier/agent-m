@@ -9,7 +9,7 @@ modules:
 builds_on:
   - ITM-963
   - ITM-964
-  - ITM-958
+  - ITM-994
 tests:
   - system
   - release
