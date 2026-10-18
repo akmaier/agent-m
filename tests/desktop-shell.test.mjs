@@ -10,6 +10,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 import { wait } from "./desktop-shell.d/wait.mjs";
+import { unusedPorts } from "./desktop-shell.d/ports.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const appEnvironment = { ...process.env, NODE_PATH: [join(root, "src/bridge-build/node_modules"), process.env.NODE_PATH].filter(Boolean).join(delimiter) };
@@ -171,13 +172,14 @@ const evaluate = async (url, expression) => {
   if (result.exceptionDetails) throw new Error(`CDP evaluation failed: ${result.exceptionDetails.text}`);
   return result.result.value;
 };
-const unusedPort = async () => await new Promise((resolve, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const { port } = server.address(); server.close((failure) => failure ? reject(failure) : resolve(port)); }); });
 const nativeClipboardEquals = async (app, value) => await evaluate(app.main, `(async () => { const electron = process.getBuiltinModule('module').createRequire(process.cwd() + '/src/desktop-shell/main.mjs')('electron'); return await electron.clipboard.readText() === ${JSON.stringify(value)}; })()`);
 
 async function launch({ folder = mkdtempSync(join(tmpdir(), "agent-m-276-test-")), port, debug, inspect, dataFolder = true, environment = {}, instance = "release-owner/release-frame", origin = "https://release-owner.github.io" } = {}) {
-  port ??= await unusedPort();
-  debug ??= await unusedPort();
-  inspect ??= await unusedPort();
+  // The ports this launch does not get are chosen together, so that no two of them are the same.
+  if (port === undefined || debug === undefined || inspect === undefined) {
+    const [chosenPort, chosenDebug, chosenInspect] = await unusedPorts(3);
+    port ??= chosenPort; debug ??= chosenDebug; inspect ??= chosenInspect;
+  }
   const executable = await runtime();
   const args = [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--inspect=${inspect}`, `--remote-debugging-port=${debug}`, "src/desktop-shell/main.mjs", `--instance=${instance}`, `--origin=${origin}`, `--port=${port}`];
   if (dataFolder) args.push(`--data-folder=${folder}`);
@@ -284,14 +286,14 @@ test("TST-276002: pause refuses new work, resume restores the real server refusa
 // input: launch the Electron entry on that port, then type a free replacement port and press Use this port
 // expect: the page shows Agent M Bridge could not start with port 4712 offered; the replacement port starts the same real composition and answers /v1/pair with 200 for the written token
 test("TST-276003: an occupied port is visible and its replacement starts the same real composition", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
-  const occupied = createServer(), port = await unusedPort();
+  const occupied = createServer(), [port] = await unusedPorts(1);
   await new Promise((resolve, reject) => { occupied.once("error", reject); occupied.listen(port, "127.0.0.1", resolve); });
   let app;
   try {
     app = await launch({ port });
     await wait("the window shows that the Bridge could not start", async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge could not start')"));
     assert.equal(await evaluate(app.page.webSocketDebuggerUrl, "document.querySelector('input[type=number]')?.value"), "4712");
-    const replacement = await unusedPort();
+    const [replacement] = await unusedPorts(1);
     await evaluate(app.page.webSocketDebuggerUrl, `document.querySelector('input[type=number]').value=${replacement}; [...document.querySelectorAll('button')].find(x => x.textContent === 'Use this port').click()`);
     await wait("the Copy token button is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "[...document.querySelectorAll('button')].some(x => x.textContent === 'Copy token')"));
     const token = await wait("the pairing token file exists", () => existsSync(join(app.folder, "pairing-token")) && tokenOf(app.folder));
@@ -307,7 +309,7 @@ test("TST-276003: an occupied port is visible and its replacement starts the sam
 test("TST-276004: an unwritable private folder is shown without starting a server", { timeout: 120000, concurrency: false, skip: NO_VIRTUAL_SCREEN }, async () => {
   const folder = mkdtempSync(join(tmpdir(), "agent-m-276-readonly-"));
   chmodSync(folder, 0o500);
-  const app = await launch({ folder, port: await unusedPort() });
+  const app = await launch({ folder });
   try {
     await wait("the window shows that the Bridge could not start", async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge could not start')"));
     assert.equal(await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('NotWritable')"), true);
