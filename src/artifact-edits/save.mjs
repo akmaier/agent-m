@@ -16,12 +16,17 @@ import { parseGroupFile, hierarchy } from "../group-document/index.mjs";
 const GROUP_FILE = /^docs\/groups\/[^/]+\.md$/;
 const ONE_PLACE = "AN ITEM HAS ONE PLACE IN ITS HIERARCHY";
 
-// The items a group file names in more than one place, read by MOD-group-document's parseGroupFile and hierarchy: each is named
-// by the finding under ONE_PLACE, whose `what` begins with the identifier. [] for a file that is no group file.
+// The items a group file names in more than one place, read by MOD-group-document's parseGroupFile and hierarchy: each finding
+// under ONE_PLACE carries the line of the repeated member, and the member of the tree on that line carries the full identifier
+// (a requirement's name holds spaces). [] for a file that is no group file.
 function itemsInSeveralPlaces(path, text) {
   if (!GROUP_FILE.test(path)) return [];
-  const { findings } = hierarchy(parseGroupFile(path, text), []);
-  return [...new Set(findings.filter((f) => f.rule === ONE_PLACE).map((f) => f.what.split(" ")[0]))];
+  const { findings, tree } = hierarchy(parseGroupFile(path, text), []);
+  const members = [];
+  const walk = (node) => { members.push(...node.members); node.groups.forEach(walk); };
+  walk(tree);
+  const lines = new Set(findings.filter((f) => f.rule === ONE_PLACE).map((f) => f.line));
+  return [...new Set(members.filter((m) => lines.has(m.line)).map((m) => m.id))];
 }
 
 // The identifier a text declares, read by the schema of its kind: the `id` of its front matter, null where it has none — and

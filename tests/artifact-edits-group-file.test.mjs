@@ -153,3 +153,20 @@ test("saveGroupFile — a member placed twice is refused with its items, and not
   assert.deepEqual(result, { refused: "not one place", items: ["UC-006"] });
   assert.deepEqual(fake.writes, [], "nothing written");
 });
+
+// TST-722005 · level: unit · module: MOD-artifact-edits
+// guards: UC-021; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// given: a product whose `trunk` holds docs/groups/requirements.md, which the editor opened at its blob; the edited text names the requirement "A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE" — a name of several words — in two groups
+// input: saveGroupFile(host, { kind: "requirements", text: the text naming it twice, openedBlob })
+// expect: { refused: "not one place", items: ["A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE"] }, the whole name, and nothing written
+test("saveGroupFile — a requirement with a name of several words placed twice is refused with its whole name", async () => {
+  const name = "A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE";
+  const opened = FILES["docs/groups/requirements.md"];
+  const fake = fakeHost(FILES);
+  const text = `# Requirements\n\n- Basics\n  - ${name}\n- More\n  - ${name}\n`;
+
+  const result = await saveGroupFile(fake.host, { kind: "requirements", text, openedBlob: blobSha(opened) });
+
+  assert.deepEqual(result, { refused: "not one place", items: [name] });
+  assert.deepEqual(fake.writes, [], "nothing written");
+});
