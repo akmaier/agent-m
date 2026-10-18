@@ -52,7 +52,7 @@ provides:
 ## Responsibility
 
 It belongs to the Site (ARC-038). Its one responsibility is what every page of the instance's site has in common: the
-header with the lab's logo and the menu in the order of the process, the look of the Pattern Recognition Lab, the
+header with the lab's logo and the menu in the order of the process, the footer of the main and the review pages, the look of the Pattern Recognition Lab, the
 product selector, the notices, the routing of views by the address's fragment, the instance derived from the Pages
 address, the folded explanations, the run panel, the dialog of a decision, the form built from a schema, and the start of
 the checks of what waits for the person's acceptance, which MOD-notifications runs on the main and the review pages, and
@@ -70,6 +70,11 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies`, each set once,
   and calls `startPage`. This is where the entry pages register strategies (ARC-038).
 - `menu.mjs` — the eight entries of the menu and the links they lead to.
+- `footer.mjs` — the footer of the main and the review pages: the book *Vibe Coding* (Springer,
+  `https://link.springer.com/book/9783032399069`) and the Pattern Recognition Lab of FAU Erlangen-Nürnberg
+  (`https://lme.tf.fau.de/`), each a link; that no server is operated and that a page writes only when the person
+  clicks, one commit under the person's own account; and a link to Agent M's source repository, the upstream instance
+  named in the frame's data, where its MIT licence stands.
 - `routing.mjs` — views by the address's fragment, and the address of a route for a repository.
 - `notices.mjs`, `run-panel.mjs`, `decision.mjs`, `forms.mjs` — notices, the run panel, the dialog of a decision, the
   form built from a schema.
@@ -135,8 +140,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
   token, so that a view hands `readProblem` the fact without reading the store's keys itself.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
-- `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
-  notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
+- `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
+  `menuOf` gives them, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
   change of the fragment. A route whose rendering fails is replaced in its place by `readProblem` of that failure, except
   a refused token, which is shown as a notice. While the route shown reports `unsaved` true, closing or reloading the tab
   makes the browser ask first, in the words the browser gives that question. A fragment that names no loaded route shows the first route of its menu entry, or says that
@@ -145,7 +150,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   connects as the instance's — through the token and the stored secrets this browser holds at each call —, and its own
   writing of the address of a
   route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
-  `chosenProduct` read back. On the same pages it starts MOD-prompt-bar's `startPromptBar` in the page's foot, handing it
+  `chosenProduct` read back. On the same pages it draws the footer after the route and before the page's foot. In
+  the page's foot it starts MOD-prompt-bar's `startPromptBar`, handing it
   the store, the instance, the chosen product, the subject of the route shown at each moment, its own `explain` and its
   navigation, so that the prompt bar uses neither the frame nor a view. Called by `start.mjs`, and by the Bridge's
   window with its own routes, where no prompt bar is drawn.
@@ -153,12 +159,14 @@ It keeps nothing but what is on the screen. It owns these formats:
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
   without using it. Error: `RouteNotLoaded` — the route is not on this page; the frame then puts a link to it in
   `target`.
-- `menuOf(page: "main" | "review", loaded: string[]) -> MenuEntry[]` — the entries in the order of `THE MENU FOLLOWS THE
-  PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then Maintenance and Settings; each
-  `{ key, label, href: string | null, title }`; on the review pages `href` null and `title` saying *not built yet* for an
-  entry no loaded view serves. On the main page each entry links into the review pages, which say there when an entry
-  is not built yet, so that the main page loads none of their views. The entry Requirements leads to MOD-trace-pages'
-  view `specification`; the list of SPEC change entries and their history are opened from it.
+- `menuOf(page: "main" | "review", loaded: string[], product?: string | null) -> MenuEntry[]` — the entries in the order
+  of `THE MENU FOLLOWS THE PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then
+  Maintenance and Settings; each `{ key, label, href: string | null, title }`; on the review pages `href` null and `title`
+  saying *not built yet* for an entry no loaded view serves. On the main page each entry links into the review pages,
+  which say there when an entry is not built yet, so that the main page loads none of their views. With `product`, the
+  address of a product this browser keeps, each `href` that is not null ends in `/product=` and the address percent-encoded,
+  the form `chosenProduct` reads back; without it, or with null, it is the entry's alone. The entry Requirements leads
+  to MOD-trace-pages' view `specification`; the list of SPEC change entries and their history are opened from it.
 - `instanceOf(location: { hostname: string, pathname: string }) -> string` — the instance repository `owner/name` from
   the Pages address the page is served from (`AN INSTANCE IS A FORK OF AGENT M`), read with MOD-identifiers'
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.

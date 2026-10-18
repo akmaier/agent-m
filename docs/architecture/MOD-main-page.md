@@ -9,6 +9,7 @@ uses:
   - MOD-site-frame.View
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.instanceOf
+  - MOD-site-frame.menuOf
   - MOD-site-frame.explain
   - MOD-site-frame.notice
   - MOD-site-frame.confirmDecision
@@ -62,11 +63,13 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 ## Parts
 
 - `index.mjs` — the interface: `view`.
-- `cards.mjs` — the greeting, a card per product or Agent M's own card, its stage bar and its build.
+- `greeting.mjs` — the greeting: Agent M's name, one sentence on what Agent M is, what to do first, and the folded
+  explanation of the page.
+- `cards.mjs` — a card per product or Agent M's own card, its stage bar, whose stages are links, and its build.
 - `waits.mjs` — what waits for a person.
 - `jobs.mjs` — the list of every job and a job's detail.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `index.html`: named here as the main page, whose place the Pages site fixes; it loads `start.mjs` with this module's view.
+  - `index.html`: named here as the main page, whose place the Pages site fixes; it loads `start.mjs` with this module's view; its greeting is drawn by `greeting.mjs`, and its footer by MOD-site-frame's `footer.mjs`.
   - `src/home/home.mjs`, `src/home/cards.mjs`, `src/home/home.css`: moved into this folder as the route `home` and its parts `cards.mjs` and `waits.mjs`, and removed from `src/home/`.
   - `tests/test_main_page.py`: its header names this module, with MOD-progress-measures and MOD-site-frame for the menu.
 
@@ -82,12 +85,18 @@ reads at once each card whose reading fell due meanwhile. It stores nothing betw
 
 - `view: View` — the routes of the main page, `{ routes, strategies: [sourceStrategies] }`, each route with the frame's
   default subject for the prompt bar:
-  - `home` — the greeting with its folded explanation and *Get your own Agent M*, which leads to MOD-settings-pages'
-    `get-your-own` (UC-014 step 1); one card per product this browser keeps, each with its name, its
-    process model, its bar of six stages each filled by its share, the stage it is in marked, a click on a stage leading
-    to that stage's page under `docs/` for the product, and its build — the steps or items in progress, each with the job
-    working on it, its participant, state and elapsed time; without a product, Agent M's own card from the instance
-    repository and *+ Add product*; a card whose repository cannot be read says which and links the token's setting;
+  - `home` — the greeting: Agent M's name, one sentence on what Agent M is — requirements-driven software engineering with
+    people and agents —, and what to do first: review the requirements and the use cases, then add a product. *Review the
+    use cases* leads to the address `menuOf` gives for the entry *Use cases*. The greeting has its folded explanation
+    and *Get your own Agent M*, which leads to MOD-settings-pages' `get-your-own` (UC-014 step 1). Its logo of the
+    Pattern Recognition Lab is the header's, which every page carries. Below it, one card per product this browser keeps,
+    each with its name, its process model, its bar of six stages each filled by its share, the stage it is in marked, and
+    its build — the steps or items in progress, each with the job working on it, its participant, state and elapsed time.
+    Each stage is a link to the address `menuOf` gives, called with the card's product address, for the entry of the same
+    place in the process: the six stages and the first six entries stand in the order of the process, so the nth stage
+    leads to the nth entry. Without a product, Agent M's own card from the instance repository takes their place, with
+    *+ Add product*; its stages call `menuOf` without a product. A card whose repository cannot be read says which and
+    links the token's setting;
     below the cards, what waits for a person across the instance, each item linked to the page where it is decided.
     A card first reads the overview stored for its default branch's head (MOD-progress-measures' `storedOverview`, one
     request). Where there is one, its stage bar and what waits come from it, and only the build is read, with
@@ -118,7 +127,8 @@ instance repository through their hosts, and the browser's store for the product
 ## Uses
 
 - MOD-site-frame.View — the interface it provides; MOD-site-frame.chosenProduct, MOD-site-frame.instanceOf — the
-  product chosen and the instance; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
+  product chosen and the instance; MOD-site-frame.menuOf — the page of a stage, for a card's product, and the use cases'
+  page, for the greeting; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
   MOD-site-frame.notice — a refused token, a used-up rate limit, a source not reached; MOD-site-frame.confirmDecision —
   cancel, retry and a gate's decision.
 - MOD-browser-store.readSetting — the products this browser keeps, their tokens, the Bridges' settings.
