@@ -60,11 +60,37 @@ export async function sourcesOf({ snapshot, context, instanceSnapshot }) {
   return { links, register };
 }
 
+// One entry as its page draws it: its sections beside the other proposals on the same section and its queue's order, what holds it back or what a click accepts.
+async function described(all, queue, item, snapshot, context, hrefOf) {
+  const id = idOf(queue, item.number);
+  const view = await entryView(queue.folder, item.number, snapshot);
+  const others = all.flatMap((other) => other.entries.filter((each) => idOf(other, each.number) !== id && each.anchor === item.anchor && each.state !== "in SPEC")
+    .map((each) => ({ id: idOf(other, each.number), state: each.state })));
+  const order = queue.entries.map((each) => ({ number: each.number, anchor: each.anchor, state: each.state }));
+  const result = { title: `${shortOf(queue.folder)} · entry ${pad2(item.number)}`, status: view.state.replaceAll(" ", "-"), label: view.state,
+    nodes: entrySections(view, others, order, hrefOf), hold: null, shown: null, record: null, edit: view.state === "open" };
+  if (view.state === "waiting for its anchor") {
+    result.hold = el("p", "waits", view.createdBy === null ? "Its heading is in no entry of the queue: it cannot be accepted."
+      : `It goes only with or after entry ${pad2(view.createdBy)}, which creates its heading: accept them together.`);
+    return result;
+  }
+  if (!acceptable(item)) return result;
+  result.shown = [shownOf(queue, item, view)];
+  // Without a token the instance's own SPEC is written by its workflow from the record alone; a product has no such workflow.
+  if (!context.product && view.current !== null) {
+    result.record = { path: `docs/approvals/${id}-${view.proposal.blob.slice(0, 12)}.md`,
+      text: writeDocument(approvalSchema, { fields: { kind: "spec", queue: queue.folder, entry: pad2(item.number), proposal: item.proposal.path,
+        blob: view.proposal.blob, target: item.file, anchor: item.anchor, section: view.current.blob } }) };
+  }
+  return result;
+}
+
 export const queueService = {
+  idOf: (each) => entryId(each.queue, each.entry),
   // A product's SPEC is written with the product's own token, whichever server it is on.
   tokenRequired: (context) => Boolean(context.product),
   tokenNote: "A product's SPEC is written with the product's own token. ",
-  reviewAll: false,
+  reviewAll: true,
 
   // The queues, newest first, each as a group of its entries.
   async groups({ snapshot, token }) {
@@ -90,26 +116,35 @@ export const queueService = {
     if (!item) return null;
     // The files the entry's page and its subject read, asked for in one batch: the target, the proposal, the rationale, and the sources the subject needs.
     await snapshot.readMany?.([item.file, item.proposal.path, item.rationale, ...sourcePaths(snapshot, context)].filter(Boolean));
-    const view = await entryView(queue.folder, item.number, snapshot);
-    const others = all.flatMap((other) => other.entries.filter((each) => idOf(other, each.number) !== id && each.anchor === item.anchor && each.state !== "in SPEC")
-      .map((each) => ({ id: idOf(other, each.number), state: each.state })));
-    const order = queue.entries.map((each) => ({ number: each.number, anchor: each.anchor, state: each.state }));
-    const result = { title: `${shortOf(queue.folder)} · entry ${pad2(item.number)}`, status: view.state.replaceAll(" ", "-"), label: view.state,
-      nodes: entrySections(view, others, order, hrefOf), hold: null, shown: null, record: null, edit: view.state === "open" };
-    if (view.state === "waiting for its anchor") {
-      result.hold = el("p", "waits", view.createdBy === null ? "Its heading is in no entry of the queue: it cannot be accepted."
-        : `It goes only with or after entry ${pad2(view.createdBy)}, which creates its heading: accept them together.`);
-      return result;
+    return described(all, queue, item, snapshot, context, hrefOf);
+  },
+
+  // Review all: every entry a click may accept (open, or stale), each as view gives it, in the order of the entries' identifiers; the files of all of them are asked for in one batch.
+  async all({ snapshot, context }, hrefOf) {
+    const all = await queues(snapshot);
+    const reviewable = all.flatMap((queue) => queue.entries.filter(acceptable).map((item) => ({ queue, item, id: idOf(queue, item.number) })))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    await snapshot.readMany?.([...new Set(reviewable.flatMap(({ item }) => [item.file, item.proposal.path, item.rationale]).concat(sourcePaths(snapshot, context)).filter(Boolean))]);
+    const entries = [];
+    for (const { queue, item, id } of reviewable) entries.push({ id, ...(await described(all, queue, item, snapshot, context, hrefOf)) });
+    return entries;
+  },
+
+  // How many entries Review all shows, from the groups of the list.
+  count: (groups) => groups.flatMap((group) => group.entries).filter((entry) => entry.label === "open" || entry.label === "stale").length,
+
+  // The entries of `shown` whose proposal or section is no longer what was shown, read from the default branch now: { entry, reason }.
+  async changedSince({ host }, shown) {
+    const { defaultBranch } = await host.repositoryInfo();
+    const now = await host.readSnapshot(defaultBranch);
+    const left = [];
+    for (const each of shown) {
+      const view = await entryView(each.queue, each.entry, now);
+      if (view.proposal.blob !== each.proposalBlob || (view.current?.blob ?? "") !== each.sectionBlob) {
+        left.push({ path: entryId(each.queue, each.entry), reason: "it changed after it was shown", names: [] });
+      }
     }
-    if (!acceptable(item)) return result;
-    result.shown = [shownOf(queue, item, view)];
-    // Without a token the instance's own SPEC is written by its workflow from the record alone; a product has no such workflow.
-    if (!context.product && view.current !== null) {
-      result.record = { path: `docs/approvals/${id}-${view.proposal.blob.slice(0, 12)}.md`,
-        text: writeDocument(approvalSchema, { fields: { kind: "spec", queue: queue.folder, entry: pad2(item.number), proposal: item.proposal.path,
-          blob: view.proposal.blob, target: item.file, anchor: item.anchor, section: view.current.blob } }) };
-    }
-    return result;
+    return left;
   },
 
   // The entries shown, accepted in one commit by acceptEntries; its refusal comes back as a text, the commit with nothing left out otherwise.
