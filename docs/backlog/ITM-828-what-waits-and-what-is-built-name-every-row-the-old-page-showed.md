@@ -35,3 +35,11 @@ At the start, each is read against MOD-progress-measures' text (`waitingForAPers
 `row.source.reachable` (`src/progress-measures/stages.mjs:145`). `listJobs` sets that from whether the job's record could
 be read (`src/job-ledger/index.mjs:421-430`), not from whether its runtime answers. UC-046 4a and the module's text say a
 job whose runtime does not answer is listed as not reachable. That fault is this item's too, test first.
+
+**Stopped at its draft (sprint team1/80, 2026-10-17, po-opus): it leaves the sprint.**
+- **The rows.** Read against MOD-progress-measures' text and UC-046, none is missing. The architecture files, the blocked
+  rows and the in-progress rows without a job go. TST-685011 and 685013 already pin that, so nothing is built for them.
+- **The reachability fault** cannot reach the live page within this item's modules. It needs one meaning of a job's
+  reachability across MOD-job-ledger, MOD-progress-measures and MOD-main-page.
+- **The done row's SPEC Check and module text disagree.**
+- Both are ITM-864, a draft for akmaier first. The draft is kept as a patch for it.
