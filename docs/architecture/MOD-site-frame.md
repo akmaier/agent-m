@@ -16,6 +16,7 @@ uses:
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.webLinks
   - MOD-repository-hosts.HostError
+  - MOD-repository-hosts.Snapshot
   - MOD-job-runner.registerStrategies
   - MOD-job-runner.Strategies
   - MOD-job-runner.Prepared
@@ -115,9 +116,12 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
-  Subject | null, leave?: () -> boolean, unsaved?: () -> boolean }`. Before the frame shows another route on a change of the address, it asks the
+  Subject | null, leave?: () -> boolean, unsaved?: () -> boolean,
+  reads?: (params: Record<string, string>, snapshot: Snapshot) -> Promise<string[]> }`. Before the frame shows another route on a change of the address, it asks the
   route shown with `leave`; `false` keeps that route and puts its address back. `unsaved` tells, without asking the
-  person anything, whether the route shown holds changes that leaving it would discard; a route that gives none holds none. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
+  person anything, whether the route shown holds changes that leaving it would discard; a route that gives none holds none. `reads` names the files the route will read, as paths of the `snapshot` it is given, the repository the route shows as the frame has read it for the page;
+  the frame reads them with `readMany` before it calls `render`, a hundred to a batch (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`), and keeps no list of files for any route. A route whose
+  files depend on files it must read first reads those through `snapshot.readMany` itself, in `reads`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
   under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
@@ -209,7 +213,7 @@ It writes nothing.
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
   each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token; MOD-repository-hosts.HostError —
-  to tell a host's failure from a fault of the page itself.
+  to tell a host's failure from a fault of the page itself; MOD-repository-hosts.Snapshot — the type of the snapshot a route's `reads` is given, whose `readMany` the frame calls.
 - MOD-job-runner.registerStrategies — the strategies the loaded views and the prompt bar hand it; MOD-job-runner.Strategies,
   MOD-job-runner.Prepared — the types of `View` and of the run panel.
 - MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema.
