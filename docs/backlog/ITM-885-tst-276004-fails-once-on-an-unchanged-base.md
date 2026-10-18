@@ -30,5 +30,5 @@ it.
 
 ## Acceptance
 
-- The cause of the one failure is named from its log, and TST-276004 passes in twenty runs in a row in CI's node job,
-  or the item stops with the cause.
+- The cause of the one failure is named from its log. Where the cause is in the tests, it is removed, and a deterministic
+  test shows that it cannot recur, with a counter-proof. Where it is the runner, the item stops with the cause.
