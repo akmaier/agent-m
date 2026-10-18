@@ -38,3 +38,9 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 **Noted at ITM-714's gate (sprint team1/73, 2026-10-17, po-opus).** The comment at `tests/architecture.test.mjs:10` names
 `tests/architecture-impact.test.mjs`, which ITM-714 removed. MOD-approvals takes that test over, so this item corrects the
 comment when it moves the test.
+
+**Noted at sprint team1/89's end gates.** `tests/release-sprint-02-c-review-core.test.mjs:204` failed once on CI (run
+39127567347, job 117675817449) in its own cleanup: "ENOTEMPTY: directory not empty, rmdir '…/.git/objects/pack'", from
+`rmSync` at `:227`. It looks like a race between the cleanup and git still writing pack files. MOD-approvals.md:58 names the
+file as taken over, so this job, when it rewrites or removes the file, makes its cleanup wait for git or retry.
+
