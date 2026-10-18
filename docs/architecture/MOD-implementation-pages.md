@@ -25,6 +25,7 @@ uses:
   - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.mergePullRequest
   - MOD-repository-hosts.listCiRuns
+  - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.webLinks
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
@@ -153,7 +154,9 @@ Its formats are those of the modules it uses.
     instance's list that have every capability it needs, each with where it processes data; *+ Team* in a model with
     sprints; the findings of `roleAssignmentFindings`, given the entries of the instance's source register that the
     product's `docs/sources.md` links; *Save* writes a role assignment with `saveFile`; a team is removed only while no
-    sprint of it holds an item (`heldItems`).
+    sprint of it holds an item (`heldItems`): *Remove team* deletes its role assignment file in one commit with
+    MOD-repository-hosts' `commitFiles`, on the head that was read and with the person's token, and otherwise names the
+    items its sprints hold (UC-048 4b).
   - `models`, `models/<name>` — the instance's process models: the catalogue, *Adapt* and *+ New model* with a form from
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
     every phase, *Save* only without errors, with `saveFile`.
@@ -215,7 +218,7 @@ product's `docs/sources.md`.
   MOD-repository-hosts.listPullRequests,
   MOD-repository-hosts.pullRequestFacts, MOD-repository-hosts.openPullRequest, MOD-repository-hosts.mergePullRequest,
   MOD-repository-hosts.listCiRuns — pull requests, their CI and their merge; MOD-repository-hosts.webLinks — the
-  server's page for branch protection.
+  server's page for branch protection; MOD-repository-hosts.commitFiles — a removed team's role assignment deleted.
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister —
   the item schema of a form, documents of the common shape, the text of a declaration or model to save, the participant
   list; MOD-artifact-edits.saveFile — the declaration and a model, only on the blob they were opened on.

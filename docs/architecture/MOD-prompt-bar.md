@@ -15,6 +15,7 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.commitFiles
+  - MOD-repository-hosts.webLinks
   - MOD-documents.Schema
   - MOD-documents.loadSchema
   - MOD-documents.readDocument
@@ -196,7 +197,11 @@ IN THE REPOSITORY`).
   record names; *Stop* then cancels it with `cancelJob`. It says above the selector when the conversation is recorded
   (UC-049 6c). Crosses the network: to the participant through its route, and to the repository servers to read the
   subject, the participants, the facts and the switch, to append the record, and to queue and start a hand-over. A
-  failure of the participant's route is shown in the conversation by name.
+  failure of the participant's route is shown in the conversation by name. A hand-over the product cannot take yet says
+  what is missing and links where it is set up (UC-049 4c): while the product has no job workflow — the CI route
+  unavailable, `routesFor` naming its files — the route `settings` through `go`, whose product section installs it; for a
+  run ended `not run` for a missing secret, the server's page of the repository's secrets (MOD-repository-hosts'
+  `webLinks`, `secrets`), naming the secret.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
@@ -226,7 +231,8 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
 - MOD-browser-store.Store, MOD-browser-store.readSetting — the endpoints and the Bridges this browser keeps;
   MOD-browser-store.readTabValue, MOD-browser-store.writeTabValue — the conversation, held in the tab.
 - MOD-repository-hosts.Host, MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo — the participants,
-  the switch, the head the record is appended on; MOD-repository-hosts.commitFiles — appending to the record.
+  the switch, the head the record is appended on; MOD-repository-hosts.commitFiles — appending to the record;
+  MOD-repository-hosts.webLinks — the server's page of the repository's secrets, linked when a secret is missing.
 - MOD-documents.loadSchema, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister — its two
   files and the participant list.
 - MOD-participant-list.Participant, MOD-participant-list.participantSchema, MOD-participant-list.participantsOf,
