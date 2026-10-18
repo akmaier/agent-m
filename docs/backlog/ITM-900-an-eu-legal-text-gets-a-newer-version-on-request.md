@@ -40,3 +40,8 @@ The drafts for akmaier are committed with this item:
   further version, and writes nothing for the same SHA-256. Tests check both, with counter-proofs.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - It waits for akmaier's acceptance of the drafts.
+
+**Noted at ITM-914's gate (sprint team1/89).** Since ITM-914, `isWaitingLegalText` (`src/workflow-entries/instance.mjs:44`)
+picks up an entry whose `identifier` is a bare CELEX too, by reading. This item's tests of `onSourcesCommitted` include
+such an entry.
+
