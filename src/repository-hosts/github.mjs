@@ -188,6 +188,16 @@ export function githubAdapter(address, { token, tokenName }, links) {
       return tags;
     },
 
+    // A release and its files ("Get the latest release", "Get a release by tag name"): each asset with its name, size, browser_download_url and, where GitHub reports a digest "sha256:<hex>", that SHA-256;
+    // any other digest, or none, is null. A release that does not exist is NotFound.
+    async releaseAssets(tag) {
+      const what = `the release ${tag} of ${address.web}`;
+      const r = await read(`${repo}/releases/${tag === "latest" ? "latest" : `tags/${encodeURIComponent(tag)}`}`, { what });
+      return { tag: r.tag_name, name: r.name ?? r.tag_name, published: r.published_at ?? "", notes: r.body ?? "",
+        assets: (r.assets ?? []).map((a) => ({ name: a.name, size: typeof a.size === "number" ? a.size : null, url: a.browser_download_url,
+          sha256: /^sha256:([0-9a-f]{64})$/i.exec(a.digest ?? "")?.[1]?.toLowerCase() ?? null })) };
+    },
+
     // The numbers of open and closed issues, from GitHub's search ("Search issues and pull requests"): one search for each
     // state, "repo:… is:issue state:…", asking for one result a page, since only its total_count is read — no issue is listed.
     // is:issue leaves out the pull requests, which the search lists with the issues otherwise. The search has a limit of its
