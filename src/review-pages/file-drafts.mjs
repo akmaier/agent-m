@@ -14,9 +14,10 @@ import { el, button, link, openEditor } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 
 /**
- * fileDrafts({ files, snapshot, host, trailers, versionOf, check, extras }) -> Promise<{ drafts, discard, saved }> — `files` are the drafted { path, text }; `trailers` the provenance
+ * fileDrafts({ files, snapshot, host, trailers, versionOf, check, extras }) -> Promise<{ drafts, discard, saved, leave }> — `files` are the drafted { path, text }; `trailers` the provenance
  * lines of the commit; `versionOf(path)` the blob a file was read at by the job, where the page knows it (else the blob the page read); `check(path, text)` an error that keeps a file
- * from being saved, or null; `extras(path, text)` elements shown under a draft; `drop()` is called once the files are saved in a commit, and on Discard. `drafts` holds a <div class="draft" data-path> for each file, `discard` removes them, and `saved` says
+ * from being saved, or null; `extras(path, text)` elements shown under a draft; `drop()` is called once the files are saved in a commit, and on Discard. `leave` is what the route's `leave` and `unsaved` ask: `unsaved()`
+ * says whether an editor holds unsaved changes, and `close()` closes the editors through theirs, asking first, and returns false at the first editor whose person declines. `drafts` holds a <div class="draft" data-path> for each file, `discard` removes them, and `saved` says
  * what a Save came to.
  */
 export async function fileDrafts({ files, snapshot, host, trailers, versionOf = () => undefined, check = () => null, extras = () => [], drop = () => {} }) {
@@ -41,6 +42,7 @@ export async function fileDrafts({ files, snapshot, host, trailers, versionOf = 
       if (out.refused) return { kind: "failed", reason: `the identifier of a file changed from ${out.openedId} to ${out.nowId ?? "none"}; keep ${out.openedId}.` };
       const commit = `${snapshot.repository.web}/commit/${out.commit}`;
       saved.replaceChildren(el("p", "saved", `Saved ${edits.length} file${edits.length === 1 ? "" : "s"} as open in `, link(commit, null, "this commit"), "."));
+      for (const entry of entries) entry.drafted = entry.editor.text();
       drop();
       return { kind: "saved", link: commit };
     } catch (failure) {
@@ -58,14 +60,26 @@ export async function fileDrafts({ files, snapshot, host, trailers, versionOf = 
     drafts.append(box);
     const editor = openEditor(editorBox, current, { marks: () => [], save: () => saveAll(), disabledReason: (text) => check(drafted.path, text) });
     editor.showDraft(openedId ? keptIdentifier(drafted.text, openedId) : drafted.text, current);
-    entries.push({ path: drafted.path, editor, openedBlob: versionOf(drafted.path) ?? snapshot.blob(drafted.path), openedId });
+    // `drafted` is the text the editor shows when the page is drawn, and after a save: an edit is a change of it, for the draft itself stays in the conversation.
+    entries.push({ path: drafted.path, editor, drafted: editor.text(), openedBlob: versionOf(drafted.path) ?? snapshot.blob(drafted.path), openedId });
   }
   const discard = button("btn discard", "Discard");
   discard.addEventListener("click", () => {
     drop();
     drafts.replaceChildren();
+    entries.length = 0;
     discard.remove?.();
     saved.replaceChildren(el("p", null, "The draft was discarded. Nothing was written."));
   });
-  return { drafts, discard, saved };
+  // Leaving the page: an editor whose text was edited asks through its own `close`, so that a refusal keeps the page as it is; the others are left without a question.
+  const edited = () => entries.filter((entry) => entry.editor.text() !== entry.drafted);
+  const leave = {
+    unsaved: () => edited().length > 0,
+    close() {
+      for (const entry of edited()) if (!entry.editor.close()) return false;
+      entries.length = 0;
+      return true;
+    },
+  };
+  return { drafts, discard, saved, leave };
 }

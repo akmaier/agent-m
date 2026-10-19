@@ -13,7 +13,7 @@ import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { candidateRows, editedResult } from "./candidates.mjs";
-import { el, button, link } from "./common.mjs";
+import { el, button, link, refusalText } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -43,7 +43,7 @@ export async function requirementsDraft({ snapshot, host, token, context, draft,
       composed.replaceChildren(el("h4", null, "Composed sections"), ...sections.map((section) =>
         el("section", "composed-section", el("h5", null, section.anchor), showDifference(sectionText(spec, section.anchor), section.text))));
     } catch (failure) {
-      composed.replaceChildren(el("p", "result problem", `${failure.name}: ${failure.message}`));
+      composed.replaceChildren(el("p", "result problem", refusalText(failure)));
     }
   };
   candidateRows(list, result, parsed, params.source, register, showComposed);
@@ -84,7 +84,7 @@ export async function requirementsDraft({ snapshot, host, token, context, draft,
       status.replaceChildren(el("p", "entry", `Saved ${sections.length} proposed section${sections.length === 1 ? "" : "s"} in `,
         link(`${snapshot.repository.web}/commit/${saved.at(-1)?.commit}`, null, "this commit"), "."));
     } catch (failure) {
-      status.replaceChildren(el("p", "result problem", `${failure.name}: ${failure.message}`));
+      status.replaceChildren(el("p", "result problem", refusalText(failure)));
     } finally {
       save.disabled = false;
     }
