@@ -15,11 +15,11 @@
     }
   },
   "expected": [
-    { "name": "claude", "installed": true, "version": "2.1.300", "loggedIn": true,
+    { "name": "claude", "installed": true, "version": "2.1.300", "loggedIn": true, "login": "claude auth login",
       "install": { "macos": "https://code.claude.com/docs/en/setup", "windows": "https://code.claude.com/docs/en/setup", "linux": "https://code.claude.com/docs/en/setup" } },
-    { "name": "codex", "installed": true, "version": "1.2.3", "loggedIn": true,
+    { "name": "codex", "installed": true, "version": "1.2.3", "loggedIn": true, "login": "codex login",
       "install": { "macos": "https://learn.chatgpt.com/docs/codex/cli", "windows": "https://learn.chatgpt.com/docs/codex/cli", "linux": "https://learn.chatgpt.com/docs/codex/cli" } },
-    { "name": "opencode", "installed": false, "version": null, "loggedIn": null,
+    { "name": "opencode", "installed": false, "version": null, "loggedIn": null, "login": "opencode auth login",
       "install": { "macos": "https://opencode.ai/docs/#install", "windows": "https://opencode.ai/docs/#windows", "linux": "https://opencode.ai/docs/#install" } }
   ]
 }
@@ -34,11 +34,11 @@
   "given": "An empty path.",
   "input": { "kind": "discovery", "fixtures": {} },
   "expected": [
-    { "name": "claude", "installed": false, "version": null, "loggedIn": null,
+    { "name": "claude", "installed": false, "version": null, "loggedIn": null, "login": "claude auth login",
       "install": { "macos": "https://code.claude.com/docs/en/setup", "windows": "https://code.claude.com/docs/en/setup", "linux": "https://code.claude.com/docs/en/setup" } },
-    { "name": "codex", "installed": false, "version": null, "loggedIn": null,
+    { "name": "codex", "installed": false, "version": null, "loggedIn": null, "login": "codex login",
       "install": { "macos": "https://learn.chatgpt.com/docs/codex/cli", "windows": "https://learn.chatgpt.com/docs/codex/cli", "linux": "https://learn.chatgpt.com/docs/codex/cli" } },
-    { "name": "opencode", "installed": false, "version": null, "loggedIn": null,
+    { "name": "opencode", "installed": false, "version": null, "loggedIn": null, "login": "opencode auth login",
       "install": { "macos": "https://opencode.ai/docs/#install", "windows": "https://opencode.ai/docs/#windows", "linux": "https://opencode.ai/docs/#install" } }
   ]
 }
@@ -58,9 +58,9 @@
   "expected": [
     { "name": "claude", "installed": true, "version": "2.1.300", "loggedIn": false, "login": "claude auth login",
       "install": { "macos": "https://code.claude.com/docs/en/setup", "windows": "https://code.claude.com/docs/en/setup", "linux": "https://code.claude.com/docs/en/setup" } },
-    { "name": "codex", "installed": false, "version": null, "loggedIn": null,
+    { "name": "codex", "installed": false, "version": null, "loggedIn": null, "login": "codex login",
       "install": { "macos": "https://learn.chatgpt.com/docs/codex/cli", "windows": "https://learn.chatgpt.com/docs/codex/cli", "linux": "https://learn.chatgpt.com/docs/codex/cli" } },
-    { "name": "opencode", "installed": false, "version": null, "loggedIn": null,
+    { "name": "opencode", "installed": false, "version": null, "loggedIn": null, "login": "opencode auth login",
       "install": { "macos": "https://opencode.ai/docs/#install", "windows": "https://opencode.ai/docs/#windows", "linux": "https://opencode.ai/docs/#install" } }
   ]
 }

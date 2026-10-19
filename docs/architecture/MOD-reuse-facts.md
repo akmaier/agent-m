@@ -25,6 +25,7 @@ provides:
   - DueDiligence
   - registryFacts
   - hubFacts
+  - repositoryFacts
   - licenceVerdict
   - reuseStrategies
 ---
