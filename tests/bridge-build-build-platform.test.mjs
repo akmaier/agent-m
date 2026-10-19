@@ -61,6 +61,22 @@ if (process.argv[2] === "ci") {
   fs.mkdirSync(bin, { recursive: true });
   fs.copyFileSync(process.env.FAKE_BUILDER, path.join(bin, "electron-builder"));
   fs.chmodSync(path.join(bin, "electron-builder"), 0o755);
+  if (process.env.FAKE_TOOL_ADDON) {
+    // Build tools hold compiled addons: electron-builder's tree, and a package only the tools reach.
+    for (const file of ["@electron-internal/extract-zip/index.darwin-universal.node", "electron-builder/node_modules/app-builder-bin/native.node"]) {
+      fs.mkdirSync(path.dirname(path.join(process.cwd(), "node_modules", file)), { recursive: true });
+      fs.writeFileSync(path.join(process.cwd(), "node_modules", file), "compiled");
+    }
+  }
+  if (process.env.FAKE_TRANSITIVE_ADDON) {
+    // A shipped package (ssh2) needs another package (asn1), which holds a compiled addon.
+    const at = (...parts) => path.join(process.cwd(), "node_modules", ...parts);
+    fs.mkdirSync(at("ssh2"), { recursive: true });
+    fs.writeFileSync(at("ssh2", "package.json"), JSON.stringify({ name: "ssh2", dependencies: { asn1: "0.2.6" }, optionalDependencies: { cpu: "1" } }));
+    fs.mkdirSync(at("asn1", "build"), { recursive: true });
+    fs.writeFileSync(at("asn1", "package.json"), JSON.stringify({ name: "asn1" }));
+    fs.writeFileSync(at("asn1", "build", "native.node"), "compiled");
+  }
   if (process.env.FAKE_ADDON) {
     const dir = path.join(process.cwd(), "node_modules", "ssh2", "build", "Release");
     fs.mkdirSync(dir, { recursive: true });
@@ -162,7 +178,7 @@ function setting(platform, { env = {} } = {}) {
   git("tag", TAG);
   const commit = git("rev-parse", "HEAD").stdout.trim();
 
-  const names = [...new Set([...SECRETS.macos, ...SECRETS.windows, "PATH", "FAKE_LOG", "FAKE_CONFIGS", "FAKE_BUILDER", "FAKE_APP", "FAKE_ADDON", "FAKE_TAMPER"])];
+  const names = [...new Set([...SECRETS.macos, ...SECRETS.windows, "PATH", "FAKE_LOG", "FAKE_CONFIGS", "FAKE_BUILDER", "FAKE_APP", "FAKE_ADDON", "FAKE_TOOL_ADDON", "FAKE_TRANSITIVE_ADDON", "FAKE_TAMPER"])];
   const before = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   for (const name of SECRETS[platform]) process.env[name] = name === "BRIDGE_UPDATE_KEY" ? PRIVATE_PEM : `value of ${name}`;
   Object.assign(process.env, { PATH: `${bin}${delimiter}${process.env.PATH}`, FAKE_LOG: join(root, "log.jsonl"), FAKE_CONFIGS: configs, FAKE_BUILDER: join(root, "fake-builder"), FAKE_APP: join(root, "fake-app"), ...env });
@@ -234,6 +250,38 @@ test("buildPlatform — a .node file in the app gives NativeAddonFound naming it
     assert.equal(error.name, "NativeAddonFound");
     assert.equal(error.file, join("node_modules", "ssh2", "build", "Release", "sshcrypto.node"));
     assert.ok(run.calls().some((call) => call.tool === "npm"), "the packages were installed");
+    assert.ok(!run.calls().some((call) => call.tool === "electron-builder"), "nothing was built");
+    assert.deepEqual(names(run.folder), []);
+  } finally { run.settle(); }
+});
+
+// TST-961007 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE; UC-044
+// given: a Linux build whose installed tree holds compiled addons in its build tools only — node_modules/@electron-internal/extract-zip/index.darwin-universal.node and node_modules/electron-builder/node_modules/app-builder-bin/native.node — and none in the packages the app ships (package.json's dependencies)
+// input: buildPlatform({ platform: "linux", checkout, tag, folder })
+// expect: it does not reject with NativeAddonFound: electron-builder is started and the AppImage is handed on
+// Planted fault: a scan of the whole installed tree finds the build tools' addon and rejects.
+test("buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound", async () => {
+  const run = setting("linux", { env: { FAKE_TOOL_ADDON: "1" } });
+  try {
+    const result = await run.build();
+    assert.ok(run.calls().some((call) => call.tool === "electron-builder"), "electron-builder was started");
+    assert.ok(result.files.some((file) => file.name.endsWith(".AppImage")), "the AppImage is handed on");
+  } finally { run.settle(); }
+});
+
+// TST-961008 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE; UC-044
+// given: a Linux build in which ssh2, a package the app ships, depends on asn1 (and optionally on cpu), and asn1 holds node_modules/asn1/build/native.node; the build tools hold addons too
+// input: buildPlatform
+// expect: it rejects with NativeAddonFound naming node_modules/asn1/build/native.node, a path below the app; electron-builder is never started and no file is handed on
+// Planted fault: a scan that stops at the packages package.json names, without their dependencies, misses it; a scan of the whole tree names the build tools' addon instead of this one.
+test("buildPlatform — a .node file in a package a shipped package depends on gives NativeAddonFound", async () => {
+  const run = setting("linux", { env: { FAKE_TRANSITIVE_ADDON: "1", FAKE_TOOL_ADDON: "1" } });
+  try {
+    const error = await rejection(run.build());
+    assert.equal(error.name, "NativeAddonFound");
+    assert.equal(error.file, join("node_modules", "asn1", "build", "native.node"));
     assert.ok(!run.calls().some((call) => call.tool === "electron-builder"), "nothing was built");
     assert.deepEqual(names(run.folder), []);
   } finally { run.settle(); }
