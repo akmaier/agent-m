@@ -58,3 +58,16 @@ draft for MOD-runtimes is described in 96.md: the tab's route reads `browser` fr
 address names, and makes it at first use. It goes to akmaier once it is reviewed, and after akmaier has decided team 1's
 pending draft `c3ec9099` on the same file. The item is built only once the draft is accepted.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## For akmaier, from the review of the draft (opus reviewer, sprint 96)
+
+The accepted texts raise three points that the draft does not settle. They go to akmaier with it:
+- **SPEC.md:1790-1791**, the check of PROGRESS AND JOB STATE ARE DERIVED, NOT STORED: "Deleting all local storage and
+  reloading shows the same progress and the same job states." With `browser` in `localStorage`, deleting it makes this
+  browser's earlier tab jobs read as another browser's. They are then `reachable: false`, not *ended without record*.
+  The derivation is unchanged, but the shown state of those jobs differs.
+- **Export and import.** `exportSettings` (MOD-browser-store.md:121) carries every setting, so `browser` reaches a second
+  browser, and two browsers then share one identifier. A possible item: leave `browser` out of the export, as tab values
+  are.
+- **Two tabs of one browser.** A job running in a second tab of this browser is read here as one this browser took and
+  this tab does not hold, so *ended without record* (MOD-runtimes at `26dac0e5`, :199). This is unchanged by the draft.
