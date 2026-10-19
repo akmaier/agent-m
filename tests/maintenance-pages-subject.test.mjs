@@ -111,11 +111,14 @@ test("withhold finds a planted name, address, phone number, account and a passag
 
 // TST-510004 · level: unit · module: MOD-maintenance-pages
 // guards: MAIL STAYS IN THE MAILBOX; UC-049 (3b)
-// given: the routes mail and replies before any reading
+// given: the route mail drawn anew after an earlier reading, before any reading of its own
 // input: the subject's paramsFor for local-llm; withhold of a message
 // expect: the page holds the route's title and no mail; withhold finds nothing in a text that no listed mail's people occur in
 test("before a reading no mail is listed, so the page holds none and nothing is withheld", async () => {
   const f = await mailWorld();
+  await mailRouteRead(f);
+  document.body.replaceChildren();
+  await opened(f.w, {}, "mail");
   const subject = subjectOf("mail", f.w);
   const page = pageFor(subject, LOCAL);
   assert.ok(page.includes("Mail"));

@@ -32,7 +32,8 @@ import { participantSchema, participantsOf, eligible } from "../participant-list
 import { readDocument } from "../documents/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { confirmDecision, runPanel } from "../site-frame/index.mjs";
-import { mailboxOf, productsOf } from "./mail.mjs";
+import { peopleIn } from "../personal-data/index.mjs";
+import { mailboxOf, mailSubject, productsOf } from "./mail.mjs";
 
 const REGISTER = "docs/participants.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
@@ -368,4 +369,9 @@ async function render(target, context, params = {}) {
   await draw();
 }
 
-export const route = { name: "replies", entry: "maintenance", title: "Replies", render };
+// The mails the last reading found, with their people: what the subject of this route gives the prompt bar (the mails are kept in memory only, while shown).
+const shownMails = () => (last ? GROUPS.flatMap(([, field]) => last.due[field]).flatMap((due) => due.mails).filter((entry) => entry.mail).map(({ mail }) => ({ mail,
+  people: peopleIn({ addresses: [mail.from, ...(mail.replyTo ?? []), ...(mail.to ?? []), ...(mail.cc ?? [])], text: mail.text }) })) : []);
+const subject = (params, context) => mailSubject({ key: "replies", title: "Replies", entries: shownMails, store: context.store });
+
+export const route = { name: "replies", entry: "maintenance", title: "Replies", render, subject };
