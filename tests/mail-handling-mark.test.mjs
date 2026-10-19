@@ -95,7 +95,7 @@ test("readNewMail with the marks of the store leaves the marked mail out", async
 test("without a store the mark is refused with a TypeError", async () => {
   const host = fakeHost();
   for (const store of [null, undefined]) {
-    await assert.rejects(handling.decideMail({ id: FIRST, people: PEOPLE }, { kind: "not-an-issue" }, host, store), TypeError);
+    await assert.rejects(handling.decideMail({ id: FIRST, people: PEOPLE }, { kind: "not-an-issue" }, host, store), (error) => error instanceof TypeError && /browser.s store/.test(error.message));
   }
   assert.deepEqual(host.calls, []);
 });
