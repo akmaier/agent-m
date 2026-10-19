@@ -436,7 +436,7 @@ test("alternative 1b: an issue with the reporter's answer appears under answer r
 // given: as TST-969013: the answer's mail m1 lies in the mailbox with the text "Version 1.4, and the export fails with error E42"
 // input: issue 5 opened
 // expect: the mail is shown in full — UC-039 1b says "with the new mail shown in full" —: its text is on the page. FINDING: the page shows a mail's reporter, date and subject only (MOD-maintenance-pages' replies.mjs reads no text of a mail), so this case is red on main until the page shows the text
-test("alternative 1b (finding): the new mail of the reporter's answer is shown in full", { todo: "FINDING UC039-1b — the new mail is not shown in full — ITM-1107" }, async () => {
+test("alternative 1b (finding): the new mail of the reporter's answer is shown in full", async () => {
   const waiting = issueRecord(5, "open", [M1], { labels: ["waiting-for-reporter"], comments: [noteText("question-sent", M1.id, "2026-10-17"), noteText("mail-added", M1.id, "2026-10-18")] });
   const p = await openReplies({ inbox: [rawMail("m1", { body: "Version 1.4, and the export fails with error E42" })], issues: [waiting] });
   await lastly(p, async () => {
