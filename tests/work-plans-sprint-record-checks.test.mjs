@@ -97,7 +97,9 @@ test("sprint-record-checks — an empty tookPart passes only when a feedback lin
   assert.deepEqual(rules(silent), [REVIEW_RULE]);
   assert.match(silent[0].what, /no stakeholder took part/);
   assert.deepEqual(await run(clean()), []);
-  assert.deepEqual(await run(draft({ review: { feedback: [], tookPart: [], sources: ["issue #12"] } })).then(rules), [REVIEW_RULE], "no feedback line at all");
+  assert.deepEqual(rules(await run(draft({ review: { feedback: [], tookPart: [], sources: ["issue #12"] } }))), [REVIEW_RULE], "no feedback line at all");
+  const other = await run(draft({ review: { feedback: [feedback("A stakeholder was asked, but did not answer in time.")], tookPart: [], sources: ["issue #12"] } }));
+  assert.deepEqual(rules(other), [REVIEW_RULE], "a line that merely mentions a stakeholder does not say that none took part");
 });
 
 // TST-619005 · level: unit · module: MOD-work-plans
