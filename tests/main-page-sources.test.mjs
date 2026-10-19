@@ -36,3 +36,17 @@ test("TST-1015001 the list's sources are the instance, then each kept product on
   assert.deepEqual(sources.map((source) => source.address), [INSTANCE_URL, PRODUCT_URL, OTHER_URL]);
   assert.deepEqual(sources.slice(1).map((source) => [source.own, typeof source.host?.readSnapshot]), [[undefined, "function"], [undefined, "function"]]);
 });
+
+// TST-1015002 · level: unit · module: MOD-main-page
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046
+// given: this browser keeps the same addresses as in TST-1015001; and, in another browser, no product
+// input: sourcesOf(context, "home") — the sources the cards are drawn for
+// expect: with products kept, the sources are the products in the order kept, each once, the instance among them only because it was kept as a product (it is not marked as the instance's own, and not skipped), and each holds a host and whether a token is stored for it; with none kept, the one source is the instance, marked as its own
+test("TST-1015002 the cards' sources are the kept products once, or the instance while none is kept", async () => {
+  const kept = await sourcesOf(open([PRODUCT_URL, PRODUCT_URL, INSTANCE_URL, OTHER_URL, "not an address"]), "home");
+  assert.deepEqual(kept.map((source) => source.address), [PRODUCT_URL, INSTANCE_URL, OTHER_URL]);
+  assert.deepEqual(kept.map((source) => [source.own, typeof source.host?.readSnapshot, typeof source.tokenStored]), [[undefined, "function", "boolean"], [undefined, "function", "boolean"], [undefined, "function", "boolean"]]);
+  net.restore();
+  const none = await sourcesOf(open([]), "home");
+  assert.deepEqual(none.map((source) => [source.address, source.own]), [[INSTANCE_URL, true]]);
+});

@@ -6,7 +6,7 @@
 // THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT. The page computes no share, no stage and no
 // state: MOD-progress-measures derives them from the facts it gathers once for each product (productFacts, the scope `all`, or — where the repository stores an overview of its
 // head — that overview and the scope `build`), and MOD-job-ledger's listJobs derives the jobs' rows again with the
-// live states their runtimes report, asked once for each job whose record has no end (MOD-runtimes, as the route `jobs` asks them). It stores nothing. Each product is connected by
+// live states their runtimes report, asked once for each job whose record has no end (MOD-runtimes, as the route `jobs` asks them). It stores nothing. Each product is connected, through jobs.mjs's sourcesOf, by
 // MOD-site-frame's chosenProduct with the token this browser keeps for it, and the instance with the frame's own host; a token reaches no other server. Once the cards are drawn, reread.mjs reads the
 // jobs' states of the cards again at an interval, while the route is shown, and nothing else.
 //
@@ -19,10 +19,10 @@
 
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { chosenProduct, menuOf } from "../site-frame/index.mjs";
+import { menuOf } from "../site-frame/index.mjs";
 import { productFacts, stageShares, currentStage, buildInProgress, waitingForAPerson, storedOverview } from "../progress-measures/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { bridgesOf, liveStatesOf } from "./jobs.mjs";
+import { bridgesOf, liveStatesOf, sourcesOf } from "./jobs.mjs";
 import { el, productCard, readingCard, errorCard } from "./cards.mjs";
 import { waitsList } from "./waits.mjs";
 import { greeting } from "./greeting.mjs";
@@ -30,19 +30,13 @@ import { readAgain } from "./reread.mjs";
 
 const reasonOf = (failure) => String(failure?.message ?? failure);
 
-// The sources to draw a card for: each product this browser keeps, once, connected with its own token — or, while it keeps none, the instance itself as Agent M.
-async function sourcesOf({ store, instance }) {
-  const kept = [...new Set((readSetting(store, "products") ?? []).flatMap((text) => { try { return [parseAddress(text)]; } catch { return []; } }).map((address) => address.web))];
-  if (kept.length === 0) return [{ title: "Agent M", address: `https://github.com/${instance.repository}`, host: instance.host, own: true, tokenStored: readSetting(store, "github-token") !== null }];
-  return Promise.all(kept.map(async (web) => {
-    const address = parseAddress(web), title = address.path;
-    try {
-      const product = await chosenProduct({ store, fragment: `#home/product=${encodeURIComponent(web)}` });
-      return { title, address: web, host: product.host, tokenStored: product.tokenStored };
-    } catch (failure) {
-      return { title, address: web, reason: reasonOf(failure) };
-    }
-  }));
+// The sources to draw a card for: each product this browser keeps, once, connected with its own token — or, while it keeps none, the instance itself as Agent M. The sources are those of
+// jobs.mjs's sourcesOf for the route `home`; a card adds its title and, for the instance's own source (marked `own`), whether a token is stored for it.
+async function cardSources(context) {
+  const { store } = context;
+  return (await sourcesOf(context, "home")).map((source) => (source.own === true
+    ? { ...source, title: "Agent M", tokenStored: readSetting(store, "github-token") !== null }
+    : { ...source, title: parseAddress(source.address).path }));
 }
 
 // The host a card reads through: the same host, whose repositoryInfo and readSnapshot are asked once for each branch, so that the head's commit and tree are read once for the card
@@ -92,7 +86,7 @@ async function cardOf(source, reading, go) {
 
 async function render(target, context) {
   const { instance } = context;
-  const sources = await sourcesOf(context);
+  const sources = await cardSources(context);
   const nodes = sources.map((source) => (source.reason === undefined ? readingCard(source) : errorCard({ ...source, go: context.go })));
   const cards = el("section", "cards", ...nodes);
   const greet = greeting({ useCasesHref: menuOf("main", []).find((entry) => entry.key === "use-cases").href });

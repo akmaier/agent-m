@@ -25,21 +25,24 @@ import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
-// The sources, each with the host the frame connected: the instance's own (the ViewContext's), then each address of the setting `products` that parses, once, through MOD-site-frame's chosenProduct,
-// which connects it with its own token to its own server only and with the stored secrets the host refuses to write. A product the frame cannot connect is { address, reason }.
-export async function sourcesOf(context) {
+// The sources of a route, each with the host the frame connected: the products this browser keeps (the setting `products`), each address that parses once, connected through MOD-site-frame's
+// chosenProduct — with its own token to its own server only and with the stored secrets the host refuses to write —, and the instance's own (the ViewContext's) where the route lists it: always on the
+// route `jobs`, and on the route `home` only while this browser keeps no product (then it is Agent M's own card). A product equal to a source already listed is not read again. A product the frame
+// cannot connect is { address, reason }; one it can carries its host and whether a token is stored for it. `route` names the route whose address (`#<route>/product=…`) the frame connects the product for.
+export async function sourcesOf(context, route = "jobs") {
   const { store, instance } = context;
   const own = parseAddress(`https://github.com/${instance.repository}`).web;
-  const seen = new Set([own]);
-  const sources = [{ address: own, host: instance.host }];
-  for (const text of readSetting(store, "products") ?? []) {
-    let web;
-    try { web = parseAddress(text).web; } catch { continue; /* an address that is none names no source */ }
-    if (seen.has(web)) continue;
-    seen.add(web);
-    try { sources.push({ address: web, host: (await chosenProduct({ store, fragment: `#jobs/product=${encodeURIComponent(web)}` })).host }); } catch (failure) { sources.push({ address: web, reason: String(failure?.message ?? failure) }); }
-  }
-  return sources;
+  const kept = [...new Set((readSetting(store, "products") ?? []).flatMap((text) => { try { return [parseAddress(text).web]; } catch { return []; /* an address that is none names no source */ } }))];
+  const listsInstance = route === "jobs" || kept.length === 0;
+  const products = await Promise.all(kept.filter((web) => !(listsInstance && web === own)).map(async (web) => {
+    try {
+      const product = await chosenProduct({ store, fragment: `#${route}/product=${encodeURIComponent(web)}` });
+      return { address: web, host: product.host, tokenStored: product.tokenStored };
+    } catch (failure) {
+      return { address: web, reason: String(failure?.message ?? failure) };
+    }
+  }));
+  return [...(listsInstance ? [{ address: own, host: instance.host, own: true }] : []), ...products];
 }
 
 // One source read: its default branch as a snapshot. A source that fails is { address, reason }.
