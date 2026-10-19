@@ -948,8 +948,8 @@ and is fixed to the exact state the product uses, such as a commit; it is writte
 repository. Examples: a private repository of DLLs (`speech-dlls`), `meta-llama/Llama-3.1-8B` on Hugging Face at a fixed
 revision, the SLURM cluster *Alex* at NHR@FAU, a vLLM endpoint that the product queries. A **requirement source** is a rule the
 product must *meet*, such as the EU AI Act or IEC 62304 class B; it is written down in the sources of the product, and a rule
-you meet is registered as in [UC-015](#use-case/id=UC-015). A **participant** *develops* the product, such as a colleague, Claude
-Code on the author's machine or a CI agent; it is in the instance's list of participants, see [UC-017](#use-case/id=UC-017).
+you meet is registered as in [UC-015](#use-case/id=UC-015). A **participant** *develops* the product, such as a colleague,
+Claude Code on the author's machine or a CI agent; it is in the instance's list of participants, see [UC-017](#use-case/id=UC-017).
 The same endpoint can be two of these: a resource the product queries and, behind a Bridge, a participant that works on the
 product. It is then two entries that share nothing. The instance has resources of its own, in its own list; the two lists never
 inherit from each other. In the book *Vibe Coding*: chapter 6, section 5, on reuse, which "buys dependencies".
