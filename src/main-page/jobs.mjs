@@ -97,17 +97,26 @@ function listOf(jobRows, lives) {
 
 const FILTERS = [["product", "Product"], ["state", "State"], ["participant", "Participant"], ["runs", "Where it runs"]];
 
+// The groups of the list, in the order of the states of MOD-job-ledger's JobState with the jobs that wait at a gate first (UC-036 step 2).
+const GROUPS = ["waiting at a gate", "running", "queued", "done", "failed", "cancelled", "ended without record"];
+const place = (row) => (GROUPS.includes(row.state) ? GROUPS.indexOf(row.state) : GROUPS.length);
+
 function drawList(rows) {
   const chosen = {};
   const body = el("tbody");
-  const draw = () => body.replaceChildren(...rows.filter((row) => FILTERS.every(([key]) => !chosen[key] || row[key] === chosen[key])).map((row) => {
+  const draw = () => body.replaceChildren(...rows.filter((row) => FILTERS.every(([key]) => !chosen[key] || row[key] === chosen[key])).sort((a, b) => place(a) - place(b)).flatMap((row, at, shown) => {
     const line = el("tr", row.tab ? "job this-tab" : "job");
     if (!row.tab) line.setAttribute("data-id", row.id);
     const state = el("td", "state", row.state);
     if (row.reason) state.append(" ", el("span", "reason", row.reason));
     line.append(el("td", "id", row.tab ? "this tab's" : row.id), el("td", "product", row.product || "—"), el("td", "works-on", row.works), el("td", "kind", row.kind),
       el("td", "participant", row.participant || "—"), el("td", "runs", row.runs), state, el("td", "elapsed", row.elapsed), el("td", "cost", row.cost));
-    return line;
+    if (at > 0 && shown[at - 1].state === row.state) return [line];
+    const name = el("th", "group-state", row.state);
+    name.setAttribute("colspan", "9");
+    const header = el("tr", "group", name);
+    header.setAttribute("data-state", row.state);
+    return [header, line];
   }));
   const filters = el("p", "filters");
   for (const [key, label] of FILTERS) {
