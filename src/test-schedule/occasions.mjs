@@ -19,6 +19,15 @@ export function occasionsOf(row, schedule) {
   return found ? OCCASIONS.filter((occasion) => found.cells[occasion] === "✓") : [];
 }
 
+// The rows the schedule ticks for the nightly occasion, in the order of the table.
+export const nightlyRows = (schedule) => rowsOf(schedule).map(({ cells }) => cells.Row).filter((row) => occasionsOf(row, schedule).includes("nightly"));
+
+// The cron expression of the declared nightly time, `HH:MM` in UTC.
+export function nightlyCron(schedule) {
+  const [hour, minute] = schedule.fields.nightly.split(":").map(Number);
+  return `${minute} ${hour} * * *`;
+}
+
 /**
  * secretsNeeded(schedule: Document, resources: Document) -> Array<{ name: string, for: string }> — the names of the secrets
  * the scheduled tests need: of each endpoint or agent of the product's resources — the row `paid` is the tests that call a

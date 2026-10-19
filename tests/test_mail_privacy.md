@@ -2054,3 +2054,1479 @@ The identifiers are those of tests/test_mail_replies.md.
   }
 }
 ```
+
+# MOD-personal-data release cases
+
+The cases below, under the names of the requirements they check, run MOD-personal-data's public functions (`peopleIn`, `personHits`, `checkersFor`,
+`pseudonymisationOf`, `privacyStrategies`) and, for the three checkers, the catalogue's kind `rewrite-without-persons` through MOD-job-runner's
+`prepareJob` and `runJob`, with fixture participants and drivers that answer from the case. Nothing reaches the network. Each case has `given` (its
+precondition), `input` (`op` names what is run; `mail` is what `peopleIn` reads; `terms` are the names, addresses, phone numbers, IP addresses and paths of the
+fixture written out here, searched for as plain text, never taken from the code under test) and `expected` (only what the case asserts).
+
+## A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
+
+### An issue text with the sender's name is refused and the hit named
+
+```json
+{
+  "given": "The mail's people are its header name Erika Mustermann, its address, its phone number and its account. The issue text names the sender on its line 3.",
+  "input": {
+    "op": "search",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "text": "Export fails\n\nErika Mustermann reports that E42 stops the PDF export.",
+    "terms": [
+      "Erika Mustermann"
+    ]
+  },
+  "expected": {
+    "findings": [
+      [
+        3,
+        "error",
+        "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE"
+      ]
+    ],
+    "hits": [
+      [
+        "name",
+        "Erika Mustermann",
+        3
+      ]
+    ],
+    "present": [
+      "Erika Mustermann"
+    ]
+  }
+}
+```
+
+### An issue text with a name from the mail's signature is refused and the hit named
+
+```json
+{
+  "given": "The mail's header holds an address and no display name; its signature, after the line `-- `, gives Gerda Probe. The issue text names that person on its line 2.",
+  "input": {
+    "op": "search",
+    "mail": {
+      "addresses": [
+        {
+          "name": null,
+          "address": "gp0815@example.invalid"
+        }
+      ],
+      "text": "Hi,\n\nthe table of contents stays empty.\n\n-- \nGerda Probe\nLab 4"
+    },
+    "text": "The table of contents stays empty.\nReported by Gerda Probe.",
+    "terms": [
+      "Gerda Probe"
+    ]
+  },
+  "expected": {
+    "findings": [
+      [
+        2,
+        "error",
+        "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE"
+      ]
+    ],
+    "hits": [
+      [
+        "name",
+        "Gerda Probe",
+        2
+      ]
+    ],
+    "present": [
+      "Gerda Probe"
+    ]
+  }
+}
+```
+
+### The same texts without the name pass
+
+```json
+{
+  "given": "The two mails of the cases above; issue texts that describe the fault and name nobody.",
+  "input": {
+    "op": "search",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "text": "Export fails\n\nThe PDF export stops with E42 in version 1.4.",
+    "terms": [
+      "Erika Mustermann"
+    ]
+  },
+  "expected": {
+    "findings": [],
+    "hits": [],
+    "present": []
+  }
+}
+```
+
+### A text without the signature's name passes
+
+```json
+{
+  "given": "The signature mail; an issue text that describes the fault and names nobody.",
+  "input": {
+    "op": "search",
+    "mail": {
+      "addresses": [
+        {
+          "name": null,
+          "address": "gp0815@example.invalid"
+        }
+      ],
+      "text": "Hi,\n\nthe table of contents stays empty.\n\n-- \nGerda Probe\nLab 4"
+    },
+    "text": "The table of contents stays empty.\nSeen in version 1.4.",
+    "terms": [
+      "Gerda Probe"
+    ]
+  },
+  "expected": {
+    "findings": [],
+    "hits": [],
+    "present": []
+  }
+}
+```
+
+## REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS
+
+### A rewriting that holds none of the five passes, and the participant is sent the log as picked
+
+```json
+{
+  "given": "A fixture log holds a name, a mail address, a phone number, an IP address and a home-directory path (its account is the mail's). A fixture participant rewrites it; the case lists those five as terms. The rewriting keeps the error E42, its line 7 and version 1.4.",
+  "input": {
+    "op": "rewrite",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "rewriter": {
+      "name": "rw",
+      "model": "m0",
+      "place": "campus"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "The export fails with error E42 at export line 7 in version 1.4; the output file was not created.",
+    "mailbox": [
+      "campus"
+    ],
+    "terms": [
+      "Erika Mustermann",
+      "em4711@example.invalid",
+      "+49 9131 85-20000",
+      "10.20.30.40",
+      "/home/erikam"
+    ]
+  },
+  "expected": {
+    "parts": [
+      [
+        "log",
+        "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      ]
+    ],
+    "findings": [],
+    "hits": [],
+    "present": []
+  }
+}
+```
+
+### A rewriting that keeps the address is refused
+
+```json
+{
+  "given": "A fixture log holds a name, a mail address, a phone number, an IP address and a home-directory path (its account is the mail's). A fixture participant rewrites it; the case lists those five as terms. The rewriting keeps the mail address.",
+  "input": {
+    "op": "rewrite",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "rewriter": {
+      "name": "rw",
+      "model": "m0",
+      "place": "campus"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "The export fails with E42 for em4711@example.invalid in version 1.4.",
+    "mailbox": [
+      "campus"
+    ],
+    "terms": [
+      "Erika Mustermann",
+      "em4711@example.invalid",
+      "+49 9131 85-20000",
+      "10.20.30.40",
+      "/home/erikam"
+    ]
+  },
+  "expected": {
+    "findings": [
+      [
+        1,
+        "error",
+        "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE"
+      ]
+    ],
+    "hits": [
+      [
+        "address",
+        "em4711@example.invalid"
+      ]
+    ],
+    "present": [
+      "em4711@example.invalid"
+    ]
+  }
+}
+```
+
+### A rewriting that keeps the phone number is refused, whatever its separators
+
+```json
+{
+  "given": "A fixture log holds a name, a mail address, a phone number, an IP address and a home-directory path (its account is the mail's). A fixture participant rewrites it; the case lists those five as terms. The rewriting keeps the phone number with hyphens in place of blanks.",
+  "input": {
+    "op": "rewrite",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "rewriter": {
+      "name": "rw",
+      "model": "m0",
+      "place": "campus"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "The export fails with E42; call +49-9131-85-20000 about it.",
+    "mailbox": [
+      "campus"
+    ],
+    "terms": [
+      "Erika Mustermann",
+      "em4711@example.invalid",
+      "+49 9131 85-20000",
+      "10.20.30.40",
+      "/home/erikam"
+    ]
+  },
+  "expected": {
+    "findings": [
+      [
+        1,
+        "error",
+        "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE"
+      ]
+    ],
+    "hits": [
+      [
+        "phone",
+        "+49-9131-85-20000"
+      ]
+    ]
+  }
+}
+```
+
+### A rewriting that keeps the name is refused
+
+```json
+{
+  "given": "A fixture log holds a name, a mail address, a phone number, an IP address and a home-directory path (its account is the mail's). A fixture participant rewrites it; the case lists those five as terms. The rewriting keeps the name.",
+  "input": {
+    "op": "rewrite",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "rewriter": {
+      "name": "rw",
+      "model": "m0",
+      "place": "campus"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "Erika Mustermann hit E42 in version 1.4.",
+    "mailbox": [
+      "campus"
+    ],
+    "terms": [
+      "Erika Mustermann",
+      "em4711@example.invalid",
+      "+49 9131 85-20000",
+      "10.20.30.40",
+      "/home/erikam"
+    ]
+  },
+  "expected": {
+    "findings": [
+      [
+        1,
+        "error",
+        "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE"
+      ]
+    ],
+    "hits": [
+      [
+        "name",
+        "Erika Mustermann"
+      ]
+    ],
+    "present": [
+      "Erika Mustermann"
+    ]
+  }
+}
+```
+
+### A rewriting that keeps the home-directory path of the mail's account is refused
+
+```json
+{
+  "given": "A fixture log holds a name, a mail address, a phone number, an IP address and a home-directory path (its account is the mail's). A fixture participant rewrites it; the case lists those five as terms. The rewriting keeps the path with the account's name in it.",
+  "input": {
+    "op": "rewrite",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "rewriter": {
+      "name": "rw",
+      "model": "m0",
+      "place": "campus"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "The export fails with E42 when it opens /home/erikam/thesis/main.docx.",
+    "mailbox": [
+      "campus"
+    ],
+    "terms": [
+      "Erika Mustermann",
+      "em4711@example.invalid",
+      "+49 9131 85-20000",
+      "10.20.30.40",
+      "/home/erikam"
+    ]
+  },
+  "expected": {
+    "findings": [
+      [
+        1,
+        "error",
+        "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE"
+      ]
+    ],
+    "hits": [
+      [
+        "account",
+        "erikam"
+      ]
+    ],
+    "present": [
+      "/home/erikam"
+    ]
+  }
+}
+```
+
+### A rewriting that keeps the IP address is found by the case's own term scan
+
+```json
+{
+  "given": "A fixture log holds a name, a mail address, a phone number, an IP address and a home-directory path (its account is the mail's). A fixture participant rewrites it; the case lists those five as terms. The rewriting keeps the IP address. Only the term scan of this case is asserted: MOD-personal-data's peopleIn names no IP address as a kind of person (its file :82-89).",
+  "input": {
+    "op": "rewrite",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "rewriter": {
+      "name": "rw",
+      "model": "m0",
+      "place": "campus"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "The export fails with E42 for the client at 10.20.30.40.",
+    "mailbox": [
+      "campus"
+    ],
+    "terms": [
+      "Erika Mustermann",
+      "em4711@example.invalid",
+      "+49 9131 85-20000",
+      "10.20.30.40",
+      "/home/erikam"
+    ]
+  },
+  "expected": {
+    "present": [
+      "10.20.30.40"
+    ]
+  }
+}
+```
+
+## A REWRITTEN TEXT IS CHECKED BY THREE LLMS
+
+### Three checkers are chosen, at the mailbox's place, with three different models
+
+```json
+{
+  "given": "Participants rw (model m0), c-a (m1), c-b (m2), c-c (m3), c-dup (m1), c-same (m0), all at campus, and c-far (m4) at another place; the mailbox allows campus.",
+  "input": {
+    "op": "checkers",
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      }
+    ],
+    "rewriter": "rw",
+    "places": [
+      "campus"
+    ]
+  },
+  "expected": {
+    "checkers": [
+      "c-a",
+      "c-b",
+      "c-c"
+    ],
+    "missing": false,
+    "models": [
+      "m1",
+      "m2",
+      "m3"
+    ]
+  }
+}
+```
+
+### Of three checkers one reports a name: the finding goes back and the job does not pass
+
+```json
+{
+  "given": "The three checkers c-a, c-b, c-c; c-b reports a name in the rewriting. The kind's writer hands the draft back and commits and opens nothing.",
+  "input": {
+    "op": "loop",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      }
+    ],
+    "rewriter": "rw",
+    "places": [
+      "campus"
+    ],
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "The export fails with E42.",
+    "reviewers": [
+      {
+        "name": "c-a",
+        "findings": []
+      },
+      {
+        "name": "c-b",
+        "findings": [
+          {
+            "artifact": "the text",
+            "line": 1,
+            "rule": "A REWRITTEN TEXT IS CHECKED BY THREE LLMS",
+            "what": "names a person",
+            "fix": "drop it"
+          }
+        ]
+      },
+      {
+        "name": "c-c",
+        "findings": []
+      }
+    ]
+  },
+  "expected": {
+    "blocking": 0,
+    "stopped": "unchanged",
+    "remaining": [
+      [
+        "warning",
+        "names a person"
+      ]
+    ],
+    "sentBack": [
+      [
+        [
+          "warning",
+          "names a person"
+        ]
+      ]
+    ],
+    "rewriterAsked": 2,
+    "committed": [
+      0,
+      0,
+      null
+    ]
+  }
+}
+```
+
+### None of the three reports a name: the job passes at once
+
+```json
+{
+  "given": "The three checkers; none reports.",
+  "input": {
+    "op": "loop",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      }
+    ],
+    "rewriter": "rw",
+    "places": [
+      "campus"
+    ],
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "rewriting": "The export fails with E42.",
+    "reviewers": [
+      {
+        "name": "c-a",
+        "findings": []
+      },
+      {
+        "name": "c-b",
+        "findings": []
+      },
+      {
+        "name": "c-c",
+        "findings": []
+      }
+    ]
+  },
+  "expected": {
+    "blocking": 0,
+    "stopped": "passed",
+    "remaining": [],
+    "sentBack": [],
+    "rewriterAsked": 1,
+    "committed": [
+      0,
+      0,
+      null
+    ],
+    "shown": {
+      "text": "The export fails with E42."
+    }
+  }
+}
+```
+
+## NO CHECKER IS THE REWRITER
+
+### A checker set with a participant of the rewriter's model is refused before anything is sent
+
+```json
+{
+  "given": "The rewriter rw uses model m0; c-same uses m0 too; c-a and c-b use other models.",
+  "input": {
+    "op": "prepare",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      }
+    ],
+    "rewriter": "rw",
+    "reviewers": [
+      "c-same",
+      "c-a",
+      "c-b"
+    ],
+    "places": [
+      "campus"
+    ],
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ]
+  },
+  "expected": {
+    "blocking": 1,
+    "refused": "NotStartable",
+    "asked": []
+  }
+}
+```
+
+### A checker set in which two checkers share a model is refused before anything is sent
+
+```json
+{
+  "given": "c-a and c-dup both use model m1; c-c uses m3.",
+  "input": {
+    "op": "prepare",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      }
+    ],
+    "rewriter": "rw",
+    "reviewers": [
+      "c-a",
+      "c-dup",
+      "c-c"
+    ],
+    "places": [
+      "campus"
+    ],
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ]
+  },
+  "expected": {
+    "blocking": 2,
+    "refused": "NotStartable",
+    "asked": []
+  }
+}
+```
+
+### Three other participants with three other models are accepted, and each is asked
+
+```json
+{
+  "given": "c-a, c-b, c-c use models m1, m2, m3, none the rewriter's.",
+  "input": {
+    "op": "prepare",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      }
+    ],
+    "rewriter": "rw",
+    "reviewers": [
+      "c-a",
+      "c-b",
+      "c-c"
+    ],
+    "places": [
+      "campus"
+    ],
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ]
+  },
+  "expected": {
+    "blocking": 0,
+    "refused": null,
+    "asked": [
+      "rw",
+      "c-a",
+      "c-b",
+      "c-c"
+    ]
+  }
+}
+```
+
+### With only two participants whose model differs from the rewriter's and from each other, no three are found
+
+```json
+{
+  "given": "The rewriter rw (m0); c-same (m0, the rewriter's model), c-a (m1), c-b (m2).",
+  "input": {
+    "op": "checkers",
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      }
+    ],
+    "rewriter": "rw",
+    "places": [
+      "campus"
+    ]
+  },
+  "expected": {
+    "checkers": null,
+    "missing": true
+  }
+}
+```
+
+### A participant at a place the mailbox does not allow is not a checker
+
+```json
+{
+  "given": "The rewriter rw; c-far at another place; c-a and c-b at campus.",
+  "input": {
+    "op": "checkers",
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      }
+    ],
+    "rewriter": "rw",
+    "places": [
+      "campus"
+    ]
+  },
+  "expected": {
+    "checkers": null,
+    "missing": true
+  }
+}
+```
+
+### Of two participants with one model only one is chosen
+
+```json
+{
+  "given": "The rewriter rw (m0); c-a and c-dup (both m1), c-b (m2), c-c (m3), all at campus, in that order.",
+  "input": {
+    "op": "checkers",
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      }
+    ],
+    "rewriter": "rw",
+    "places": [
+      "campus"
+    ]
+  },
+  "expected": {
+    "checkers": [
+      "c-a",
+      "c-b",
+      "c-c"
+    ],
+    "missing": false,
+    "models": [
+      "m1",
+      "m2",
+      "m3"
+    ]
+  }
+}
+```
+
+## PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF
+
+### A product without a settings file is on
+
+```json
+{
+  "given": "The product's docs/settings.md as given; no file where the input is null.",
+  "input": {
+    "op": "pseudonymisation",
+    "file": null
+  },
+  "expected": {
+    "value": "on"
+  }
+}
+```
+
+### A settings file without the key is on
+
+```json
+{
+  "given": "The product's docs/settings.md as given; no file where the input is null.",
+  "input": {
+    "op": "pseudonymisation",
+    "file": "---\n---\n# Settings of this product\n"
+  },
+  "expected": {
+    "value": "on"
+  }
+}
+```
+
+### A settings file that switches it off is off
+
+```json
+{
+  "given": "The product's docs/settings.md as given; no file where the input is null.",
+  "input": {
+    "op": "pseudonymisation",
+    "file": "---\npseudonymisation: off\n---\n# Settings of this product\n"
+  },
+  "expected": {
+    "value": "off"
+  }
+}
+```
+
+### A settings file that says on is on
+
+```json
+{
+  "given": "The product's docs/settings.md as given; no file where the input is null.",
+  "input": {
+    "op": "pseudonymisation",
+    "file": "---\npseudonymisation: on\n---\n# Settings of this product\n"
+  },
+  "expected": {
+    "value": "on"
+  }
+}
+```
+
+## THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
+
+### A participant at a listed place is given the report data
+
+```json
+{
+  "given": "The mailbox allows campus; the participant is at campus.",
+  "input": {
+    "op": "places",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "participant": {
+      "name": "p",
+      "model": "m1",
+      "place": "campus"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "mailbox": [
+      "campus"
+    ]
+  },
+  "expected": {
+    "parts": [
+      "log"
+    ],
+    "refused": null
+  }
+}
+```
+
+### A participant at an unlisted place is given nothing
+
+```json
+{
+  "given": "The mailbox allows campus; the participant is at eu-cloud.",
+  "input": {
+    "op": "places",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "participant": {
+      "name": "p",
+      "model": "m1",
+      "place": "eu-cloud"
+    },
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "mailbox": [
+      "campus"
+    ]
+  },
+  "expected": {
+    "parts": [],
+    "refused": "PlaceNotAllowed"
+  }
+}
+```
+
+## Rate: report data
+
+### Rate: four rewritings of the fixed set, and four runs of three checkers
+
+```json
+{
+  "given": "Four rewritings of the log: two clean and technical, one that keeps the address, one that drops the technical content; four checker runs over the same text, in which none, one, none and two checkers report a name. Reported, not gated.",
+  "input": {
+    "op": "rates",
+    "mail": {
+      "addresses": [
+        {
+          "name": "Erika Mustermann",
+          "address": "em4711@example.invalid"
+        }
+      ],
+      "text": "Hello,\n\nexporting fails with E42 in version 1.4.\n\nYou can reach me at +49 9131 85-20000, my account is @erikam.\n\nKind regards\nErika Mustermann"
+    },
+    "terms": [
+      "Erika Mustermann",
+      "em4711@example.invalid",
+      "+49 9131 85-20000",
+      "10.20.30.40",
+      "/home/erikam"
+    ],
+    "technical": [
+      "E42",
+      "1.4"
+    ],
+    "rewritings": [
+      "The export fails with E42 in version 1.4.",
+      "The import stops with E42 at line 7 in version 1.4.",
+      "The export fails with E42 in version 1.4; reported by em4711@example.invalid.",
+      "The export fails."
+    ],
+    "participants": [
+      {
+        "name": "rw",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-a",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-b",
+        "model": "m2",
+        "place": "campus"
+      },
+      {
+        "name": "c-c",
+        "model": "m3",
+        "place": "campus"
+      },
+      {
+        "name": "c-dup",
+        "model": "m1",
+        "place": "campus"
+      },
+      {
+        "name": "c-same",
+        "model": "m0",
+        "place": "campus"
+      },
+      {
+        "name": "c-far",
+        "model": "m4",
+        "place": "elsewhere"
+      }
+    ],
+    "rewriter": "rw",
+    "places": [
+      "campus"
+    ],
+    "pieces": [
+      {
+        "name": "log",
+        "text": "2026-10-18 09:12 export failed for em4711@example.invalid (Erika Mustermann, +49 9131 85-20000) from 10.20.30.40\nopen /home/erikam/thesis/main.docx: E42 at export line 7, version 1.4"
+      }
+    ],
+    "checkRuns": [
+      {
+        "text": "The export fails with E42.",
+        "reviews": [
+          {
+            "name": "c-a",
+            "findings": []
+          },
+          {
+            "name": "c-b",
+            "findings": []
+          },
+          {
+            "name": "c-c",
+            "findings": []
+          }
+        ]
+      },
+      {
+        "text": "The export fails with E42.",
+        "reviews": [
+          {
+            "name": "c-a",
+            "findings": []
+          },
+          {
+            "name": "c-b",
+            "findings": [
+              {
+                "artifact": "the text",
+                "line": 1,
+                "rule": "A REWRITTEN TEXT IS CHECKED BY THREE LLMS",
+                "what": "names a person",
+                "fix": "drop it"
+              }
+            ]
+          },
+          {
+            "name": "c-c",
+            "findings": []
+          }
+        ]
+      },
+      {
+        "text": "The export fails with E42.",
+        "reviews": [
+          {
+            "name": "c-a",
+            "findings": []
+          },
+          {
+            "name": "c-b",
+            "findings": []
+          },
+          {
+            "name": "c-c",
+            "findings": []
+          }
+        ]
+      },
+      {
+        "text": "The export fails with E42.",
+        "reviews": [
+          {
+            "name": "c-a",
+            "findings": [
+              {
+                "artifact": "the text",
+                "line": 1,
+                "rule": "A REWRITTEN TEXT IS CHECKED BY THREE LLMS",
+                "what": "names a person",
+                "fix": "drop it"
+              }
+            ]
+          },
+          {
+            "name": "c-b",
+            "findings": []
+          },
+          {
+            "name": "c-c",
+            "findings": [
+              {
+                "artifact": "the text",
+                "line": 1,
+                "rule": "A REWRITTEN TEXT IS CHECKED BY THREE LLMS",
+                "what": "names a person",
+                "fix": "drop it"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "measured": 4,
+    "clean": 3,
+    "keepsTechnical": 3,
+    "checkRuns": 4,
+    "passedAllThree": 2
+  }
+}
+```
+
