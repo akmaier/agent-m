@@ -48,6 +48,27 @@ function sentOn(record) {
 // Whether a sprint's close is recorded: its record holds the ## Review its close appends.
 const closedRecord = (record) => (record?.appended ?? []).some((section) => section?.heading === "## Review");
 
+/**
+ * sprintsToClose(sprints: Document[], states: ItemState[], today: string) -> Array<{ sprint: string, closer: string, because: "time box ended" | "every selected item done" | "ended by the Product Owner" }> —
+ * every sprint of a team whose record holds no ## Review and that has ended: its `end` date is before or on `today` (`yyyy-mm-dd`); or, without a time box, its record holds ## Ended, or every
+ * item of its selection is `done` in `states`; each with its `closer`, in the order given. The Product Owner's ## Ended is named before the items. Reads nothing; changes nothing.
+ */
+export function sprintsToClose(sprints, states, today) {
+  const done = new Set((states ?? []).filter((each) => each?.state === "done").map((each) => text(each.item)));
+  const due = [];
+  for (const record of sprints ?? []) {
+    const named = sprintOf(record);
+    if (!named || closedRecord(record)) continue;
+    const end = text(record.fields?.end).slice(0, 10);
+    let because = null;
+    if (end) because = end <= today ? "time box ended" : null;
+    else if ((record.appended ?? []).some((section) => section?.heading === "## Ended")) because = "ended by the Product Owner";
+    else if (selectionOf(record).every((item) => done.has(item))) because = "every selected item done";
+    if (because) due.push({ sprint: named.name, closer: text(record.fields?.closer), because });
+  }
+  return due;
+}
+
 // The modules whose interfaces `modules` use, by the architecture's module files, in the order of their identifiers.
 function usedBy(modules, architecture) {
   const files = new Map((architecture ?? []).map((file) => [idOf(file), file]));
