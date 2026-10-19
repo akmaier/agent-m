@@ -2,8 +2,9 @@
 // route plan; UC-045 steps 1 and 4, alternative flows 1a and 1b): the architecture's system, subsystems and modules beside the plan's
 // steps in the plan's order, each with its derived state and what it waits for, and a Mermaid diagram of the steps and what each waits
 // for, drawn through renderMermaid; a folded What is this? (explain). A product whose model works from a backlog has no plan and gets a
-// link to the backlog (1a); an architecture file that is open or changed is named, and nothing is planned (1b). Not built here: the
-// marks of an architecture changed after the plan was saved (1c), the modules without a step, Draft the plan, Save plan and + Step.
+// link to the backlog (1a); an architecture file that is open or changed is named, and nothing is planned (1b); a step whose module or subsystem file was changed or removed after the step
+// was saved is marked, naming the file, and a module without a step is named (1c, ITM-1036), both from MOD-work-plans' planFindings with the history of the product's host. The marks
+// write nothing: the steps stand as they are until the planner saves. Not built here: Draft the plan, Save plan and + Step.
 //
 // Module: MOD-implementation-pages
 //
@@ -16,6 +17,8 @@
 import { renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
+import { planFindings } from "../work-plans/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
 const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -34,6 +37,21 @@ const placeOf = (root, attribute) => {
   return null;
 };
 const REVIEWED = new Set(["architecture-decision", "module"]);
+const ASSEMBLES = "AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES";
+
+// The findings of the plan against the architecture as it stands (planFindings with the history of the host): of them those that mark a step whose module or subsystem file was changed or
+// removed after it, and a module, subsystem or system without a step. The architecture is read as documents with MOD-documents' schemas. The marks could not be read: none.
+async function marksOf(facts, graph, host) {
+  try {
+    const schemas = artifactSchemas();
+    const architecture = await Promise.all([...graph.nodes.values()].filter((node) => node.kind === "ARC" || node.kind === "MOD")
+      .map(async (node) => readDocument(node.kind === "ARC" ? schemas.decision : schemas.module, node.path, (await facts.snapshot.read(node.path)) ?? "")));
+    const found = await planFindings(facts.plan.order, facts.plan.items, architecture, null, facts.snapshot, { host });
+    return found.filter((each) => each.rule === ASSEMBLES);
+  } catch {
+    return [];
+  }
+}
 
 // The architecture of the graph as the page lists it: [{ id, kind, under, title }] — the system, each of its subsystems followed by
 // its modules, then the modules no subsystem designs.
@@ -103,7 +121,10 @@ export const route = {
       return;
     }
 
-    const architecture = architectureOf(await traceGraph(facts.snapshot));
+    const graph = await traceGraph(facts.snapshot);
+    const architecture = architectureOf(graph);
+    const marked = await marksOf(facts, graph, product.host);
+    const marksFor = (id) => marked.filter((each) => each.artifact === id);
     const documents = new Map(facts.plan.items.map((item) => [idOf(item), item]));
     const steps = facts.plan.states.map((state) => {
       const item = documents.get(state.item);
@@ -111,10 +132,10 @@ export const route = {
     });
 
     const tree = architecture.map((row) => `<li data-architecture="${h(row.id)}" data-kind="${row.kind}"${row.under ? ` data-under="${h(row.under)}"` : ""}>`
-      + `${h(row.id)}${row.title ? ` — ${h(row.title)}` : ""} <span class="muted small">${row.kind}</span></li>`).join("");
+      + `${h(row.id)}${row.title ? ` — ${h(row.title)}` : ""} <span class="muted small">${row.kind}</span>${marksFor(row.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</li>`).join("");
     const table = steps.length === 0 ? `<p class="muted">No plan is saved yet.</p>`
       : `<table><thead><tr><th>Step</th><th>State</th><th>Waits for</th></tr></thead><tbody>${steps.map((step) => `<tr data-step="${h(step.id)}" data-state="${h(step.state)}">`
-        + `<td>${h(step.id)}${step.title ? ` — ${h(step.title)}` : ""}</td><td>${h(step.state)}</td><td data-waits-for>${h(step.reason)}</td></tr>`).join("")}</tbody></table>`;
+        + `<td>${h(step.id)}${step.title ? ` — ${h(step.title)}` : ""}${marksFor(step.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</td><td>${h(step.state)}</td><td data-waits-for>${h(step.reason)}</td></tr>`).join("")}</tbody></table>`;
     target.innerHTML = `<section class="panel"><h2>Plan</h2><div data-plan-explain></div>
       <div class="cols"><div><h3>Architecture</h3><ul>${tree}</ul></div><div><h3>Steps</h3>${table}<div data-plan-diagram></div></div></div></section>`;
     placeOf(target, "data-plan-explain").append(explain("implementation-plan"));
