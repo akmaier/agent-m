@@ -25,6 +25,5 @@ export function spend(value) {
   const found = open.get(value);
   const reason = !found ? "unknown" : found.spent ? "spent" : found.expiresAt <= Date.now() ? "expired" : null;
   if (reason) throw bridgeFailure("confirmation-refused", `The confirmation is ${reason}; nothing was sent.`);
-  found.spent = true;
   return found;
 }
