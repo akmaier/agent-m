@@ -393,7 +393,7 @@ test("TST-377015: UC-019 6c an unusable answer is named, its raw text folded, an
 // module: MOD-prompt-bar; MOD-participant-list
 // guards: UC-019 (steps 2, 3a)
 // given: the register of an instance with one participant that can draft text (drafter) and one that cannot (observer), and the page of UC-007
-// input: read what the bar offers; then, in an instance whose only participant is observer, read what the page says and press its link
+// input: read what the bar offers; then, in an instance whose only participant is observer, put the cursor in the bar's input, read what the page says and press its link
 // expect: the bar offers drafter only; with no participant able to draft, the bar says that no participant can do change-use-case and that it needs "draft text", offers no participant and no Send to choose, and its link opens the route participants (UC-017's page)
 test("TST-377010: UC-019 2 and 3a the bar offers only participants that can draft text", async () => {
   const s = await scenario({ extraFiles: useCases });
@@ -405,6 +405,10 @@ test("TST-377010: UC-019 2 and 3a the bar offers only participants that can draf
     + "| observer | model endpoint | observer-model | 200000 | - | read repository | Anthropic, USA | endpoint fixture |\n";
   const none = await scenario({ extraFiles: useCases, instanceFiles: { "docs/participants.md": onlyObserver } });
   await onUseCase(none);
+  // The bar reads the page's subject when it is used (the input takes focus), so the offer now belongs to the page of the use case.
+  one(barOf(none), "textarea", "instruction").dispatchEvent(new Event("focus"));
+  await rest(none);
+  await rest(none);
   assert.equal(all(barOf(none), "span", "participant").length + all(barOf(none), "select", "participant").length, 0, "no participant is offered");
   const said = barOf(none).textContent;
   assert.match(said, /No participant of this instance can do change-use-case: it needs draft text\./);
