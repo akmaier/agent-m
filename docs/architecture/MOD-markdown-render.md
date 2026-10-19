@@ -51,11 +51,10 @@ vendored libraries in `vendor/README.md` — one line per library: name, version
 
 ## Interfaces
 
-- `renderArtifact(text: string, options?: { linkFor?: (identifier: string) -> string | null, frontMatter?: "table" |
-  "hidden" }) -> Element` — the rendered text: front matter as a table unless hidden, Markdown as HTML sanitised before it
-  is inserted, every Mermaid block drawn with `renderMermaid`, every identifier the caller's `linkFor` resolves turned
-  into a link to its view, images and embedded resources shown as links. A part that cannot be rendered is shown as its
-  source with the reason; it never throws.
+- `renderArtifact(text: string, options?: { frontMatter?: "table" | "hidden" }) -> Element` — the rendered text: front
+  matter as a table unless hidden, Markdown as HTML sanitised before it is inserted, every Mermaid block drawn with
+  `renderMermaid`, images and embedded resources shown as links. A part that cannot be rendered is shown as its source
+  with the reason; it never throws.
 - `renderMermaid(source: string) -> Promise<Element>` — one diagram, drawn with the diagram library's strict security
   level; a diagram that does not parse is shown with the parser's message beside its source. The prose beside a diagram
   stays what holds (`THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW`); this function only draws.

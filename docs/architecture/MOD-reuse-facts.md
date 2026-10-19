@@ -100,7 +100,7 @@ candidate and the address queried (UC-022).
 - `Candidate` — `{ name: string, ecosystem: "npm" | "pypi" | "crates" | "maven", repository: string | null }`.
 - `Fact` — `{ candidate: string, ecosystem: string, what: "exists" | "licence" | "first release" | "latest release" |
   "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption" | "licence file" | "last commit" |
-  "committers in the last year", value: string, address: string, read: string }`.
+  "committers in the last year" | "revision" | "access", value: string, address: string, read: string }`.
 - `DueDiligence` — `{ candidate: Candidate, facts: Fact[], licence: "compatible" | "not known to be compatible" | "not
   checked", found: boolean, blocked: string | null }`.
 - `registryFacts(candidate: Candidate, productLicence: string | null) -> Promise<DueDiligence>` — reads the candidate's

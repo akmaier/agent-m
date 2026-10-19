@@ -30,3 +30,8 @@ draft for akmaier that takes `linkFor` out of the text.
 - `renderArtifact` links each identifier `linkFor` resolves, leaves the rest as text, and links nothing without `linkFor`.
   A test checks it, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Done at sprint team1/93 (po-opus).** akmaier accepted the draft `43347a8a` at `c12fec0f`, so MOD-markdown-render's
+`renderArtifact` no longer has `linkFor`. The text now states what `src/markdown-render/render.mjs` does, and nothing is left
+to build. The option `frontMatter` is already tested: TST-342002's counter-proof changes its default.
+
