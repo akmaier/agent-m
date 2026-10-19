@@ -33,7 +33,7 @@ onTestsFinished are other items'").
 
 The draft for this item is accepted (`1c30ad0b` and the acceptances before it); quoted from `main` at 40e04d8d:
 
-MOD-work-plans.md:185-189:
+MOD-work-plans.md:187-191:
 
 > - `sprintsToClose(sprints: Document[], states: ItemState[], today: string) -> Array<{ sprint: string, closer: string,
 >   because: "time box ended" | "every selected item done" | "ended by the Product Owner" }>` — every sprint whose record
@@ -41,7 +41,7 @@ MOD-work-plans.md:185-189:
 >   its selection is `done`, or its record holds `## Ended`; each with its `closer` (UC-041, an agent's close; `A SPRINT
 >   CLOSED BY AN AGENT STARTS BY ITSELF`). It reads nothing.
 
-MOD-workflow-entries.md:166-169:
+MOD-workflow-entries.md:165-168:
 
 > - `onSchedule(env: CiEnvironment) -> Promise<EntryStatus>` — on the product's schedule: the events in time. Each sprint
 >   that MOD-work-plans' `sprintsToClose` names — its time box ended, or, without one, every selected item done or the
