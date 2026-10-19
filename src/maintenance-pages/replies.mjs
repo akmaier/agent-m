@@ -296,7 +296,7 @@ function groupsOf(out, ctx) {
   const sections = GROUPS.map(([key, field, title]) => {
     const list = el("ul", "reply-issues", ...ctx.due[field].map((each) => {
       const item = el("li", "reply-issue", `#${each.issue} of ${ctx.products.get(each.product)?.name ?? each.product} · ${each.mails.length} mail${each.mails.length === 1 ? "" : "s"} · `,
-        link(`#replies/issue=${each.issue}&product=${encodeURIComponent(each.product)}`, "issue-link", "Open"));
+        link(`#replies/issue=${each.issue}/product=${encodeURIComponent(each.product)}`, "issue-link", "Open"));
       item.setAttribute("data-issue", String(each.issue));
       item.querySelector?.("a")?.addEventListener("click", (event) => { event?.preventDefault?.(); ctx.context.go("replies", { issue: String(each.issue), product: each.product }); });
       return item;

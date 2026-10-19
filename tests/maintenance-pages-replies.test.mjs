@@ -27,6 +27,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { mailStrategies } from "../src/mail-handling/index.mjs";
+import { fragmentOf, routeOf } from "../src/site-frame/routing.mjs";
 import { BRIDGE, ERIKA, SECRET, PRODUCT_URL, buttonsOf, byClass, flush, itemOf, one, opened, pages, read, restoreNet, restoreWorld, route, standard, start, textOf, trusted, waitFor, walk, issuesIn, world } from "./maintenance-pages-world.mjs";
 
 afterEach(restoreWorld);
@@ -256,4 +257,23 @@ test("the view holds the route replies and hands the frame mailStrategies", () =
   assert.ok(pages.view, `the view: ${pages.error?.message}`);
   assert.deepEqual([route()?.entry, route()?.title], ["maintenance", "Replies"]);
   assert.ok(pages.view.strategies.includes(mailStrategies));
+});
+
+// TST-1108001 · level: unit · module: MOD-maintenance-pages
+// guards: UC-039; MOD-site-frame.md:133 (the parts of the fragment after the first are the route's parameters)
+// given: the replies read: the issues 4, 5 and 6 of alice/product listed in their groups
+// input: the link of each issue read; the link of issue 5 followed as the frame reads an address (routeOf) and the route drawn with what it gives
+// expect: each link is the address the frame writes for that route and those parameters (fragmentOf: `#replies/issue=<n>/product=<address>`, every part percent-encoded); followed, it gives the route replies with the parameters issue "5" and product alice/product, and the page shows issue #5 of that product
+test("the link to an issue is the address the frame writes, and following it shows that issue of that product", async () => {
+  const { w, target } = await start();
+  await read(target);
+  const links = new Map(walk(target, (node) => node.getAttribute?.("data-issue") !== null && node.getAttribute?.("data-issue") !== undefined && (node.className ?? "").includes("reply-issue"))
+    .map((item) => [Number(item.getAttribute("data-issue")), walk(item, (node) => node.localName === "a")[0]?.getAttribute("href")]));
+  assert.deepEqual([...links.keys()].sort(), [4, 5, 6]);
+  for (const [number, href] of links) assert.equal(href, fragmentOf("replies", { issue: String(number), product: PRODUCT_URL }), `issue ${number}`);
+  const { name, params } = routeOf(links.get(5));
+  assert.deepEqual([name, params], ["replies", { issue: "5", product: PRODUCT_URL }]);
+  const detail = await opened(w, params);
+  await waitFor(() => /Issue #\d/.test(textOf(detail)) || byClass(detail, "reply-problem").length > 0);
+  assert.match(textOf(detail), /Issue #5 of alice\/product/);
 });
