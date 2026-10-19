@@ -292,7 +292,7 @@ test("participants — each participant type is added through the schema form an
       route: "account github.com/akmaier" },
     { type: "model endpoint", name: "campus-model", settings: { "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus", key: "endpoint-secret" } },
       fields: { endpoint: "campus", place: "FAU data centre (EU)" }, place: "FAU data centre (EU)", capabilities: ["draft text"], route: "endpoint campus" },
-    { type: "CI agent", name: "ci-writer", fields: { model: "gpt-5", workflow: "agent-m.yml", runner: "github-hosted", secret: "MODEL_KEY", place: "GitHub hosted runner" },
+    { type: "CI agent", name: "ci-writer", fields: { model: "gpt-5", runner: "github-hosted", secret: "MODEL_KEY", place: "GitHub hosted runner" },
       place: "GitHub hosted runner", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], route: "ci hosted secret MODEL_KEY" },
     { type: "CLI agent", name: "codex-local", settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } },
       fields: { model: "gpt-5", bridge: "laptop", agent: "codex", place: "this machine" },
@@ -310,7 +310,6 @@ test("participants — each participant type is added through the schema form an
     if (fixture.fields.account) await put(one(page, "participant-account"), fixture.fields.account);
     if (fixture.fields.endpoint) await put(one(page, "participant-endpoint"), fixture.fields.endpoint, "change");
     if (fixture.fields.model) await put(one(page, "participant-model"), fixture.fields.model);
-    if (fixture.fields.workflow) await put(one(page, "participant-workflow"), fixture.fields.workflow);
     if (fixture.fields.runner) await put(one(page, "participant-runner"), fixture.fields.runner, "change");
     if (fixture.fields.secret) await put(one(page, "participant-secret-name"), fixture.fields.secret);
     if (fixture.fields.bridge) await put(one(page, "participant-bridge"), fixture.fields.bridge, "change");
@@ -391,7 +390,6 @@ test("participants — self-hosted runners are explained, and source place restr
   await addParticipant(page, "CI agent");
   await put(one(page, "participant-name"), "ci-private");
   await put(one(page, "participant-model"), "gpt-5");
-  await put(one(page, "participant-workflow"), "agent-m.yml");
   await put(one(page, "participant-runner"), "self-hosted", "change");
   await put(one(page, "participant-secret-name"), "MODEL_KEY");
   await put(one(page, "participant-place"), "US cloud");
@@ -612,7 +610,6 @@ test("participants — a CI agent's route is written in the schema's form, with 
   assert.equal(byClass(page, "participant-runner-label").length, 0, "no label field while the runner is the server's own");
   await put(one(page, "participant-name"), "ci-gpu");
   await put(one(page, "participant-model"), "gpt-5");
-  await put(one(page, "participant-workflow"), "agent-m.yml");
   await put(one(page, "participant-secret-name"), "MODEL_KEY");
   assert.equal(one(page, "participant-route-preview").textContent, "ci hosted secret MODEL_KEY");
   await put(one(page, "participant-runner"), "self-hosted", "change");
@@ -625,6 +622,70 @@ test("participants — a CI agent's route is written in the schema's form, with 
   assert.equal(b.commits.length, 1);
   assert.equal(committedRows(b).at(-1).Route, "ci runner:gpu secret MODEL_KEY");
   assert.doesNotMatch(b.commits[0].files[0].text, /workflow/);
+});
+
+// TST-1019001 · level: unit · module: MOD-settings-pages
+// guards: UC-017 step 3; A PARTICIPANT HAS ONE OF FIVE TYPES
+// given: the public participants Route, an empty register and the CI-agent form, once with the runner on the server's machines and once with the self-hosted runner (which adds the runner's label); every control of the form (its inputs and its selects, the capability boxes among them) is read from the page
+// input: for each control in turn, the form is filled with one set of values, the control is changed to another value (a text to another text, a select to its other option, a box toggled), and Save is clicked once
+// expect: no control is a Workflow field (no .participant-workflow, no label "Workflow"); known positive: the form holds the name, model, context, price, processing place, runner, key secret name and capability controls (and the runner's label in the self-hosted form); every one of them changes the row that is saved — the row after the change differs from the row saved without it —, so that no field is drawn that is not saved; counter-proof: a control the row does not hold (the Workflow field as it stood) leaves the row as it was, and fails this test
+test("participants — every control of a CI agent's form changes the saved row, and no Workflow field is drawn", async (t) => {
+  const BASE = { "participant-name": "ci-writer", "participant-model": "gpt-5", "participant-context": "100000", "participant-price": "1 / 2 USD per million tokens",
+    "participant-place": "GitHub hosted runner", "participant-secret-name": "MODEL_KEY", "participant-runner-label": "gpu" };
+  const OTHER = { "participant-name": "ci-writer-2", "participant-model": "gpt-6", "participant-context": "200000", "participant-price": "3 / 4 USD per million tokens",
+    "participant-place": "lab machine", "participant-secret-name": "OTHER_KEY", "participant-runner-label": "lab" };
+  const controlsOf = (page) => [...byTag(one(page, "participant-type-fields"), "input"), ...byTag(one(page, "participant-type-fields"), "select")];
+  const nameOf = (control, at) => (control.className.split(" ").find((name) => name.startsWith("participant-")) ?? "control") + (control.type === "checkbox" ? `:${control.value}` : "") + `#${at}`;
+  async function opened(runner) {
+    const b = browser(t);
+    const page = await b.page();
+    await addParticipant(page, "CI agent");
+    if (runner === "self-hosted") await put(one(page, "participant-runner"), "self-hosted", "change");
+    for (const control of controlsOf(page)) {
+      const given = control.className.split(" ").find((name) => BASE[name] !== undefined);
+      if (given) await put(control, BASE[given]);
+    }
+    return { b, page };
+  }
+  async function savedRow(runner, change) {
+    const { b, page } = await opened(runner);
+    if (change) {
+      await change(page);
+      // A control the change brought in (the runner's label) is filled as the rest are.
+      for (const control of controlsOf(page)) {
+        const given = control.className.split(" ").find((name) => BASE[name] !== undefined);
+        if (given && control.value === "") await put(control, BASE[given]);
+      }
+    }
+    await save(page);
+    return JSON.stringify(committedRows(b).at(-1));
+  }
+  for (const runner of ["github-hosted", "self-hosted"]) {
+    const probe = await opened(runner);
+    const controls = controlsOf(probe.page);
+    const names = controls.map(nameOf);
+    assert.equal(byClass(probe.page, "participant-workflow").length, 0, `${runner}: no Workflow field is drawn`);
+    assert.equal(byTag(one(probe.page, "participant-type-fields"), "label").some((label) => /^Workflow\b/.test(label.textContent)), false, `${runner}: no label Workflow`);
+    for (const known of ["participant-name", "participant-model", "participant-context", "participant-price", "participant-place", "participant-runner", "participant-secret-name"]) {
+      assert.equal(names.some((name) => name.startsWith(known)), true, `known positive: ${runner} form holds ${known}`);
+    }
+    assert.equal(names.some((name) => name.startsWith("participant-runner-label")), runner === "self-hosted", `${runner}: the runner's label belongs to the self-hosted form`);
+    const baseline = await savedRow(runner, null);
+    for (let at = 0; at < controls.length; at += 1) {
+      const row = await savedRow(runner, async (page) => {
+        const control = controlsOf(page)[at];
+        if (control.type === "checkbox") { control.checked = !control.checked; await fire(control, "change"); return; }
+        if (control.localName === "select") {
+          const other = byTag(control, "option").map((option) => option.value).find((value) => value !== control.value);
+          await put(control, other, "change");
+          return;
+        }
+        const given = control.className.split(" ").find((name) => OTHER[name] !== undefined);
+        await put(control, OTHER[given] ?? `${control.value}x`);
+      });
+      assert.notEqual(row, baseline, `${runner}: changing ${names[at]} changes the saved row`);
+    }
+  }
 });
 
 // TST-352007 · level: unit · module: MOD-settings-pages
