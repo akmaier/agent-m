@@ -9,7 +9,7 @@
 // Run: node --test tests/workflow-entries-main-changed.test.mjs
 //
 // Module: MOD-workflow-entries
-// Guards: THE TRACEABILITY MATRIX IS DERIVED; A PAGE LOAD READS THE REPOSITORY IN BATCHES; WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS
+// Guards: THE TRACEABILITY MATRIX IS DERIVED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // Level: unit
 //
 // Deterministic, no network: the instance is a temporary git repository — a bare origin whose `main` holds a small instance and whose branches
@@ -180,17 +180,21 @@ test("onMainChanged: no token is not run, a missing branch and a moved one are f
 });
 
 // TST-908104 · level: unit · module: MOD-workflow-entries
-// guards: WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the workflow file .github/workflows/main-changed.yml
 // input: reading its text
-// expect: it runs on a push to main; it gives the step the workflow's token as GITHUB_TOKEN and may write contents; it makes the branch trace-cache with an orphan first commit when the origin has none and fetches it into the checkout; and the only entry it runs is `node src/workflow-entries/main.mjs onMainChanged`
-test("the workflow file runs onMainChanged on a push to main, makes the branch once, and runs nothing else", () => {
+// expect: it runs on a push to main; it gives the step the workflow's token as GITHUB_TOKEN and may write contents; for each of the branches trace-cache and overview-cache it makes the branch with an orphan first commit when the origin has none and fetches it into the checkout; and the only entry it runs is `node src/workflow-entries/main.mjs onMainChanged`
+test("the workflow file runs onMainChanged on a push to main, makes the branches trace-cache and overview-cache once, and runs nothing else", () => {
   const text = readFileSync(join(ROOT, ".github", "workflows", "main-changed.yml"), "utf8");
   assert.match(text, /^on:\n\s+push:\n\s+branches: \[main\]/m);
   assert.match(text, /contents: write/);
   assert.match(text, /GITHUB_TOKEN: \$\{\{ secrets\.GITHUB_TOKEN \}\}/);
   assert.match(text, /checkout --orphan/);
-  assert.match(text, /fetch origin .*trace-cache:trace-cache/);
+  const loop = /for (\w+) in trace-cache overview-cache; do/.exec(text);
+  assert.ok(loop, "one loop over both branches");
+  assert.match(text, new RegExp(`ls-remote --exit-code --heads origin "\\$${loop[1]}"`));
+  assert.match(text, new RegExp(`push origin \\S+:refs/heads/\\$${loop[1]}`));
+  assert.match(text, new RegExp(`fetch origin \\+\\$${loop[1]}:\\$${loop[1]}`));
   assert.deepEqual([...text.matchAll(/node src\/workflow-entries\/main\.mjs (\w+)/g)].map((m) => m[1]), ["onMainChanged"]);
   assert.match(text, /timeout-minutes: 2\b/);
 });
