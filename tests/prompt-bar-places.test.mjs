@@ -17,7 +17,11 @@ import assert from "node:assert/strict";
 import { restrictedPlaces } from "../src/prompt-bar/places.mjs";
 import { prepareMessage } from "../src/prompt-bar/send.mjs";
 import { tools } from "../src/job-runner/tools.mjs";
-import { openStore } from "../src/browser-store/index.mjs";
+import { registerStrategies } from "../src/job-runner/index.mjs";
+import { freshStore } from "./settings-pages-setup.d/dom.mjs";
+
+// The strategy of another module that the kind `converse` names.
+registerStrategies("tests/prompt-bar-places.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
 
 const entry = (id, licence, places = []) => ["---", `id: ${id}`, `title: ${id} title`, "kind: document", "authority: informational", `licence: ${licence}`, ...(places.length ? ["places:", ...places.map((each) => `  - ${each}`)] : []),
   "---", `# ${id} ${id} title`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file, hashed only |", ""].join("\n");
@@ -56,7 +60,7 @@ async function prepared(place) {
   const snapshot = snapshotOf(files);
   const host = { repositoryInfo: async () => ({ defaultBranch: "main" }), readSnapshot: async () => snapshot };
   const subject = { kind: "converse", entry: "settings", refuses: [], paramsFor: () => ({ page: "a page" }) };
-  const ready = await prepareMessage({ subject, participant, instruction: "Summarise.", conversation: "", store: openStore("acme/instance"), instance: { host }, product: null });
+  const ready = await prepareMessage({ subject, participant, instruction: "Summarise.", conversation: "", store: freshStore("acme/instance"), instance: { host }, product: null });
   return { ready, context: { ...ready.context, exchange: { drafter: participant } } };
 }
 
