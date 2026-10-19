@@ -206,7 +206,7 @@ export async function buildPlatform({ platform, checkout, tag, folder }) {
     written.push("SHA256SUMS");
 
     const installerName = files.find((file) => /\.(dmg|exe)$/.test(file.name))?.name;
-    await verifyCodeSignature({ platform, app: unpacked.app, installer: join(folder, installerName ?? ""), file: installerName, env: environment });
+    const publisher = await verifyCodeSignature({ platform, app: unpacked.app, installer: join(folder, installerName ?? ""), file: installerName, env: environment });
     const publicKey = readFileSync(join(resources, appDescription.resources.updateKey), "utf8");
     const sums = readFileSync(join(folder, "SHA256SUMS"), "utf8").split("\n");
     for (const file of files) {
@@ -219,7 +219,7 @@ export async function buildPlatform({ platform, checkout, tag, folder }) {
 
     await tunnelCheck({ platform, executable: unpacked.executable, appId, ssh2: loadSsh2(stage) });
 
-    const result = { platform, version, folder, files };
+    const result = { platform, version, folder, publisher, files };
     writeFileSync(join(folder, "platform-build.json"), JSON.stringify(result));
     return result;
   } catch (error) {

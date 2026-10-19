@@ -64,7 +64,7 @@ function checkedFiles(folders, privatePem) {
       files.push({ name: entry.name, bytes, sha256: entry.sha256, signature: entry.signature });
     }
   }
-  return files;
+  return { files, publishers: publishersOf(builds) };
 }
 
 // The due diligence of every package the app carries at run time, read again, against Agent M's licence.
@@ -80,12 +80,23 @@ async function dueDiligence() {
   return read;
 }
 
-function notesOf(version, commit, facts) {
+const SYSTEMS = { macos: "macOS", windows: "Windows" };
+
+// The publisher each signed platform's build recorded: macOS's and Windows's, a name; a build that records none is missing (Linux has none to record).
+function publishersOf(builds) {
+  return Object.entries(SYSTEMS).map(([platform, system]) => {
+    const name = builds.get(platform)?.build.publisher;
+    if (typeof name !== "string" || !name.trim()) throw buildMissing(platform, "its build records no publisher");
+    return `Publisher (${system}): ${name.trim()}`;
+  });
+}
+
+function notesOf(version, commit, facts, publishers) {
   const lines = facts.map((each) => {
     const licence = each.facts.find((fact) => fact.what === "licence")?.value ?? "none read";
     return `- ${each.candidate.name} ${LOCK[`node_modules/${each.candidate.name}`]?.version ?? ""} (${each.candidate.ecosystem}): ${licence}, ${each.licence} with ${MANIFEST.license}, read ${each.facts[0]?.read ?? "-"}`;
   });
-  return `Agent M Bridge ${version}\n\nVersion: ${version}\nCommit: ${commit}\n\nDue diligence read before this release:\n${lines.join("\n")}\n`;
+  return `Agent M Bridge ${version}\n\nVersion: ${version}\nCommit: ${commit}\n\n${publishers.join("\n")}\n\nDue diligence read before this release:\n${lines.join("\n")}\n`;
 }
 
 /**
@@ -97,7 +108,7 @@ export async function publishRelease(host, { tag, folders }) {
   const privatePem = globalThis.process?.env?.[KEY];
   if (!privatePem) throw new ReleaseError("SecretMissing", { secret: KEY }, `${KEY} is not set in the environment`);
   const version = tag.replace(/^v/, "");
-  const built = checkedFiles(folders, privatePem);
+  const { files: built, publishers } = checkedFiles(folders, privatePem);
   const facts = await dueDiligence();
   const commit = (await host.listTags(tag)).find((each) => each.name === tag)?.commit;
   if (!commit) throw new ReleaseError("NotFound", { what: tag }, `the tag ${tag} stands on no commit`);
@@ -109,7 +120,7 @@ export async function publishRelease(host, { tag, folders }) {
     { name: `${file.name}.sig`, bytes: Buffer.from(file.signature ?? signBytes(privatePem, file.bytes)) },
   ]).map((file) => ({ ...file, contentType: "application/octet-stream" }));
 
-  const release = await host.publishRelease(tag, { name: `Agent M ${version}`, notes: notesOf(version, commit, facts), files });
+  const release = await host.publishRelease(tag, { name: `Agent M ${version}`, notes: notesOf(version, commit, facts, publishers), files });
   const reported = new Map(release.assets.map((asset) => [asset.name, asset.sha256]));
   for (const file of files) {
     if (reported.get(file.name) !== sha256Hex(file.bytes)) {
