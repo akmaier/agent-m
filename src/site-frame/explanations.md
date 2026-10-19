@@ -945,18 +945,23 @@ Everything is read from the repositories when the page opens; nothing is stored.
 A *resource* is something the product is built with or runs on: another repository, data, a model, a computer to run jobs on, an
 endpoint the product calls. Three things look alike and are kept apart. A **resource** is *used* by the product or one of its jobs,
 and is fixed to the exact state the product uses, such as a commit; it is written down here, in `docs/resources.md` of the
-repository. A **requirement source** is a rule the product must *meet*, such as a norm; it is written down in the sources of the
-product. A **participant** *develops* the product, such as a colleague or an agent; it is in the instance's list of participants.
+repository. Examples: a private repository of DLLs (`speech-dlls`), `meta-llama/Llama-3.1-8B` on Hugging Face at a fixed
+revision, the SLURM cluster *Alex* at NHR@FAU, a vLLM endpoint that the product queries. A **requirement source** is a rule the
+product must *meet*, such as the EU AI Act or IEC 62304 class B; it is written down in the sources of the product, and a rule
+you meet is registered as in [UC-015](#use-case/id=UC-015). A **participant** *develops* the product, such as a colleague,
+Claude Code on the author's machine or a CI agent; it is in the instance's list of participants, see [UC-017](#use-case/id=UC-017).
 The same endpoint can be two of these: a resource the product queries and, behind a Bridge, a participant that works on the
 product. It is then two entries that share nothing. The instance has resources of its own, in its own list; the two lists never
 inherit from each other. In the book *Vibe Coding*: chapter 6, section 5, on reuse, which "buys dependencies".
 
 ## resource-kind
 
-Each resource has one kind, and the kind says what is written down about it. A *repository* is pinned to a commit. *Data* and a
-*model* are pinned to a revision or to the SHA-256 of every file. A *compute* resource, such as a cluster or a GPU machine, has no
-pin: the software on it is pinned in the job's own files. An *endpoint*, such as a local model server, and an *agent* are pinned to
-the identifier of the model they serve. Give each resource a name that is unique in the list and its address; the other columns
+Each resource has one kind, and the kind says what is written down about it. A *repository*, such as the private repository of
+binaries `https://gitlab.rrze.fau.de/lme/speech-dlls`, is pinned to a commit. *Data*, such as a Hugging Face dataset or a folder on
+a group share, and a *model*, such as a Hugging Face model or a checkpoint file, are pinned to a revision or to the SHA-256 of
+every file. A *compute* resource, such as a SLURM cluster or a GPU machine, has no pin: the software on it is pinned in the job's
+own files. An *endpoint*, such as a local vLLM or Ollama server, and an *agent*, an agent service the product delegates to at
+runtime, are pinned to the identifier of the model they serve. Give each resource a name that is unique in the list and its address; the other columns
 follow from the kind, and the form shows what is still missing beside it.
 
 ## resource-licence
@@ -965,7 +970,10 @@ The licence says under what terms the resource may be used and passed on, and th
 an organisation, a collaborator who agreed to be named, or *unknown*. A licence that does not allow redistribution means that only
 the address and the pin are written to the repository; the content stays where it is. An unknown licence counts as restricted until
 someone records it. A rule that a resource's licence puts on the product, such as no commercial use, does not become a requirement
-by standing here; register the licence as a source for that. A maintainer who is a single person is a risk that the form warns of.
+by standing here; register the licence as a source for that ([UC-004](#use-case/id=UC-004)) and link it to the product
+([UC-015](#use-case/id=UC-015)). A maintainer who is a single person is a risk that the form warns of, a *bus factor* of one: the
+PEAKS speech-evaluation system, book chapter 6 section 5, reused a stack that only its lead developer could maintain end to end,
+and when he left it could be kept running but not extended for years.
 A resource that needs a key names only where the key is held, `ci:<NAME>` for a CI secret or `browser` for a key kept in this
 browser; the key itself is never written to the repository, and a leaked key is like a published credit-card number.
 
