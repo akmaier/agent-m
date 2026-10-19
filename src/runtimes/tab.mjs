@@ -9,21 +9,64 @@
 // kind handed its draft back (MOD-job-ledger, Data). A gate's `decider` is the context's gate's own where it carries one, else the gate's name.
 
 import { endpointDriver } from "../endpoint-calls/index.mjs";
+import { instanceOfPagesAddress } from "../identifiers/index.mjs";
+import { openStore, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { appendToRecord, jobCost, startRecord } from "../job-ledger/index.mjs";
 import { runJob } from "../job-runner/index.mjs";
 import { bridgeDriver } from "./bridge.mjs";
 import { RuntimeError } from "./ci.mjs";
 
+// ---------------------------------------------------------------- which browser took a job (MOD-runtimes, Data: "This browser")
+//
+// This browser is the identifier MOD-browser-store keeps under `browser` in the store of the instance whose Pages address the tab shows. Only queueJob makes it; liveState only reads. Where the tab's address names no
+// instance, or the browser refuses localStorage, queueJob makes an identifier of the same form for this tab alone, kept in memory, so that no other browser reads the job as its own.
+const newIdentifier = () => [...crypto.getRandomValues(new Uint8Array(8))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+let tabOwn = null;
+
+function browserStore() {
+  const location = globalThis.location;
+  const instance = location ? instanceOfPagesAddress({ hostname: location.hostname, pathname: location.pathname }) : null;
+  if (instance === null) return null;
+  try { return openStore(instance); } catch (error) { if (error?.name === "StorageUnavailable") return null; throw error; }
+}
+
+// This browser's identifier as the store holds it, or null; with `make`, made and stored where it is not set.
+function thisBrowser(make) {
+  const store = browserStore();
+  if (store === null) return null;
+  try {
+    const kept = readSetting(store, "browser");
+    if (typeof kept === "string" && kept !== "") return kept;
+    if (!make) return null;
+    const made = newIdentifier();
+    writeSetting(store, "browser", made);
+    return made;
+  } catch (error) {
+    if (error?.name === "StorageUnavailable") return null;
+    throw error;
+  }
+}
+
+/**
+ * tookOnTab(by) -> "this" | "other" — whether the `by:` of a tab job's `## Taken` (`tab`, or `tab <browser>`) names this browser: the bare `tab`, this browser's identifier and this tab's own are this browser's; every
+ * other browser is another.
+ */
+export function tookOnTab(by) {
+  const named = String(by).replace(/^tab\s*/, "").trim();
+  if (named === "") return "this";
+  return [thisBrowser(false), tabOwn].includes(named) ? "this" : "other";
+}
+
 /**
  * queueOnTab(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob for the tab's route: the job's start record and its taking (`## Taken`, by
- * `tab`, at the job's start) in one commit, on the head that was read, as the person's commit, on the branch the host's repositoryInfo names. Fails as the host
+ * `tab <browser>`, at the job's start) in one commit, on the head that was read, as the person's commit, on the branch the host's repositoryInfo names. Fails as the host
  * fails — Moved, TokenRefused, RateLimited, Unreachable — unchanged; nothing is written then.
  */
 export async function queueOnTab(host, start, head) {
   const { defaultBranch } = await host.repositoryInfo();
   const { path, text } = startRecord(start);
   const { commit } = await host.commitFiles({
-    branch: defaultBranch, expectedHead: head, files: [{ path, text: appendToRecord(text, { part: "taken", at: start.start, by: "tab" }) }],
+    branch: defaultBranch, expectedHead: head, files: [{ path, text: appendToRecord(text, { part: "taken", at: start.start, by: `tab ${thisBrowser(true) ?? (tabOwn ??= newIdentifier())}` }) }],
     message: `Queue job ${start.id}: ${start.kind}`,
   });
   return { path, commit };
