@@ -43,6 +43,7 @@ import { view as settingsPages } from "../settings-pages/index.mjs";
 import { view as reviewPages } from "../review-pages/index.mjs";
 import { view as tracePages } from "../trace-pages/index.mjs";
 import { view as testPages } from "../test-pages/index.mjs";
+import { view as maintenancePages } from "../maintenance-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
 import { routeOf, productHostFollowingStore } from "./routing.mjs";
@@ -799,6 +800,15 @@ async function route() {
       await releasePanel.render(main(), {
         instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
         product: { host: connect(parseAddress(T.product.address), { token: token() }) },
+      }, {});
+    } else if (kind === "mail") {
+      const mailRoute = maintenancePages.routes.find((r) => r.name === "mail");
+      await mailRoute.render(main(), {
+        page: "review", instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route, params = {}) {
+          if (route === "add-product") location.hash = "#add";
+          else location.hash = params.id ? `#${route}/${encodeURIComponent(params.id)}` : `#${route}`;
+        },
       }, {});
     } else if (kind === "bridge") {
       const bridge = settingsPages.routes.find((r) => r.name === "bridge");
