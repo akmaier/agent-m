@@ -23,9 +23,11 @@ export const DASHBOARD = [
   { view: "resources", file: "resources-view.mjs", useCases: ["UC-040"] },
   { view: "participants", file: "participants-view.mjs", useCases: ["UC-017"] },
   { view: "process-models", file: "process-models-view.mjs", useCases: ["UC-031"] },
-  { view: "process", file: "process-view.mjs", useCases: ["UC-002"] },
-  { view: "roles", file: "roles-view.mjs", useCases: ["UC-048"] },
-  { view: "backlog", file: "backlog-view.mjs", useCases: ["UC-032", "UC-033"] },
+  // UC-002 and UC-048 are rendered by MOD-implementation-pages through dashboard-app's public route dispatch; they have no dashboard view file.
+  { view: "process", builtIn: true, useCases: ["UC-002"] },
+  { view: "roles", builtIn: true, useCases: ["UC-048"] },
+  // UC-032 and UC-033 are rendered by MOD-implementation-pages through dashboard-app's public route dispatch; they have no dashboard view file.
+  { view: "backlog", builtIn: true, useCases: ["UC-032", "UC-033"] },
   { view: "progress", file: "progress-view.mjs", useCases: ["UC-035"] },
   { view: "sprint-close", file: "sprint-close-view.mjs", useCases: ["UC-041"] },
   { view: "jobs", file: "jobs-view.mjs", useCases: ["UC-036"] },
