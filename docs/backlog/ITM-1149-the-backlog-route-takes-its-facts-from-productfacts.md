@@ -35,4 +35,6 @@ It waits for draft `9a2c9f4a` and for ITM-1117.
 
 - Over a counting fake GitHub that serves the stored facts of the commit, `#backlog` reads none of the files they come
   from, and shows the same page as without them. Counter-proof: without stored facts it reads the files in batches.
+- Where the commit the declaration's `model_version` names cannot be read, the page names it, as `productFacts` gives
+  `modelUnread`, and does not fall back to today's catalogue (noted at #1182's second gate).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
