@@ -26,10 +26,15 @@ const megabytes = (size) => `${(size / 1e6).toFixed(1)} MB`;
 
 // The download of the Bridge (UC-044 steps 1 and 2): the latest release of the instance, the one file of it for this computer's system with its size and the SHA-256 the server reports for it — or, where it reports none,
 // a link to the release's checksum file —, the explanation of the two levels and, folded beside it, why the system may warn. A release that cannot be read is said so; the page stands.
-async function downloadSection(context) {
+// The section is drawn at once, with its heading and the explanation of the levels; its file stands in it once the release is read (`done`), so that the rest of the page does not wait for the server.
+function downloadSection(context) {
   const host = context.instance?.host;
-  if (typeof host?.listReleaseAssets !== "function") return [];
+  if (typeof host?.listReleaseAssets !== "function") return null;
   const section = el("section", "bridge-download", el("h3", null, "Get the Bridge"), explain("bridge-levels"));
+  return { section, done: offerFile(host, section) };
+}
+
+async function offerFile(host, section) {
   try {
     const { assets } = await host.listReleaseAssets("latest");
     const system = systemOf(globalThis.navigator?.userAgent);
@@ -55,7 +60,6 @@ async function downloadSection(context) {
     section.append(el("p", "bridge-download-problem", `The Bridge's release could not be read: ${failure?.message ?? failure}.`));
   }
   section.append(explain("bridge-signed-warning", "Why this warning?"));
-  return [section];
 }
 
 function sharedPagesNotice(context) {
@@ -355,9 +359,9 @@ export const route = {
       } catch (error) { remoteResult.textContent = error.message; }
     });
 
-    const download = await downloadSection(context);
+    const download = downloadSection(context);
     target.replaceChildren(
-      ...download,
+      ...(download ? [download.section] : []),
       el("h2", null, "Connect a Bridge"),
       el("p", "notice bridge-shared-origin", sharedPagesNotice(context)),
       el("p", null, "The copied pairing token is sent only to the Bridge address when you choose Pair Bridge."),
@@ -397,5 +401,6 @@ export const route = {
       el("h4", null, "nginx HTTPS proxy configuration"), remoteNginx,
     );
     address.focus();
+    await download?.done;
   },
 };
