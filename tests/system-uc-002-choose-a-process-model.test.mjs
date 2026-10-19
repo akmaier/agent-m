@@ -1,6 +1,6 @@
 // The system tests of UC-002, Choose how the product is developed (ITM-223): its main flow and every alternative flow it
 // names, walked through the route How this product is developed as the dashboard reaches it — docs/assets/dashboard/
-// process-view.mjs's routes.process(app) —, over two fixture repositories behind MOD-repository-hosts' real connect(): an
+// tests/implementation-pages-process-route.mjs's routes.process(app) —, over two fixture repositories behind MOD-repository-hosts' real connect(): an
 // instance (its participants, a process model of its own, the SPEC that holds a process requirement, a restricted source,
 // the shipped practices' files) and a product. Every expected result is UC-002's; where the page and UC-002 disagree, the
 // test follows UC-002 and is marked todo with its FINDING. ITM-223's findings F1 to F7, which ITM-240 and ITM-241 settle,
@@ -15,7 +15,7 @@
 // Level: system
 //
 // The page is reached the way tests/dashboard-process-view.test.mjs reaches it: its small DOM, copied below unchanged, a
-// minimal app as process-view.mjs reads it, and tests/app-harness.mjs's repoServer for each repository. The product's
+// minimal app as that helper reads it, and tests/app-harness.mjs's repoServer for each repository. The product's
 // server hands every request for the instance to the instance's server, through repoServer's own `handlers`.
 
 import test from "node:test";
@@ -26,7 +26,7 @@ import { repoServer, settle, TOKEN } from "./app-harness.mjs";
 // ---------------------------------------------------------------- a small DOM, copied unchanged from tests/dashboard-
 // ---------------------------------------------------------------- process-view.test.mjs (itself copied from tests/
 // ---------------------------------------------------------------- implementation-pages.test.mjs, with insertAdjacentHTML
-// ---------------------------------------------------------------- added for process-view.mjs).
+// ---------------------------------------------------------------- added for the helper).
 
 const FOCUSABLE = new Set(["input", "textarea", "select", "button"]);
 const HTML_NS = "http://www.w3.org/1999/xhtml";
@@ -61,7 +61,7 @@ class Node extends EventTarget {
   set textContent(v) { if (this._type === 3 || this._type === 8) this.data = String(v); else this.replaceChildren(String(v)); }
   get innerHTML() { return this._kids.map(serialise).join(""); }
   set innerHTML(html) { this.replaceChildren(); parse(this._doc, String(html), this); }
-  // Not part of tests/implementation-pages.test.mjs's own copy: process-view.mjs's one line after render calls this
+  // Not part of tests/implementation-pages.test.mjs's own copy: the helper's one line after render calls this
   // (target.insertAdjacentHTML("afterbegin", …)) to show the route's title above its content. "afterbegin" only —
   // the one position used here — parsed with the same parse() the rest of this DOM already uses.
   insertAdjacentHTML(where, html) {
@@ -245,9 +245,9 @@ globalThis.document = document;
 globalThis.window = { document, Node, Element, Text, Comment, DocumentFragment, DOMParser,
   NodeFilter: { SHOW_ELEMENT: 0x1, SHOW_TEXT: 0x4, SHOW_CDATA_SECTION: 0x8, SHOW_PROCESSING_INSTRUCTION: 0x40, SHOW_COMMENT: 0x80 } };
 
-// process-view.mjs is loaded only now, after globalThis.document exists, as tests/dashboard-process-view.test.mjs loads
+// the helper is loaded only now, after globalThis.document exists, as tests/dashboard-process-view.test.mjs loads
 // it: through MOD-implementation-pages' route it reaches modules that need a document from the moment they are imported.
-const { routes } = await import("../docs/assets/dashboard/process-view.mjs");
+const { routes } = await import("./implementation-pages-process-route.mjs");
 
 // ---------------------------------------------------------------- the fixture repositories: an instance and a product
 
@@ -431,7 +431,7 @@ const ADDED_TO_SCRUM = [REQUIREMENT, "Development → Sprint Review", "the verif
 // The h() dashboard-app.mjs's context gives every view, as tests/dashboard-process-view.test.mjs gives it.
 const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-// Opens the page as the dashboard does — routes.process(app), with a minimal app as process-view.mjs reads it — over an
+// Opens the page as the dashboard does — routes.process(app), with a minimal app as that helper reads it — over an
 // instance and a product, each a repoServer of its own behind the real connect(): the product's server answers the
 // product and hands every request for the instance to the instance's server. Every request that writes is recorded with
 // the token it carries. -> { target, product, instance, sent }

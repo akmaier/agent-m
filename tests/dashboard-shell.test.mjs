@@ -118,10 +118,10 @@ test("a load of every address of today asks for no view or settings file that is
   }
   const missing = [...asked].flatMap(([hash, files]) => files.filter((f) => !isThere(f)).map((f) => `${hash}: ${f}`));
   assert.deepEqual(missing, [], "a page asked for files that are not there");
-  // The recording sees what a page asks for: the file of a view shown is among it. The addresses of the review pages ask for none:
-  // the app hands them to MOD-review-pages' routes before any file is loaded.
+  // The recording sees what a page asks for: the list of built files is among it. The addresses of the routes of modules ask for no view:
+  // the app hands them to MOD-review-pages', MOD-implementation-pages' and the other modules' routes before any file is loaded.
   const all = new Set([...asked.values()].flat());
-  for (const f of ["backlog-view.mjs"]) {
+  for (const f of ["built.json"]) {
     assert.ok(all.has(f), `the recording saw ${f}: ${[...all].join(", ")}`);
   }
 });
@@ -166,23 +166,25 @@ test("a request handler a test brings answers before the harness's own GitHub", 
 });
 
 test("a view may link a stylesheet of its own beside style.css — once, when it is first shown", async () => {
-  // A copy of the site whose roles-view.mjs names a stylesheet; the view is otherwise the real one. The copy keeps the site's
+  // A copy of the site with a view of its own, the Jobs view, whose file names a stylesheet; the copy lists it among the built files. The copy keeps the site's
   // layout — docs/assets/ beside src/, which the dashboard's modules import from.
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-assets-"))), dir = join(root, "docs", "assets");
   try {
     cpSync(new URL("../docs/assets/", import.meta.url), dir, { recursive: true });
     cpSync(new URL("../src/", import.meta.url), join(root, "src"), { recursive: true });
-    const view = join(dir, "dashboard", "roles-view.mjs");
-    writeFileSync(view, readFileSync(view, "utf8") + '\nexport const stylesheet = "roles-view.css";\n');
+    writeFileSync(join(dir, "dashboard", "jobs-view.mjs"), 'export const stylesheet = "jobs-view.css";\nexport const routes = { jobs: async (app) => { app.main().innerHTML = "<p>The jobs.</p>"; } };\n');
+    const listed = join(dir, "dashboard", "built.json");
+    writeFileSync(listed, JSON.stringify([...JSON.parse(readFileSync(listed, "utf8")), "jobs-view.mjs"]));
     const assets = pathToFileURL(join(root, "src", "site-frame") + "/");
     const page = await openDashboard({ server: await repoServer({ files: FILES }), assets });
     assert.deepEqual(page.stylesheets(), [], "the use cases bring none");
-    await page.go("#roles");
+    await page.go("#jobs");
     await page.go("#uc");
-    await page.go("#roles");
-    assert.deepEqual(page.stylesheets(), [new URL("dashboard/roles-view.css", pathToFileURL(dir + "/")).href]);
-    // Counter-proof: the real roles-view.mjs names none, and nothing is linked.
-    const real = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#roles" });
+    await page.go("#jobs");
+    assert.match(page.main(), /The jobs\./);
+    assert.deepEqual(page.stylesheets(), [new URL("dashboard/jobs-view.css", pathToFileURL(dir + "/")).href]);
+    // Counter-proof: the real site's Jobs view is not built, and nothing is linked.
+    const real = await openDashboard({ server: await repoServer({ files: FILES }), hash: "#jobs" });
     assert.deepEqual(real.stylesheets(), []);
   } finally {
     rmSync(root, { recursive: true, force: true });

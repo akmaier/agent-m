@@ -23,7 +23,7 @@ import "./dashboard-process-view.test.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, settle, TOKEN } from "./app-harness.mjs";
-const { routes } = await import("../docs/assets/dashboard/process-view.mjs");
+const { routes } = await import("./implementation-pages-process-route.mjs");
 
 const INSTANCE = "fixture/instance";
 const PRODUCT = "fixture/product";
