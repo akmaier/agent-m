@@ -23,7 +23,8 @@ const STEP = { claude: "claude auth login", codex: "codex login", opencode: "ope
 // A fixture executable of each agent that logs every call (arguments and what arrives on its standard input) and answers the
 // version and login-check commands; `signedIn` chooses what the login check says. Any other call exits 64.
 function agents(folder, calls, signedIn) {
-  const log = `printf '%s|stdin=[%s]\\n' "$*" "$(cat)" >> ${calls}`;
+  // `read` is a builtin: the controlled PATH holds no other command, so `cat` would silently read nothing.
+  const log = `IFS= read -r input || true; printf '%s|stdin=[%s]\\n' "$*" "$input" >> ${calls}`;
   command(folder, "claude", `${log}; case "$*" in '--version') echo 2.1.300;; 'auth status') ${signedIn.claude ? "echo '{\"authMethod\":\"claude.ai\"}'" : "exit 1"};; *) exit 64;; esac`);
   command(folder, "codex", `${log}; case "$*" in '--version') echo 'codex 1.2.3';; 'login status') ${signedIn.codex ? "echo 'Logged in'" : "exit 1"};; *) exit 64;; esac`);
   command(folder, "opencode", `${log}; case "$*" in '--version') echo 0.9.1;; 'auth list') echo '${signedIn.opencode ? 1 : 0} credentials';; *) exit 64;; esac`);
