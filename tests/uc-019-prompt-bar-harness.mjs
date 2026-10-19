@@ -191,10 +191,9 @@ export async function onRequirementPage(s, name = LOAN) {
 export async function send(s, text = INSTRUCTION, { participant = null } = {}) {
   const bar = barOf(s);
   if (participant !== null) {
-    // The bar offers only the participants that can do the page's kind: several are chosen among, one is only named (UC-019 2).
     const selector = all(bar, "select", "participant")[0];
-    if (selector) selector.value = participant;
-    else assert.match(one(bar, "span", "participant").textContent, new RegExp(`^${participant} — `), `the bar offers ${participant}`);
+    assert.ok(selector, "the bar offers several participants");
+    selector.value = participant;
   }
   one(bar, "textarea", "instruction").value = text;
   const sent = one(bar, "button", "send");
