@@ -1,6 +1,6 @@
 // MOD-reuse-facts - the due-diligence facts of a reuse candidate, read from package registries and source repositories
 // (docs/architecture/MOD-reuse-facts.md). registryFacts and licenceVerdict read package facts and licence compatibility;
-// reuseStrategies adds those facts to drafted architecture decisions; hubFacts reads a model's or dataset's facts from the Hugging Face Hub.
+// reuseStrategies adds those facts to drafted architecture decisions; hubFacts reads a model's or dataset's facts from the Hugging Face Hub; repositoryFacts reads a resource repository's licence file, last commit and committers.
 //
 // Module: MOD-reuse-facts
 
@@ -26,7 +26,8 @@ const LICENCES = parseLicences(await own(LICENCES_FILE));
 /**
  * @typedef {{ name: string, ecosystem: "npm" | "pypi" | "crates" | "maven", repository: string | null }} Candidate
  * @typedef {{ candidate: string, ecosystem: string, what: "exists" | "licence" | "first release" | "latest release" |
- *   "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption" | "revision" | "access", value: string, address: string,
+ *   "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption" | "revision" | "access" |
+ *   "licence file" | "last commit" | "committers in the last year", value: string, address: string,
  *   read: string }} Fact
  * @typedef {{ candidate: Candidate, facts: Fact[], licence: "compatible" | "not known to be compatible" | "not checked",
  *   found: boolean, blocked: string | null }} DueDiligence
@@ -393,6 +394,54 @@ export async function hubFacts(id, key) {
     ...(licence ? [fact(candidate, "licence", licence, address, read)] : []),
     fact(candidate, "access", access, address, read),
   ];
+}
+
+// ---------------------------------------------------------------- a resource repository
+
+// The licence file of a repository: LICENSE, LICENCE or COPYING at the root, with or without an extension.
+const LICENCE_FILE = /^(?:LICEN[CS]E|COPYING)(?:\.[A-Za-z0-9]+)?$/i;
+// The licences a licence file's title names, by the identifier licences.md uses.
+const LICENCE_TITLES = [[/\bMIT License\b/i, "MIT"], [/\bApache License\b[\s\S]{0,80}\bVersion 2\.0\b/i, "Apache-2.0"], [/\bBSD 2-Clause\b/i, "BSD-2-Clause"],
+  [/\bBSD 3-Clause\b/i, "BSD-3-Clause"], [/\bISC License\b/i, "ISC"]];
+const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * repositoryFacts(host, productLicence, options?) -> Promise<{ facts: Fact[], licence }> — what a resource repository says about itself, through the host its caller connected: the licence file at
+ * the default branch's head (readSnapshot), the date of the last commit and the number of distinct authors of the commits of the last year (readHistory with changes: false, newest first, read until
+ * a commit older than a year), each with its address and date; the licence the file's text names against `productLicence` by licenceVerdict. A repository without a licence file gives the fact
+ * `licence file` with the value `none`. Fails as the host fails. `options.now` is the day it is read, as registryFacts takes it.
+ * @param {object} host MOD-repository-hosts' Host
+ * @param {string | null} productLicence
+ * @param {{ now?: (() => string | Date) | string | Date }} [options]
+ */
+export async function repositoryFacts(host, productLicence, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(typeof options.now === "function" ? options.now() : options.now ?? Date.now());
+  const read = asDate(now);
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  const web = snapshot.repository.web;
+  const candidate = { name: snapshot.repository.path, ecosystem: "repository" };
+  const file = snapshot.paths.find((path) => !path.includes("/") && LICENCE_FILE.test(path)) ?? null;
+  const text = file === null ? null : await snapshot.read(file);
+
+  const since = now.getTime() - YEAR_MS;
+  let limit = 100, history;
+  for (;;) {
+    history = await host.readHistory(null, { ref: defaultBranch, limit, changes: false });
+    if (history.length < limit || history.some((entry) => Date.parse(entry.date) < since)) break;
+    limit *= 2;
+  }
+  const lastYear = history.filter((entry) => Date.parse(entry.date) >= since);
+  const committers = new Set(lastYear.map((entry) => entry.author.account ?? entry.author.name));
+  const detected = text === null ? null : LICENCE_TITLES.find(([title]) => title.test(text))?.[1] ?? null;
+  return {
+    facts: [
+      fact(candidate, "licence file", file ?? "none", file === null ? web : `${web}/blob/${defaultBranch}/${file}`, read),
+      ...(history[0] ? [fact(candidate, "last commit", dateOnly(history[0].date), `${web}/commit/${history[0].commit}`, read)] : []),
+      fact(candidate, "committers in the last year", committers.size, `${web}/commits/${defaultBranch}`, read),
+    ],
+    licence: licenceVerdict(detected, productLicence),
+  };
 }
 
 // ---------------------------------------------------------------- due-diligence step

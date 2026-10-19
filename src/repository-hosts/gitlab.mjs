@@ -150,6 +150,15 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return tags;
     },
 
+    // A release and its files ("Get a release by a tag name", "Get the latest release" at releases/permalink/latest): the links of its assets, each with its name and its address — direct_asset_url where the
+    // release has one, else url. GitLab reports neither a size nor a checksum for a link, so both are null. A release that does not exist is NotFound.
+    async releaseAssets(tag) {
+      const what = `the release ${tag} of ${address.web}`;
+      const r = await read(`${api}/releases/${tag === "latest" ? "permalink/latest" : encodeURIComponent(tag)}`, { what });
+      return { tag: r.tag_name, name: r.name ?? r.tag_name, published: r.released_at ?? "", notes: r.description ?? "",
+        assets: (r.assets?.links ?? []).map((l) => ({ name: l.name, size: null, url: l.direct_asset_url ?? l.url, sha256: null })) };
+    },
+
     // The numbers of open and closed issues, from the project's issue statistics ("Retrieve issues statistics for a project":
     // counts.opened and counts.closed). They count issues alone: a merge request is no issue. A public project serves them
     // without a token.

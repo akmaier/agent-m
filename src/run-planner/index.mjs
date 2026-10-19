@@ -1,5 +1,5 @@
 // MOD-run-planner — runs over a selection, their next actions, and the inputs of an implementation job (docs/architecture/MOD-run-planner.md): its interface. Of it, this file
-// has runStrategies, the recipe implementation-inputs (inputs.mjs). Run, Action, runOf, nextActions and raiseLimits are not built yet.
+// has runStrategies, the recipe implementation-inputs (inputs.mjs), and runOf (run.mjs). Action, nextActions and raiseLimits are not built yet.
 //
 // Module: MOD-run-planner
 //
@@ -7,3 +7,4 @@
 // traceGraph, and writes nothing. Every other file of this folder is private to it.
 
 export { runStrategies } from "./inputs.mjs";
+export { runOf } from "./run.mjs";

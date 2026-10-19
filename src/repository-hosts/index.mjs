@@ -1,5 +1,5 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, createBranch, startWorkflow, setPipelineSchedule, listCiRuns,
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setPipelineSchedule, listCiRuns,
 // cancelCiRun, ciRunLog and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
@@ -150,6 +150,7 @@ function throughClone(repository, folder, rest) {
     listTags: rest ? (...a) => rest.listTags(...a) : without("the tags"),
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
+    releaseAssets: rest ? (...a) => rest.releaseAssets(...a) : without("a release's files"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
     setPipelineSchedule: rest ? (...a) => rest.setPipelineSchedule(...a) : without("a pipeline schedule"),
@@ -267,6 +268,14 @@ export function connect(address, credentials = {}) {
       if (pattern !== undefined && typeof pattern !== "string") throw new TypeError("a pattern is a text");
       const tags = await adapter.listTags();
       return pattern === undefined ? tags : tags.filter((t) => globPattern(pattern).test(t.name));
+    },
+
+    // listReleaseAssets(tag) -> Release — a release, the latest or the one of a tag, and its files: name, size, download address and the SHA-256 the server reports for each, null where it reports none (the
+    // caller then links the release's checksum file). Crosses the network; fails with NotFound when the release does not exist, TokenRefused, RateLimited, Unreachable, and NotSupported through a
+    // clone without a token.
+    async listReleaseAssets(tag) {
+      if (typeof tag !== "string" || !tag.trim()) throw new TypeError("a release is named by its tag, or by latest");
+      return adapter.releaseAssets(tag);
     },
 
     // issueCounts() -> { open, closed } — the numbers of open and closed issues of the repository, pull requests not counted,
