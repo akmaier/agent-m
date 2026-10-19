@@ -7,6 +7,7 @@ realises:
 modules:
   - MOD-notifications
   - MOD-site-frame
+  - MOD-main-page
 builds_on:
   - ITM-854
 tests:

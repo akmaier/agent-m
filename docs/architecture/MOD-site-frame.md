@@ -42,6 +42,7 @@ provides:
   - menuOf
   - instanceOf
   - chosenProduct
+  - productHostFollowingStore
   - explain
   - runPanel
   - confirmDecision
@@ -178,6 +179,12 @@ It keeps nothing but what is on the screen. It owns these formats:
   the products, or when the browser keeps no product — the pages then show the instance itself. Errors: `UnknownProduct`
   — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
   used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
+- `productHostFollowingStore(page: { store: Store }) -> (product: string) -> Host` — the host of a product by its entry in
+  `products`, for a caller that checks the products beside the page's route, as the notification checks do: each call of
+  its functions goes through a connection made with the product's own token, its name and the stored secrets this browser
+  holds at that call — the connection `chosenProduct` makes —, so that a token cleared or replaced since is not used and a
+  commit that holds a stored secret is refused (`A CLEAR IS A REAL CLEAR`, `NO SECRET IN THE REPOSITORY`). One host for
+  each product, however often it is asked for. Errors: the `TypeError` of MOD-repository-hosts' `parseAddress` for an entry that is no repository address.
 - `explain(topic: string, label?: string) -> Element` — the folded *What is this?* of a topic, or the fold under the
   label a use case names for it (such as *Why these?*), from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
