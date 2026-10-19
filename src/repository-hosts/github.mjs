@@ -247,6 +247,46 @@ export function githubAdapter(address, { token, tokenName }, links) {
       return { open: await count("open"), closed: await count("closed") };
     },
 
+    // The issues of a state and labels ("List repository issues": state, labels as a comma-separated text, per_page 100, page by page), or those a text finds ("Search issues and pull requests" with
+    // repo:, is:issue, state: and label: qualifiers). The issue list holds pull requests too, each with a pull_request key: they are not issues. Each issue that has comments is given them ("List issue comments").
+    async listIssues({ state, labels, search }) {
+      const found = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const items = search
+          ? (await read(`${SEARCH}?${new URLSearchParams({ q: [`repo:${address.path}`, "is:issue", ...(state === "all" ? [] : [`state:${state}`]), ...labels.map((l) => `label:"${l}"`), search].join(" "), per_page: String(PAGE), page: String(page) })}`, { search: true })).items
+          : await read(`${repo}/issues?${new URLSearchParams({ state, per_page: String(PAGE), page: String(page), ...(labels.length ? { labels: labels.join(",") } : {}) })}`);
+        found.push(...items);
+        if (items.length < PAGE) break;
+      }
+      const issues = [];
+      for (const i of found.filter((each) => !each.pull_request)) {
+        const comments = [];
+        for (let page = 1; i.comments > 0 && page <= MAX_PAGES; page++) {
+          const items = await read(`${repo}/issues/${i.number}/comments?per_page=${PAGE}&page=${page}`);
+          comments.push(...items.map((c) => ({ author: c.user?.login ?? "", body: c.body ?? "", date: c.created_at })));
+          if (items.length < PAGE) break;
+        }
+        issues.push(issueOf(i, comments));
+      }
+      return issues;
+    },
+
+    // A comment on an issue ("Create an issue comment").
+    async commentOnIssue(number, body) {
+      await call("POST", `${repo}/issues/${number}/comments`, { body: { body } });
+    },
+
+    // Labels added ("Add labels to an issue") and removed ("Remove a label from an issue", one call each; 404 where the issue does not carry it).
+    async setIssueLabels(number, { add, remove }) {
+      if (add.length) await call("POST", `${repo}/issues/${number}/labels`, { body: { labels: add } });
+      for (const label of remove) await call("DELETE", `${repo}/issues/${number}/labels/${encodeURIComponent(label)}`, { on: { 404: () => null } });
+    },
+
+    // An issue opened or closed ("Update an issue": state).
+    async setIssueState(number, state) {
+      await call("PATCH", `${repo}/issues/${number}`, { body: { state } });
+    },
+
     // The commits that changed a path — the repository where the path is null —, newest first, from `ref` (the default branch where
     // none is given), at most `limit` of them (all where none is given), each with the files it changed. "List commits" (sha,
     // path, per_page up to 100, page) names the commits, page by page as listTags reads the tags; "Get a commit" gives the
