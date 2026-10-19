@@ -49,7 +49,7 @@ const byClass = (root, name) => descendants(root, (node) => node.className.split
 const click = (node) => node.fire("click", { isTrusted: true });
 const settingsRoute = () => view.routes.find((candidate) => candidate.name === "settings");
 
-const COLLABORATORS = "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n| Ada Lovelace | @ada | 2026-09-01 |\n| Bea Quimby | @bea | 2026-09-02 |\n";
+const COLLABORATORS = "# Collaborators of this product\n\n| Name | Account | Agreed on |\n|---|---|---|\n| Ada Lovelace | @ada | 2026-09-01 |\n| Bea Quimby | @bea | 2026-09-02 |\n| Cy Quimby | @cy | 2026-09-03 |\n";
 // A writable product whose default branch holds `extra` besides the register of consent; commitFiles updates it, and readSnapshot gives the state at that moment.
 function product(extra) {
   const files = new Map([["docs/collaborators.md", COLLABORATORS], ["docs/settings.md", "# Settings of this product\n\n- pseudonymisation: on\n"], ...Object.entries(extra)]);
@@ -83,7 +83,7 @@ async function removed(extra) {
 
 // TST-1043101 · level: unit · module: MOD-settings-pages
 // guards: A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; UC-042
-// given: a writable product whose default branch has docs/notes.md and docs/thanks.md naming Bea Quimby (the second in other case), docs/clean.md naming Ada Lovelace only, and the register with both collaborators
+// given: a writable product whose default branch has docs/notes.md and docs/thanks.md naming Bea Quimby (the second in other case), docs/clean.md naming Ada Lovelace only, and the register with Ada Lovelace, Bea Quimby and Cy Quimby (whose surname is a part of Bea's name, so that the register would be listed if it were searched)
 // input: Remove for Bea Quimby, account @bea
 // expect: the result line says the consent was removed and that earlier commits keep the name in the history (known positive: built before this item); the list of the class settings-collaborator-named-files holds exactly docs/notes.md and docs/thanks.md, in that order, and no none-line
 test("Remove lists exactly the files on the default branch that still name the collaborator", async () => {
