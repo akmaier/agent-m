@@ -25,7 +25,7 @@
 // address, a host's HTTP calls, the parts a layout lacks), each already guarded by its own item's tests.
 //
 // Node has no DOM: this file takes the one of tests/settings-pages-harness.mjs (the helper file of the tests of
-// MOD-settings-pages, which brings that of tests/site-frame.test.mjs, itself tests/markdown-render.test.mjs's), so that
+// MOD-settings-pages, which takes that of tests/site-frame-dom.mjs), so that
 // explain()'s renderer (MOD-markdown-render, DOMPurify) runs as it does in a browser — set up before the dynamic
 // imports below, since a static import of this route would run before any such setup could take effect.
 // MOD-settings-pages' own code builds every element with createElement/append, never parsed from an HTML string, as

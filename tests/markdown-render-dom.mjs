@@ -211,7 +211,14 @@ function serialise(n) {
   return VOID.has(n.localName) ? start : `${start}${n.innerHTML}</${n.localName}>`;
 }
 
-const document = htmlDocument();
-globalThis.document = document;
-globalThis.window = { document, Node, Element, Text, Comment, DocumentFragment, DOMParser,
-  NodeFilter: { SHOW_ELEMENT: 0x1, SHOW_TEXT: 0x4, SHOW_CDATA_SECTION: 0x8, SHOW_PROCESSING_INSTRUCTION: 0x40, SHOW_COMMENT: 0x80 } };
+// Installs a fresh document as the globals `document` and `window`, as a browser has them; the body is empty.
+export function installDocument() {
+  const document = htmlDocument();
+  globalThis.document = document;
+  globalThis.window = { document, Node, Element, Text, Comment, DocumentFragment, DOMParser,
+    NodeFilter: { SHOW_ELEMENT: 0x1, SHOW_TEXT: 0x4, SHOW_CDATA_SECTION: 0x8, SHOW_PROCESSING_INSTRUCTION: 0x40, SHOW_COMMENT: 0x80 } };
+  return document;
+}
+
+// Importing this file installs a document once.
+installDocument();

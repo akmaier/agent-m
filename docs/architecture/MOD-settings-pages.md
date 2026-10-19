@@ -219,9 +219,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
     with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key
     `github-token`, the product for its own key, and for *Change* the repository its setting's key names. A refusal of
-    `connect`, a token of the other kind of server, stores nothing and shows a line that names the setting and never the
-    token. The form of a token is `connect`'s alone, here as in the import; a setting whose key names no readable
-    repository has no host to refuse it, and is stored as pasted.
+    `connect`, a token of the other kind of server or a text that is a token of neither kind, stores nothing and shows a
+    line that names the setting and never the token; in `setup` that line replaces the page's own refusal of a text that
+    is no GitHub token, so that `setup` keeps no form of a token of its own and checks only the expiry date it asks for.
+    The form of a token is `connect`'s alone, here as in the import; a setting whose key names no readable repository has
+    no host to refuse it, and is stored as pasted.
 
 ## Files
 

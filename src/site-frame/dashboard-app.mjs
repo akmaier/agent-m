@@ -19,8 +19,7 @@
 // view uses. The notices about a token — its expiry and its refusal — are the frame's (notices.mjs), drawn into the slot `token-banner`.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
-import { marked } from "../../docs/assets/vendor/marked.esm.js";
-import DOMPurify from "../../docs/assets/vendor/purify.es.mjs";
+import { renderArtifact, renderMermaid as drawDiagram } from "../markdown-render/index.mjs";
 import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
 import { retireFileTexts } from "../../docs/assets/settings-store.mjs";
 import { productStore } from "../../docs/assets/product-store-adapter.mjs";
@@ -366,30 +365,15 @@ let routeSeq = 0;
 
 const main = () => document.getElementById("main");
 
-function md(text) {
-  return DOMPurify.sanitize(marked.parse(text, { gfm: true }));
+// The live page's Markdown, rendered by MOD-markdown-render's renderArtifact: front matter as a table, images as links. A Mermaid
+// block is left as its source here and drawn by renderMermaid(root) once the HTML stands in the page.
+export function md(text) {
+  return renderArtifact(text).innerHTML;
 }
 
-let mermaidReady = false;
 async function renderMermaid(root) {
-  const blocks = [...root.querySelectorAll("pre > code.language-mermaid")];
-  if (!blocks.length || !globalThis.mermaid) return;
-  if (!mermaidReady) {
-    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
-    globalThis.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default" });
-    mermaidReady = true;
-  }
-  const nodes = blocks.map((code) => {
-    const div = document.createElement("div");
-    div.className = "mermaid";
-    div.textContent = code.textContent;
-    code.parentElement.replaceWith(div);
-    return div;
-  });
-  try {
-    await globalThis.mermaid.run({ nodes });
-  } catch (e) {
-    for (const n of nodes) if (!n.querySelector("svg")) n.insertAdjacentHTML("beforeend", `<p class="warn">Diagram error: ${h(e.message)}</p>`);
+  for (const code of [...root.querySelectorAll("pre > code.language-mermaid")]) {
+    code.parentElement.replaceWith(await drawDiagram(code.textContent));
   }
 }
 

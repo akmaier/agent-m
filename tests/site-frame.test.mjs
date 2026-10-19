@@ -14,7 +14,7 @@
 //   DECISION
 // Level: unit
 //
-// Not part of ITM-221, and not tested here: PageSetup, startPage, embedRoute, menuOf, instanceOf, chosenProduct, runPanel,
+// Not part of ITM-221, and not tested here: PageSetup, startPage, menuOf, instanceOf, chosenProduct, runPanel,
 // confirmDecision and notice; schemaForm's options secretKeys and readOnly; the frame's own check of the topics.
 //
 // Each test names the requirement it guards and states its input and its expected result before it runs (given / input /
@@ -25,7 +25,7 @@
 // The form is built from a schema as MOD-documents loads it, over a declaration as MOD-documents reads it — what the page of
 // UC-002 hands it —, and is checked as a person meets it: the fields and their values, the findings beside them, the
 // handed-over document written with MOD-documents' writeDocument, the focus. The module runs in a browser, and node has no
-// DOM: this file takes the small one of tests/site-frame-dom.mjs (itself tests/markdown-render.test.mjs's), so that the editor of a section and the renderer of
+// DOM: this file takes the small one of tests/site-frame-dom.mjs (which takes tests/markdown-render-dom.mjs's), so that the editor of a section and the renderer of
 // an explanation run as they are, and adds to it what a browser does with the focus.
 
 import test from "node:test";
