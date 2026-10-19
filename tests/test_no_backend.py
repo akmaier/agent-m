@@ -50,13 +50,13 @@ from pathlib import Path
 from test_artifact_format import outside_code
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR = ("docs/assets/vendor/", "src/markdown-render/vendor/", "src/mail-routes/vendor/",
+VENDOR = ("src/markdown-render/vendor/", "src/mail-routes/vendor/",
           "src/result-records/vendor/")
 CODE = (".html", ".css", ".mjs", ".js")
 
 PERMITTED_HOSTS = {
-    # The repository server of the instance and of GitHub products: its API, its raw files, its own pages.
-    "api.github.com", "raw.githubusercontent.com", "github.com",
+    # The repository server of the instance and of GitHub products: its API, its raw files, its upload host for a release's files, its own pages.
+    "api.github.com", "raw.githubusercontent.com", "uploads.github.com", "github.com",
     # The mail provider: Microsoft Graph and its sign-in (Microsoft 365).
     "graph.microsoft.com", "login.microsoftonline.com",
     # The local bridge, on this machine or at the near end of a tunnel's forward.
@@ -349,8 +349,7 @@ PERMITTED_CHANNELS = {
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
     ("src/trace-graph/code.mjs", "import()"): (1, IMPORT_FORMS, _trace_graph_comment),
     ("src/trace-graph/code.mjs", "@import"): (3, IMPORT_FORMS, _trace_graph_css_form),
-    **{(path, channel): rule for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js")
-       for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
+    **{("src/markdown-render/vendor/mermaid.min.js", channel): rule for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
 }
 
 
@@ -435,7 +434,7 @@ class NoServer(unittest.TestCase):
     def test_the_site_has_code_to_check(self):
         # A scan that finds no file proves nothing: the page, the dashboard's modules and the vendored libraries are there.
         for f in ("index.html", "src/home/home.mjs", "docs/index.html", "src/site-frame/dashboard-app.mjs", "docs/assets/git-host.mjs",
-                  "docs/assets/vendor/mermaid.min.js"):
+                  "src/markdown-render/vendor/mermaid.min.js"):
             self.assertIn(f, self.files)
 
     def test_every_address_in_the_own_code_names_a_permitted_host(self):
@@ -451,13 +450,11 @@ class NoServer(unittest.TestCase):
 
     def test_mermaid_renders_katex_untrusted(self):
         # The evidence for KaTeX's image element: \includegraphics is rendered only when the trust setting allows it.
-        self.assertIn("docs/assets/vendor/mermaid.min.js", self.files)
-        for path in ("docs/assets/vendor/mermaid.min.js", "src/markdown-render/vendor/mermaid.min.js"):
-            if path not in self.files:
-                continue
-            calls = re.findall(r"renderToString\([^,]+,\{([^}]*)\}", self.files[path])
-            self.assertTrue(calls, f"{path}: no renderToString call found — the evidence would be vacuous")
-            self.assertEqual([c for c in calls if "trust" in c], [])
+        path = "src/markdown-render/vendor/mermaid.min.js"
+        self.assertIn(path, self.files)
+        calls = re.findall(r"renderToString\([^,]+,\{([^}]*)\}", self.files[path])
+        self.assertTrue(calls, f"{path}: no renderToString call found — the evidence would be vacuous")
+        self.assertEqual([c for c in calls if "trust" in c], [])
 
     def test_no_served_markdown_loads_from_another_host(self):
         found = {}
@@ -496,10 +493,10 @@ class NoServer(unittest.TestCase):
                           "prepare() let through"])
         elsewhere = {"docs/assets/bridge-tunnel.mjs": "await fetch(`https://jump.example/${port}/`);\n"}
         self.assertEqual(len(channel_findings(elsewhere)), 1)
-        twice = {"docs/assets/vendor/mermaid.min.js": "new Worker(a);new Worker(b);var k='@import';"
+        twice = {"src/markdown-render/vendor/mermaid.min.js": "new Worker(a);new Worker(b);var k='@import';"
                                                       "document.createElement(\"img\");"}
         self.assertEqual(channel_findings(twice),
-                         ["docs/assets/vendor/mermaid.min.js: Worker found 2 times, permitted 1 (elkjs builds a worker only from "
+                         ["src/markdown-render/vendor/mermaid.min.js: Worker found 2 times, permitted 1 (elkjs builds a worker only from "
                           "a workerUrl option, which the dashboard never sets)"])
 
     def test_counter_proof_a_method_named_fetch_or_a_comment_is_no_call(self):
@@ -787,7 +784,7 @@ class NoServer(unittest.TestCase):
                          f"src/site-frame/: loading element found 4 times, permitted at most 3 ({FRAME_ASSET_LOADING})")
 
     def test_counter_proof_a_vendored_librarys_addresses_are_not_the_own_codes(self):
-        # MOD-markdown-render's vendored folder is skipped by check 1, as docs/assets/vendor/ is; its own code is not.
+        # MOD-markdown-render's vendored folder is skipped by check 1, as the other vendored folders are; its own code is not.
         text = 'const ns = "http://www.w3.org/2000/svg";\n'
         own = {f: sorted(foreign_hosts(t)) for f, t in {"src/markdown-render/vendor/purify.min.js": text,
                                                         "src/markdown-render/index.mjs": text}.items()
@@ -836,7 +833,7 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings({path: library}), [])
         # The same text anywhere else is found: next to the vendored folder, in another module's, in the dashboard's.
         for elsewhere in ("src/mail-routes/msal-browser.min.js", "src/mail-routes/index.mjs", "src/other/vendor/msal-browser.min.js",
-                          "docs/assets/vendor/msal-browser.min.js", "src/mail-routes/vendor/other.min.js"):
+                          "src/other-module/vendor/msal-browser.min.js", "src/mail-routes/vendor/other.min.js"):
             found = channel_findings({elsewhere: library})
             self.assertGreaterEqual(len(found), 4, elsewhere)
             self.assertTrue(all(line.startswith(elsewhere) for line in found[:4]), elsewhere)

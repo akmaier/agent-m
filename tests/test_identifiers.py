@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-identifiers
 # Guards: EVERY ARTIFACT HAS AN IDENTIFIER
 # Level: unit
 """SPEC §1 EVERY ARTIFACT HAS AN IDENTIFIER — a requirement its name in capitals, every other artifact one
@@ -53,12 +53,12 @@ class Identifiers(unittest.TestCase):
     def test_the_kind_of_an_identifier_is_told_by_its_form(self):
         kinds = {"THE STATUS IS SHOWN": "requirement", "SRC-po": "source", "UC-001": "use-case",
                  "ARC-001": "architecture-decision", "MOD-reader": "module", "TST-001": "test",
-                 "ITM-001": "backlog-item", "RES-gpu-cluster": "resource", "JOB-20260924-1432-7f3a": "job"}
+                 "ITM-001": "backlog-item", "ITM-1000": "backlog-item", "RES-gpu-cluster": "resource", "JOB-20260924-1432-7f3a": "job"}
         got = js(f"return Object.fromEntries({json.dumps(list(kinds))}.map((i) => [i, identity.identifierKind(i)]));")
         self.assertEqual(got, kinds)
 
     def test_counter_proof_a_malformed_identifier_has_no_kind(self):
-        bad = ["UC-1", "uc-001", "UC-001-read", "MOD-Reader", "MOD-", "TST-12", "ITM-0001", "RES-", "SRC_po",
+        bad = ["UC-1", "uc-001", "UC-001-read", "MOD-Reader", "MOD-", "TST-12", "ITM-99", "RES-", "SRC_po",
                "JOB-", "The status is shown", ""]
         got = js(f"return {json.dumps(bad)}.map((i) => identity.identifierKind(i));")
         self.assertEqual(got, [None] * len(bad))

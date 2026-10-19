@@ -148,7 +148,7 @@ async function showTraces(box, requirement, shown) {
   sections.push(section("Use cases", traces.useCases.length ? listOf(traces.useCases.map((id) => {
     const node = graph.nodes.get(id);
     return el("span", null, linked(id, `${id} ${node.title ?? ""}`.trim()), ` — ${REVIEW[reviewOf.get(node.path)?.status] ?? "open"}`);
-  })) : el("p", "none", "none")));
+  })) : el("p", "none", "none"), explain("trace-statuses")));
   for (const [title, kind, ids] of [["Architecture decisions", "ARC", traces.decisions], ["Modules", "MOD", traces.modules], ["Tests", "TST", traces.tests]]) {
     if (ids.length) sections.push(section(title, listOf(ids.map((id) => linked(id, `${id} ${graph.nodes.get(id)?.title ?? ""}`.trim())))));
     else if (!holds(graph, kind)) {
@@ -229,7 +229,7 @@ async function showGaps(box, shown) {
     el("li", null, `${name} — named by `, ...[...new Set(namedBy.map((place) => place.id))].flatMap((id, at) => [...(at ? [", "] : []), linked(id, id)])));
   const none = !found.requirementsWithoutUseCase.length && !found.requirementsWithoutModule.length && !found.requirementsWithoutTest.length
     && !found.useCasesWithoutRequirement.length && !unknown.length;
-  box.replaceChildren(...missing.map((line) => el("p", "gaps-missing", line)),
+  box.replaceChildren(explain("trace-gaps"), ...missing.map((line) => el("p", "gaps-missing", line)),
     ...(none && !missing.length ? [el("p", "no-gaps", `There are no gaps at ${ref}.`)] : [
       section("Requirements realised by no use case", found.requirementsWithoutUseCase.map(requirementLine)),
       ...(holds(graph, "MOD") ? [section("Requirements named by no module", found.requirementsWithoutModule.map(requirementLine))] : []),
@@ -378,7 +378,7 @@ function versionChoice({ shown, handed, current, tags, choose, other }) {
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
   const across = el("a", `${other.className} btn small`, other.text);
   across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
-  choice.append(across);
+  choice.append(across, explain("trace-versions"));
   if (!tags.length) choice.append(el("p", "version-none", "No release is tagged yet (UC-013); only the current text can be shown."));
   if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
   return choice;

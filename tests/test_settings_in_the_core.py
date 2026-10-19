@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-approvals
 # Guards: THE SHARED PAGES ORIGIN IS DISCLOSED; UC-042
 # Level: unit
 """SPEC §7 THE SHARED PAGES ORIGIN IS DISCLOSED (UC-042) — the part the kernel holds (docs/assets/review-core.mjs canStore).

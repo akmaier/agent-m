@@ -1,3 +1,4 @@
+# Module: MOD-reuse-facts
 # Guards: AGENT M IS MIT-LICENSED
 # Level: unit
 """SPEC §0 AGENT M IS MIT-LICENSED — the root LICENSE is the MIT text."""

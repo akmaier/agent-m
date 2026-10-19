@@ -1,20 +1,22 @@
 // MOD-settings-pages' implemented Settings slice: the endpoint settings MOD-browser-store already enumerates.
 
-import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
+import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readExport, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
+import { declarationSchema } from "../product-process/index.mjs";
+import { sourceSchemas } from "../source-register/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
-import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
+import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, recordTest, route as endpointsRoute } from "./endpoints.mjs";
+import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxLine } from "./mailbox.mjs";
 
@@ -88,6 +90,10 @@ function endpointLine(target, context, info) {
     show.textContent = hidden ? "Hide" : "Show";
   });
   test.addEventListener("click", async () => {
+    if (namesNoBridge(setting)) {
+      result.textContent = `${CHOOSE_BRIDGE_TEXT}Press Change to choose it.`;
+      return;
+    }
     if (setting.bridge) {
       let bridgeSettings;
       try { bridgeSettings = endpointBridgeSettings(context.store, setting.bridge); } catch (error) {
@@ -127,7 +133,7 @@ function endpointLine(target, context, info) {
     el("p", null, `Model: ${setting.model}`),
     status,
     el("p", null, el("label", null, "API key ", key, " ", show)),
-    el("p", "settings-endpoint-disclosure", setting.bridge
+    el("p", "settings-endpoint-disclosure", namesNoBridge(setting) ? CHOOSE_BRIDGE_DISCLOSURE : setting.bridge
       ? `Agent M sends one short test request to Bridge ${setting.bridge}. Its optional endpoint key is inside that Bridge request; Bridge and jump-host credentials are sent only as authorisation headers, never in a URL or repository.`
       : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.`),
     el("p", null, test, " ", change, " ", clear),
@@ -358,6 +364,18 @@ function exportNotice(store, signIn) {
   return `This file contains every stored token, key and password. Whoever holds it can use: ${contained}. You may lock it with a passphrase; it cannot be recovered.`;
 }
 
+// Import settings stores nothing while the file holds a token of the other kind of server than its key names: each token the file holds is connected,
+// with MOD-repository-hosts' `connect`, to the repository its key names (tokenKeyAddress) before the file is imported, and a refusal of `connect`
+// refuses the import, with a line that names the key and never the token (`connect`'s message never holds it). A key that names no readable repository has no host to refuse it.
+async function refuseWrongTokens(context, text, passphrase) {
+  const { settings } = await readExport(text, passphrase);
+  for (const [key, entry] of Object.entries(settings)) {
+    const address = tokenKeyAddress(key, context.instance?.repository);
+    const refused = tokenRefusal(context.store, address, key, entry?.value, entry?.name);
+    if (refused) throw new Error(`Nothing was imported: ${refused}`);
+  }
+}
+
 function exportImportControls(context, signIn) {
   const notice = el("p", "settings-export-notice", exportNotice(context.store, signIn));
   const passphrase = el("input", "settings-export-passphrase");
@@ -390,7 +408,9 @@ function exportImportControls(context, signIn) {
     const chosen = file.files?.[0];
     if (!chosen) return;
     try {
-      const imported = await importSettings(context.store, await chosen.text(), importPassphrase.value);
+      const text = await chosen.text();
+      await refuseWrongTokens(context, text, importPassphrase.value);
+      const imported = await importSettings(context.store, text, importPassphrase.value);
       reconnectHosts(context);
       result.textContent = `Added: ${imported.added.join(", ") || "none"}. Kept: ${imported.kept.join(", ") || "none"}.`;
     } catch (error) {
@@ -415,6 +435,21 @@ function reconnectHosts(context) {
   const reconnect = (address) => connect(address, { ...credentialsFor(context.store, address), secrets: secretValues(context.store) });
   if (context.instance?.host) context.instance.host = reconnect(parseAddress(`https://github.com/${context.instance.repository}`));
   if (context.product?.host) context.product.host = reconnect(parseAddress(context.product.address));
+}
+
+// This browser's identifier (MOD-browser-store's key `browser`): an identifier only, so its line shows it and Clear; nothing to test or change.
+function browserIdLine(target, context) {
+  const id = readSetting(context.store, "browser");
+  const shown = typeof id === "string" && id !== "" ? id : null;
+  const clear = el("button", "settings-browser-id-clear btn", "Clear");
+  clear.addEventListener("click", async () => {
+    clearSetting(context.store, "browser");
+    await route.render(target, context, {});
+  });
+  return el("section", "settings-browser-id panel",
+    el("h3", null, "Browser identifier"),
+    el("p", null, shown === null ? "not set" : el("span", "settings-browser-id-value", shown)),
+    ...(shown === null ? [] : [el("p", null, clear)]));
 }
 
 function browserClearControls(context) {
@@ -521,6 +556,8 @@ function repositoryLine(target, context, info) {
   save.addEventListener("click", () => {
     const next = value.value.trim();
     if (!acknowledgement.checked || !next || !expiry.value) { result.textContent = "Acknowledge the notice, paste the token, and enter its expiry date first."; return; }
+    const refused = tokenRefusal(context.store, address, info.key, next, stored?.name ?? info.label);
+    if (refused) { result.textContent = `Nothing was stored: ${refused}`; return; }
     writeSetting(context.store, info.key, { ...stored, value: next, name: stored?.name ?? info.label, expires: expiry.value, stored: new Date().toISOString().slice(0, 10) });
     clearSetting(context.store, `last-test:${info.key}`);
     reconnectHosts(context);
@@ -566,13 +603,7 @@ function repositoryLine(target, context, info) {
   );
 }
 
-function repositoryAddress(context, key) {
-  try {
-    if (key === "github-token") return parseAddress(`https://github.com/${context.instance.repository}`);
-    if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
-    return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
-  } catch { return null; }
-}
+const repositoryAddress = (context, key) => tokenKeyAddress(key, context.instance?.repository);
 
 function repositoryStatus(info, stored) {
   if (!stored?.value) return "Not set.";
@@ -735,7 +766,7 @@ function notificationsControls(context) {
   const test = el("button", "settings-notifications-test btn", "Test");
   const off = el("button", "settings-notifications-off btn", "Switch off");
   const refresh = (next) => {
-    status.textContent = next.on ? "On. Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens."
+    status.textContent = next.on ? `On. ${next.notified} ${next.notified === 1 ? "file" : "files"} notified. Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens.`
       : next.permission === "denied" ? "Blocked. Allow notifications for this site in the browser's own site settings, then reload."
         : next.available === "from the Home Screen" ? "On iPhone or iPad, add this site to the Home Screen before switching notifications on."
           : next.available === "no" ? "Notifications are not available in this browser." : "Off.";
@@ -897,6 +928,14 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
   );
 }
 
+// The ways from a product's section to the guided pages of what the product's repository keeps (UC-015 step 1: "In the product's view, the author opens Requirement sources").
+// The frame's `go` adds the chosen product to the address.
+function productLinks(context) {
+  const sources = el("button", "settings-product-sources btn", "Requirement sources");
+  sources.addEventListener("click", () => context.go("sources", {}));
+  return el("p", "settings-product-links", sources);
+}
+
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
@@ -906,7 +945,7 @@ async function productControls(context) {
   try { repository = await context.product.host.repositoryInfo(); }
   catch (error) {
     return el("section", "settings-product panel",
-      el("h3", null, `Product · ${context.product.address}`),
+      el("h3", null, `Product · ${context.product.address}`), productLinks(context),
       el("p", "settings-product-read-only", `Repository metadata is unavailable: ${error.message}`),
       explain("settings-product-unavailable"));
   }
@@ -938,7 +977,7 @@ async function productControls(context) {
     tokenStep.addEventListener("click", () => context.go("add-product", { address: context.product.address }));
     const reason = credential?.token ? "The repository reports this credential cannot write." : "This browser has no token that can write to this product.";
     return el("section", "settings-product panel",
-      el("h3", null, `Product · ${context.product.address}`),
+      el("h3", null, `Product · ${context.product.address}`), productLinks(context),
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
       state,
@@ -1021,7 +1060,7 @@ async function productControls(context) {
   });
   const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product panel",
-    el("h3", null, `Product · ${context.product.address}`), state,
+    el("h3", null, `Product · ${context.product.address}`), productLinks(context), state,
     explain("settings-product-records"),
     workflow,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),
@@ -1035,6 +1074,72 @@ async function productControls(context) {
     el("h4", null, "Remove collaborator consent"),
     el("p", null, el("label", null, "Name ", removeName)), el("p", null, el("label", null, "Account ", removeAccount)),
     el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
+}
+
+// ---------------------------------------------------------------- the repository settings (UC-042 step 3)
+
+const PARTICIPANT_REGISTER = "docs/participants.md", RESOURCE_REGISTER = "docs/resources.md", PROCESS_DECLARATION = "docs/process.md", LINKED_SOURCES = "docs/sources.md", SCHEDULE_FILE = "docs/tests/schedule.md";
+const NOT_SET = "not set";
+// The instance's own list is the route `resources` with no product: the empty product, which the frame's `go` reads as the instance itself.
+const INSTANCE_RESOURCES = ["resources", { product: "" }];
+
+const plural = (count, one) => `${count} ${count === 1 ? one : `${one}s`}`;
+const rowsIn = (schema, path, text) => (typeof text === "string" ? readRegister(schema, path, text).rows.length : 0);
+const countSummary = (count, one) => (count ? plural(count, one) : NOT_SET);
+// The names of the files directly below a folder of a snapshot, without their extension, in the snapshot's order.
+const namesBelow = (snapshot, folder, prefix = "") => snapshot.paths.filter((path) => path.startsWith(`${folder}/${prefix}`) && path.endsWith(".md") && !path.slice(folder.length + 1).includes("/"))
+  .map((path) => path.slice(folder.length + 1, -".md".length));
+const declarationOf = async (snapshot) => {
+  const text = await snapshot.read(PROCESS_DECLARATION);
+  return typeof text === "string" ? readDocument(declarationSchema, PROCESS_DECLARATION, text) : null;
+};
+
+// The instance's four settings and the product's six: the title of the line, the route its *Edit* opens, and the summary read from the repository's snapshot.
+const INSTANCE_SETTINGS = [
+  ["Participants", "participants", async (snapshot) => countSummary(rowsIn(participantSchema(), PARTICIPANT_REGISTER, await snapshot.read(PARTICIPANT_REGISTER)), "participant")],
+  ["Source library", "library", async (snapshot) => countSummary(namesBelow(snapshot, "docs/sources", "SRC-").length, "source")],
+  ["Process models", "models", async (snapshot) => countSummary(namesBelow(snapshot, "docs/process-models").length, "model")],
+  ["Resources", INSTANCE_RESOURCES, async (snapshot) => countSummary(rowsIn(resourceSchema(), RESOURCE_REGISTER, await snapshot.read(RESOURCE_REGISTER)), "resource")],
+];
+const PRODUCT_SETTINGS = [
+  ["Process model", "process", async (snapshot) => (await declarationOf(snapshot))?.fields.model ?? NOT_SET],
+  ["Role assignments", "roles", async (snapshot) => namesBelow(snapshot, "docs/role-assignments").join(", ") || NOT_SET],
+  ["Definition of Done", "process", async (snapshot) => {
+    const section = (await declarationOf(snapshot))?.sections.find((candidate) => candidate.heading === "## Definition of Done");
+    return section?.text.trim().split("\n")[0] || NOT_SET;
+  }],
+  ["Test schedule", "schedule", async (snapshot) => (snapshot.paths.includes(SCHEDULE_FILE) ? "set" : NOT_SET)],
+  ["Linked sources", "sources", async (snapshot) => countSummary(rowsIn(sourceSchemas().links, LINKED_SOURCES, await snapshot.read(LINKED_SOURCES)), "linked source")],
+  ["Resources", "resources", async (snapshot) => countSummary(rowsIn(resourceSchema(), RESOURCE_REGISTER, await snapshot.read(RESOURCE_REGISTER)), "resource")],
+];
+
+// The topic of MOD-site-frame's explanations behind each line, in the order of the settings above, and behind each section.
+const INSTANCE_TOPICS = ["settings-line-participants", "settings-line-library", "settings-line-models", "settings-line-instance-resources"];
+const PRODUCT_TOPICS = ["settings-line-process", "settings-line-roles", "settings-line-done", "settings-line-schedule", "settings-line-sources", "settings-line-product-resources"];
+
+// One section of lines: each setting is a line with its title, its summary and *Edit*, which opens the route of the setting. `load()` reads the repository's default branch once,
+// when the tab that holds the section is shown, and fills the summaries; a repository that cannot be read leaves each summary saying so.
+function repositorySettings(context, { className, heading, topic, topics, settings, hostOf }) {
+  const lines = settings.map(([title, route], index) => {
+    const summary = el("span", "settings-repository-setting-summary", "Not read yet.");
+    const edit = el("button", "settings-repository-setting-edit btn", "Edit");
+    edit.addEventListener("click", () => context.go(...[route].flat()));
+    return { node: el("div", "settings-repository-setting", el("strong", "settings-repository-setting-title", title), " ", summary, " ", edit, explain(topics[index])), summary };
+  });
+  const node = el("section", `${className} panel`, el("h3", null, heading), explain(topic), ...lines.map((line) => line.node));
+  let loaded = false;
+  const load = async () => {
+    if (loaded) return;
+    loaded = true;
+    try {
+      const host = hostOf();
+      const snapshot = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+      for (const [index, [, , summaryOf]] of settings.entries()) lines[index].summary.textContent = await summaryOf(snapshot);
+    } catch (error) {
+      for (const line of lines) line.summary.textContent = `Could not be read: ${error?.message ?? error}`;
+    }
+  };
+  return { node, load };
 }
 
 // The tabs of the page: the one whose id `chosenId` names is selected, else the first; `choose` hears each id selected.
@@ -1127,9 +1232,11 @@ export const route = {
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
-      exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
+      browserIdLine(target, context), exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
     const recording = recordingControls(context);
+    const instanceSettings = repositorySettings(inPlace, { className: "settings-instance-settings", heading: "Instance · settings kept in its repository", topic: "settings-instance-lines", topics: INSTANCE_TOPICS, settings: INSTANCE_SETTINGS, hostOf: () => context.instance.host });
+    const productSettings = context.product && repositorySettings(inPlace, { className: "settings-product-settings", heading: "Product · settings kept in its repository", topic: "settings-product-lines", topics: PRODUCT_TOPICS, settings: PRODUCT_SETTINGS, hostOf: () => context.product.host });
     const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
@@ -1137,7 +1244,7 @@ export const route = {
         const line = repositoryLine(target, inPlace, info);
         return !line ? [] : info.key === "products" ? [line, productForm] : [line];
       }),
-      recording.node, ...(productList ? [productList] : []), product);
+      recording.node, instanceSettings.node, ...(productList ? [productList] : []), product, ...(productSettings ? [productSettings.node] : []));
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
       configurationControls(inPlace), form,
@@ -1152,7 +1259,7 @@ export const route = {
       { name: "Repositories", id: "settings-repositories", node: repositories },
       { name: "Endpoints & Agents", id: "settings-endpoints-agents", node: endpointPane },
       { name: "Usability", id: "settings-usability", node: usability },
-    ], chosenTabs.get(context), (id) => { chosenTabs.set(context, id); if (id === "settings-repositories") recording.load(); });
+    ], chosenTabs.get(context), (id) => { chosenTabs.set(context, id); if (id === "settings-repositories") { recording.load(); instanceSettings.load(); productSettings?.load(); } });
     target.replaceChildren(el("section", "head", el("h2", null, "Settings")), tabbed.tabs, ...tabbed.panels);
   },
 };

@@ -9,10 +9,10 @@
 
 import { pathToFileURL } from "node:url";
 import { ciEnvironment } from "./compose.mjs";
-import { onApprovalsCommitted, onSourcesCommitted } from "./instance.mjs";
-import { onRecordsChanged, onDispatch } from "./product.mjs";
+import { onApprovalsCommitted, onSourcesCommitted, onMainChanged, onReleaseTagged } from "./instance.mjs";
+import { onRecordsChanged, onDispatch, onCheckCompleted } from "./product.mjs";
 
-const ENTRIES = { onApprovalsCommitted, onSourcesCommitted, onRecordsChanged, onDispatch };
+const ENTRIES = { onApprovalsCommitted, onSourcesCommitted, onMainChanged, onReleaseTagged, onRecordsChanged, onDispatch, onCheckCompleted };
 
 /**
  * runEntry(name: string, env: Record<string, string | undefined>, options?: { now?: Date }) -> Promise<EntryStatus> — runs the entry of that

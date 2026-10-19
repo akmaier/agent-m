@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-spec-changes
 # Guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 # Level: system
 """SPEC section 8 - the check named tests/test_artifact_provenance.py.

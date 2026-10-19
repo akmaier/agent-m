@@ -4,7 +4,7 @@
 // Guards: EDITS ARE PREPARED ON THE DASHBOARD; A FINDING READS LIKE A COMPILER MESSAGE; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A REFUSED SAVE KEEPS THE EDIT
 // Level: unit
 //
-// The established renderer battery owns the browser-compatible small DOM. These cases add only
+// The renderer tests' helper tests/markdown-render-dom.mjs owns the browser-compatible small DOM. These cases add only
 // the Editor members ITM-343 makes public; its existing expected results remain unchanged.
 
 import test, { after } from "node:test";
@@ -22,7 +22,7 @@ const FAULTS = {
   "TST-343004": ["src/markdown-render/editor.mjs", "lastSaved = edited;", "lastSaved = \"\";"],
 };
 
-await import("./markdown-render.test.mjs");
+await import("./markdown-render-dom.mjs");
 const { openEditor } = await import("../src/markdown-render/index.mjs");
 
 // The inherited small DOM does not model the browser's `button.disabled === false` default.

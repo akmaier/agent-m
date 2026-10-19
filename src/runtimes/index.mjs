@@ -8,7 +8,7 @@
 // this item (UC-010, UC-011, UC-036) and are not built yet; nor is a job of a run
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 // ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
-// ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; retryJob is not built yet.
+// ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; ITM-973 builds retryJob (retry.mjs).
 // ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request.
 //
 // Module: MOD-runtimes
@@ -18,13 +18,15 @@
 
 import { appendToRecord } from "../job-ledger/index.mjs";
 import { cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
-import { abortOnTab, heldOnTab, queueOnTab } from "./tab.mjs";
+import { abortOnTab, heldOnTab, queueOnTab, tookOnTab } from "./tab.mjs";
+import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
 export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
 export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
+export { jobTrail } from "./trail.mjs";
 export { handOverJob } from "./hand-over.mjs";
 export { routeStrategies } from "./pull-request.mjs";
 
@@ -57,6 +59,14 @@ export async function queueJob(host, start, route, head, bridge) {
   throw new Error(`queueJob: the "${route.kind}" route is not built yet (UC-010, UC-011)`);
 }
 
+/**
+ * retryJob(record, choice, host, head) -> Promise<{ path: string, commit: string }> (MOD-runtimes, Interfaces; retry.mjs) — queues a new job with a new identifier and the record's inputs and
+ * parameters, which names the one it retries, to the chosen participant on the chosen route, with queueJob. Fails with TaskNotInRecord for a job whose task travelled with its hand-over, and as
+ * queueJob fails.
+ */
+export function retryJob(record, choice, host, head) {
+  return retryWith(record, choice, host, head, queueJob);
+}
 
 // ---------------------------------------------------------------- a job's live state, its log and its cancel (ITM-535, ITM-545)
 
@@ -67,7 +77,7 @@ const UNKNOWN = { reachable: true, reason: null, known: false, running: false, c
 function takenOn(record) {
   const by = record.taken?.by ?? null;
   if (by === null) return "none";
-  if (by === "tab") return "tab";
+  if (by === "tab" || by.startsWith("tab ")) return "tab";
   return /^https?:\/\//.test(by) || by.startsWith("ci ") ? "ci" : "bridge";
 }
 
@@ -80,7 +90,11 @@ function takenOn(record) {
 export async function liveState(record, product, bridges) {
   switch (takenOn(record)) {
     case "none": return { ...UNKNOWN };
-    case "tab": return heldOnTab(record.id) ? { ...UNKNOWN, known: true, running: true } : { ...UNKNOWN };
+    case "tab":
+      if (heldOnTab(record.id)) return { ...UNKNOWN, known: true, running: true };
+      // A job another browser took: its tab's closing cannot be seen here, so it stays unreachable (UC-036 1b).
+      return tookOnTab(record.taken.by) === "this" ? { ...UNKNOWN }
+        : { ...UNKNOWN, reachable: false, reason: "its live state and log exist only in that browser's tab" };
     case "bridge":
       try {
         const job = await listedOnBridge(bridgeNamed(bridges, record.taken.by), record.id);

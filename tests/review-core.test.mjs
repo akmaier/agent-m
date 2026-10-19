@@ -1,6 +1,6 @@
 // Review core — deterministic, no network. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-review-core
+// Module: MOD-approvals
 // Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; ADDING A PRODUCT CREATES ITS LAYOUT; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A PRODUCT IS NAMED BY ITS ADDRESS; UC-001; UC-006; UC-008
 // Level: unit
 //
@@ -78,14 +78,6 @@ test("extractSection: heading to next heading of same level, code fences masked"
   assert.match(extractSection(spec + "## 1. A\n", "## 1. A").error, /2 times/);
   assert.equal(sectionText(extractSection(spec, "## 2. B")), "## 2. B\nb\n");
   assert.equal(sectionText(extractSection(spec, "## 1. A", "### sub")), "## 1. A\ntext\n```\n## not a heading\n```\n");
-});
-
-test("sectionText is the same bytes the Python applier hashes", async () => {
-  const spec = readFileSync(new URL("./fixtures/spec.md", import.meta.url), "utf8");
-  const py = execFileSync("python3", ["-c",
-    "import sys; sys.path.insert(0,'tools'); import apply_approvals as a;" +
-    "t=open('tests/fixtures/spec.md').read(); print(a.blob_sha(a.section_text(a.extract_section(t,'## 1. First'))))"]).toString().trim();
-  assert.equal(await gitBlobSha(sectionText(extractSection(spec, "## 1. First"))), py);
 });
 
 test("queue index and decisions parse like scripts/spec_dashboard.py", () => {
@@ -182,7 +174,7 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
 // AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL · A STALE APPROVAL IS NOT APPLIED ·
 // SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER (UC-006 4–7, 4d, 5a; UC-008 3d)
 
-test("decisionRow is the row tools/apply_approvals.py writes", () => {
+test("decisionRow is the row of the decision table", () => {
   assert.equal(decisionRow(7, "spec-q-07-a99553a7b6f9.md", WHEN), "| 2026-09-29 16:03 UTC | 7 | uebernommen | approval:spec-q-07-a99553a7b6f9.md |\n");
 });
 

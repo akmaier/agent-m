@@ -20,17 +20,22 @@ import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
+import { storedOnce, fromStored } from "./stored.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { reportSections, splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, changeImpact, graphOnce } from "./sections.mjs";
 
 // What the status approved means (UC-006 4c): the record is committed, the section is not yet written into the SPEC.
 const APPROVED_NOTE = "Approval recorded, not yet written into the SPEC — the apply workflow writes it after an approval committed on GitHub's page; " +
   "accepted here with a token, record and SPEC section are one commit.";
+// Why an approved entry of the instance's own SPEC is not written yet: the instance's workflows write it, and they are not turned on.
+const NOT_WRITTEN = "Approved, not written into the SPEC: the instance's workflows write it, and they are not turned on.";
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 // The id of the page that shows every file not yet accepted: #<route>/id=all.
 const REVIEW_ALL = "all";
 // The id of the page that drafts files of a kind that has a job to draft them: #<route>/id=draft.
 const DRAFT = "draft";
+// The group kind whose arrangement a list links (UC-021): the route `arrange` with the parameter `kind`.
+const ARRANGED = { "use-case": "use-cases", "architecture-decision": "architecture", module: "modules" };
 // The id of the page that shows the approval records of a kind, newest first: #<route>/id=history.
 const HISTORY = "history";
 // The commits of docs/approvals a page of the history reads.
@@ -176,31 +181,37 @@ export function reviewRoute(kind) {
 
   // The editor of the page drawn last, or null where that page opened none: what the route's `leave` asks.
   let editor = null;
+  // The render that started last: a render that started earlier and ends later draws into a page the frame has already replaced, and its editor is not the route's.
+  let latest = 0;
 
   async function render(target, context, params) {
+    const mine = ++latest;
     editor = null;
     beginSubject(context);
     const where = await readPlace(target, context);
     if (where === null) return;
+    // A page that shows its editors later than it is drawn, such as the run of a drafting job, hands them to the route here.
+    where.holdEditor = (held) => { if (mine === latest) editor = held; };
     // After a save the page shows the item again (UC-008 3a, UC-006 3a): drawn anew from the repository, with what the save came to.
     where.shownAgain = (id, message) => redraw(where, { id }, message);
     try {
-      await view(where, params);
+      await view(where, params, () => mine === latest);
       await rememberSubject(where, kind, params);
     } catch (failure) {
       target.append(readProblem(failure, Boolean(where.token)));
     }
   }
 
-  async function view(where, params) {
+  async function view(where, params, current) {
     const { target, snapshot } = where;
-    if (kind.edit) editor = (await showEdit(where, kind, params)) ?? null;
+    const opened = async (made) => { const shown = (await made) ?? null; if (current()) editor = shown; };
+    if (kind.edit) await opened(showEdit(where, kind, params));
     else if (params.edit && params.id && kind.save === "file") {
       const file = files(snapshot).find((candidate) => candidate.id === params.id);
       if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
-      else editor = (await showFileEdit(where, kind, file)) ?? null;
+      else await opened(showFileEdit(where, kind, file));
     }
-    else if (params.edit && params.id && kind.save === "entry") editor = (await showEntryEdit(where, kind, params.id)) ?? null;
+    else if (params.edit && params.id && kind.save === "entry") await opened(showEntryEdit(where, kind, params.id));
     else if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
     else if (params.id === HISTORY) await showHistory(where, params);
     else if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
@@ -235,8 +246,11 @@ export function reviewRoute(kind) {
         });
         first.append(box);
       }
+      // An approved entry of the instance's own SPEC is written by the instance's workflows: the row says why it is not written, and where they are turned on (UC-014 step 4, 4a).
+      const unwritten = kind.save === "entry" && !context.product && file.status === "approved"
+        ? [el("p", "why", NOT_WRITTEN), link("#get-your-own/step=actions", "actions-step", "Turn on the workflows")] : [];
       const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
-        el("td", null, file.title), el("td", null, badge(file.status, file.label)));
+        el("td", null, file.title, ...unwritten), el("td", null, badge(file.status, file.label)));
       row.setAttribute("data-id", file.id);
       return row;
     };
@@ -278,6 +292,7 @@ export function reviewRoute(kind) {
     }
     target.append(...tables);
     if (bar) target.append(bar);
+    if (ARRANGED[kind.kind]) target.append(link(`#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
     target.append(link(`#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
   }
 
@@ -334,7 +349,7 @@ export function reviewRoute(kind) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
       return;
     }
-    const records = [], graphOf = graphOnce(snapshot), asked = new Map();
+    const records = [], graphOf = graphOnce(snapshot), storedOf = storedOnce(snapshot), asked = new Map();
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
@@ -343,16 +358,17 @@ export function reviewRoute(kind) {
       let withImpact = true;
       if (file.status === "changed") {
         const diff = el("section", "accepted-diff", el("h4", null, "Changed since it was last accepted"));
-        let last = null;
+        let last = null, stored = null;
         try {
-          last = await lastAcceptedText(file.id, host);
+          stored = kind.restsOn ? await fromStored(file, snapshot, host, storedOf) : null;
+          last = stored?.last ?? await lastAcceptedText(file.id, host);
           if (last) diff.append(showDifference(last.text, body, WHOLE));
         } catch (failure) {
           diff.append(el("p", "problem", failure.message));
         }
         section.append(diff, ...renderedFile(file, body, true));
         if (kind.restsOn && last) {
-          const impact = await changeImpact(file, last, body, graphOf);
+          const impact = stored ? { shown: stored.shown } : await changeImpact(file, last, body, graphOf);
           withImpact = !impact.problem;
           section.append(impact.problem ?? impact.shown);
         }
@@ -506,11 +522,12 @@ export function reviewRoute(kind) {
     const blob = snapshot.blob(file.path);
     target.append(el("h2", null, kind.heading(body)), badge(file.status, LABEL[file.status]),
       el("p", "shown", `Text shown: blob ${blob.slice(0, 12)}`), explain(kind.explain.one));
-    let last = null;
+    let last = null, stored = null;
     if (file.status === "changed") {
       const diff = el("section", "accepted-diff", el("h3", null, "Changed since it was last accepted"), explain(kind.explain.changed));
       try {
-        last = await lastAcceptedText(file.id, host);
+        stored = kind.restsOn ? await fromStored(file, snapshot, host, storedOnce(snapshot)) : null;
+        last = stored?.last ?? await lastAcceptedText(file.id, host);
         if (last) diff.append(showDifference(last.text, body, WHOLE));
       } catch (failure) {
         diff.append(el("p", "problem", failure.message));
@@ -534,7 +551,7 @@ export function reviewRoute(kind) {
     const asked = kind.limitations ? reportSections(body) : null;
     if (asked) target.append(...asked.nodes);
     if (kind.restsOn && last) {
-      const impact = await changeImpact(file, last, body, graphOnce(snapshot));
+      const impact = stored ? { shown: stored.shown } : await changeImpact(file, last, body, graphOnce(snapshot));
       if (impact.problem) { target.append(impact.problem); return; }
       target.append(impact.shown);
     }
@@ -578,5 +595,8 @@ export function reviewRoute(kind) {
     return closed;
   }
 
-  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave };
+  // The frame asks this before the tab closes: whether the editor of the page drawn last holds unsaved changes, without asking anyone.
+  const unsaved = () => editor !== null && editor.unsaved();
+
+  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave, unsaved };
 }

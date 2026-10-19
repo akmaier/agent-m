@@ -39,6 +39,11 @@ uses:
   - MOD-repository-hosts.startWorkflow
   - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.listPullRequests
+  - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.readFileAt
+  - MOD-repository-hosts.HistoryEntry
+  - MOD-repository-hosts.PullRequest
+  - MOD-repository-hosts.CiRun
   - MOD-repository-hosts.repositoryInfo
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.ask
@@ -48,6 +53,10 @@ uses:
   - MOD-bridge-client.cancelOnBridge
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.traceGraph
+  - MOD-browser-store.openStore
+  - MOD-browser-store.readSetting
+  - MOD-browser-store.writeSetting
+  - MOD-identifiers.instanceOfPagesAddress
 provides:
   - Route
   - RouteOffer
@@ -63,6 +72,8 @@ provides:
   - jobLog
   - cancelJob
   - retryJob
+  - jobTrail
+  - revertAfterCancel
   - jobWorkflowFiles
   - routeStrategies
 ---
@@ -91,12 +102,24 @@ it in a browser; its writer and its workflow files are used in Node as well.
 - `workflow/github.yml`, `workflow/gitlab.yml` — the templates of the job workflow.
 - `pull-request.mjs` — the writer `branch-and-pull-request`.
 - `hand-over.mjs` — a conversation's work handed over.
+- `retry.mjs` — a job started again: `retryJob`.
+- `trail.mjs` — what a job left in its product: `jobTrail`.
 
 ## Data
 
-It keeps, in memory, the jobs running in this tab, and the result of each job of this tab that waits at a gate;
-nothing else. A job running in a tab lives as long as the tab; its
-record then shows it as ended without record (UC-036).
+It keeps, in memory, the jobs running in this tab, the result of each job of this tab that waits at a gate, and, where
+this browser cannot keep its identifier, this tab's own (below); nothing else — this browser's identifier is kept by
+MOD-browser-store. A job running in a tab lives as long as the tab; its record then shows it as ended without record
+(UC-036).
+
+**This browser**, for the tab's route, is the identifier MOD-browser-store keeps under `browser` in the store of the
+instance whose Pages address the tab shows (`instanceOfPagesAddress` of the tab's location). Only `queueJob` makes it:
+it reads it, or, where it is not set, makes it as MOD-browser-store's catalogue describes it, and stores it there.
+Where the tab's address names no instance, or the browser refuses `localStorage` (`StorageUnavailable`), `queueJob`
+makes an identifier of the same form for this tab alone and keeps it in memory, so that no other browser reads the job
+as its own. `liveState` only reads: this browser's identifier and this tab's own, each where there is one, are this
+browser's; every other browser a `## Taken` names is another. A `## Taken` of bare `tab`, which names no browser, is
+read as this browser's.
 
 **Agent M's job workflow in a product.** On GitHub, the file `.github/workflows/agent-m-jobs.yml`; on GitLab, the file
 `.gitlab/agent-m-jobs.yml`, which the product's `.gitlab-ci.yml` includes. It is started:
@@ -146,7 +169,8 @@ a person's decision.
   is unavailable, with its files named, while the product has no job workflow.
 - `queueJob(host: Host, start: JobStart, route: Route, head: string, bridge?: Bridge) -> Promise<{ path: string, commit:
   string }>` — commits the job's start record, on the head that was read, as the person's commit; on the tab's route the
-  start and its taking are one commit. For a job of a run (`start.run`), the same commit appends a `Job started` part
+  start and its taking are one commit, the taking by `tab <browser>`, `<browser>` this browser's identifier, or
+  this tab's own (Data). For a job of a run (`start.run`), the same commit appends a `Job started` part
   to the run's record, through MOD-job-ledger's `appendToRecord`: two drivers that computed the same action cannot both
   start it, since the second commit is refused on a head that moved, and its driver computes the run's actions again. The push starts the job workflow on the CI route; a Bridge takes the job when it
   next reads the repository, or at once when `bridge` is given and the job is handed over to it. Crosses the network
@@ -185,7 +209,12 @@ a person's decision.
   runtime that holds a job that has not ended: the CI service's runs of the job workflow for the job, through the host;
   the list of jobs of the Bridge its record names, among `bridges`; this tab.
   A runtime that cannot be reached gives `reachable: false` and its reason, never an error; a commit the job's branch got
-  after a cancel is reported in `writtenAfterCancel` (UC-036).
+  after a cancel is reported in `writtenAfterCancel` (UC-036): the commits of the branch named after the job, read with the
+  host's `readHistory` (`changes: false`), whose date is after the record's `## End` of state `cancelled`. A job of the tab
+  route that another browser took — its `## Taken` names another browser than this one (Data; MOD-job-ledger) — gives
+  `reachable: false` with the reason that its live state and log exist only in that browser's tab (UC-036 1b); one this
+  browser took and this tab does not hold gives `known: false`, so that it is *ended without record* (1c); which
+  browser is this one, and how a bare `tab` is read, says Data.
 - `jobLog(record: JobRecord, product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<{ stream:
   AsyncIterable<string> } | { address: string } | { gone: true }>` — the log, streamed from a Bridge or this tab while the
   job runs, the CI run's log by its address, or that the runtime keeps it no longer.
@@ -197,6 +226,15 @@ a person's decision.
   appended then. A job no runtime has taken — one still queued, or a run, which no runtime runs — is ended at once. A cancelled job writes nothing more (`A CANCELLED JOB WRITES NOTHING MORE`); a commit the job still
   makes after the cancel is reported by `liveState` as written after the cancel. Errors: those of the host's
   `commitFiles` — `Moved` when the record changed meanwhile, in which case the caller reads the record again.
+- `jobTrail(record: JobRecord, product: { host: Host }) -> Promise<{ branch: string, commits: HistoryEntry[], pullRequest:
+  PullRequest | null, runs: CiRun[] }>` — what a job left in its product: the commits of the branch named after the job
+  (`readHistory`, `changes: false`), the pull request of that branch (`listPullRequests`), and the CI runs of its commits
+  (`listCiRuns`). A branch that does not exist gives no commits. Crosses the network; fails as the host fails (UC-036).
+- `revertAfterCancel(record: JobRecord, product: { host: Host }, commits: string[], head: string) -> Promise<{ commit:
+  string }>` — on a person's click, one commit on the job's branch, on the head that was read, with the person's token:
+  every file the given commits changed gets back its text from before the first of them (`readFileAt`), and a file they
+  added is removed. Only commits `liveState` reported in `writtenAfterCancel` are accepted; any other is a `TypeError`.
+  Fails as `commitFiles` fails, `Moved` among them (UC-036 6a).
 - `retryJob(record: JobRecord, choice: { participant: Participant, route: Route }, host: Host, head: string) -> Promise<{
   path: string, commit: string }>` — queues a new job with a new identifier and the same inputs and parameters, which names the one it
   retries; the participant is the same or another holder of the role. A job whose task travelled with its hand-over is
@@ -239,7 +277,9 @@ a person's decision.
 ## Files
 
 It writes, through the host, the start records of jobs, the parts it appends, and pull requests; it returns the job
-workflow's files for its caller to commit. It reads the job's branch and its test files.
+workflow's files for its caller to commit. It reads the job's branch and its test files. In this browser's store,
+through MOD-browser-store, it reads `browser`, and writes it where it is not set, when the tab takes a job
+(Data).
 
 ## Uses
 
@@ -258,6 +298,8 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
 - `MOD-repository-hosts.Host`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.commitFiles`,
   `MOD-repository-hosts.listCiRuns`, `MOD-repository-hosts.cancelCiRun`, `MOD-repository-hosts.ciRunLog`,
   `MOD-repository-hosts.openPullRequest`, `MOD-repository-hosts.listPullRequests` — the CI route and the pull request;
+  `MOD-repository-hosts.readHistory`, `MOD-repository-hosts.readFileAt` — a job's branch, the commits written after its
+  cancel, and the texts a revert restores;
   `MOD-repository-hosts.repositoryInfo` — the default branch a pull request the writer opens goes into;
   `MOD-repository-hosts.startWorkflow` — the start of a handed-over job, with its task.
 - `MOD-participant-list.reachedThrough` — a subagent's route through the participant that starts it.
@@ -265,6 +307,9 @@ workflow's files for its caller to commit. It reads the job's branch and its tes
   `MOD-bridge-client.bridgeJobLog`, `MOD-bridge-client.cancelOnBridge` — the Bridge route, on the Bridges its callers
   hand in.
 - `MOD-test-document.testDeclarations` — the requirements a pull request's new tests guard.
+- `MOD-browser-store.openStore`, `MOD-browser-store.readSetting`, `MOD-browser-store.writeSetting` — this browser's
+  identifier, `browser`, for the tab's route; `MOD-identifiers.instanceOfPagesAddress` — the instance whose store
+  holds it, from the tab's location.
 - `MOD-trace-graph.traceGraph` — the modules of the plan step or backlog item a pull request names: its `changes` edges.
 
 The workflow files name the entries of MOD-workflow-entries by their path in the instance repository; this module does not

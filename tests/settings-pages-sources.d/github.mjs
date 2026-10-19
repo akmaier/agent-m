@@ -56,7 +56,7 @@ export function githubWorld(repositories) {
     if (method === "GET" && tail === "") {
       return json({ default_branch: "main", visibility: repository.visibility, private: repository.visibility !== "public", archived: false, description: "", permissions: { push: true } });
     }
-    if (method === "GET" && tail === "commits/main") return json({ sha: repository.head, commit: { tree: { sha: `tree-${repository.head}` } } });
+    if (method === "GET" && (tail === "commits/main" || tail === `commits/${repository.head}`)) return json({ sha: repository.head, commit: { tree: { sha: `tree-${repository.head}` } } });
     if (method === "GET" && tail === `git/trees/${repository.head}`) {
       return json({ sha: `tree-${repository.head}`, truncated: false, tree: [...repository.files].map(([path, text]) => ({ path, type: "blob", sha: blobSha(text) })) });
     }

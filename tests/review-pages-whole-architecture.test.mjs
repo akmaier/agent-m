@@ -12,7 +12,7 @@
 // Guards: UC-022; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; ONE CLICK PER DECISION; THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN APPROVAL NAMES THE EXACT TEXT
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged; the repository is a Host of the tests' own over one
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged; the repository is a Host of the tests' own over one
 // repository in memory with a history, keeping to MOD-repository-hosts' interface, every call recorded; the job record is written with
 // MOD-job-ledger's own startRecord and appendToRecord. The real MOD-approvals, MOD-documents, MOD-job-ledger and MOD-browser-store run as
 // they are. Nothing reaches the network. Where the module file leaves a reading open, the test states the one it takes, and the pull
@@ -32,7 +32,7 @@
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the
 // pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

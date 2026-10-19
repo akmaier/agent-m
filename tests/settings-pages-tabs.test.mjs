@@ -1,8 +1,9 @@
+// Module: MOD-settings-pages
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/settings-pages/index.mjs";
-import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { openStore, readSetting, writeSetting, clearSetting } from "../src/browser-store/index.mjs";
 
 class Element extends EventTarget {
   constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.files = []; this.attributes = new Map(); this.handlers = []; }
@@ -238,6 +239,36 @@ test("TST-290112: Settings names denied notification permission without asking a
   } finally { Object.defineProperty(globalThis, "Notification", { configurable: true, value: priorNotification }); }
 });
 
+// TST-821002
+// level: unit
+// module: MOD-settings-pages
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: a browser whose notifications are on and whose key `notified` holds 3 files of two repositories; then 1 file; then none
+// input: the person opens the public Settings Route and selects Usability
+// expect: the status of the line Notifications reads "On. 3 files notified. Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens."; with 1 file "On. 1 file notified. …" and with none "On. 0 files notified. …"; with notifications off, though the key holds a file, the status does not begin "On." and names no count
+test("TST-821002: Settings says how many files were notified while notifications are on", async () => {
+  const priorNotification = globalThis.Notification;
+  Object.defineProperty(globalThis, "Notification", { configurable: true, value: { permission: "granted", requestPermission: async () => "granted" } });
+  const sentence = " Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens.";
+  const statusFor = async (notified, on = true) => {
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+    const store = openStore("fixture/instance");
+    if (on) writeSetting(store, "notifications", { checked: null });
+    if (notified) writeSetting(store, "notified", notified);
+    const target = document.createElement("div");
+    await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
+    click(byClass(target, "settings-tab")[3]);
+    return byClass(target, "settings-notifications-status")[0].textContent;
+  };
+  try {
+    assert.equal(await statusFor({ "fixture/instance": { "docs/use-cases/UC-001-a.md": "a".repeat(40), "docs/use-cases/UC-002-b.md": "b".repeat(40) }, "alice/product": { "SPEC.md": "c".repeat(40) } }), `On. 3 files notified.${sentence}`);
+    assert.equal(await statusFor({ "fixture/instance": { "docs/use-cases/UC-001-a.md": "a".repeat(40) } }), `On. 1 file notified.${sentence}`);
+    assert.equal(await statusFor(null), `On. 0 files notified.${sentence}`);
+    const off = await statusFor({ "fixture/instance": { "docs/use-cases/UC-001-a.md": "a".repeat(40) } }, false);
+    assert.equal(/^On\./.test(off) || /notified/.test(off), false, `off, though the key holds a file: ${off}`);
+  } finally { Object.defineProperty(globalThis, "Notification", { configurable: true, value: priorNotification }); }
+});
+
 // TST-290113
 // level: unit
 // module: MOD-settings-pages
@@ -334,4 +365,36 @@ test("TST-290130: the product list's Change opens Add a product in place, in the
   assert.ok(switchProduct, "after the add, the form in the tab offers the new product");
   click(switchProduct);
   assert.deepEqual(navigations, [{ name: "main", params: { product: web } }], "Switch to the new product reaches the page's go");
+});
+
+// TST-638001 · level: unit · module: MOD-settings-pages
+// guards: UC-015 (step 1); EVERY SETTING IS REACHED FROM ONE PAGE
+// given: the public Settings Route for a chosen product, in each state its section shows — writable (a token that can write), read-only (no token), and its repository metadata unavailable (repositoryInfo fails); the page's go records every route it is asked for. And the Route with no product chosen
+// input: the person opens Repositories and presses Requirement sources in the product's section
+// expect: in each of the three states the product's section holds exactly one button reading Requirement sources, and pressing it asks the page's go for the route sources with no parameters of its own (the frame adds the chosen product); with no product chosen the page holds no such button (known positive: the section says Choose a product)
+test("TST-638001: the product's section of Settings offers Requirement sources, which opens the route sources", async () => {
+  const storage = new Storage();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const store = openStore("fixture/instance");
+  const files = { blob: () => null, read: async () => null };
+  const hostOf = (info) => ({ async repositoryInfo() { if (info instanceof Error) throw info; return info; }, async readSnapshot() { return files; }, async commitFiles() { return { commit: "a".repeat(40) }; } });
+  const states = [["writable", { defaultBranch: "main", canWrite: true }, true], ["read-only", { defaultBranch: "main", canWrite: false }, false], ["unavailable", new Error("fixture refuses"), false]];
+  for (const [state, info, withToken] of states) {
+    if (withToken) writeSetting(store, "github-token:fixture/product", { value: "ghp_fixtureToken" });
+    else clearSetting(store, "github-token:fixture/product");
+    const target = document.createElement("div");
+    const navigations = [];
+    const context = { instance: { repository: "fixture/instance" }, product: { address: "https://github.com/fixture/product", kind: "github", host: hostOf(info) }, store, go(name, params) { navigations.push({ name, params }); } };
+    await route().render(target, context, {});
+    click(byClass(target, "settings-tab")[1]);
+    const buttons = byClass(target, "settings-product-sources");
+    assert.deepEqual(buttons.map((button) => button.textContent), ["Requirement sources"], `${state}: one button in the product's section`);
+    click(buttons[0]);
+    assert.deepEqual(navigations, [{ name: "sources", params: {} }], `${state}: it asks for the route sources`);
+  }
+  const target = document.createElement("div");
+  await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
+  click(byClass(target, "settings-tab")[1]);
+  assert.match(target.textContent, /Choose a product to edit its repository settings/, "known positive: the section for no product is drawn");
+  assert.equal(byClass(target, "settings-product-sources").length, 0);
 });

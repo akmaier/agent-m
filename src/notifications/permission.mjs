@@ -56,14 +56,22 @@ export async function currentRegistration() {
   return existing ?? container.register(WORKER_URL);
 }
 
-// notificationState(store) -> NotificationState — the state of this browser, for the settings page; it asks nothing
-// and makes no request (MOD-notifications, Interfaces).
+// notificationState(store) -> NotificationState — the state of this browser, for the settings page, `notified` counted from the key
+// `notified`; it asks nothing and makes no request (MOD-notifications, Interfaces).
 export function notificationState(store) {
+  const on = readSetting(store, "notifications") !== null;
   return {
-    on: readSetting(store, "notifications") !== null,
+    on,
     permission: typeof globalThis.Notification === "undefined" ? "default" : globalThis.Notification.permission,
     available: available(),
+    notified: on ? notifiedFiles(store) : 0,
   };
+}
+
+// The files the key `notified` holds, over every repository: the files that wait for acceptance and were notified or, at the first check, taken
+// as known (MOD-notifications, Interfaces: NotificationState). 0 where the key is absent.
+function notifiedFiles(store) {
+  return Object.values(readSetting(store, "notified") ?? {}).reduce((count, files) => count + Object.keys(files ?? {}).length, 0);
 }
 
 // switchOn(store) -> Promise<NotificationState> — the person's Switch on: asks the browser's permission to notify,

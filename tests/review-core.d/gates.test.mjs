@@ -2,7 +2,7 @@
 // ITM-014, a refactoring job: they pin what the engine does today. Deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-review-core
+// Module: MOD-approvals
 // Guards: A GENERATED ARTIFACT IS A PROPOSAL; A RECORD IS EVIDENCE, NOT A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // Level: unit
 //

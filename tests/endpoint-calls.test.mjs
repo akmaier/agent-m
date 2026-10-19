@@ -10,7 +10,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { diagnoseEndpoint, testEndpoint } from "../src/endpoint-calls/index.mjs";
+import { diagnoseEndpoint, listModels, testEndpoint } from "../src/endpoint-calls/index.mjs";
 
 const OPENAI = { name: "example", kind: "openai-compatible", baseUrl: "https://models.example.test/v1", model: "tiny-model", key: "secret-key" };
 const ANTHROPIC = { name: "claude", kind: "anthropic", baseUrl: "https://claude.example.test/v1", model: "claude-test", key: "anthropic-key" };
@@ -157,4 +157,54 @@ test("TST-260-010: an opaque browser failure is not over-diagnosed", () => {
   assert.deepEqual(diagnoseEndpoint(error, OPENAI, "browser"), {
     reason: "blocked by the browser", message: error.message, routes: ["ci", "bridge"],
   });
+});
+
+// TST-960001 · level: unit · module: MOD-endpoint-calls
+// guards: UC-040; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: an OpenAI-compatible configuration with a key whose model "tiny-model" is not among the served ones, and a constructed list answer { data: [{ id }, { id }] }
+// input: listModels(config)
+// expect: one GET <baseUrl>/models carrying the key as Authorization only and no body; the answer is { models: ["served-a", "served-b"] }; config.model is not read
+test("TST-960001: listModels asks GET /models once and returns the served identifiers", async (t) => {
+  const calls = [];
+  withFetch(t, async (url, init) => { calls.push({ url, init }); return reply(200, { data: [{ id: "served-a" }, { id: "served-b" }] }); });
+  assert.deepEqual(await listModels(OPENAI), { models: ["served-a", "served-b"] });
+  assert.equal(calls.length, 1, "one listing makes one request");
+  assert.equal(calls[0].url, "https://models.example.test/v1/models");
+  assert.equal(calls[0].init.method, "GET");
+  assert.equal(calls[0].init.headers.Authorization, "Bearer secret-key");
+  assert.equal(calls[0].init.body, undefined);
+  assert.equal(calls[0].url.includes("secret-key"), false, "the key is never in the URL");
+  assert.deepEqual(await listModels({ ...OPENAI, model: "" }), { models: ["served-a", "served-b"] }, "the configured model is not read");
+});
+
+// TST-960002 · level: unit · module: MOD-endpoint-calls
+// guards: UC-040; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: an Anthropic configuration with a key and a constructed list answer
+// input: listModels(config)
+// expect: one GET <baseUrl>/models with the key as x-api-key and the anthropic-version header, no Authorization header; the identifiers are returned
+test("TST-960002: listModels for Anthropic carries the key as x-api-key", async (t) => {
+  const calls = [];
+  withFetch(t, async (url, init) => { calls.push({ url, init }); return reply(200, { data: [{ id: "claude-test" }] }); });
+  assert.deepEqual(await listModels(ANTHROPIC), { models: ["claude-test"] });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "https://claude.example.test/v1/models");
+  assert.equal(calls[0].init.headers["x-api-key"], "anthropic-key");
+  assert.equal(calls[0].init.headers["anthropic-version"], "2023-06-01");
+  assert.equal(calls[0].init.headers.Authorization, undefined);
+});
+
+// TST-960003 · level: unit · module: MOD-endpoint-calls
+// guards: UC-040; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: an endpoint that refuses the key (401 with a message), and one that cannot be reached (fetch throws)
+// input: listModels(config) for each
+// expect: { diagnosis } with the reason "key refused" and the provider's message; and { diagnosis } with the reason "not reachable"; neither throws, neither retries
+test("TST-960003: a failed listing is a diagnosis, as testEndpoint gives it", async (t) => {
+  let calls = 0;
+  withFetch(t, async () => { calls += 1; return reply(401, { error: { message: "Invalid API key." } }); });
+  assert.deepEqual(await listModels(OPENAI), { diagnosis: { reason: "key refused", message: "Invalid API key.", routes: [] } });
+  assert.equal(calls, 1);
+  withFetch(t, async () => { throw new TypeError("connect ECONNREFUSED 127.0.0.1:9"); });
+  const down = await listModels(OPENAI);
+  assert.equal(down.diagnosis.reason, "not reachable");
+  assert.match(down.diagnosis.message, /ECONNREFUSED/);
 });

@@ -85,11 +85,12 @@ export function clearEverything(store) {
   removeSignIn(store.storage, signIn);
 }
 
-const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host", "mailbox", MAILBOX_SIGN_IN];
+const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host", "mailbox", "browser", MAILBOX_SIGN_IN];
 
 function settingDescription(key) {
   if (key === "mailbox") return { label: "Mailbox", secret: true, grants: "access to the mailbox", setUpIn: "mailbox" };
   if (key === MAILBOX_SIGN_IN) return { label: "Mailbox sign-in", secret: true, grants: "access to the Microsoft 365 mailbox", setUpIn: "mailbox" };
+  if (key === "browser") return { label: "Browser identifier", secret: false, grants: "this browser's name in the job records its tab takes", setUpIn: "settings" };
   if (key === "github-token") return { label: "GitHub token", secret: true, grants: "access to the instance repository", setUpIn: "settings" };
   if (key === "products") return { label: "Products", secret: false, grants: "the managed product list", setUpIn: "add-product" };
   if (key === "notifications") return { label: "Notifications", secret: false, grants: "acceptance notifications", setUpIn: "notifications" };
@@ -102,6 +103,7 @@ function settingDescription(key) {
   if (key.startsWith("bridge:")) return { label: `Bridge: ${key.slice("bridge:".length)}`, secret: true, grants: "access to one Bridge", setUpIn: "bridge" };
   if (key.startsWith("remote-session:")) return { label: `Remote session: ${key.slice("remote-session:".length)}`, secret: true, grants: "access to a remote Bridge session", setUpIn: "bridge" };
   if (key.startsWith("last-test:")) return { label: `Last test: ${key.slice("last-test:".length)}`, secret: false, grants: "the recorded result of a setting test", setUpIn: "settings" };
+  if (key.startsWith("resource-key:")) return { label: `Resource key: ${key.slice("resource-key:".length)}`, secret: true, grants: "access to one resource's own server", setUpIn: "resources" };
   if (key.startsWith("acknowledged:")) return { label: `Acknowledged: ${key.slice("acknowledged:".length)}`, secret: false, grants: "the recorded acknowledgement date", setUpIn: "settings" };
   return null;
 }
@@ -168,6 +170,7 @@ function secretOf(key, value) {
   if (!value || typeof value !== "object") return null;
   if (key === "github-token" || key.startsWith("github-token:") || key.startsWith("gitlab-token:")) return text(value.value);
   if (key.startsWith("endpoint:")) return text(value.key);
+  if (key.startsWith("resource-key:")) return text(value.value);
   if (key === "bridge" || key.startsWith("bridge:") || key.startsWith("remote-session:")) return text(value.token);
   if (key === "mailbox") return text(value.imap?.password);
   if (key === "jump-host") return text(value.login) ?? text(value.login?.password);

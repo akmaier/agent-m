@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-spec-changes
 # Guards: THE PERSON WHO PROMPTS IS A SOURCE
 # Level: release
 """SPEC section 1 - the check named tests/test_prompted_source.py.

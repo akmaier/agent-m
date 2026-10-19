@@ -13,7 +13,7 @@
 // Guards: ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged. The instance is a host of this file: its snapshot holds the register's entries, and it records
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged. The instance is a host of this file: its snapshot holds the register's entries, and it records
 // every commit. A named repository is GitHub's REST API answered by a fake of fetch, with MOD-repository-hosts' connect the real, accepted one, as
 // tests/settings-pages-add-product.test.mjs does. The files of a source are constructed. Where the texts leave a reading open, the test states the reading it takes, and the pull
 // request names it with its source:
@@ -28,7 +28,7 @@
 //     its result, naming the file; the page adds no check of its own, and Save is not disabled for it.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -227,7 +227,21 @@ async function describe(page, fields) {
 const SELECTED = [fileOf("a.md", "# A\n"), fileOf("b.md", "# B\n")];
 // The tick of "only hash it", as a person makes it: the field takes the tick, then reports the change.
 async function tickHashed(page) { const box = one(page, "library-file-only-hashed"); box.checked = true; await fire(box, "change"); }
-async function chooseFiles(page, files) { const input = one(page, "library-files"); input.files = files; await fire(input, "change"); }
+// Waits for `condition`, bounded by the clock: the page hashes the files one after the other, and how long that takes is not fixed.
+async function until(condition, what, ms = 5000) {
+  const deadline = Date.now() + ms;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+// The files chosen as a person chooses them: the field takes them, reports the change, and the page shows each with its SHA-256 before the test goes on.
+async function chooseFiles(page, files) {
+  const input = one(page, "library-files");
+  input.files = files;
+  await fire(input, "change");
+  await until(() => byClass(page, "library-file-hash").length === files.length, `the hashes of ${files.length} files`);
+}
 
 // TST-472753 · level: unit · module: MOD-settings-pages
 // guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-004 4, 5, 6
@@ -248,6 +262,7 @@ test("library — documents that may be republished are committed to the instanc
   assert.deepEqual(b.commits, []);
   assert.equal(saveOf(form).disabled, false);
   await click(saveOf(form));
+  await until(() => /SRC-handbook/.test(one(page, "library-result").textContent), "the result of the one click");
   assert.equal(b.commits.length, 1, "one commit, one click");
   assert.deepEqual([b.commits[0].branch, b.commits[0].expectedHead], ["main", "h".repeat(40)], "on the branch's head as it was read");
   assert.deepEqual(instanceFiles(b).map((file) => file.path).sort(), ["docs/sources/SRC-handbook.md", `docs/sources/SRC-handbook/${TODAY}/a.md`, `docs/sources/SRC-handbook/${TODAY}/b.md`]);
@@ -262,12 +277,35 @@ test("library — documents that may be republished are committed to the instanc
   assert.match(one(page, "library-result").textContent, /SRC-handbook/);
 });
 
+// Every SHA-256 the page asks the browser for takes `ms` longer, as on a loaded runner; the digest is put back after the test.
+function slowDigest(t, ms) {
+  const subtle = globalThis.crypto.subtle, own = Object.hasOwn(subtle, "digest"), real = subtle.digest;
+  subtle.digest = async (...args) => { await new Promise((resolve) => setTimeout(resolve, ms)); return real.apply(subtle, args); };
+  t.after(() => { if (own) subtle.digest = real; else delete subtle.digest; });
+}
+
+// TST-1011001 · level: unit · module: MOD-settings-pages
+// guards: UC-004 4; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: the documents route, the two files of TST-472753 ("# A\n", "# B\n"), and a browser whose every SHA-256 takes 20 ms longer than it does here
+// input: the two files chosen
+// expect: however long the hashing takes, the page shows both files, each with the SHA-256 of its own bytes, in the order chosen — sha256("# A\n") = aa1237b773c38dbddef583c4868aaea7a44c5237ea7923aecca5513764b42d80 and sha256("# B\n") = a81d3fbddd441e2d690b9c03c18251323a295c8eb8ebbfb81ca45b63bf8d5a06 — and the test does not read the page before it shows them
+test("library — the files' hashes are shown whatever time the browser takes to hash them", async (t) => {
+  slowDigest(t, 20);
+  const b = browser(t);
+  const page = await b.page();
+  await register(page, "documents");
+  await chooseFiles(page, SELECTED);
+  const hashes = byClass(page, "library-file-hash").map((node) => node.textContent.match(/[0-9a-f]{64}/)?.[0]);
+  assert.deepEqual(hashes, ["aa1237b773c38dbddef583c4868aaea7a44c5237ea7923aecca5513764b42d80", "a81d3fbddd441e2d690b9c03c18251323a295c8eb8ebbfb81ca45b63bf8d5a06"]);
+});
+
 // TST-472754 · level: unit · module: MOD-settings-pages
 // guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A SOURCE DECLARES ITS LICENCE; UC-004 3, 4b, 6
 // given: the documents route, two files, a licence `restricted`; and the same with `unknown`; the named repository without and with its address
 // input: the form filled in; Save
 // expect: without a named repository an error beside the form and Save disabled, for `unknown` as for `restricted`; with it the statement names that repository; Save commits the files only to it, at docs/sources/SRC-paid/<version>/, then the entry, which holds no file, to the instance, with `content_repository` the named address
 test("library — restricted content goes only to the repository the person names, a licence unknown counting as restricted", async (t) => {
+  slowDigest(t, 20);
   for (const licence of ["restricted — the publisher's terms", "unknown"]) {
     const b = browser(t);
     const page = await b.page();
@@ -283,6 +321,7 @@ test("library — restricted content goes only to the repository the person name
     assert.equal(saveOf(form).disabled, false);
     assert.deepEqual([b.commits.length, b.posts.length], [0, 0]);
     await click(saveOf(form));
+    await until(() => b.order.length === 2, "the content and then the entry committed");
     assert.deepEqual(b.order, ["named", "instance"], `${licence}: the content first, then the entry`);
     assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-paid.md"], "the public instance holds the entry only");
     assert.equal(entryOfCommit(b, "SRC-paid").fields.content_repository, NAMED);
@@ -297,6 +336,7 @@ test("library — restricted content goes only to the repository the person name
 // input: Save
 // expect: the file's SHA-256 shown and the statement that nothing of it is stored; one commit holding the entry alone — no file anywhere — whose version records the file with its hash and the note `not stored:`; no named repository is asked
 test("library — a file that is only hashed is stored nowhere, and the note records it", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "standard");
@@ -309,6 +349,7 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
   assert.equal(inputOf(form, "licence").value, "restricted");
   assert.match(one(page, "library-public").textContent, /nothing of iso-26262\.pdf is stored/i);
   await click(saveOf(form));
+  await until(() => b.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-iso-26262.md"]);
   const written = instanceFiles(b)[0].text;
   assert.match(written, /not stored: iso-26262\.pdf/);
@@ -324,6 +365,7 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
 // input: the file listed, then "Only hash it" ticked, then Save with no note, then the note `cabinet 3, shelf B` typed and Save once more
 // expect: before the tick the field for the note is hidden, after it shown; the first Save commits nothing to the instance, asks no named repository, and its result names iso-26262.pdf and does not say the source is registered; the second Save makes one commit holding the entry alone, whose file table under `### Files of ISO 26262:2018` is `| File | SHA-256 | Kept at |`, `|---|---|---|` and the row `| `iso-26262.pdf` | `<SHA-256>` | cabinet 3, shelf B |`
 test("library — a file that is only hashed asks where its copy is kept, and without the note it is refused by name", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "standard");
@@ -335,12 +377,14 @@ test("library — a file that is only hashed asks where its copy is kept, and wi
   const form = await describe(page, { id: "SRC-iso-26262", title: "ISO 26262", authority: "normative" });
   assert.equal(saveOf(form).disabled, false, "the page adds no check of its own");
   await click(saveOf(form));
+  await until(() => byClass(page, "library-result").some((node) => node.textContent.includes("iso-26262.pdf")), "the refusal naming the file");
   assert.deepEqual(b.commits, [], "nothing is committed without the note");
   assert.deepEqual(b.posts, []);
   assert.equal(one(page, "library-result").textContent.includes("iso-26262.pdf"), true, "the refusal names the file");
   assert.equal(one(page, "library-result").textContent.includes("is registered"), false);
   await put(one(page, "library-file-kept-at"), "cabinet 3, shelf B");
   await click(saveOf(one(page, "library-form-box")));
+  await until(() => b.commits.length === 1, "the commit");
   assert.equal(b.commits.length, 1);
   assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-iso-26262.md"]);
   const table = ["### Files of ISO 26262:2018", "", "| File | SHA-256 | Kept at |", "|---|---|---|",
@@ -355,6 +399,7 @@ test("library — a file that is only hashed asks where its copy is kept, and wi
 // input: the form filled in, Save
 // expect: the instance gets the entry and b.md, not a.md; the file table has the row of a.md ending `| cabinet 3, shelf B |` and the row of b.md ending `| — |`; the field for the note of the second file is hidden
 test("library — each file only hashed has its own note, and a file kept has a dash", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "documents");
@@ -367,6 +412,7 @@ test("library — each file only hashed has its own note, and a file kept has a 
   await put(byClass(page, "library-file-kept-at")[0], "cabinet 3, shelf B");
   const form = await describe(page, { id: "SRC-handbook", title: "Handbook", authority: "advisory", licence: "may be republished — CC BY 4.0" });
   await click(saveOf(form));
+  await until(() => b.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(b).map((file) => file.path).sort(), ["docs/sources/SRC-handbook.md", `docs/sources/SRC-handbook/${TODAY}/b.md`]);
   const text = instanceFiles(b).find((file) => file.path === "docs/sources/SRC-handbook.md").text;
   assert.equal(text.includes(`| \`a.md\` | \`${sha(bytesOf("# A\n"))}\` | cabinet 3, shelf B |`), true);
@@ -379,6 +425,7 @@ test("library — each file only hashed has its own note, and a file kept has a 
 // input: Save
 // expect: the repository named in the message, that the token cannot reach it, and the server's page to extend the token as a link; nothing is committed to the instance, so the entry never names content that was not stored; the form stays as it was
 test("library — a named repository the token cannot reach is named, with how to extend the token, and nothing is committed", async (t) => {
+  slowDigest(t, 20);
   for (const named of ["forbidden", "missing"]) {
     const b = browser(t, { named });
     const page = await b.page();
@@ -386,6 +433,7 @@ test("library — a named repository the token cannot reach is named, with how t
     await chooseFiles(page, SELECTED);
     await describe(page, { id: "SRC-paid", title: "Paid norm", authority: "normative", licence: "restricted — terms", content_repository: NAMED });
     await click(saveOf(one(page, "library-form-box")));
+    await until(() => byClass(page, "library-result").some((node) => /alice\/restricted-content/.test(node.textContent)), `${named}: the message naming the repository`);
     const result = one(page, "library-result");
     assert.match(result.textContent, /alice\/restricted-content/, named);
     assert.match(result.textContent, /token/i);
@@ -452,6 +500,7 @@ test("library — a registered source's name leads to its entry, which shows eac
 // input: Save for each
 // expect: the legal text as its entry alone, its identifier the CELEX number and no version row — the fetch is not part of this —; the repository's entry with a version naming the address and the commit it was pinned to, no file stored
 test("library — an EU legal text is registered as its entry alone, a repository as its pinned commit", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "legal-text");
@@ -459,6 +508,7 @@ test("library — an EU legal text is registered as its entry alone, a repositor
   await describe(page, { id: "SRC-ai-act-2", title: "AI Act, again", authority: "normative", licence: "may be republished — EU law" });
   assert.equal(inputOf(one(page, "library-form-box"), "identifier").value.length > 0, true);
   await click(saveOf(one(page, "library-form-box")));
+  await until(() => b.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-ai-act-2.md"]);
   const entry = entryOfCommit(b, "SRC-ai-act-2");
   assert.equal(entry.sections.find((section) => section.heading === "## Versions").rows?.length ?? 0, 0);
@@ -470,6 +520,7 @@ test("library — an EU legal text is registered as its entry alone, a repositor
   await put(one(second, "library-repository-address"), NAMED);
   await describe(second, { id: "SRC-guidelines", title: "Guidelines", authority: "advisory", licence: "may be republished — MIT" });
   await click(saveOf(one(second, "library-form-box")));
+  await until(() => c.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(c).map((file) => file.path), ["docs/sources/SRC-guidelines.md"]);
   const written = instanceFiles(c)[0].text;
   assert.ok(written.includes(NAMED) && written.includes("a".repeat(40)), "the address and the commit are the version's");

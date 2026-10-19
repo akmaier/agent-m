@@ -39,6 +39,7 @@ uses:
   - MOD-runtimes.routeStrategies
   - MOD-run-planner.runOf
   - MOD-run-planner.nextActions
+  - MOD-run-planner.finishRun
   - MOD-run-planner.runStrategies
   - MOD-product-process.declarationSchema
   - MOD-product-process.workflowOf
@@ -111,7 +112,7 @@ It runs in Node, in GitHub Actions or GitLab CI, on hosted or self-hosted runner
 - `product.mjs` — the entries of a product's job workflow.
 - `instance.mjs` — the entries of the instance's workflows.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `.github/workflows/apply-approvals.yml`, `.github/workflows/fetch-sources.yml`: named here, since GitHub fixes their place; `apply-approvals.yml` runs `onApprovalsCommitted` and nothing else, as this module states.
+  - `.github/workflows/apply-approvals.yml`, `.github/workflows/fetch-sources.yml`, `.github/workflows/main-changed.yml`, `.github/workflows/release.yml`: named here, since GitHub fixes their place; `apply-approvals.yml` runs `onApprovalsCommitted`, `main-changed.yml` runs `onMainChanged` and `release.yml` runs `onReleaseTagged`, each and nothing else, as this module states.
   - `tools/apply_approvals.py`: removed once the workflow runs the entry.
   - `tests/test_apply_approvals.py`: its header names this module.
 
@@ -125,8 +126,7 @@ the file names, in a checkout of the repository the event concerns. In a product
 `onDoneCheck` in its Definition-of-Done job and `onTestsFinished` after each run's tests; on GitLab each file is included
 from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its entries —
 `onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and on dispatch
-for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the default branch — and does nothing but run it, so that a change between
-jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
+for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the default branch — and does nothing but run it.
 
 ## Interfaces
 
@@ -162,9 +162,10 @@ jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
   workflow names as its decider: the gate's record — decided by that check, passed or not, on which commit (`A GATE NAMES
   WHO DECIDES IT`, `THE GATE IS RECORDED`) —, written through Process's `recordGateDecision`, whose push resumes the
   waiting job.
-- `onSchedule(env: CiEnvironment) -> Promise<EntryStatus>` — on the product's schedule: the events in time, such as the
-  end of a sprint's time box, whose close, if the product assigned it to an agent, is queued for that agent's route (`A
-  SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`).
+- `onSchedule(env: CiEnvironment) -> Promise<EntryStatus>` — on the product's schedule: the events in time. Each sprint
+  that MOD-work-plans' `sprintsToClose` names — its time box ended, or, without one, every selected item done or the
+  Product Owner's `## Ended` — whose closer is an agent gets its close, a job of kind `close-sprint`, queued for that
+  agent's route, unless a close of it is already queued or running (`A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF`).
 - `onDispatch(env: CiEnvironment) -> Promise<EntryStatus>` — on a run started from the CI service's own page with the
   inputs the dashboard named (UC-024): writes the job's start record, those inputs its parameters, and runs it as
   `onRecordsChanged` runs a job. On a run a hand-over started (UC-049 4a), whose input `job` names a queued record whose
@@ -250,7 +251,7 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-runtimes.queueJob` — queueing the actions of other routes.
 - `MOD-progress-measures.productFacts` — the product's facts, read once per entry, from which the next actions of its
   runs are computed.
-- `MOD-run-planner.runOf`, `nextActions` — the runs and their next actions.
+- `MOD-run-planner.runOf`, `nextActions`, `finishRun` — the runs, their next actions, and a run's end on `finish`.
 - `MOD-trace-graph.publishGraph`, `MOD-approvals.statuses`, `lastAcceptedText`, `MOD-progress-measures.publishOverview` —
   the records `onMainChanged` stores for each commit of the default branch.
 - `MOD-product-process.declarationSchema`, `workflowOf`, `gateSchema`, `gateStates`, `doneCheck` — the workflow, the
@@ -259,7 +260,7 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-test-schedule.applyPipelineSchedule` — the nightly pipeline schedule on GitLab once a run's CI is merged.
 - `MOD-result-records.parseOutcomes`, `appendResult` — a run's outcomes read from its JUnit XML report, and its result
   record.
-- `MOD-work-plans.sprintFacts` — the sprints whose time box ended.
+- `MOD-work-plans.sprintFacts`, `MOD-work-plans.sprintsToClose` — a sprint's facts, and the sprints whose close starts now.
 - `MOD-issue-handling.closeWithLinks` — closing the issues a merged pull request names, in `onPullRequestClosed`.
 - `MOD-spec-changes.applyApproved` — applying the instance's approved SPEC changes.
 - `MOD-source-register.recogniseLegalText`, `fetchLegalText`, `versionCommits` — fetching EU legal texts.

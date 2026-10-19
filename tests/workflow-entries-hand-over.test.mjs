@@ -693,3 +693,26 @@ test("TST-538006: a branch or base history failure ends the hand-over failed and
     });
   }
 });
+
+// ---------------------------------------------------------------- the commit-message check reads no commit's changes (ITM-944)
+
+// TST-944001 · level: component · module: MOD-workflow-entries
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: as TST-538002 — a no-PR branch whose earlier commit holds the task; the fake GitHub API lists the repository's commits and answers a request for one commit's files, which it records
+// input: public onDispatch; then, as the counter-proof, the same history read through the API host without `changes: false`
+// expect: the entry is refused as in TST-538002, and the API got no request for a single commit's files, since the check uses only each entry's commit and message; the counter-proof read gets one such request per commit, so the count finds them where they are made
+test("TST-944001: the branch check reads the history without the changes of any commit", async () => {
+  await world({ records: [HAND_OVER] }, async (w) => {
+    const api = fakeGitHub(w);
+    plan = { branchOnly: true, plant: "message", history: "earlier", dir: w.productDir };
+    const status = await w.dispatch(INPUTS);
+    assert.equal(status.outcome, "failed", status.summary);
+    const perCommit = () => api.filter((path) => /^\/commits\/[0-9a-f]{40}$/.test(path)).length;
+    assert.equal(api.histories.length > 0, true, "the history was read");
+    assert.equal(perCommit(), 0, "no commit's files were requested");
+    const host = connect(parseAddress("https://github.com/alice/thesis-tool"), { token: TOKEN });
+    const entries = await host.readHistory(null, { ref: pushed.commit });
+    assert.equal(perCommit(), entries.length, "known positive: reading the changes costs one request per commit");
+    assert.ok(entries.length >= 2);
+  });
+});

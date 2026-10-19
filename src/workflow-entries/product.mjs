@@ -17,6 +17,7 @@ import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
+import { recordGateDecision } from "../product-process/index.mjs";
 import { composeProduct } from "./compose.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -97,8 +98,8 @@ async function refusedBranch(host, written, task, baseCommit) {
   const branch = written?.shown?.branch;
   if (typeof branch !== "string" || !branch) return null;
   const pinned = await host.readSnapshot(branch);
-  const history = await host.readHistory(null, { ref: pinned.commit });
-  const before = new Set((await host.readHistory(null, { ref: baseCommit })).map((entry) => entry.commit));
+  const history = await host.readHistory(null, { ref: pinned.commit, changes: false });
+  const before = new Set((await host.readHistory(null, { ref: baseCommit, changes: false })).map((entry) => entry.commit));
   return history.some((entry) => !before.has(entry.commit) && holds(entry.message)) ? { branch, where: "a commit message" } : null;
 }
 
@@ -188,13 +189,18 @@ async function queuedOf(env, snapshot, { handedOver = false } = {}) {
   return rows.reverse();
 }
 
-// The jobs of this route waiting at a gate that is now passed, each with the gate record that passed it: the product's facts, read once (scope `work`), give the
-// jobs and the states of the gates (gateStates). A gate record whose decider is the job's own participant — whose work the gate checks — does not resume the job.
-async function resumable(env, composed) {
+// The product's facts of the scope `work`, read once: the workflow, the jobs and the states of the gates (gateStates).
+async function workFacts(env, composed) {
   const { instance, product } = composed;
   // The facts are read through the clone alone: the gates and jobs need no pull request, and the server's answer is not asked for (productFacts takes a refusal as `unknown`).
   const clone = { ...product.host, listPullRequests: async () => { throw Object.assign(new Error("pull requests are not read here"), { name: "NotSupported" }); } };
-  const facts = await productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, {}, { scope: "work" });
+  return productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, { scope: "work" });
+}
+
+// The jobs of this route waiting at a gate that is now passed, each with the gate record that passed it. A gate record whose decider is the job's own participant —
+// whose work the gate checks — does not resume the job.
+async function resumable(env, composed) {
+  const facts = await workFacts(env, composed);
   const wanted = routeOf(env.job.runner);
   const rows = [];
   for (const { record, state } of facts.jobs) {
@@ -258,6 +264,34 @@ export async function onRecordsChanged(env) {
   const status = await runRows(env, composed, participants, rows);
   if (resumed.length === 0) return status;
   return { ...status, outcome: status.outcome === "nothing to do" ? "done" : status.outcome, summary: [...resumed, ...(status.outcome === "nothing to do" ? [] : [status.summary])].join("; ") };
+}
+
+/**
+ * onCheckCompleted(env: CiEnvironment) -> Promise<EntryStatus> — on a completed CI check (GitHub's check_run event, action completed) that a gate of the product's workflow
+ * names as its decider, `check: <name>`: the gate's record, decided by that check — `passed` for the conclusion `success`, else `rejected` with the reason "the check <name>
+ * concluded <conclusion>" —, on the check's commit, written through recordGateDecision, whose push resumes the job waiting at the gate. A check no gate names, a check that is
+ * not completed and a gate that is passed already write nothing (`nothing to do`). A missing token ends the entry at once as `not run`.
+ */
+export async function onCheckCompleted(env) {
+  const check = env.event?.payload?.check_run;
+  if (!check || check.status !== "completed" || typeof check.name !== "string") return { outcome: "nothing to do", summary: "No completed check is named by the event.", findings: [] };
+  if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`);
+  const composed = composeProduct(env);
+  const facts = await workFacts(env, composed);
+  const gates = (Array.isArray(facts.workflow?.gates) ? facts.workflow.gates : []).filter((gate) => /^check:[ \t]*(.+?)[ \t]*$/.exec(gate.decider ?? "")?.[1] === check.name);
+  const written = [];
+  for (const gate of gates) {
+    if (facts.gateStates.some((each) => each.gate === gate.name && each.state === "passed")) continue;
+    const waiting = facts.jobs.find(({ record, state }) => state === "waiting at a gate" && record.gates.at(-1)?.gate === gate.name);
+    const passed = check.conclusion === "success";
+    const head = await composed.product.host.readSnapshot("HEAD");
+    const { path } = await recordGateDecision(composed.product.host, { gate: gate.name, job: waiting?.record.id ?? null, decider: { name: check.name, kind: "check" }, role: "check",
+      decision: passed ? "passed" : "rejected", reason: passed ? null : `the check ${check.name} concluded ${check.conclusion}`, on: [check.head_sha] },
+    { workflow: facts.workflow, assignment: null, workBy: [], head: head.commit, now: env.now, trailers: [] });
+    written.push(`${gate.name} ${passed ? "passed" : "rejected"} by ${check.name}: ${path}`);
+  }
+  if (written.length === 0) return { outcome: "nothing to do", summary: `No gate of the workflow awaits the check ${check.name}.`, findings: [] };
+  return { outcome: "done", summary: written.join("; "), findings: [] };
 }
 
 /**

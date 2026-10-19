@@ -1910,10 +1910,14 @@ results — and states that no stakeholder took part unless one did.
 proof: a review listing a stakeholder names where their feedback is recorded.
 
 **AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF** *(PO A. Maier)*
-A change to the process model, the Definition of Done or a participant's instructions that an agent's
-retrospective recommends is proposed for a person's acceptance and not applied by the agent.
-*Check:* `tests/test_time_box_close.py` — after an agent's retrospective, the model, the Definition of Done
-and the participants are byte-identical, and the proposed changes are open for acceptance.
+A rule of the development process — in the process model, the Definition of Done or a participant's instructions —
+changes only through a change of the SPEC that a person accepts, never through an agent's retrospective or through
+instructions kept outside the repository, where the person cannot read them.
+*Check:* `tests/test_time_box_close.py` — after an agent's retrospective, the model, the Definition of Done, the
+participants and the job definitions are byte-identical, and every change it recommends is an open entry of a SPEC change
+queue; counter-proof: a retrospective that writes one of these files fails. `tests/test_job_reading.py` — the input of
+each kind of job is its prompt with its recipes' inputs and nothing else; counter-proof: an input that adds an
+instruction from a file outside the repository fails.
 ## 14. Issues, mail and personal data
 
 **A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE** *(PO A. Maier)*

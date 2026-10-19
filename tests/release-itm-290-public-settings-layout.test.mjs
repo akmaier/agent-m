@@ -1,3 +1,4 @@
+// Module: MOD-settings-pages
 
 import assert from "node:assert/strict";
 import { cpSync, createReadStream, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";

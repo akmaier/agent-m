@@ -62,6 +62,8 @@ provides:
   - planFindings
   - backlogFindings
   - sprintFacts
+  - sprintsToClose
+  - giveUpIncrement
   - savePlan
   - saveItems
   - startSprint
@@ -112,7 +114,7 @@ item schema of MOD-documents (`artifactSchemas().item`).
 | Schema | File | Content |
 |---|---|---|
 | `plan-order` | `docs/plan/order.md` | a table `Step`, `Phase`: every step of the plan by identifier, in its order, with the phase of the model it belongs to |
-| `sprint` | `docs/backlog/sprints/<team>/<nn>.md`, numbered within the team; `<team>` is the name of the team's role assignment | front matter `sprint`, `goal`, `start`, `end` (the date the time box gives, empty without one), `closer` (the participant who closes it), `branch` (its own branch, empty for none), `selection` (the items); then sections appended as the sprint goes on, never rewritten: `## Selection` when the selection is changed by a new start decision, `## Ended` when the Product Owner ends a sprint without a time box, `## Review` (the increment, the items not done with their reasons, each feedback line with where it goes — new item, change to an item, noted —, who took part, and for an agent the sources of its feedback), `## Unfinished items` (each to the backlog or into the next sprint, with the reason), `## Retrospective` (what went well, what did not, each change with where it goes — process model, Definition of Done, a participant's instructions, team agreement —; an agent's changes as proposals only) |
+| `sprint` | `docs/backlog/sprints/<team>/<nn>.md`, numbered within the team; `<team>` is the name of the team's role assignment | front matter `sprint`, `goal`, `start`, `end` (the date the time box gives, empty without one), `closer` (the participant who closes it), `branch` (its own branch, empty for none), `selection` (the items); then sections appended as the sprint goes on, never rewritten: `## Selection` when the selection is changed by a new start decision, `## Ended` when the Product Owner ends a sprint without a time box, `## Increment given up` (`at:`, `by:` the Product Owner, `reason:`) when the Product Owner gives up an increment that was not merged, `## Review` (the increment, the items not done with their reasons, each feedback line with where it goes — new item, change to an item, noted —, who took part, and for an agent the sources of its feedback), `## Unfinished items` (each to the backlog or into the next sprint, with the reason), `## Retrospective` (what went well, what did not, each change with where it goes — process model, Definition of Done, a participant's instructions, team agreement —; an agent's changes as proposals only) |
 
 An item's state, `ItemState`, is derived from the approval records, the queues, the job records and the pull requests:
 `waiting for acceptance`, `waiting for an item it builds on`, `ready`, `in progress` (a job runs, or its pull request is
@@ -121,7 +123,8 @@ the gate before its phase is `waiting` with that gate named.
 
 An item is held by a team's sprint from its selection until a pull request with its change is merged into the default
 branch, or until its sprint's close sends it back to the backlog or into the team's next sprint: once the close is recorded
-— its record holds `## Review` —, the sprint holds none of its items without a merged pull request. An item's role
+— its record holds `## Review` —, the sprint holds none of its items without a merged pull request. Once its record also
+holds `## Increment given up`, it holds none of its items at all, and its done items are back in the backlog (UC-041 7b). An item's role
 assignment is the one of the team whose sprint holds it, and the product's one in a model without sprints.
 
 ## Interfaces
@@ -161,8 +164,11 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   string, item: string, module: string }>` — what keeps an item from the team's selection: each item another team's sprint
   holds that is the item itself, changes a module the item changes or uses, or uses a module the item changes, with that
   module (`SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES`).
-- `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow, source: TextSource) ->
-  Promise<Finding[]>` — a module, a subsystem or the system without a step; a module ordered before one whose interface
+- `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow, source: TextSource,
+  history?: { host: Host }) -> Promise<Finding[]>` — a module, a subsystem or the system without a step; with `history`, a
+  step whose module or subsystem file was removed, and a step whose module or subsystem file was changed by a commit later
+  than the step's own last commit (`readHistory` of both files, `changes: false`), each naming the file and the step, so
+  that the plan page marks them after an architecture change (UC-045); a module ordered before one whose interface
   it uses; a step without a phase of the model; and the findings MOD-trace-graph's `graphFindings` gives on
   `traceGraph(source)`, `source` being the product's files with the drafted steps in place, of those steps: a step
   without the tests of its level, or with the tests of another, and a cycle in the modules' uses, naming its modules.
@@ -170,12 +176,19 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
   no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
   and, as a warning, an item that restates an existing one.
-- `sprintFacts(sprint: Document, facts: { states: ItemState[], jobs: JobRow[], results: Snapshot, pullRequests:
-  PullRequest[], issues: Issue[] }) -> { increment: Array<{ item: string, pullRequest: string, realises: string[],
+- `sprintFacts(sprint: Document, facts: { items: Document[], tests: Array<{ id: string, guards: string[] }>, states:
+  ItemState[], jobs: JobRow[], results: Snapshot, pullRequests: PullRequest[], issues: Issue[] }) -> { increment: Array<{ item: string, pullRequest: string, realises: string[],
   tests: string[] }>, notDone: ItemState[], numbers: { failedJobs: number, retriedJobs: number, correctionRounds: number,
   waitingAtGates: string, waitingForAPerson: string, flakyTests: string[], cost: string } }` — the sprint's increment,
-  what is not done and why, and the numbers of the sprint, each derived; `results` is the branch `test-results`; a cost
+  what is not done and why, and the numbers of the sprint, each derived; `items` are the backlog items or plan steps, from
+  which an item's `realises` come, and `tests` the tests of the product with the requirements each guards, so that an
+  item's tests are those that guard a requirement it realises; `results` is the branch `test-results`; a cost
   only where a job's row has one (`NO COST IS GUESSED`).
+- `sprintsToClose(sprints: Document[], states: ItemState[], today: string) -> Array<{ sprint: string, closer: string,
+  because: "time box ended" | "every selected item done" | "ended by the Product Owner" }>` — every sprint whose record
+  holds no `## Review` and that has ended: its `end` date is before or on `today`; or, without a time box, every item of
+  its selection is `done`, or its record holds `## Ended`; each with its `closer` (UC-041, an agent's close; `A SPRINT
+  CLOSED BY AN AGENT STARTS BY ITSELF`). It reads nothing.
 - `savePlan(host: Host, plan: { steps: Document[], order: Document, removed: string[] }, context: { architecture:
   Document[], workflow: Workflow, head: string, trailers: string[] }) -> Promise<{ commit: string, written: string[] }>` —
   **Save plan** (UC-045): `planFindings` first, and with an error finding nothing is written; a new step gets an
@@ -217,6 +230,11 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   file; adds the feedback's new items to the backlog as `saveItems` does, and records for each unfinished item whether it
   goes back to the backlog or into the team's next sprint; all in one commit. Errors: `NotFound { path }` for a sprint with no record, `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
   without a decision, `AlreadyClosed`, `ItemsRefused { findings }`, and the host's.
+- `giveUpIncrement(host: Host, sprint: string, reason: string, context: { head: string, trailers: string[] }) -> Promise<{
+  commit: string }>` — the Product Owner's *Give up increment* for a closed sprint whose branch was not merged: appends
+  `## Increment given up` with the date, the person and the reason, in one commit; the sprint then holds none of its items
+  (UC-041 7b). Errors: `NotFound { path }`, `NotClosed` for a sprint without `## Review`, `Merged` for a sprint whose
+  branch's pull request is merged, and the host's.
 - `workStrategies: Strategies` — the strategies this module offers the job runner (ARC-046):
   - recipe `architecture-and-model` — the decision that states the system, the subsystems' decisions, the module files,
     the process model with its phases and gates, and the existing plan;

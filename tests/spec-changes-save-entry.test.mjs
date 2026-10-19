@@ -64,7 +64,7 @@ const historyOf = (folder, account, later = []) => ({ [`docs/spec-freigaben/${fo
   { commit: "c".repeat(40), parents: [], author: { account, name: account }, date: "2026-10-12T09:00:00Z", message: "queue", changes: [{ path: `docs/spec-freigaben/${folder}/index.md`, change: "added" }] }] });
 
 const OPENED = "o".repeat(40);
-function repository({ files = {}, history = {}, canWrite = true, server = "github", opened = {} } = {}) {
+function repository({ files = {}, history = {}, canWrite = true, server = "github", opened = {}, refuse = null } = {}) {
   const all = { "SPEC.md": SPEC, "docs/use-cases/UC-001-read-a-file.md": useCase, ...files };
   const commits = [];
   const web = server === "github" ? "https://github.com/alice/product" : "https://gitlab.example.test/alice/product";
@@ -76,7 +76,8 @@ function repository({ files = {}, history = {}, canWrite = true, server = "githu
     repositoryInfo: async () => ({ defaultBranch: "main", visibility: "private", canWrite, archived: false, description: "" }),
     readSnapshot: async (ref) => { reads.push(ref); return ref === OPENED ? began : snapshot; },
     readHistory: async (path) => history[path] ?? [],
-    commitFiles: async (change) => { commits.push(change); return { commit: "i".repeat(40), url: "https://example.test/commit" }; } };
+    // `refuse`: the name of the failure the server answers a commit with ("PermissionMissing": the token may not write); nothing is committed then.
+    commitFiles: async (change) => { if (refuse) throw Object.assign(new Error(`the server refused the commit: ${refuse}`), { name: refuse }); commits.push(change); return { commit: "i".repeat(40), url: "https://example.test/commit" }; } };
   return { host, snapshot, commits, all };
 }
 const CHANGE = { target: "SPEC.md", anchor: "## 1. Reading", until: null, text: READING_EDITED, why: "A reader needs to know why a file cannot be read.", origin: "an issue of a reader",
@@ -88,13 +89,13 @@ const schemaText = readFileSync(new URL("../src/spec-changes/queue-rationale.sch
 const { saveEntry } = specChanges;
 
 // A queue of alice's made by proposeSection from the first edit of Reading, and a host over a repository that holds it. `decisions` is appended to its entscheidungen.md.
-async function withQueue({ canWrite = true, server = "github", decisions = "", provenance = "", opened = {} } = {}) {
+async function withQueue({ canWrite = true, server = "github", decisions = "", provenance = "", opened = {}, refuse = null } = {}) {
   const first = repository();
   const made = await proposeSection(first.host, CHANGE);
   const files = written(first.commits[0]);
   if (decisions) { const path = Object.keys(files).find((p) => p.endsWith("entscheidungen.md")); files[path] += decisions; }
   if (provenance) { const path = Object.keys(files).find((p) => p.endsWith(".begruendung.md")); files[path] = `${files[path]}\n${provenance}\n`; }
-  const second = repository({ files, canWrite, server, opened });
+  const second = repository({ files, canWrite, server, opened, refuse });
   return { ...second, queue: made.queue, files };
 }
 const EDIT = (queue, more = {}) => ({ queue, entry: 1, text: READING_RENAMED, why: "The name should say what is read.", person: "alice", openedBlob: gitBlob(READING_EDITED), openedHead: OPENED, ...more });
@@ -269,4 +270,31 @@ test("saveEntry — an edit opened on no commit holds no file and reads no snaps
   assert.deepEqual(f.host.reads, ["main"]);
   assert.deepEqual(result.fallback.map((page) => [page.path, page.url.split("/").slice(3, 6).join("/"), page.differs]),
     [[proposalPath(f.queue), "alice/product/new", true], [`${f.queue}/01-reading.begruendung.md`, "alice/product/new", true]]);
+});
+
+// TST-593003 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 6b
+// given: a GitHub product with an open entry and a host whose server refuses the commit with PermissionMissing; and the same with a host with no token
+// input: saveEntry of the same edit to each
+// expect: the refused one writes nothing and returns GitHub's pages for the proposal and the rationale, the same as the one with no token returns
+test("saveEntry — when GitHub refuses the commit for a missing write permission it writes nothing and returns GitHub's pages", async () => {
+  const refused = await withQueue({ refuse: "PermissionMissing" });
+  const result = await saveEntry(refused.host, EDIT(refused.queue));
+  assert.deepEqual(refused.commits, []);
+  assert.equal(result.fallback?.length, 2, JSON.stringify(result));
+  const tokenless = await withQueue({ canWrite: false });
+  assert.deepEqual(result, await saveEntry(tokenless.host, EDIT(tokenless.queue)));
+});
+
+// TST-593004 · level: unit · module: MOD-spec-changes
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018 6b
+// given: an open entry on a GitLab product whose server refuses the commit with PermissionMissing, and on a GitHub product whose server refuses it with TokenRefused
+// input: saveEntry to each
+// expect: the GitLab one throws PermissionMissing, the GitHub one TokenRefused; nothing is written
+test("saveEntry — a refused commit on GitLab, and any other refusal on GitHub, are thrown as they were", async () => {
+  const gitlab = await withQueue({ server: "gitlab", refuse: "PermissionMissing" });
+  await assert.rejects(saveEntry(gitlab.host, EDIT(gitlab.queue)), { name: "PermissionMissing" });
+  const github = await withQueue({ refuse: "TokenRefused" });
+  await assert.rejects(saveEntry(github.host, EDIT(github.queue)), { name: "TokenRefused" });
+  assert.deepEqual([...gitlab.commits, ...github.commits], []);
 });

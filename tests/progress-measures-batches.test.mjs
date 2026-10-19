@@ -31,7 +31,7 @@ afterEach(() => server.restore());
 
 async function facts(scope, token) {
   const { host, instance, instanceAt } = await hosts(server, { token });
-  const result = await productFacts(host, instance, instanceAt, NOW, {}, { scope });
+  const result = await productFacts(host, instance, instanceAt, NOW, { scope });
   return { result, seen: summary(server.log) };
 }
 

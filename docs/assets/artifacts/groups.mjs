@@ -36,7 +36,7 @@ const KINDS = [
   ["architecture-decision", /^ARC-\d{3}$/, "an architecture decision"],
   ["module", new RegExp(`^MOD-${SLUG}$`), "a module"],
   ["test", /^TST-\d{3,}$/, "a test"],
-  ["backlog-item", /^ITM-\d{3}$/, "a backlog item"],
+  ["backlog-item", /^ITM-\d{3,}$/, "a backlog item"],
   ["source", new RegExp(`^SRC-${SLUG}$`), "a source"],
   ["resource", new RegExp(`^RES-${SLUG}$`), "a resource"],
   ["job", /^JOB-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/, "a job"],

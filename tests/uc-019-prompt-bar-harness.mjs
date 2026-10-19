@@ -141,7 +141,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
   await rest(s);
   s.body = document.body;
   s.target = find(document.body, (node) => node.localName === "main")[0];
-  s.footer = find(document.body, (node) => node.localName === "footer")[0];
+  s.footer = find(document.body, (node) => node.localName === "footer" && node.className === "site-frame-prompt-bar")[0];
   await until(() => byClass(s.footer, "section", "prompt-bar").length === 1, "the prompt bar is drawn");
   return s;
 }
@@ -191,9 +191,10 @@ export async function onRequirementPage(s, name = LOAN) {
 export async function send(s, text = INSTRUCTION, { participant = null } = {}) {
   const bar = barOf(s);
   if (participant !== null) {
+    // The bar offers only the participants that can do the page's kind: several are chosen among, one is only named (UC-019 2).
     const selector = all(bar, "select", "participant")[0];
-    assert.ok(selector, "the bar offers several participants");
-    selector.value = participant;
+    if (selector) selector.value = participant;
+    else assert.match(one(bar, "span", "participant").textContent, new RegExp(`^${participant} — `), `the bar offers ${participant}`);
   }
   one(bar, "textarea", "instruction").value = text;
   const sent = one(bar, "button", "send");

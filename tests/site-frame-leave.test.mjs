@@ -138,3 +138,56 @@ test("TST-603005 in the Bridge's window, a route that answers leave with true is
   assert.equal(page.target.textContent, "other");
   assert.deepEqual(rendered, ["editing", "other"]);
 });
+
+// The page at #editing, whose route `editing` reports `unsaved` from `state.unsaved` (and asks nothing of a person), and the route `other`, which gives no `unsaved`.
+async function startUnsaved(page, state) {
+  rendered.length = 0;
+  asked.length = 0;
+  const fixture = installPage({ ...PAGE, hash: "#editing" });
+  offline();
+  globalThis.setInterval = () => 1;
+  openStore("acme/instance");
+  const views = [{ routes: [
+    { name: "editing", entry: "requirements", title: "editing", async render(target) { rendered.push("editing"); target.textContent = "editing"; }, unsaved: () => state.unsaved },
+    { name: "other", entry: "tests", title: "other", async render(target) { rendered.push("other"); target.textContent = "other"; } },
+  ], strategies: [] }];
+  await startPage({ page, views, menuViews: [] });
+  return { ...fixture, target: all(fixture.document.body, "main")[0] };
+}
+// The tab closes or reloads: the window announces `beforeunload`, a cancelable event; -> the event, to read whether the page cancelled it.
+const closing = (page) => {
+  const event = new Event("beforeunload", { cancelable: true });
+  page.window.dispatchEvent(event);
+  return event;
+};
+
+for (const kind of ["main", "review"]) {
+  // TST-672010 · level: unit · module: MOD-site-frame
+  // guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD
+  // given: the <kind> page at #editing, whose route `editing` reports unsaved changes (unsaved() true)
+  // input: the window announces beforeunload, as the tab closes or reloads; then the route reports no unsaved changes and the window announces it again
+  // expect: the first beforeunload is cancelled (the browser asks first); the second is not; the route is asked nothing by leave in either case, and nothing else is rendered
+  test(`TST-672010 on the ${kind} page, closing the tab while the route shown holds unsaved changes makes the browser ask`, async () => {
+    const state = { unsaved: true };
+    const page = await startUnsaved(kind, state);
+    assert.equal(closing(page).defaultPrevented, true);
+    state.unsaved = false;
+    assert.equal(closing(page).defaultPrevented, false);
+    assert.deepEqual(asked, []);
+    assert.deepEqual(rendered, ["editing"]);
+  });
+}
+
+// TST-672011 · level: unit · module: MOD-site-frame
+// guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD
+// given: the review page at #editing, whose route `editing` reports unsaved changes, and the route `other`, which gives no `unsaved`
+// input: the fragment changes to #other (the route `editing` gives no leave, so it is left); then the window announces beforeunload
+// expect: the beforeunload is not cancelled, for the route shown is `other`, which holds no unsaved changes (a route that gives none holds none)
+test("TST-672011 the route shown is the one asked: a route that gives no unsaved holds none", async () => {
+  const state = { unsaved: true };
+  const page = await startUnsaved("review", state);
+  changeFragment(page, "#other");
+  await settle();
+  assert.equal(page.target.textContent, "other");
+  assert.equal(closing(page).defaultPrevented, false);
+});

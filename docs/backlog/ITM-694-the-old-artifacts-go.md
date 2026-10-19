@@ -11,7 +11,6 @@ builds_on:
   - ITM-690
   - ITM-692
   - ITM-695
-  - ITM-696
   - ITM-697
 tests:
   - unit

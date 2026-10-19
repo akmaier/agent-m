@@ -1,7 +1,7 @@
 // Architecture on the review dashboard: the status of ARC and MOD files, and what they rest on — deterministic, no network.
 // Run: node --test tests/*.test.mjs
 //
-// Module: MOD-review-core
+// Module: MOD-approvals
 // Guards: STATUS IS DERIVED FROM THE RECORDS; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022; UC-023
 // Level: unit
 //

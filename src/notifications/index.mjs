@@ -12,8 +12,8 @@
 
 /**
  * NotificationState — { on: boolean, permission: "default" | "granted" | "denied", available: "here" | "from the
- * Home Screen" | "no" } (MOD-notifications, Interfaces).
- * @typedef {{ on: boolean, permission: "default" | "granted" | "denied", available: "here" | "from the Home Screen" | "no" }} NotificationState
+ * Home Screen" | "no", notified: number } (MOD-notifications, Interfaces).
+ * @typedef {{ on: boolean, permission: "default" | "granted" | "denied", available: "here" | "from the Home Screen" | "no", notified: number }} NotificationState
  */
 
 export { NotificationsError, notificationState, switchOn, testNotification, switchOff } from "./permission.mjs";

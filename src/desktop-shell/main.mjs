@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { installedAgents } from "../agent-processes/index.mjs";
 import { testAccess } from "../bridge-jobs/index.mjs";
+import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
 import { loadSettings, saveSettings, takeExport } from "./settings.mjs";
 
@@ -43,7 +44,10 @@ function registerProtocol(electron, instance) {
 const show = (window) => { if (window.isMinimized()) window.restore(); window.show(); window.focus(); };
 
 export async function start(electron, supplied = {}) {
-  const config = typeof supplied === "string" ? { ...options(), dataFolder: supplied } : { ...options(), ...supplied };
+  const given = typeof supplied === "string" ? { ...options(), dataFolder: supplied } : { ...options(), ...supplied };
+  // A start that names its instance on the command line is a start from the source folder; any other start is the packaged app's.
+  const build = given.instance ? null : readBuild(given.resources ?? process.resourcesPath);
+  const config = build ? { ...given, instance: build.instance, origin: build.origin, updateKey: build.updateKey } : given;
   config.dataFolder ??= defaultDataFolder(electron, config.instance);
   if (!electron.app.requestSingleInstanceLock()) { electron.app.exit(); return null; }
   electron.protocol.registerSchemesAsPrivileged?.([{ scheme: "agent-m", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
@@ -55,7 +59,7 @@ export async function start(electron, supplied = {}) {
   window.webContents.setWindowOpenHandler(({ url }) => { electron.shell.openExternal(url); return { action: "deny" }; });
   window.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("agent-m://")) { event.preventDefault(); electron.shell.openExternal(url); } });
   const bridgeState = async () => startupFailure ? { failure: startupFailure }
-    : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused, settings: bridge.settings, publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() });
+    : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused, pairedWith: bridge.pairedWith(), settings: bridge.settings, publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() });
   const restart = async () => {
     if (bridge) await bridge.close();
     bridge = await compose({ instance: config.instance, origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused });

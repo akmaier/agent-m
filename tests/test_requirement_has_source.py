@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-spec-document
 # Guards: A REQUIREMENT HAS A REGISTERED SOURCE; A RESOURCE'S TERMS ENTER AS A SOURCE
 # Level: unit
 """SPEC §2 A REQUIREMENT HAS A REGISTERED SOURCE — every requirement names at least one source linked to

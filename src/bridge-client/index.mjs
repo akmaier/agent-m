@@ -188,7 +188,6 @@ export async function mailCall(bridge, operation, connection, args) {
 }
 
 export async function probe(bridge, kind, args) {
-  if (!["endpoint-test", "agent"].includes(kind)) throw new TypeError("this Bridge client implements endpoint-test and agent probes");
   const route = bridgeApi.routes.find((candidate) => candidate.method === "POST" && candidate.path === "/v1/probes/{kind}" && candidate.kinds.includes(kind));
   if (!route) throw new TypeError(`bridgeApi does not define ${kind}`);
   const body = await call(bridge, route.path.replace("{kind}", kind), { method: route.method, body: JSON.stringify({ args }) });

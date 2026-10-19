@@ -54,7 +54,7 @@ them to roles (UC-048).
    - **Person:** the account on GitHub or on the GitLab server;
    - **Model endpoint:** which configured endpoint and model (the key itself is set up in UC-003 and
      stays in the browser);
-   - **CI agent:** which workflow and model, and where it runs — on GitHub's machines, or on a
+   - **CI agent:** which model, and where it runs — on GitHub's machines, or on a
      **self-hosted runner** the person installed on a machine or VM they control. The key is named
      as an Actions secret, never entered here. A folded explanation says why: a workflow runs on its
      runner, not in this browser, so nothing stored here — no token, no SSH key — reaches it. To let

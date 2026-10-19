@@ -23,6 +23,7 @@ uses:
   - MOD-browser-store.listSettings
   - MOD-browser-store.exportSettings
   - MOD-browser-store.importSettings
+  - MOD-browser-store.readExport
   - MOD-browser-store.expiringSoon
   - MOD-browser-store.secretValues
   - MOD-repository-hosts.parseAddress
@@ -54,6 +55,8 @@ uses:
   - MOD-artifact-edits.saveFile
   - MOD-artifact-edits.reviewLayoutCommit
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
+  - MOD-participant-list.reachedThrough
   - MOD-product-process.declarationSchema
   - MOD-source-register.sourceSchemas
   - MOD-source-register.registrationCommits
@@ -71,9 +74,11 @@ uses:
   - MOD-resource-list.readPin
   - MOD-resource-list.checkPlan
   - MOD-resource-list.newerState
+  - MOD-resource-list.namedBy
   - MOD-resource-list.resourceStrategies
   - MOD-reuse-facts.registryFacts
   - MOD-reuse-facts.hubFacts
+  - MOD-reuse-facts.repositoryFacts
   - MOD-personal-data.settingsSchemas
   - MOD-personal-data.pseudonymisationOf
   - MOD-personal-data.namedPersonFindings
@@ -152,7 +157,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     `docs/conversation-recording.md`; switching it off is saved without a notice, and the page says that records already
     written stay in the history (UC-042 3b). At the bottom *Export settings*, after the statement of every secret it holds
     and what each grants, optionally locked with a passphrase; *Import settings*, which keeps what this browser has and
-    adds the rest, listing both; *Clear everything in this browser*. Each section and line has its folded explanation,
+    adds the rest, listing both, and which stores nothing when the file holds a token of the other kind of server than its
+    key names — a `github-token` or `github-token:<owner>/<repository>` token is connected to a GitHub repository, a
+    `gitlab-token:<server>/<project>` token to that GitLab project, before the file is imported, and a refusal of
+    `connect` refuses the import, with a line that names the key and never the token; *Clear everything in this browser*.
+    Each section and line has its folded explanation,
     among them that every Pages site of the same owner can read this browser's store, and, for *Notifications*, what is
     checked and how often, that the checks go to the repository servers with this browser's tokens and nowhere else, and
     that nothing is checked while no page of the dashboard is open.
@@ -167,7 +176,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
     whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
     reason and the routes that would work when a browser may not call it; *Clear*.
-  - `participants` — the instance's participants in a form from the participant schema: type, model, context and price,
+  - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the
+    parameters `type` and `address` where the route is opened with them: type, model, context and price,
     capabilities, processing place, route; for a CLI or sandboxed agent, the Bridge it runs on, chosen among this
     browser's Bridges, the agents that Bridge offers, and *Test* through it — or, for a subagent, the CLI agent that
     starts it, which it is reached through and which the prompt bar talks to instead (UC-017 step 3); for a model
@@ -186,8 +196,11 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     with the requirements that name the source listed first.
   - `resources`, `resources/instance` — a product's or the instance's resources in a form from the resource schema; the
     pin, licence and maintainer read where they can be; the route; the secret by name only; the processing place;
-    *Check* through the Bridge the route names, or as a check job on its runner with its run panel; a newer state
-    upstream with *Move*;
+    *Check* through the Bridge the route names, or as a check job on its runner with its run panel; for a repository, the
+    facts of MOD-reuse-facts' `repositoryFacts`; for a key kept in this browser (secret `browser`), its field, stored as
+    `resource-key:<name>`; a newer state upstream with *Move*, and on *Move* and on *Remove* the jobs and tests that name
+    the resource (MOD-resource-list's `namedBy`), listed and not changed; for an endpoint or agent that also works on the
+    product, *Add as participant*, which opens `participants` with its parameters `type` and `address` filled in;
     *Copy from the instance*.
   - `mailbox` — the route recognised from the address; for Microsoft 365 the app registration's steps and the sign-in
     with its permissions named before the provider's window opens; for every other mailbox the servers and ports, the
@@ -196,13 +209,24 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     password and the mails, before saving; the folders; the processing places the mail may go to, a place outside the EU
     stated as not compliant before saving; *Store and test*; *Disconnect*.
   - `bridge` — the release's file for this computer's system with its size and the SHA-256 the server reports for it, or,
-    where the server reports none, a link to the release's checksum file; the Bridges this browser keeps, each under its
+    where the server reports none, a link to the release's checksum file, and beside the file the publisher to look for,
+    the name of the line `Publisher (<system>): <name>` that the release's notes hold for this system (MOD-bridge-build),
+    which the folded *Why this warning?* repeats; where the notes hold no such line (Linux, or a release written without
+    it), the page says that the release names no publisher for this system and writes none; the Bridges this browser keeps, each under its
     name: pairing one on this computer or at a forwarded address with the token its window shows, kept under the name it
     reports; *+ Bridge through the jump host*, named by the person, with its port from the range and the two tunnel
     commands for a computer without a Bridge; the jump host and its port range, HTTPS address and web-server login; the
     jump host's web-server configuration for every Bridge reached through it; *Test* of a Bridge at its address — for one
     reached through the jump host its HTTPS address —, a certificate the browser does not trust named as a possible
     cause.
+  - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
+    with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key
+    `github-token`, the product for its own key, and for *Change* the repository its setting's key names. A refusal of
+    `connect`, a token of the other kind of server or a text that is a token of neither kind, stores nothing and shows a
+    line that names the setting and never the token; in `setup` that line replaces the page's own refusal of a text that
+    is no GitHub token, so that `setup` keeps no form of a token of its own and checks only the expiry date it asks for.
+    The form of a token is `connect`'s alone, here as in the import; a setting whose key names no readable repository has
+    no host to refuse it, and is stored as pasted.
 
 ## Files
 
@@ -224,7 +248,8 @@ reaches.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting, MOD-browser-store.writeSetting,
   MOD-browser-store.clearSetting, MOD-browser-store.clearEverything, MOD-browser-store.listSettings,
   MOD-browser-store.exportSettings, MOD-browser-store.importSettings, MOD-browser-store.expiringSoon — every browser
-  setting, its export and import; MOD-browser-store.secretValues — the stored secrets a host it connects refuses to commit
+  setting, its export and import; MOD-browser-store.readExport — the tokens an import file holds, read before the import;
+  MOD-browser-store.secretValues — the stored secrets a host it connects refuses to commit
   (`NO SECRET IN THE REPOSITORY`).
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect, MOD-repository-hosts.readSnapshot,
   MOD-repository-hosts.repositoryInfo — products and the instance, a token's test, a repository's visibility;
@@ -245,8 +270,9 @@ reaches.
 - MOD-documents.readDocument, MOD-documents.readRegister, MOD-documents.writeDocument — registers of the common shape and
   the text a save writes; MOD-artifact-edits.saveFile — a person's edit of one register, only on the blob it was opened
   on; MOD-artifact-edits.reviewLayoutCommit — the review layout of a new product.
-- MOD-participant-list.participantSchema — the participant register; MOD-product-process.declarationSchema — the
-  products and roles that use a participant.
+- MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the participant register and its
+  participants; MOD-participant-list.reachedThrough — the CLI agent a subagent is reached through, kept when its row is
+  changed; MOD-product-process.declarationSchema — the products and roles that use a participant.
 - MOD-source-register.sourceSchemas, MOD-source-register.registrationCommits, MOD-source-register.versionCommits,
   MOD-source-register.linkedVersion, MOD-source-register.affectedRequirements, MOD-source-register.changedPassages,
   MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links;
@@ -254,8 +280,9 @@ reaches.
 - MOD-text-tools.sha256 — the files of a source hashed in the browser; MOD-text-tools.finding — the findings a form's
   checks give.
 - MOD-resource-list.resourceSchema, MOD-resource-list.resourceFindings, MOD-resource-list.readPin,
-  MOD-resource-list.checkPlan, MOD-resource-list.newerState — resources; MOD-resource-list.resourceStrategies — the
-  recipe of a check job, handed to the frame; MOD-reuse-facts.registryFacts, MOD-reuse-facts.hubFacts — what a
+  MOD-resource-list.checkPlan, MOD-resource-list.newerState, MOD-resource-list.namedBy — resources, and the jobs and
+  tests that name one; MOD-resource-list.resourceStrategies — the
+  recipe of a check job, handed to the frame; MOD-reuse-facts.registryFacts, MOD-reuse-facts.hubFacts, MOD-reuse-facts.repositoryFacts — what a
   repository or the Hugging Face Hub says about a resource.
 - MOD-personal-data.settingsSchemas, MOD-personal-data.pseudonymisationOf, MOD-personal-data.namedPersonFindings — a
   product's pseudonymisation and collaborators, and the files that still name a collaborator who withdrew.

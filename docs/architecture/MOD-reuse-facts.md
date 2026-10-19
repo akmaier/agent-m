@@ -9,6 +9,9 @@ uses:
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.issueCounts
+  - MOD-repository-hosts.Host
+  - MOD-repository-hosts.readSnapshot
+  - MOD-repository-hosts.readHistory
   - MOD-documents.loadSchema
   - MOD-documents.readRegister
   - MOD-documents.appendSection
@@ -22,6 +25,7 @@ provides:
   - DueDiligence
   - registryFacts
   - hubFacts
+  - repositoryFacts
   - licenceVerdict
   - reuseStrategies
 ---
@@ -95,8 +99,8 @@ candidate and the address queried (UC-022).
 
 - `Candidate` — `{ name: string, ecosystem: "npm" | "pypi" | "crates" | "maven", repository: string | null }`.
 - `Fact` — `{ candidate: string, ecosystem: string, what: "exists" | "licence" | "first release" | "latest release" |
-  "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption", value: string, address: string, read:
-  string }`.
+  "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption" | "licence file" | "last commit" |
+  "committers in the last year" | "revision" | "access", value: string, address: string, read: string }`.
 - `DueDiligence` — `{ candidate: Candidate, facts: Fact[], licence: "compatible" | "not known to be compatible" | "not
   checked", found: boolean, blocked: string | null }`.
 - `registryFacts(candidate: Candidate, productLicence: string | null) -> Promise<DueDiligence>` — reads the candidate's
@@ -105,8 +109,18 @@ candidate and the address queried (UC-022).
   is returned with `found: false` and the address queried. A registry that refuses a browser's call is returned with
   `blocked` naming it and the reason, and with no facts; a network failure likewise. It never fills in a fact it did not
   read.
-- `hubFacts(id: string) -> Promise<Fact[]>` — a model's or dataset's revision, licence and whether it is gated or private,
-  read from the Hugging Face Hub, across the network, each with its address and date; a Hub that does not answer a browser
+- `repositoryFacts(host: Host, productLicence: string | null) -> Promise<{ facts: Fact[], licence: "compatible" | "not
+  known to be compatible" | "not checked" }>` — what a resource repository says about itself, through the host its
+  caller connected with the stored token of that server: the licence file at the default branch's head (`readSnapshot`,
+  the file `LICENSE`, `LICENCE` or `COPYING` with or without an extension), the date of the last commit, and the number
+  of distinct authors of the commits of the last year (`readHistory` with `changes: false`, newest first, until a commit
+  older than a year), each with its address and date; the licence against `productLicence` by `licenceVerdict`. A
+  repository without a licence file gives the fact `licence file` with the value `none`. Fails as the host fails (UC-040,
+  a repository resource).
+- `hubFacts(id: string, key?: string) -> Promise<Fact[]>` — a model's or dataset's revision, licence and whether it is gated or private,
+  read from the Hugging Face Hub, across the network, each with its address and date; `key`, a Hub token the person keeps
+  in this browser for a gated resource, is sent only to the Hub's own origin `https://huggingface.co`, in its
+  `Authorization` header, and nowhere else; a Hub that does not answer a browser
   is named in the failure `HubBlocked { reason }`, and `NotFound { address }` for an unknown identifier.
 - `licenceVerdict(candidate: string | null, product: string | null) -> "compatible" | "not known to be compatible" | "not
   checked"` — from `licences.md`: `not checked` without a product licence, `not known to be compatible` for a licence the
@@ -126,6 +140,8 @@ returns the decisions with their sections, and the job's writer writes them.
 
 - `MOD-repository-hosts.connect`, `MOD-repository-hosts.repositoryInfo`, `MOD-repository-hosts.issueCounts` — the facts
   of a candidate's source repository, its open and closed issues counted without listing them, read without a token.
+- `MOD-repository-hosts.Host`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.readHistory` — a resource
+  repository's licence file, last commit and committers, through the host its caller hands in.
 - `MOD-documents.loadSchema`, `MOD-documents.readRegister` — its data files.
 - `MOD-documents.appendSection` — the due-diligence section added to a decision.
 - `MOD-text-tools.finding`, `MOD-text-tools.Finding` — the findings the step leaves.

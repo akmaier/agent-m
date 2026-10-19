@@ -85,14 +85,17 @@ derived. No key enters a repository, a log or a published file.
 
 ## Interfaces
 
-- `PlatformBuild` — `{ platform: "macos" | "windows" | "linux", version: string, folder: string, files: { name: string,
-  size: number, sha256: string, signature: string }[] }`: the files one platform's build wrote into its folder, with
-  their checksums and detached signatures; the build also writes it there as `platform-build.json`.
+- `PlatformBuild` — `{ platform: "macos" | "windows" | "linux", version: string, folder: string, publisher: string | null,
+  files: { name: string, size: number, sha256: string, signature: string }[] }`: the files one platform's build wrote into
+  its folder, with their checksums and detached signatures, and the name of the publisher that the platform's own verifier
+  read from the signed file on that platform's runner — `null` on Linux, where the system checks no code signature; the
+  build also writes it there as `platform-build.json`.
 - `buildPlatform(config: { platform: "macos" | "windows" | "linux", checkout: string, tag: string, folder: string }) ->
   Promise<PlatformBuild>` — on a runner of that platform, from the instance's checkout at the release tag: installs the
   app's packages from the lockfile; builds the platform's files with electron-builder, signs them, and notarises the
   macOS ones; writes the platform's feed file, the detached signatures and the checksums; checks each code signature
-  with the platform's own verifier and each detached signature with the public key; and runs the tunnel check above.
+  with the platform's own verifier, whose reading of the publisher's name it records as `publisher`, and each detached
+  signature with the public key; and runs the tunnel check above.
   Crosses the network to the npm registry, to Apple's notary service and to the certificate's timestamp service.
   Errors: `SecretMissing { name }` — before anything is built —, `BuildFailed { reason }`, `NotarisationFailed { reason
   }`, `SignatureInvalid { file }`, `NativeAddonFound { file }`, `TunnelCheckFailed { reason }`; with any of them the
@@ -102,7 +105,12 @@ derived. No key enters a repository, a log or a published file.
   build is there and that every checksum and detached signature still holds; reads again the due diligence of every
   package the app carries (ARC-052), and publishes nothing when a licence is no longer known to be compatible with Agent
   M's; writes `SHA256SUMS` and its signature; and publishes every file with its signature, and the feed, as the release
-  `Agent M V` of the tag, its notes naming the version, its commit and the due diligence read, through Access's
+  `Agent M V` of the tag, its notes naming the version, its commit, the due diligence read and the publisher of each
+  signed platform — one line `Publisher (macOS): <name>` and one `Publisher (Windows): <name>`, the `publisher` that the
+  platform's build recorded (`BuildMissing { platform }` stands for a macOS or Windows build that records none;
+  `SignatureInvalid` stands for a signature that does not hold), so
+  that the dashboard's download page, which cannot read a release file's bytes, shows the name a person is to look for;
+  Linux has no such line, as the system checks no code signature there —, through Access's
   `publishRelease` — a draft release that becomes public only once every file is uploaded, so that no Bridge is offered
   a release whose files are missing. It then compares the SHA-256 the server reports for each file with its own. The
   facts it read are returned for the entry's status. Crosses

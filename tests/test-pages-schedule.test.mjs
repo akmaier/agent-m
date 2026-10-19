@@ -9,7 +9,7 @@
 // Guards: UC-027; THE TEST SCHEDULE IS DECLARED PER PRODUCT; THE DEFAULT SCHEDULE FOLLOWS THE BOOK; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged, as the tests of the settings pages do. The product and the instance are
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged, as the tests of the settings pages do. The product and the instance are
 // hosts of this file, kept to MOD-repository-hosts' interface (repositoryInfo, readSnapshot, webLinks): no request leaves the process, nothing waits.
 // Where the texts leave a reading open, the test states the reading it takes, and the pull request names it:
 //   - A test that calls a paid service (its declaration's `paid` key) counts under the row `paid` and also under the row of its own level: the schedule's schema
@@ -17,7 +17,7 @@
 //   - The cells that refuse are the cells of the column release candidate, in every row, and the cells every commit and pull request of the row paid.
 // The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -86,14 +86,15 @@ const declarations = (entries, from) => entries.map(([level, paid], at) => ["// 
   "// guards: A SAMPLE REQUIREMENT", "// given: g", "// input: i", "// expect: e", ...(paid ? ["// paid: " + paid] : []), "test(\"t\", () => {});", ""].join("\n")).join("\n");
 
 // The product's host: its default branch holds the files given; webLinks is the server's pages.
-function productHost(files) {
+function productHost(files, { web = PRODUCT, runs = [], asked = [] } = {}) {
   return {
     repositoryInfo: async () => ({ defaultBranch: "main", visibility: "public", canWrite: true }),
     readSnapshot: async (ref) => {
       assert.equal(ref, "main", "the page reads the default branch");
       return { commit: "c".repeat(40), paths: Object.keys(files), blob: () => "b".repeat(40), read: async (path) => files[path] ?? null };
     },
-    webLinks: () => ({ secrets: SECRETS_PAGE, actions: `${PRODUCT}/actions` }),
+    webLinks: () => ({ secrets: SECRETS_PAGE, actions: `${web}/actions`, runners: `${web}/settings/actions/runners/new` }),
+    listCiRuns: async (filter) => { asked.push(filter); if (runs instanceof Error) throw runs; return runs; },
   };
 }
 const instanceHost = () => ({
@@ -101,15 +102,15 @@ const instanceHost = () => ({
   readSnapshot: async () => ({ commit: "i".repeat(40), paths: ["docs/participants.md"], blob: () => "b".repeat(40), read: async (path) => (path === "docs/participants.md" ? REGISTER : null) }),
 });
 
-async function page(files = {}) {
+async function page(files = {}, hostOptions = {}) {
   const context = { page: "main", instance: { repository: "alice/agent-m", host: instanceHost() }, store: null, go() {},
-    product: { address: PRODUCT, kind: "github", host: productHost(files), tokenStored: true } };
+    product: { address: PRODUCT, kind: "github", host: productHost(files, hostOptions), tokenStored: true } };
   const target = document.createElement("div");
   document.body.append(target);
   await route().render(target, context, {});
   return target;
 }
-const withSchedule = (text, more = {}) => page({ "docs/tests/schedule.md": text, ...more });
+const withSchedule = (text, more = {}, hostOptions = {}) => page({ "docs/tests/schedule.md": text, ...more }, hostOptions);
 
 // ================================================================== the tests
 
@@ -260,4 +261,84 @@ test("schedule — a key written where a name belongs is not shown", async () =>
   const shown = await page({ "docs/resources.md": resourcesText(ORACLE, LEAKY) });
   assert.match(shown.textContent, /ORACLE_KEY/, "known positive: the name is shown");
   assert.doesNotMatch(shown.textContent, /sk-live-abc123def456/);
+});
+
+// ---------------------------------------------------------------- ITM-850: a row on a self-hosted runner (UC-027 3b)
+//
+// Readings the texts leave open, which these tests state (the pull request names them):
+//   - A row is "on a self-hosted runner" when its `runs on` names a participant of the register whose route is `ci runner:<label>`; the label the runner must carry is <label>. `hosted`, a participant on a Bridge and a name the register does not hold are not.
+//   - The page shows, below the table, <div class="runner-registration" data-row="<row>"> per such row: an <a class="runner-page"> to webLinks().runners, <span class="runner-label"> with the label, a folded explanation (<details class="explain">),
+//     and <ul class="queued-runs"> with the runs of the default branch that listCiRuns gives in the state queued, each a link to its url; <p class="no-queued"> where none waits.
+//     The runs carry no row: every queued run of the default branch is listed under each such row. The page reads no runner's state: whether a runner is online shows in the runs, which leave the state queued.
+//   - Where listCiRuns fails, the block stays and <p class="runs-unreadable"> says the runs cannot be read.
+const run = (id, state) => ({ id, workflow: "tests.yml", commit: "a".repeat(40), event: "push", state, url: `${PRODUCT}/actions/runs/${id}`, started: null, ended: null });
+const registrationOf = (shown, row) => descendants(shown, (node) => (node.className ?? "").split(" ").includes("runner-registration") && node.getAttribute("data-row") === row)[0];
+
+// TST-850001 · level: unit · module: MOD-test-pages
+// guards: UC-027 (3b); EVERY STEP EXPLAINS ITSELF
+// given: a saved schedule whose row system runs on lab-runner (route ci runner:lab) and whose rows unit and release run on hosted-ci, bridge-runner and nobody; no run waits
+// input: the route schedule rendered
+// expect: exactly one registration block, for the row system: a link to the server's runner page (webLinks().runners), the label lab, a folded explanation, and the note that no run waits; none for the other rows
+test("schedule — a row on a self-hosted runner shows the server's runner page, the label and a folded explanation", async () => {
+  const text = SAVED.replace("| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | hosted-ci |").replace("| release | | | | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | bridge-runner |");
+  const shown = await withSchedule(text);
+  const blocks = byClass(shown, "runner-registration");
+  assert.deepEqual(blocks.map((block) => block.getAttribute("data-row")), ["system"]);
+  const block = registrationOf(shown, "system");
+  assert.deepEqual(byClass(block, "runner-page").map((link) => link.getAttribute("href")), [`${PRODUCT}/settings/actions/runners/new`]);
+  assert.equal(byClass(block, "runner-label")[0].textContent, "lab");
+  assert.equal(byClass(block, "explain").length, 1, "a folded explanation");
+  assert.equal(byTag(block, "details").length, 1);
+  assert.equal(byClass(block, "no-queued").length, 1);
+  assert.equal(byClass(block, "queued-runs").length, 0);
+});
+
+// TST-850002 · level: unit · module: MOD-test-pages
+// guards: UC-027 (3b)
+// given: the same schedule; listCiRuns gives two runs in the state queued, one running and one success
+// input: the route schedule rendered
+// expect: the block lists the two queued runs as links to their urls and no other; listCiRuns was asked once, for the default branch main; no note that no run waits
+test("schedule — the runs that wait for the runner are shown as queued", async () => {
+  const asked = [];
+  const shown = await withSchedule(SAVED, {}, { runs: [run("1", "queued"), run("2", "running"), run("3", "queued"), run("4", "success")], asked });
+  const block = registrationOf(shown, "system");
+  assert.deepEqual(byTag(byClass(block, "queued-runs")[0], "a").map((link) => link.getAttribute("href")), [`${PRODUCT}/actions/runs/1`, `${PRODUCT}/actions/runs/3`]);
+  assert.equal(byClass(block, "no-queued").length, 0);
+  assert.deepEqual(asked, [{ branch: "main" }]);
+});
+
+// TST-850003 · level: unit · module: MOD-test-pages
+// guards: UC-027 (3b); EVERY STEP EXPLAINS ITSELF
+// given: the same schedule on a server whose pages are those of another address (a GitLab-shaped one)
+// input: the route schedule rendered
+// expect: the link of the block is that server's webLinks().runners, not an address the page builds
+test("schedule — the runner page is the one webLinks gives", async () => {
+  const web = "https://gitlab.example/group/product";
+  const shown = await withSchedule(SAVED, {}, { web });
+  assert.deepEqual(byClass(registrationOf(shown, "system"), "runner-page").map((link) => link.getAttribute("href")), [`${web}/settings/actions/runners/new`]);
+});
+
+// TST-850004 · level: unit · module: MOD-test-pages
+// guards: UC-027 (3b)
+// given: the book's default schedule (every row on hosted)
+// input: the route schedule rendered
+// expect: no registration block, and listCiRuns is not asked
+test("schedule — without a self-hosted row there is no registration block and no run is read", async () => {
+  const asked = [];
+  const shown = await page({}, { asked, runs: [run("1", "queued")] });
+  assert.equal(byClass(shown, "runner-registration").length, 0);
+  assert.deepEqual(asked, []);
+});
+
+// TST-850005 · level: unit · module: MOD-test-pages
+// guards: UC-027 (3b)
+// given: the same schedule, listCiRuns failing
+// input: the route schedule rendered
+// expect: the block still holds the runner page and the label, and says the runs cannot be read; the page does not fail
+test("schedule — where the runs cannot be read the registration is still shown", async () => {
+  const shown = await withSchedule(SAVED, {}, { runs: Object.assign(new Error("no token"), { name: "TokenRefused" }) });
+  const block = registrationOf(shown, "system");
+  assert.equal(byClass(block, "runner-page").length, 1);
+  assert.match(byClass(block, "runs-unreadable")[0].textContent, /cannot be read/);
+  assert.equal(byClass(block, "queued-runs").length, 0);
 });

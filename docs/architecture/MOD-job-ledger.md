@@ -88,7 +88,7 @@ happen, each with `at:` and its own lines:
 
 | Section | Lines |
 |---|---|
-| `## Taken` | `by:` the route that took it — a CI run's address, a Bridge's name, this tab |
+| `## Taken` | `by:` the route that took it — a CI run's address, a Bridge's name, or `tab <browser>` for a tab, `<browser>` the identifier of the browser or tab that took it (MOD-runtimes, Data) |
 | `## Gate reached` | `gate:` its name, `decider:` the role, agent or check that decides it — or `question:` for a question to the author |
 | `## Resumed` | `gate record:` the record whose decision resumed it |
 | `## Job started` | in a run's record: `job:` the identifier of a job the run started, `kind:`, `works on:` — one part per job, committed together with that job's start record |
@@ -132,7 +132,7 @@ limit: 5
 ## Taken
 
 at: <date and time, UTC>
-by: tab
+by: tab <identifier>
 ````
 
 ## Interfaces

@@ -16,7 +16,7 @@
 // section 5 for the due diligence of a reuse, which UC-022 itself cites. Each test states its input and its expected result before it runs
 // (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

@@ -128,3 +128,8 @@ No authentication implementation job starts, no code fix is claimed, and no toke
 to resume the sprint. Further live credential and native Network-panel inspection are not pursued under the pending
 diagnostic request. This unselected item is retained as evidence of a currently non-reproducible incident; it is not
 counted as an implemented increment or as a blocker for ITM-476.
+
+**Read at sprint team1/93 (developer-sonnet-c): nothing to build.** It records an incident that did not reproduce, and
+its own Current Disposition closes it; no failure node was shown. Its related tests pass. It is closed.
+- **A lead, not measured,** for a later item: `dashboard-app.mjs` uses `productStore`, whose adapter falls back to
+  `legacy.getToken()` (`product-store-adapter.mjs:115`), while `settings.mjs:531-537` reads only the browser store.

@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
+const { HostError } = await import("../src/repository-hosts/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
 const route = pages.view?.routes.find((candidate) => candidate.name === "spec-entry");
 
@@ -64,13 +65,13 @@ test("spec-entry/<id> — a failure raised while the entry's view is built is dr
   writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_ALICEthesisTOOL0123456789abcdef", name: "Agent M · thesis-tool", expires: "2027-01-01" });
   const target = document.createElement("div");
   document.body.append(target);
-  const host = hostWhose(() => Object.assign(new Error(LIMIT), { name: "RateLimited" }));
+  const host = hostWhose(() => new HostError("RateLimited", {}, LIMIT));
   const context = { page: "review", instance: { repository: "alice/agent-m", host }, store, go() {}, product: { address: REPOSITORY.web, kind: "github", host } };
   await route.render(target, context, { id: "spec-2026-03-01_sample-07" });
 
   const problems = byClass(target, "p", "problem");
   assert.equal(problems.length, 1, "one problem paragraph on the page");
-  assert.equal(target.children.at(-1), problems[0], "the paragraph is the last element of the page");
+  assert.equal(target.children.at(-1) === problems[0], true, "the paragraph is the last element of the page");
   assert.equal(problems[0].textContent, LIMIT);
   assert.doesNotMatch(problems[0].textContent, /token/i);
   assert.equal(byClass(problems[0], "a", "token-step").length, 0, "no link to store a token");

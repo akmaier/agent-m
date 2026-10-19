@@ -60,3 +60,9 @@ reading and sending in the first two checks wait for the items of UC-038 and UC-
 This item is built: commit `82db8d4a` ("Team2 sprint40 ITM-432 mailbox release checks") is on `main`. No merged pull request names it, because it predates the record
 format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
 of UC-036 to UC-049 found its code and tests on `main`.
+
+**Read at sprint team1/93 (developer-sonnet-c): built** (`82db8d4a`, team2/40.md). Its Outcome holds. Its tests pass:
+`test_mail_routes`, `test_mail_password_route` and `test_settings_disclosure` (18), and the two mailbox files (57). It is
+done. Its weak spots are findings of their own, registered once four-digit identifiers stand on `main`:
+- `connectionHasPassword` (`tests/test_mail_routes.py:140`) is computed from the fixture and cannot fail on the code;
+- the two Python files name `system` as their module.

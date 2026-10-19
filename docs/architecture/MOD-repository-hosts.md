@@ -39,6 +39,7 @@ provides:
   - startWorkflow
   - cancelCiRun
   - ciRunLog
+  - ciRunLabels
   - listIssues
   - createIssue
   - commentOnIssue
@@ -99,9 +100,10 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `RepositoryAddress` — `{ server: "github" | "gitlab", origin: string, path: string, web: string }`: the server, its
   origin such as `https://gitlab.rrze.fau.de`, the repository's path such as `alice/thesis-tool` or a GitLab group path,
   and the address a person opens (`A PRODUCT IS NAMED BY ITS ADDRESS`).
-- `Credentials` — `{ token?: string, tokenName?: string, clone?: string, secrets?: string[] }`: the token and the name under
-  which the person stored it; in Node, the folder of a local clone to work in; the values of every configured secret, which
-  no commit may contain.
+- `Credentials` — `{ token?: string, tokenName?: string, clone?: string, secrets?: string[], defaultBranch?: string }`: the
+  token and the name under which the person stored it; in Node, the folder of a local clone to work in; the values of every
+  configured secret, which no commit may contain; the repository's default branch as `repositoryInfo` reports it, on which
+  `WebLinks`' `newFile` and `editFile` build their pages — `main` where none is given.
 - `Host` — the object `connect` returns; the functions below, from `readSnapshot` on, are its functions.
 - `Snapshot` — `{ repository: RepositoryAddress, ref: string, commit: string | null, paths: string[], read(path: string) ->
   Promise<string | null>, readMany(paths: string[]) -> Promise<void>, readOn(branch: string, path: string) -> Promise<string | null>, blob(path:
@@ -169,7 +171,12 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `connect(address: RepositoryAddress, credentials: Credentials) -> Host` — a host for one repository. The token goes
   only into the authorisation header of requests to the server that issued it (`A TOKEN GOES ONLY TO THE SERVER THAT
   ISSUED IT`). With `clone`, files are read and committed in that clone and pushed with the clone's own credentials, and
-  every other function uses the REST adapter where a token is given, or throws `NotSupported`. No request is made yet.
+  every other function uses the REST adapter where a token is given, or throws `NotSupported`. A token of the other kind
+  of server — a GitLab token for a GitHub repository, a GitHub token for a GitLab project, each told by the prefix its
+  own server gives it — is refused with a `TypeError`, whose message never holds the token. A text that begins with the
+  prefix of neither kind of token is refused the same way, and the message says that it is no token of either server;
+  no token given (`token` absent or `null`) is no such text. `connect` alone holds the forms of a token: a caller that
+  has a pasted text connected stores it only if `connect` accepts it. No request is made yet.
 - `readSnapshot(ref: string) -> Promise<Snapshot>` — the repository at a branch, tag or commit: the commit and its whole
   tree in a fixed number of requests, however many folders it has — two on GitHub, the commit and then its tree —, then
   one per file read, or one per batch of files `readMany` reads. Through a clone, a commit the clone does not hold is first fetched from the clone's origin by its
@@ -228,6 +235,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   Crosses the network; fails as `startWorkflow`.
 - `ciRunLog(id: string) -> Promise<string | null>` — the run's log, or `null` when the server no longer keeps it. Crosses
   the network; fails as `readSnapshot`.
+- `ciRunLabels(id: string) -> Promise<string[]>` — the runner labels the run's jobs ask for: on GitHub the `labels` of
+  each job of the workflow run, on GitLab the tags of each job of the pipeline; each once, empty for a run whose jobs
+  ask for none. Crosses the network; fails as `readSnapshot`.
 - `listIssues(filter: { state?: "open" | "closed" | "all", labels?: string[], search?: string }) -> Promise<Issue[]>` —
   crosses the network; fails as `readSnapshot`, and with `NotSupported` through a clone.
 - `createIssue(issue: { title: string, body: string, labels: string[] }) -> Promise<Issue>` — crosses the network; fails

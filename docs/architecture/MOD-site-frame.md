@@ -15,6 +15,10 @@ uses:
   - MOD-repository-hosts.parseAddress
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.HostError
+  - MOD-repository-hosts.Snapshot
+  - MOD-repository-hosts.readSnapshot
+  - MOD-repository-hosts.repositoryInfo
   - MOD-job-runner.registerStrategies
   - MOD-job-runner.Strategies
   - MOD-job-runner.Prepared
@@ -27,6 +31,7 @@ uses:
   - MOD-prompt-bar.startPromptBar
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.handOverStrategies
+  - MOD-source-register.registerPaths
 provides:
   - View
   - Route
@@ -37,6 +42,8 @@ provides:
   - menuOf
   - instanceOf
   - chosenProduct
+  - productHostFollowingStore
+  - tokenKeyOf
   - explain
   - runPanel
   - confirmDecision
@@ -49,7 +56,7 @@ provides:
 ## Responsibility
 
 It belongs to the Site (ARC-038). Its one responsibility is what every page of the instance's site has in common: the
-header with the lab's logo and the menu in the order of the process, the look of the Pattern Recognition Lab, the
+header with the lab's logo and the menu in the order of the process, the footer of the main and the review pages, the look of the Pattern Recognition Lab, the
 product selector, the notices, the routing of views by the address's fragment, the instance derived from the Pages
 address, the folded explanations, the run panel, the dialog of a decision, the form built from a schema, and the start of
 the checks of what waits for the person's acceptance, which MOD-notifications runs on the main and the review pages, and
@@ -67,6 +74,11 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies`, each set once,
   and calls `startPage`. This is where the entry pages register strategies (ARC-038).
 - `menu.mjs` — the eight entries of the menu and the links they lead to.
+- `footer.mjs` — the footer of the main and the review pages: the book *Vibe Coding* (Springer,
+  `https://link.springer.com/book/9783032399069`) and the Pattern Recognition Lab of FAU Erlangen-Nürnberg
+  (`https://lme.tf.fau.de/`), each a link; that no server is operated and that a page writes only when the person
+  clicks, one commit under the person's own account; and a link to Agent M's source repository, the upstream instance
+  named in the frame's data, where its MIT licence stands.
 - `routing.mjs` — views by the address's fragment, and the address of a route for a repository.
 - `notices.mjs`, `run-panel.mjs`, `decision.mjs`, `forms.mjs` — notices, the run panel, the dialog of a decision, the
   form built from a schema.
@@ -77,8 +89,8 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   page icons, and a `README.md` stating the terms under which the logo is used.
 - `explanations.md` — the folded explanations, as data.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes.
-  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`; removed once `docs/index.html` starts the site through `start.mjs`.
+  - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes. It loads no library for Markdown, sanitising or diagrams: the app's Markdown is rendered with `renderArtifact`.
+  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); its Markdown is rendered with `renderArtifact`, and it imports no library of the renderer's `vendor/`; removed once `docs/index.html` starts the site through `start.mjs`.
   - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
   - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
   - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
@@ -113,8 +125,12 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
-  Subject | null, leave?: () -> boolean }`. Before the frame shows another route on a change of the address, it asks the
-  route shown with `leave`; `false` keeps that route and puts its address back. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
+  Subject | null, leave?: () -> boolean, unsaved?: () -> boolean,
+  reads?: (params: Record<string, string>, snapshot: Snapshot) -> Promise<string[]> }`. Before the frame shows another route on a change of the address, it asks the
+  route shown with `leave`; `false` keeps that route and puts its address back. `unsaved` tells, without asking the
+  person anything, whether the route shown holds changes that leaving it would discard; a route that gives none holds none. `reads` names the files the route will read, as paths of the `snapshot` it is given, the repository the route shows as the frame has read it for the page;
+  the frame reads them with `readMany` before it calls `render`, a hundred to a batch (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`), and keeps no list of files for any route. A route whose
+  files depend on files it must read first reads those through `snapshot.readMany` itself, in `reads`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
   under that entry of the menu, `null` keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
@@ -126,15 +142,22 @@ It keeps nothing but what is on the screen. It owns these formats:
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
   "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
-  token, so that a view hands `readProblem` the fact without reading the store's keys itself.
+  token, so that a view hands `readProblem` the fact without reading the store's keys itself. `go` writes the chosen
+  product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the
+  address then holds none.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
-- `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu and the product selector, shows the
-  notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
-  change of the fragment. A fragment that names no loaded route shows the first route of its menu entry, or says that
+- `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
+  `menuOf` gives them, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
+  change of the fragment. A route whose rendering fails is replaced in its place by `readProblem` of that failure, except
+  a refused token, which is shown as a notice. While the route shown reports `unsaved` true, closing or reloading the tab
+  makes the browser ask first, in the words the browser gives that question. A fragment that names no loaded route shows the first route of its menu entry, or says that
   the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
-  `watchForAcceptance` with the page's store, the instance as it connected it, and its own writing of the address of a
+  `watchForAcceptance` with the page's store, the instance as it connected it, a host for each product, which it
+  connects as the instance's — through the token and the stored secrets this browser holds at each call —, and its own
+  writing of the address of a
   route of the review pages, for the instance itself or a product this browser keeps, in the form its routing and
-  `chosenProduct` read back. On the same pages it starts MOD-prompt-bar's `startPromptBar` in the page's foot, handing it
+  `chosenProduct` read back. On the same pages it draws the footer after the route and before the page's foot. In
+  the page's foot it starts MOD-prompt-bar's `startPromptBar`, handing it
   the store, the instance, the chosen product, the subject of the route shown at each moment, its own `explain` and its
   navigation, so that the prompt bar uses neither the frame nor a view. Called by `start.mjs`, and by the Bridge's
   window with its own routes, where no prompt bar is drawn.
@@ -142,12 +165,14 @@ It keeps nothing but what is on the screen. It owns these formats:
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
   without using it. Error: `RouteNotLoaded` — the route is not on this page; the frame then puts a link to it in
   `target`.
-- `menuOf(page: "main" | "review", loaded: string[]) -> MenuEntry[]` — the entries in the order of `THE MENU FOLLOWS THE
-  PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then Maintenance and Settings; each
-  `{ key, label, href: string | null, title }`; on the review pages `href` null and `title` saying *not built yet* for an
-  entry no loaded view serves. On the main page each entry links into the review pages, which say there when an entry
-  is not built yet, so that the main page loads none of their views. The entry Requirements leads to MOD-trace-pages'
-  view `specification`; the list of SPEC change entries and their history are opened from it.
+- `menuOf(page: "main" | "review", loaded: string[], product?: string | null) -> MenuEntry[]` — the entries in the order
+  of `THE MENU FOLLOWS THE PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then
+  Maintenance and Settings; each `{ key, label, href: string | null, title }`; on the review pages `href` null and `title`
+  saying *not built yet* for an entry no loaded view serves. On the main page each entry links into the review pages,
+  which say there when an entry is not built yet, so that the main page loads none of their views. With `product`, the
+  address of a product this browser keeps, each `href` that is not null ends in `/product=` and the address percent-encoded,
+  the form `chosenProduct` reads back; without it, or with null, it is the entry's alone. The entry Requirements leads
+  to MOD-trace-pages' view `specification`; the list of SPEC change entries and their history are opened from it.
 - `instanceOf(location: { hostname: string, pathname: string }) -> string` — the instance repository `owner/name` from
   the Pages address the page is served from (`AN INSTANCE IS A FORK OF AGENT M`), read with MOD-identifiers'
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.
@@ -157,6 +182,15 @@ It keeps nothing but what is on the screen. It owns these formats:
   the products, or when the browser keeps no product — the pages then show the instance itself. Errors: `UnknownProduct`
   — the fragment names a product this browser does not keep; the selector offers *+ Add product*. A refused token or a
   used-up rate limit is shown as a notice, with what MOD-repository-hosts names.
+- `productHostFollowingStore(page: { store: Store }) -> (product: string) -> Host` — the host of a product by its entry in
+  `products`, for a caller that checks the products beside the page's route, as the notification checks do: each call of
+  its functions goes through a connection made with the product's own token, its name and the stored secrets this browser
+  holds at that call — the connection `chosenProduct` makes —, so that a token cleared or replaced since is not used and a
+  commit that holds a stored secret is refused (`A CLEAR IS A REAL CLEAR`, `NO SECRET IN THE REPOSITORY`). One host for
+  each product, however often it is asked for. Errors: the `TypeError` of MOD-repository-hosts' `parseAddress` for an entry that is no repository address.
+- `tokenKeyOf(address: RepositoryAddress) -> string` — the key a product's own token is kept under in the browser's store: `github-token:<owner>/<repository>` for a GitHub product,
+  `gitlab-token:<server>/<project>` for a GitLab product (MOD-browser-store, Data). It reads nothing and is the one place that rule stands, for the frame and for the pages that
+  read a product's token setting, such as the name it is stored under.
 - `explain(topic: string, label?: string) -> Element` — the folded *What is this?* of a topic, or the fold under the
   label a use case names for it (such as *Why these?*), from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
@@ -174,8 +208,10 @@ It keeps nothing but what is on the screen. It owns these formats:
   a field the person fills in, as for rejecting a gate or recording a limitation.
 - `readProblem(failure: Error, tokenStored: boolean) -> Element` — the problem a failed read of a repository shows on a
   page: for `NotFound` while this browser stores no token that reaches it, that the repository is private or does not
-  exist and no token reaches it, with the link to store one (UC-008 1a, UC-020 2a); otherwise the host's own message,
-  and the link to store a token where none is stored.
+  exist and no token reaches it, with the link to store one (UC-008 1a, UC-020 2a); for any other host's failure
+  (`HostError`), the host's own message, and the link to store a token where none is stored; for an error that is no
+  host's failure, a fault of the page itself: that this page could not be drawn, with the error's message, and no link
+  to a token.
 - `notice(kind: "token-expiring" | "token-refused" | "rate-limit" | "unreachable" | "setup" | "moved" | "info", detail:
   { text: string, link?: { label: string, href: string } }) -> void` — shows a notice in the page's one place for them;
   the frame itself shows a token's expiry from fourteen days before it (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`) with
@@ -195,13 +231,16 @@ It writes nothing.
 
 ## Uses
 
-- MOD-markdown-render.renderArtifact — to render the explanations; MOD-markdown-render.openEditor — for a section field
+- MOD-markdown-render.renderArtifact — to render the explanations and the live page's Markdown; MOD-markdown-render.openEditor — for a section field
   of a form.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting — the products, tokens and the instance's key;
   MOD-browser-store.expiringSoon — the expiry notice; MOD-browser-store.secretValues — handed to every host it connects,
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
-  each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token.
+  each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token; MOD-repository-hosts.HostError —
+  to tell a host's failure from a fault of the page itself; MOD-repository-hosts.Snapshot — the type of the snapshot a route's `reads` is given, whose `readMany` the frame calls;
+  MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.readSnapshot — the default branch of the repository a route
+  shows, asked once per page, and its snapshot there.
 - MOD-job-runner.registerStrategies — the strategies the loaded views and the prompt bar hand it; MOD-job-runner.Strategies,
   MOD-job-runner.Prepared — the types of `View` and of the run panel.
 - MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema.
@@ -212,3 +251,6 @@ It writes nothing.
 - MOD-prompt-bar.startPromptBar, MOD-prompt-bar.Subject — the prompt bar, started on the main and the review pages, and
   the type of a route's subject; MOD-prompt-bar.handOverStrategies — the strategies a hand-over of the bar is prepared
   with.
+- MOD-source-register.registerPaths — the register's entries among a tree's paths, so that the first wave of a page load names them beside the files its
+  route shows and `#spec` reads the register in the same batch as its other files (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); the frame keeps no copy
+  of the register's path.

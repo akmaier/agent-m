@@ -11,8 +11,8 @@ const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
 // capitals are all a requirement's name would otherwise allow.
 const REQUIREMENT = /^(?!(?:SRC|UC|ARC|MOD|TST|ITM|RES|JOB)-)[A-Z0-9 ',-]*[A-Z][A-Z0-9 ',-]*$/;
 
-// The scheme, in the order the module file's Data table lists it: requirement, then each prefixed kind. UC alone takes
-// three or more digits; ARC, TST and ITM take exactly three, as the table's own examples do (ARC-048, TST-014, ITM-202).
+// The scheme, in the order the module file's Data table lists it: requirement, then each prefixed kind. UC and ITM take
+// three or more digits; ARC and TST take exactly three, as the table's own examples do (ARC-048, TST-014).
 // JOB's id is an eight-digit date, a four-digit time and four hexadecimal digits, each joined by a hyphen.
 const SCHEME = [
   ["requirement", REQUIREMENT],
@@ -21,7 +21,7 @@ const SCHEME = [
   ["ARC", /^ARC-\d{3}$/],
   ["MOD", new RegExp(`^MOD-${SLUG}$`)],
   ["TST", /^TST-\d{3}$/],
-  ["ITM", /^ITM-\d{3}$/],
+  ["ITM", /^ITM-\d{3,}$/],
   ["RES", new RegExp(`^RES-${SLUG}$`)],
   ["JOB", /^JOB-\d{8}-\d{4}-[0-9a-f]{4}$/],
 ];
@@ -87,7 +87,7 @@ const SLUGGED = ["SRC", "MOD", "RES"];
 // which no file holds any longer.
 // Throws IdentifierTaken, naming the identifier, when a slug kind's identifier is in `everUsed`; TypeError for a kind outside the
 // seven, and for a slug kind without a slug or with a slug that breaks the scheme (the identifier it would make is not one of the
-// kind by kindOfIdentifier); and RangeError where the next number of ARC, TST or ITM would need a fourth digit, which the scheme
+// kind by kindOfIdentifier); and RangeError where the next number of ARC or TST would need a fourth digit, which the scheme
 // does not give those kinds — an identifier that kindOfIdentifier rejects is none to give.
 export function nextIdentifier(kind, everUsed, slug) {
   if (NUMBERED.includes(kind)) {

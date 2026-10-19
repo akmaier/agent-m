@@ -20,7 +20,7 @@ const WORK_KINDS = ["implement", "refactor", "write-tests", "fix-bug"];
 const nothing = async () => [];
 for (const [category, name] of [["preconditions", "rests-on-accepted"], ["recipes", "implementation-inputs"],
   ["recipes", "chapters-for-implementation"], ["recipes", "test-selection"], ["recipes", "chapters-for-tests"],
-  ["recipes", "fix-inputs"], ["checks", "test-declarations"], ["checks", "test-proposals"], ["writers", "branch-and-pull-request"]]) {
+  ["recipes", "fix-inputs"], ["recipes", "resource-pins"], ["checks", "test-declarations"], ["checks", "test-proposals"], ["writers", "branch-and-pull-request"]]) {
   try {
     registerStrategies("tests/job-catalogue-instruction.test.mjs", { [category]: { [name]: nothing } });
   } catch (error) {
@@ -42,10 +42,10 @@ const prepare = (kind, params) => prepareJob(kind, contextOf(params), { drafter:
 // expect: `instruction` is the first recipe, optional; the recipes after it are, for implement implementation-inputs and chapters-for-implementation, for refactor implementation-inputs, for write-tests draft, test-selection and chapters-for-tests, for fix-bug fix-inputs and chapters-for-tests, none optional
 test("kindOf — the four work kinds name the recipe instruction? first, then the recipes they named before", async () => {
   const expected = {
-    implement: ["implementation-inputs", "chapters-for-implementation"],
-    refactor: ["implementation-inputs"],
-    "write-tests": ["draft", "test-selection", "chapters-for-tests"],
-    "fix-bug": ["fix-inputs", "chapters-for-tests"],
+    implement: ["implementation-inputs", "chapters-for-implementation", "resource-pins"],
+    refactor: ["implementation-inputs", "resource-pins"],
+    "write-tests": ["draft", "test-selection", "chapters-for-tests", "resource-pins"],
+    "fix-bug": ["fix-inputs", "chapters-for-tests", "resource-pins"],
   };
   assert.deepEqual(Object.keys(expected), WORK_KINDS, "known positive: the four kinds are those expected here");
   for (const name of WORK_KINDS) {

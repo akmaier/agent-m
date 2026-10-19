@@ -36,3 +36,7 @@ recommendation.
 - Existing participants and endpoint tests stay green.
 - Only `src/settings-pages/` changes.
 
+**Read at sprint team1/93 (developer-sonnet-b): built.** `5fd8280c` built it ("Team2 sprint44 ITM-473 UC-017 participant
+flows", `src/settings-pages/participants.mjs`). TST-375003 in `tests/system-uc-017-configure-participants.test.mjs` checks
+UC-017's alternatives 3a and 3b and passes unchanged. It is done.
+

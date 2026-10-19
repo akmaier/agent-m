@@ -48,6 +48,7 @@ function githubEnvironment(entry, env, now) {
     entry, service: "github", event: { name: env.GITHUB_EVENT_NAME ?? null, payload },
     checkout: env.GITHUB_WORKSPACE ?? "", repository: env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}` : "",
     branch: env.GITHUB_REF_NAME || null, agentM: { commit: env.GITHUB_SHA ?? null }, token: env.GITHUB_TOKEN || null, now,
+    ...(entry === "onReleaseTagged" ? { release: releaseOf(env) } : {}),
     job: {
       runner: env.AGENT_M_RUNNER || null, productDir: env.AGENT_M_PRODUCT_DIR || null,
       instanceDir: env.GITHUB_WORKSPACE ? path.join(env.GITHUB_WORKSPACE, "instance") : null, actor: env.GITHUB_ACTOR || null,
@@ -57,6 +58,16 @@ function githubEnvironment(entry, env, now) {
       summaryFile: env.GITHUB_STEP_SUMMARY || null,
     },
   };
+}
+
+// What the instance's release workflow adds, for the entry onReleaseTagged only (`release`): the tag (GITHUB_REF_NAME), the run's phase `build` or `publish` (RELEASE_PHASE), the platform a build
+// runs on (RELEASE_PLATFORM), the folder a build writes (RELEASE_FOLDER), the folders a publish run reads (RELEASE_FOLDERS, separated by blanks), and the BRIDGE_* signing
+// secrets each by its name, an unset or empty one as null.
+const RELEASE_SECRETS = ["BRIDGE_MACOS_CERTIFICATE", "BRIDGE_MACOS_CERTIFICATE_PASSWORD", "BRIDGE_NOTARY_KEY", "BRIDGE_NOTARY_KEY_ID", "BRIDGE_NOTARY_ISSUER",
+  "BRIDGE_WINDOWS_CERTIFICATE", "BRIDGE_WINDOWS_CERTIFICATE_PASSWORD", "BRIDGE_UPDATE_KEY"];
+function releaseOf(env) {
+  return { tag: env.GITHUB_REF_NAME || null, phase: env.RELEASE_PHASE || null, platform: env.RELEASE_PLATFORM || null, folder: env.RELEASE_FOLDER || null,
+    folders: String(env.RELEASE_FOLDERS ?? "").split(/\s+/).filter(Boolean), secrets: Object.fromEntries(RELEASE_SECRETS.map((name) => [name, env[name] || null])) };
 }
 
 // A GitLab job (src/runtimes/workflow/gitlab.yml): the service is `gitlab` where GITLAB_CI is `true`; the event is CI_PIPELINE_SOURCE, its payload the inputs the template sets as

@@ -12,6 +12,7 @@ recipes:
   - instruction?
   - fix-inputs
   - chapters-for-tests
+  - resource-pins
 checks:
 person_decides:
 steps:

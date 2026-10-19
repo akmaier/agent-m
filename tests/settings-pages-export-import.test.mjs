@@ -1,9 +1,10 @@
+// Module: MOD-settings-pages
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
 import { view } from "../src/settings-pages/index.mjs";
-import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { exportSettings, openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
 
 class Element extends EventTarget {
   constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.files = []; this.parentNode = null; this.clicked = false; }
@@ -49,9 +50,9 @@ function settingsRoute() { const route = view.routes.find((candidate) => candida
 async function render(store) { const target = document.createElement("div"); await settingsRoute().render(target, { instance: { repository: "fixture/instance" }, store, go() {} }); return target; }
 
 const SETTINGS = {
-  "github-token": { value: "github-secret" },
-  "github-token:fixture/product": { value: "github-product-secret" },
-  "gitlab-token:gitlab.test/group/project": { value: "gitlab-secret" },
+  "github-token": { value: "github_pat_secret" },
+  "github-token:fixture/product": { value: "github_pat_product_secret" },
+  "gitlab-token:gitlab.test/group/project": { value: "glpat-secret" },
   products: ["https://github.com/fixture/product"],
   notifications: { enabled: true },
   notified: { reports: ["one"] },
@@ -156,4 +157,129 @@ test("TST-288003: Settings locks imports with a passphrase and leaves malformed 
   await waitFor(() => /not.*export/i.test(byClass(cleanTarget, "settings-import-result")[0].textContent));
   assert.deepEqual(clean.storage.snapshot(), before, "NotAnExport restores the exact clean destination bytes");
   assert.match(byClass(cleanTarget, "settings-import-result")[0].textContent, /not.*export/i);
+});
+
+// Settings files for the import checks below. The token forms are the ones their servers give them: `github_pat_` for GitHub's
+// fine-grained token, `glpat-` for GitLab's project access token. The expected results are stated in each test's own text.
+const GITHUB_FORM = "github_pat_FILE0123456789abcdefghijklmnop", GITLAB_FORM = "glpat-FILE0123456789abcdefghijkl";
+const BRIDGE = { address: "https://bridge.example.test", token: "bridge-secret" };
+const exportFile = (settings) => JSON.stringify({ "agent-m-settings": 1, instance: "fixture/instance", exported: "2026-10-19T00:00:00Z", locked: false, settings, foreign: {} });
+// The person picks `text` in Import settings on a fresh page of `store`. -> the line the page shows for the import.
+async function importText(store, text, passphrase = "") {
+  const target = await render(store);
+  if (passphrase) byClass(target, "settings-import-passphrase")[0].value = passphrase;
+  const input = byClass(target, "settings-import-file")[0];
+  input.files = [{ text: async () => text }];
+  await change(input);
+  const line = () => byClass(target, "settings-import-result")[0].textContent;
+  await waitFor(() => line() !== "");
+  return line();
+}
+
+// TST-893001
+// level: unit
+// module: MOD-settings-pages
+// guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: an empty browser store, and a settings file that holds a GitLab-form token under `github-token` and a Bridge this browser lacks
+// input: the person picks the file in Import settings
+// expect: nothing is stored, not even the Bridge; the line names `github-token` and says "That is a GitLab token", reports no "Added:", and does not contain the token
+test("TST-893001: Import settings refuses a GitLab-form token under the GitHub token before it stores anything", async () => {
+  const store = freshStore(), before = store.storage.snapshot();
+  const line = await importText(store, exportFile({ "github-token": { value: GITLAB_FORM, name: "GitHub token" }, bridge: BRIDGE }));
+  assert.deepEqual(store.storage.snapshot(), before, "nothing was stored");
+  assert.match(line, /github-token/);
+  assert.match(line, /That is a GitLab token/);
+  assert.equal(/Added:/.test(line), false, `the import reports nothing added (it says: ${line})`);
+  assert.equal(line.includes(GITLAB_FORM), false, "the line never holds the token");
+});
+
+// TST-893002
+// level: unit
+// module: MOD-settings-pages
+// guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A GITHUB PRODUCT USES A TOKEN OF ITS OWN
+// given: an empty browser store, and a settings file that holds a GitLab-form token under `github-token:fixture/product` and the product list
+// input: the person picks the file in Import settings
+// expect: nothing is stored, the product list included; the line names `github-token:fixture/product` and says "That is a GitLab token", and does not contain the token
+test("TST-893002: Import settings refuses a GitLab-form token under a GitHub product's key", async () => {
+  const store = freshStore(), before = store.storage.snapshot();
+  const line = await importText(store, exportFile({ products: ["https://github.com/fixture/product"], "github-token:fixture/product": { value: GITLAB_FORM, name: "Agent M" } }));
+  assert.deepEqual(store.storage.snapshot(), before, "nothing was stored");
+  assert.match(line, /github-token:fixture\/product/);
+  assert.match(line, /That is a GitLab token/);
+  assert.equal(line.includes(GITLAB_FORM), false, "the line never holds the token");
+});
+
+// TST-893003
+// level: unit
+// module: MOD-settings-pages
+// guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+// given: an empty browser store, and a settings file that holds a GitHub-form token under `gitlab-token:gitlab.test/group/project` and a Bridge this browser lacks
+// input: the person picks the file in Import settings
+// expect: nothing is stored; the line names `gitlab-token:gitlab.test/group/project` and says "That is a GitHub token", and does not contain the token
+test("TST-893003: Import settings refuses a GitHub-form token under a GitLab project's key", async () => {
+  const store = freshStore(), before = store.storage.snapshot();
+  const line = await importText(store, exportFile({ bridge: BRIDGE, "gitlab-token:gitlab.test/group/project": { value: GITHUB_FORM, name: "Agent M" } }));
+  assert.deepEqual(store.storage.snapshot(), before, "nothing was stored");
+  assert.match(line, /gitlab-token:gitlab\.test\/group\/project/);
+  assert.match(line, /That is a GitHub token/);
+  assert.equal(line.includes(GITHUB_FORM), false, "the line never holds the token");
+});
+
+// TST-893004
+// level: unit
+// module: MOD-settings-pages
+// guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
+// given: an empty browser store, and a settings file that holds a GitHub-form token under `github-token` and under `github-token:fixture/product`, a GitLab-form token under `gitlab-token:gitlab.test/group/project`, and a Bridge
+// input: the person picks the file in Import settings
+// expect: every setting of the file is stored as the file holds it, and the line lists all four keys as added (the counter-proof of TST-893001 to TST-893003: tokens of their own server's form are imported)
+test("TST-893004: Import settings stores tokens of the form of their own server", async () => {
+  const store = freshStore();
+  const settings = {
+    "github-token": { value: GITHUB_FORM, name: "GitHub token" },
+    "github-token:fixture/product": { value: GITHUB_FORM, name: "Agent M" },
+    "gitlab-token:gitlab.test/group/project": { value: GITLAB_FORM, name: "Agent M" },
+    bridge: BRIDGE,
+  };
+  const line = await importText(store, exportFile(settings));
+  for (const [key, value] of Object.entries(settings)) assert.deepEqual(readSetting(store, key), value, `${key} is stored as the file holds it (the page says: ${line})`);
+  assert.equal(line, "Added: github-token, github-token:fixture/product, gitlab-token:gitlab.test/group/project, bridge. Kept: none.");
+});
+
+// TST-893005
+// level: unit
+// module: MOD-settings-pages
+// guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE
+// given: an empty browser store, and a settings file locked with a passphrase that holds a GitLab-form token under `github-token` and a Bridge this browser lacks
+// input: the person enters the passphrase and picks the file in Import settings
+// expect: nothing is stored; the line names `github-token` and says "That is a GitLab token", and holds neither the token nor the passphrase
+test("TST-893005: Import settings refuses a wrong-form token in a locked file before it stores anything", async () => {
+  const source = freshStore();
+  writeSetting(source, "github-token", { value: GITLAB_FORM, name: "GitHub token" });
+  writeSetting(source, "bridge", BRIDGE);
+  const locked = await exportSettings(source, "constructed passphrase");
+  assert.equal(locked.includes(GITLAB_FORM), false, "the file is locked");
+  const store = freshStore(), before = store.storage.snapshot();
+  const line = await importText(store, locked, "constructed passphrase");
+  assert.deepEqual(store.storage.snapshot(), before, "nothing was stored");
+  assert.match(line, /github-token/);
+  assert.match(line, /That is a GitLab token/);
+  assert.equal(line.includes(GITLAB_FORM) || line.includes("constructed passphrase"), false, "the line holds neither the token nor the passphrase");
+});
+
+// TST-893006
+// level: unit
+// module: MOD-settings-pages
+// guards: SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
+// given: a browser store that holds its own `github-token` as raw bytes, and a settings file that holds a GitLab-form token under `github-token` and a Bridge this browser lacks
+// input: the person picks the file in Import settings
+// expect: the import is refused although the browser would keep its own token: no byte of the store changes, the Bridge is not added, and the line names `github-token`
+test("TST-893006: Import settings refuses the file even where this browser would keep its own token", async () => {
+  const store = freshStore();
+  store.storage.setItem(`${store.prefix}github-token`, `{ "value" : "${GITHUB_FORM}" }`);
+  const before = store.storage.snapshot();
+  const line = await importText(store, exportFile({ "github-token": { value: GITLAB_FORM, name: "GitHub token" }, bridge: BRIDGE }));
+  assert.deepEqual(store.storage.snapshot(), before, "no byte of the store changed");
+  assert.match(line, /github-token/);
+  assert.match(line, /That is a GitLab token/);
+  assert.equal(line.includes(GITLAB_FORM), false, "the line never holds the token");
 });

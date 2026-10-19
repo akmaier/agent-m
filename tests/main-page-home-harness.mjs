@@ -16,6 +16,9 @@ import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { INSTANCE, PRODUCT, githubServer, instanceFiles, productFiles } from "./progress-measures-load.mjs";
 
 export { INSTANCE, PRODUCT, instanceFiles, productFiles };
+
+/** The head commit the fake GitHub gives the branch main of `repository` (tests/progress-measures-load.mjs makes it the SHA-1 of the repository's name). */
+export const headOf = (repository) => createHash("sha1").update(repository).digest("hex");
 export const INSTANCE_TOKEN = "github_pat_HOME827INSTANCE0123456789abcdef";
 export const PRODUCT_TOKEN = "github_pat_HOME827PRODUCT0123456789abcdefg";
 export const OTHER_TOKEN = "github_pat_HOME847OTHER000123456789abcdefghijk";
@@ -61,6 +64,32 @@ export const timers = {
     assert.ok(timer, "the page has set no timer to fire");
     await atNow(() => timer.run(), at);
   },
+};
+
+// ---------------------------------------------------------------- the tab: whether it is shown, and the change of that
+
+const tab = { listeners: [] };
+/** Gives the fixture document the browser's `visibilityState` ("visible") and its `visibilitychange` listeners; browser() does it for every page. */
+function installTab() {
+  tab.listeners = [];
+  Object.assign(globalThis.document, {
+    visibilityState: "visible",
+    addEventListener: (type, listener) => { if (type === "visibilitychange") tab.listeners.push(listener); },
+    removeEventListener: (type, listener) => { if (type === "visibilitychange") tab.listeners = tab.listeners.filter((held) => held !== listener); },
+  });
+}
+async function changeTab(state, at) {
+  globalThis.document.visibilityState = state;
+  await atNow(() => Promise.all(tab.listeners.map((listener) => listener())), at);
+}
+/**
+ * The tab of the page, as the browser reports it: `hide()` and `show(at)` set `document.visibilityState` to "hidden" or "visible" and then fire `visibilitychange` at the clock `at` (NOW where none is given),
+ * resolving once what the listeners started has ended; `listening` is the number of `visibilitychange` listeners the page holds.
+ */
+export const visibility = {
+  get listening() { return tab.listeners.length; },
+  hide: (at = NOW) => changeTab("hidden", at),
+  show: (at = NOW) => changeTab("visible", at),
 };
 
 // ---------------------------------------------------------------- the files of a small product
@@ -131,7 +160,7 @@ function headerOf(init, name) {
 
 /**
  * A fake GitHub serving `repos` ({ "owner/name": { path: text } }), with a spy over it. `bridgeLists` is the job identifier the Bridge lab-pc-4 lists as running (none lists no job); a test may set
- * `net.bridgeLists` later. `net.ciRuns` are the workflow runs (GitHub's answer, one page) that the job workflow's run list gives, none at first.
+ * `net.bridgeLists` later; `net.bridgeUsage` is the usage the Bridge lists for it, and `net.bridgeLog` (async (id, from) -> { lines, next, ended }) answers its log — the Bridge keeps none at first. `net.ciRuns` are the workflow runs (GitHub's answer, one page) that the job workflow's run list gives, none at first.
  * `requests` keeps every request { url, host, authorization }; `server.log` is the fake's own record of what each request read (tests/progress-measures-load.mjs). install() puts the spy in
  * place of `fetch`; restore() puts the earlier one back.
  */
@@ -140,7 +169,8 @@ export function network(repos, { bridgeLists = null } = {}) {
   const requests = [];
   const real = globalThis.fetch;
   let held = repos, fake = null, spy = null;
-  const net = { requests, bridgeLists, refusing: null, ciRuns: [],
+  // `overviews` ({ "owner/name": { "<commit>": text } }): the files `<commit>.json` of the branch `overview-cache` each repository holds; none is held at first.
+  const net = { requests, bridgeLists, bridgeUsage: null, bridgeLog: null, refusing: null, ciRuns: [], overviews: {},
     // the fake's own record of what each request read: those of every state the repositories have been in
     server: { get log() { return servers.flatMap((server) => server.log); } },
     bridgeAsked: () => requests.filter((request) => request.host === "127.0.0.1:4711").length,
@@ -150,8 +180,16 @@ export function network(repos, { bridgeLists = null } = {}) {
       spy = async (input, init) => {
         const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
         requests.push({ url: url.href, host: url.host, authorization: headerOf(init, "authorization") });
-        if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: net.bridgeLists ? [{ id: net.bridgeLists, state: "running", usage: null }] : [] });
+        if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: net.bridgeLists ? [{ id: net.bridgeLists, state: "running", usage: net.bridgeUsage }] : [] });
+        const logOf = url.host === "127.0.0.1:4711" ? /^\/v1\/jobs\/([^/]+)\/log$/.exec(url.pathname) : null;
+        if (logOf) return net.bridgeLog ? json(200, await net.bridgeLog(decodeURIComponent(logOf[1]), Number(url.searchParams.get("from")))) : json(404, { error: "not-found", message: "The Bridge keeps no log." });
         if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
+        const overview = url.host === "api.github.com" && url.searchParams.get("ref") === "overview-cache"
+          ? /^\/repos\/([^/]+\/[^/]+)\/contents\/([0-9a-f]+)\.json$/.exec(url.pathname) : null;
+        if (overview) {
+          const held = net.overviews[overview[1]]?.[overview[2]];
+          return held === undefined ? new Response('{"message":"Not Found"}', { status: 404 }) : new Response(held, { status: 200 });
+        }
         if (net.refusing && url.host === "api.github.com" && (!net.refusing.repository || url.pathname.startsWith(`/repos/${net.refusing.repository}/`))) {
           if (net.refusing.how === "error") return new Response("{}", { status: 500, headers: { "content-type": "application/json" } });
           const reset = net.refusing.how === "limit" ? { "x-ratelimit-reset": String(RATE_RESET / 1000) } : {};
@@ -186,6 +224,7 @@ export const RATE_RESET = Date.parse("2026-10-16T13:00:00Z");
  */
 export function browser({ products = [PRODUCT_URL], tokens = { [PRODUCT]: PRODUCT_TOKEN }, instanceToken = INSTANCE_TOKEN } = {}) {
   installPage({ hostname: "alice.github.io", pathname: "/agent-m/" });
+  installTab();
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: fixtureStorage() });
   const store = openStore(INSTANCE);
   writeSetting(store, "products", products);
@@ -206,12 +245,12 @@ export function countReads(store, key) {
   return reads;
 }
 
-/** Draws a route into a new element at the fixed clock, with the timers of `timers` in place of the real ones, and returns the element. */
-export async function draw(route, context) {
+/** Draws a route into a new element at the fixed clock, with the timers of `timers` in place of the real ones, and returns the element. `params` are the route's parameters. */
+export async function draw(route, context, params = {}) {
   const target = document.createElement("div");
   document.body.append(target);
   timers.install();
-  await atNow(() => route.render(target, context, {}));
+  await atNow(() => route.render(target, context, params));
   return target;
 }
 

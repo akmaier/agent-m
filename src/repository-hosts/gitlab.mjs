@@ -33,6 +33,9 @@ const MR_STATES = { opened: "open", locked: "open", merged: "merged", closed: "c
 const pullOf = (m) => ({ number: m.iid, title: m.title, branch: m.source_branch, base: m.target_branch, head: m.sha, state: MR_STATES[m.state] ?? "closed", draft: m.draft === true,
   url: m.web_url, opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null, body: m.description ?? "" });
 
+// An issue of "New issue" / "List project issues" as the Issue: iid its number, description its body, state opened is open, labels the names.
+const issueOf = (i, comments = []) => ({ number: i.iid, title: i.title, body: i.description ?? "", labels: i.labels ?? [], state: i.state === "closed" ? "closed" : "open", url: i.web_url, comments });
+
 // An entry of the diff of a commit as the change the commit made to the file: added, deleted, renamed — with the path it came
 // from — or modified.
 const changeOf = (d) => (d.new_file ? { path: d.new_path, change: "added" }
@@ -150,12 +153,64 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return tags;
     },
 
+    // A release and its files ("Get a release by a tag name", "Get the latest release" at releases/permalink/latest): the links of its assets, each with its name and its address — direct_asset_url where the
+    // release has one, else url. GitLab reports neither a size nor a checksum for a link, so both are null. A release that does not exist is NotFound.
+    async releaseAssets(tag) {
+      const what = `the release ${tag} of ${address.web}`;
+      const r = await read(`${api}/releases/${tag === "latest" ? "permalink/latest" : encodeURIComponent(tag)}`, { what });
+      return { tag: r.tag_name, name: r.name ?? r.tag_name, published: r.released_at ?? "", notes: r.description ?? "",
+        assets: (r.assets?.links ?? []).map((l) => ({ name: l.name, size: null, url: l.direct_asset_url ?? l.url, sha256: null })) };
+    },
+
+    // A release is published whole as a draft first on GitHub only; a GitLab server has no draft release. No request is made.
+    async publishRelease() {
+      throw new HostError("NotSupported", { what: "publishing a release" }, `${address.web} is on a GitLab server, which has no draft release to publish whole; publish the release on GitHub.`);
+    },
+
     // The numbers of open and closed issues, from the project's issue statistics ("Retrieve issues statistics for a project":
     // counts.opened and counts.closed). They count issues alone: a merge request is no issue. A public project serves them
     // without a token.
     async issueCounts() {
       const { counts } = (await read(`${api}/issues_statistics`)).statistics;
       return { open: counts.opened, closed: counts.closed };
+    },
+
+    // The issues of a state, labels and search text ("List project issues": state opened, closed or all; labels; search; per_page 100, page by page). Each issue that may have comments is given them
+    // ("List project issue notes": the system notes, which GitLab writes for its own changes, are not comments).
+    async listIssues({ state, labels, search }) {
+      const found = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const items = await read(`${api}/issues?${new URLSearchParams({ state: state === "open" ? "opened" : state, per_page: String(PAGE), page: String(page),
+          ...(labels.length ? { labels: labels.join(",") } : {}), ...(search ? { search } : {}) })}`);
+        found.push(...items);
+        if (items.length < PAGE) break;
+      }
+      const issues = [];
+      for (const i of found) {
+        const comments = [];
+        for (let page = 1; i.user_notes_count !== 0 && page <= MAX_PAGES; page++) {
+          const items = await read(`${api}/issues/${i.iid}/notes?per_page=${PAGE}&page=${page}`);
+          comments.push(...items.filter((n) => !n.system).map((n) => ({ author: n.author?.username ?? "", body: n.body ?? "", date: n.created_at })));
+          if (items.length < PAGE) break;
+        }
+        issues.push(issueOf(i, comments));
+      }
+      return issues;
+    },
+
+    // A comment on an issue ("Create new issue note").
+    async commentOnIssue(number, body) {
+      await call("POST", `${api}/issues/${number}/notes`, { body: { body } });
+    },
+
+    // Labels added and removed in one call ("Edit an issue": add_labels, remove_labels as comma-separated texts).
+    async setIssueLabels(number, { add, remove }) {
+      await call("PUT", `${api}/issues/${number}`, { body: { ...(add.length ? { add_labels: add.join(",") } : {}), ...(remove.length ? { remove_labels: remove.join(",") } : {}) } });
+    },
+
+    // An issue closed or reopened ("Edit an issue": state_event close or reopen).
+    async setIssueState(number, state) {
+      await call("PUT", `${api}/issues/${number}`, { body: { state_event: state === "closed" ? "close" : "reopen" } });
     },
 
     // The commits that changed a path — the project where the path is null —, newest first, from `ref` (the default branch where
@@ -189,6 +244,13 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       const answer = await call("GET", `${api}/repository/files/${encodeURIComponent(path)}/raw?ref=${commit}`,
         { what: `${path} at ${commit}`, on: { 404: () => null } });
       return answer === null ? null : answer.text();
+    },
+
+    // One file's text at each of many commits -> Map(commit -> text | null), in the order given: GitLab has no batch query, so one read of the raw file for each commit.
+    async readFileAt(path, commits) {
+      const texts = new Map();
+      for (const commit of commits) texts.set(commit, await this.readFile(commit, path));
+      return texts;
     },
 
     // One commit of all the files, through "Create a commit with multiple files and actions". GitLab has no write that holds
@@ -351,6 +413,11 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       const checks = head ? (await everyPage(`${api}/pipelines/${head.id}/jobs`, { what }, (j) => j.id ?? j.name)).map((j) => ({ name: j.name, state: jobState(j.status), url: j.web_url })) : [];
       return { pullRequest: pullOf(mr), baseCommit: mr.diff_refs?.base_sha ?? null, headCommit: mr.sha, commits, files, reviews, checks,
         readFile: (commit, path) => this.readFile(commit, path) };
+    },
+
+    // A new issue ("New issue": title, description, labels as a comma-separated text; the answer is the issue).
+    async createIssue({ title, body, labels }) {
+      return issueOf(await json(await call("POST", `${api}/issues`, { body: { title, description: body, labels: labels.join(",") } }), address.origin));
     },
 
     // Creates a branch at a commit ("Create repository branch"). A branch that stands already — 400 "Branch already exists" —

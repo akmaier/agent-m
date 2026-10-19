@@ -1,8 +1,8 @@
 // MOD-site-frame — the frame every page shares (docs/architecture/MOD-site-frame.md): its interface. Built: the types View,
 // Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, the last two with the
-// start of the prompt bar (subject.mjs gives it the subject of the route shown); menuOf (menu.mjs); instanceOf; chosenProduct
+// start of the prompt bar (subject.mjs gives it the subject of the route shown); embedRoute; menuOf (menu.mjs); instanceOf; chosenProduct
 // (routing.mjs); explain; readProblem; runPanel (run-panel.mjs); confirmDecision (decision.mjs); notice (notices.mjs); schemaForm (forms.mjs), without its options secretKeys
-// and readOnly. Not built yet: embedRoute and the frame's own check of the topics.
+// and readOnly. The frame's own check of the topics is tests/site-frame-topics.mjs.
 //
 // Module: MOD-site-frame
 //
@@ -13,19 +13,20 @@
 
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { openStore, readSetting } from "../browser-store/index.mjs";
-import { parseAddress, connect } from "../repository-hosts/index.mjs";
+import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs";
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore } from "./routing.mjs";
+import { siteFooter } from "./footer.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
 export { menuOf } from "./menu.mjs";
-export { chosenProduct } from "./routing.mjs";
+export { chosenProduct, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
 export { notice } from "./notices.mjs";
 export { confirmDecision } from "./decision.mjs";
 
@@ -34,7 +35,7 @@ const LOOK = new URL("./look.css", import.meta.url).href;
 const PRL_LOGO = new URL("./brand/prl-lettered.png", import.meta.url).href;
 const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;
 
-// Strategies, in the types below, is MOD-job-runner's type of that name; Host is MOD-repository-hosts', Store
+// Strategies, in the types below, is MOD-job-runner's type of that name; Host and Snapshot are MOD-repository-hosts', Store
 // MOD-browser-store's.
 
 /**
@@ -48,11 +49,16 @@ const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url)
  * route's `entry` puts it under that entry of the menu, null keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a
  * message in the prompt bar is about while the route is shown; a route that gives none, or whose `subject` gives `null`, has the frame's default (subject.mjs). `leave` is asked
  * of the route shown before the frame shows another on a change of the address; `false` keeps the route and the frame puts its address back.
+ * `unsaved` says, asking no one, whether the route shown holds changes that leaving it would discard; while it is true, closing or reloading the tab makes the browser ask first.
+ * `reads` names the files the route will read, as paths of the snapshot it is given — the repository the route shows (the chosen product's, else the
+ * instance's) at its default branch; the frame reads them with the snapshot's `readMany` before it calls `render`, and the route's own reads through the host find them.
  * @typedef {{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" | "releases" |
  *   "maintenance" | "settings" | null, title: string,
  *   render(target: Element, context: ViewContext, params: Record<string, string>): Promise<void>,
  *   subject?: (params: Record<string, string>, context: ViewContext) => Subject | null,
- *   leave?: () => boolean }} Route
+ *   leave?: () => boolean,
+ *   unsaved?: () => boolean,
+ *   reads?: (params: Record<string, string>, snapshot: Snapshot) => Promise<string[]> }} Route
  */
 
 /**
@@ -129,6 +135,10 @@ export function explain(topic, label = "What is this?") {
 export function readProblem(failure, tokenStored) {
   const paragraph = document.createElement("p");
   paragraph.className = "problem";
+  if (!(failure instanceof HostError)) {
+    paragraph.textContent = `This page could not be drawn: ${failure?.message ?? failure}`;
+    return paragraph;
+  }
   paragraph.textContent = failure.name === "NotFound" && !tokenStored
     ? "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload."
     : failure.message;
@@ -142,10 +152,53 @@ export function readProblem(failure, tokenStored) {
   return paragraph;
 }
 
+// The files a route names in `reads` (Route), read before the route is rendered: the repository the route shows — the chosen product's, else
+// the instance's — at its default branch, as one snapshot; the route says which of its paths it will read, and the snapshot fetches their
+// texts ahead (readMany: a hundred to a batch on GitHub with a token). The host keeps the texts by blob SHA, so the route's own reads through
+// the same host find them. `branches` holds the default branch of each repository this page has asked for, so that it is asked once. A route
+// without `reads`, or a repository with no default branch to read, costs no request. A failure of a host here is left to the route, whose own
+// read meets it again and shows it; any other error is a fault of the page and is thrown.
+async function readNamedFiles(route, params, context, branches) {
+  if (typeof route.reads !== "function") return;
+  const shown = context.product ?? { address: context.instance.repository, host: context.instance.host };
+  try {
+    if (!branches.has(shown.address)) {
+      const { defaultBranch } = await shown.host.repositoryInfo();
+      if (typeof defaultBranch !== "string" || defaultBranch === "") return;
+      branches.set(shown.address, defaultBranch);
+    }
+    const snapshot = await shown.host.readSnapshot(branches.get(shown.address));
+    await snapshot.readMany(await route.reads(params, snapshot));
+  } catch (failure) {
+    if (!(failure instanceof HostError)) throw failure;
+  }
+}
+
 // The instance whose Pages address this page belongs to. A local Bridge window keeps that Pages location as private shell
 // metadata; when no Pages address is supplied, it deliberately uses the upstream instance.
 export function instanceOf(location) {
   return instanceOfPagesAddress(location) ?? UPSTREAM;
+}
+
+// The page started last: its kind, the routes its views serve, and the context of the route shown now. embedRoute reads it; each start replaces it.
+let started = null;
+
+/**
+ * embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void> — renders the route `name` of a view loaded on the same page inside
+ * `target`, with `params` and the context of the route shown now, so one view shows another's part without using it. For a route that no view of the page serves,
+ * and before any page is started, it puts a link to the route in `target` — a <a> holding "Open <name>", at the address `go` writes for it — and rejects with an Error
+ * named RouteNotLoaded. A failure of the route's own `render` rejects as it is.
+ */
+export async function embedRoute(name, target, params = {}) {
+  const route = started?.routes.find((candidate) => candidate.name === name);
+  if (route) return route.render(target, started.context(), params);
+  const product = started?.context()?.product?.address;
+  const fragment = fragmentOf(name, product && !("product" in params) ? { ...params, product } : params);
+  const link = document.createElement("a");
+  link.setAttribute("href", started?.page === "main" ? `docs/index.html${fragment}` : fragment);
+  link.textContent = `Open ${name}`;
+  target.replaceChildren(link);
+  throw Object.assign(new Error(`The route ${name} is not on this page.`), { name: "RouteNotLoaded" });
 }
 
 // The header of every page: the lab's logo and the site's name; the Bridge's window names its section, "Bridge".
@@ -214,7 +267,6 @@ async function startSite({ page, views }) {
   const instance = { repository, host: instanceHostFollowingStore({ store, address: parseAddress(`https://github.com/${repository}`) }) };
   const routes = views.flatMap((view) => view?.routes ?? []);
   const served = new Set(routes.map((route) => route.entry).filter(Boolean));
-  const entries = menuOf(page, [...served]);
 
   const header = sharedHeader();
   const menu = document.createElement("nav");
@@ -227,19 +279,21 @@ async function startSite({ page, views }) {
   target.className = "site-frame-route";
   const foot = document.createElement("footer");
   foot.className = "site-frame-prompt-bar";
-  document.body.replaceChildren(header, notices, target, foot);
+  document.body.replaceChildren(header, notices, target, siteFooter(UPSTREAM), foot);
 
   // The route shown now, with the parameters and the context it was rendered with: what the prompt bar's subject is read from.
   let shown = null;
+  started = { page, routes, context: () => shown?.context ?? null };
   let shownName = routes[0]?.name ?? "";
+  const defaultBranches = new Map();
   const drawMenu = (active, product) => {
-    menu.replaceChildren(...entries.map((entry) => {
+    menu.replaceChildren(...menuOf(page, [...served], product).map((entry) => {
       const item = document.createElement(entry.href === null ? "span" : "a");
       item.setAttribute("title", entry.title);
       item.textContent = entry.label;
       if (entry.href === null) item.className = "soon";
       else {
-        item.setAttribute("href", product ? `${entry.href}/product=${encodeURIComponent(product)}` : entry.href);
+        item.setAttribute("href", entry.href);
         if (entry.key === active) item.className = "active";
       }
       return item;
@@ -289,8 +343,10 @@ async function startSite({ page, views }) {
     drawSelector(product?.address ?? null);
     drawMenu(route?.entry ?? entryKey, product?.address ?? null);
     const context = { page, instance, product, store,
+      // The chosen product goes into the fragment unless the caller names a product; the empty product names the instance itself, and the fragment then holds none.
       go: (name, given = {}) => {
-        location.hash = fragmentOf(name, product && !("product" in given) ? { ...given, product: product.address } : given);
+        const { product: named, ...others } = given;
+        location.hash = fragmentOf(name, named === "" ? others : product && !("product" in given) ? { ...given, product: product.address } : given);
       } };
     if (!route) {
       shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context, fragment };
@@ -301,19 +357,27 @@ async function startSite({ page, views }) {
     }
     shownName = route.name;
     shown = { route, params: route === byName ? params : {}, context, fragment };
+    await readNamedFiles(route, shown.params, context, defaultBranches);
     try {
       await route.render(target, context, shown.params);
     } catch (failure) {
-      if (failure?.name !== "TokenRefused") throw failure;
-      refusedNotice(failure);
+      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      else target.replaceChildren(readProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
     }
   };
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));
+  // Closing or reloading the tab: the browser asks, in its own words, while the route shown holds unsaved changes (UC-018 7a).
+  browser.addEventListener?.("beforeunload", (event) => {
+    if (shown?.route?.unsaved?.() === true) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
   await show();
 
   const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
-  watchForAcceptance({ store, instance,
+  watchForAcceptance({ store, instance, productHost: productHostFollowingStore({ store }),
     addressOf: (route, given, forRepository) =>
       addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, given, forRepository) });
   footTakesBarHeight(foot);
@@ -385,6 +449,8 @@ async function startBridge({ page, views }) {
 
   // The route shown and the fragment it was drawn for, asked by askBeforeShowing before another route is shown.
   let shown = null;
+  started = { page, routes, context: () => shown?.context ?? null };
+  const defaultBranches = new Map();
   const show = async () => {
     const selected = routeOf(location.hash);
     const route = routes.find((candidate) => candidate.name === selected.name) ?? first;
@@ -392,10 +458,17 @@ async function startBridge({ page, views }) {
       target.textContent = "This Bridge page has no view yet.";
       return;
     }
-    shown = { route, fragment: location.hash ?? "" };
     const context = { page, instance: { repository, host }, product: null, store,
       go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
-    await route.render(target, context, route.name === selected.name ? selected.params : {});
+    shown = { route, fragment: location.hash ?? "", context };
+    const params = route.name === selected.name ? selected.params : {};
+    await readNamedFiles(route, params, context, defaultBranches);
+    try {
+      await route.render(target, context, params);
+    } catch (failure) {
+      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      else target.replaceChildren(readProblem(failure, readSetting(store, "github-token") !== null));
+    }
   };
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));

@@ -50,6 +50,23 @@ export function addressWriter(page, pageAddress, instance, products) {
 // The key a product's own token is kept under (MOD-browser-store, Data).
 export const tokenKeyOf = (address) => address.server === "gitlab" ? `gitlab-token:${new URL(address.origin).host}/${address.path}` : `github-token:${address.path}`;
 
+// The host of each product this page has connected, by the store and the product's address: a navigation that keeps the product keeps its host, so that
+// the blobs the host has read are not read again (MOD-repository-hosts keeps them for as long as a host it returned is used). A host is replaced when the
+// product's token or any stored secret changed since it was connected (A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY).
+const connected = new WeakMap();
+
+function hostOf(store, address, token) {
+  const secrets = secretValues(store);
+  const stamp = JSON.stringify([token?.value ?? null, token?.name ?? null, secrets]);
+  const held = connected.get(store) ?? new Map();
+  connected.set(store, held);
+  const had = held.get(address.web);
+  if (had && had.stamp === stamp) return had.host;
+  const host = connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null, secrets });
+  held.set(address.web, { stamp, host });
+  return host;
+}
+
 // chosenProduct({ store, fragment }) -> Promise<ProductContext | null> — the product the fragment names among those this browser
 // keeps, connected with its own token to its own server only, with `tokenStored` true when that token is kept; null when the
 // fragment names none. Throws UnknownProduct { address }
@@ -63,7 +80,7 @@ export async function chosenProduct({ store, fragment }) {
   const address = kept.find((candidate) => candidate && candidate.web === wanted);
   if (!address) throw Object.assign(new Error(`This browser does not keep the product ${named}.`), { name: "UnknownProduct", address: named });
   const token = readSetting(store, tokenKeyOf(address));
-  const host = connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null, secrets: secretValues(store) });
+  const host = hostOf(store, address, token);
   return { address: address.web, kind: address.server, host, tokenStored: token !== null };
 }
 
@@ -84,8 +101,26 @@ export function instanceHostFollowingStore({ store, address }) {
     }
     return held;
   };
+  return following(current);
+}
+
+// A host whose every function calls through the connection `current()` gives at that call.
+function following(current) {
   return Object.freeze(Object.fromEntries(Object.entries(current()).map(([name, member]) =>
     [name, typeof member === "function" ? (...given) => current()[name](...given) : member])));
+}
+
+// productHostFollowingStore({ store }) -> (product: string) -> Host — the host of a product by its entry in `products`, handed to
+// MOD-notifications' watchForAcceptance: each call of its functions goes through the connection made with the product's own token and the
+// secrets stored at that moment (the connection the frame's chosenProduct makes), so that a token cleared or replaced since is not
+// used (A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY). One host for each product, however often it is asked for.
+export function productHostFollowingStore({ store }) {
+  const hosts = new Map();
+  return (product) => {
+    const address = parseAddress(product);
+    if (!hosts.has(address.web)) hosts.set(address.web, following(() => hostOf(store, address, readSetting(store, tokenKeyOf(address)))));
+    return hosts.get(address.web);
+  };
 }
 
 // viewAddress(slug) -> the address of a view module: `../<slug>/index.mjs`, relative to the folder of the frame.

@@ -42,7 +42,7 @@ It runs in a browser — the instance's pages and the Bridge's window.
 - `vendor/` — the vendored libraries for Markdown, sanitising and diagrams, each with its licence file, and a
   `README.md` naming each library, its version and its licence.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/vendor/marked.esm.js`, `docs/assets/vendor/mermaid.min.js`, `docs/assets/vendor/purify.es.mjs`: removed once the live app and `docs/index.html` use this module's `vendor/`, which holds them, `marked` newer.
+  - `docs/assets/vendor/marked.esm.js`, `docs/assets/vendor/mermaid.min.js`, `docs/assets/vendor/purify.es.mjs`, with the folder's licence files and `README.md`: removed once the live app renders its Markdown with `renderArtifact` and `docs/index.html` loads no library of its own; this module's `vendor/` holds the libraries, `marked` newer.
 
 ## Data
 
@@ -51,22 +51,30 @@ vendored libraries in `vendor/README.md` — one line per library: name, version
 
 ## Interfaces
 
-- `renderArtifact(text: string, options?: { linkFor?: (identifier: string) -> string | null, frontMatter?: "table" |
-  "hidden" }) -> Element` — the rendered text: front matter as a table unless hidden, Markdown as HTML sanitised before it
-  is inserted, every Mermaid block drawn with `renderMermaid`, every identifier the caller's `linkFor` resolves turned
-  into a link to its view, images and embedded resources shown as links. A part that cannot be rendered is shown as its
-  source with the reason; it never throws.
+- `renderArtifact(text: string, options?: { frontMatter?: "table" | "hidden" }) -> Element` — the rendered text: front
+  matter as a table unless hidden, Markdown as HTML sanitised before it is inserted, every Mermaid block drawn with
+  `renderMermaid`, images and embedded resources shown as links. A part that cannot be rendered is shown as its source
+  with the reason; it never throws.
 - `renderMermaid(source: string) -> Promise<Element>` — one diagram, drawn with the diagram library's strict security
-  level; a diagram that does not parse is shown with the parser's message beside its source. The prose beside a diagram
+  level in the colour scheme of the site: the library's `dark` theme where the scheme is dark, its `default` theme
+  otherwise. The scheme is dark when the browser prefers a dark colour scheme (`prefers-color-scheme: dark`) and the
+  document's root element does not carry `data-theme="light"` — the rule MOD-site-frame's style sheets (`look.css`,
+  `lme.css`) apply to every page. When the scheme changes after the diagram is drawn — the browser's preference
+  changes, or the root element's `data-theme` does — the diagram is drawn again from the same source in the new scheme,
+  and the element that was returned keeps its place and takes the new drawing as its content; the page is not reloaded
+  and the surrounding text is not touched. A diagram that does not parse is shown with the parser's message beside its
+  source, in either scheme. The prose beside a diagram
   stays what holds (`THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW`); this function only draws.
 - `openEditor(target: Element, text: string, options: { marks: (text: string) -> Finding[], save: (text: string) ->
-  Promise<SaveOutcome>, linkFor?: (identifier: string) -> string | null }) -> Editor` — the editor of
+  Promise<SaveOutcome>, disabledReason?: (text: string) -> string | null }) -> Editor` — the editor of
   `EDITS ARE PREPARED ON THE DASHBOARD`: Markdown on the left, the live preview with its diagrams on the right, following
   each keystroke; the caller's marks shown beside their lines in the one compiler form, without blocking; *Save* calls
-  `save`. On `refused` the edited text stays in the editor and the newer version is shown beside it with the difference
+  `save`, and is disabled, with `Save is disabled: <reason>` shown, while `disabledReason` gives a reason for the text as it stands (a changed
+  identifier, for instance), so that a caller never reaches into the editor's buttons. On `refused` the edited text stays in the editor and the newer version is shown beside it with the difference
   (`A REFUSED SAVE KEEPS THE EDIT`); leaving with unsaved changes asks first.
 - `Editor` — `{ text() -> string, showDraft(draft: string, against: string) -> void, setMarks(findings: Finding[]) ->
-  void, close() -> boolean }`; `close` asks first when the text holds unsaved changes, and says whether the editor closed; `showDraft` puts a participant's draft into the editor as the difference against the current
+  void, unsaved() -> boolean, close() -> boolean }`; `unsaved` says whether the text holds changes that are not saved, without asking; `close` asks first when it
+  does, and says whether the editor closed; `showDraft` puts a participant's draft into the editor as the difference against the current
   text (`A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT`).
 - `SaveOutcome` — `{ kind: "saved", link: string } | { kind: "refused", newer: string } | { kind: "failed", reason:
   string }` — what the caller's `save` returns to the editor.

@@ -19,8 +19,8 @@
 // view uses. The notices about a token — its expiry and its refusal — are the frame's (notices.mjs), drawn into the slot `token-banner`.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
-import { marked } from "../../docs/assets/vendor/marked.esm.js";
-import DOMPurify from "../../docs/assets/vendor/purify.es.mjs";
+import { renderArtifact, renderMermaid as drawDiagram } from "../markdown-render/index.mjs";
+import { registerPaths } from "../source-register/index.mjs";
 import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
 import { retireFileTexts } from "../../docs/assets/settings-store.mjs";
 import { productStore } from "../../docs/assets/product-store-adapter.mjs";
@@ -42,9 +42,10 @@ import { watchForAcceptance } from "../notifications/index.mjs";
 import { view as settingsPages } from "../settings-pages/index.mjs";
 import { view as reviewPages } from "../review-pages/index.mjs";
 import { view as tracePages } from "../trace-pages/index.mjs";
+import { view as testPages } from "../test-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
-import { routeOf } from "./routing.mjs";
+import { routeOf, productHostFollowingStore } from "./routing.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -267,7 +268,7 @@ async function loadSnapshot() {
 const USE_CASE_PATH = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
 const QUEUE_INDEX_PATH = /^docs\/spec-freigaben\/[^/]+\/index\.md$/;
 const QUEUE_HEAD_PATH = /^docs\/spec-freigaben\/[^/]+\/(?:index|entscheidungen)\.md$/;
-const ITEM_PATH = /^docs\/backlog\/ITM-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const ITEM_PATH = /^docs\/backlog\/ITM-\d{3,}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/\d+\.md$/;
 const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_PATH = /^docs\/architecture\/MOD-[^/]+\.md$/;
@@ -312,7 +313,8 @@ async function readAhead(kind) {
   } else if (kind === "module") {
     await readWave(pathsOf(MODULE_PATH));
   } else if (kind === "spec") {
-    await readWave(["SPEC.md", ...pathsOf(QUEUE_HEAD_PATH)]);
+    // The links file and the register's entries (MOD-source-register's registerPaths) are read with the SPEC, in the first wave.
+    await readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path)), ...pathsOf(QUEUE_HEAD_PATH)]);
     await readWave(await openProposals());
   } else if (kind === "backlog") {
     // The module files are read for a product with more than one team (backlog-view.mjs context).
@@ -366,30 +368,15 @@ let routeSeq = 0;
 
 const main = () => document.getElementById("main");
 
-function md(text) {
-  return DOMPurify.sanitize(marked.parse(text, { gfm: true }));
+// The live page's Markdown, rendered by MOD-markdown-render's renderArtifact: front matter as a table, images as links. A Mermaid
+// block is left as its source here and drawn by renderMermaid(root) once the HTML stands in the page.
+export function md(text) {
+  return renderArtifact(text).innerHTML;
 }
 
-let mermaidReady = false;
 async function renderMermaid(root) {
-  const blocks = [...root.querySelectorAll("pre > code.language-mermaid")];
-  if (!blocks.length || !globalThis.mermaid) return;
-  if (!mermaidReady) {
-    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
-    globalThis.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default" });
-    mermaidReady = true;
-  }
-  const nodes = blocks.map((code) => {
-    const div = document.createElement("div");
-    div.className = "mermaid";
-    div.textContent = code.textContent;
-    code.parentElement.replaceWith(div);
-    return div;
-  });
-  try {
-    await globalThis.mermaid.run({ nodes });
-  } catch (e) {
-    for (const n of nodes) if (!n.querySelector("svg")) n.insertAdjacentHTML("beforeend", `<p class="warn">Diagram error: ${h(e.message)}</p>`);
+  for (const code of [...root.querySelectorAll("pre > code.language-mermaid")]) {
+    code.parentElement.replaceWith(await drawDiagram(code.textContent));
   }
 }
 
@@ -480,8 +467,7 @@ function renderProductSelector() {
 // record of ITM-236 names addressOf's routes as this change's reading to confirm) — #uc(/<id>), #arc(/<id>) for both an
 // architecture decision and a module ("ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE"),
 // #spec/<queue>/<nn> for one SPEC change entry (MOD-progress-measures' id "spec-<queue>-<nn>"),
-// #release always for a release test report (release-view.mjs; not built yet — ITM-239 — so this falls back to the
-// use-case list today, as any not-yet-built route does, route()).
+// #release always for a release test report (MOD-test-pages' route release, which route() renders).
 let notificationsStore = null;
 
 // MOD-notifications' checks.mjs route key for one of its waiting kinds, turned into this file's own route — "uc", "arc"
@@ -524,7 +510,7 @@ function startNotifications() {
     return; // StorageUnavailable: a browser that refuses storage holds no switch, and no check runs
   }
   if (typeof globalThis.Notification === "undefined") return;
-  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHostFollowingToken() }, addressOf: addressOfNotification });
+  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHostFollowingToken() }, productHost: productHostFollowingStore({ store: notificationsStore }), addressOf: addressOfNotification });
 }
 
 // The instance's host for the checks, which keep it for the page's whole life: each call of its functions goes through a host connected
@@ -807,6 +793,12 @@ async function route() {
           if (route === "add-product") location.hash = "#add";
           if (route === "main") location.hash = "#uc";
         },
+      }, {});
+    } else if (kind === "release") {
+      const releasePanel = testPages.routes.find((r) => r.name === "release");
+      await releasePanel.render(main(), {
+        instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
+        product: { host: connect(parseAddress(T.product.address), { token: token() }) },
       }, {});
     } else if (kind === "bridge") {
       const bridge = settingsPages.routes.find((r) => r.name === "bridge");

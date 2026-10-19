@@ -1,16 +1,18 @@
 // file-edit.mjs — editing a reviewed file on the dashboard (MOD-review-pages, Parts): the editor opens on the file's
-// current text, shows the descriptor's marks, and saves through MOD-artifact-edits on the blob it opened.
+// current text, shows the descriptor's marks, and saves through MOD-artifact-edits on the blob it opened; for a decision or a module, *Check this edit* stands beside it.
 //
 // Module: MOD-review-pages
 
 import { fallbackEditLinks, saveFile } from "../artifact-edits/index.mjs";
 import { artifactSchemas, documentFindings, readDocument } from "../documents/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { explain, readProblem, runPanel } from "../site-frame/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { graphFindings, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
+import { runOnTab } from "../runtimes/index.mjs";
+import { button, el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
+import { byClassChecked, connectionsOf, loadStage, participantList, preparedRun } from "./jobs.mjs";
 
 const SCHEMA = { "use-case": "useCase", "architecture-decision": "decision", module: "module" };
 const REALISES = "A USE CASE REALISES NAMED REQUIREMENTS";
@@ -57,6 +59,67 @@ export function fallbackPages(target, pages) {
   return true;
 }
 
+const KIND = "review-architecture";
+const WARNING = "warning";
+
+// *Check this edit* (UC-023 step 3): the kind `review-architecture` run on the edited file as its draft. Nothing is sent while the section is drawn or the panel is shown: Run is the
+// one click that starts the job, and the job has no record, so nothing is committed.
+// The findings of the reviewer's draft as warnings, in MOD-text-tools' form.
+const warningsOf = (draft) => (Array.isArray(draft?.findings) ? draft.findings : []).map((each) =>
+  finding({ artifact: String(each.artifact), line: Number.isInteger(each.line) && each.line >= 1 ? each.line : 1, kind: WARNING, rule: String(each.rule), what: String(each.what), fix: String(each.fix) }));
+
+/**
+ * offerCheck(where, file, editor, onFindings) -> Promise<Element> — the section *Check this edit*, appended beside the editor: the participants that can draft text, the button that shows
+ * the run panel for the editor's text as it stands, and Run. `onFindings(findings)` is called with the reviewer's findings, each a warning, when the job has run.
+ */
+export async function offerCheck(where, file, editor, onFindings) {
+  const { target, token } = where;
+  const section = el("section", "check-edit", el("h3", null, "Check this edit"));
+  target.append(section);
+  let stage;
+  try {
+    stage = await loadStage(where, KIND);
+  } catch (failure) {
+    section.append(readProblem(failure, Boolean(token)));
+    return section;
+  }
+  const { definition, participants, instanceSnapshot, product, needs, drafters } = stage;
+  const offered = participantList(drafters, participants, product, needs);
+  const shown = el("section", "stage");
+  const prepare = button("btn prepare", "Check this edit");
+  section.append(el("section", "reviewers", el("h4", null, "Reviewing participant"), offered), prepare, shown);
+
+  async function run(ready) {
+    const result = el("section", "job");
+    shown.append(result);
+    try {
+      if (!ready.offer || !ready.offer.available || ready.offer.route.kind !== "tab") {
+        throw Object.assign(new Error(ready.offer?.reason ?? "this check runs in this tab: choose a participant whose route is the tab"), { name: "RouteUnavailable" });
+      }
+      const outcome = await runOnTab(ready.prepared, ready.jobContext, connectionsOf([ready.prepared.drafter].filter(Boolean), where.context.store), { host: where.host, record: null });
+      const found = warningsOf(outcome.draft);
+      onFindings(found);
+      result.append(el("p", "ran", found.length ? `${found.length} finding${found.length === 1 ? "" : "s"}, shown beside the edit as warnings.` : "No finding."));
+    } catch (failure) {
+      result.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
+    }
+  }
+
+  prepare.addEventListener("click", async () => {
+    shown.replaceChildren();
+    const chosen = drafters.find((participant) => byClassChecked(offered, participant.name));
+    if (!chosen) { shown.append(el("p", "problem", "Choose the participant that reviews.")); return; }
+    const draft = { files: [{ path: file.path, class: "change", of: file.id, text: editor.text() }] };
+    try {
+      const ready = await preparedRun({ ...where, definition, jobKind: KIND, params: { draft }, chosen, participants, instanceSnapshot, product, needs });
+      shown.append(runPanel(ready.prepared, { onRun: () => run(ready) }));
+    } catch (failure) {
+      shown.append(readProblem(failure, Boolean(token)));
+    }
+  });
+  return section;
+}
+
 // showFileEdit(where, kind, file) — the page that edits `file`; the editor it opened, or nothing where it opened none.
 export async function showFileEdit(where, kind, file) {
   const { target, snapshot, token, host, context } = where;
@@ -83,6 +146,8 @@ export async function showFileEdit(where, kind, file) {
   // The findings across artifacts (graphFindings) of the edited file of a decision or a module: the graph of the repository with the edited text in
   // place of the file, read asynchronously; they are handed to the editor when they are in, unless the text has moved on.
   let editor = null, latest = null;
+  // The findings of *Check this edit*, each a warning: they stand beside the marks of the schema and the graph while the text is edited.
+  let reviewed = [];
   const reads = new Map();
   const readOnce = (path) => (reads.has(path) ? reads : reads.set(path, snapshot.read(path))).get(path);
   async function acrossArtifacts(text, own) {
@@ -94,8 +159,8 @@ export async function showFileEdit(where, kind, file) {
     const document = readDocument(schema, file.path, text);
     const found = documentFindings(schema, document);
     if (kind.kind === "use-case") found.push(...unmatchedRealises(document.id ?? file.id, text, requirements));
-    else acrossArtifacts(text, [...found]).catch(() => {});
-    return found;
+    else acrossArtifacts(text, [...found, ...reviewed]).catch(() => {});
+    return [...found, ...reviewed];
   };
   const disabledReason = (text) => {
     const id = readDocument(schema, file.path, text).id;
@@ -128,5 +193,7 @@ export async function showFileEdit(where, kind, file) {
   }
 
   editor = openEditor(editorBox, body, { marks, save, disabledReason });
+  // An edit of the architecture may be checked before it is saved (UC-023 step 3): the check saves nothing, and needs the person's token for the job's person.
+  if (token && kind.kind !== "use-case") await offerCheck(where, file, editor, (found) => { reviewed = found; editor.setMarks(marks(editor.text())); });
   return editor;
 }

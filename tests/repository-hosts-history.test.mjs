@@ -1,3 +1,4 @@
+// Module: MOD-repository-hosts
 // MOD-repository-hosts' readHistory (ITM-309), as the accepted text of docs/architecture/MOD-repository-hosts.md states it:
 // "readHistory(path: string | null, options: { ref?: string, limit?: number, changes?: boolean }) -> Promise<HistoryEntry[]> — the commits that
 // changed a path, or the repository, newest first. With `changes: false`, each entry's `changes` is empty and the history costs one request per

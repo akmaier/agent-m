@@ -53,19 +53,20 @@ def keys_without_place(keys: list[str], places: dict) -> list[str]:
 # named with that line's text.
 PLACES = {
     "github-token": "GitHub token", "products": "Products", "notifications": "Notifications", "notified": "Notifications",
-    "bridge": "Bridge", "jump-host": "Jump host", "mailbox": "Mailbox",
+    "bridge": "Bridge", "jump-host": "Jump host", "mailbox": "Mailbox", "browser": "Browser identifier",
     "github-token:sample": "GitHub token: sample", "gitlab-token:sample": "GitLab token: sample", "endpoint:sample": "Endpoint: sample",
     "bridge:sample": "Bridge: sample", "remote-session:sample": "Remote session: sample",
-    "last-test:sample": "GitHub token", "acknowledged:sample": "GitHub token",
+    "last-test:sample": "GitHub token", "acknowledged:sample": "GitHub token", "resource-key:sample": "Resource key: sample",
 }
 STORED = {
     "github-token": TOKEN, "products": ["https://github.com/alice/thesis"], "notifications": {"on": False}, "notified": ["docs/a.md"],
     "bridge": {"address": "https://bridge.example.test", "token": "bridgetok"}, "jump-host": JUMP,
-    "mailbox": {"address": "me@example.org", "route": "imap", "imap": {"bridge": "lab"}, "folders": ["INBOX"], "places": []},
+    "mailbox": {"address": "me@example.org", "route": "imap", "imap": {"bridge": "lab"}, "folders": ["INBOX"], "places": []}, "browser": "0123456789abcdef",
     "github-token:sample": TOKEN, "gitlab-token:sample": TOKEN,
     "endpoint:sample": {"url": "https://m.example/v1", "kind": "openai-compatible", "model": "m", "key": "k", "throughBridge": False},
     "bridge:sample": {"address": "http://localhost:8765", "token": "labtok"}, "remote-session:sample": {"port": 20001, "token": BRIDGE_SECRET},
     "last-test:sample": {"at": "2026-09-29T10:00:00.000Z", "outcome": "working"}, "acknowledged:sample": "2026-09-01",
+    "resource-key:sample": {"value": "hub_KEY0123456789", "stored": "2026-09-01T00:00:00.000Z"},
 }
 
 
@@ -92,6 +93,32 @@ class EverySettingOnOnePage(unittest.TestCase):
     def test_counter_proof_a_key_without_a_place_fails(self):
         fixture = keys_written(CATALOGUE.read_text(encoding="utf-8")) + ["bridge-token"]
         self.assertEqual(keys_without_place(fixture, PLACES), ["bridge-token"])
+
+
+# UC-042 step 3: every setting the instance's and a product's repository keep, and the title of its line on the page.
+REPOSITORY_PLACES = {
+    "participants": "Participants", "source library": "Source library", "process models": "Process models", "instance resources": "Resources",
+    "process model": "Process model", "role assignments": "Role assignments", "definition of done": "Definition of Done",
+    "test schedule": "Test schedule", "linked sources": "Linked sources", "resources": "Resources",
+}
+
+
+def repository_settings_without_place(settings: list[str], places: dict) -> list[str]:
+    """The repository settings for which the table of places names no line on the page."""
+    return [name for name in settings if name not in places]
+
+
+class EveryRepositorySettingHasALine(unittest.TestCase):
+    def test_each_repository_setting_has_a_place_and_the_page_draws_its_line(self):
+        source = (SRC / "settings-pages" / "settings.mjs").read_text(encoding="utf-8")
+        self.assertEqual(repository_settings_without_place(list(REPOSITORY_PLACES), REPOSITORY_PLACES), [])
+        self.assertEqual(len(REPOSITORY_PLACES), 10, "UC-042's table names ten repository settings besides the switch, pseudonymisation and collaborators")
+        for setting, title in REPOSITORY_PLACES.items():
+            self.assertIn(f'"{title}"', source, f"{setting} has a line titled {title} in the module that draws the page")
+
+    def test_counter_proof_a_repository_setting_without_a_line_fails(self):
+        fixture = list(REPOSITORY_PLACES) + ["retention"]
+        self.assertEqual(repository_settings_without_place(fixture, REPOSITORY_PLACES), ["retention"])
 
 
 class TestedAndCleared(unittest.TestCase):

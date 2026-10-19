@@ -1,4 +1,4 @@
-# Module: MOD-work-items
+# Module: MOD-work-plans
 # Guards: A BACKLOG ITEM NAMES WHAT IT REALISES; EVERY ARTIFACT NAMES ITS ORIGIN; UC-032; UC-033
 # Level: unit
 """SPEC §13 A BACKLOG ITEM NAMES WHAT IT REALISES — every backlog item names at least one requirement or use case that
@@ -218,6 +218,25 @@ class TestTheJobThatDraftsItems(unittest.TestCase):
                    "return workItems.itemProblems({ title: 'Export the thesis as PDF', outcome: 'x', realises: ['EXPORT IS A PDF'],"
                    f" origins: ['draft'] }}, {{ ...{json.dumps(KNOWN)}, items }}).map((f) => [f.kind, f.what]);")
         self.assertEqual(again, [["warning", 'the item restates ITM-014 ("Export the thesis as PDF")']])
+
+
+class TestAnItemOfFourDigitsNamesWhatItRealises(unittest.TestCase):
+    """ITM-<nnn> takes three or more digits (MOD-identifiers, Data)."""
+
+    def test_an_item_of_four_digits_with_its_names_has_no_finding(self):
+        path = "docs/backlog/ITM-1000-export-thesis-as-pdf.md"
+        text = edited(TEXT, "id: ITM-014\n", "id: ITM-1000\n")
+        self.assertEqual(problems(path, text, KNOWN), [])
+
+    def test_an_item_of_three_digits_has_still_no_finding(self):
+        path = "docs/backlog/ITM-999-export-thesis-as-pdf.md"
+        text = edited(TEXT, "id: ITM-014\n", "id: ITM-999\n")
+        self.assertEqual(problems(path, text, KNOWN), [])
+
+    def test_counter_proof_an_item_of_two_digits_is_a_finding(self):
+        path = "docs/backlog/ITM-99-export-thesis-as-pdf.md"
+        text = edited(TEXT, "id: ITM-014\n", "id: ITM-99\n")
+        self.assertEqual([f["kind"] for f in problems(path, text, KNOWN)], ["error", "error"])
 
 
 @unittest.skipUnless(any((DOCS / "backlog").glob("ITM-*.md")), "this repository has no backlog items")
