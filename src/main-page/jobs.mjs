@@ -16,11 +16,12 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { chosenProduct, confirmDecision, explain } from "../site-frame/index.mjs";
+import { chosenProduct, confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { cancelJob, liveState, jobLog, retryJob, routesFor } from "../runtimes/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
+import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
@@ -272,6 +273,7 @@ async function renderJob(target, context, params, note = null) {
   }
   if (CANCELLABLE.has(row.state)) page.append(cancelControls(target, context, params, held, read));
   if (note) page.append(el("p", "job-cancel-result", note));
+  if (gate) page.append(await gateDecision(context, held, read, gate));
   if (RETRIABLE.has(row.state)) page.append(await retryControls(context, held, read));
   page.append(el("h3", null, "Cost"), el("p", "job-cost", costLine(held.cost)));
   const log = el("div", "job-log");
@@ -392,6 +394,88 @@ async function retryControls(context, held, read) {
 }
 
 const decisionFailure = (failure) => (failure?.name === "Moved" ? "The product changed meanwhile: nothing was written. Open the job again." : `${String(failure?.message ?? failure)} — nothing was written.`);
+
+// ---------------------------------------------------------------- a gate the job waits at (UC-034 step 7, 7a)
+//
+// Where the texts leave a reading open, this file takes the one it names:
+//   - The person is named as the product's stored token names them (its `name`), as the prompt bar names the person who starts a job; the name is the decider of the record, its kind `person`.
+//   - The job's role assignment is the team's whose sprint holds the job's item (the facts' `held`), else the one role assignment of a product without sprints; the participant whose work the gate
+//     checks is the job's participant. A gate decided by a CI check is decided by that check, and gets no buttons.
+//   - `on` of the record is the job's inputs (`<path>@<blob>`), else the head commit the facts were read at.
+
+function assignmentOf(record, facts, workflow) {
+  const item = record.worksOn.find((each) => facts.plan.states.some((state) => state.item === each));
+  const held = item === undefined ? undefined : facts.held.find((each) => each.item === item);
+  if (held) return facts.assignments.find((each) => each.path.endsWith(`/${held.team}.md`)) ?? null;
+  return workflow?.model?.flow?.sprints !== true && facts.assignments.length === 1 ? facts.assignments[0] : null;
+}
+
+function personOf(store, product) {
+  try {
+    const name = readSetting(store, tokenKeyOf(parseAddress(product)))?.name;
+    return typeof name === "string" && name ? name : null;
+  } catch { return null; }
+}
+
+// What the page says of a gate decision's failure.
+const gateFailure = (failure) => (failure?.name === "Moved" ? "The product changed meanwhile: nothing was written. Open the job again, since the gate may have been decided." : `${String(failure?.message ?? failure)} — nothing was written.`);
+
+async function gateDecision(context, held, read, gate) {
+  const box = el("div", "gate-decision");
+  const { record } = held;
+  const host = read.hostOf.get(held.product);
+  let facts;
+  try {
+    const instanceHost = context.instance.host;
+    const snapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
+    facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+  } catch (failure) {
+    box.append(el("p", "warn gate-unreadable", `The gate could not be read: ${String(failure?.message ?? failure)}`));
+    return box;
+  }
+  const workflow = facts.workflow === "unknown" ? null : facts.workflow;
+  const named = workflow?.gates.find((each) => each.name === gate.gate);
+  if (!named || /^check:/.test(named.decider)) return box;
+  box.append(el("p", "gate-checks", `It checks: ${named.condition}`), el("p", "gate-examine", `To examine: ${named.artifacts}`));
+  const assignment = assignmentOf(record, facts, workflow);
+  const person = personOf(context.store, held.product);
+  const pass = el("button", "gate-pass btn primary", "Pass gate"), reject = el("button", "gate-reject btn", "Reject");
+  for (const button of [pass, reject]) button.setAttribute("type", "button");
+  const result = el("p", "gate-result");
+  box.append(el("p", null, pass, " ", reject), result);
+  const may = assignment === null || person === null ? null : mayDecide({ name: person, kind: "person" }, gate.gate, workflow, assignment, record.participant ? [record.participant] : []);
+  if (!may?.may) {
+    pass.disabled = true;
+    reject.disabled = true;
+    const why = assignment === null ? "this job has no role assignment to decide it in" : person === null ? "this browser stores no token that names you" : may.reason;
+    const holders = may?.holders ?? [];
+    box.append(el("p", "gate-unavailable", `Only a holder of the role ${named.decider} decides this gate${holders.length ? `; its holders are ${holders.join(", ")}` : ""}. You cannot decide it: ${why}.`));
+    return box;
+  }
+  const decide = async (decision, title, confirm, lines, withReason) => {
+    const answer = await confirmDecision({ title, lines, confirm, reason: withReason });
+    if (!answer.confirmed) return;
+    pass.disabled = true;
+    reject.disabled = true;
+    try {
+      await recordGateDecision(host, { gate: gate.gate, job: record.id, decider: { name: person, kind: "person" }, role: named.decider, decision, reason: withReason ? answer.reason : null,
+        on: record.inputs.length ? record.inputs : [facts.snapshot.commit] },
+      { workflow, assignment, workBy: record.participant ? [record.participant] : [], head: facts.snapshot.commit, now: new Date(), trailers: [] });
+      result.textContent = `The gate ${gate.gate} was ${decision} by ${person}; the job's route resumes or ends the job when it notices the record.`;
+    } catch (failure) {
+      result.textContent = gateFailure(failure);
+      pass.disabled = false;
+      reject.disabled = false;
+    }
+  };
+  pass.addEventListener("click", (event) => {
+    if (event.isTrusted && !pass.disabled) decide("passed", `Pass ${gate.gate}?`, "Pass the gate", [`${person} passes the gate ${gate.gate} for ${record.id}, as a holder of ${named.decider}.`, "The decision is recorded in the product's repository."], false);
+  });
+  reject.addEventListener("click", (event) => {
+    if (event.isTrusted && !reject.disabled) decide("rejected", `Reject ${gate.gate}?`, "Reject the gate", [`${person} rejects the gate ${gate.gate} for ${record.id}. A rejection needs its reason.`], true);
+  });
+  return box;
+}
 
 // A job shown as cancelling is read again later, while its page stands (UC-036 6a).
 const AGAIN = 5000;
