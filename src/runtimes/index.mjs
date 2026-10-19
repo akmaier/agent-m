@@ -26,6 +26,7 @@ export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
 export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
+export { jobTrail } from "./trail.mjs";
 export { handOverJob } from "./hand-over.mjs";
 export { routeStrategies } from "./pull-request.mjs";
 
