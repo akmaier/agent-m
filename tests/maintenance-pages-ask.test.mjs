@@ -32,14 +32,14 @@ const day = () => new Date().toISOString().slice(0, 10);
 /** The standard issues and, besides them: issue 8, closed, whose mail `arrived` was added after the closing note; issue 9, open, listing a mail that has a draft in Drafts. */
 async function fixture() {
   const f = await standard();
-  const [orig, arrived, qdraft] = [await mailOf("orig"), await mailOf("arrived"), await mailOf("qdraft")];
+  const [orig, early, arrived, qdraft] = [await mailOf("orig"), await mailOf("early"), await mailOf("arrived"), await mailOf("qdraft")];
   const draft = { ref: { route: "bridge", uid: 2, uidValidity: 7 }, inReplyTo: qdraft.messageId, mail: qdraft, to: ERIKA, subject: "Re: Subject qdraft", body: "Fixed in 1.5." };
-  const eight = issueRecord(8, "closed", [orig], { comments: ["Closed with pull request https://github.com/alice/product/pull/11.", noteText("mail-added", arrived.id, day())] });
+  const eight = issueRecord(8, "closed", [orig], { comments: [noteText("mail-added", early.id, day()), "Closed with pull request https://github.com/alice/product/pull/11.", noteText("mail-added", arrived.id, day())] });
   const nine = issueRecord(9, "open", [qdraft]);
-  const w = world({ mails: [...f.found, orig, arrived, qdraft], drafts: [...f.drafts, draft], issues: [...f.issues, eight, nine] });
+  const w = world({ mails: [...f.found, orig, early, arrived, qdraft], drafts: [...f.drafts, draft], issues: [...f.issues, eight, nine] });
   const target = await opened(w);
   await read(target);
-  return { ...f, mails: { ...f.mails, orig, arrived, qdraft }, w, target };
+  return { ...f, mails: { ...f.mails, orig, early, arrived, qdraft }, w, target };
 }
 async function issue(f, number) {
   const detail = await opened(f.w, { issue: String(number), product: PRODUCT_URL });
@@ -119,7 +119,7 @@ test("a mail that arrived in a closed issue's thread offers Reopen and Leave clo
   const detail = await issue(f, 8);
   const item = itemOf(detail, f.mails.arrived.id);
   assert.equal(byClass(item, "reply-arrived").length, 1);
-  assert.equal(byClass(itemOf(detail, f.mails.orig.id), "reply-arrived").length, 0, "the mail that was there before the closing is no arrival");
+  assert.equal(byClass(itemOf(detail, f.mails.early.id), "reply-arrived").length, 0, "a mail added before the closing is no arrival");
   assert.deepEqual(f.w.kept.github.filter((request) => request.method === "PATCH"), [], "drawing reopens nothing");
   const reopen = one(item, "reopen-issue");
   reopen.dispatchEvent(new Event("click"));
