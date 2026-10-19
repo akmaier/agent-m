@@ -33,6 +33,8 @@ class Storage { constructor() { this.values = new Map(); } getItem(key) { return
 const descendants = (root, predicate) => { const found = []; const visit = (node) => { for (const child of node.childNodes ?? []) { if (child instanceof Element) { if (predicate(child)) found.push(child); visit(child); } } }; visit(root); return found; };
 const buttons = (root, label) => descendants(root, (node) => node.localName === "button" && node.textContent === label);
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+// The agents are found by running each CLI, so a redraw takes a moment: wait, at most three seconds, until the condition holds.
+const until = async (condition) => { for (let i = 0; i < 150 && !condition(); i += 1) await settle(); };
 const script = (folder, name, body) => writeFileSync(join(folder, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
 
 // TST-1050101 · level: unit · module: MOD-desktop-shell
@@ -56,7 +58,7 @@ test("the Agents view lists a newly installed agent after Check again", async ()
     let asked = 0;
     browser.bridge = { async state(action) { if (action === "agents") { asked += 1; return { platform: "linux", agents: await installedAgents(), selected: [] }; } return {}; }, async copy() {}, async quit() {} };
     await import(`../src/desktop-shell/window.mjs?check-again=${Date.now()}`);
-    await settle();
+    await until(() => buttons(document.body, "Choose folder").length === 1);
     const links = () => descendants(document.body, (node) => node.localName === "a" && node.textContent === "How to install").length;
     const folders = () => buttons(document.body, "Choose folder").length;
     assert.equal(folders(), 1, "known positive: the installed Claude is listed with its folder");
@@ -70,7 +72,7 @@ test("the Agents view lists a newly installed agent after Check again", async ()
     assert.ok(check, "the Agents view has a Check again button");
     const askedBefore = asked;
     check.dispatchEvent(new Event("click"));
-    await settle();
+    await until(() => folders() === 2);
     assert.ok(asked > askedBefore, "Check again reads the agents anew");
     assert.equal(folders(), 2, "Codex is listed as installed");
     assert.equal(links(), missingBefore - 1, "one installation link fewer");
