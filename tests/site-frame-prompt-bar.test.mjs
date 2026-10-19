@@ -114,7 +114,7 @@ async function start({ page = "review", fragment = "", views } = {}) {
   writeSetting(store, "github-token:acme/widget", { value: "github_pat_WIDGET", name: "alice", expires: "2030-01-01" });
   await startPage({ page, views: [{ routes: views, strategies: [] }], menuViews: [] });
   const body = fixture.document.body;
-  const footer = all(body, "footer")[0] ?? null;
+  const footer = all(body, "footer").find((node) => node.className === "site-frame-prompt-bar") ?? null;
   return { ...fixture, body, store, footer, target: all(body, "main")[0] };
 }
 const drawn = async (page) => {
@@ -138,8 +138,8 @@ const conversationOf = () => readTabValue(openStore("acme/instance"), "prompt-ba
 // given: a browser that keeps the endpoint ep1 and a register offering the one participant drafter-a; one view with the routes
 //   alpha (requirements) and beta (tests)
 // input: startPage on the main page, then on the review page, each followed by two changes of the fragment; then on the bridge page
-// expect: on the main and on the review page the children of the body are, in this order, header, section, main, footer; the footer
-//   has the class site-frame-prompt-bar and holds one section of class prompt-bar whose data-page is "main", then "review"; the
+// expect: on the main and on the review page the children of the body are, in this order, header, section, main, the site footer (class
+//   site-footer) and the footer of the bar; the last has the class site-frame-prompt-bar and holds one section of class prompt-bar whose data-page is "main", then "review"; the
 //   register of the instance (docs/participants.md) was read once, and after the two changes of the fragment the footer holds
 //   that same section (the bar was not started again) and the register was still read once; on the
 //   bridge page the children of the body are header, section, main, there is no footer and the register was not read
@@ -147,7 +147,8 @@ test("TST-506001 the bar is started once in a footer after the route's main on t
   const views = [route("alpha", "requirements"), route("beta", "tests")];
   for (const name of ["main", "review"]) {
     const page = await start({ page: name, fragment: "#alpha", views });
-    assert.deepEqual(page.body.children.map((child) => child.localName), ["header", "section", "main", "footer"], name);
+    assert.deepEqual(page.body.children.map((child) => child.localName), ["header", "section", "main", "footer", "footer"], name);
+    assert.equal(page.body.children[3].className, "site-footer", `${name}: the site footer stands after the route and before the bar's footer`);
     assert.equal(page.footer.className, "site-frame-prompt-bar", name);
     await drawn(page);
     assert.equal(participantReads().length, 1, `${name}: the register is read once`);

@@ -77,7 +77,7 @@ async function start() {
   writeSetting(store, "github-token", { value: SECRET, name: "alice", expires: "2030-01-01" });
   await startPage({ page: "review", views: [view], menuViews: [] });
   const body = fixture.document.body;
-  const footer = all(body, "footer")[0];
+  const footer = all(body, "footer").find((node) => node.className === "site-frame-prompt-bar");
   await until(() => byClass(footer, "prompt-bar").length > 0 && byClass(body, "settings-repository-secret").length > 0, "the bar and the Settings page are drawn");
   // The line Recording conversations stands in the tab Repositories, which the person opens.
   byClass(body, "settings-tab")[1].dispatchEvent(new Event("click"));
