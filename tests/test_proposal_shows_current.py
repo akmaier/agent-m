@@ -29,7 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-import apply_approvals as ap  # noqa: E402
+import spec_apply as ap  # noqa: E402
 from jsrun import js  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "gates"
@@ -99,7 +99,7 @@ class ProposalShowsCurrent(unittest.TestCase):
     def test_an_approval_that_names_no_current_text_is_not_written(self):
         p = Product()
         try:
-            shown = ap.section_text(ap.extract_section(p.spec, ANCHOR))
+            shown = ap.legacy_section_text(ap.legacy_extract_section(p.spec, ANCHOR))
             # Expected: the dashboard's acceptance of an item that names no current text writes nothing and names the entry.
             plan = p.dashboard(None)
             self.assertEqual(plan["files"], [])
@@ -109,7 +109,7 @@ class ProposalShowsCurrent(unittest.TestCase):
             # Expected: a record without `section:` is refused by the workflow, which writes nothing and says what is missing.
             rc, report = p.workflow("")
             self.assertEqual((rc, p.text("SPEC.md")), (1, p.spec))
-            self.assertIn("missing section", report)
+            self.assertIn("lacks section", report)
         finally:
             p.tmp.cleanup()
 
@@ -120,13 +120,15 @@ class ProposalShowsCurrent(unittest.TestCase):
             first = ap.blob_sha("## 2. More\n\n" + p.spec.split("## 2. More\n\n", 1)[1].split("\n## 3. Last")[0].rstrip("\n") + "\n")
             # Expected: the engine shows no current text, and says why.
             self.assertEqual(p.current(1), {"error": "anchor found 2 times instead of exactly once", "needs": []})
-            # Expected: neither writer writes, both name the anchor — with the first occurrence's SHA as the text shown.
+            # Expected: the dashboard writes nothing and names the anchor; the workflow writes nothing for the first occurrence's SHA as the dashboard shows it.
             plan = p.dashboard(first)
             self.assertEqual(plan["files"], [])
             self.assertIn("anchor found 2 times", plan["leftOut"][0]["reason"])
+            # The workflow's writer, applyApproved, takes the first section of that heading (MOD-spec-document, sectionText); an approval that names
+            # any other text than that section's bytes is refused and nothing is written.
             rc, report = p.workflow(first)
             self.assertEqual((rc, p.text("SPEC.md")), (1, p.spec))
-            self.assertIn("anchor found 2 times", report)
+            self.assertIn("changed after it was approved", report)
         finally:
             p.tmp.cleanup()
 

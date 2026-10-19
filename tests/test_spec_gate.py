@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-import apply_approvals as ap  # noqa: E402
+import spec_apply as ap  # noqa: E402
 from jsrun import js  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "gates"
@@ -73,7 +73,7 @@ class Product:
         """What the dashboard showed for entry `nr`: the proposal and the section beside it, by their blob SHAs."""
         name, anchor = ENTRIES[nr]
         return {"kind": "spec", "queue": Q, "qname": Path(Q).name, "nr": nr, "nn": f"{nr:02d}", "proposalPath": f"{Q}/{name}",
-                "proposalBlob": ap.blob_sha(self.text(f"{Q}/{name}")), "sectionBlob": ap.blob_sha(self.section(anchor)),
+                "proposalBlob": ap.blob_sha(self.text(f"{Q}/{name}")), "sectionBlob": ap.blob_sha(ap.legacy_section_text(ap.legacy_extract_section(self.text("SPEC.md"), anchor))),
                 "targetPath": "SPEC.md", "anchor": anchor, "bis": None, "needs": []}
 
     def plan(self, items: list) -> dict:
