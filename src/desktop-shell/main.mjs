@@ -3,7 +3,7 @@ import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { installedAgents } from "../agent-processes/index.mjs";
-import { testAccess } from "../bridge-jobs/index.mjs";
+import { listJobs, testAccess } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
 import { loadSettings, saveSettings, setJumpHost, takeExport } from "./settings.mjs";
@@ -62,7 +62,7 @@ export async function start(electron, supplied = {}) {
     : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused, pairedWith: bridge.pairedWith(), settings: bridge.settings, publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() });
   const restart = async () => {
     if (bridge) await bridge.close();
-    bridge = await compose({ instance: config.instance, origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused });
+    bridge = await compose({ instance: repositoryAddress(config.instance), origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused });
     startupFailure = null;
     return bridgeState();
   };
@@ -74,6 +74,8 @@ export async function start(electron, supplied = {}) {
       saveSettings(config.dataFolder, { ...bridge.settings, agents: Array.isArray(value?.agents) ? value.agents : [], paused });
       return restart();
     }
+    // The jobs this Bridge took and that still run, which the window's Quit names (UC-044 7b).
+    if (action === "running-jobs") return { jobs: listJobs().filter((job) => job.state === "running") };
     if (action === "test-access") return { results: await testAccess({ instance: repositoryAddress(config.instance), products: bridge.settings.products }) };
     if (action === "settings") return { settings: bridge.settings };
     if (action === "tunnels") return { publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() };
@@ -113,12 +115,16 @@ export async function start(electron, supplied = {}) {
     return restart();
   });
   electron.ipcMain.handle("quit", () => electron.app.quit());
+  // The tray's Quit: with jobs running, the window shows the decision that names them (the same as its own Quit); with none, the app quits at once.
+  const quitFromTray = () => {
+    if (listJobs().some((job) => job.state === "running")) { show(window); window.webContents.send("quit-requested"); } else electron.app.quit();
+  };
   electron.app.on("second-instance", () => show(window));
   if (process.platform === "linux") {
     window.on("close", (event) => { if (!quitting) event.preventDefault(); });
   } else if (electron.Tray) {
     tray = new electron.Tray(electron.nativeImage.createFromPath(join(sourceRoot, "desktop-shell", "icons", "tray.png")));
-    tray.setContextMenu(electron.Menu.buildFromTemplate([{ label: "Open Agent M Bridge", click: () => show(window) }, { label: "Pause", click: () => { paused = true; } }, { label: "Resume", click: () => { paused = false; } }, { label: "Quit", click: () => electron.app.quit() }]));
+    tray.setContextMenu(electron.Menu.buildFromTemplate([{ label: "Open Agent M Bridge", click: () => show(window) }, { label: "Pause", click: () => { paused = true; } }, { label: "Resume", click: () => { paused = false; } }, { label: "Quit", click: () => quitFromTray() }]));
     tray.on("click", () => show(window));
     window.on("close", (event) => { if (!quitting) { event.preventDefault(); window.hide(); } });
   }

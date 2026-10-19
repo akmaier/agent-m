@@ -38,20 +38,20 @@ export const temporary = () => mkdtempSync(join(tmpdir(), "agent-m-entry-"));
 function constructedElectron(appData) {
   const exits = [];
   const handlers = {};
-  const record = { trays: [], windows: [], loadedUrl: null, quits: 0, exits, appEvents: {} };
+  const record = { trays: [], windows: [], loadedUrl: null, quits: 0, exits, appEvents: {}, sent: [], shown: 0 };
   let settle;
   const outcome = new Promise((resolve) => { settle = resolve; });
   record.outcome = outcome;
   class Tray {
     constructor(image) { this.image = image; record.trays.push(this); }
-    setContextMenu() {}
+    setContextMenu(menu) { this.menu = menu; }
     on() {}
   }
   class BrowserWindow {
-    constructor() { this.webContents = { setWindowOpenHandler() {}, on() {} }; record.windows.push(this); }
+    constructor() { this.webContents = { setWindowOpenHandler() {}, on() {}, send: (...message) => { record.sent.push(message); } }; record.windows.push(this); }
     on() {}
     isMinimized() { return false; }
-    show() {} focus() {} restore() {} hide() {}
+    show() { record.shown += 1; } focus() {} restore() {} hide() {}
     async loadURL(url) { record.loadedUrl = url; settle({ kind: "loaded", url }); }
   }
   Object.assign(record, {

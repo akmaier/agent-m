@@ -14,7 +14,7 @@ async function pairing(target, context) {
     detail.textContent = `${state.failure.name}: ${state.failure.message}${state.failure.folder ? ` (${state.failure.folder})` : ""}`;
     target.append(heading, detail, explain("bridge-pairing"));
     if (state.failure.name === "PortInUse") { const port = document.createElement("input"); port.type = "number"; port.value = "4712"; const retry = button("Use this port", async () => { await window.bridge.retryPort(port.value); await pairing(target, context); }); target.append(port, retry); }
-    target.append(button("Quit", () => window.bridge.quit()));
+    target.append(button("Quit", () => quit()));
     notice("unreachable", { text: detail.textContent }); return;
   }
   const heading = document.createElement("h1"), address = document.createElement("code"), token = document.createElement("code"), controls = document.createElement("p");
@@ -22,9 +22,21 @@ async function pairing(target, context) {
   controls.append(button("Copy address", () => window.bridge.copy(state.address)), button("Copy token", () => window.bridge.copy(state.token)), button(state.paused ? "Resume" : "Pause", async () => { await window.bridge[state.paused ? "resume" : "pause"](); await pairing(target, context); }), button("Pair anew", async () => {
     const decision = await confirmDecision({ title: "Replace pairing", lines: ["Every paired browser must pair again. The old token will stop working."], confirm: "Pair anew" });
     if (decision.confirmed) { await window.bridge.pairAnew(); notice("info", { text: "The pairing token was replaced. Pair this dashboard again." }); await pairing(target, context); }
-  }), button("Quit", () => window.bridge.quit()));
+  }), button("Quit", () => quit()));
   target.append(heading, navigation(context), explain("bridge-pairing"), document.createTextNode("Address: "), address, document.createElement("br"), document.createTextNode("Pairing token: "), token, pairedLine(state), controls);
 }
+// Quit names the jobs still running, which then end as cancelled, and quits when the person confirms; with none running it quits at once (UC-044 7b).
+const quit = async () => {
+  const running = (await window.bridge.state("running-jobs")).jobs ?? [];
+  if (running.length) {
+    const decision = await confirmDecision({ title: "Quit the Agent M Bridge", lines: [`${running.length === 1 ? "This job is" : "These jobs are"} still running and will end as cancelled:`,
+      ...running.map((job) => `${job.id} (${job.kind}, ${job.agent}, ${job.product})`)], confirm: "Quit" });
+    if (!decision.confirmed) return;
+  }
+  window.bridge.quit();
+};
+// The main process asks for the same decision when the tray's Quit is pressed while jobs run.
+window.bridge.onQuitRequested?.(() => quit());
 const field = (label, value, type = "text") => {
   const input = document.createElement("input"), caption = document.createElement("label");
   input.type = type; input.value = value ?? ""; caption.textContent = label; caption.append(input); return { caption, input };
