@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-spec-changes
 # Guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
 # Level: unit
 """SPEC §9 NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT — characterisation tests of ITM-014 (a refactoring job).

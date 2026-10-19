@@ -1,7 +1,7 @@
 // The format of ARC and MOD files, the requirement names of a SPEC and the Module lines of code — the readers of
 // docs/assets/artifacts.mjs. Deterministic, no network. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-artifacts
+// Module: MOD-documents
 // Guards: ONE REVIEW LAYOUT FOR EVERY PRODUCT; ONE ARCHITECTURE DECISION, ONE FILE; ONE MODULE, ONE FILE; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022; UC-023
 // Level: unit
 //

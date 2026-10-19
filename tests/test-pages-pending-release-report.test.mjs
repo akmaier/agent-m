@@ -1,3 +1,4 @@
+// Module: MOD-test-pages
 // MOD-test-pages' pending release-report route (ITM-289).  This controlled DOM/host case keeps all repository data
 // in memory and names the route's failure node: resolving a pending report must happen before the new-release form
 // reads its next-version data.

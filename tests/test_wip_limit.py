@@ -1,4 +1,4 @@
-# Module: MOD-work-items; MOD-work-plans
+# Module: MOD-work-plans
 # Guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-032
 # Level: unit
 """SPEC §13 NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT — when a product's model sets a work-in-progress limit, no

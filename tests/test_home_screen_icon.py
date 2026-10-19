@@ -1,4 +1,4 @@
-# Module: none — the site's brand files (src/brand/), outside every module's code (THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK)
+# Module: MOD-site-frame
 # Guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK
 # Level: unit
 """The icon a phone puts on its Home Screen (`apple-touch-icon`). iOS rounds the icon's corners, which cut a sign that reaches

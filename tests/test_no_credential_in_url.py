@@ -1,4 +1,4 @@
-# Module: MOD-git-host
+# Module: MOD-repository-hosts
 # Guards: A CREDENTIAL IS NEVER PLACED IN A URL
 # Level: component
 """SPEC §7 A CREDENTIAL IS NEVER PLACED IN A URL."""

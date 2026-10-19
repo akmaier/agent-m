@@ -1,4 +1,4 @@
-# Module: MOD-traceability
+# Module: MOD-trace-graph
 # Guards: A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION
 # Level: unit
 """SPEC §1 A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION — a cross-reference names the identifier it points at,

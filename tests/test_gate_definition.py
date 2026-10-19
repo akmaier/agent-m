@@ -1,4 +1,4 @@
-# Module: MOD-process-model
+# Module: MOD-model-catalogue
 # Guards: A GATE NAMES WHAT IT CHECKS
 # Level: unit
 """SPEC §5 A GATE NAMES WHAT IT CHECKS — every gate in a model definition names the artifacts that must exist and the

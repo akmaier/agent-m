@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-spec-changes
 # Guards: A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN
 # Level: unit
 """SPEC §9 A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN — characterisation tests of ITM-014 (a refactoring job).

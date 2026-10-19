@@ -1,7 +1,7 @@
 // The product's personal-data settings (docs/assets/pseudonymiser.mjs) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-pseudonymiser
+// Module: MOD-personal-data
 // Guards: PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; UC-042
 // Level: unit
 //

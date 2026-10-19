@@ -1,4 +1,4 @@
-# Module: MOD-traceability
+# Module: MOD-trace-graph
 # Guards: THE TRACEABILITY MATRIX IS DERIVED
 # Level: unit
 """SPEC §1 THE TRACEABILITY MATRIX IS DERIVED — the traceability matrix is computed from the artifacts and is never

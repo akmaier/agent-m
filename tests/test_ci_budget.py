@@ -1,4 +1,4 @@
-# Module: none — Agent M's own CI workflow (.github/workflows/tests.yml), outside every module (AGENT M'S SOURCE CODE LIVES IN SRC)
+# Module: MOD-test-schedule
 # Guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
 # Level: unit
 """A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES (queue 2026-10-06d): every job of the pull-request workflow carries GitHub's

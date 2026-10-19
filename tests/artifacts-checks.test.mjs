@@ -2,7 +2,7 @@
 // drafting job's correction loop sends back, for proposed requirements, use cases, decisions, modules, tests and group files.
 // Deterministic, no network. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-artifacts
+// Module: MOD-documents
 // Guards: UC-007; UC-019; UC-022; A FINDING READS LIKE A COMPILER MESSAGE
 // Level: unit
 //

@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-identifiers
 # Guards: EVERY ARTIFACT HAS AN IDENTIFIER
 # Level: unit
 """SPEC §1 EVERY ARTIFACT HAS AN IDENTIFIER — a requirement its name in capitals, every other artifact one

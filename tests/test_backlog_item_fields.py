@@ -1,4 +1,4 @@
-# Module: MOD-work-items
+# Module: MOD-work-plans
 # Guards: A BACKLOG ITEM NAMES WHAT IT REALISES; EVERY ARTIFACT NAMES ITS ORIGIN; UC-032; UC-033
 # Level: unit
 """SPEC §13 A BACKLOG ITEM NAMES WHAT IT REALISES — every backlog item names at least one requirement or use case that
