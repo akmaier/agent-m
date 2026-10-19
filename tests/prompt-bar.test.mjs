@@ -252,7 +252,7 @@ test("Send — the destinations are named before the request, the page and the p
 // guards: UC-049 (1, 3); UC-019 (4a, 4b); ONE CLICK PER DECISION
 // given: two participants — the chosen one with a context of 100 tokens, the other with 200000; and, in a second page, one participant that declares no capability to draft text; an endpoint that would answer
 // input: choose the first, press Send with "why is this step red?"; then, on the second page, press Send
-// expect: nothing is sent (no request) and nothing is written; the page says "Nothing was sent." and lists a reason "drafter-a does not hold this message" that names drafter-b as one whose context is larger; the conversation stays empty and the input keeps the words; for the second page the reasons hold the finding naming the rule A PARTICIPANT DECLARES ITS CAPABILITIES
+// expect: nothing is sent (no request) and nothing is written; the page says "Nothing was sent." and lists a reason "drafter-a does not hold this message" that names drafter-b as one whose context is larger; the conversation stays empty and the input keeps the words; for the second page, whose participant cannot draft text and is therefore not offered, Send sends nothing and the page says "Nothing was sent."
 test("Send — nothing is sent while the job does not fit or a finding keeps it from starting, and the page says why", async () => {
   endpointAnswers(answer("unused"));
   const tiny = page({ rows: [row("drafter-a", "model endpoint", "endpoint ep1", { context: "100" }), OTHER], ep2: true });
@@ -268,11 +268,12 @@ test("Send — nothing is sent while the job does not fit or a finding keeps it 
   assert.ok(reasons[0].includes("Choose drafter-b, whose context is larger."), reasons[0]);
   assert.equal(readTabValue(tiny.store, "prompt-bar:conversation"), null);
   assert.equal(one(tiny.target, "instruction").value, "why is this step red?");
+  // A participant that cannot do the kind is not offered (UC-019 2), so it cannot be sent to: the second page offers none, and Send sends nothing.
   const mute = page({ rows: [row("drafter-a", "model endpoint", "endpoint ep1", { capabilities: "read the repository" })] });
   await drawn(mute);
   await sends(mute, "plan the next sprint");
   assert.equal(requests.length, 0);
-  assert.ok(byClass(mute.target, "reason").map(textOf).some((text) => text.includes("A PARTICIPANT DECLARES ITS CAPABILITIES")));
+  assert.ok(textOf(one(mute.target, "status")).includes("Nothing was sent."));
 });
 
 // TST-600024 · level: component · module: MOD-prompt-bar
@@ -524,4 +525,77 @@ test("Send — a message that is not sent names no limit of rounds", async () =>
   await sends(tiny, "why is this step red?");
   assert.equal(requests.length, 1);
   assert.match(textOf(one(tiny.target, "status")), /at most 5 rounds/);
+});
+
+// TST-560003 · level: component · module: MOD-prompt-bar; MOD-participant-list
+// guards: UC-019 (2); A PARTICIPANT DECLARES ITS CAPABILITIES; THE PAGE NAMES WHERE IT SENDS
+// given: a register of drafter-a (endpoint ep1, draft text, "Anthropic, USA") and reader (endpoint ep2, read the repository only, "this machine"), both reached by this browser; the subject's kind converse, which needs draft text
+// input: startPromptBar; then Send "split this use case"
+// expect: the bar names "drafter-a — Anthropic, USA" and offers no <select> and no reader; Send makes one request, to https://models.example/v1/chat/completions, and the destinations are "drafter-a — Anthropic, USA" alone
+test("startPromptBar — of the participants reached it offers only each that can do the subject's kind", async () => {
+  endpointAnswers(answer("Split it in two."));
+  const it = page({ rows: [DRAFTER, row("reader", "model endpoint", "endpoint ep2", { capabilities: "read the repository", place: "this machine" })], ep2: true });
+  await drawn(it);
+  assert.equal(textOf(one(it.target, "participant")), "drafter-a — Anthropic, USA");
+  assert.equal(all(it.target, (node) => node.localName === "select").length, 0);
+  assert.doesNotMatch(textOf(it.target), /reader/);
+  await sends(it, "split this use case");
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, "https://models.example/v1/chat/completions");
+  assert.equal(textOf(one(it.target, "destinations")), "drafter-a — Anthropic, USA");
+});
+
+// TST-560004 · level: component · module: MOD-prompt-bar; MOD-participant-list
+// guards: UC-019 (3a); A PARTICIPANT DECLARES ITS CAPABILITIES
+// given: a register whose only participant, reader, is reached by this browser but declares only "read the repository"; the subject's kind converse, which needs draft text
+// input: startPromptBar; press the link; write "split this use case" and press Send
+// expect: the bar draws, names no participant, and says "No participant of this instance can do converse: it needs draft text."; the link calls go with the route "participants" once; Send sends nothing (no request) and says "Nothing was sent."
+test("startPromptBar — where no participant reached can do the kind it says so, names the capability and links the participants", async () => {
+  endpointAnswers(answer("unused"));
+  const it = page({ rows: [row("reader", "model endpoint", "endpoint ep1", { capabilities: "read the repository" })] });
+  await drawn(it);
+  assert.equal(all(it.target, (node) => ["select", "option"].includes(node.localName)).length + byClass(it.target, "participant").length, 0);
+  assert.match(textOf(it.target), /No participant of this instance can do converse: it needs draft text\./);
+  assert.doesNotMatch(textOf(it.target), /reader/);
+  click(one(it.target, "participants-link"));
+  assert.deepEqual(it.gone, [{ route: "participants", params: undefined }]);
+  await sends(it, "split this use case");
+  assert.equal(requests.length, 0);
+  assert.ok(textOf(one(it.target, "status")).includes("Nothing was sent."));
+});
+
+// TST-560005 · level: component · module: MOD-prompt-bar; MOD-job-catalogue
+// guards: UC-019 (2); A PARTICIPANT DECLARES ITS CAPABILITIES
+// given: drafter-a (draft text) and runner (draft text, run code and tests), both reached; the bar's subject getter first gives a subject of the kind converse (needs draft text), then one of the kind run-tests (needs run code and tests)
+// input: startPromptBar; the getter now gives the new subject; nothing is announced; the person puts the cursor in the input (focus)
+// expect: first the selector offers drafter-a and runner; before the bar is used it still shows both (the getter is read when the bar is used); once the input takes focus the bar names runner alone, without a select
+test("startPromptBar — the offer belongs to the subject the getter gives when the bar is used", async () => {
+  endpointAnswers(answer("unused"));
+  const it = page({ rows: [DRAFTER, row("runner", "model endpoint", "endpoint ep2", { capabilities: "draft text, run code and tests", place: "this machine" })], ep2: true });
+  await drawn(it);
+  assert.deepEqual(all(it.target, (node) => node.localName === "option").map(textOf), ["drafter-a — Anthropic, USA", "runner — this machine"]);
+  it.current.subject = subjectOf({ key: "tests:all", title: "The tests", kind: "run-tests" });
+  await tick();
+  assert.equal(all(it.target, (node) => node.localName === "option").length, 2, "nothing reads the getter before the bar is used");
+  one(it.target, "instruction").dispatchEvent(new Event("focus"));
+  await until(() => byClass(it.target, "participant").length === 1 && byClass(it.target, "participant")[0].localName === "span", "the offer follows the new kind");
+  assert.equal(textOf(one(it.target, "participant")), "runner — this machine");
+  assert.equal(all(it.target, (node) => node.localName === "select").length, 0);
+});
+
+// TST-560006 · level: component · module: MOD-prompt-bar; MOD-job-catalogue
+// guards: UC-019 (2, 3a); A PARTICIPANT DECLARES ITS CAPABILITIES
+// given: drafter-a and drafter-b (draft text each), both reached; the getter first gives a subject of the kind converse, then one of the kind run-tests (needs run code and tests), which neither can do
+// input: startPromptBar; the getter now gives the new subject; the person writes "run the tests" and presses Send without the input having taken focus
+// expect: Send reads the getter: nothing is sent (no request), the page says "Nothing was sent." and that no participant can do run-tests, and the offer is replaced by that statement and its link
+test("Send — reads the subject again: a page no participant can do sends nothing", async () => {
+  endpointAnswers(answer("unused"));
+  const it = page({ rows: [DRAFTER, OTHER], ep2: true });
+  await drawn(it);
+  it.current.subject = subjectOf({ key: "tests:all", title: "The tests", kind: "run-tests" });
+  await sends(it, "run the tests");
+  assert.equal(requests.length, 0);
+  assert.ok(textOf(one(it.target, "status")).includes("Nothing was sent."));
+  assert.match(textOf(it.target), /No participant of this instance can do run-tests: it needs run code and tests\./);
+  assert.equal(byClass(it.target, "participants-link").length, 1);
 });
