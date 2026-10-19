@@ -57,3 +57,7 @@ Settling its readings found inputs that MOD-work-plans' Uses do not name:
   (`testDeclarations`);
 - `plan-checks` needs the product's workflow (`workflowOf`, from the declaration, the instance's `catalogue` and its SPEC).
 A draft of MOD-work-plans names them and is under review before it goes to akmaier. The item is ready once it is accepted.
+
+**The draft is on main for akmaier** (`3baeb13a`, reviewed). `plan-checks` takes the workflow from `productWorkflow`. Where
+the product has none, it gives one error finding naming the declared model and its commit. Once accepted, the item is
+ready.
