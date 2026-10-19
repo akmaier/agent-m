@@ -49,6 +49,8 @@ const byTag = (root, name) => descendants(root, (node) => node.localName === nam
 const textOf = (node) => node.textContent.replace(/\s+/g, " ");
 const flush = async () => { for (let n = 0; n < 80; n += 1) await new Promise((resolve) => setImmediate(resolve)); };
 const trusted = async (node) => { const event = new Event("click"); Object.defineProperty(event, "isTrusted", { value: true }); node.dispatchEvent(event); await flush(); };
+// Waits (real timers, at most two seconds) until the condition holds: a page awaits the network and the hash of a Message-ID, which no fixed number of turns of the event loop covers on a slower machine.
+const waitFor = async (condition) => { for (let n = 0; n < 200 && !condition(); n += 1) await new Promise((resolve) => setTimeout(resolve, 10)); };
 const typed = async (node, value) => { node.value = value; node.dispatchEvent(new Event("input")); await flush(); };
 const itemOf = (target, id) => descendants(target, (node) => node.getAttribute?.("data-mail") === id)[0];
 
@@ -122,7 +124,11 @@ async function open(world_, goes = []) {
   await route().render(target, context, {});
   return target;
 }
-async function read(target) { await trusted(byClass(target, "read-mailbox")[0]); return target; }
+async function read(target) {
+  await trusted(byClass(target, "read-mailbox")[0]);
+  await waitFor(() => byClass(target, "mail-decided").length > 0 || byClass(target, "mailbox-problem").length > 0);
+  return target;
+}
 const writesToGitHub = () => sent.filter((request) => request.method !== "GET");
 
 // ---------------------------------------------------------------- the tests
@@ -184,6 +190,7 @@ test("Create issue is disabled while the text names the mail's people, and one c
   kind.value = "change";
   kind.dispatchEvent(new Event("change"));
   await trusted(create);
+  await waitFor(() => github.created.length > 0 && byClass(item, "mail-result")[0].textContent !== "");
   assert.equal(github.created.length, 1);
   const made = github.created[0];
   assert.deepEqual(made.labels, ["change"]);
@@ -207,6 +214,7 @@ test("Add to #n lists the mail on the existing issue with one click, and the nex
   const add = byClass(item, "add-to-issue")[0];
   assert.match(textOf(add), /Add to #4/);
   await trusted(add);
+  await waitFor(() => github.issues[0].comments.length > 0 && byClass(item, "mail-result")[0].textContent !== "");
   const comments = writesToGitHub().filter((request) => request.path.endsWith("/comments"));
   assert.equal(comments.length, 1);
   assert.equal(JSON.parse(comments[0].body).body, noteText("mail-added", mail.id, new Date().toISOString().slice(0, 10)));
@@ -226,6 +234,7 @@ test("Not an issue takes one click, marks the mail in this browser and writes no
   const w = world({ mails: [one, two] });
   const target = await read(await open(w));
   await trusted(byClass(itemOf(target, one.id), "not-an-issue")[0]);
+  await waitFor(() => byClass(target, "mail").length === 1);
   assert.deepEqual(byClass(target, "mail").map((node) => node.getAttribute("data-mail")), [two.id]);
   assert.deepEqual(readSetting(w.store, "not-an-issue"), [one.id]);
   assert.deepEqual(writesToGitHub(), []);
@@ -247,9 +256,11 @@ test("a mail that mixes two concerns gets one issue per concern, each listing th
   await typed(byClass(item, "mail-title")[0], "PDF export fails");
   await typed(byClass(item, "mail-body")[0], "Exporting as PDF fails with error E42.");
   await trusted(byClass(item, "create-issue")[0]);
+  await waitFor(() => github.created.length === 1);
   await typed(byClass(item, "mail-title")[0], "The ribbon hides the toolbar");
   await typed(byClass(item, "mail-body")[0], "On a small screen the ribbon covers the toolbar.");
   await trusted(byClass(item, "create-issue")[0]);
+  await waitFor(() => github.created.length === 2);
   assert.equal(github.created.length, 2);
   assert.deepEqual(github.created.map((made) => made.body.includes(mail.id)), [true, true]);
   assert.notEqual(github.created[0].title, github.created[1].title);
@@ -287,6 +298,7 @@ test("an issue that cannot be created names the token's refusal or the missing p
     await typed(byClass(item, "mail-title")[0], "PDF export fails");
     await typed(byClass(item, "mail-body")[0], "Exporting as PDF fails with error E42.");
     await trusted(byClass(item, "create-issue")[0]);
+    await waitFor(() => byClass(item, "mail-result")[0].textContent !== "");
     const result = textOf(byClass(item, "mail-result")[0]);
     assert.ok(result.includes(PRODUCT) && words.test(result), result);
     assert.equal(byClass(item, "token-step").length, 1);
@@ -308,9 +320,12 @@ test("no text, sender or address of a mail reaches a repository request", async 
   await typed(byClass(item, "mail-title")[0], "PDF export fails");
   await typed(byClass(item, "mail-body")[0], "Exporting as PDF fails with error E42.");
   await trusted(byClass(item, "create-issue")[0]);
+  await waitFor(() => github.created.length === 1);
   await typed(byClass(itemOf(target, b.id), "mail-issue-number")[0], "4");
   await trusted(byClass(itemOf(target, b.id), "add-to-issue")[0]);
+  await waitFor(() => github.issues[0].comments.length > 0);
   await trusted(byClass(itemOf(target, c.id), "not-an-issue")[0]);
+  await waitFor(() => byClass(target, "mail").length === 2);
   const bodies = sent.map((request) => String(request.body ?? "")).join("\n");
   assert.ok(bodies.includes(a.id), "known positive: the identifier is written");
   for (const forbidden of [SECRET_SENTENCE, "Erika", ERIKA.address, "Subject x1", "mail-password-963"]) assert.equal(bodies.includes(forbidden), false, forbidden);
