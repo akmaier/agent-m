@@ -31,7 +31,7 @@ import { mailId, noteText, withMailIds } from "../src/mail-records/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { mailStrategies } from "../src/mail-handling/index.mjs";
 import { routeStrategies } from "../src/runtimes/index.mjs";
-import { INSTANCE, PRODUCT, PRODUCT_URL, browser, byClass, draw, instanceFiles, network, smallProduct, timers } from "./main-page-home-harness.mjs";
+import { INSTANCE, PRODUCT, PRODUCT_URL, browser, byClass, draw, headOf, instanceFiles, network, smallProduct, timers } from "./main-page-home-harness.mjs";
 
 const pages = await import("../src/maintenance-pages/index.mjs").catch((error) => ({ error }));
 const route = () => pages.view?.routes.find((candidate) => candidate.name === "replies");
@@ -50,7 +50,9 @@ const walk = (root, match) => { const found = []; (function visit(node) { for (c
 const one = (root, name) => byClass(root, name)[0];
 const textOf = (node) => String(node.textContent).replace(/\s+/g, " ");
 const flush = async () => { for (let n = 0; n < 80; n += 1) await new Promise((resolve) => setImmediate(resolve)); };
-const waitFor = async (condition) => { for (let n = 0; n < 200 && !condition(); n += 1) await new Promise((resolve) => setImmediate(resolve)); await flush(); };
+// The harness replaces setTimeout by a fake while a page is drawn, so the real one is kept from before: a page awaits the network, the hash of a Message-ID and a commit, which no number of turns of the event loop covers on a slower machine.
+const realTimeout = globalThis.setTimeout;
+const waitFor = async (condition) => { for (let n = 0; n < 500 && !condition(); n += 1) await new Promise((resolve) => realTimeout(resolve, 10)); await flush(); };
 const trusted = async (node) => { const event = new Event("click"); Object.defineProperty(event, "isTrusted", { value: true }); node.dispatchEvent(event); await flush(); };
 const buttonsOf = (root, text) => walk(root, (node) => node.localName === "button" && node.textContent === text);
 const itemOf = (target, id) => walk(target, (node) => node.getAttribute?.("data-mail") === id)[0];
@@ -76,18 +78,23 @@ const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) 
  */
 function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [] }) {
   const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows) };
-  net = network({ [INSTANCE]: files, [PRODUCT]: smallProduct() }, { bridgeLists: null });
+  const productFiles = smallProduct();
+  let pending = {};
+  net = network({ [INSTANCE]: files, [PRODUCT]: productFiles }, { bridgeLists: null });
   net.install();
   const context = browser();
+  // The small DOM of the harness lacks hasAttribute, which MOD-site-frame's run panel asks of its Run button.
+  const prototype = Object.getPrototypeOf(document.createElement("div"));
+  prototype.hasAttribute ??= function hasAttribute(name) { return this.getAttribute(name) !== null && this.getAttribute(name) !== undefined; };
   writeSetting(context.store, "mailbox", { address: "reports@example.org", route: "imap", folders: ["INBOX"], places,
     imap: { bridge: "lab-pc-4", jumpHostNoted: false, imap: { host: "imap.example.org", port: 993, security: "tls" }, smtp: { host: "smtp.example.org", port: 587, security: "starttls" }, account: "reports@example.org", password: "mail-password-966" } });
   writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1" });
   writeSetting(context.store, "endpoint:ep2", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k2" });
   const kept = { bridge: [], github: [], endpoint: [], drafts: [...drafts], issues: issues.map((issue) => ({ ...issue })) };
   let nextUid = 100;
-  const inner = globalThis.fetch;
+  let inner = globalThis.fetch;
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-  globalThis.fetch = async (input, init = {}) => {
+  const wrapper = async (input, init = {}) => {
     const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
     const method = String(init.method ?? "GET").toUpperCase();
     if (url.origin === BRIDGE && url.pathname.startsWith("/v1/mail/")) {
@@ -126,14 +133,22 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       kept.endpoint.push({ origin: url.origin, body: JSON.parse(init.body) });
       return json({ choices: [{ message: { content: JSON.stringify({ draft: { replies: texts }, answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
     }
-    if (method !== "GET" && url.host === "api.github.com" && url.pathname.startsWith(`/repos/${PRODUCT}/git/`)) {
-      kept.github.push({ method, path: url.pathname, body: init.body ?? null });
+    if (url.host === "api.github.com" && url.pathname === `/repos/${PRODUCT}/commits/${headOf(PRODUCT)}`) return inner(new URL(`https://api.github.com/repos/${PRODUCT}/commits/main`), init);
+    if (url.host === "api.github.com" && url.pathname.startsWith(`/repos/${PRODUCT}/git/`) && !url.pathname.includes("/git/trees/")) {
+      if (method !== "GET") kept.github.push({ method, path: url.pathname, body: init.body ?? null });
+      if (method === "GET" && url.pathname.endsWith("/git/ref/heads/main")) return json({ object: { sha: headOf(PRODUCT) } });
+      if (method === "GET" && url.pathname.includes("/git/commits/")) return json({ tree: { sha: "tree-1" } });
       if (method === "POST" && url.pathname.endsWith("/git/commits")) return json({ sha: "9".repeat(40) });
-      if (method === "POST" && url.pathname.endsWith("/git/trees")) return json({ sha: "tree-2" });
-      return json({});
+      if (method === "PATCH") { Object.assign(productFiles, pending); pending = {}; net.change(PRODUCT, { ...productFiles }); inner = globalThis.fetch; globalThis.fetch = wrapper; return json({}); }
+    }
+    if (url.host === "api.github.com" && method === "POST" && url.pathname === `/repos/${PRODUCT}/git/trees`) {
+      kept.github.push({ method, path: url.pathname, body: init.body ?? null });
+      for (const entry of JSON.parse(init.body).tree ?? []) if (typeof entry.content === "string") pending[entry.path] = entry.content;
+      return json({ sha: "tree-2" });
     }
     return inner(input, init);
   };
+  globalThis.fetch = wrapper;
   return { context, kept };
 }
 
@@ -329,8 +344,14 @@ test("Run drafts a reply with the participant and stores it as a draft, which th
   await flush();
   assert.deepEqual(w.kept.endpoint, [], "a click a script makes asks nothing");
   await trusted(run);
-  await waitFor(() => w.kept.bridge.some((call) => call.operation === "store-draft"));
+  await waitFor(() => w.kept.bridge.some((call) => call.operation === "store-draft") || byClass(detail, "reply-problem").length > 0);
+  assert.equal(byClass(detail, "reply-problem").length, 0, textOf(one(detail, "reply-run-result") ?? detail));
   assert.equal(w.kept.endpoint.length, 1);
+  await waitFor(() => byClass(detail, "reply-drafted").length > 0 || byClass(detail, "reply-problem").length > 0);
+  assert.equal(byClass(detail, "reply-problem").length, 0, textOf(detail).slice(-300));
+  assert.equal(byClass(detail, "reply-drafted").length, 1, "the page says the replies are stored as drafts");
+  await waitFor(() => byClass(itemOf(detail, mails.plain.id), "reply-draft").length > 0);
+  assert.equal(byClass(itemOf(detail, mails.plain.id), "reply-draft").length, 1, "the page then shows the stored draft");
   const stores = w.kept.bridge.filter((call) => call.operation === "store-draft");
   assert.equal(stores.length, 1);
   assert.equal(stores[0].args.draft.to.address, ERIKA.address);
