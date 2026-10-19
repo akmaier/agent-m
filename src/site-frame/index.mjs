@@ -48,6 +48,7 @@ const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url)
  * route's `entry` puts it under that entry of the menu, null keeps it out of the menu. `subject`, MOD-prompt-bar's type, says what a
  * message in the prompt bar is about while the route is shown; a route that gives none, or whose `subject` gives `null`, has the frame's default (subject.mjs). `leave` is asked
  * of the route shown before the frame shows another on a change of the address; `false` keeps the route and the frame puts its address back.
+ * `unsaved` says, asking no one, whether the route shown holds changes that leaving it would discard; while it is true, closing or reloading the tab makes the browser ask first.
  * `reads` names the files the route will read, as paths of the snapshot it is given — the repository the route shows (the chosen product's, else the
  * instance's) at its default branch; the frame reads them with the snapshot's `readMany` before it calls `render`, and the route's own reads through the host find them.
  * @typedef {{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" | "releases" |
@@ -55,6 +56,7 @@ const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url)
  *   render(target: Element, context: ViewContext, params: Record<string, string>): Promise<void>,
  *   subject?: (params: Record<string, string>, context: ViewContext) => Subject | null,
  *   leave?: () => boolean,
+ *   unsaved?: () => boolean,
  *   reads?: (params: Record<string, string>, snapshot: Snapshot) => Promise<string[]> }} Route
  */
 
@@ -363,6 +365,13 @@ async function startSite({ page, views }) {
   };
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));
+  // Closing or reloading the tab: the browser asks, in its own words, while the route shown holds unsaved changes (UC-018 7a).
+  browser.addEventListener?.("beforeunload", (event) => {
+    if (shown?.route?.unsaved?.() === true) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
   await show();
 
   const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;

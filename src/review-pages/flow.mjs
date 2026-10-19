@@ -578,5 +578,8 @@ export function reviewRoute(kind) {
     return closed;
   }
 
-  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave };
+  // The frame asks this before the tab closes: whether the editor of the page drawn last holds unsaved changes, without asking anyone.
+  const unsaved = () => editor !== null && editor.unsaved();
+
+  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave, unsaved };
 }
