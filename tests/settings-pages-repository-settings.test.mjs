@@ -16,7 +16,7 @@
 //   - The summary: participants, resources and linked sources as a count of the rows of their registers; the source library, the process models and the role assignments as a count
 //     (and, for the roles, the teams' names) of their files; the process model as its declared model; the Definition of Done as the first sentence of its section; the test
 //     schedule as "set" when its file exists; a missing file, or a register without a row, is "not set".
-//   - *Edit* goes to the route of the setting: participants, library, models, resources/instance (the instance's resources); process (the product's process and its Definition
+//   - *Edit* goes to the route of the setting: participants, library, models; the instance's resources write the fragment #resources themselves (tests/settings-pages-instance-resources-edit.test.mjs shows the frame then opens the instance's list); process (the product's process and its Definition
 //     of Done), roles, schedule, sources, resources.
 
 import test from "node:test";
@@ -145,6 +145,7 @@ async function open({ instanceFiles = INSTANCE_FILES, productFiles = PRODUCT_FIL
   const store = openStore("fixture/instance");
   const target = document.createElement("div");
   const went = [];
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { hash: "" } });
   const context = { instance: { repository: "fixture/instance", host: fixtureHost(instanceFiles) }, product: { address: "https://github.com/acme/product", host: fixtureHost(productFiles) },
     store, go: (name, params = {}) => went.push([name, params]) };
   await settingsRoute().render(target, context, {});
@@ -180,14 +181,15 @@ test("the instance's four and the product's six repository settings are one line
 // guards: UC-042 (step 3); EVERY SETTING IS REACHED FROM ONE PAGE
 // given: the page of TST-104201
 // input: the person presses Edit on each of the ten lines
-// expect: the page is asked to open, in order, participants, library, models, resources/instance for the instance; process for the product's process model, roles, process for the
+// expect: the page is asked to open, in order, participants, library, models for the instance, and the address fragment becomes #resources for the instance's resources; process for the product's process model, roles, process for the
 //   Definition of Done, schedule, sources, resources for the product's lines
 test("Edit opens the route of its setting: the product's process on process, its schedule on schedule", async () => {
   const page = await open();
   const lines = [...linesOf(page.instance), ...linesOf(page.product)];
   assert.equal(lines.length, 10, "known positive: ten lines are found");
   for (const line of lines) await line.edit.fire("click", { isTrusted: true });
-  assert.deepEqual(page.went.map(([name]) => name), ["participants", "library", "models", "resources/instance", "process", "roles", "process", "schedule", "sources", "resources"]);
+  assert.deepEqual(page.went.map(([name]) => name), ["participants", "library", "models", "process", "roles", "process", "schedule", "sources", "resources"]);
+  assert.equal(globalThis.location.hash, "#resources", "the instance's resources are the route resources with no product in the fragment");
 });
 
 // TST-104203 · level: unit · module: MOD-settings-pages

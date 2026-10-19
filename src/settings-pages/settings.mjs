@@ -1065,6 +1065,8 @@ async function productControls(context) {
 
 const PARTICIPANT_REGISTER = "docs/participants.md", RESOURCE_REGISTER = "docs/resources.md", PROCESS_DECLARATION = "docs/process.md", LINKED_SOURCES = "docs/sources.md", SCHEDULE_FILE = "docs/tests/schedule.md";
 const NOT_SET = "not set";
+// The instance's own list is the route `resources` where the fragment names no product; the frame's `go` names the chosen product in every fragment it writes, so the line writes this one itself.
+const INSTANCE_RESOURCES = "#resources";
 
 const plural = (count, one) => `${count} ${count === 1 ? one : `${one}s`}`;
 const rowsIn = (schema, path, text) => (typeof text === "string" ? readRegister(schema, path, text).rows.length : 0);
@@ -1082,7 +1084,7 @@ const INSTANCE_SETTINGS = [
   ["Participants", "participants", async (snapshot) => countSummary(rowsIn(participantSchema(), PARTICIPANT_REGISTER, await snapshot.read(PARTICIPANT_REGISTER)), "participant")],
   ["Source library", "library", async (snapshot) => countSummary(namesBelow(snapshot, "docs/sources", "SRC-").length, "source")],
   ["Process models", "models", async (snapshot) => countSummary(namesBelow(snapshot, "docs/process-models").length, "model")],
-  ["Resources", "resources/instance", async (snapshot) => countSummary(rowsIn(resourceSchema(), RESOURCE_REGISTER, await snapshot.read(RESOURCE_REGISTER)), "resource")],
+  ["Resources", INSTANCE_RESOURCES, async (snapshot) => countSummary(rowsIn(resourceSchema(), RESOURCE_REGISTER, await snapshot.read(RESOURCE_REGISTER)), "resource")],
 ];
 const PRODUCT_SETTINGS = [
   ["Process model", "process", async (snapshot) => (await declarationOf(snapshot))?.fields.model ?? NOT_SET],
@@ -1102,7 +1104,7 @@ function repositorySettings(context, { className, heading, settings, hostOf }) {
   const lines = settings.map(([title, route]) => {
     const summary = el("span", "settings-repository-setting-summary", "Not read yet.");
     const edit = el("button", "settings-repository-setting-edit btn", "Edit");
-    edit.addEventListener("click", () => context.go(route, {}));
+    edit.addEventListener("click", () => (route.startsWith("#") ? (globalThis.location.hash = route) : context.go(route, {})));
     return { node: el("p", "settings-repository-setting", el("strong", "settings-repository-setting-title", title), " ", summary, " ", edit), summary };
   });
   const node = el("div", `${className} panel`, el("h3", null, heading), ...lines.map((line) => line.node));
