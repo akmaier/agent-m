@@ -131,15 +131,28 @@ test("proposeSchedule — GitLab: the product's .gitlab-ci.yml gains the include
 
 // TST-746003 · level: unit · module: MOD-test-schedule
 // guards: GITLAB PRODUCTS ARE SUPPORTED
-// given: a GitLab product whose .gitlab-ci.yml writes its include: as a single string, and one as a map
+// given: a GitLab product whose .gitlab-ci.yml writes its include: as a single string, as a quoted string, as a flow map, as a one-key map, and as a map of several keys (a string or a map means the same as a list of that one entry); and two that name Agent M's file already, one as a string and one as a map
 // input: proposeSchedule for each
-// expect: it rejects with an error named GitlabCiNotList that names .gitlab-ci.yml, and nothing is written: no branch, no commit, no pull request
-// Planted fault: replacing the string or the map without a refusal writes a commit, and the call counts fail.
-test("proposeSchedule — GitLab: an include: that is not a list is refused by name, before anything is written", async () => {
-  for (const text of ["include: other.yml\nbuild:\n  script: make\n", "include:\n  local: other.yml\nbuild:\n  script: make\n"]) {
+// expect: the new .gitlab-ci.yml holds include: as a list of the existing entry, as it was written, then "- local: .gitlab/agent-m-tests.yml", with every other line as it was; for the two that name Agent M's file already, .gitlab-ci.yml is not part of the commit; nothing is refused
+// Planted fault: refusing the form, or leaving the string or the map unconverted so that the entry is lost, or writing Agent M's entry beside a map as a second key, changes the bytes asserted here.
+test("proposeSchedule — GitLab: an include: that is a string or a map is rewritten as a list of its entry and Agent M's", async () => {
+  const entry = "  - local: .gitlab/agent-m-tests.yml\n";
+  const rest = "build:\n  script: make\n";
+  const cases = [
+    { name: "a string", text: `include: other.yml\n${rest}`, expected: `include:\n  - other.yml\n${entry}${rest}` },
+    { name: "a quoted string", text: `include: 'other.yml'\n${rest}`, expected: `include:\n  - 'other.yml'\n${entry}${rest}` },
+    { name: "a flow map", text: `include: { local: other.yml }\n${rest}`, expected: `include:\n  - { local: other.yml }\n${entry}${rest}` },
+    { name: "a one-key map", text: `include:\n  local: other.yml\n${rest}`, expected: `include:\n  - local: other.yml\n${entry}${rest}` },
+    { name: "a map of several keys", text: `include:\n  project: group/shared\n  file: ci.yml\n${rest}`,
+      expected: `include:\n  - project: group/shared\n    file: ci.yml\n${entry}${rest}` },
+    { name: "a string that is Agent M's file", text: `include: .gitlab/agent-m-tests.yml\n${rest}`, expected: undefined },
+    { name: "a map that is Agent M's file", text: `include:\n  local: .gitlab/agent-m-tests.yml\n${rest}`, expected: undefined },
+  ];
+  for (const { name, text, expected } of cases) {
     const host = fakeHost({ server: "gitlab", files: { ".gitlab-ci.yml": text } });
-    await assert.rejects(testSchedule.proposeSchedule(host, SCHEDULE, context("gitlab")), (e) => e.name === "GitlabCiNotList" && /\.gitlab-ci\.yml/.test(e.message));
-    for (const call of ["createBranch", "commitFiles", "openPullRequest"]) assert.equal(host.of(call).length, 0, `${call} is not called`);
+    await testSchedule.proposeSchedule(host, SCHEDULE, context("gitlab"));
+    assert.equal(textOfFile(host, ".gitlab-ci.yml"), expected, `${name}: the text of .gitlab-ci.yml`);
+    assert.equal(written(host).files.some((f) => f.path === ".gitlab-ci.yml"), expected !== undefined, `${name}: whether .gitlab-ci.yml is in the commit`);
   }
 });
 
