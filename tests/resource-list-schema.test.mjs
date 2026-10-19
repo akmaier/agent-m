@@ -19,6 +19,7 @@
 //   - A finding's `artifact` is `docs/resources.md`; its `line` is the entry's position in the list, from 1.
 //   - An entry "carries a participant's capabilities or role" when its resource has a non-empty `capabilities` or `role`.
 //   - A secret is a value, not a name, when it is none of `ci:<NAME>` (a name of letters, digits and underscores), `browser` and `—`.
+//   - A pin of data or a model is exact when it is 40 hexadecimal digits (a Hub revision), 64 (the SHA-256 of its file), or a map of `<file>=<64 digits>` entries separated by commas.
 //   - A maintainer is a single person when it is one `@<account>` or one `person <name>`; an organisation, `unknown`, and several accounts are not.
 // Each test states its input and its expected result before it runs (given / input / expect); where a test asserts that something is refused, the same
 // call is first shown to succeed on a known positive. Nothing reaches the network. The counter-proofs are recorded in the pull request.
@@ -57,7 +58,7 @@ const GOOD = {
     route: "read from the host", place: null, paid: null, secret: null },
   data: { name: "corpus", kind: "data", address: "acme/corpus", pin: "a".repeat(64), licence: "CC-BY-4.0", maintainer: "unknown", route: "downloaded",
     place: null, paid: null, secret: null },
-  model: { name: "weights", kind: "model", address: "acme/small", pin: "main-2026", licence: "Apache-2.0", maintainer: "Acme Research Group", route: "downloaded",
+  model: { name: "weights", kind: "model", address: "acme/small", pin: COMMIT, licence: "Apache-2.0", maintainer: "Acme Research Group", route: "downloaded",
     place: null, paid: null, secret: null },
   compute: { name: "cluster", kind: "compute", address: "cluster.example.org", pin: null, licence: null, maintainer: null, route: "runner:gpu",
     place: "NHR@FAU, Erlangen", paid: null, secret: null },
@@ -93,7 +94,7 @@ test("a resource kind outside the closed set is refused", () => {
   const rows = [
     row({ Name: "tools", Kind: "repository", Address: "https://github.com/acme/tools", Pin: COMMIT, Licence: "MIT", Maintainer: "Acme", Route: "read from the host", Secret: "—" }),
     row({ Name: "corpus", Kind: "data", Address: "acme/corpus", Pin: "a".repeat(64), Licence: "CC-BY-4.0", Maintainer: "unknown", Route: "downloaded" }),
-    row({ Name: "weights", Kind: "model", Address: "acme/small", Pin: "rev-1", Licence: "Apache-2.0", Maintainer: "Acme", Route: "downloaded" }),
+    row({ Name: "weights", Kind: "model", Address: "acme/small", Pin: COMMIT, Licence: "Apache-2.0", Maintainer: "Acme", Route: "downloaded" }),
     row({ Name: "cluster", Kind: "compute", Address: "cluster.example.org", Route: "runner:gpu", "Processing place": "Erlangen" }),
     row({ Name: "llm", Kind: "endpoint", Address: "http://h:8000/v1", Pin: "m", Route: "bridge ws", "Processing place": "ws", Paid: "no" }),
     row({ Name: "coder", Kind: "agent", Address: "https://a.example.org", Pin: "m", Maintainer: "Acme", Route: "bridge ws", "Processing place": "ws", Paid: "yes" }),
@@ -122,6 +123,26 @@ test("a repository pinned to a branch name, an abbreviation or a tag is named", 
   }
   const text = listOf(row({ Name: "tools", Kind: "repository", Address: "https://github.com/acme/tools", Pin: "main", Licence: "MIT", Maintainer: "Acme", Route: "read" }));
   assert.ok(rulesOf(schemaFindings(text)).includes("A RESOURCE IS PINNED TO AN EXACT STATE"));
+});
+
+// TST-1039001 · level: unit · module: MOD-resource-list
+// guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (3b)
+// given: a model and a data entry pinned to a full 40-hex revision, to the SHA-256 of its file, and to a per-file map `<file>=<64-hex>` (the reading the pull request names)
+// input: resourceFindings of each; then of the same entries pinned to `main`, to a seven-digit abbreviation and to a tag
+// expect: none for the exact pins; for each of the others one error naming A RESOURCE IS PINNED TO AN EXACT STATE, the resource and the pin
+test("a model or data pinned to a branch name, an abbreviation or a tag is named, as a repository is", () => {
+  const SHA = "b".repeat(64);
+  for (const kind of ["model", "data"]) {
+    for (const pin of [COMMIT, SHA, `a.bin=${SHA}, b.bin=${SHA}`]) assert.deepEqual(findingsFor(withChange(kind, { pin })), [], `known positive: ${kind} ${pin}`);
+    for (const pin of ["main", "0123456", "v1.2.0"]) {
+      const found = findingsFor(withChange(kind, { pin }));
+      assert.equal(found.length, 1, `${kind} ${pin}`);
+      assert.equal(found[0].kind, "error");
+      assert.equal(found[0].rule, "A RESOURCE IS PINNED TO AN EXACT STATE");
+      assert.ok(found[0].what.includes(GOOD[kind].name), found[0].what);
+      assert.ok(found[0].what.includes(pin), found[0].what);
+    }
+  }
 });
 
 // TST-472588 · level: unit · module: MOD-resource-list
