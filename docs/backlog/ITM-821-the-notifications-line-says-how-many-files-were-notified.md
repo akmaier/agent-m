@@ -6,6 +6,7 @@ realises:
   - UC-047
 modules:
   - MOD-settings-pages
+  - MOD-notifications
 builds_on:
 tests:
   - unit
@@ -36,3 +37,12 @@ file that waits, which is not the files notified, so counting it would be a read
 akmaier settles what the count counts and how `notificationState` gives it.
 
 The other states of `MOD-settings-pages.md:135-137` are compared with the live strings at this item's next start.
+
+**The draft for akmaier is on `main`** (sprint team1/92, written by developer-sonnet-c). MOD-notifications' `NotificationState`
+gains `notified: number`, and `notificationState` counts it from the key `notified`.
+- **A choice for akmaier:** the count is the files that wait for acceptance and were notified or, at the first check, taken
+  as known (`src/notifications/checks.mjs:72-104`). It is not the notifications actually shown since *Switch on*. That
+  would need a stored counter in MOD-browser-store's `notifications` key and a rule for a file notified again, and it is
+  not drafted.
+- The item now also changes MOD-notifications, and it waits for that acceptance.
+

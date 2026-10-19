@@ -13,6 +13,7 @@ uses:
   - MOD-job-runner.Strategies
   - MOD-job-runner.JobContext
   - MOD-job-runner.Part
+  - MOD-repository-hosts.Snapshot
 provides:
   - Resource
   - Pin
@@ -25,6 +26,7 @@ provides:
   - paidServices
   - reachableBy
   - resourceStrategies
+  - namedBy
 ---
 # MOD-resource-list What a product and the instance are built with and run on
 
@@ -109,8 +111,14 @@ ENTER AS A SOURCE`), not here.
   routes that reach them, `bridge <name>` or `runner:<label>` — called by MOD-progress-measures for a product's facts,
   and by the test and the maintenance pages —, which their callers hand to MOD-runtimes' `routesFor`, so that only those
   routes are offered (`A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE`).
+- `namedBy(snapshot: Snapshot, name: string) -> { jobs: string[], tests: string[] }` — the job records whose `inputs` pin
+  the resource `name` and the test files whose text names it, by the paths of each, read through the snapshot. A job
+  record names a resource by the input `<name>` with its pin (MOD-job-ledger); a test names it by its name in its file. It
+  changes nothing (UC-040, a resource removed or moved to a newer state).
 - `resourceStrategies` — `Partial<Strategies>` with the recipe `resource-check`: the resource a job names and the harmless
-  request to make on the runner, as one part.
+  request to make on the runner, as one part; and the recipe `resource-pins`: for a job of a kind with `resources:
+  product`, one part with each resource of the product's list that the job's route reaches (`reachableBy`) and its pin,
+  which its start record names among its `inputs` (UC-040, a job that needs a resource).
 
 ## Files
 
@@ -121,4 +129,5 @@ callers through MOD-documents with `resourceSchema`, and committed through Acces
 
 - `MOD-documents.loadSchema`, `MOD-documents.Schema` — the list's schema.
 - `MOD-text-tools.finding`, `MOD-text-tools.Finding` — the findings of `resourceFindings`.
-- `MOD-job-runner.Strategies`, `MOD-job-runner.JobContext`, `MOD-job-runner.Part` — the recipe it offers.
+- `MOD-job-runner.Strategies`, `MOD-job-runner.JobContext`, `MOD-job-runner.Part` — the recipes it offers.
+- `MOD-repository-hosts.Snapshot` — the files `namedBy` reads, as its caller hands them in.

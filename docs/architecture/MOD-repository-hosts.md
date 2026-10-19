@@ -169,7 +169,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `connect(address: RepositoryAddress, credentials: Credentials) -> Host` — a host for one repository. The token goes
   only into the authorisation header of requests to the server that issued it (`A TOKEN GOES ONLY TO THE SERVER THAT
   ISSUED IT`). With `clone`, files are read and committed in that clone and pushed with the clone's own credentials, and
-  every other function uses the REST adapter where a token is given, or throws `NotSupported`. No request is made yet.
+  every other function uses the REST adapter where a token is given, or throws `NotSupported`. A token of the other kind
+  of server — a GitLab token for a GitHub repository, a GitHub token for a GitLab project, each told by the prefix its
+  own server gives it — is refused with a `TypeError`, whose message never holds the token. No request is made yet.
 - `readSnapshot(ref: string) -> Promise<Snapshot>` — the repository at a branch, tag or commit: the commit and its whole
   tree in a fixed number of requests, however many folders it has — two on GitHub, the commit and then its tree —, then
   one per file read, or one per batch of files `readMany` reads. Through a clone, a commit the clone does not hold is first fetched from the clone's origin by its

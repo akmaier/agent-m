@@ -34,6 +34,7 @@ uses:
   - MOD-job-runner.Part
   - MOD-job-runner.JobResult
   - MOD-job-runner.provenanceLines
+  - MOD-job-runner.sourcesOf
 provides:
   - Workflow
   - declarationSchema
@@ -227,5 +228,5 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 - MOD-repository-hosts.Host, Snapshot, PullRequestFacts, repositoryInfo, commitFiles — the facts of a pull request, and
   the gate record's commit on the default branch.
 - MOD-text-tools.Finding, finding, blobSha — findings, and the blobs of the checked texts.
-- MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
-  provenance of a gate record's commit.
+- MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines, sourcesOf — the form of the strategies, the
+  provenance of a gate record's commit, and the sources a part carries.

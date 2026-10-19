@@ -18,6 +18,7 @@ provides:
   - endpointDriver
   - endpointExchange
   - testEndpoint
+  - listModels
   - diagnoseEndpoint
 ---
 # MOD-endpoint-calls The driver of model endpoints
@@ -97,6 +98,10 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
   to call it, across the network, and says whether the configuration works and whether the model called the tool —
   `tools` false where the endpoint refused the tool or answered without calling it, with its message where it gave one
   (UC-003 step 5, 5a); it changes nothing stored.
+- `listModels(config: EndpointConfig) -> Promise<{ models: string[] } | { diagnosis: Diagnosis }>` — the identifiers of the
+  models the endpoint serves, by its kind's own listing request (`GET <baseUrl>/models` for both kinds), with the key where
+  the configuration has one; `config.model` is not read. It changes nothing stored. A failure is its `Diagnosis`, as
+  `testEndpoint` gives it (UC-040, an endpoint's *Check*).
 - `diagnoseEndpoint(error: unknown, config: EndpointConfig, where: "browser" | "node") -> Diagnosis` — names the reason of a
   failed call: a call a browser refused for want of a cross-origin permission or of the opt-in header a provider requires
   for calls from a browser, with the routes that would work instead; a refused key; an unknown model; a used-up rate

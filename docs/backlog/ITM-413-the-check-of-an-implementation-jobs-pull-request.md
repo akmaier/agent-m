@@ -43,3 +43,10 @@ against the folders of its modules. How a pull request between jobs is checked i
 - Where the code does not do what the requirement says, the test follows the requirement and the disagreement is named
   as a finding.
 - Only the new test file and its data file change.
+
+**Read at sprint team1/93 (developer-sonnet-c): built** (`e4d85ab2`, team2/26.md). All six behaviours are cases of
+`tests/test_implementation_job.md` and match `src/product-process/done.mjs`. Its tests pass (`test_implementation_job`,
+`product-process-done`, `product-process`). It is done. Branches of `done.mjs` without a case (`:83`, `:90`, `:95`,
+`:108-111`) are findings, registered once four-digit identifiers stand on `main`. The carve-out for work between jobs stays
+with akmaier, as the item says.
+

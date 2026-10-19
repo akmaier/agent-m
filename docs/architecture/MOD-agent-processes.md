@@ -49,7 +49,7 @@ Workflows — and keeps nothing but the processes it started.
 | Command | the command the CLI is started by |
 | Version | how its version is asked for |
 | Task | how a task is given to it without a conversation, and how its final answer is told from its other output |
-| Login check | how it is asked, harmlessly, whether it is logged in |
+| Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in |
 | Key variable | the environment variable from which it reads a key, used only in CI |
 | Endpoint | how it is made to work with a model endpoint of the kind OpenAI-compatible or Anthropic — the options or settings that name the endpoint's address and model —, or `—` where it cannot |
 | Install | the vendor's installation page for each platform (`THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT`) |
@@ -58,8 +58,9 @@ The exact commands and options are data in this register, not code, so a changed
 
 ## Interfaces
 
-- `Agent` — `{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, install:
-  Record<"macos" | "windows" | "linux", string> }`: `name` is the Agent of a row of `agents.md`, so that a supported
+- `Agent` — `{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login: string,
+  install: Record<"macos" | "windows" | "linux", string> }`: `login` is the agent's own login step from its row's Login
+  check, which the Bridge's window shows for an agent that is not logged in (UC-044 3b); `name` is the Agent of a row of `agents.md`, so that a supported
   agent added is a row added, not a change of this interface (`OPEN FOR EXTENSION, CLOSED FOR CHANGE`).
 - `installedAgents() -> Promise<Agent[]>` — every supported agent, each found on the machine's path with its version, or
   marked as missing with its vendor's installation page; an installed agent that is not logged in is marked so, and the
