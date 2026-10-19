@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-work-plans
 # Guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES
 # Level: release
 """SPEC section 8 - the check named tests/test_job_preconditions.py.

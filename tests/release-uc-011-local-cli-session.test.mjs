@@ -2,7 +2,7 @@
 // covered by executable tests or measurement evidence.
 // Run: node --test tests/release-uc-011-local-cli-session.test.mjs
 //
-// Module: system
+// Module: MOD-bridge-jobs
 // Guards: UC-011
 // Level: release
 //

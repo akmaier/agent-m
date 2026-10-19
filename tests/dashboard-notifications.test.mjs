@@ -1,3 +1,4 @@
+// Module: MOD-notifications
 // The release tests of A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE and NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // (ITM-246): SPEC.md names this file, which did not exist, as both requirements' own Check, with the cases its two Check
 // lines state — through the main, settings and review pages as the dashboard reaches MOD-notifications since the change
@@ -21,7 +22,6 @@
 //
 // Run: node --test tests/dashboard-notifications.test.mjs
 //
-// Module: MOD-notifications
 // Guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // Level: release
 

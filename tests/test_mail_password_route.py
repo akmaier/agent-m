@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-bridge-client
 # Guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
 # Level: release
 """SPEC section 14 - the check named tests/test_mail_password_route.py.

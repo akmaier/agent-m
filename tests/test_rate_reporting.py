@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-test-document
 # Guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 # Level: release
 """SPEC §12 — the check named tests/test_rate_reporting.py.
