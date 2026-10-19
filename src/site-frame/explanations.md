@@ -898,6 +898,22 @@ Every job is the same at its core: a coding participant writes failing tests fir
 request is merged once the product's Definition of Done holds. In the book *Vibe Coding*: chapter 6 for the plan-driven
 models, chapter 7 for the agile ones.
 
+## sprint-increment
+
+The increment is the set of done items. An item is done when it is merged and its Definition of Done is met; it is shown with its pull request, the requirements it realises and the tests that guard them. An item that does not meet the Definition of Done is not part of the increment, however close it is: it is shown among the items not done, with its state and the reason. If no item is done, the increment is empty and the review says so.
+
+## sprint-feedback
+
+Feedback is what the people who saw the increment say about it. Enter it as one line per point, each either *new backlog item*, *change to an existing item*, or *noted*. A new backlog item and a change to an existing one are written to the backlog when you close the sprint. If no stakeholder took part, the review says so; a review by an agent names where its feedback came from — issues, mails, job records, test results.
+
+## sprint-unfinished-items
+
+An unfinished item is a selected item that is not done. For each one the Product Owner chooses *back to the backlog* or *into the next sprint*. An item that goes back to the backlog is no longer held by the sprint. The done items stay held until the sprint's increment is merged into the default branch, so that no other team changes or uses their modules meanwhile.
+
+## sprint-retrospective
+
+The retrospective is where the team — people and agents — writes down what went well, what did not, and what it will change in how it works. For each change, the entry names where it goes: the process model ([UC-031](#use-case/id=UC-031)), the product's Definition of Done ([UC-002](#use-case/id=UC-002)), a participant's instructions or configuration ([UC-017](#use-case/id=UC-017)), or *team agreement* only. Agent M offers the numbers of the sprint as material, derived and not typed: jobs failed or retried, time items waited for a person, flaky tests, and cost where it is known. *Close sprint* stays disabled until the retrospective has at least one entry. A change that an agent's retrospective recommends is proposed for a person to accept and not applied by the agent.
+
 ## run
 
 A run carries out the product's process model over what you select. You select the steps of the implementation plan — or, in Scrum or Kanban, backlog items — set the limits and press *Start run*: one click. Agent M then generates the CI configuration if the product has none, implements the steps in the plan's order or the items after those they build on, writes the tests, and at the end shows the validation of what was built: what each module realises, its code and tests, and every gap. You are asked only where the model gives a gate to a person, or when a limit is reached. Implementation, tests and CI can also be started each on its own, for one critical step: [UC-024](#use-case/id=UC-024), [UC-026](#use-case/id=UC-026) and [UC-027](#use-case/id=UC-027).
