@@ -152,8 +152,7 @@ test("TST-969203: a whole session leaves the mails in the mailbox and writes onl
     body.value = "Fixed in version 1.5, thank you.\n\n> Hello,";
     body.dispatchEvent(new Event("input"));
     await trusted(one(item, "save-draft"));
-    await waitFor(() => draftsOf(p).length === 1 && bodyOf(draftsOf(p)[0]).includes("thank you"));
-    await waitFor(() => byClass(item, "send-reply").length > 0);
+    await waitFor(() => draftsOf(p).length === 1 && bodyOf(draftsOf(p)[0]).includes("thank you") && /Saved to the draft/.test(textOf(item)));
     await trusted(one(item, "send-reply"));
     await waitFor(() => dialog() !== undefined);
     await trusted(buttonsOf(dialog(), "Send")[0]);

@@ -317,7 +317,7 @@ test("alternative 5a: the dialog shows the edited mail again before anything is 
     body.dispatchEvent(new Event("input"));
     await trusted(one(item, "save-draft"));
     await waitFor(() => draftsOf(p).length === 1 && draftsOf(p)[0] !== before);
-    await waitFor(() => String(one(item, "draft-body")?.value ?? "").includes("Edited reply"));
+    await waitFor(() => String(one(item, "draft-body")?.value ?? "").includes("Edited reply") && /Saved to the draft/.test(textOf(item)));
     await trusted(one(item, "send-reply"));
     await waitFor(() => dialog() !== undefined);
     assert.ok(textOf(dialog()).includes("Edited reply text before sending."), textOf(dialog()));
@@ -393,7 +393,7 @@ test("alternative 1a: Ask the reporter, Send and wait labels the issue waiting-f
     body.value = "Which version do you use?\n\n> Hello,";
     body.dispatchEvent(new Event("input"));
     await trusted(one(item, "save-draft"));
-    await waitFor(() => bodyOf(draftsOf(p)[0] ?? "").startsWith("Which version"));
+    await waitFor(() => bodyOf(draftsOf(p)[0] ?? "").startsWith("Which version") && /Saved to the draft/.test(textOf(item)));
     await trusted(one(item, "send-reply"));
     await waitFor(() => dialog() !== undefined);
     assert.deepEqual(sends(p), [], "nothing is sent before the confirmation");
