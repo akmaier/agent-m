@@ -467,3 +467,19 @@ test("runOnTab - costs in two currencies are not added: the cost stays unknown",
   assert.equal(end.usage.cost, null);
   assert.equal(end.cost.known, false);
 });
+
+// TST-1148005 · level: unit · module: MOD-runtimes
+// guards: NO COST IS GUESSED
+// given: two rounds, the first exchange reporting 10 and 5 tokens and 0.42 EUR, the second reporting 10 and 5 tokens and no cost; once with no price declared, once with the price `3 / 15 USD per million tokens`
+// input: runOnTab
+// expect: the cost counts only where every exchange that reports usage also reports a cost: the end's usage has cost null; the end's cost is unknown with the usage kept where no price is declared, and the tokens at the declared price (basis "usage at the declared price", never "reported") where one is
+test("runOnTab - a cost only some exchanges report is not the cost of the job", async () => {
+  for (const [price, known] of [[null, false], [{ input: 3, output: 15, currency: "USD" }, true]]) {
+    bridgeAnswers([usageOf(10, 5, EUR(0.42)), usageOf(10, 5, null)]);
+    const end = await runAgent(agentJob(price, true));
+    assert.equal(end.usage.cost, null);
+    assert.equal(end.cost.known, known);
+    if (known) assert.equal(end.cost.basis, "usage at the declared price");
+    else assert.deepEqual(end.cost.usage.inputTokens, 20);
+  }
+});
