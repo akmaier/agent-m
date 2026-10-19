@@ -42,6 +42,7 @@ uses:
   - MOD-runtimes.revertAfterCancel
   - MOD-work-plans.startable
   - MOD-prompt-bar.currentJob
+  - MOD-prompt-bar.Subject
   - MOD-source-register.sourceStrategies
 provides:
   - view
@@ -155,7 +156,7 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
   MOD-product-process.recordGateDecision — the decision.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
-  MOD-prompt-bar.currentJob — the job of this tab's conversation;
+  MOD-prompt-bar.currentJob — the job of this tab's conversation; MOD-prompt-bar.Subject — the subject the route `job` gives the prompt bar for the retry of a job that ran in a tab;
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
   MOD-runtimes.liveState, MOD-runtimes.jobLog,
   MOD-runtimes.cancelJob, MOD-runtimes.retryJob — live states, logs, cancel and retry at each job's route, the Bridges
