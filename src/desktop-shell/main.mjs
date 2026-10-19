@@ -1,8 +1,8 @@
 // Module: MOD-desktop-shell
+import { createRequire } from "node:module";
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
-import electronUpdater from "electron-updater";
 import { installedAgents } from "../agent-processes/index.mjs";
 import { listJobs, testAccess } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
@@ -44,9 +44,17 @@ function registerProtocol(electron, instance) {
   return `agent-m://${hostname}${pathname}/desktop-shell/window.html`;
 }
 // The updates of a packaged app: electron-updater's autoUpdater and the key built into the app; null for a start from the source folder, which offers no update.
-const updatesOf = (config) => (config.updateKey
-  ? createUpdates({ updater: electronUpdater.autoUpdater, key: config.updateKey, version: config.version, instance: config.instance })
-  : null);
+// electron-updater is one of the Bridge build's packages, found as MOD-tunnels finds ssh2. Where it cannot be had the Bridge runs as it is and says so on its Updates view.
+function updatesOf(config) {
+  if (!config.updateKey) return null;
+  try {
+    const { autoUpdater } = createRequire(new URL("../bridge-build/package.json", import.meta.url))("electron-updater");
+    return createUpdates({ updater: autoUpdater, key: config.updateKey, version: config.version, instance: config.instance });
+  } catch (failure) {
+    console.error(`The Bridge's updates are not available: ${failure.message}`);
+    return null;
+  }
+}
 const show = (window) => { if (window.isMinimized()) window.restore(); window.show(); window.focus(); };
 
 export async function start(electron, supplied = {}) {
