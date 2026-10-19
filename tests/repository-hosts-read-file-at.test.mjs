@@ -22,6 +22,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
+import { batchAnswer } from "./repository-hosts-batch-fake.mjs";
 
 const json = (status, body, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 async function using(fetchFn, run) {
@@ -48,11 +49,8 @@ function fakeGitHub({ held = (c) => TEXT(c), odd = new Set(), refuse = null } = 
     requests.push(request);
     if (refuse) return refuse(request);
     if (url.origin === "https://api.github.com" && url.pathname === "/graphql") {
-      const fields = [...request.body.query.matchAll(/f(\d+):object\(expression:"([0-9a-f]{40}):SPEC\.md"\)/g)];
-      return json(200, { data: { repository: Object.fromEntries(fields.map(([, i, commit]) => {
-        const text = held(commit);
-        return [`f${i}`, text === null ? null : odd.has(commit) ? { text: null, isTruncated: true } : { text, isTruncated: false }];
-      })) } });
+      return json(200, batchAnswer(request.body.query, { held: (commit, path) => (path === "SPEC.md" ? held(commit) ?? undefined : undefined),
+        special: Object.fromEntries([...odd].map((commit) => [`${commit}:SPEC.md`, "truncated"])) }));
     }
     const raw = /^\/carol\/release-tool\/([0-9a-f]{40})\/SPEC\.md$/.exec(url.pathname);
     if (url.origin === "https://raw.githubusercontent.com" && raw) return held(raw[1]) === null ? json(404, { message: "404: Not Found" }) : new Response(held(raw[1]), { status: 200 });
