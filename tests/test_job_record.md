@@ -8,7 +8,7 @@ job included."), and A RUN IS A JOB THAT NAMES ITS JOBS ("A run is recorded as a
 **How a case reads.** `given` is its precondition and `input` what it does; `expected` names only what the case asserts. For `routes`: `productRecords` and `instanceRecords` (the records under docs/jobs/ of the product's and of
 another repository), `path` (the record is docs/jobs/<its id>.md), `kind`, `participant`, `route`, `inputs`, `worksOn`, `started`, `endState` and `results` (as listJobs reads them), `handedOver` (the hand-overs a Bridge received).
 For the conversation cases, the keys are those of tests/test_conversation_not_recorded.md. For `ids`: `freeOnly`, `retryN` (`new`: no earlier record held the identifier; `retries`: the record names the job it retries), `records` and
-`distinct`. For `run`: `listed` (the jobs the run's record lists), `started`, `allListed`, `allNameTheRun`.
+`distinct`. For `ciEnd`: `outcome` (of the entry), `queuedBefore` and `records` (the records of the product's origin before and after), `takenByCi`, `endState`, `endNamesLog` (the record's Taken names the pipeline, its End has the state and names the pipeline as its log). For `run`: `listed` (the jobs the run's record lists), `started`, `allListed`, `allNameTheRun`.
 
 ## A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 
@@ -118,6 +118,25 @@ For the conversation cases, the keys are those of tests/test_conversation_not_re
       "results": null,
       "handedOver": 1
     }
+  }
+}
+```
+
+### A job taken by CI ends in the same record: its taking and its end are appended by the CI run
+
+```json
+{
+  "given": "A job of the kind decide-gate queued in a product's repository for the hosted CI route (the record queueJob writes), and the entry onDispatch run on a CI runner's checkout of the product and of the instance, as the job workflow runs it, with a fake model endpoint.",
+  "input": {
+    "kind": "ciEnd"
+  },
+  "expected": {
+    "outcome": "done",
+    "queuedBefore": 1,
+    "records": 1,
+    "takenByCi": true,
+    "endState": "done",
+    "endNamesLog": true
   }
 }
 ```

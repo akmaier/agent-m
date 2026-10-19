@@ -12,7 +12,10 @@ Readings the SPEC's wording leaves, which the pull request names: a job "leaves 
 product's repository (the tab, CI and the Bridge each have their route in queueJob), and the End is appended by the runtime that runs it (the tab's is run here); a conversation held
 in the tab is the prompt bar's messages, which make a record only when the person hands the task over.
 
-Written for ITM-1132 by a participant who built none of the code it checks (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
+Not testable as worded, which the pull request names: (1) that a run records the jobs it starts as it starts them - MOD-run-planner's nextActions and finishRun are not built, so the cases check the
+record a run has when its jobs are written with MOD-job-ledger's own functions, and its reader; (2) that a job of the instance is recorded in the instance's repository and a job of a product in the
+product's - the repository is chosen by the page that queues the job and is the `host` queueJob is given, so the cases assert that the record lands in the host given and in no other; (3) the End record of a job
+on a Bridge, which the Bridge (MOD-bridge-jobs) writes outside this repository's fixtures; the End record of a job in CI is checked end to end (the case "taken by CI"), the tab's by the first case.
 """
 import json
 import re
@@ -29,13 +32,14 @@ NEVER_REUSED = "A JOB IDENTIFIER IS NEVER REUSED"
 RUN = "A RUN IS A JOB THAT NAMES ITS JOBS"
 
 # The adapter. `input.kind` is one of: "routes" (a job queued on each route of `routes` - "tab", "ci hosted", "bridge lab" - and, on the tab, run), "ids" (the identifiers of jobs), "run"
-# (a run's record and the records of the jobs it started, read back). The value is what the case may state.
+# (a run's record and the records of the jobs it started, read back), "ciEnd" (a job queued for CI, run by the entry onDispatch of MOD-workflow-entries in a checkout, its record read back from the origin). The value is what the case may state.
 WORLD = r"""
 const url = (path) => `file://${ROOT}/${path}`;
 const jobRunner = await import(url("src/job-runner/index.mjs")), runtimes = await import(url("src/runtimes/index.mjs")), ledger = await import(url("src/job-ledger/index.mjs"));
 const participantList = await import(url("src/participant-list/index.mjs")), documents = await import(url("src/documents/index.mjs")), catalogue = await import(url("src/job-catalogue/index.mjs"));
 const bridgeClient = await import(url("src/bridge-client/index.mjs")), runPlanner = await import(url("src/run-planner/index.mjs")), workflowFiles = runtimes;
-jobRunner.registerStrategies("tests/test_job_record.py", { recipes: { "chapters-for-page": async () => [] } });
+// The tab's kind needs a recipe that MOD-source-register gives in the app; the entry of CI composes that module itself, so the fixture gives it only to the other worlds.
+if (input.kind !== "ciEnd") jobRunner.registerStrategies("tests/test_job_record.py", { recipes: { "chapters-for-page": async () => [] } });
 
 const WEB = "https://github.com/alice/thesis-tool";
 function repoOf(files) {
@@ -152,7 +156,63 @@ async function run(input) {
     allListed: jobIds.every((id) => read.jobs.some((each) => each.job === id)), allNameTheRun: jobRows.every((row) => row.record.run === runId) };
 }
 
-const KINDS = { routes, ids, run };
+
+// A job taken by CI ends in its record: the product's repository holds the queued record (as queueJob writes it), the entry onDispatch of MOD-workflow-entries runs the job in a checkout
+// of the product and of the instance (real git, a bare origin each), and the origin's record is read back. The fake endpoint answers as an OpenAI-compatible one does; nothing else leaves.
+async function ciEnd(input) {
+  const { spawnSync } = await import("node:child_process"), fs = await import("node:fs"), os = await import("node:os"), path = await import("node:path");
+  const entries = await import(url("src/workflow-entries/main.mjs"));
+  const git = (cwd, ...args) => { const r = spawnSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null", GIT_TERMINAL_PROMPT: "0" } }); if (r.status !== 0) throw new Error("git " + args.join(" ") + ": " + r.stderr); return r.stdout.trim(); };
+  const quiet = (dir) => { for (const [key, value] of [["gc.auto", "0"], ["maintenance.auto", "false"], ["receive.autogc", "false"]]) git(dir, "config", key, value); };
+  const NO_MAINTENANCE = ["-c", "gc.auto=0", "-c", "maintenance.auto=false", "-c", "receive.autogc=false"];
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "job-record-ci-"));
+  const repository = (name, files, folder) => {
+    const origin = path.join(root, name + ".git"), seed = path.join(root, name + "-seed");
+    git(root, "init", "-q", "--bare", "-b", "main", origin); quiet(origin);
+    git(root, "clone", "-q", ...NO_MAINTENANCE, origin, seed); quiet(seed);
+    git(seed, "config", "user.name", "Seed"); git(seed, "config", "user.email", "seed@example.org");
+    for (const [file, body] of Object.entries(files)) { fs.mkdirSync(path.join(seed, file, ".."), { recursive: true }); fs.writeFileSync(path.join(seed, file), body); }
+    git(seed, "add", "-A"); git(seed, "commit", "-q", "-m", "first"); git(seed, "push", "-q", "origin", "HEAD:refs/heads/main");
+    fs.mkdirSync(path.join(folder, ".."), { recursive: true });
+    git(root, "clone", "-q", ...NO_MAINTENANCE, origin, folder); quiet(folder);
+    git(folder, "config", "user.name", "Alice Agent M token"); git(folder, "config", "user.email", "alice@example.org");
+    return origin;
+  };
+  const PARTICIPANTS = "# Participants of this instance\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n"
+    + "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitLab's hosted runners | ci hosted secret FIXTURE_KEY |\n";
+  const JOB = "JOB-20261016-0800-a1b2", PIPELINE = "https://gitlab.example.test/alice/thesis-tool/-/pipelines/4711", GATE = "docs/gates/GATE-fixture.md";
+  const productDir = path.join(root, "ws", "product"), instanceDir = path.join(root, "ws", "instance");
+  const saved = { fetch: globalThis.fetch };
+  try {
+    repository("instance", { "README.md": "# Instance\n", "docs/participants.md": PARTICIPANTS }, instanceDir);
+    const agentM = { version: "2026.10.0", commit: git(instanceDir, "rev-parse", "HEAD") };
+    const start = ledger.startRecord({ id: JOB, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice",
+      start: new Date("2026-10-16T08:00:00Z"), agentM, inputs: [], limit: 2, destinations: [{ participant: "ci-bot", place: "GitLab's hosted runners", parts: ["gate-inputs"] }],
+      params: { endpoint: { name: "fixture", kind: "openai-compatible", baseUrl: "https://llm.example.test/v1", model: "fixture-llm" } } });
+    const origin = repository("product", { "README.md": "# Thesis tool\n", [start.path]: start.text }, productDir);
+    jobRunner.registerStrategies("tests/test_job_record.py:ci", {
+      recipes: { "gate-inputs": async () => [{ name: "gate-inputs", text: "gate fixture checks docs/a.md", size: 0, sources: [], required: true }] },
+      writers: { "gate-record": async (result, context) => {
+        const host = context.product.host, head = await host.readSnapshot("HEAD");
+        const { commit } = await host.commitFiles({ branch: "main", expectedHead: head.commit, files: [{ path: GATE, text: "# Gate fixture\n\ndecision: " + result.draft.decision + "\nreason: " + result.draft.reason + "\n" }], message: "gate fixture decided" });
+        return { commits: [commit], files: [GATE], pullRequest: null, shown: null, notes: [] };
+      } },
+    });
+    globalThis.fetch = async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ draft: { decision: "passed", reason: "every artifact meets the condition" }, answers: [] }) } }], usage: { prompt_tokens: 120, completion_tokens: 30 } }), { status: 200 });
+    const env = { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "api", CI_PROJECT_DIR: productDir, CI_PROJECT_URL: "https://gitlab.example.test/alice/thesis-tool", CI_COMMIT_REF_NAME: "main",
+      CI_COMMIT_SHA: "0123456789abcdef0123456789abcdef01234567", GITLAB_USER_LOGIN: "alice", CI_PIPELINE_URL: PIPELINE, AGENT_M_RUNNER: "hosted", AGENT_M_PRODUCT_DIR: productDir,
+      AGENT_M_TOKEN_NAME: "ALICE_TOKEN", AGENT_M_TOKEN: "glpat-ALICEagentMtoken0123456789", AGENT_M_KEY_NAMES: "FIXTURE_KEY", FIXTURE_KEY: "sk-FIXTURE-KEY-0123456789abcdef",
+      AGENT_M_INPUT_JOB: JOB, AGENT_M_INPUT_TASK: "", AGENT_M_INPUT_ENDPOINT: "" };
+    const before = git(origin, "ls-tree", "-r", "--name-only", "main").split("\n").filter((file) => JOB_PATH.test(file)).length;
+    const status = await entries.runEntry("onDispatch", env, { now: new Date("2026-10-16T09:00:00Z") });
+    const files = git(origin, "ls-tree", "-r", "--name-only", "main").split("\n").filter((file) => JOB_PATH.test(file));
+    const record = git(origin, "show", "main:docs/jobs/" + JOB + ".md");
+    return { outcome: status.outcome, queuedBefore: before, records: files.length, takenByCi: record.includes("by: " + PIPELINE), endState: /## End[^]*?state: (\w+)/.exec(record)?.[1] ?? null,
+      endNamesLog: record.includes("log: " + PIPELINE) };
+  } finally { globalThis.fetch = saved.fetch; fs.rmSync(root, { recursive: true, force: true }); }
+}
+
+const KINDS = { routes, ids, run, ciEnd };
 return await KINDS[input.kind](input);
 """
 
@@ -188,7 +248,7 @@ class TestJobRecord(unittest.TestCase):
     # guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
     # given: the cases under that requirement: a job queued for the tab (and run there), for CI (hosted) and for a Bridge (handed over to it), each over a product's repository
     # input: queueJob on each route, runOnTab for the tab; the product's docs/jobs/ read by listJobs
-    # expect: each leaves one record docs/jobs/<its id>.md in the product's repository and none in another, naming its kind, inputs, participant, runtime (route) and start; the tab's, once ended, its end state and results
+    # expect: each leaves one record docs/jobs/<its id>.md in the product's repository and none in another (a job taken by CI also gets its taking and its End from the CI run), naming its kind, inputs, participant, runtime (route) and start; the tab's, once ended, its end state and results
     def test_a_job_in_the_tab_in_ci_and_on_a_bridge_each_leaves_its_record(self):
         check(self, RECORDED)
 
