@@ -136,7 +136,8 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `CiRun` — `{ id: string, workflow: string, commit: string, event: string, state: "queued" | "running" | "waiting" |
   "success" | "failure" | "cancelled" | "skipped", url: string, started: string | null, ended: string | null }`.
 - `Issue` — `{ number: number, title: string, body: string, labels: string[], state: "open" | "closed", url: string,
-  comments: { author: string, body: string, date: string }[] }`.
+  opened: string, closed: string | null, comments: { author: string, body: string, date: string }[] }`: `opened` the
+  date and time the issue was opened, `closed` the date and time the server reports it closed, `null` while it is open.
 - `RepositoryInfo` — `{ defaultBranch: string, visibility: "public" | "private" | "internal", canWrite: boolean,
   archived: boolean, description: string }`: `description` is the repository's one-line description on its server, empty
   where it has none.

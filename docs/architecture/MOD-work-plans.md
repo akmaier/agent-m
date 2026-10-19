@@ -249,8 +249,9 @@ assignment is the one of the team whose sprint holds it, and the product's one i
     and result records — each named as a source; never a mail. The sprint is the one the job's parameter `sprint` names;
     its facts are `sprintFacts` of the product's items, of its tests with what each guards (`isTestFile`,
     `testDeclarations`), of the items' states (`itemStates`, with the product's workflow), of its jobs (`listJobs`,
-    without live states), of the branch `test-results` (the product host's `readSnapshot`), and of its pull requests and
-    issues; where the product's host gives no issues, they are left out and named as not read;
+    without live states), of the branch `test-results` (the product host's `readSnapshot`), of its pull requests, and of
+    the issues whose `opened` or `closed` falls within the sprint; where the product's host gives no issues, they are
+    left out and named as not read;
   - check `plan-checks` — `planFindings` on a drafted plan, with the product's workflow; where the product has no
     workflow, one error finding naming the declared model and its commit;
   - check `backlog-checks` — `backlogFindings` on drafted items;
