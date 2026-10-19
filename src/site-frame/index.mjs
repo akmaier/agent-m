@@ -18,6 +18,7 @@ import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
+import { siteFooter } from "./footer.mjs";
 import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
@@ -266,7 +267,6 @@ async function startSite({ page, views }) {
   const instance = { repository, host: instanceHostFollowingStore({ store, address: parseAddress(`https://github.com/${repository}`) }) };
   const routes = views.flatMap((view) => view?.routes ?? []);
   const served = new Set(routes.map((route) => route.entry).filter(Boolean));
-  const entries = menuOf(page, [...served]);
 
   const header = sharedHeader();
   const menu = document.createElement("nav");
@@ -279,7 +279,7 @@ async function startSite({ page, views }) {
   target.className = "site-frame-route";
   const foot = document.createElement("footer");
   foot.className = "site-frame-prompt-bar";
-  document.body.replaceChildren(header, notices, target, foot);
+  document.body.replaceChildren(header, notices, target, siteFooter(UPSTREAM), foot);
 
   // The route shown now, with the parameters and the context it was rendered with: what the prompt bar's subject is read from.
   let shown = null;
@@ -287,13 +287,13 @@ async function startSite({ page, views }) {
   let shownName = routes[0]?.name ?? "";
   const defaultBranches = new Map();
   const drawMenu = (active, product) => {
-    menu.replaceChildren(...entries.map((entry) => {
+    menu.replaceChildren(...menuOf(page, [...served], product).map((entry) => {
       const item = document.createElement(entry.href === null ? "span" : "a");
       item.setAttribute("title", entry.title);
       item.textContent = entry.label;
       if (entry.href === null) item.className = "soon";
       else {
-        item.setAttribute("href", product ? `${entry.href}/product=${encodeURIComponent(product)}` : entry.href);
+        item.setAttribute("href", entry.href);
         if (entry.key === active) item.className = "active";
       }
       return item;
