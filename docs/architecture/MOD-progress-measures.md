@@ -14,14 +14,12 @@ uses:
   - MOD-work-plans.planSchemas
   - MOD-product-process.Workflow
   - MOD-product-process.declarationSchema
-  - MOD-product-process.workflowOf
+  - MOD-product-process.productWorkflow
   - MOD-product-process.gateSchema
   - MOD-product-process.gateStates
   - MOD-product-process.roleAssignmentSchema
   - MOD-model-catalogue.Model
-  - MOD-model-catalogue.catalogue
   - MOD-model-catalogue.planGrid
-  - MOD-model-catalogue.modelSchema
   - MOD-approvals.statuses
   - MOD-spec-changes.Queue
   - MOD-spec-changes.queues
@@ -277,10 +275,11 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 
 - MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, planSchemas — the steps and items, their order, the sprints,
   what they hold, and each one's state.
-- MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates, roleAssignmentSchema — the
-  declared process, its gates and their states, and the role assignments. The workflow is read with the instance's SPEC, where the process requirements stand.
-- MOD-model-catalogue.Model, catalogue, planGrid, modelSchema — the declared model and its practices' files, from the catalogue at the commit the declaration
-  names (UC-031 6a; ARC-042: earlier work keeps the model it was done under), and its plan of requirements times phases.
+- MOD-product-process.Workflow, declarationSchema, productWorkflow, gateSchema, gateStates, roleAssignmentSchema — the
+  declared process, its gates and their states, and the role assignments. The workflow is `productWorkflow`'s, read with
+  the instance's SPEC, where the process requirements stand.
+- MOD-model-catalogue.Model, planGrid — the declared model, `productWorkflow`'s `model`, and its plan of requirements
+  times phases.
 - MOD-approvals.statuses — accepted, open and changed files, for the stages and for what waits.
 - MOD-spec-changes.Queue, queues — decided and open SPEC changes, for the stages and for what waits.
 - MOD-spec-document.parseSpec — the requirements.

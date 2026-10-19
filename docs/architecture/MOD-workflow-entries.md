@@ -42,7 +42,7 @@ uses:
   - MOD-run-planner.finishRun
   - MOD-run-planner.runStrategies
   - MOD-product-process.declarationSchema
-  - MOD-product-process.workflowOf
+  - MOD-product-process.productWorkflow
   - MOD-product-process.gateSchema
   - MOD-product-process.gateStates
   - MOD-product-process.doneCheck
@@ -254,8 +254,9 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-run-planner.runOf`, `nextActions`, `finishRun` — the runs, their next actions, and a run's end on `finish`.
 - `MOD-trace-graph.publishGraph`, `MOD-approvals.statuses`, `lastAcceptedText`, `MOD-progress-measures.publishOverview` —
   the records `onMainChanged` stores for each commit of the default branch.
-- `MOD-product-process.declarationSchema`, `workflowOf`, `gateSchema`, `gateStates`, `doneCheck` — the workflow, the
-  gates and the Definition of Done, checked by `onDoneCheck`; `recordGateDecision` — a CI check's decision on a gate.
+- `MOD-product-process.declarationSchema`, `productWorkflow`, `gateSchema`, `gateStates`, `doneCheck` — the workflow,
+  the gates and the Definition of Done, checked by `onDoneCheck`; `recordGateDecision` — a CI check's decision on a
+  gate.
   The workflow is read with the instance's SPEC, where the process requirements stand.
 - `MOD-test-schedule.applyPipelineSchedule` — the nightly pipeline schedule on GitLab once a run's CI is merged.
 - `MOD-result-records.parseOutcomes`, `appendResult` — a run's outcomes read from its JUnit XML report, and its result
