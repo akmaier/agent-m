@@ -1,5 +1,6 @@
-// reread.mjs — the jobs' states of the route `home`, read again while it is open (docs/architecture/MOD-main-page.md, Data: "While the page is open it reads the jobs' states again at an interval
-// the repository servers' rate limits allow, so the build stays current; it stores nothing between readings").
+// reread.mjs — the jobs' states of the route `home`, read again while it is open and its tab shown (docs/architecture/MOD-main-page.md, Data: "While the page is open it reads the jobs' states again at an
+// interval the repository servers' rate limits allow, so the build stays current, except while its tab is hidden (`document.visibilityState` is `hidden`): then it starts no reading, and when
+// `visibilitychange` shows the tab again it reads at once each card whose reading fell due meanwhile. … It stores nothing between readings").
 //
 // Module: MOD-main-page
 //
@@ -16,6 +17,9 @@
 //     `RateLimited` (MOD-repository-hosts) with the time it resets: that card is then not read again before that time, if it is later than the next interval. The other cards go on at the interval,
 //     since each token has a limit of its own.
 //   - The readings stop once the route is no longer the one shown: the frame draws another route into the same element, which then no longer holds these cards.
+//   - While the tab is hidden a timer that fires starts no reading and sets no timer: the readings are paused, not postponed. When `visibilitychange` shows the tab, the cards whose time has come are read at
+//     once and the timer is set for the next one due; a card not yet due keeps its time. A card being read is not read again by a second event (a reading in flight is not cancelled either). The listener is
+//     removed by the first event or timer that finds the cards gone.
 
 import { listJobs } from "../job-ledger/index.mjs";
 import { buildInProgress } from "../progress-measures/index.mjs";
@@ -52,12 +56,23 @@ export function readAgain({ target, cards, nodes, held, store }) {
   if (!reading.some(Boolean)) return;
   const problems = new Map();
   const problem = el("p", "warn reread-problem");
-  const schedule = () => globalThis.setTimeout(tick, Math.max(0, Math.min(...reading.filter(Boolean).map((card) => card.due)) - Date.now()));
+  const document = globalThis.document;
+  let timer = null;
+  const shown = () => [...target.children].includes(cards);
+  const hidden = () => document?.visibilityState === "hidden";
+  const schedule = () => {
+    globalThis.clearTimeout(timer);
+    timer = globalThis.setTimeout(tick, Math.max(0, Math.min(...reading.filter(Boolean).map((card) => card.due)) - Date.now()));
+  };
+  const resume = () => { if (!hidden()) return tick(); };
+  document?.addEventListener?.("visibilitychange", resume);
   async function tick() {
-    if (![...target.children].includes(cards)) return;
+    if (!shown()) { document?.removeEventListener?.("visibilitychange", resume); return; }
+    if (hidden()) return;
     const now = Date.now();
     await Promise.all(reading.map(async (card, at) => {
-      if (!card || card.due > now) return;
+      if (!card || card.due > now || card.busy) return;
+      card.busy = true;
       const { source, facts, shares, current, model } = card.entry;
       try {
         const jobs = await jobsAgain(card.entry, store);
@@ -67,6 +82,8 @@ export function readAgain({ target, cards, nodes, held, store }) {
       } catch (failure) {
         problems.set(at, `${source.title}: ${reasonOf(failure)}`);
         card.due = dueAfter(failure, now);
+      } finally {
+        card.busy = false;
       }
     }));
     problem.textContent = `The jobs' states could not be read again. ${[...problems.values()].join(" ")}`;
