@@ -29,11 +29,13 @@ function endpointKey(name) {
   return name ? `endpoint:${name}` : null;
 }
 
-// recordTest(store, key, checked) -> { at, outcome } — the endpoint's last test, kept beside it as the Settings page shows
-// it on the endpoint's line (A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN): when it ran, and whether the
-// endpoint answered. The form's Save and test and the line's Test record it alike.
+// recordTest(store, key, checked) -> { at, outcome, tools? } — the endpoint's last test, kept beside it as the Settings page shows
+// it on the endpoint's line (A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN): when it ran, whether the
+// endpoint answered and, where the test reached the model, whether the model called the tool it was offered (`tools`, which the
+// participants route presets *use tools* from; left out where the test did not reach the model). The form's Save and test and the
+// line's Test record it alike.
 export function recordTest(store, key, checked) {
-  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused" };
+  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...(checked.works ? { tools: checked.tools === true } : {}) };
   writeSetting(store, `last-test:${key}`, lastTest);
   return lastTest;
 }
