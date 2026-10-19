@@ -210,3 +210,21 @@ test("plan — the marks write nothing", async () => {
   assert.equal(marks(stepRow(target, "ITM-010")).length, 1, "known positive: the mark is there");
   assert.deepEqual(writes, []);
 });
+
+// TST-1036005 · level: unit · module: MOD-implementation-pages
+// guards: UC-045 (1c)
+// given: the plan of the first test, on a server whose history cannot be read (readHistory fails)
+// input: the route plan
+// expect: the page is drawn all the same: the architecture, the steps and their states; no step carries a mark, since none could be derived
+test("plan — when the history cannot be read the page is drawn without marks", async () => {
+  const writes = [], drawn = recorder();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const context = contextWith(FILES(), dates(), writes);
+  context.product.host.readHistory = async () => { throw Object.assign(new Error("unreachable"), { name: "Unreachable" }); };
+  try { await route.render(target, context, {}); } finally { delete globalThis.mermaid; }
+  assert.equal(byData(target, "data-step").length, 4);
+  assert.ok(archRow(target, "MOD-reader"));
+  assert.deepEqual(byData(target, "data-mark"), []);
+  void drawn;
+});
