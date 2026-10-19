@@ -30,3 +30,10 @@ offers no such field, so this item waits for a draft of it for akmaier.
 
 - MOD-site-frame's accepted `View` lets a view name its reads, and `readAhead` keeps no list of its own.
 - The counts of `load-per-view.test.mjs` stay as they are.
+
+**The draft for akmaier is on `main`** (sprint team1/92, written by developer-sonnet-b). MOD-site-frame's `Route` gains
+`reads(params, snapshot)`, the files the route will read. The frame reads them with `readMany` before `render`, a hundred to
+a batch, and keeps no list of files of its own. The frame names MOD-repository-hosts.Snapshot in its uses.
+- **Read at its start:** a route that shows another ref than the page's reads its own snapshot.
+- It waits for the acceptance.
+

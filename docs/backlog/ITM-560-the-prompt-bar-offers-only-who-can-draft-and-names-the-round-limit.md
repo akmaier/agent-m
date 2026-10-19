@@ -35,3 +35,14 @@ before it is selected:
 
 - ITM-514's todo tests TST-377010 and TST-418125 pass, with counter-proofs.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Read by developer-sonnet-a (sprint team1/92).**
+- **S13 needs no draft.** The bar names `prepared.limit` (MOD-job-runner.md:230-232, :260-261; `kindOf` gives 5 for
+  `converse` and the `change-*` kinds) in the conversation with its destinations, before *Send* (UC-019 step 7).
+  TST-418125 states the wording "at most 5".
+- **S9 needs a draft,** prepared as a patch: MOD-prompt-bar's uses gain MOD-participant-list.eligible and
+  MOD-job-catalogue.kindOf, and the bar offers only the participants `eligible` admits for the kind's needs (UC-019 2),
+  with the reason and a link to `participants` where none can (UC-019 3a).
+- The item builds S13 first and S9 after the draft's acceptance, in two pull requests.
+- **It is held back today:** MOD-prompt-bar uses MOD-progress-measures, which team 2's ITM-873 changes.
+

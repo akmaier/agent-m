@@ -14,6 +14,7 @@ uses:
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.systemDecisions
   - MOD-trace-graph.moduleOrder
+  - MOD-trace-graph.moduleRows
   - MOD-job-ledger.JobRecord
   - MOD-job-ledger.JobRow
   - MOD-job-ledger.appendToRecord
@@ -38,6 +39,7 @@ provides:
   - runOf
   - nextActions
   - raiseLimits
+  - finishRun
   - runStrategies
 ---
 # MOD-run-planner Runs over a selection, their next actions, and the inputs of an implementation job
@@ -105,6 +107,13 @@ limit or stops it.
   past merges and CI results. `refuse` names the modules of a cycle in the modules' uses, before anything starts.
   Considers: two drivers may compute the same action; only the one whose start record lands on the head it read takes it
   (MOD-job-ledger's `takeJob`).
+- `finishRun(host: Host, run: Run, context: { snapshot: Snapshot, trailers: string[] }) -> Promise<{ commit: string }>` —
+  what a route does on `finish`, whichever route got it: appends to the run's record, read from `snapshot`, its `## End`,
+  `done`, whose `results` name the default branch's commit the run's validation holds at. The validation — the module view
+  of its selection, MOD-trace-graph's `moduleRows` of that commit's graph for the modules of the selected steps or items,
+  with their gaps — is derived again from that commit wherever it is shown, and is not copied into the record. Committed
+  through `appendToRecord` and `commitFiles` on that head (`A RUN ENDS WITH THE VALIDATION OF ITS MODULES`). Errors:
+  `RecordEnded`, and the host's.
 - `raiseLimits(host: Host, run: Run, limits: { jobsAtOnce?: number, cost?: number, rounds?: number }, context: {
   snapshot: Snapshot, person: string, now: Date }) -> Promise<{ commit: string }>` — the person's **Continue** after
   raising a limit (UC-043 6c): appends a part `## Limits raised` with the limits then in force, who and when, to the run's
@@ -136,7 +145,8 @@ MOD-repository-hosts'.
 - MOD-work-plans.ItemState, startable — which steps or items may start, and why not.
 - MOD-product-process.Workflow, holdsRole — the phases, gates and roles of the product.
 - MOD-progress-measures.Facts — the facts of the product, gathered once.
-- MOD-trace-graph.traceGraph, moduleOrder — the order of modules by their uses, and a cycle; MOD-trace-graph.systemDecisions —
+- MOD-trace-graph.traceGraph, moduleOrder — the order of modules by their uses, and a cycle; MOD-trace-graph.moduleRows —
+  the validation a finished run's end names; MOD-trace-graph.systemDecisions —
   the decisions of the system and of its subsystems.
 - MOD-job-ledger.JobRecord, JobRow, appendToRecord, RecordPart — the run's record, its jobs with their states and
   costs, and the part a person's raised limits append.

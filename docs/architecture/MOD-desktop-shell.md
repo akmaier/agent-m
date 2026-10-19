@@ -163,13 +163,14 @@ The rest of its surface faces the person, not another module:
   stays open while the Bridge runs. The window loads only the app's own files, under a protocol of the app's own, never
   a remote page; a link — an agent's installation page, the dashboard — opens in the person's browser.
 - **The window's views**, drawn with the site's frame as the page `bridge`, each with its explanation:
-  - *Agents* — every supported agent with its version, ready and logged in, or missing with its vendor's installation
-    page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
+  - *Agents* — every supported agent with its version, ready and logged in, installed but not logged in with its own
+    login step (`Agent.login`), or missing with its vendor's installation page for this platform, and *Check again* (`THE BRIDGE FINDS THE INSTALLED AGENTS`, `THE BRIDGE GUIDES THE
     INSTALLATION OF A MISSING AGENT`); a tick for each installed agent the Bridge is to offer, and the working folder of
     each ticked one, chosen with the system's folder dialog; *Test access*, through MOD-bridge-jobs' `testAccess`,
     which names each repository this computer's own git login does not reach, with the reason.
   - *Pairing* — the Bridge's address and its pairing token with *Copy* (`THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS
-    WINDOW`), and *Pair anew*, a decision that names that every paired browser must pair again (`THE BRIDGE IS PAIRED
+    WINDOW`); *paired with* the origin MOD-bridge-http's `pairedWith()` gives, or *not yet paired since this start*; and
+    *Pair anew*, a decision that names that every paired browser must pair again (`THE BRIDGE IS PAIRED
     ONCE`).
   - *Tunnels* — the jump host; the Bridge's public key with *Copy* and where to add it on the jump host; each tunnel's
     state with its reason.

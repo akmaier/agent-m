@@ -15,6 +15,7 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.commitFiles
+  - MOD-repository-hosts.webLinks
   - MOD-documents.Schema
   - MOD-documents.loadSchema
   - MOD-documents.readDocument
@@ -24,6 +25,8 @@ uses:
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-participant-list.reachedThrough
+  - MOD-participant-list.eligible
+  - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
   - MOD-job-runner.Prepared
   - MOD-job-runner.JobResult
@@ -169,8 +172,12 @@ IN THE REPOSITORY`).
   `target`, fixed to the bottom of the window, and keeps it for the life of the page. It offers each participant of the
   instance's list whose type is a model endpoint, a CLI agent or a sandboxed agent, that `reachedThrough` names no other
   participant for, and whose route this browser reaches — an endpoint its store keeps, an agent on a Bridge its store
-  keeps (UC-049 precondition); with none, it draws nothing and says nothing (UC-049 1a); with one, it names it; with
-  several, a small selector above the input chooses, each named with its processing place. A folded *What is this?*
+  keeps (UC-049 precondition); with none reached, it draws nothing and says nothing (UC-049 1a). Of those reached it
+  offers, for the page shown, only each that can do the subject's kind: `eligible` judges them against the `needs` of
+  `kindOf`'s definition of that kind, so that the offer follows the subject (UC-019 2). Where some are reached and none can
+  do the kind, it says so, names the capabilities the kind needs, and links the route `participants` through `go`
+  (UC-019 3a). With one offered, it names it; with several, a small selector above the input chooses, each named with its
+  processing place. A folded *What is this?*
   explains the bar. On *Send* — the decision to send — it asks the subject for the kind and the parameters, adds the
   person's words as `instruction`, the conversation so far as `conversation`, the subject's `entry` as `entry` and its
   `refuses` as `refuses`, prepares the job with MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
@@ -196,7 +203,11 @@ IN THE REPOSITORY`).
   record names; *Stop* then cancels it with `cancelJob`. It says above the selector when the conversation is recorded
   (UC-049 6c). Crosses the network: to the participant through its route, and to the repository servers to read the
   subject, the participants, the facts and the switch, to append the record, and to queue and start a hand-over. A
-  failure of the participant's route is shown in the conversation by name.
+  failure of the participant's route is shown in the conversation by name. A hand-over the product cannot take yet says
+  what is missing and links where it is set up (UC-049 4c): while the product has no job workflow — the CI route
+  unavailable, `routesFor` naming its files — the route `settings` through `go`, whose product section installs it; for a
+  run ended `not run` for a missing secret, the server's page of the repository's secrets (MOD-repository-hosts'
+  `webLinks`, `secrets`), naming the secret.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
@@ -226,11 +237,13 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
 - MOD-browser-store.Store, MOD-browser-store.readSetting — the endpoints and the Bridges this browser keeps;
   MOD-browser-store.readTabValue, MOD-browser-store.writeTabValue — the conversation, held in the tab.
 - MOD-repository-hosts.Host, MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo — the participants,
-  the switch, the head the record is appended on; MOD-repository-hosts.commitFiles — appending to the record.
+  the switch, the head the record is appended on; MOD-repository-hosts.commitFiles — appending to the record;
+  MOD-repository-hosts.webLinks — the server's page of the repository's secrets, linked when a secret is missing.
 - MOD-documents.loadSchema, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister — its two
   files and the participant list.
 - MOD-participant-list.Participant, MOD-participant-list.participantSchema, MOD-participant-list.participantsOf,
-  MOD-participant-list.reachedThrough — the participants, and those reached only through another.
+  MOD-participant-list.reachedThrough — the participants, and those reached only through another;
+  MOD-participant-list.eligible, MOD-job-catalogue.kindOf — which of them can do the subject's kind.
 - MOD-job-runner.prepareJob, MOD-job-runner.Prepared, MOD-job-runner.JobResult — a message prepared and checked to fit,
   and its result; MOD-job-runner.Strategies — the type of `handOverStrategies`.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
