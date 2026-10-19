@@ -743,7 +743,7 @@ test("UC-040 step 7b — through the frame, a runner resource just saved can be 
 // input: press Check on cluster and read the explanation the page shows
 // expect: the explanation does not say that the page makes no request through a Bridge, since Check makes it
 test("UC-040 step 7 — through the frame, the explanation of Check does not deny the check through a Bridge that the page makes",
-  { todo: "FINDING ITM-1125 — the explanation resource-check in src/site-frame/explanations.md says \"A resource reached through a Bridge is checked by a request through the Bridge, which this page does not make yet.\" while the page makes it (src/settings-pages/resources.mjs checkThroughBridge, TST-1041003)." }, async (t) => {
+  async (t) => {
     const page = await visit(t, FRAGMENT);
     await click(labelled(entry(page, "cluster"), "Check"));
     const text = withClass(entry(page, "cluster"), "resource-out")[0].textContent.replace(/\s+/g, " ");
