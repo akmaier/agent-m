@@ -1,7 +1,7 @@
 import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
 import { endpointDriver, endpointExchange, listModels as nodeListModels, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 import { listPartitions } from "./probes.mjs";
-import { handOver } from "./watch.mjs";
+import { handOver, listJobs } from "./watch.mjs";
 
 function validEndpointConfig(value) {
   return value && typeof value === "object" && typeof value.name === "string"
@@ -52,6 +52,8 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
         missing: found.filter((agent) => !agent.installed).map((agent) => ({ name: agent.name })),
       };
     },
+    // The jobs this Bridge took since it started, with their live states, in the form MOD-bridge-client's bridgeJobs reads.
+    "GET /v1/jobs": async () => ({ jobs: listJobs() }),
     "POST /v1/jobs": async ({ body }) => {
       if (![body?.product, body?.record, body?.commit].every((value) => typeof value === "string" && value)) {
         throw failure("invalid-request", "A job is handed over with its product, its record and its commit.");

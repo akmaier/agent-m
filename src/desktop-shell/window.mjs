@@ -105,7 +105,15 @@ async function tunnels(target, context) {
   heading.textContent = "Tunnels"; key.textContent = state.publicKey;
   for (const tunnel of state.tunnels) { const item = document.createElement("li"); item.textContent = `${tunnel.name}: ${tunnel.state}${tunnel.reason ? ` (${tunnel.reason})` : ""}`; list.append(item); }
   const jump = (await window.bridge.state("settings")).settings.jumpHost, instruction = document.createElement("p");
-  instruction.textContent = jump ? `Add this public key to ~/.ssh/authorized_keys for ${jump.user}@${jump.hostname}, or give it to that jump host's administrator.` : "Set a jump host in a settings export to open tunnels.";
-  target.replaceChildren(heading, navigation(context), explain("bridge-tunnels"), document.createTextNode("Public key: "), key, button("Copy public key", () => window.bridge.copy(state.publicKey)), instruction, list);
+  instruction.textContent = jump ? `Add this public key to ~/.ssh/authorized_keys for ${jump.user}@${jump.hostname}, or give it to that jump host's administrator.` : "Enter a jump host below, or import a settings export, to open tunnels.";
+  // The jump host is entered here or taken from the dashboard's export (UC-044 6a.1): the hostname, the SSH user and the SSH port.
+  const host = field("Jump host", jump?.hostname), user = field("SSH user", jump?.user), sshPort = field("SSH port", jump?.sshPort ?? 22, "number"), saved = document.createElement("p");
+  const saveHost = button("Save jump host", async () => {
+    try {
+      await window.bridge.state("save-jump-host", { hostname: host.input.value, user: user.input.value, sshPort: sshPort.input.value });
+      await tunnels(target, context);
+    } catch (failure) { saved.textContent = `Not saved: ${failure.message}`; notice("unreachable", { text: saved.textContent }); }
+  });
+  target.replaceChildren(heading, navigation(context), explain("bridge-tunnels"), document.createTextNode("Public key: "), key, button("Copy public key", () => window.bridge.copy(state.publicKey)), instruction, list, host.caption, user.caption, sshPort.caption, saveHost, saved);
 }
 await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "agents", entry: null, title: "Agents", render: agents }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }] }], menuViews: [] });
