@@ -18,8 +18,8 @@
 // requests to its server) and from A CLEAR IS A REAL CLEAR (what the page holds follows what the browser stores); none is read from a
 // document. A token that was imported is a stored credential: the next request to its server carries it, and a token that was cleared
 // before is no longer sent. Reading, named in the pull request: a settings file that holds a token of the other kind of server under
-// `github-token` stores it (the import checks no token's form), and `connect` refuses it with a TypeError that names the cause; the page
-// shows that message in the line of the import, as it shows every other failure of an import there.
+// `github-token` is refused before anything is stored (ITM-893): `connect` refuses the token with a TypeError that names the cause, and the page
+// shows that message, with the key and never the token, in the line of the import, as it shows every other failure of an import there.
 // The callers read first (AGENTS.md 6a.1): tests/settings-pages-product-token-followed.test.mjs (TST-853001 to TST-853003) and
 // tests/settings-pages-stored-token-followed.test.mjs (TST-860001) open the live Settings page on a product's pages in this harness and
 // record the requests; this file copies their pattern, and tests/settings-pages-export-import.test.mjs for the import file's shape (the
@@ -150,12 +150,16 @@ test("TST-870002 · a product token imported after a clear is carried by the nex
 // guards: A GITHUB PRODUCT USES A TOKEN OF ITS OWN
 // given: the live page on a GitHub product's pages that has drawn Settings, the instance's token stored and cleared on its line
 // input: import a file that holds, under `github-token`, a token of the form of a GitLab project access token
-// expect: the line of the import names the cause ("That is a GitLab token") instead of reporting only what was added, and the page stays usable: the Repositories tab can be opened
+// expect: the line of the import names the key `github-token` and the cause ("That is a GitLab token") instead of reporting what was added, holds no token, nothing is stored under `github-token`, and the page stays usable: the Repositories tab can be opened
 test("TST-870003 · a GitLab-form token imported under the GitHub token is named in the line of the import", async () => {
   const { srv, nodes } = await settingsOpen();
   await press(srv, controls(lineOf(nodes(), "GitHub token"), "settings-repository-clear")[0]);
   const result = await importFile(srv, nodes, { "github-token": { value: GITLAB_FORM, name: "GitHub token", expires: null, stored: "2026-10-18" } });
   assert.equal(/That is a GitLab token/.test(result), true, `the line of the import names the cause (it says: ${result})`);
+  assert.equal(/github-token/.test(result), true, `the line of the import names the key (it says: ${result})`);
+  assert.equal(/Added:/.test(result), false, `the line of the import reports nothing added (it says: ${result})`);
+  assert.equal(result.includes(GITLAB_FORM), false, "the line of the import never holds the token");
+  assert.equal(globalThis.localStorage.getItem(`${PREFIX}github-token`), null, "nothing is stored under github-token");
   const tab = controls(nodes(), "settings-tab").find((node) => node.textContent === "Repositories");
   await assert.doesNotReject(async () => { await press(srv, tab); }, "the Repositories tab opens");
 });
