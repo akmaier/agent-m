@@ -98,6 +98,8 @@ it in a browser; its writer and its workflow files are used in Node as well.
 - `workflow/github.yml`, `workflow/gitlab.yml` — the templates of the job workflow.
 - `pull-request.mjs` — the writer `branch-and-pull-request`.
 - `hand-over.mjs` — a conversation's work handed over.
+- `retry.mjs` — a job started again: `retryJob`.
+- `trail.mjs` — what a job left in its product: `jobTrail`.
 
 ## Data
 

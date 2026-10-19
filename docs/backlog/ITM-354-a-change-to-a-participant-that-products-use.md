@@ -34,3 +34,8 @@ role assignments name it, with their roles; a capability removed that a role nee
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/settings-pages/` and the tests that name MOD-settings-pages change.
+
+**Read at sprint team1/93 (developer-sonnet-b): built.** `a3272908` built it ("Team2 sprint43 ITM-354 participant product
+use"), with `productUseFor`, `renderProductUse` and `updateProductUse` in `src/settings-pages/participants.mjs`. TST-354001
+and TST-354002 in `tests/settings-pages-participants.test.mjs` check each Acceptance line and pass unchanged. It is done.
+
