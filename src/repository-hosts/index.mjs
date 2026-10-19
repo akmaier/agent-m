@@ -150,6 +150,7 @@ function throughClone(repository, folder, rest) {
     listTags: rest ? (...a) => rest.listTags(...a) : without("the tags"),
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
+    createIssue: rest ? (...a) => rest.createIssue(...a) : without("an issue"),
     releaseAssets: rest ? (...a) => rest.releaseAssets(...a) : without("a release's files"),
     publishRelease: rest ? (...a) => rest.publishRelease(...a) : without("publishing a release"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
@@ -318,6 +319,18 @@ export function connect(address, credentials = {}) {
       if (typeof name !== "string" || !name.trim()) throw new TypeError("createTag names a tag");
       if (!HEAD.test(String(commit))) throw new TypeError(`createTag names the commit to tag: ${commit}`);
       return adapter.createTag(name, commit);
+    },
+
+    // createIssue({ title, body, labels }) -> Issue — a new issue in the repository's tracker, with the person's token, with its title, body and labels. Crosses the network; fails with TokenRefused,
+    // PermissionMissing, RateLimited, Unreachable, and NotSupported without a token, before any request. An issue that is not { title: text, body: text, labels: texts } is a TypeError.
+    async createIssue(issue) {
+      if (typeof issue?.title !== "string" || !issue.title.trim()) throw new TypeError("createIssue names the issue's title");
+      if (typeof issue.body !== "string") throw new TypeError("createIssue gives the issue's body as a text");
+      if (!Array.isArray(issue.labels) || issue.labels.some((label) => typeof label !== "string" || !label.trim())) throw new TypeError("createIssue gives the issue's labels as a list of texts");
+      if (!token) {
+        throw new HostError("NotSupported", { what: "creating an issue without a token" }, "An issue is created only with a token that may write to the repository; store one first.");
+      }
+      return adapter.createIssue({ title: issue.title, body: issue.body, labels: [...issue.labels] });
     },
 
     // createBranch(name, from) -> void — a branch at a commit; one that stands already is left where it stands, never moved.
