@@ -20,6 +20,8 @@ const NEEDS = {
 const COLUMN = { pin: ["Pin", PINNED], licence: ["Licence", LICENCE], maintainer: ["Maintainer", MAINTAINER], place: ["Processing place", PLACE], paid: ["Paid", PAID] };
 
 const COMMIT = /^[0-9a-f]{40}$/;
+// A pin of data or a model: a Hub revision (40 digits), the SHA-256 of its file (64), or a map of `<file>=<64 digits>` entries separated by commas.
+const EXACT_HUB_PIN = /^(?:[0-9a-f]{40}|[0-9a-f]{64}|[^\s=,]+=[0-9a-f]{64}(?:,\s*[^\s=,]+=[0-9a-f]{64})*)$/;
 const COMPUTE_ROUTE = /^(?:bridge \S+|runner:\S+)$/;
 const SECRET_NAME = /^(?:ci:[A-Za-z_][A-Za-z0-9_]*|browser)$/;
 // One account, `@name`, or one `person <name>`: a maintainer the project depends on alone.
@@ -48,6 +50,10 @@ export function resourceFindings(resources) {
     }
     if (resource.kind === "repository" && !left(resource.pin) && !COMMIT.test(String(resource.pin))) {
       add("error", PINNED, `a repository is pinned to a full commit of 40 hexadecimal digits, not to ${JSON.stringify(String(resource.pin))}`, "pin it to the commit it was last checked at");
+    }
+    if ((resource.kind === "data" || resource.kind === "model") && !left(resource.pin) && !EXACT_HUB_PIN.test(String(resource.pin))) {
+      add("error", PINNED, `${resource.kind === "data" ? "data is" : "a model is"} pinned to a revision of 40 hexadecimal digits or to the SHA-256 of its files, not to ${JSON.stringify(String(resource.pin))}`,
+        "pin it to the revision it was last checked at");
     }
     if (resource.kind === "compute" && !left(resource.route) && !COMPUTE_ROUTE.test(resource.route)) {
       add("error", COMPUTE, `a compute resource is reached by \`bridge <name>\` or \`runner:<label>\`, not by ${JSON.stringify(resource.route)}`, "name the Bridge or the self-hosted runner that reaches it");
