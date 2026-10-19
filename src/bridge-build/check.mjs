@@ -68,10 +68,14 @@ export function shippedAddon(stage) {
   return null;
 }
 
-// Each platform's own verifier of the code signature (ARC-050). Linux checks no code signature. `app` is the unpacked macOS app, `installer` the
-// Windows installer; `file` is the name of the released file the signature belongs to.
+// Each platform's own verifier of the code signature (ARC-050), and the publisher's name it reads from the signed file: macOS's codesign lists the
+// signing certificates, the first being the Developer ID Application certificate of the publisher, whose name follows its type; Windows's
+// Get-AuthenticodeSignature gives the status and the signer certificate's simple name. Linux checks no code signature and reads no name (null).
+// `app` is the unpacked macOS app, `installer` the Windows installer; `file` is the name of the released file the signature belongs to. Where the
+// signature holds but the verifier reads no name, the signature is not accepted: SignatureInvalid.
 export async function verifyCodeSignature({ platform, app, installer, file, env }) {
   const failed = (verifier, result) => new ReleaseError("SignatureInvalid", { file }, `${file}: ${verifier} does not accept its code signature: ${result.output.trim().slice(-500)}`);
+  const nameless = (verifier) => new ReleaseError("SignatureInvalid", { file }, `${file}: ${verifier} reads no publisher name from its code signature`);
   if (platform === "macos") {
     for (const [command, args] of [
       ["codesign", ["--verify", "--deep", "--strict", app]],
@@ -81,10 +85,21 @@ export async function verifyCodeSignature({ platform, app, installer, file, env 
       const result = await run(command, args, { env });
       if (result.code !== 0) throw failed(command, result);
     }
-  } else if (platform === "windows") {
-    const result = await run("powershell", ["-NoProfile", "-Command", `(Get-AuthenticodeSignature -LiteralPath '${installer.replaceAll("'", "''")}').Status`], { env });
-    if (result.code !== 0 || result.output.trim() !== "Valid") throw failed("Get-AuthenticodeSignature", result);
+    const shown = await run("codesign", ["-dvv", app], { env });
+    if (shown.code !== 0) throw failed("codesign", shown);
+    const name = /^Authority=(?:Developer ID Application: )?(\S.*)$/m.exec(shown.output)?.[1]?.trim();
+    if (!name) throw nameless("codesign");
+    return name;
   }
+  if (platform === "windows") {
+    const object = `(Get-AuthenticodeSignature -LiteralPath '${installer.replaceAll("'", "''")}')`;
+    const result = await run("powershell", ["-NoProfile", "-Command", `${object}.Status; ${object}.SignerCertificate.GetNameInfo('SimpleName', $false)`], { env });
+    const [status, name] = result.output.trim().split(/\r?\n/).map((line) => line.trim());
+    if (result.code !== 0 || status !== "Valid") throw failed("Get-AuthenticodeSignature", result);
+    if (!name) throw nameless("Get-AuthenticodeSignature");
+    return name;
+  }
+  return null;
 }
 
 const freePort = () => new Promise((resolve, reject) => {

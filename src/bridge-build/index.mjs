@@ -5,7 +5,7 @@
 // Module: MOD-bridge-build
 
 /**
- * @typedef {{ platform: "macos" | "windows" | "linux", version: string, folder: string,
+ * @typedef {{ platform: "macos" | "windows" | "linux", version: string, folder: string, publisher: string | null,
  *   files: { name: string, size: number, sha256: string, signature: string }[] }} PlatformBuild
  */
 
