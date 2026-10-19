@@ -51,3 +51,8 @@ ITM-843.
 - Counter-proof: ordering by identifier instead of by uses fails the A → B → C case.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/run-planner/` and the tests that name MOD-run-planner change.
+
+**Added at #1181's gate (ITM-1132, sprint team2/97, po-opus-b).** `tests/test_job_record.py` cannot yet check `A RUN IS A JOB
+THAT NAMES ITS JOBS` (SPEC.md:1886-1888), since `nextActions` and `finishRun` are not built. Once they are, a case is added there:
+a run's record lists every job it started, and each names the run. It is written by a participant other than this item's
+implementer.
