@@ -29,8 +29,8 @@ import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { fallbackEditLinks } from "../artifact-edits/fallback.mjs";
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
-import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
-import { impactOf } from "./accept.mjs";
+import { requirementImpact } from "../trace-graph/index.mjs";
+import { graphOf, impactOf } from "./accept.mjs";
 import { queueRationaleSchema, queues, spanText } from "./queues.mjs";
 
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
@@ -283,7 +283,7 @@ export async function queueEntries(result, context) {
   const named = new Map();
   const prepared = [];
   for (const { where, mine, spec, composable, sections } of plans) {
-    const graph = await traceGraph(where.snapshot);
+    const graph = await graphOf(where.snapshot);
     const taken = named.get(where.snapshot) ?? [];
     const { day, folder } = folderFor([...where.snapshot.paths, ...taken.map((each) => `${each}/index.md`)], date, slug);
     named.set(where.snapshot, [...taken, folder]);
