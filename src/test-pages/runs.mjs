@@ -26,7 +26,7 @@ import { newJobId, listJobs } from "../job-ledger/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { queueJob, routesFor, liveState } from "../runtimes/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
-import { runPanel, readProblem } from "../site-frame/index.mjs";
+import { runPanel } from "../site-frame/index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -297,14 +297,14 @@ async function openRun(state, section) {
           el("p", "secrets-used", `Secrets it uses, by name: ${needed.map((each) => each.name).join(", ") || "none"}.`),
           runPanel(ready.prepared, { onRun: async () => { try { await queueRun(state, chosen, ready, name, out); } catch (failure) { out.replaceChildren(el("p", "problem", `${failure.name}: ${failure.message}`)); } } }), out);
       } catch (failure) {
-        box.append(readProblem(failure, true));
+        box.append(el("p", "problem", `${failure.name}: ${failure.message}`));
       }
     };
     for (const input of [...boxes, ...radios, person]) input.addEventListener("change", refresh);
     form.append(el("h3", null, "Run on this commit"), el("ul", "levels", ...boxes.map((each) => el("li", null, el("label", null, each, ` ${each.value}`)))),
       el("ul", "participants", ...radios.map((each) => el("li", null, el("label", null, each, ` ${each.value}`)))), el("label", null, "Your name ", person), box);
   } catch (failure) {
-    form.append(readProblem(failure, true));
+    form.append(el("p", "problem", `${failure.name}: ${failure.message}`));
   }
 }
 
