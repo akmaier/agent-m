@@ -11,7 +11,7 @@
 // The product is a Host of this file's own over one repository in memory with a history, keeping to MOD-repository-hosts' interface; its snapshots offer `readOn`, and the branch
 // `trace-cache` holds the file `<main commit>.impacts.json` that MOD-trace-graph's publishGraph writes. Every call is recorded. The real MOD-approvals, MOD-trace-graph and MOD-documents run.
 // Nothing reaches the network. Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
-//   - A "traceGraph read" is any read of `<commit>.json` on the branch `trace-cache`, or any `readMany` of the snapshot; "lastAcceptedText" is a `readSnapshot` of a commit other than the
+//   - A "traceGraph read" is any read of `<commit>.json` on the branch `trace-cache`, or of a file only the graph reads (the fixture's code file and test file); "lastAcceptedText" is a `readSnapshot` of a commit other than the
 //     default branch's head, which is how that function reads the text at the commit of the record.
 //   - The stored list is drawn without the graph: the stored list is all the page then has, so it shows the modules with their reasons, and the code files and the tests of the whole
 //     list in one line each below them, as <p class="small code-files"> and <p class="small tests"> children of <section class="change-impact">.
@@ -58,7 +58,7 @@ function fakeProduct({ stored }) {
   }
   const snapshotAt = (sha, ref) => {
     const { tree } = commits.get(sha);
-    return { repository: GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+    return { repository: GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => { calls.push({ fn: "read", path }); return tree.has(path) ? tree.get(path) : null; },
       readMany: async (paths) => { calls.push({ fn: "readMany", sha, paths }); },
       readOn: async (branch, path) => {
         calls.push({ fn: "readOn", branch, path });
@@ -98,8 +98,9 @@ function fakeProduct({ stored }) {
 const impactOf = (target) => byClass(target, "section", "change-impact")[0];
 const namesOf = (impact) => byClass(impact, "span", "module-head").map((node) => node.textContent);
 const linesOf = (impact) => impact.childNodes.filter((node) => node.nodeType === 1 && node.localName === "p" && node.className.split(" ").includes("small")).map((node) => node.textContent);
+const GRAPH_ONLY = ["src/reader/read.mjs", "tests/reader.test.mjs"];
 const counted = (fake) => ({
-  graphReads: fake.calls.filter((call) => (call.fn === "readOn" && !call.path.endsWith(".impacts.json")) || call.fn === "readMany").length,
+  graphReads: fake.calls.filter((call) => (call.fn === "readOn" && !call.path.endsWith(".impacts.json")) || (call.fn === "read" && GRAPH_ONLY.includes(call.path))).length,
   lastAccepted: fake.calls.filter((call) => call.fn === "readSnapshot" && call.ref !== "main").length,
   readFileAt: fake.calls.filter((call) => call.fn === "readFileAt"),
   storedReads: fake.calls.filter((call) => call.fn === "readOn" && call.path.endsWith(".impacts.json")).length,
