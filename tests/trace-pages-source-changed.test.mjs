@@ -112,6 +112,13 @@ test("the marks cost one page of commits and one batch of files per history, and
   const still = hostOf([c1]);
   await marked(await render(still), []);
   assert.deepEqual(still.log.histories.map(([path]) => path), ["docs/sources.md"]);
+  assert.deepEqual(still.log.fileAts, [], "a file with one commit in its history cannot have moved a source: the page of commits is all it costs");
+  // Two commits of the links file, the second only adding a source: its texts are read, no source moved, so neither the register nor the SPEC's history is.
+  const added = hostOf([commit("c2", "2026-10-02T10:00:00Z", { ...c1.files, "docs/sources.md": links("2", "1") }),
+    commit("c1", "2026-10-01T10:00:00Z", { "SPEC.md": spec(), "docs/sources.md": links("2", null) })]);
+  await marked(await render(added), []);
+  assert.deepEqual(added.log.histories.map(([path]) => path), ["docs/sources.md"]);
+  assert.deepEqual(added.log.reads.filter((path) => path.startsWith("docs/sources/")), [], "the register is read only when a source moved");
 
   const bare = treeHost({ trees: { main: { "SPEC.md": spec() } }, history: [commit("c1", "2026-10-01T10:00:00Z", { "SPEC.md": spec() })] });
   await marked(await render(bare), []);
