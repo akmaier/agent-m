@@ -2,7 +2,6 @@
   "backlog-view.mjs",
   "how-view.mjs",
   "process-view.mjs",
-  "release-view.mjs",
   "review-views.mjs",
   "roles-view.mjs",
   "settings/endpoints.mjs",

@@ -42,6 +42,7 @@ import { watchForAcceptance } from "../notifications/index.mjs";
 import { view as settingsPages } from "../settings-pages/index.mjs";
 import { view as reviewPages } from "../review-pages/index.mjs";
 import { view as tracePages } from "../trace-pages/index.mjs";
+import { view as testPages } from "../test-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
 import { routeOf, productHostFollowingStore } from "./routing.mjs";
@@ -466,8 +467,7 @@ function renderProductSelector() {
 // record of ITM-236 names addressOf's routes as this change's reading to confirm) — #uc(/<id>), #arc(/<id>) for both an
 // architecture decision and a module ("ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE"),
 // #spec/<queue>/<nn> for one SPEC change entry (MOD-progress-measures' id "spec-<queue>-<nn>"),
-// #release always for a release test report (release-view.mjs; not built yet — ITM-239 — so this falls back to the
-// use-case list today, as any not-yet-built route does, route()).
+// #release always for a release test report (MOD-test-pages' route release, which route() renders).
 let notificationsStore = null;
 
 // MOD-notifications' checks.mjs route key for one of its waiting kinds, turned into this file's own route — "uc", "arc"
@@ -793,6 +793,12 @@ async function route() {
           if (route === "add-product") location.hash = "#add";
           if (route === "main") location.hash = "#uc";
         },
+      }, {});
+    } else if (kind === "release") {
+      const releasePanel = testPages.routes.find((r) => r.name === "release");
+      await releasePanel.render(main(), {
+        instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
+        product: { host: connect(parseAddress(T.product.address), { token: token() }) },
       }, {});
     } else if (kind === "bridge") {
       const bridge = settingsPages.routes.find((r) => r.name === "bridge");
