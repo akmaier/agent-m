@@ -318,12 +318,25 @@ test("diag 1084 — the original test, repeated", async () => {
 });
 
 test("diag 1084 — the maintenance commands git ran", () => {
-  const seen = new Map();
+  const bySid = new Map();
   for (const line of readFileSync(TRACE, "utf8").split("\n")) {
     if (!line) continue;
     let e; try { e = JSON.parse(line); } catch { continue; }
-    if (e.event === "start") { const k = (e.argv || []).slice(0, 4).join(" "); if (/gc|maintenance|pack-refs|repack|prune|daemon/.test(k)) seen.set(k, (seen.get(k) ?? 0) + 1); }
-    if (/daemon/.test(e.event) || /daemon/.test(e.name || "")) seen.set("EVENT " + e.event + " " + (e.name || ""), 1);
+    if (!bySid.has(e.sid)) bySid.set(e.sid, []);
+    bySid.get(e.sid).push(e);
   }
-  console.error("DIAG-MAINT " + JSON.stringify([...seen]) + " " + execSync("git --version", { encoding: "utf8" }).trim());
+  const rows = [];
+  let maintenance = 0, daemonised = 0;
+  for (const [sid, events] of bySid) {
+    const start = events.find((e) => e.event === "start");
+    if (!start || !/maintenance|gc/.test((start.argv || []).join(" "))) continue;
+    maintenance += 1;
+    const exits = events.filter((e) => e.event === "exit" || e.event === "atexit");
+    const kinds = [...new Set(events.map((e) => e.event === "region_enter" || e.event === "region_leave" ? `${e.event}:${e.category}/${e.label}` : e.event))];
+    if (exits.length > 1 || events.some((e) => /daemon|detach/i.test(JSON.stringify(e)))) {
+      daemonised += 1;
+      if (rows.length < 3) rows.push({ sid, argv: start.argv.join(" "), exits: exits.map((e) => e.event + "@" + e.time), kinds });
+    }
+  }
+  console.error("DIAG-MAINT total=" + maintenance + " daemonised=" + daemonised + " " + JSON.stringify(rows).slice(0, 3000));
 });
