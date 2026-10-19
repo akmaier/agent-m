@@ -74,7 +74,7 @@ const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.s
 // One repository in memory whose default branch is `trunk`. `attempts` keeps every commit attempt, `starts` every startWorkflow, `cancels` every cancelled CI run, `calls` every read of a
 // snapshot or a record and every call that lists CI runs. `runs` are the CI runs the server lists. `edit` changes a file as another writer would (a runtime taking a job).
 function repoOf(web, files) {
-  const commits = new Map(), attempts = [], starts = [], cancels = [], calls = [], runs = [];
+  const commits = new Map(), attempts = [], starts = [], cancels = [], calls = [], runs = [], logs = new Map();
   let made = 0, cancelWorks = true;
   const commitOf = (tree) => { const id = createHash("sha1").update(`${web}#${++made}`).digest("hex"); commits.set(id, tree); return id; };
   let head = commitOf(new Map(Object.entries(files)));
@@ -86,7 +86,7 @@ function repoOf(web, files) {
       read: async (path) => { calls.push(`read ${path}`); return tree.has(path) ? tree.get(path) : null; } };
   };
   return {
-    attempts, starts, cancels, calls, runs, head: () => head, file: (path) => commits.get(head).get(path) ?? null, paths: () => [...commits.get(head).keys()],
+    attempts, starts, cancels, calls, runs, logs, head: () => head, file: (path) => commits.get(head).get(path) ?? null, paths: () => [...commits.get(head).keys()],
     edit(path, change) { head = commitOf(new Map([...commits.get(head), [path, change(commits.get(head).get(path) ?? null)]])); },
     cancelDoesNotWork() { cancelWorks = false; },
     jobPath: () => [...commits.get(head).keys()].find((path) => /^docs\/jobs\/JOB-.*\.md$/.test(path) && attempts.some((attempt) => attempt.files.some((file) => file.path === path))),
@@ -103,6 +103,8 @@ function repoOf(web, files) {
       },
       async startWorkflow(workflow, ref, inputs) { starts.push({ workflow, ref, inputs: structuredClone(inputs) }); return null; },
       async listCiRuns() { calls.push("listCiRuns"); return runs.map((run) => ({ ...run })); },
+      async ciRunLog(id) { return logs.get(id) ?? null; },
+      webLinks: () => ({ secrets: `${web}/settings/secrets/actions` }),
       async cancelCiRun(id) { cancels.push(id); const run = runs.find((each) => each.id === id); if (run && cancelWorks) run.state = "cancelled"; },
     },
   };
@@ -234,7 +236,7 @@ const subjectOf = () => ({ key: "use-case:UC-007", title: "UC-007 Derive use cas
   paramsFor: () => ({ page: "The page shows UC-007.", target: "UC-007" }), draftRoute: null, withhold: null, refuses: [] });
 
 // A page of the product (or of the instance): the instance with the register, a store keeping the endpoint ep1, the Bridge lab-pc and the tokens, and the bar started on it.
-function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null } = {}) {
+function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null, went = [] } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   if (store === null) Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const kept = store ?? openStore("alice/agent-m");
@@ -248,9 +250,9 @@ function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_
   const net = network();
   const target = document.createElement("div");
   const bar = startPromptBar(target, { page: "main", store: kept, instance: { repository: "alice/agent-m", host: instance.host },
-    product: () => ({ address: PRODUCT_WEB, host: product.host }), subject: subjectOf, explain: () => document.createElement("details"), go: () => {} });
+    product: () => ({ address: PRODUCT_WEB, host: product.host }), subject: subjectOf, explain: () => document.createElement("details"), go: (...where) => went.push(where) });
   bars.push(bar);
-  return { target, instance, product, net, store: kept, bar };
+  return { went, target, instance, product, net, store: kept, bar };
 }
 
 // Sends a message to the participant, whose answer proposes the hand-over, and waits until the proposal is checked.
@@ -646,4 +648,89 @@ test("with recording on, the job's record names the conversation record and the 
   assert.ok(jobRecord.includes(`conversation: ${path}`), jobRecord);
   assert.ok(it.product.file(path).includes(`## `) && it.product.file(path).includes(`job: ${id}`));
   for (const text of [jobRecord, it.product.file(path)]) assert.ok(!text.includes("PLANTED-TASK-9C2E"));
+});
+
+// ---------------------------------------------------------------- what is missing is linked (UC-049 4c)
+
+const withoutWorkflow = () => { const files = scrumFiles(); delete files[WORKFLOW_FILE]; return files; };
+const SECRETS_PAGE = `${PRODUCT_WEB}/settings/secrets/actions`;
+const NOT_RUN = "onDispatch: not run — KEY_A is missing: the key of dev-ci is a secret of this repository, passed to the job as KEY_A. Nothing was written.";
+// The run the server lists for the started workflow, ended failed, with the log the entry's command line prints.
+const endsNotRun = (it, log) => { it.product.runs.push(ciRun("failed")); it.product.logs.set("7", log); };
+
+// TST-1037001 · level: component · module: MOD-prompt-bar
+// guards: UC-049 (4c); EVERY STEP EXPLAINS ITSELF
+// given: the Scrum product without Agent M's job workflow; dev-ci's answer proposes a hand-over of the ready ITM-004
+// input: Send; then a click on the link the proposal shows
+// expect: the proposal shows "Route: not available" with the reason that the product has no Agent M job workflow, and one link "Set up the job workflow"; the click calls go with the route "settings" and nothing else; nothing was written
+test("a hand-over refused for a missing job workflow links the route settings, and the click goes there", async () => {
+  const it = open({ files: withoutWorkflow() });
+  await proposes(it, ITEM("ITM-004"));
+  assert.match(textOf(one(proposal(it), "route")), /^Route: not available — .*job workflow/);
+  const links = byClass(proposal(it), "settings-link");
+  assert.equal(links.length, 1);
+  assert.equal(textOf(links[0]), "Set up the job workflow");
+  links[0].dispatchEvent(scripted());
+  assert.deepEqual(it.went, [["settings"]]);
+  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+});
+
+// TST-1037002 · level: component · module: MOD-prompt-bar
+// guards: UC-049 (4c)
+// given: known positive TST-1037001; a hand-over of ITM-005, which no sprint selects, on a product with the job workflow; tab-only, whose only route is this tab, on a product without it; the allowed hand-over
+// input: Send, each
+// expect: no link to settings in any of them
+test("a refusal for another reason shows no link to settings", async () => {
+  const positive = open({ files: withoutWorkflow() });
+  await proposes(positive, ITEM("ITM-004"));
+  assert.equal(byClass(proposal(positive), "settings-link").length, 1, "known positive");
+  const unselected = open();
+  await proposes(unselected, ITEM("ITM-005"));
+  assert.match(textOf(one(proposal(unselected), "start-reasons")), /ITM-005/);
+  assert.equal(byClass(proposal(unselected), "settings-link").length, 0);
+  const tab = open({ files: withoutWorkflow() });
+  await proposes(tab, ITEM("ITM-004"), "tab-only");
+  assert.equal(byClass(proposal(tab), "settings-link").length, 0);
+  const allowed = open();
+  await proposes(allowed, ITEM("ITM-004"));
+  assert.equal(byClass(proposal(allowed), "settings-link").length, 0);
+});
+
+// TST-1037003 · level: component · module: MOD-prompt-bar
+// guards: UC-049 (4c); A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: the allowed CI hand-over, clicked by a person; the server lists the started run as failed, and its log says `not run` for the missing secret KEY_A
+// input: the clock moves 15 000 ms
+// expect: the followed job names the secret KEY_A and shows one link whose address is the product's page of CI secrets (the host's webLinks().secrets)
+test("a run that ended not run for a missing secret names the secret and links the server's page of the repository's secrets", async () => {
+  const it = open();
+  await proposes(it, ITEM("ITM-004"));
+  await handsOver(it);
+  endsNotRun(it, NOT_RUN);
+  await after(15000);
+  await until(() => byClass(one(it.target, "following"), "secrets-link").length > 0, "the link is shown");
+  const links = byClass(one(it.target, "following"), "secrets-link");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].getAttribute("href"), SECRETS_PAGE);
+  assert.ok(textOf(one(it.target, "following")).includes("KEY_A"));
+});
+
+// TST-1037004 · level: component · module: MOD-prompt-bar
+// guards: UC-049 (4c)
+// given: known positive TST-1037003; the allowed CI hand-over whose run failed with a log that names no missing secret; and one whose run is still running while its log says `not run`
+// input: the clock moves 15 000 ms
+// expect: no link to the page of secrets in either
+test("a run that failed for another reason, or is still running, shows no link to the page of secrets", async () => {
+  const failed = open();
+  await proposes(failed, ITEM("ITM-004"));
+  await handsOver(failed);
+  endsNotRun(failed, "onDispatch: failed — the model refused the request");
+  await after(15000);
+  assert.equal(byClass(one(failed.target, "following"), "secrets-link").length, 0);
+  const running = open();
+  await proposes(running, ITEM("ITM-004"));
+  await handsOver(running);
+  running.product.runs.push(ciRun("running"));
+  running.product.logs.set("7", NOT_RUN);
+  await after(15000);
+  assert.equal(byClass(one(running.target, "following"), "secrets-link").length, 0);
 });
