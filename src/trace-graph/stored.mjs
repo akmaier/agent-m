@@ -5,7 +5,9 @@
 //
 // Module: MOD-trace-graph
 
+import { blobSha } from "../text-tools/index.mjs";
 import { traceGraph } from "./build.mjs";
+import { architectureImpact } from "./derive.mjs";
 
 // The format mark of a stored graph: a text without it, or with another, is no graphText of this module.
 const FORMAT = "agent-m-trace-graph";
@@ -40,19 +42,51 @@ export function graphFromText(text, commit) {
     positions: held.positions, unread: held.unread };
 }
 
-// The branch the graphs are stored on, and the graph's file on it.
+// The branch the graphs are stored on, and the files of a commit on it.
 const BRANCH = "trace-cache";
 const fileOf = (commit) => `${commit}.json`;
+const impactsOf = (commit) => `${commit}.impacts.json`;
+const IMPACTS_FORMAT = "agent-m-trace-impacts";
+
+// The text of the impact lists of `commit`: for each changed file its path, its blob at the commit, the commit of the text it was last
+// accepted at (null for a file never accepted) and architectureImpact of the graph for that change.
+async function impactsText(graph, snapshot, commit, changed) {
+  const entries = [];
+  for (const { path, before } of changed) {
+    const after = await snapshot.read(path);
+    entries.push({ path, blob: after === null ? null : await blobSha(after), before: before?.commit ?? null,
+      impact: architectureImpact(graph, [{ path, before: before?.text ?? null, after }]) });
+  }
+  return `${JSON.stringify({ format: IMPACTS_FORMAT, version: VERSION, commit, entries })}\n`;
+}
 
 /**
- * publishGraph(host: Host, snapshot: Snapshot) -> Promise<{ commit: string, written: boolean }> — builds the graph of the snapshot's commit from
- * its files and adds `<commit>.json` to the branch `trace-cache` by `commitFiles`, on the head it read; `written` is false when the branch holds
- * the file already, which it then leaves as it is. Crosses the network; fails as `commitFiles` fails — `Moved` when the branch moved meanwhile, so that
- * the run can be made again —, and with `NotFound` naming the branch when the repository has none. (The impact lists a caller may hand in are ITM-941's.)
- * @param {object} host @param {object} snapshot
+ * storedImpacts(source: TextSource, commit: string) -> Promise<Map<string, { blob: string | null, before: string | null, impact: object }> | null> —
+ * the impact lists stored for `commit` by publishGraph, keyed by path, read with the source's `readOn` in one request; null without `readOn`, or
+ * when the branch or the file is missing or holds another format. A caller uses an entry only while the file's blob is the one stored.
+ * @param {object} source @param {string} commit
+ * @returns {Promise<Map<string, object> | null>}
+ */
+export async function storedImpacts(source, commit) {
+  if (typeof source.readOn !== "function") return null;
+  let held;
+  try { held = JSON.parse(await source.readOn(BRANCH, impactsOf(commit))); } catch { return null; }
+  if (held === null || typeof held !== "object" || held.format !== IMPACTS_FORMAT || held.version !== VERSION || held.commit !== commit) return null;
+  const sound = (entry) => entry && typeof entry.path === "string" && entry.impact && typeof entry.impact === "object";
+  if (!Array.isArray(held.entries) || !held.entries.every(sound)) return null;
+  return new Map(held.entries.map(({ path, blob, before, impact }) => [path, { blob, before, impact }]));
+}
+
+/**
+ * publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string } | null }>) ->
+ * Promise<{ commit: string, written: boolean }> — builds the graph of the snapshot's commit from its files and adds `<commit>.json` to the
+ * branch `trace-cache` by `commitFiles`, on the head it read; `written` is false when the branch holds the file already, which it then leaves
+ * as it is. With `changed` it adds `<commit>.impacts.json` in the same commit. Crosses the network; fails as `commitFiles` fails — `Moved` when
+ * the branch moved meanwhile, so that the run can be made again —, and with `NotFound` naming the branch when the repository has none.
+ * @param {object} host @param {object} snapshot @param {Array<{ path: string, before: { commit: string, text: string } | null }>} [changed]
  * @returns {Promise<{ commit: string, written: boolean }>}
  */
-export async function publishGraph(host, snapshot) {
+export async function publishGraph(host, snapshot, changed) {
   const commit = snapshot.commit;
   let branch;
   try {
@@ -64,7 +98,8 @@ export async function publishGraph(host, snapshot) {
   if (branch.paths.includes(fileOf(commit))) return { commit, written: false };
   // The graph is built from the files: a source without readOn never uses a stored graph.
   const graph = await traceGraph({ paths: snapshot.paths, read: (path) => snapshot.read(path), readMany: (paths) => snapshot.readMany?.(paths) }, { commit });
-  await host.commitFiles({ branch: BRANCH, expectedHead: branch.commit, files: [{ path: fileOf(commit), text: graphText(graph) }],
-    message: `trace-cache: the graph of ${commit}\n` });
+  const files = [{ path: fileOf(commit), text: graphText(graph) }];
+  if (changed) files.push({ path: impactsOf(commit), text: await impactsText(graph, snapshot, commit, changed) });
+  await host.commitFiles({ branch: BRANCH, expectedHead: branch.commit, files, message: `trace-cache: the graph of ${commit}\n` });
   return { commit, written: true };
 }

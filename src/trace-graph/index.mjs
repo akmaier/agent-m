@@ -127,6 +127,6 @@
  */
 
 export { traceGraph } from "./build.mjs";
-export { graphFromText, graphText, publishGraph } from "./stored.mjs";
+export { graphFromText, graphText, publishGraph, storedImpacts } from "./stored.mjs";
 export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
 export { architectureImpact, coverageGaps, moduleOrder, moduleRows, requirementImpact, tracesTo } from "./derive.mjs";
