@@ -1,5 +1,5 @@
 // The world of the tests of MOD-maintenance-pages' replies page — a helper, no test of its own: the browser, the repositories and the clock of tests/main-page-home-harness.mjs, and over its fake GitHub this file's fake of the Bridge lab-pc-4
-// (the mail operations drafts, sent, find, show-draft, store-draft, update-draft, confirm-send, send), of GitHub's issues of alice/product and of the model endpoints ep1 and ep2. Used by tests/maintenance-pages-replies.test.mjs (ITM-966),
+// (the mail operations read, drafts, sent, find, show-draft, store-draft, update-draft, confirm-send, send), of GitHub's issues of alice/product and of the model endpoints ep1 and ep2. Used by tests/maintenance-pages-replies.test.mjs (ITM-966),
 // tests/maintenance-pages-send.test.mjs (ITM-967) and tests/maintenance-pages-ask.test.mjs (ITM-968). It holds no expected result.
 //
 // Module: MOD-maintenance-pages
@@ -83,6 +83,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       const operation = url.pathname.slice("/v1/mail/".length);
       const { args } = JSON.parse(init.body);
       kept.bridge.push({ operation, args });
+      if (operation === "read") return json(mails);
       if (operation === "drafts") return json(kept.drafts);
       if (operation === "sent") return json([]);
       if (operation === "find") {
@@ -147,9 +148,10 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
   return { context, kept };
 }
 
-async function opened(w, params = {}) {
-  assert.ok(route(), `the route replies: ${pages.error?.message}`);
-  return draw(route(), w.context, params);
+async function opened(w, params = {}, name = "replies") {
+  const found = pages.view?.routes.find((candidate) => candidate.name === name);
+  assert.ok(found, `the route ${name}: ${pages.error?.message}`);
+  return draw(found, w.context, params);
 }
 async function read(target) {
   await trusted(one(target, "read-replies"));
