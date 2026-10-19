@@ -20,6 +20,7 @@
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
 import { renderArtifact, renderMermaid as drawDiagram } from "../markdown-render/index.mjs";
+import { registerPaths } from "../source-register/index.mjs";
 import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
 import { retireFileTexts } from "../../docs/assets/settings-store.mjs";
 import { productStore } from "../../docs/assets/product-store-adapter.mjs";
@@ -311,7 +312,8 @@ async function readAhead(kind) {
   } else if (kind === "module") {
     await readWave(pathsOf(MODULE_PATH));
   } else if (kind === "spec") {
-    await readWave(["SPEC.md", ...pathsOf(QUEUE_HEAD_PATH)]);
+    // The links file and the register's entries (MOD-source-register's registerPaths) are read with the SPEC, in the first wave.
+    await readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path)), ...pathsOf(QUEUE_HEAD_PATH)]);
     await readWave(await openProposals());
   } else if (kind === "backlog") {
     // The module files are read for a product with more than one team (backlog-view.mjs context).

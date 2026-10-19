@@ -35,15 +35,15 @@ const files = (requests) => requests.filter((request) => request.startsWith("fil
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the dashboard with a stored token on the repository of the constants above
 // input: the real #spec drawn
-// expect: 6 requests in all — the commit, the tree, one batch of SPEC.md, the repository's information, the tag list, and one batch of docs/sources.md and the two entries —,
+// expect: 5 requests in all — the commit, the tree, one batch of SPEC.md, docs/sources.md and the two entries, the repository's information and the tag list —,
 //         no file by itself, and no file twice; known positive: the page draws the specification
-test("with a token #spec reads the links file and the register entries in one batch", async () => {
+test("with a token #spec reads the SPEC, the links file and the register entries in one batch", async () => {
   const server = await repoServer({ files: FILES });
   const page = await openDashboard({ server, hash: "#spec", token: TOKEN });
   assert.match(page.main(), /Current requirements/, "known positive: the specification is drawn");
   assert.deepEqual(files(page.requests), []);
-  assert.deepEqual(server.batches.map((paths) => [...paths].sort()), [["SPEC.md"], REGISTER]);
-  assert.equal(page.requests.length, 6, page.requests.join(" | "));
+  assert.deepEqual(server.batches.map((paths) => [...paths].sort()), [["SPEC.md", ...REGISTER].sort()]);
+  assert.equal(page.requests.length, 5, page.requests.join(" | "));
 });
 
 // CASE ITM-833-SYSTEM-02
