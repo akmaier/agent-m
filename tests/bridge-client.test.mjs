@@ -2,7 +2,7 @@
 // Run: node --test tests/bridge-client.test.mjs
 //
 // Module: MOD-bridge-client
-// Guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS;
+// Guards: UC-003; UC-040; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS;
 //         THE LOCAL BRIDGE REQUIRES A TOKEN; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN
 // Level: unit
 
@@ -159,4 +159,55 @@ test("TST-263008: pair and endpoint-test name a finite request timeout", async (
   assert.deepEqual(await probe(bridge, "endpoint-test", CONFIG), { works: true, model: "tiny" });
   await assert.rejects(() => probe(bridge, "endpoint-test", CONFIG), (error) => error instanceof BridgeError && error.name === "Timeout");
   await assert.rejects(() => probe(bridge, "endpoint-test", CONFIG), (error) => error instanceof BridgeError && error.name === "Timeout");
+});
+
+// TST-995001 · level: unit · module: MOD-bridge-client
+// guards: UC-040; A CREDENTIAL IS NEVER PLACED IN A URL; THE LOCAL BRIDGE REQUIRES A TOKEN
+// given: a paired loopback Bridge whose fake answers { answer: { models: ["served-a", "served-b"] } }, then { answer: { diagnosis } }
+// input: probe(bridge, "endpoint-models", CONFIG) twice
+// expect: each is one POST to /v1/probes/endpoint-models with the token in the protocol header and { args: CONFIG } as its body, the key in neither address; the answers are returned unwrapped: { models } and { diagnosis }
+test("TST-995001: endpoint-models posts the endpoint configuration once and returns the listing or its diagnosis", async (t) => {
+  const calls = [], diagnosis = { reason: "key refused", message: "Invalid API key.", routes: [] };
+  const answers = [{ models: ["served-a", "served-b"] }, { diagnosis }];
+  withFetch(t, async (url, init) => { calls.push({ url: String(url), init }); return json(200, { answer: answers[calls.length - 1] }); });
+  const bridge = bridgeAt({ address: "http://127.0.0.1:4711", token: "bridge-token" });
+  assert.deepEqual(await probe(bridge, "endpoint-models", CONFIG), { models: ["served-a", "served-b"] });
+  assert.deepEqual(await probe(bridge, "endpoint-models", CONFIG), { diagnosis });
+  assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4711/v1/probes/endpoint-models", "http://127.0.0.1:4711/v1/probes/endpoint-models"]);
+  for (const call of calls) {
+    assert.equal(call.init.method, "POST");
+    assert.equal(call.init.headers["x-agent-m-bridge-token"], "bridge-token");
+    assert.deepEqual(JSON.parse(call.init.body), { args: CONFIG });
+    assert.equal(call.url.includes(CONFIG.key), false);
+  }
+});
+
+// TST-995002 · level: unit · module: MOD-bridge-client
+// guards: UC-040; THE LOCAL BRIDGE REQUIRES A TOKEN
+// given: a paired loopback Bridge whose fake answers { answer: { partitions: [{ name: "debug", state: "up" }] } }
+// input: probe(bridge, "partitions", {})
+// expect: one POST to /v1/probes/partitions with the token header and { args: {} } as its body; the result is { partitions: [{ name: "debug", state: "up" }] }
+test("TST-995002: partitions posts an empty argument and returns the Bridge's list", async (t) => {
+  const calls = [];
+  withFetch(t, async (url, init) => { calls.push({ url: String(url), init }); return json(200, { answer: { partitions: [{ name: "debug", state: "up" }] } }); });
+  const bridge = bridgeAt({ address: "http://127.0.0.1:4711", token: "bridge-token" });
+  assert.deepEqual(await probe(bridge, "partitions", {}), { partitions: [{ name: "debug", state: "up" }] });
+  assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4711/v1/probes/partitions"]);
+  assert.equal(calls[0].init.headers["x-agent-m-bridge-token"], "bridge-token");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { args: {} });
+});
+
+// TST-995003 · level: unit · module: MOD-bridge-client
+// guards: UC-040; A REMOTE INTERFACE NAMES HOW IT FAILS
+// given: a paired loopback Bridge; once it answers 422 { error: "upstream-failed", message: "sinfo --noheader --format=%P|%a: spawn sinfo ENOENT" }, and a kind the protocol does not name
+// input: probe(bridge, "partitions", {}); probe(bridge, "frobnicate", {})
+// expect: the first rejects with a BridgeError BridgeFailed whose error is upstream-failed and whose message is the Bridge's; the second rejects with a TypeError and sends no request
+test("TST-995003: a failed partitions probe is the named BridgeFailed, and a kind the protocol lacks is refused before any request", async (t) => {
+  let calls = 0;
+  withFetch(t, async () => { calls += 1; return json(502, { error: "upstream-failed", message: "sinfo --noheader --format=%P|%a: spawn sinfo ENOENT" }); });
+  const bridge = bridgeAt({ address: "http://127.0.0.1:4711", token: "bridge-token" });
+  await assert.rejects(() => probe(bridge, "partitions", {}), (error) => error instanceof BridgeError && error.name === "BridgeFailed" && error.error === "upstream-failed" && /spawn sinfo ENOENT/.test(error.message));
+  assert.equal(calls, 1);
+  await assert.rejects(() => probe(bridge, "frobnicate", {}), TypeError);
+  assert.equal(calls, 1, "no request for a kind the protocol does not name");
 });

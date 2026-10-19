@@ -18,7 +18,7 @@ const FAULTS = {
   "TST-324001": ['const agents = await call(bridge, route.path, { method: route.method });', 'const agents = { agents: [], missing: [] };'],
   "TST-324002": ['commit: job.commit, ...(job.task', 'commit: "fault", ...(job.task'],
   "TST-324003": ['calls: answer.calls ?? [], usage: answer.usage ?? null };', 'calls: [], usage: answer.usage ?? null };'],
-  "TST-324004": ['["endpoint-test", "agent"].includes(kind)', '["endpoint-test"].includes(kind)'],
+  "TST-324004": ['route.path.replace("{kind}", kind)', 'route.path.replace("{kind}", "endpoint-test")'],
   "TST-324005": ['if (answer.status === 401)', 'if (answer.status === 402)'],
 };
  // TST-324001 · level: unit · module: MOD-bridge-client
