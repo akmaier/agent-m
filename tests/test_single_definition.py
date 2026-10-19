@@ -114,20 +114,24 @@ def in_code(case: dict) -> dict:
 
 
 def in_more_than_one_place(case: dict) -> dict:
+    """Whether the whole text of a prompt, of a schema or of a job definition stands in a second file, data files included, that is not itself a definition of the catalogue or of a module:
+    the text is then there twice. A file that is another prompt, schema or job definition is another definition, which stands once in its own file, even if its text is the same."""
     files = tree(case["roots"], case.get("plant"))
-    everything = Index(files)
-    out = {"prompt": [], "schema": []}
-    for source in definition_files(files):
-        own = occurs_count(files[source], source)
-        for piece in units_of(files[source], source, case["minLength"]):
-            if everything.count(piece, source) > own(piece):
-                out["prompt" if is_prompt(source) else "schema"].append(piece[:60])
-    return {key: sorted(set(value)) for key, value in out.items()}
-
-
-def occurs_count(text: str, source: str):
-    bare = re.sub(r"\s+", "", text)
-    return (lambda piece: bare.count(re.sub(r"\s+", "", piece))) if source.endswith(".json") else (lambda piece: text.count(piece))
+    whole = lambda text: re.sub(r"\s+", "", text)
+    bare = {path: whole(text) for path, text in files.items()}
+    # The files that are definitions of the catalogue (its prompts, kind definitions, answer schemas, the list of kinds and the tools) or of a module's formats (`*.schema.md`).
+    definitions_ = {path for path in files if path.endswith((".schema.md", "/prompt.md", "/kind.md", "/answer.schema.json")) or path in (f"{CATALOGUE}/kinds.md", f"{CATALOGUE}/tools.md")}
+    kinds = {"prompt": is_prompt, "schema": is_schema, "definition": lambda path: bool(re.fullmatch(rf"{CATALOGUE}/kinds/[^/]+/kind\.md", path))}
+    out = {name: [] for name in kinds}
+    looked_at = 0
+    for name, belongs in kinds.items():
+        for source in sorted(path for path in files if belongs(path)):
+            looked_at += 1
+            if len(bare[source]) < 20:
+                continue
+            twins = sorted(path for path in files if path != source and path not in definitions_ and bare[source] in bare[path])
+            out[name].extend(f"{source} -> {path}" for path in twins)
+    return {**out, "textsLookedAt": looked_at > 80}
 
 
 def definitions(case: dict) -> dict:
@@ -241,12 +245,9 @@ class TestSingleDefinition(unittest.TestCase):
 
     # TST-1133005 · level: system · module: MOD-job-catalogue
     # guards: ONE DEFINITION, THREE DRIVERS
-    # given: the prompts and schemas of the catalogue and of the modules
-    # input: every line of 50 characters or more of a prompt or schema, looked for in every other file of src/ and docs/assets/
-    # expect: no prompt or schema text appears in more than one place
-    # FINDING S1: sentences that several prompts share, and sentences that several schema files share, stand in more than one file (the lists are in the pull request). The SPEC's sentence read
-    # as worded names them; whether the sentence means only the copies the drivers would keep (TST-1133001 passes) is the Product Owner's to say.
-    @unittest.expectedFailure
+    # given: the prompts, the schemas and the job definitions of the catalogue and of the modules, each a file
+    # input: the whole text of each looked for in every other file of src/ and docs/assets/, data files included; and, as the counter-proof, a prompt, a schema and a job definition each copied whole to another path
+    # expect: no whole prompt, schema or job definition stands in a second file; each copy is named. Two prompts that share a sentence are two prompts, each there once.
     def test_no_prompt_or_schema_text_appears_in_more_than_one_place(self):
         check(self, ONE, "more-than-once")
 

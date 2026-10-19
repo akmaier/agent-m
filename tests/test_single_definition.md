@@ -121,22 +121,131 @@ The cases of `tests/test_single_definition.py`: SPEC.md's check of ONE DEFINITIO
 }
 ```
 
-### Prompt and schema text stands in one place only
+### No whole prompt, schema or job definition stands in a second file
 
 ```json
 {
-  "given": "The files of src/ and docs/assets/.",
+  "given": "The files of src/ and docs/assets/; the prompts, the schemas, the answer schemas and the job definitions of the catalogue.",
+  "input": {
+    "kind": "more-than-once",
+    "roots": [
+      "src",
+      "docs/assets"
+    ]
+  },
+  "expected": {
+    "prompt": [],
+    "schema": [],
+    "definition": [],
+    "textsLookedAt": true
+  }
+}
+```
+
+### Counter-proof: a prompt copied whole to another path is found
+
+```json
+{
+  "given": "The same, with the prompt of converse copied whole to docs/assets/converse-prompt.md.",
   "input": {
     "kind": "more-than-once",
     "roots": [
       "src",
       "docs/assets"
     ],
-    "minLength": 50
+    "plant": [
+      {
+        "path": "docs/assets/converse-prompt.md",
+        "copyFile": "src/job-catalogue/kinds/converse/prompt.md"
+      }
+    ]
+  },
+  "expected": {
+    "prompt": [
+      "src/job-catalogue/kinds/converse/prompt.md -> docs/assets/converse-prompt.md"
+    ],
+    "schema": [],
+    "definition": []
+  }
+}
+```
+
+### Counter-proof: a schema copied whole to another path is found
+
+```json
+{
+  "given": "The same, with the schema of the participant register copied whole to src/desktop-shell/participants-copy.md.",
+  "input": {
+    "kind": "more-than-once",
+    "roots": [
+      "src",
+      "docs/assets"
+    ],
+    "plant": [
+      {
+        "path": "src/desktop-shell/participants-copy.md",
+        "copyFile": "src/participant-list/participants.schema.md"
+      }
+    ]
   },
   "expected": {
     "prompt": [],
-    "schema": []
+    "schema": [
+      "src/participant-list/participants.schema.md -> src/desktop-shell/participants-copy.md"
+    ],
+    "definition": []
+  }
+}
+```
+
+### Counter-proof: an answer schema copied whole to another path is found
+
+```json
+{
+  "given": "The same, with the answer schema of propose-items copied whole to docs/assets/answer.json.",
+  "input": {
+    "kind": "more-than-once",
+    "roots": [
+      "src",
+      "docs/assets"
+    ],
+    "plant": [
+      {
+        "path": "docs/assets/answer.json",
+        "copyFile": "src/job-catalogue/kinds/propose-items/answer.schema.json"
+      }
+    ]
+  },
+  "expected": {
+    "schema": [
+      "src/job-catalogue/kinds/propose-items/answer.schema.json -> docs/assets/answer.json"
+    ]
+  }
+}
+```
+
+### Counter-proof: a job definition copied whole to another path is found
+
+```json
+{
+  "given": "The same, with the kind.md of implement copied whole to docs/assets/implement.md.",
+  "input": {
+    "kind": "more-than-once",
+    "roots": [
+      "src",
+      "docs/assets"
+    ],
+    "plant": [
+      {
+        "path": "docs/assets/implement.md",
+        "copyFile": "src/job-catalogue/kinds/implement/kind.md"
+      }
+    ]
+  },
+  "expected": {
+    "definition": [
+      "src/job-catalogue/kinds/implement/kind.md -> docs/assets/implement.md"
+    ]
   }
 }
 ```
