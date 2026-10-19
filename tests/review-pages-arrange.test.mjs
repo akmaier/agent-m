@@ -228,7 +228,8 @@ test("TST-726004 each kind of move shows at once and is a pending change, a refu
   click(byClass(groupOf(target, "Review"), "button", "arrange-rename-go")[0]);
   assert.ok(groupOf(target, "Chapters"));
   click(byClass(groupOf(target, "Chapters"), "button", "arrange-lift")[0]);
-  assert.equal(groupOf(target, "Chapters"), undefined, "lifting a group dissolves it into its parent");
+  assert.deepEqual(byClass(groupOf(target, "Chapters"), "li", "arrange-item").map((node) => node.getAttribute("data-id")), [], "lifting a group moves its content up and leaves the group empty");
+  assert.equal(stands(itemOf(target, "UC-001")[0]), false, "UC-001 is at the top level");
   assert.equal(pending(target).length, 5);
   byClass(target, "input", "arrange-group-title")[0].value = "UC-005";
   click(byClass(target, "button", "arrange-new-group")[0]);
@@ -257,6 +258,7 @@ test("TST-726005 a changed group file writes nothing and shows the newer hierarc
   assert.ok(groupOf(target, "Chapters"), "the newer hierarchy is shown");
   assert.equal(groupOf(target, "Review"), undefined);
   assert.ok(groupOf(target, "Later"), "the pending group still applies");
+  assert.deepEqual(pending(target).map((line) => /Later/.test(line)), [true], "only the change that still applies stays pending");
   assert.equal(refused(target).some((line) => /UC-004/.test(line) && /Review/.test(line)), true, refused(target).join(" | "));
   click(saveButton(target));
   await until(() => fake.writes().length === 1, "the next save");
