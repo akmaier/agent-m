@@ -10,6 +10,7 @@ modules:
   - MOD-settings-pages
 builds_on:
   - ITM-1047
+  - ITM-1082
 tests:
   - unit
 origin:
@@ -35,3 +36,10 @@ and the line it needs goes to akmaier as a draft.
 - The route `bridge` names the publisher of the release beside its file, and **Why this warning?** names the same one. A
   test shows it, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its first task (sprint team1/95, developer-sonnet-b): no accepted text gives the publisher's name.**
+- Every hit of `publisher` in SPEC.md and `docs/architecture/` says only that the Bridge is signed by the publisher.
+- The release `listReleaseAssets` reads holds no publisher, and the page cannot read a file's bytes.
+- The draft for akmaier, on `main` (d53be63b): the release's notes carry `Publisher (<system>): <name>` (MOD-bridge-build),
+  and the page shows the line for this system (MOD-settings-pages).
+- It waits for akmaier's acceptance of that draft, and for ITM-1082, which writes the line.
