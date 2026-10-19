@@ -227,7 +227,21 @@ async function describe(page, fields) {
 const SELECTED = [fileOf("a.md", "# A\n"), fileOf("b.md", "# B\n")];
 // The tick of "only hash it", as a person makes it: the field takes the tick, then reports the change.
 async function tickHashed(page) { const box = one(page, "library-file-only-hashed"); box.checked = true; await fire(box, "change"); }
-async function chooseFiles(page, files) { const input = one(page, "library-files"); input.files = files; await fire(input, "change"); }
+// Waits for `condition`, bounded by the clock: the page hashes the files one after the other, and how long that takes is not fixed.
+async function until(condition, what, ms = 5000) {
+  const deadline = Date.now() + ms;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+// The files chosen as a person chooses them: the field takes them, reports the change, and the page shows each with its SHA-256 before the test goes on.
+async function chooseFiles(page, files) {
+  const input = one(page, "library-files");
+  input.files = files;
+  await fire(input, "change");
+  await until(() => byClass(page, "library-file-hash").length === files.length, `the hashes of ${files.length} files`);
+}
 
 // TST-472753 · level: unit · module: MOD-settings-pages
 // guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-004 4, 5, 6
@@ -248,6 +262,7 @@ test("library — documents that may be republished are committed to the instanc
   assert.deepEqual(b.commits, []);
   assert.equal(saveOf(form).disabled, false);
   await click(saveOf(form));
+  await until(() => /SRC-handbook/.test(one(page, "library-result").textContent), "the result of the one click");
   assert.equal(b.commits.length, 1, "one commit, one click");
   assert.deepEqual([b.commits[0].branch, b.commits[0].expectedHead], ["main", "h".repeat(40)], "on the branch's head as it was read");
   assert.deepEqual(instanceFiles(b).map((file) => file.path).sort(), ["docs/sources/SRC-handbook.md", `docs/sources/SRC-handbook/${TODAY}/a.md`, `docs/sources/SRC-handbook/${TODAY}/b.md`]);
@@ -260,6 +275,28 @@ test("library — documents that may be republished are committed to the instanc
   assert.ok(instanceFiles(b).find((file) => file.path.endsWith("SRC-handbook.md")).text.includes(sha(bytesOf("# A\n"))));
   assert.deepEqual(b.posts, [], "no other repository is asked");
   assert.match(one(page, "library-result").textContent, /SRC-handbook/);
+});
+
+// Every SHA-256 the page asks the browser for takes `ms` longer, as on a loaded runner; the digest is put back after the test.
+function slowDigest(t, ms) {
+  const subtle = globalThis.crypto.subtle, own = Object.hasOwn(subtle, "digest"), real = subtle.digest;
+  subtle.digest = async (...args) => { await new Promise((resolve) => setTimeout(resolve, ms)); return real.apply(subtle, args); };
+  t.after(() => { if (own) subtle.digest = real; else delete subtle.digest; });
+}
+
+// TST-1011001 · level: unit · module: MOD-settings-pages
+// guards: UC-004 4; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: the documents route, the two files of TST-472753 ("# A\n", "# B\n"), and a browser whose every SHA-256 takes 20 ms longer than it does here
+// input: the two files chosen
+// expect: however long the hashing takes, the page shows both files, each with the SHA-256 of its own bytes, in the order chosen — sha256("# A\n") = aa1237b773c38dbddef583c4868aaea7a44c5237ea7923aecca5513764b42d80 and sha256("# B\n") = a81d3fbddd441e2d690b9c03c18251323a295c8eb8ebbfb81ca45b63bf8d5a06 — and the test does not read the page before it shows them
+test("library — the files' hashes are shown whatever time the browser takes to hash them", async (t) => {
+  slowDigest(t, 20);
+  const b = browser(t);
+  const page = await b.page();
+  await register(page, "documents");
+  await chooseFiles(page, SELECTED);
+  const hashes = byClass(page, "library-file-hash").map((node) => node.textContent.match(/[0-9a-f]{64}/)?.[0]);
+  assert.deepEqual(hashes, ["aa1237b773c38dbddef583c4868aaea7a44c5237ea7923aecca5513764b42d80", "a81d3fbddd441e2d690b9c03c18251323a295c8eb8ebbfb81ca45b63bf8d5a06"]);
 });
 
 // TST-472754 · level: unit · module: MOD-settings-pages

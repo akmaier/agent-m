@@ -127,6 +127,10 @@ const FLOW_EVIDENCE = {
     uc: "The target changed while the participant was drafting",
     evidence: [[DRAFT, "TST-507023"], [DRAFT, "TST-507024"]],
   },
+  "7-limit-named-before-the-first-round": {
+    uc: "named in the conversation (default 5)",
+    evidence: [[RELEASE_REQUIREMENTS, "TST-418125"]],
+  },
   "6b-work-handed-to-github-actions": {
     uc: "The work is handed to GitHub Actions",
     evidence: [[SELF, "TST-377008"], [SELF, "TST-377013"]],
@@ -145,7 +149,6 @@ const FLOW_EVIDENCE = {
 const FLOW_FINDINGS = {
   "4a-counts-of-requirements-and-use-cases": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: SELF, test: "TST-377011" },
   "4a-counts-in-the-bar": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
-  "7-limit-named-before-the-first-round": { uc: "named in the conversation (default 5)", finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
 };
 
 // TST-377001
