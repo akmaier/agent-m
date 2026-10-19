@@ -2076,3 +2076,59 @@ once its draft is accepted, and is then registered from ITM-1001 on.
 | `f29fb96e` | MOD-run-planner, MOD-implementation-pages, MOD-workflow-entries, MOD-bridge-jobs | NEW-043-12 |
 | `3d7b6767` | MOD-agent-processes, MOD-bridge-http, MOD-desktop-shell | NEW-044-13, NEW-044-14 |
 | `cb78445a` | MOD-implementation-pages, MOD-prompt-bar | NEW-048-3, NEW-049-1 |
+
+## Registered from ITM-1002 (po-opus-b, 2026-10-19)
+
+The drafts above are accepted. Each remaining proposal is registered, read against the accepted texts on `main`.
+
+| Proposal | Item |
+|---|---|
+| NEW-044-14 | ITM-1003 (MOD-bridge-http, `pairedWith`) and ITM-1004 (MOD-desktop-shell, the Pairing view) |
+| NEW-044-13 | ITM-1002 |
+| NEW-044-16 | ITM-1005 |
+| NEW-044-17 | ITM-1006 |
+| NEW-036-3 | ITM-1007 |
+| NEW-036-5 | ITM-1008 |
+| NEW-036-8 | ITM-1009 |
+| NEW-036-9 | ITM-1010 |
+| NEW-039-4 | ITM-1011 |
+| NEW-040-6 | ITM-1012 |
+| NEW-040-7 | ITM-1013 |
+| NEW-040-8 | ITM-1014 |
+| NEW-040-9 | ITM-1015 |
+| NEW-040-10 | ITM-1016 |
+| NEW-041-5 | ITM-1017 |
+| NEW-041-6 | ITM-1018 |
+| NEW-041-7 | ITM-1019 |
+| NEW-043-12 | ITM-1020 |
+| NEW-045-4 | ITM-1021 |
+| NEW-049-1 | ITM-1022 |
+| NEW-038-5 | ITM-1023 |
+| NEW-040-3 | ITM-1024 |
+| NEW-040-4 | ITM-1025 |
+| NEW-040-5 | ITM-1026 |
+| NEW-042-1 | ITM-1027 |
+| NEW-042-2 | ITM-1028 |
+| NEW-042-4 | ITM-1029 |
+| NEW-043-13 | ITM-1030 |
+| NEW-044-1 | ITM-1031 |
+| NEW-044-2 | ITM-1032 |
+| NEW-044-3 | ITM-1033 |
+| NEW-044-6 | ITM-1034 |
+| NEW-044-7 | ITM-1035 |
+| NEW-044-8 | ITM-1036 |
+| NEW-044-9 | ITM-1037 |
+| NEW-044-10 | ITM-1038 |
+| NEW-044-11 | ITM-1039 |
+| NEW-044-12 | ITM-1040 |
+| NEW-044-15 | ITM-1041 |
+| NEW-045-1 | ITM-1042 |
+| NEW-045-2 | ITM-1043 |
+| NEW-045-3 | ITM-1044 |
+| NEW-045-5 | ITM-1045 |
+| NEW-045-6 | ITM-1046 |
+| NEW-046-1 | ITM-1047 |
+| NEW-048-1 | ITM-1048 |
+| NEW-048-2 | ITM-1049 |
+| NEW-048-3 | none: the accepted text (`cb78445a`, MOD-implementation-pages.md:156-159) names the removal that `src/implementation-pages/roles.mjs:268-269` makes, and `tests/dashboard-roles.test.mjs:193` tests it. Its condition on a moved head is `expectedHead`, so a test of it would be green on its first commit. |
+| NEW-044-18 | none: the nightly run of the real Bridge build is wiring of `.github/workflows/nightly.yml`, which no module owns, so it is changed between jobs |
