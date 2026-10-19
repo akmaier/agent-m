@@ -8,9 +8,9 @@
 // Level: unit
 //
 // Deterministic, no network: the product and the instance are temporary git repositories laid out as the job workflow lays them out (as tests/workflow-entries-check-completed.test.mjs lays them out); the product holds the job workflow's file, which
-// queueing on the CI route asks for, and four sprint records. The register names ci-bot (a CI agent, route `ci hosted secret FIXTURE_KEY`), lab-bot (a CI agent on the self-hosted runner lab-pc) and alice (a person). The readings, named in the pull
-// request: an agent is a participant of the register whose type is not `person`; its route is the one its register row names (`ci hosted ...` or `ci runner:<label> ...`); the job's `works_on` is the sprint's name `<team>/<nn>`, its parameter
-// `sprint` the same; its starter is the schedule; a close that is queued, taken or waiting at a gate counts as queued or running, one that has ended does not; like every entry that writes, it ends `not run` before writing when the person's token is missing.
+// queueing on the CI route asks for, and four sprint records. The register names ci-bot (a CI agent, route `ci hosted secret FIXTURE_KEY`), lab-bot (a CI agent on the self-hosted runner lab-pc) and alice (a person, whose row names a CI route all the same, so that only her type keeps her sprint from a job). The readings, named in the pull
+// request: an agent is a participant of the register whose type is not `person`; its route is the one its register row names (`ci hosted ...` or `ci runner:<label> ...`); the job's `works_on` (which names items, not a sprint) is the items of the sprint's selection, its parameter
+// `sprint` the sprint's name `<team>/<nn>`; its starter is the schedule; a close that is queued, taken or waiting at a gate counts as queued or running, one that has ended does not; like every entry that writes, it ends `not run` before writing when the person's token is missing.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
@@ -37,7 +37,7 @@ const PARTICIPANTS = text("# Participants of this instance", "",
   "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
   "| ci-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |",
   "| lab-bot | CI agent | fixture-llm | 100000 | — | draft text, read the repository, write to the repository | the lab computer | ci runner:lab-pc secret FIXTURE_KEY |",
-  "| alice | person | — | — | — | draft text | — | account alice |");
+  "| alice | person | — | — | — | draft text | — | ci hosted secret FIXTURE_KEY |");
 const declaration = (version) => text("---", "model: scrum", "model_file: src/model-catalogue/models/scrum.md", `model_version: ${version}`, "---",
   "# Process", "", "## Practices", "", "- none", "", "## Branches", "", "| Phase or time box | Branch |", "|---|---|", "| Sprint | sprint/<team>/<nn> |", "",
   "## Definition of Done", "", "The job rules hold; no condition is added.");
@@ -49,6 +49,7 @@ const SPRINTS = {
   "docs/backlog/sprints/team1/02.md": sprint("team1", 2, { end: "2026-10-12", closer: "ci-bot", extra: ["## Review", "", "closed."] }),
   "docs/backlog/sprints/team1/03.md": sprint("team1", 3, { end: "2026-10-12", closer: "alice" }),
   "docs/backlog/sprints/team1/04.md": sprint("team1", 4, { end: "2026-11-30", closer: "ci-bot" }),
+  "docs/backlog/sprints/team1/06.md": sprint("team1", 6, { end: "2026-10-12", closer: "ghost" }),
 };
 const LAB_SPRINT = { "docs/backlog/sprints/team2/01.md": sprint("team2", 1, { end: "2026-10-12", closer: "lab-bot" }) };
 
@@ -100,9 +101,9 @@ const commits = (w) => { pull(w); return Number(git(w.productDir, "rev-list", "-
 
 // TST-1032101 · level: unit · module: MOD-workflow-entries
 // guards: A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF; CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
-// given: the sprint team1/01, ended on 2026-10-12, closed by the CI agent ci-bot; team1/02, ended and closed already; team1/03, ended, closed by the person alice; team1/04, whose time box ends 2026-11-30; today is 2026-10-19
+// given: the sprint team1/01, ended on 2026-10-12, closed by the CI agent ci-bot; team1/02, ended and closed already; team1/03, ended, closed by the person alice; team1/04, whose time box ends 2026-11-30; team1/06, ended, whose closer ghost is no participant; today is 2026-10-19
 // input: onSchedule
-// expect: outcome `done`; one new commit adds exactly one job record, of the kind close-sprint, for the participant ci-bot, on the route `ci hosted`, started by the schedule, working on team1/01 with the parameter sprint team1/01, queued (not taken);
+// expect: outcome `done`; one new commit adds exactly one job record, of the kind close-sprint, for the participant ci-bot, on the route `ci hosted`, started by the schedule, working on ITM-001, the item the sprint selects, with the parameter sprint team1/01, queued (not taken);
 //         the sprints closed already, closed by a person and not ended get none
 // Planted fault: naming sprints without testing the closer, or ignoring `## Review`, adds records for team1/02 or team1/03; leaving the time box out adds one for team1/04.
 test("onSchedule — a sprint whose time box ended and whose closer is a CI agent gets one queued close-sprint job; closed, person-closed and running sprints get none", async () => {
@@ -113,10 +114,10 @@ test("onSchedule — a sprint whose time box ended and whose closer is a CI agen
     const files = jobFiles(w);
     assert.equal(files.length, 1);
     const record = fileAt(w, files[0]);
-    for (const line of ["kind: close-sprint", "participant: ci-bot", "route: ci hosted", "started_by: schedule", "  - team1/01"]) assert.ok(record.includes(line), `the record holds "${line}"`);
+    for (const line of ["kind: close-sprint", "participant: ci-bot", "route: ci hosted", "started_by: schedule", "  - ITM-001"]) assert.ok(record.includes(line), `the record holds "${line}"`);
     assert.ok(/"sprint":\s*"team1\/01"/.test(record), "the parameter sprint names the sprint");
     assert.ok(!record.includes("## Taken"), "the job is queued, not taken");
-    for (const other of ["team1/02", "team1/03", "team1/04"]) assert.ok(!record.includes(other), other);
+    for (const other of ["team1/02", "team1/03", "team1/04", "team1/06"]) assert.ok(!record.includes(other), other);
   });
 });
 

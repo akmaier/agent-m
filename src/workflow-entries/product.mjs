@@ -1,7 +1,7 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
 // leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions, onDoneCheck, onPullRequestClosed, onCheckCompleted,
-// onSchedule and onTestsFinished are other items'.
+// onTestsFinished is another item's. ITM-1032 builds onSchedule: the close of a sprint an agent closes.
 //
 // Module: MOD-workflow-entries
 //
@@ -9,7 +9,7 @@
 // OPEN; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; NO SECRET IN THE REPOSITORY. No person attends a job in CI: the job runner calls the kind's
 // writer at once. The entry keeps nothing between runs.
 
-import { appendToRecord, jobCost, jobState, recordsNewestFirst, startRecord, takeJob } from "../job-ledger/index.mjs";
+import { appendToRecord, jobCost, jobState, newJobId, recordsNewestFirst, startRecord, takeJob } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, provenanceLines, runJob } from "../job-runner/index.mjs";
 import { endpointDriver, testEndpoint } from "../endpoint-calls/index.mjs";
@@ -18,6 +18,8 @@ import { participantSchema, participantsOf } from "../participant-list/index.mjs
 import { readDocument } from "../documents/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { recordGateDecision } from "../product-process/index.mjs";
+import { queueJob } from "../runtimes/index.mjs";
+import { sprintsToClose } from "../work-plans/index.mjs";
 import { composeProduct } from "./compose.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -345,4 +347,46 @@ async function runHandOver(env, composed, participants, row, inputs) {
   const secret = SECRET_OF.exec(participant.route ?? "")?.[1];
   if (secret && !env.job.keys[secret]) return notRun(`${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`);
   return runRows(env, composed, participants, [row], { task, endpoint: inputs.endpoint ?? null });
+}
+
+// The items a sprint selects, as its record lists them in its front matter: what its close works on (a job's `works_on` names items, not a sprint).
+const itemsOf = (sprints, name) => [].concat(sprints.find((record) => record.path === `docs/backlog/sprints/${name}.md`)?.fields?.selection ?? []);
+
+// The route a participant's register row names, as queueJob takes it: a CI route, hosted or a self-hosted runner's label; null for a route CI cannot queue for (a person's account, a model endpoint called from a tab).
+function queueRouteOf(participant) {
+  const ci = /^ci (hosted|runner:(\S+))(?: |$)/.exec(participant?.route ?? "");
+  return ci ? { kind: "ci", runner: ci[2] ?? "hosted" } : null;
+}
+
+/**
+ * onSchedule(env: CiEnvironment) -> Promise<EntryStatus> — on the product's schedule: each sprint MOD-work-plans' sprintsToClose names, at the day of `env.now`, whose closer is a participant of the instance's register that is no person,
+ * gets its close — a job of kind `close-sprint`, working on the items of its selection (`works_on`; the parameter `sprint` names the sprint `<team>/<nn>`), started by the schedule — queued for that agent's route, in one commit each, unless a close
+ * of the sprint is queued, taken or waiting at a gate already (a record without an end). A closer who is a person, or no participant, gets none; neither does an agent whose route CI cannot queue for. A missing person's token ends
+ * the entry `not run`, before anything is written.
+ */
+export async function onSchedule(env) {
+  if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`);
+  const composed = composeProduct(env);
+  const { product, instance } = composed;
+  const participants = await participantsOfInstance(await instance.host.readSnapshot("HEAD"));
+  const facts = await workFacts(env, composed);
+  const states = Array.isArray(facts.plan?.states) ? facts.plan.states : [];
+  const open = new Set(facts.jobs.filter(({ record }) => record.kind === "close-sprint" && !record.end).map(({ record }) => String(record.params?.sprint ?? "")));
+  const agentM = { version: "unreleased", commit: (await instance.host.readSnapshot("HEAD")).commit };
+  const limit = (await kindOf("close-sprint")).limit;
+  const queued = [], skipped = [];
+  for (const due of sprintsToClose(Array.isArray(facts.sprints) ? facts.sprints : [], states, env.now.toISOString().slice(0, 10))) {
+    const closer = participants.find((each) => each.name === due.closer);
+    if (!closer || closer.type === "person") continue;
+    if (open.has(due.sprint)) { skipped.push(`${due.sprint}: its close is queued or running`); continue; }
+    const route = queueRouteOf(closer);
+    if (!route) { skipped.push(`${due.sprint}: the route of ${closer.name} is no route of CI`); continue; }
+    const head = await product.host.readSnapshot("HEAD");
+    const id = newJobId(env.now, new Set(head.paths.map((path) => /^docs\/jobs\/(JOB-[^/]+)\.md$/.exec(path)?.[1]).filter(Boolean)));
+    await queueJob(product.host, { id, kind: "close-sprint", worksOn: itemsOf(facts.sprints, due.sprint), participant: closer.name, model: closer.model, route: routeOf(route.runner), run: null, retries: null, startedBy: "schedule", start: env.now, agentM,
+      inputs: [], limit, destinations: [{ participant: closer.name, place: closer.place ?? "", parts: [] }], params: { sprint: due.sprint } }, route, head.commit);
+    queued.push(`${id}: the close of ${due.sprint} (${due.because}) for ${closer.name}`);
+  }
+  if (queued.length === 0) return { outcome: "nothing to do", summary: skipped.length ? skipped.join("; ") : "No sprint that an agent closes has ended.", findings: [] };
+  return { outcome: "done", summary: [...queued, ...skipped].join("; "), findings: [] };
 }
