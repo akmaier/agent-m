@@ -33,6 +33,9 @@ const MR_STATES = { opened: "open", locked: "open", merged: "merged", closed: "c
 const pullOf = (m) => ({ number: m.iid, title: m.title, branch: m.source_branch, base: m.target_branch, head: m.sha, state: MR_STATES[m.state] ?? "closed", draft: m.draft === true,
   url: m.web_url, opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null, body: m.description ?? "" });
 
+// An issue of "New issue" / "List project issues" as the Issue: iid its number, description its body, state opened is open, labels the names.
+const issueOf = (i, comments = []) => ({ number: i.iid, title: i.title, body: i.description ?? "", labels: i.labels ?? [], state: i.state === "closed" ? "closed" : "open", url: i.web_url, comments });
+
 // An entry of the diff of a commit as the change the commit made to the file: added, deleted, renamed — with the path it came
 // from — or modified.
 const changeOf = (d) => (d.new_file ? { path: d.new_path, change: "added" }
@@ -365,6 +368,11 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       const checks = head ? (await everyPage(`${api}/pipelines/${head.id}/jobs`, { what }, (j) => j.id ?? j.name)).map((j) => ({ name: j.name, state: jobState(j.status), url: j.web_url })) : [];
       return { pullRequest: pullOf(mr), baseCommit: mr.diff_refs?.base_sha ?? null, headCommit: mr.sha, commits, files, reviews, checks,
         readFile: (commit, path) => this.readFile(commit, path) };
+    },
+
+    // A new issue ("New issue": title, description, labels as a comma-separated text; the answer is the issue).
+    async createIssue({ title, body, labels }) {
+      return issueOf(await json(await call("POST", `${api}/issues`, { body: { title, description: body, labels: labels.join(",") } }), address.origin));
     },
 
     // Creates a branch at a commit ("Create repository branch"). A branch that stands already — 400 "Branch already exists" —

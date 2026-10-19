@@ -27,6 +27,10 @@ const releaseOf = (r) => ({ tag: r.tag_name, name: r.name ?? r.tag_name, publish
   assets: (r.assets ?? []).map((a) => ({ name: a.name, size: typeof a.size === "number" ? a.size : null, url: a.browser_download_url,
     sha256: /^sha256:([0-9a-f]{64})$/i.exec(a.digest ?? "")?.[1]?.toLowerCase() ?? null })) });
 
+// An issue of "Create an issue" / "List repository issues" as the Issue: its labels are objects with a name (or texts), its comments those given.
+const issueOf = (i, comments = []) => ({ number: i.number, title: i.title, body: i.body ?? "", labels: (i.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)),
+  state: i.state === "closed" ? "closed" : "open", url: i.html_url, comments });
+
 // A file of "Get a commit" as the change the commit made to it: its status — a copy is an addition, a change of mode a
 // modification —, and for a rename the path it came from. A file the commit left unchanged is no change.
 const CHANGES = { added: "added", copied: "added", removed: "deleted", renamed: "renamed", modified: "modified", changed: "modified" };
@@ -442,6 +446,11 @@ export function githubAdapter(address, { token, tokenName }, links) {
         .map((r) => ({ reviewer: r.user?.login ?? "", verdict: VERDICTS[r.state], commit: r.commit_id, date: r.submitted_at }));
       return { pullRequest: pullOf(pull), baseCommit: pull.base.sha, headCommit: pull.head.sha, commits, files, reviews, checks: await checksOf(pull.head.sha),
         readFile: (commit, path) => this.readFile(commit, path) };
+    },
+
+    // A new issue ("Create an issue": title, body, labels; the answer is the issue).
+    async createIssue({ title, body, labels }) {
+      return issueOf(await json(await call("POST", `${repo}/issues`, { body: { title, body, labels } }), API));
     },
 
     // Creates a branch at a commit ("Create a reference", ref: "refs/heads/<name>"). A branch that stands already — 422
