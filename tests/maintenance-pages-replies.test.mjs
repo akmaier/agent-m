@@ -16,7 +16,7 @@
 //     from the last reading (kept in memory only) or says to read first.
 //   - The issue: <p class="reply-solved"> "Solved by: <closedBy|not known> · Release: <release|not known>"; per listed mail <li class="reply-mail" data-mail="<MAIL-id>"> with .reply-reporter, .reply-date, .reply-subject; a mail found with a draft shows
 //     <div class="reply-draft"> (the draft as showDraft gives it: .draft-to, .draft-subject, <textarea class="draft-body"> editable, <ul class="draft-attachments"> with name and size) and <button class="save-draft"> "Save draft";
-//     a mail with mail: null says <p class="reply-missing"> "not found in the mailbox"; a mail without a usable reply address says <p class="reply-not-sendable"> "not sendable"; a mail with a note says <p class="reply-noted">. No page offers Send.
+//     a mail with mail: null says <p class="reply-missing"> "not found in the mailbox"; a mail without a usable reply address says <p class="reply-not-sendable"> "not sendable"; a mail with a note says <p class="reply-noted">. Send is ITM-967's and is offered by a draft alone.
 //   - Drafting: <section class="reply-drafting"> lists <li class="reply-participant"> with <input type="radio" class="participant"> for the participants of the instance's register that can draft text AND whose processing place the mailbox allows
 //     (the connection's `places`), the place named and, for an allowed place outside the EU, <span class="not-compliant">; <input class="person"> for the name; once a participant and a name are chosen, the run panel of MOD-site-frame (the kind
 //     draft-replies, the recipe reply-inputs over the issue's mails that have no draft and can be answered) and its Run. A reply written without a participant: <button class="write-reply"> per mail without a draft, which stores an empty draft with the
@@ -70,7 +70,7 @@ test("the issue shows what solved it and each mail with its draft, a missing mai
   assert.match(textOf(one(itemOf(detail, mails.absent.id), "reply-missing")), /not found in the mailbox/);
   assert.equal(byClass(itemOf(detail, mails.absent.id), "draft-body").length, 0);
   assert.match(textOf(one(itemOf(detail, mails.nowhere.id), "reply-not-sendable")), /not sendable/);
-  assert.deepEqual(buttonsOf(detail, "Send"), []);
+  assert.deepEqual([mails.absent.id, mails.nowhere.id, mails.plain.id].map((id) => buttonsOf(itemOf(detail, id), "Send").length), [0, 0, 0], "no Send for a mail that is missing, not sendable or without a draft (ITM-967 sends the drafted one)");
 });
 
 // TST-966003 · level: unit · module: MOD-maintenance-pages
