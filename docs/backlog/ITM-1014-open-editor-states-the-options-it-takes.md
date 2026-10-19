@@ -27,3 +27,9 @@ MOD-markdown-render.md:62-63 lists `linkFor` and no `disabledReason`.
 
 - `openEditor` takes the options its module file states, and a test names each, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Read at sprint team1/93 (developer-sonnet-c): built.** The accepted text (`c0118156`) states what `editor.mjs` does:
+`:25` takes `disabledReason`, `:51-54` disable Save with `Save is disabled: <reason>` and clear it, `:60-64` refuse a click.
+`file-edit.mjs:130` and `file-drafts.mjs:59` pass it. Tests that check `Save is disabled` through these callers already
+exist, among them `tests/review-pages-use-cases.test.mjs`. It is done.
+
