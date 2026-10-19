@@ -1,6 +1,6 @@
 // The fixture DOM of the tests of MOD-site-frame and of the views that load the frame: the part of a browser's DOM that MOD-site-frame's explain() and the
 // renderer it uses (MOD-markdown-render, DOMPurify) need, brought in as tests/markdown-render.test.mjs brings it in, with what a browser does with the focus.
-// Importing this file installs the document as the globals `document` and `window`, before the modules of the page are loaded by the importer's own dynamic import;
+// Importing this file installs a document as the globals `document` and `window` (installDocument() installs a fresh one), before the modules of the page are loaded by the importer's own dynamic import;
 // it exports that document. It is code only; it holds no expected result and no test. It is the one copy: the tests of MOD-site-frame and of the views import it, and
 // tests/site-frame.test.mjs imports it too.
 //
@@ -219,9 +219,16 @@ function serialise(n) {
   return VOID.has(n.localName) ? start : `${start}${n.innerHTML}</${n.localName}>`;
 }
 
-const document = htmlDocument();
-globalThis.document = document;
-globalThis.window = { document, Node, Element, Text, Comment, DocumentFragment, DOMParser,
-  NodeFilter: { SHOW_ELEMENT: 0x1, SHOW_TEXT: 0x4, SHOW_CDATA_SECTION: 0x8, SHOW_PROCESSING_INSTRUCTION: 0x40, SHOW_COMMENT: 0x80 } };
+// Installs a fresh document as the globals `document` and `window`, as a browser has them; the body is empty.
+export function installDocument() {
+  const document = htmlDocument();
+  globalThis.document = document;
+  globalThis.window = { document, Node, Element, Text, Comment, DocumentFragment, DOMParser,
+    NodeFilter: { SHOW_ELEMENT: 0x1, SHOW_TEXT: 0x4, SHOW_CDATA_SECTION: 0x8, SHOW_PROCESSING_INSTRUCTION: 0x40, SHOW_COMMENT: 0x80 } };
+  return document;
+}
+
+// Importing this file installs the document once; a test that wants a fresh one calls installDocument().
+const document = installDocument();
 
 export { document };
