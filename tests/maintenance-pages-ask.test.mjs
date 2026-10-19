@@ -20,7 +20,7 @@
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { PRODUCT_URL, buttonsOf, byClass, flush, itemOf, mailOf, noteText, one, opened, read, restoreWorld, standard, textOf, trusted, waitFor, walk, world, ERIKA, issueRecord } from "./maintenance-pages-world.mjs";
+import { PRODUCT_URL, SECRET, buttonsOf, byClass, flush, itemOf, mailOf, noteText, one, opened, read, restoreWorld, standard, textOf, trusted, waitFor, walk, world, ERIKA, issueRecord } from "./maintenance-pages-world.mjs";
 
 afterEach(restoreWorld);
 
@@ -159,4 +159,19 @@ test("Close and reply closes the open issue and shows its drafts", async () => {
   assert.equal(f.w.kept.issues.find((each) => each.number === 9).state, "closed");
   assert.match(textOf(one(itemOf(detail, f.mails.qdraft.id), "draft-body")) + String(one(itemOf(detail, f.mails.qdraft.id), "draft-body").value), /Fixed in 1\.5/);
   assert.equal(buttonsOf(itemOf(detail, f.mails.qdraft.id), "Send").length, 1, "a closed issue's draft is a reply");
+});
+
+// TST-1107001 · level: unit · module: MOD-maintenance-pages
+// guards: A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE; UC-039 (1b)
+// given: the issue 5, labelled waiting-for-reporter, whose mail was added after the question; the issue 6, open, whose mail came before any question
+// input: the issue 5 opened; the issue 6 opened
+// expect: UC-039 1b — "The issue appears under *answer received*, with the new mail shown in full" —: the new mail of issue 5 shows its whole text, every line of it, beside reporter, date and subject; the mail of issue 6, not a new one, has no text shown
+test("An issue under answer received shows the new mail in full", async () => {
+  const f = await fixture();
+  const answered = itemOf(await issue(f, 5), f.mails.waiting.id);
+  assert.ok(byClass(answered, "reply-new").length === 1, "the mail is the new one");
+  const text = textOf(one(answered, "reply-text"));
+  for (const line of ["Hello,", SECRET, "Kind regards", "Erika Mustermann"]) assert.ok(text.includes(line), `${line}: ${text}`);
+  const earlier = itemOf(await issue(f, 6), f.mails.open.id);
+  assert.equal(byClass(earlier, "reply-text").length, 0);
 });
