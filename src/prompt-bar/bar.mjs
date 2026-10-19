@@ -275,7 +275,8 @@ export function startPromptBar(target, setup) {
         return;
       }
       const to = ready.prepared.destinations.map((each) => el("li", "destination", `${each.participant.name} — ${each.place || "no processing place declared"}`));
-      show(el("p", "sends", "Sent to:"), el("ul", "destinations", ...to));
+      show(el("p", "sends", "Sent to:"), el("ul", "destinations", ...to),
+        el("p", "limit", `The correction loop runs at most ${ready.prepared.limit} rounds.`));
       const who = ready.person ?? "person";
       if (ready.recording) {
         if (ready.person === null) {

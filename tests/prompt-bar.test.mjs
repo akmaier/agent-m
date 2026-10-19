@@ -487,3 +487,41 @@ test("Send — the findings the loop left are shown with the rounds, each as the
   assert.ok(left.length > 0 && left.some((text) => text.startsWith("error: ")), left.join("\n"));
   for (const text of left) assert.match(text, /^(error|warning): .+ — .+ \[[A-Z0-9 ,'-]+\]$/, text);
 });
+
+// TST-560001 · level: component · module: MOD-prompt-bar; MOD-job-runner
+// guards: UC-019 (7); THE CORRECTION LOOP HAS A FIXED LIMIT; THE PAGE NAMES WHERE IT SENDS
+// given: one participant drafter-a on endpoint ep1 that answers "Split it in two."; the subject's kind converse, whose correction loop is limited to 5 rounds
+// input: Send "split this use case"
+// expect: at the moment of the first (and only) request the page already says "at most 5 rounds", after the names of the destinations ("Sent to:" … "drafter-a — Anthropic, USA"); after the answer it still says so, and the rounds shown are "Rounds: 1"
+test("Send — the limit of correction rounds is named with the destinations, before the first round", async () => {
+  endpointAnswers(answer("Split it in two."));
+  const it = page();
+  await drawn(it);
+  await sends(it, "split this use case");
+  assert.equal(requests.length, 1);
+  const before = requests[0].page;
+  assert.match(before, /at most 5 rounds/, `the page named the limit before the request: ${before}`);
+  assert.ok(before.indexOf("drafter-a — Anthropic, USA") < before.indexOf("at most 5 rounds"), "the limit follows the destinations");
+  assert.match(textOf(one(it.target, "status")), /at most 5 rounds/);
+  assert.equal(textOf(one(it.target, "rounds")), "Rounds: 1");
+});
+
+// TST-560002 · level: component · module: MOD-prompt-bar
+// guards: UC-019 (7); THE CORRECTION LOOP HAS A FIXED LIMIT
+// given: two participants, the chosen one with a context of 100 tokens that does not hold the message; an endpoint that would answer
+// input: choose the first, press Send "why is this step red?"
+// expect: nothing is sent and the page says "Nothing was sent."; it names no limit of rounds, since no round will run (the counter-proof of TST-560001: the same page with a participant that holds the message names it)
+test("Send — a message that is not sent names no limit of rounds", async () => {
+  endpointAnswers(answer("unused"));
+  const tiny = page({ rows: [row("drafter-a", "model endpoint", "endpoint ep1", { context: "100" }), OTHER], ep2: true });
+  await drawn(tiny);
+  one(tiny.target, "participant").value = "drafter-a";
+  await sends(tiny, "why is this step red?");
+  assert.equal(requests.length, 0);
+  assert.ok(textOf(one(tiny.target, "status")).includes("Nothing was sent."));
+  assert.doesNotMatch(textOf(one(tiny.target, "status")), /at most/);
+  one(tiny.target, "participant").value = "drafter-b";
+  await sends(tiny, "why is this step red?");
+  assert.equal(requests.length, 1);
+  assert.match(textOf(one(tiny.target, "status")), /at most 5 rounds/);
+});
