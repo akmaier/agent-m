@@ -36,7 +36,7 @@ function browserKeeping(products, tokens = []) {
   installPage({ hostname: "acme.github.io", pathname: "/instance/docs/index.html" });
   const store = openStore("acme/instance");
   writeSetting(store, "products", products);
-  for (const key of tokens) writeSetting(store, key, { value: `pat-${key}`, name: "token", expires: "2030-01-01" });
+  for (const key of tokens) writeSetting(store, key, { value: `${key.startsWith("gitlab-token") ? "glpat-" : "github_pat_"}${key}`, name: "token", expires: "2030-01-01" });
   return store;
 }
 
@@ -71,7 +71,7 @@ test("TST-856002 the instance's token and another product's token are not the ch
   assert.equal((await chosenProduct({ store, fragment: fragmentOf(WIDGET) })).tokenStored, false);
   assert.equal((await chosenProduct({ store, fragment: fragmentOf(OTHER) })).tokenStored, true);
 
-  writeSetting(store, "github-token:acme/widget", { value: "pat-widget", name: "token", expires: "2030-01-01" });
+  writeSetting(store, "github-token:acme/widget", { value: "github_pat_widget", name: "token", expires: "2030-01-01" });
   assert.equal((await chosenProduct({ store, fragment: fragmentOf(WIDGET) })).tokenStored, true);
 });
 
@@ -160,7 +160,7 @@ test("TST-669002 a host is kept only while the product's token is the one it was
     assert.equal(a.host === b.host, true, "same token, same host");
     assert.equal(github.seen.blobs.length, 1, "one request for SPEC.md");
 
-    writeSetting(store, "github-token:acme/widget", { value: "pat-replaced", name: "token", expires: "2030-01-01" });
+    writeSetting(store, "github-token:acme/widget", { value: "github_pat_replaced", name: "token", expires: "2030-01-01" });
     const c = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
     await readFileOf(c, "SPEC.md");
     assert.equal(c.host === b.host, false, "a replaced token gives a new host");
@@ -192,40 +192,40 @@ const commitOf = (host, text) => host.commitFiles({ branch: "main", expectedHead
 
 // TST-669005 · level: unit · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; NO SECRET IN THE REPOSITORY
-// given: a browser that keeps the widget and the instance's token github-token with the value "pat-first-value"
-// input: chosenProduct twice; then the instance's token is replaced by "pat-second-value" and chosenProduct is called again
-// expect: the first two results hold the same host; the third holds a different host, which refuses a commit whose text holds "pat-second-value" with a SecretRefused naming docs/note.md, before any request
+// given: a browser that keeps the widget and the instance's token github-token with the value "github_pat_first-value"
+// input: chosenProduct twice; then the instance's token is replaced by "github_pat_second-value" and chosenProduct is called again
+// expect: the first two results hold the same host; the third holds a different host, which refuses a commit whose text holds "github_pat_second-value" with a SecretRefused naming docs/note.md, before any request
 test("TST-669005 a stored secret that changes gives a new host, so a kept host never holds a stale list of secrets", async () => {
   const requests = [], before = globalThis.fetch;
   globalThis.fetch = async (url) => { requests.push(String(url)); throw new TypeError("offline"); };
   try {
     const store = browserKeeping([WIDGET]);
-    writeSetting(store, "github-token", { value: "pat-first-value", name: "token", expires: "2030-01-01" });
+    writeSetting(store, "github-token", { value: "github_pat_first-value", name: "token", expires: "2030-01-01" });
     const a = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
     const b = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
     assert.equal(a.host === b.host, true, "the secrets did not change: the same host");
-    writeSetting(store, "github-token", { value: "pat-second-value", name: "token", expires: "2030-01-01" });
+    writeSetting(store, "github-token", { value: "github_pat_second-value", name: "token", expires: "2030-01-01" });
     const c = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
     assert.equal(c.host === b.host, false, "a changed secret gives a new host");
-    await assert.rejects(commitOf(c.host, "text with pat-second-value inside"), (error) => error.name === "SecretRefused" && error.path === "docs/note.md");
+    await assert.rejects(commitOf(c.host, "text with github_pat_second-value inside"), (error) => error.name === "SecretRefused" && error.path === "docs/note.md");
     assert.deepEqual(requests, [], "refused before any request");
   } finally { globalThis.fetch = before; }
 });
 
 // TST-669006 · level: unit · module: MOD-site-frame
 // guards: NO SECRET IN THE REPOSITORY
-// given: a browser that keeps the widget and the instance's token github-token with the value "pat-instance-value"
-// input: chosenProduct for the widget twice (the second as a navigation that keeps the product), then a commit through the second result's host whose text holds "pat-instance-value"
+// given: a browser that keeps the widget and the instance's token github-token with the value "github_pat_instance-value"
+// input: chosenProduct for the widget twice (the second as a navigation that keeps the product), then a commit through the second result's host whose text holds "github_pat_instance-value"
 // expect: the kept host refuses it with a SecretRefused naming docs/note.md, and no request was made
 test("TST-669006 the kept host still refuses a stored secret", async () => {
   const requests = [], before = globalThis.fetch;
   globalThis.fetch = async (url) => { requests.push(String(url)); throw new TypeError("offline"); };
   try {
     const store = browserKeeping([WIDGET]);
-    writeSetting(store, "github-token", { value: "pat-instance-value", name: "token", expires: "2030-01-01" });
+    writeSetting(store, "github-token", { value: "github_pat_instance-value", name: "token", expires: "2030-01-01" });
     await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
     const kept = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
-    await assert.rejects(commitOf(kept.host, "a note with pat-instance-value in it"), (error) => error.name === "SecretRefused" && error.path === "docs/note.md");
+    await assert.rejects(commitOf(kept.host, "a note with github_pat_instance-value in it"), (error) => error.name === "SecretRefused" && error.path === "docs/note.md");
     assert.deepEqual(requests, []);
   } finally { globalThis.fetch = before; }
 });

@@ -953,3 +953,25 @@ test("NO SECRET IN THE REPOSITORY — a commit holding a configured secret or th
     assert.equal(fake.made(), 1, `${address.server}: known positive, written without the secret`);
   }
 });
+
+// TST-1065001 · level: unit · module: MOD-repository-hosts
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SECRET IN THE REPOSITORY
+// given: a GitHub address and a GitLab address, and texts that are no token of either server: "my password", "tok", "secret" and "github-secret"
+// input: connect(address, { token: text }) for each text on each address; and, as known positives, connect with github_pat_x, ghp_x and glpat-x on the server of their kind, with no token and with the empty text
+// expect: each of the texts is refused with a TypeError whose message is exactly "That is no token of either server." — the same for every text, so it holds none of them — and no request is sent; the known positives are accepted (github_pat_x is accepted, whatever its length) and the token of the other kind is still refused with its own message
+test("connect refuses a text that is no token of either server, with a message that never holds it", async () => {
+  const fake = fakeGitHub();
+  await using(fake.fetch, async () => {
+    for (const address of [GITHUB, GITLAB]) {
+      for (const text of ["my password", "tok", "secret", "github-secret"]) {
+        assert.throws(() => connect(address, { token: text }), (error) => error instanceof TypeError && error.message === "That is no token of either server.", `${address.web}: ${text}`);
+      }
+    }
+    for (const [address, token] of [[GITHUB, "github_pat_x"], [GITHUB, "ghp_x"], [GITLAB, "glpat-x"], [GITHUB, null], [GITHUB, ""], [GITLAB, undefined]]) {
+      assert.doesNotThrow(() => connect(address, { token }), `${address.web}: ${JSON.stringify(token)} is accepted`);
+    }
+    assert.throws(() => connect(GITHUB, { token: "glpat-x" }), /That is a GitLab token/);
+    assert.throws(() => connect(GITLAB, { token: "github_pat_x" }), /That is a GitHub token/);
+  });
+  assert.deepEqual(fake.requests, [], "nothing is sent");
+});
