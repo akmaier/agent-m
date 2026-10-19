@@ -161,13 +161,14 @@ export async function stageElectron() {
 // openWindow(executable, address) -> Promise<{ page, close, stderr }> — a hidden Electron window that has loaded `address`; `page` is the
 // DevTools session of its page (call, evaluate, close). `close` ends the page's session and the Electron, and removes its folder. `stderr()` is the
 // tail of what the Electron wrote to its stderr so far (4000 characters at most; on Linux its stdout too, where xvfb-run puts its stderr). A failure of openWindow carries that tail (withStderr); `limit` is how long the
-// window's page may take to appear among the debugging targets.
-export async function openWindow(executable, address, { limit = 30000 } = {}) {
+// window's page may take to appear among the debugging targets; `launch` ({ command, arguments_ }), where given, is started as it is, instead of the Electron behind the virtual display and the window manager
+// (electronCommand): a stand-in that is no browser asks for neither (ITM-1020).
+export async function openWindow(executable, address, { limit = 30000, launch = null } = {}) {
   const debug = await freePort();
   const folder = mkdtempSync(join(tmpdir(), "agent-m-904-entry-"));
   const entry = join(folder, "main.mjs");
   writeFileSync(entry, ENTRY);
-  const launched = electronCommand(executable, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
+  const launched = launch ?? electronCommand(executable, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
   const child = spawn(launched.command, launched.arguments_, { detached: process.platform === "linux", stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "", spawnError = null, page = null;
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
