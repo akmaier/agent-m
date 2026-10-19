@@ -1118,7 +1118,7 @@ The job was started, but its record has no end and no runtime knows it any more:
 
 ## job-runtime-tab
 
-A job in the **browser tab** is a conversation with a model endpoint that this page runs for you. It leaves no record in the repository and ends when you close the tab. It is listed here as this tab's, while it runs.
+A job in the **browser tab** is a conversation with a model endpoint that this page runs for you. Its record is kept in the product's repository, like that of any job. Its live state and log exist only in the tab that runs it, so a job whose tab is closed is shown as ended without record. It is listed here as this tab's while it runs. A long job is better started on CI or on a Bridge, which go on when this page is closed.
 
 ## job-runtime-ci
 
