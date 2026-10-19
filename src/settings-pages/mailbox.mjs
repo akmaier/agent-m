@@ -109,7 +109,7 @@ const placeEntry = (place) => (isOutsideEu(place) ? { place, outsideEu: true, no
 
 // The connected mailbox of this browser (UC-037 steps 8, 6a, 8a): its address, route, folders and allowed places with its state, Test, Disconnect and Processing places.
 // -> { node, refresh } — `refresh` shows the stored connection anew; with none stored the block holds an empty .mailbox-connected and nothing to press.
-export function mailboxLine(context) {
+export function mailboxLine(context, { changed = () => {} } = {}) {
   const store = context.store;
   const node = el("section", "settings-mailbox panel");
   const result = el("p", "mailbox-line-result"), disconnected = el("p", "mailbox-disconnected");
@@ -194,7 +194,7 @@ export function mailboxLine(context) {
 
   function show() {
     const stored = readSetting(store, "mailbox");
-    if (!stored?.imap && !stored?.graph) { text.textContent = ""; node.replaceChildren(text, result, disconnected); return; }
+    if (!stored?.imap && !stored?.graph) { text.textContent = ""; node.replaceChildren(text, result, disconnected); changed(); return; }
     const { connected, words } = stateOf();
     const how = stored.graph ? "Microsoft 365 (web API)" : `IMAP through ${stored.imap.bridge}`;
     const places = (stored.places ?? []).length ? stored.places.map((each) => (each.outsideEu ? `${each.place} (outside the EU)` : each.place)).join(", ") : "none: mails are only read, never handed to a participant";
@@ -206,6 +206,7 @@ export function mailboxLine(context) {
     disconnectButton.addEventListener("click", () => disconnect(stored));
     placesButton.addEventListener("click", () => changePlaces(readSetting(store, "mailbox") ?? stored, panel));
     node.replaceChildren(el("h3", null, "Mailbox"), text, el("p", "mailbox-state", words), el("p", null, testButton, " ", placesButton, " ", disconnectButton), panel, result, disconnected);
+    changed();
   }
   show();
   return { node, refresh: show };
@@ -472,3 +473,25 @@ export const route = {
     );
   },
 };
+
+/**
+ * mailboxSetting(context) -> Element — the mailbox among the settings of this browser (the tab Endpoints & Agents of the page `settings`): not set, with *Connect a mailbox*; or the
+ * connected mailbox as `mailboxLine` shows it, with *Change*. Both open the route `mailbox` (`context.go("mailbox", {})`).
+ */
+export function mailboxSetting(context) {
+  const block = el("section", "mailbox-setting");
+  const state = el("p", "mailbox-setting-state");
+  const open = el("button", "mailbox-setting-open btn", "");
+  open.addEventListener("click", () => context.go("mailbox", {}));
+  let line = null; // mailboxLine calls `changed` while it is made, before `line` is set
+  function draw() {
+    if (!line) return;
+    const set = readSetting(context.store, "mailbox") !== null;
+    state.textContent = set ? "" : "Mailbox: not set";
+    open.textContent = set ? "Change" : "Connect a mailbox";
+    block.replaceChildren(...(set ? [line.node] : [state, ...(line.node.childNodes.length ? [line.node] : [])]), el("p", null, open));
+  }
+  line = mailboxLine(context, { changed: draw });
+  draw();
+  return block;
+}
