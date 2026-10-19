@@ -101,8 +101,8 @@ test("TST-1004003: MOD-desktop-shell's Pairing view says which origin the Bridge
 // guards: UC-044; THE BRIDGE IS UPDATED ONLY BY THE PERSON'S CHOICE; EVERY STEP EXPLAINS ITSELF
 // given: the production Bridge window entry and a constructed preload state: the running version 2026.10.0, a release 2026.11.0 offered with the notes "Fixes the tunnels.", and, after the click Download, the file ready; one job running
 // input: the route Updates is opened; Download is pressed; Install and restart is pressed, then its decision is confirmed
-// expect: the page names the running version, the offered version and its notes, and carries the folded explanation of the topic bridge-updates; Download asks the main process to download and the page then offers Install and restart; pressing it shows a decision that names the running job and asks nothing of the main process to install; only the confirming click asks for the install, with { confirmed: true }, once
-// Planted fault: asking for the install at the first click, or without naming the job, fails the calls or the decision's text; a page without the explanation lacks "Nothing is updated behind your back".
+// expect: the page names the running version, the offered version and its notes, and carries the folded explanation (What is this?, the topic bridge-updates); Download asks the main process to download and the page then offers Install and restart; pressing it shows a decision that names the running job and asks nothing of the main process to install; only the confirming click asks for the install, with { confirmed: true }, once
+// Planted fault: asking for the install at the first click, or without naming the job, fails the calls or the decision's text; a page without the explanation lacks "What is this?".
 test("TST-1054007 the Updates view shows the offer with its notes, and installs only after the decision that names the running jobs", async () => {
   const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
   document.head = document.createElement("head"); document.body = document.createElement("body");
@@ -131,7 +131,7 @@ test("TST-1054007 the Updates view shows the offer with its notes, and installs 
   assert.match(page(), /2026\.10\.0/);
   assert.match(page(), /2026\.11\.0/);
   assert.match(page(), /Fixes the tunnels\./);
-  assert.match(page(), /Nothing is updated behind your back/);
+  assert.match(page(), /What is this\?/, "the folded explanation (the topic bridge-updates) stands under the heading");
   assert.doesNotMatch(page(), /Install and restart/, "not before the download");
   await click(document.body, "Download");
   assert.ok(asked.some(([action]) => action === "download-update"));

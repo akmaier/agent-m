@@ -54,8 +54,8 @@ test("TST-1054008 the app starts its updates with the key it carries, and the wi
     assert.equal(started.outcome.kind, "loaded", `the entry started (errors: ${started.errors.join(" | ")})`);
     assert.equal(globalThis.__agentMUpdater.autoDownload, false);
     const ask = (action, value) => started.fake.handlers["bridge-state"]({}, action, value);
-    assert.ok(asked.includes(`${BASE}latest-linux.yml`), "the feed was read at start");
     assert.deepEqual((await ask("updates")).offer, { version: "2026.11.0", notes: "Notes." });
+    assert.ok(asked.includes(`${BASE}latest-linux.yml`), "the feed was read at start");
     assert.ok(!calls.includes("downloadUpdate"));
     assert.equal((await ask("download-update")).ready, true);
     await assert.rejects(ask("install-update"), (error) => error.name === "NotConfirmed");
