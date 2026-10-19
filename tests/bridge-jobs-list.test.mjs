@@ -219,3 +219,22 @@ test("GET /v1/jobs lists a running job as running and, once the Bridge was quit,
     assert.equal(after.find((each) => each.id === ID(3)).state, "failed");
   }, { gated: true });
 });
+
+// TST-1097104 · level: unit · module: MOD-bridge-jobs
+// guards: UC-044; UC-036
+// given: a job whose agent works to its answer, in a product whose server refuses the commit that ends the record (a hook of the bare repository), so that the Bridge cannot write the end
+// input: startWatching; wait until the agent has finished; GET /v1/jobs
+// expect: the job is not listed running — nothing works on it any more — but failed
+test("GET /v1/jobs does not list a job as running when its end could not be written", async () => {
+  await world(async (w) => {
+    const hook = join(w.products[PRODUCT_A].origin, "hooks", "pre-receive");
+    mkdirSync(join(hook, ".."), { recursive: true });
+    writeFileSync(hook, `#!/bin/sh\nwhile read old new ref; do case "$(git log -1 --format=%s "$new")" in end\\ *) echo "refused" >&2; exit 1;; esac; done\n`, { mode: 0o755 });
+    const job = w.queue(PRODUCT_A, JOB(ID(5), "drafter"));
+    watch(w, [{ name: "opencode", folder: w.folder("agent-work") }], { every: 50 });
+    await w.until(() => w.finished(), "the agent to finish");
+    const listed = await w.until(async () => (await list()).jobs.find((each) => each.id === job.id && each.state !== "running"), "the job to leave running");
+    assert.equal(listed.state, "failed");
+    assert.equal(/^## End$/m.test(w.originText(PRODUCT_A, job.path)), false, "the end was refused");
+  });
+});
