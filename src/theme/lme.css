@@ -2,7 +2,7 @@
    as lme.tf.fau.de shows them (FAU blue #04316a, dark blue #041e42, metallic #8c9fb1, and tints of them), the lab's logo in
    the header (src/brand/), and the header, menu and footer every page of the site carries. The font is the FAU sites'
    Source Sans where the reader has it installed; the site loads no font from anywhere (NO SERVER). Besides, the parts the
-   pages share: the buttons, the box a wide table scrolls in, and the width and the line of the burn-down chart. */
+   pages share: the box a wide table scrolls in, and the width and the line of the burn-down chart (the buttons are src/site-frame/look.css's). */
 
 :root {
   --fau-blue: #04316a; --fau-dark: #041e42; --tf-metallic: #8c9fb1;
@@ -72,16 +72,6 @@ h1, h2, h3, h4 { color: var(--heading); line-height: 1.25; }
   .menu { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
   .menu > :nth-child(7) { margin-left: 12px; }
 }
-
-/* ---- buttons ---- */
-
-.btn { display: inline-block; padding: .5rem .95rem; border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
-  color: var(--fg); font: inherit; font-size: .95rem; font-weight: 600; text-decoration: none; cursor: pointer; }
-.btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--fau-blue); border-color: var(--fau-blue); color: #ffffff; }
-.btn.primary:hover { background: var(--fau-dark); }
-/* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
-button, .btn { margin-inline: .35em; }
 
 /* ---- a wide table, and the burn-down chart ---- */
 
