@@ -29,7 +29,7 @@ are no longer held."
 
 The draft for this item is accepted (`1c30ad0b` and the acceptances before it); quoted from `main` at 40e04d8d:
 
-MOD-work-plans.md:231-235:
+MOD-work-plans.md:233-237:
 
 > - `giveUpIncrement(host: Host, sprint: string, reason: string, context: { head: string, trailers: string[] }) -> Promise<{
 >   commit: string }>` — the Product Owner's *Give up increment* for a closed sprint whose branch was not merged: appends

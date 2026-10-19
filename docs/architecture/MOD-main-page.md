@@ -14,6 +14,7 @@ uses:
   - MOD-site-frame.notice
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.productHostFollowingStore
+  - MOD-site-frame.tokenKeyOf
   - MOD-notifications.watchForAcceptance
   - MOD-browser-store.readSetting
   - MOD-bridge-client.bridgeAt
@@ -140,7 +141,8 @@ instance repository through their hosts, and the browser's store for the product
   page, for the greeting; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
   MOD-site-frame.notice — a refused token, a used-up rate limit, a source not reached; MOD-site-frame.confirmDecision —
   cancel, retry and a gate's decision; MOD-site-frame.productHostFollowingStore — each kept product's host for the
-  notification checks, through the product's token and the stored secrets at each call.
+  notification checks, through the product's token and the stored secrets at each call; MOD-site-frame.tokenKeyOf — the key of a product's token setting, whose
+  name is the person who decides a gate on the job's page.
 - MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, which the page starts with the instance's
   host, the product hosts and its writing of a review-pages address.
 - MOD-browser-store.readSetting — the products this browser keeps, their tokens, the Bridges' settings.

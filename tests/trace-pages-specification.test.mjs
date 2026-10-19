@@ -154,7 +154,9 @@ test("a requirement name toggles its row-local detail closed and open again", as
 test("an absent or empty SPEC has an explicit empty state and rendering offers no write", async () => {
   const productHost = host(null);
   const target = await render(productHost, { key: "specification", ref: "pinned-empty" });
-  assert.equal(target.textContent, "Version pinned-emptyGapsNo release is tagged yet (UC-013); only the current text can be shown.as of pinned-emptyCurrent requirementsNo current requirements are recorded in SPEC.md.");
+  // The folded explanation of the versions (ITM-602) stands in the bar beside the choice; what is shown besides it is as before.
+  const shown = find(target, (node) => node.localName === "details").reduce((text, fold) => text.replace(fold.textContent, ""), target.textContent);
+  assert.equal(shown, "Version pinned-emptyGapsNo release is tagged yet (UC-013); only the current text can be shown.as of pinned-emptyCurrent requirementsNo current requirements are recorded in SPEC.md.");
   assert.equal(Object.hasOwn(productHost, "commitFiles"), false);
 });
 
@@ -382,7 +384,8 @@ const traceSection = (row, title) => find(row, (node) => node.localName === "sec
   && find(node, (kid) => kid.localName === "h4")[0].textContent === title)[0];
 const listed = (row, title) => find(traceSection(row, title), (node) => node.localName === "li").map((node) => node.textContent);
 const linksOf = (row, title) => find(traceSection(row, title), (node) => node.localName === "a").map((node) => node.getAttribute("href"));
-const paragraphs = (row, title) => find(traceSection(row, title), (node) => node.localName === "p").map((node) => `${node.className}: ${node.textContent}`);
+const inFold = (node) => { for (let up = node.parentNode; up; up = up.parentNode) if (up.localName === "details") return true; return false; };
+const paragraphs = (row, title) => find(traceSection(row, title), (node) => node.localName === "p" && !inFold(node)).map((node) => `${node.className}: ${node.textContent}`);
 
 // CASE ITM-597-01
 // TST-597001 · level: component · module: MOD-trace-pages
