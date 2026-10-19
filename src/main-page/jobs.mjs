@@ -16,9 +16,9 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { chosenProduct, explain } from "../site-frame/index.mjs";
+import { chosenProduct, confirmDecision, explain } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { liveState, jobLog } from "../runtimes/index.mjs";
+import { cancelJob, liveState, jobLog } from "../runtimes/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
@@ -101,7 +101,9 @@ const FILTERS = [["product", "Product"], ["state", "State"], ["participant", "Pa
 
 // The groups of the list, in the order of the states of MOD-job-ledger's JobState with the jobs that wait at a gate first (UC-036 step 2).
 const GROUPS = ["waiting at a gate", "running", "queued", "done", "failed", "cancelled", "ended without record"];
-const place = (row) => (GROUPS.includes(row.state) ? GROUPS.indexOf(row.state) : GROUPS.length);
+// A cancelling job stands within the group running (UC-036 6a): the row says cancelling, the group says running.
+const groupOf = (row) => (row.state === "cancelling" ? "running" : row.state);
+const place = (row) => (GROUPS.includes(groupOf(row)) ? GROUPS.indexOf(groupOf(row)) : GROUPS.length);
 
 function drawList(rows, go) {
   const chosen = {};
@@ -116,11 +118,11 @@ function drawList(rows, go) {
     open.addEventListener("click", () => go("job", { id: row.id, product: row.product }));
     line.append(el("td", "id", ...(row.tab ? ["this tab's"] : [open])), el("td", "product", row.product || "—"), el("td", "works-on", row.works), el("td", "kind", row.kind),
       el("td", "participant", row.participant || "—"), el("td", "runs", row.runs), state, el("td", "elapsed", row.elapsed), el("td", "cost", row.cost));
-    if (at > 0 && shown[at - 1].state === row.state) return [line];
-    const name = el("th", "group-state", row.state);
+    if (at > 0 && groupOf(shown[at - 1]) === groupOf(row)) return [line];
+    const name = el("th", "group-state", groupOf(row));
     name.setAttribute("colspan", "9");
     const header = el("tr", "group", name);
-    header.setAttribute("data-state", row.state);
+    header.setAttribute("data-state", groupOf(row));
     return [header, line];
   }));
   const filters = el("p", "filters");
@@ -143,6 +145,19 @@ function drawList(rows, go) {
   return [filters, el("table", "jobs", el("thead", null, head), body)];
 }
 
+// The jobs this page asked to cancel whose runtime has not confirmed (`cancelJob` answered "cancelling"): kept in memory only, since MOD-runtimes' liveState never reports the state. A job shown
+// cancelling stays so while its runtime still lists it; once the runtime holds it no more, it is forgotten.
+const CANCELLING = new Set();
+const CANCELLABLE = new Set(["queued", "running", "waiting at a gate"]);
+function markCancelling(lives) {
+  for (const id of [...CANCELLING]) {
+    const live = lives.get(id);
+    if (live?.known) lives.set(id, { ...live, cancelling: true });
+    else CANCELLING.delete(id);
+  }
+  return lives;
+}
+
 // Every job of every source, read once: the JobRows of MOD-job-ledger with the live state each runtime reported, the sources that could not be read, and what a job's log needs.
 async function everyJob(context) {
   const sources = await Promise.all((await sourcesOf(context)).map(readSource));
@@ -151,7 +166,7 @@ async function everyJob(context) {
   const first = await listJobs(products, new Map());
   const bridges = bridgesOf(first, context.store);
   const hostOf = new Map(readable.map((source) => [source.address, source.host]));
-  const lives = await liveStatesOf(first, hostOf, bridges);
+  const lives = markCancelling(await liveStatesOf(first, hostOf, bridges));
   return { jobRows: await listJobs(products, lives), lives, bridges, hostOf, unreadable: sources.filter((source) => source.reason) };
 }
 const unreadableList = (unreadable) => (unreadable.length ? [el("ul", "unreadable", ...unreadable.map((source) => el("li", "source", `${source.address}: ${source.reason}`)))] : []);
@@ -160,13 +175,15 @@ const unreadableList = (unreadable) => (unreadable.length ? [el("ul", "unreadabl
 // not a job is in it. The topics stand in MOD-site-frame's explanations.md; the frame's check reads these tables for the topics the route names.
 const STATE_TOPIC = {
   "waiting at a gate": "job-state-waiting-at-a-gate", running: "job-state-running", queued: "job-state-queued", done: "job-state-done", failed: "job-state-failed",
-  cancelled: "job-state-cancelled", "ended without record": "job-state-ended-without-record",
+  cancelled: "job-state-cancelled", "ended without record": "job-state-ended-without-record", cancelling: "job-state-cancelling",
 };
+// The states the explanations stand for, cancelling beside the running it is shown within.
+const EXPLAINED = [...GROUPS.slice(0, 2), "cancelling", ...GROUPS.slice(2)];
 const RUNTIME_TOPIC = { tab: "job-runtime-tab", ci: "job-runtime-ci", bridge: "job-runtime-bridge" };
 const RUNTIME_NAME = { tab: "This browser's tab", ci: "CI", bridge: "A Bridge" };
 
 function explanations() {
-  const states = GROUPS.map((state) => {
+  const states = EXPLAINED.map((state) => {
     const box = el("div", "job-state-explain", el("strong", null, state), " ", explain(STATE_TOPIC[state]));
     box.setAttribute("data-state", state);
     return box;
@@ -230,7 +247,7 @@ async function drawLog(box, page, row, { hostOf, bridges }) {
   }
 }
 
-async function renderJob(target, context, params) {
+async function renderJob(target, context, params, note = null) {
   target.replaceChildren(el("h2", null, "Job"), el("p", "reading", "Reading…"));
   const read = await everyJob(context);
   let product = params.product ?? null;
@@ -251,11 +268,43 @@ async function renderJob(target, context, params) {
     page.append(el("p", "job-gate", "Waiting at the gate ", el("span", "gate-name", gate.gate), ", decided by ", el("span", "gate-decider", gate.decider),
       ...(/^check:/.test(gate.decider) ? [" — ", el("span", "gate-self", "decides by itself")] : [])));
   }
+  if (CANCELLABLE.has(row.state)) page.append(cancelControls(target, context, params, held, read));
+  if (note) page.append(el("p", "job-cancel-result", note));
   page.append(el("h3", null, "Cost"), el("p", "job-cost", costLine(held.cost)));
   const log = el("div", "job-log");
   page.append(el("h3", null, "Log"), log);
   target.replaceChildren(el("h2", null, "Job"), ...unreadableList(read.unreadable), page);
   drawLog(log, page, held, read); // not awaited: the page stands while the log follows its runtime
+  if (row.state === "cancelling") readAgainLater(page, target, context, params);
+}
+
+// A job shown as cancelling is read again later, while its page stands (UC-036 6a).
+const AGAIN = 5000;
+function readAgainLater(page, target, context, params) {
+  setTimeout(() => { if (page.parentNode !== null) renderJob(target, context, params); }, AGAIN);
+}
+
+// Cancel: one click, through the frame's dialog of a decision (ONE CLICK PER DECISION), on the person's click alone (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK). MOD-runtimes' cancelJob appends the end
+// cancelled once the runtime confirms; on "cancelling" nothing is appended and the job is shown cancelling; on Moved the record is read again.
+function cancelControls(target, context, params, held, read) {
+  const { record } = held;
+  const button = el("button", "job-cancel btn", "Cancel");
+  button.setAttribute("type", "button");
+  button.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
+    const decision = await confirmDecision({ title: `Cancel ${record.id}?`, lines: [`${record.id} is stopped at its runtime. Its end, cancelled, is written once the runtime confirms.`, "Whatever it pushed before stays on its branch."], confirm: "Cancel the job" });
+    if (!decision.confirmed) return;
+    button.disabled = true;
+    let note;
+    try {
+      const outcome = await cancelJob(record, { host: read.hostOf.get(held.product) }, read.bridges);
+      if (outcome === "cancelling") { CANCELLING.add(record.id); note = "The runtime has not confirmed yet: the job is cancelling, and nothing is written until it does."; } else note = "Cancelled.";
+    } catch (failure) {
+      note = failure?.name === "Moved" ? "The record changed meanwhile; it is read again, and nothing was written by this click." : `The job could not be cancelled: ${String(failure?.message ?? failure)}`;
+    }
+    await renderJob(target, context, params, note);
+  });
+  return el("p", "job-actions", button);
 }
 
 /**

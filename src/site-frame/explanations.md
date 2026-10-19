@@ -1004,6 +1004,10 @@ The job stopped at a gate of the product's workflow and goes no further until th
 
 The participant is working on the job right now. The runtime that holds the job says so: the browser tab, the GitHub Actions or GitLab CI run, or the Bridge. Open the job to follow its log while it runs, and press **Cancel** to stop it.
 
+## job-state-cancelling
+
+A person asked to stop the job and its runtime has not confirmed yet. It is shown within running until it does; then its end, cancelled, is written. Until then it may still push to its branch.
+
 ## job-state-queued
 
 The job was handed to a route and no runtime has picked it up yet. A CI job waits for the workflow run to start, a Bridge job for the Bridge to take it. You can cancel a queued job; nothing has been written for it.
