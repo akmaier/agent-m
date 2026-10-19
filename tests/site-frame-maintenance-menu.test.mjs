@@ -46,7 +46,7 @@ test("TST-1099001 the view mail is built in, counted as built and opened by the 
 // input: builtViews over each, the menu's entry Maintenance
 // expect: without the entry `mail` is not built and the entry Maintenance opens nothing (the address #mail is not found); with the table and no file named a view with a file (process) is not built, and mail still is (by being built in)
 test("TST-1099002 counter-proof: without the table's entry the menu does not open the view mail", () => {
-  const without = DASHBOARD.filter((entry) => entry.view !== "mail");
+  const without = DASHBOARD.filter((entry) => entry.view !== "mail" && entry.view !== "replies"); // replies (ITM-1103) is the entry's next view
   const builtWithout = new Set(without.filter((entry) => entry.view && (entry.builtIn || builtFiles.includes(entry.file))).map((entry) => entry.view));
   assert.ok(!builtWithout.has("mail"));
   assert.equal(stageView(maintenance, builtWithout), null, "known negative: nothing opens the entry");
