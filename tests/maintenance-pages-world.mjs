@@ -10,13 +10,14 @@ import { writeSetting } from "../src/browser-store/index.mjs";
 import { mailId, noteText, withMailIds } from "../src/mail-records/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { mailStrategies } from "../src/mail-handling/index.mjs";
+import { privacyStrategies } from "../src/personal-data/index.mjs";
 import { routeStrategies } from "../src/runtimes/index.mjs";
 import { INSTANCE, PRODUCT, PRODUCT_URL, browser, byClass, draw, headOf, instanceFiles, network, smallProduct, timers } from "./main-page-home-harness.mjs";
 
 const pages = await import("../src/maintenance-pages/index.mjs").catch((error) => ({ error }));
 const routeNamed = (name) => pages.view?.routes.find((candidate) => candidate.name === name);
 const route = () => routeNamed("replies");
-for (const [at, strategies] of [mailStrategies, routeStrategies].entries()) {
+for (const [at, strategies] of [mailStrategies, routeStrategies, privacyStrategies].entries()) {
   try { registerStrategies(`tests/maintenance-pages-replies.test.mjs#${at}`, strategies); } catch { /* registered by the page's own view */ }
 }
 

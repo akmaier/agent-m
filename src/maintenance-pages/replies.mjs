@@ -23,8 +23,6 @@
 //     the panel appears once the point, a participant and a name are given, and the question the participant returns is stored as a draft and shown with *Send and wait*; the start record names the issue and the product, not the point.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
-import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
-import { readSetting } from "../browser-store/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
@@ -34,7 +32,7 @@ import { participantSchema, participantsOf, eligible } from "../participant-list
 import { readDocument } from "../documents/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { confirmDecision, runPanel } from "../site-frame/index.mjs";
-import { mailboxOf, productsOf } from "./mail.mjs";
+import { connectionsOf, mailboxOf, productsOf } from "./mail.mjs";
 
 const REGISTER = "docs/participants.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
@@ -74,24 +72,6 @@ const issueAddress = (due) => `${due.product.replace(/\/$/, "")}${/github\.com/.
 
 // The last reading, kept in memory for the route of one issue: { due, products, box, connection }.
 let last = null;
-
-// The endpoints and Bridges the chosen participant is reached by, as the tab's route drives them.
-function connectionsOf(participant, store) {
-  const endpoints = {}, bridges = {};
-  const connectBridge = (name) => {
-    if (!name || bridges[name]) return;
-    const stored = readSetting(store, `bridge:${name}`);
-    if (stored) bridges[name] = bridgeAt(settingsOf({ name, ...stored }, readSetting(store, "jump-host")));
-  };
-  const name = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
-  const stored = name === undefined ? null : readSetting(store, `endpoint:${name}`);
-  if (stored) {
-    endpoints[name] = { config: { name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, bridge: stored.bridge ?? null };
-    connectBridge(stored.bridge);
-  }
-  connectBridge(/^bridge\s+(\S+)\s+agent\s+\S+/.exec(participant.route ?? "")?.[1]);
-  return { endpoints, bridges };
-}
 
 // The failures that are the mailbox's (nothing was sent) and those that are Access's (the note failed after the send, or the issue could not be read).
 const MAILBOX_FAILURES = new Set(["DraftChanged", "ConfirmationRefused", "SendRefused", "SignInExpired", "PermissionDeclined", "Throttled", "BridgeUnavailable", "NoEncryption", "LoginRefused", "FolderNotFound", "NoReplyAddress"]);
