@@ -12,9 +12,11 @@ import { testDeclarations, isTestFile } from "../test-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { paidServices, resourceSchema } from "../resource-list/index.mjs";
+import { defaultSchedule, occasionsOf, scheduleSchema } from "../test-schedule/index.mjs";
 import { resultSchema } from "./read.mjs";
 
 const RESOURCES = "docs/resources.md";
+const SCHEDULE = "docs/tests/schedule.md";
 const listOf = (value) => (Array.isArray(value) ? value : []);
 
 // The text of a selected name: a requirement as the SPEC states it (its name line to the next blank line), a use case or module its whole file; null for a name the graph lacks.
@@ -46,14 +48,22 @@ async function testText(snapshot, node) {
   return lines.slice(declarations[at].line - 1, next - 1).join("\n").trimEnd();
 }
 
-// The product's external services, one line each, marked paid or free.
-async function servicesText(snapshot) {
+// The product's external services, each marked paid or free by MOD-resource-list's paidServices; none where the product has no docs/resources.md.
+async function servicesOf(snapshot) {
   const text = await snapshot.read(RESOURCES);
   if (typeof text !== "string") return [];
   const resources = readRegister(resourceSchema(), RESOURCES, text).rows.map(({ cells: c }) => ({ name: c.Name, kind: c.Kind, address: c.Address,
     paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null }));
-  return paidServices(resources).map((service) => `- ${service.name} (${service.kind}, ${service.address}): ${service.paid ? "paid" : "free"}`);
+  return paidServices(resources);
 }
+const servicesText = async (snapshot) => (await servicesOf(snapshot)).map((service) => `- ${service.name} (${service.kind}, ${service.address}): ${service.paid ? "paid" : "free"}`);
+
+// The product's schedule, or the book's default where it saved none.
+async function scheduleOf(snapshot) {
+  const text = await snapshot.read(SCHEDULE);
+  return typeof text === "string" ? readDocument(scheduleSchema, SCHEDULE, text) : defaultSchedule();
+}
+const COMMIT_OCCASIONS = ["every commit", "pull request"];
 
 /**
  * The recipe test-selection(context, params) -> Part[] — one part, `test-selection`: the text of each requirement, use case and module the parameters `requirements`,
@@ -164,13 +174,15 @@ async function writtenTests(draft, context) {
 
 /**
  * The check test-proposals(draft, context) -> Finding[], for the kind `propose-tests` (the draft's `cases`): an error for a case without an expected result, a model-dependent
- * case (one with `phrasings`) judged on fewer than two runs, and a case that guards nothing; an error for a case not classed `duplicate` that shares a guarded name, its input
+ * case (one with `phrasings`) judged on fewer than two runs, a case that guards nothing, and a case of a level that runs on a commit or pull request that names in `paid` a service the product's resources mark paid (COMMIT TESTS CALL NO PAID SERVICE; the levels from the product's schedule, or the book's default); an error for a case not classed `duplicate` that shares a guarded name, its input
  * and its expected result with an existing test. A draft without `cases` has no finding. It calls no model.
  */
 async function testProposals(draft, context) {
   if (typeof draft?.branch === "string") return writtenTests(draft, context);
   const cases = Array.isArray(draft?.cases) ? draft.cases : [];
   const existing = cases.length ? await existingTests(context.product.snapshot) : [];
+  const paid = cases.some((one) => !blank(one.paid)) ? new Set((await servicesOf(context.product.snapshot)).filter((service) => service.paid).map((service) => service.name)) : new Set();
+  const schedule = paid.size > 0 ? await scheduleOf(context.product.snapshot) : null;
   const findings = [];
   cases.forEach((one, index) => {
     const at = { artifact: one.identifier ?? `case ${index + 1}`, line: index + 1, kind: "error" };
@@ -181,6 +193,10 @@ async function testProposals(draft, context) {
     const guards = Array.isArray(one.guards) ? one.guards : [];
     if (guards.length === 0) findings.push(finding({ ...at, rule: "EVERY ARTIFACT NAMES ITS ORIGIN",
       what: `case ${at.artifact} guards no requirement, use case or module`, fix: "name the identifiers the case guards, or drop the case" }));
+    if (!blank(one.paid) && paid.has(one.paid.trim()) && occasionsOf(one.level, schedule).some((occasion) => COMMIT_OCCASIONS.includes(occasion))) {
+      findings.push(finding({ ...at, rule: "COMMIT TESTS CALL NO PAID SERVICE", what: `case ${at.artifact} of level ${one.level} runs on a commit or pull request and reaches the paid service ${one.paid.trim()}`,
+        fix: "use a recorded or constructed response in place of the service, or give the case a level that runs only nightly or on a release" }));
+    }
     const same = one.class === "duplicate" ? null : existing.find((test) => (test.guards ?? []).some((name) => guards.includes(name))
       && normal(test.input) === normal(one.input) && normal(test.expect) === normal(one.expected));
     if (same) findings.push(finding({ ...at, rule: "TEST GENERATION SEES THE EXISTING TESTS",
