@@ -1,6 +1,6 @@
 // MOD-reuse-facts - the due-diligence facts of a reuse candidate, read from package registries and source repositories
 // (docs/architecture/MOD-reuse-facts.md). registryFacts and licenceVerdict read package facts and licence compatibility;
-// reuseStrategies adds those facts to drafted architecture decisions. hubFacts comes with a later backlog item.
+// reuseStrategies adds those facts to drafted architecture decisions; hubFacts reads a model's or dataset's facts from the Hugging Face Hub.
 //
 // Module: MOD-reuse-facts
 
@@ -26,7 +26,7 @@ const LICENCES = parseLicences(await own(LICENCES_FILE));
 /**
  * @typedef {{ name: string, ecosystem: "npm" | "pypi" | "crates" | "maven", repository: string | null }} Candidate
  * @typedef {{ candidate: string, ecosystem: string, what: "exists" | "licence" | "first release" | "latest release" |
- *   "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption", value: string, address: string,
+ *   "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption" | "revision" | "access", value: string, address: string,
  *   read: string }} Fact
  * @typedef {{ candidate: Candidate, facts: Fact[], licence: "compatible" | "not known to be compatible" | "not checked",
  *   found: boolean, blocked: string | null }} DueDiligence
@@ -326,10 +326,73 @@ export async function registryFacts(candidate, productLicence, options = {}) {
   };
 }
 
-export async function hubFacts() {
-  const error = new Error("hubFacts is not part of ITM-435");
-  error.name = "NotBuilt";
-  throw error;
+// The Hub's own origin: the only one a Hub key is sent to (MOD-reuse-facts, Interfaces: hubFacts).
+const HUB_ORIGIN = "https://huggingface.co";
+// A Hub identifier is the Hub's own path: `owner/name` or a bare `name` for a model, `datasets/owner/name` or `datasets/name` for a dataset.
+const HUB_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function hubFailure(name, properties, message) {
+  return Object.assign(new Error(message), { name }, properties);
+}
+
+function hubAddress(id) {
+  const wanted = "owner/name for a model, datasets/owner/name for a dataset";
+  if (typeof id !== "string") throw new TypeError(`hubFacts needs a Hub identifier: ${wanted}`);
+  const parts = id.split("/");
+  const dataset = parts[0] === "datasets";
+  const path = dataset ? parts.slice(1) : parts;
+  if (path.length < 1 || path.length > 2 || !path.every((part) => HUB_SEGMENT.test(part))) {
+    throw new TypeError(`hubFacts needs a Hub identifier: ${wanted}, not "${id}"`);
+  }
+  const registry = REGISTRIES.get(dataset ? "huggingface-dataset" : "huggingface-model");
+  return registry.package.replaceAll("{name}", path.map(encodeURIComponent).join("/"));
+}
+
+const hubLicence = (data) => {
+  const fromTag = (Array.isArray(data?.tags) ? data.tags : []).find((tag) => /^license:/.test(String(tag)));
+  return normalLicence(data?.cardData?.license ?? (fromTag ? String(fromTag).slice("license:".length) : null));
+};
+
+/**
+ * hubFacts(id, key?) -> Promise<Fact[]> — a model's or dataset's revision, licence and access (public, gated, private) read from the Hugging Face
+ * Hub at the addresses of registries.md, each fact with its address and the date. `key` goes only to the Hub's own origin, in Authorization.
+ * Rejects with HubBlocked { reason } where the Hub does not answer or answers no success, and NotFound { address } for an unknown identifier;
+ * a TypeError for a text that is no Hub identifier, before any request.
+ * @param {string} id
+ * @param {string} [key]
+ * @returns {Promise<Fact[]>}
+ */
+export async function hubFacts(id, key) {
+  const address = hubAddress(id);
+  const read = TODAY();
+  const fetcher = globalThis.fetch;
+  if (typeof fetcher !== "function") throw new TypeError("hubFacts needs fetch to read the Hugging Face Hub");
+  const headers = key && new URL(address).origin === HUB_ORIGIN ? { Authorization: `Bearer ${key}` } : {};
+  let answer;
+  try {
+    answer = await fetcher(address, { headers });
+  } catch (error) {
+    throw hubFailure("HubBlocked", { reason: String(error?.message ?? error) }, `The Hugging Face Hub could not be read at ${address}.`);
+  }
+  if (answer.status === 404) throw hubFailure("NotFound", { address }, `The Hugging Face Hub knows nothing at ${address}.`);
+  if (!answer.ok) {
+    const reason = `${answer.status} ${answer.statusText ?? ""}`.trim();
+    throw hubFailure("HubBlocked", { reason }, `The Hugging Face Hub answered ${reason} at ${address}.`);
+  }
+  let data;
+  try {
+    data = await answer.json();
+  } catch (error) {
+    throw hubFailure("HubBlocked", { reason: `invalid JSON: ${String(error?.message ?? error)}` }, `The Hugging Face Hub answered no JSON at ${address}.`);
+  }
+  const candidate = { name: id, ecosystem: "huggingface" };
+  const licence = hubLicence(data);
+  const access = data?.private === true ? "private" : typeof data?.gated === "string" ? `gated (${data.gated})` : data?.gated === true ? "gated" : "public";
+  return [
+    ...(typeof data?.sha === "string" && data.sha ? [fact(candidate, "revision", data.sha, address, read)] : []),
+    ...(licence ? [fact(candidate, "licence", licence, address, read)] : []),
+    fact(candidate, "access", access, address, read),
+  ];
 }
 
 // ---------------------------------------------------------------- due-diligence step
