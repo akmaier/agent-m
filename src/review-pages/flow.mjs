@@ -27,6 +27,8 @@ import { reportSections, splitDueDiligence, dueDiligenceSection, roundsSection, 
 // What the status approved means (UC-006 4c): the record is committed, the section is not yet written into the SPEC.
 const APPROVED_NOTE = "Approval recorded, not yet written into the SPEC — the apply workflow writes it after an approval committed on GitHub's page; " +
   "accepted here with a token, record and SPEC section are one commit.";
+// Why an approved entry of the instance's own SPEC is not written yet: the instance's workflows write it, and they are not turned on.
+const NOT_WRITTEN = "Approved, not written into the SPEC: the instance's workflows write it, and they are not turned on.";
 const LABEL = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 // The id of the page that shows every file not yet accepted: #<route>/id=all.
 const REVIEW_ALL = "all";
@@ -240,8 +242,11 @@ export function reviewRoute(kind) {
         });
         first.append(box);
       }
+      // An approved entry of the instance's own SPEC is written by the instance's workflows: the row says why it is not written, and where they are turned on (UC-014 step 4, 4a).
+      const unwritten = kind.save === "entry" && !context.product && file.status === "approved"
+        ? [el("p", "why", NOT_WRITTEN), link("#get-your-own/step=actions", "actions-step", "Turn on the workflows")] : [];
       const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
-        el("td", null, file.title), el("td", null, badge(file.status, file.label)));
+        el("td", null, file.title, ...unwritten), el("td", null, badge(file.status, file.label)));
       row.setAttribute("data-id", file.id);
       return row;
     };
