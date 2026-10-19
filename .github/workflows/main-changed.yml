@@ -1,6 +1,7 @@
-# MOD-workflow-entries' entry onMainChanged, run on every push to the default branch: it adds the graph of the pushed commit to the branch
-# trace-cache, where the pages read it once instead of deriving it at every load. This file does nothing but run the entry, so that a change
-# between jobs may add to it (WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS). The branch's first commit is made here, once, as an orphan commit.
+# MOD-workflow-entries' entry onMainChanged, run on every push to the default branch: it adds the graph of the pushed commit and the impact lists of its
+# decision and module files that are not accepted to the branch trace-cache, and the overview of the main page of that commit to the branch overview-cache,
+# where the pages read them once instead of deriving them at every load. This file does nothing but run the entry. Each branch's first commit is made
+# here, once, as an orphan commit.
 name: main changed
 
 on:
@@ -20,21 +21,23 @@ jobs:
     timeout-minutes: 2
     steps:
       - uses: actions/checkout@v4
-      - name: Make the branch trace-cache, once, and fetch it
+      - name: Make the branches trace-cache and overview-cache, once, and fetch them
         run: |
           git config user.name "agent-m main-changed"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git ls-remote --exit-code --heads origin trace-cache > /dev/null; then
-            git checkout --orphan trace-cache-first
-            git rm -rf --quiet .
-            echo "The graphs of the commits of main, one file each: <commit>.json." > README.md
-            git add README.md
-            git commit --quiet -m "trace-cache: the branch of the stored graphs"
-            git push origin trace-cache-first:refs/heads/trace-cache
-            git checkout --quiet --detach "$GITHUB_SHA"
-          fi
-          git fetch origin +trace-cache:trace-cache
-      - name: Add the graph of this commit
+          for branch in trace-cache overview-cache; do
+            if ! git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+              git checkout --orphan "$branch-first"
+              git rm -rf --quiet .
+              echo "The files of the commits of main, one each: <commit>.json." > README.md
+              git add README.md
+              git commit --quiet -m "$branch: the branch of the stored files"
+              git push origin "$branch-first:refs/heads/$branch"
+              git checkout --quiet --detach "$GITHUB_SHA"
+            fi
+            git fetch origin +$branch:$branch
+          done
+      - name: Store the records of this commit
         run: node src/workflow-entries/main.mjs onMainChanged
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
