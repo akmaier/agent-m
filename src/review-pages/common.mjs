@@ -8,6 +8,10 @@ import { parseAddress } from "../repository-hosts/index.mjs";
 import { readProblem } from "../site-frame/index.mjs";
 import { openEditor as openMarkdownEditor } from "../markdown-render/index.mjs";
 
+// The panel's words for a refusal it shows: the refusal as MOD-spec-changes states it and, for two candidates that change one requirement (TwoChanges), how to go on — one of them can be
+// made `new`, or the two merged.
+export const refusalText = (failure) => `${failure.name}: ${failure.message}${failure.name === "TwoChanges" ? " To go on, give one of the two the class new, or merge them into one." : ""}`;
+
 export const TOKEN_STEP = "#add";
 
 export function el(name, className, ...children) {

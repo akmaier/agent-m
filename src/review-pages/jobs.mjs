@@ -24,7 +24,7 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
-import { defaultSnapshot, el, button, link, readJobRecords, tokenStep } from "./common.mjs";
+import { defaultSnapshot, el, button, link, readJobRecords, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -442,7 +442,7 @@ async function presentRequirements(outcome, result, run) {
       if (written.notes?.length) status.append(el("ul", "notes", ...written.notes.map((note) => el("li", "note", note))));
     } catch (failure) {
       write.disabled = false;
-      status.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
+      status.append(el("p", "result problem", refusalText(failure)));
     }
   });
   panel.append(el("div", "actions", write), status);
