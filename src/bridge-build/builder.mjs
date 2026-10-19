@@ -11,7 +11,7 @@ import { dirname, join, resolve } from "node:path";
 import { appDescription } from "../desktop-shell/index.mjs";
 import { checksumsText, publicPem, sha256Hex, signatureHolds, signBytes } from "./sign.mjs";
 import { ReleaseError } from "./publish.mjs";
-import { loadSsh2, nativeAddon, run, tunnelCheck, verifyCodeSignature } from "./check.mjs";
+import { loadSsh2, nativeAddon, run, shippedAddon, tunnelCheck, verifyCodeSignature } from "./check.mjs";
 
 const PLATFORMS = ["macos", "windows", "linux"];
 const MANIFEST = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
@@ -169,7 +169,7 @@ export async function buildPlatform({ platform, checkout, tag, folder }) {
     for (const name of Object.keys(builderEnv)) if (name.startsWith("BRIDGE_")) delete builderEnv[name];
     const installed = await run("npm", ["ci", "--omit=optional", "--ignore-scripts"], { cwd: stage, env: builderEnv });
     if (installed.code !== 0) throw buildFailed(scrub(`npm ci: ${installed.output.trim().slice(-500)}`));
-    const addon = nativeAddon(join(stage, "node_modules"), stage);
+    const addon = shippedAddon(stage);
     if (addon) throw new ReleaseError("NativeAddonFound", { file: addon }, `${addon}: the app holds a compiled Node addon`);
 
     const config = builderConfig(appDescription, { platform, version, appId, owner, repository, folders, resources, output });

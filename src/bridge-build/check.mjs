@@ -5,7 +5,7 @@
 // Module: MOD-bridge-build
 
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import http from "node:http";
 import net from "node:net";
@@ -40,6 +40,29 @@ export function nativeAddon(root, base = root) {
       if (found) return found;
     } else if (entry.name.endsWith(".node")) {
       return relative(base, path);
+    }
+  }
+  return null;
+}
+
+// The first compiled Node addon in the packages the app carries (MOD-bridge-build, "What the app carries": "the packages above that the app needs at
+// run time"): — those package.json names under `dependencies`, and, in the installed tree, the `dependencies` of each,
+// recursively; optional dependencies are not installed, and the build tools (devDependencies and what only they reach) do not ship. A package is
+// found in its own node_modules first, then in the installed tree's. As a path relative to `stage`; null when there is none.
+export function shippedAddon(stage) {
+  const installed = join(stage, "node_modules");
+  const readJson = (path) => { try { return JSON.parse(readFileSync(path, "utf8")); } catch { return null; } };
+  const seen = new Set();
+  const queue = Object.keys(readJson(join(stage, "package.json"))?.dependencies ?? {}).map((name) => join(installed, name));
+  while (queue.length) {
+    const folder = queue.shift();
+    if (seen.has(folder)) continue;
+    seen.add(folder);
+    const addon = nativeAddon(folder, stage);
+    if (addon) return addon;
+    for (const name of Object.keys(readJson(join(folder, "package.json"))?.dependencies ?? {})) {
+      const nested = join(folder, "node_modules", name);
+      queue.push(existsSync(nested) ? nested : join(installed, name));
     }
   }
   return null;
