@@ -352,6 +352,6 @@ test("the switch is read when the tab Repositories is shown, not when the page i
   assert.equal(stateOf(one(target, "settings-recording")), "Recording conversations is not read yet.");
   await click(byClass(target, "settings-tab")[1]);
   await settled();
-  assert.deepEqual(host.reads, [SWITCH], "the switch file was read once");
+  assert.deepEqual(host.reads.filter((path) => path === SWITCH), [SWITCH], "the switch file was read once");
   assert.equal(stateOf(one(target, "settings-recording")), "Recording conversations is on.");
 });

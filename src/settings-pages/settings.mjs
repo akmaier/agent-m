@@ -6,6 +6,8 @@ import { notificationState, switchOff, switchOn, testNotification } from "../not
 import { explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
+import { declarationSchema } from "../product-process/index.mjs";
+import { sourceSchemas } from "../source-register/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
@@ -1059,6 +1061,66 @@ async function productControls(context) {
     el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
 }
 
+// ---------------------------------------------------------------- the repository settings (UC-042 step 3)
+
+const PARTICIPANT_REGISTER = "docs/participants.md", RESOURCE_REGISTER = "docs/resources.md", PROCESS_DECLARATION = "docs/process.md", LINKED_SOURCES = "docs/sources.md", SCHEDULE_FILE = "docs/tests/schedule.md";
+const NOT_SET = "not set";
+
+const plural = (count, one) => `${count} ${count === 1 ? one : `${one}s`}`;
+const rowsIn = (schema, path, text) => (typeof text === "string" ? readRegister(schema, path, text).rows.length : 0);
+const countSummary = (count, one) => (count ? plural(count, one) : NOT_SET);
+// The names of the files directly below a folder of a snapshot, without their extension, in the snapshot's order.
+const namesBelow = (snapshot, folder, prefix = "") => snapshot.paths.filter((path) => path.startsWith(`${folder}/${prefix}`) && path.endsWith(".md") && !path.slice(folder.length + 1).includes("/"))
+  .map((path) => path.slice(folder.length + 1, -".md".length));
+const declarationOf = async (snapshot) => {
+  const text = await snapshot.read(PROCESS_DECLARATION);
+  return typeof text === "string" ? readDocument(declarationSchema, PROCESS_DECLARATION, text) : null;
+};
+
+// The instance's four settings and the product's six: the title of the line, the route its *Edit* opens, and the summary read from the repository's snapshot.
+const INSTANCE_SETTINGS = [
+  ["Participants", "participants", async (snapshot) => countSummary(rowsIn(participantSchema(), PARTICIPANT_REGISTER, await snapshot.read(PARTICIPANT_REGISTER)), "participant")],
+  ["Source library", "library", async (snapshot) => countSummary(namesBelow(snapshot, "docs/sources", "SRC-").length, "source")],
+  ["Process models", "models", async (snapshot) => countSummary(namesBelow(snapshot, "docs/process-models").length, "model")],
+  ["Resources", "resources/instance", async (snapshot) => countSummary(rowsIn(resourceSchema(), RESOURCE_REGISTER, await snapshot.read(RESOURCE_REGISTER)), "resource")],
+];
+const PRODUCT_SETTINGS = [
+  ["Process model", "process", async (snapshot) => (await declarationOf(snapshot))?.fields.model ?? NOT_SET],
+  ["Role assignments", "roles", async (snapshot) => namesBelow(snapshot, "docs/role-assignments").join(", ") || NOT_SET],
+  ["Definition of Done", "process", async (snapshot) => {
+    const section = (await declarationOf(snapshot))?.sections.find((candidate) => candidate.heading === "## Definition of Done");
+    return section?.text.trim().split("\n")[0] || NOT_SET;
+  }],
+  ["Test schedule", "schedule", async (snapshot) => (snapshot.paths.includes(SCHEDULE_FILE) ? "set" : NOT_SET)],
+  ["Linked sources", "sources", async (snapshot) => countSummary(rowsIn(sourceSchemas().links, LINKED_SOURCES, await snapshot.read(LINKED_SOURCES)), "linked source")],
+  ["Resources", "resources", async (snapshot) => countSummary(rowsIn(resourceSchema(), RESOURCE_REGISTER, await snapshot.read(RESOURCE_REGISTER)), "resource")],
+];
+
+// One section of lines: each setting is a line with its title, its summary and *Edit*, which opens the route of the setting. `load()` reads the repository's default branch once,
+// when the tab that holds the section is shown, and fills the summaries; a repository that cannot be read leaves each summary saying so.
+function repositorySettings(context, { className, heading, settings, hostOf }) {
+  const lines = settings.map(([title, route]) => {
+    const summary = el("span", "settings-repository-setting-summary", "Not read yet.");
+    const edit = el("button", "settings-repository-setting-edit btn", "Edit");
+    edit.addEventListener("click", () => context.go(route, {}));
+    return { node: el("p", "settings-repository-setting", el("strong", "settings-repository-setting-title", title), " ", summary, " ", edit), summary };
+  });
+  const node = el("div", `${className} panel`, el("h3", null, heading), ...lines.map((line) => line.node));
+  let loaded = false;
+  const load = async () => {
+    if (loaded) return;
+    loaded = true;
+    try {
+      const host = hostOf();
+      const snapshot = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+      for (const [index, [, , summaryOf]] of settings.entries()) lines[index].summary.textContent = await summaryOf(snapshot);
+    } catch (error) {
+      for (const line of lines) line.summary.textContent = `Could not be read: ${error?.message ?? error}`;
+    }
+  };
+  return { node, load };
+}
+
 // The tabs of the page: the one whose id `chosenId` names is selected, else the first; `choose` hears each id selected.
 function tabbedSettings(panes, chosenId, choose) {
   const tabs = el("div", "settings-tabs");
@@ -1152,6 +1214,8 @@ export const route = {
       exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
     const recording = recordingControls(context);
+    const instanceSettings = repositorySettings(inPlace, { className: "settings-instance-settings", heading: "Instance · settings kept in its repository", settings: INSTANCE_SETTINGS, hostOf: () => context.instance.host });
+    const productSettings = context.product && repositorySettings(inPlace, { className: "settings-product-settings", heading: "Product · settings kept in its repository", settings: PRODUCT_SETTINGS, hostOf: () => context.product.host });
     const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
@@ -1159,7 +1223,7 @@ export const route = {
         const line = repositoryLine(target, inPlace, info);
         return !line ? [] : info.key === "products" ? [line, productForm] : [line];
       }),
-      recording.node, ...(productList ? [productList] : []), product);
+      recording.node, instanceSettings.node, ...(productList ? [productList] : []), product, ...(productSettings ? [productSettings.node] : []));
     const endpointPane = el("section", "settings-tab-panel",
       el("h3", null, "Endpoints & Agents · this browser"),
       configurationControls(inPlace), form,
@@ -1174,7 +1238,7 @@ export const route = {
       { name: "Repositories", id: "settings-repositories", node: repositories },
       { name: "Endpoints & Agents", id: "settings-endpoints-agents", node: endpointPane },
       { name: "Usability", id: "settings-usability", node: usability },
-    ], chosenTabs.get(context), (id) => { chosenTabs.set(context, id); if (id === "settings-repositories") recording.load(); });
+    ], chosenTabs.get(context), (id) => { chosenTabs.set(context, id); if (id === "settings-repositories") { recording.load(); instanceSettings.load(); productSettings?.load(); } });
     target.replaceChildren(el("section", "head", el("h2", null, "Settings")), tabbed.tabs, ...tabbed.panels);
   },
 };
