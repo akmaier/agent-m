@@ -425,3 +425,42 @@ test("TST-269009: an old bridged value with no Bridge kept offers the Bridge set
     assert.deepEqual(navigations.map((step) => step.route), ["bridge"], "it leads to the Bridge page");
   } finally { globalThis.fetch = oldFetch; }
 });
+
+// TST-269010 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO; THE PAGE NAMES WHERE IT SENDS
+// given: the Settings page lists an old bridged value { url, kind, model, throughBridge: true } that names no Bridge
+// input: the person reads the line's disclosure, then presses the line's Test
+// expect: the disclosure does not claim a request to the model's address; Test makes no request of any kind, records no test, leaves the stored value unchanged, and asks the person to choose the Bridge
+test("TST-269010: the Settings line's Test of an old bridged value asks for a named Bridge and never calls the model directly", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  globalThis.fetch = scripted([], calls);
+  try {
+    const target = await renderSettings(store);
+    const line = byClass(target, "settings-endpoint")[0];
+    assert.equal(byClass(line, "settings-endpoint-disclosure")[0].textContent.includes(OLD_BRIDGED.url), false, "no request to the model's address is announced");
+    await click(byClass(line, "settings-endpoint-test")[0]);
+    assert.equal(calls.length, 0, "failure node: settings.mjs falls to testEndpoint when setting.bridge is absent");
+    assert.equal(readSetting(store, "last-test:endpoint:old"), null);
+    assert.deepEqual(readSetting(store, "endpoint:old"), OLD_BRIDGED);
+    assert.match(byClass(line, "settings-endpoint-result")[0].textContent, /choose the Bridge/i);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269011 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER
+// given: the Settings page lists an endpoint that names the kept Bridge lab
+// input: the person presses the line's Test
+// expect: exactly one request, to lab's probe address, and none to the model
+test("TST-269011: the Settings line's Test of a named-Bridge endpoint still goes through that Bridge only", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:named", { url: OLD_BRIDGED.url, kind: OLD_BRIDGED.kind, model: OLD_BRIDGED.model, bridge: "lab" });
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  globalThis.fetch = async (url, init = {}) => { calls.push({ url: String(url), init }); return new Response(JSON.stringify({ answer: { works: true, model: OLD_BRIDGED.model } }), { status: 200, headers: { "Content-Type": "application/json" } }); };
+  try {
+    const target = await renderSettings(store);
+    await click(byClass(target, "settings-endpoint-test")[0]);
+    assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4711/v1/probes/endpoint-test"]);
+  } finally { globalThis.fetch = oldFetch; }
+});
