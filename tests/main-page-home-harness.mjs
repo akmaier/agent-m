@@ -16,6 +16,9 @@ import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { INSTANCE, PRODUCT, githubServer, instanceFiles, productFiles } from "./progress-measures-load.mjs";
 
 export { INSTANCE, PRODUCT, instanceFiles, productFiles };
+
+/** The head commit the fake GitHub gives the branch main of `repository` (tests/progress-measures-load.mjs makes it the SHA-1 of the repository's name). */
+export const headOf = (repository) => createHash("sha1").update(repository).digest("hex");
 export const INSTANCE_TOKEN = "github_pat_HOME827INSTANCE0123456789abcdef";
 export const PRODUCT_TOKEN = "github_pat_HOME827PRODUCT0123456789abcdefg";
 export const OTHER_TOKEN = "github_pat_HOME847OTHER000123456789abcdefghijk";
@@ -166,7 +169,8 @@ export function network(repos, { bridgeLists = null } = {}) {
   const requests = [];
   const real = globalThis.fetch;
   let held = repos, fake = null, spy = null;
-  const net = { requests, bridgeLists, refusing: null, ciRuns: [],
+  // `overviews` ({ "owner/name": { "<commit>": text } }): the files `<commit>.json` of the branch `overview-cache` each repository holds; none is held at first.
+  const net = { requests, bridgeLists, refusing: null, ciRuns: [], overviews: {},
     // the fake's own record of what each request read: those of every state the repositories have been in
     server: { get log() { return servers.flatMap((server) => server.log); } },
     bridgeAsked: () => requests.filter((request) => request.host === "127.0.0.1:4711").length,
@@ -178,6 +182,12 @@ export function network(repos, { bridgeLists = null } = {}) {
         requests.push({ url: url.href, host: url.host, authorization: headerOf(init, "authorization") });
         if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: net.bridgeLists ? [{ id: net.bridgeLists, state: "running", usage: null }] : [] });
         if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
+        const overview = url.host === "api.github.com" && url.searchParams.get("ref") === "overview-cache"
+          ? /^\/repos\/([^/]+\/[^/]+)\/contents\/([0-9a-f]+)\.json$/.exec(url.pathname) : null;
+        if (overview) {
+          const held = net.overviews[overview[1]]?.[overview[2]];
+          return held === undefined ? new Response('{"message":"Not Found"}', { status: 404 }) : new Response(held, { status: 200 });
+        }
         if (net.refusing && url.host === "api.github.com" && (!net.refusing.repository || url.pathname.startsWith(`/repos/${net.refusing.repository}/`))) {
           if (net.refusing.how === "error") return new Response("{}", { status: 500, headers: { "content-type": "application/json" } });
           const reset = net.refusing.how === "limit" ? { "x-ratelimit-reset": String(RATE_RESET / 1000) } : {};
