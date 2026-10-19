@@ -165,12 +165,12 @@ class ProductRepositoryIsSelfSufficient(unittest.TestCase):
     def test_counter_proof_a_file_of_agent_m_is_found(self):
         agent_m = agent_m_files()
         planted = [{"path": "docs/approvals/README.md", "content": (
-            "Written by `docs/assets/review-core.mjs`; without a token tools/apply_approvals.py writes the section.\n"
+            "Written by `docs/assets/review-core.mjs`; without a token src/workflow-entries/main.mjs writes the section.\n"
             "See [the rules](../../SPEC.md) and [the plan](../../PLAN.md#x) and the queues in `docs/spec-freigaben/`.\n")}]
         self.assertEqual(self_sufficiency_findings(planted, self.product, agent_m, AGENT_M),
                          ["docs/approvals/README.md: PLAN.md exists only inside Agent M",
                           "docs/approvals/README.md: docs/assets/review-core.mjs exists only inside Agent M",
-                          "docs/approvals/README.md: tools/apply_approvals.py exists only inside Agent M"])
+                          "docs/approvals/README.md: src/workflow-entries/main.mjs exists only inside Agent M"])
 
     def test_counter_proof_a_service_of_agent_m_is_found(self):
         planted = [{"path": "docs/settings.md", "content": (

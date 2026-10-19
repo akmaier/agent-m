@@ -1,25 +1,25 @@
-// The approval engine's workflow route — applyApprovals (docs/assets/review-core/apply-approvals.mjs, ITM-016): what the
-// instance's apply workflow writes for every `kind: spec` record committed without the dashboard. Deterministic, no network.
+// The instance workflow's route — MOD-spec-changes' applyApproved (ITM-691): what the instance's apply workflow writes for every `kind: spec` record committed
+// without the dashboard. Deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for A STALE APPROVAL IS NOT APPLIED: node --test tests/*.test.mjs
 //
 // Module: MOD-spec-changes
 // Guards: A STALE APPROVAL IS NOT APPLIED; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // Level: unit
 //
-// The product is tests/fixtures/gates/ (a queue of two SPEC entries, 01 and 02, against SPEC.md), held in memory. The port
-// `read(path)` answers a file's text, or null; for a folder — a path ending in "/" — the names of the files in it. The
-// comparison with tools/apply_approvals.py, byte for byte, is in tests/test_apply_approvals.py.
-// Counter-proofs: docs/measurements/2026-10-01_apply-approvals-in-the-engine.md.
+// The product is tests/fixtures/gates/ (a queue of two SPEC entries, 01 and 02, against SPEC.md), held in memory as a Snapshot, with the register entry and the link
+// a product needs for the source "PO" its requirements name. A record's `section` is the exact bytes of the section (MOD-spec-document's sectionText); the dashboard's
+// acceptance names the section as its own engine takes it. The report is one line per record: "<record>: applied" or "<record>: refused — <applyApproved's reason>".
+// The comparison with the old Python tool, which is gone, is no longer made; tests/test_apply_approvals.py holds the cases on throwaway repositories.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
+import { applyApproved } from "../../src/spec-changes/index.mjs";
+import { sectionText as exactSection } from "../../src/spec-document/index.mjs";
 import { gitBlobSha, extractSection, sectionText, recordText, specRecord, planAcceptance } from "../../docs/assets/review-core.mjs";
-
-// Imported when a test runs, so that a missing engine fails these tests and not the whole of tests/review-core.test.mjs.
-const engine = async () => (await import("../../docs/assets/review-core/apply-approvals.mjs")).applyApprovals;
 
 const FIX = fileURLToPath(new URL("../fixtures/gates/", import.meta.url));
 const Q = "docs/spec-freigaben/2026-10-01a_gates", QNAME = "2026-10-01a_gates";
@@ -52,13 +52,23 @@ const section = (tree, anchor) => sectionText(extractSection(tree["SPEC.md"], an
 async function record(tree, nr, over = {}) {
   const [file, anchor] = ENTRIES[nr];
   const r = { ...specRecord({ queue: Q, entry: nr, proposal: `${Q}/${file}`, blob: await gitBlobSha(tree[`${Q}/${file}`]),
-    target: "SPEC.md", anchor, section: await gitBlobSha(section(tree, anchor)) }), ...over };
+    target: "SPEC.md", anchor, section: await gitBlobSha(exactSection(tree["SPEC.md"], anchor) ?? "") }), ...over };
   const path = `docs/approvals/spec-${QNAME}-${r.entry}-${String(r.blob).slice(0, 12)}.md`;
   tree[path] = recordText(r);
   return path;
 }
 
-const apply = async (tree) => (await engine())({ read: reader(tree), now: WHEN });
+// applyApproved on the in-memory tree -> { files: [{ path, content }], report, refused }.
+const apply = async (tree) => {
+  const hash = "c".repeat(64);
+  const all = { ...tree, "docs/sources.md": `# Sources\n\n| Source | Version | Hash | Part |\n|---|---|---|---|\n| SRC-po | 2026-10-01 | ${hash} | |\n`,
+    "docs/sources/SRC-po.md": `---\nid: SRC-po\ntitle: PO\nkind: person\nauthority: normative\nlicence: fixture\nidentifier: fixture\n---\n# SRC-po PO\n\nA fixture source.\n\n## Versions\n\n| Version | Date | Edition | Read from | Files |\n|---|---|---|---|---|\n| \`2026-10-01\` | 2026-10-01 | fixture | fixture | version hash \`${hash}\` |\n` };
+  const blobOf = (p) => (p in all ? createHash("sha1").update(Buffer.concat([Buffer.from(`blob ${Buffer.byteLength(all[p])}\0`), Buffer.from(all[p])])).digest("hex") : null);
+  const out = await applyApproved({ commit: "0".repeat(40), paths: Object.keys(all), read: async (p) => all[p] ?? null, blob: blobOf }, WHEN);
+  const name = (p) => p.split("/").pop();
+  const report = [...out.applied.map((p) => `${name(p)}: applied`), ...out.refused.map((r) => `${name(r.record)}: refused — ${r.reason}`)].join("\n");
+  return { files: Object.entries(out.files).map(([path, content]) => ({ path, content })), report, refused: out.refused.map((r) => ({ record: name(r.record), reason: r.reason })) };
+};
 const written = (out) => Object.fromEntries(out.files.map((f) => [f.path, f.content]));
 
 test("A STALE APPROVAL IS NOT APPLIED — the engine's workflow route: a proposal or a SPEC section changed after approval writes nothing and is named", async () => {
@@ -68,7 +78,7 @@ test("A STALE APPROVAL IS NOT APPLIED — the engine's workflow route: a proposa
   const applied = await apply(ok);
   assert.deepEqual(applied.refused, []);
   assert.deepEqual(applied.files.map((f) => f.path).sort(), ["SPEC.md", `${Q}/entscheidungen.md`]);
-  assert.equal(applied.report, `${rec}: applied — SPEC.md ## 2. More`);
+  assert.equal(applied.report, `${rec}: applied`);
 
   // Expected: the proposal changed after approval — no file, the record named with the reason.
   const p = fixture();
@@ -77,7 +87,7 @@ test("A STALE APPROVAL IS NOT APPLIED — the engine's workflow route: a proposa
   const byProposal = await apply(p);
   assert.deepEqual(byProposal.files, []);
   assert.deepEqual(byProposal.refused.map((r) => r.record), [rec]);
-  assert.match(byProposal.report, new RegExp(`^${rec}: refused — proposal changed after approval \\([0-9a-f]{12} ≠ ${rec.slice(-15, -3)}\\)$`));
+  assert.equal(byProposal.report, `${rec}: refused — the proposal changed after it was approved — open it again`);
 
   // Expected: the SPEC section changed after approval — no file, the record named with the reason.
   const s = fixture();
@@ -85,8 +95,8 @@ test("A STALE APPROVAL IS NOT APPLIED — the engine's workflow route: a proposa
   s["SPEC.md"] = s["SPEC.md"].replace("Rule two holds", "Rule 2 holds");
   const bySection = await apply(s);
   assert.deepEqual(bySection.files, []);
-  assert.equal(bySection.report, `${rec}: refused — SPEC section changed after approval`);
-  assert.deepEqual(bySection.refused, [{ record: rec, reason: "SPEC section changed after approval" }]);
+  assert.equal(bySection.report, `${rec}: refused — the SPEC section changed after it was approved — open it again`);
+  assert.deepEqual(bySection.refused, [{ record: rec, reason: "the SPEC section changed after it was approved — open it again" }]);
 });
 
 test("WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE — the engine writes what the dashboard's acceptance commit writes, entry by entry in the queue's order", async () => {
@@ -103,10 +113,9 @@ test("WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE — the engine 
     }
     const dashboard = await planAcceptance({ items, read: reader(t), now: WHEN });
     assert.deepEqual(dashboard.leftOut, []);
-    // The person commits the two records the dashboard would have written; the workflow runs on that commit.
-    const recs = Object.fromEntries(dashboard.files.filter((f) => f.path.startsWith("docs/approvals/")).map((f) => [f.path, f.content]));
-    assert.equal(Object.keys(recs).length, 2);
-    const out = await apply({ ...t, ...recs });
+    // The person commits the two records on GitHub's page, naming the sections as the workflow takes them; the workflow runs on that commit.
+    for (const nr of [1, 2]) await record(t, nr);
+    const out = await apply(t);
     assert.deepEqual(out.refused, []);
     const byDashboard = Object.fromEntries(dashboard.files.map((f) => [f.path, f.content]));
     assert.deepEqual(written(out), { "SPEC.md": byDashboard["SPEC.md"], [`${Q}/entscheidungen.md`]: byDashboard[`${Q}/entscheidungen.md`] },
@@ -127,11 +136,11 @@ test("WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE — a second ru
 
 test("A STALE APPROVAL IS NOT APPLIED — a malformed record is refused and named, and nothing of it is written", async () => {
   const cases = {
-    "a missing key": [{ section: "" }, /refused — missing section$/],
-    "an entry that is no number": [{ entry: "one" }, /refused — entry 'one' is not a number$/],
-    "a target that does not exist": [{ target: "NOSPEC.md" }, /refused — target NOSPEC\.md does not exist$/],
-    "a proposal outside its queue": [{ proposal: "SPEC.md" }, /refused — proposal 'SPEC\.md' is not a file of queue '[^']+'$/],
-    "an anchor that is not the queue's": [{ anchor: "## It's more" }, /refused — record anchor "## It's more" is not the queue's anchor '## 2\. More'$/],
+    "a missing key": [{ section: "" }, /refused — the record lacks section$/],
+    "an entry that is no number": [{ entry: "one" }, /refused — the record's entry “one” is not a number$/],
+    "a target that does not exist": [{ target: "NOSPEC.md" }, /refused — the record names the target NOSPEC\.md, not the entry's SPEC\.md$/],
+    "a proposal outside its queue": [{ proposal: "SPEC.md" }, /refused — the record names the proposal SPEC\.md, not the entry's \S+$/],
+    "an anchor that is not the queue's": [{ anchor: "## It's more" }, /refused — the record's anchor “## It's more” is not the queue's anchor “## 2\. More” for entry 01$/],
   };
   for (const [label, [over, reason]] of Object.entries(cases)) {
     const t = fixture();

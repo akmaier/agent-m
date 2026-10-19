@@ -80,14 +80,6 @@ test("extractSection: heading to next heading of same level, code fences masked"
   assert.equal(sectionText(extractSection(spec, "## 1. A", "### sub")), "## 1. A\ntext\n```\n## not a heading\n```\n");
 });
 
-test("sectionText is the same bytes the Python applier hashes", async () => {
-  const spec = readFileSync(new URL("./fixtures/spec.md", import.meta.url), "utf8");
-  const py = execFileSync("python3", ["-c",
-    "import sys; sys.path.insert(0,'tools'); import apply_approvals as a;" +
-    "t=open('tests/fixtures/spec.md').read(); print(a.blob_sha(a.section_text(a.extract_section(t,'## 1. First'))))"]).toString().trim();
-  assert.equal(await gitBlobSha(sectionText(extractSection(spec, "## 1. First"))), py);
-});
-
 test("queue index and decisions parse like scripts/spec_dashboard.py", () => {
   const idx = parseQueueIndex("x\n**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n| 01 | `SPEC.md` | ## 9. Human gates | — | — |\n| 02 | `SPEC.md` | ## 2. X | ## 3. Y | — |\n");
   assert.equal(idx.target, "products/agent-m/SPEC.md");
@@ -182,7 +174,7 @@ test("ADDING A PRODUCT CREATES ITS LAYOUT — only what is missing", () => {
 // AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL · A STALE APPROVAL IS NOT APPLIED ·
 // SEVERAL FILES ARE ACCEPTED IN ONE CLICK · A QUEUE IS ACCEPTED IN ITS ORDER (UC-006 4–7, 4d, 5a; UC-008 3d)
 
-test("decisionRow is the row tools/apply_approvals.py writes", () => {
+test("decisionRow is the row of the decision table", () => {
   assert.equal(decisionRow(7, "spec-q-07-a99553a7b6f9.md", WHEN), "| 2026-09-29 16:03 UTC | 7 | uebernommen | approval:spec-q-07-a99553a7b6f9.md |\n");
 });
 
