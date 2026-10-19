@@ -60,8 +60,8 @@ function jobIn(state, { route = "bridge lab-pc-4", task = "in parameters" } = {}
 }
 
 /** The world: the product with the job, the declaration and the role assignment; the instance with its participants; the Bridge lab-pc-4 listing the job only when `listed`; the writes of one commit answered and kept. */
-function world(given, { listed = false, assignment = ASSIGNMENT } = {}) {
-  const files = { ...smallProduct({ jobs: [given] }), "docs/process.md": DECLARATION, "docs/role-assignments/team1.md": assignment, "docs/backlog/sprints/team1/01.md": SPRINT };
+function world(given, { listed = false, assignment = ASSIGNMENT, declaration = DECLARATION, sprint = SPRINT, more = {} } = {}) {
+  const files = { ...smallProduct({ jobs: [given] }), "docs/process.md": declaration, "docs/role-assignments/team1.md": assignment, "docs/backlog/sprints/team1/01.md": sprint, ...more };
   net = network({ [PRODUCT]: files, [INSTANCE]: { "SPEC.md": "# Instance — Specification\n", "docs/participants.md": REGISTER } }, { bridgeLists: listed ? ID : null });
   net.install();
   const seen = { trees: [], commits: [], moves: 0 };
@@ -187,4 +187,95 @@ test("TST-974005 a job whose task travelled with its hand-over offers the prompt
   await trusted(one(target, "retry-prompt-bar"));
   assert.deepEqual(context.went, [["job", { id: ID, product: "https://github.com/alice/product", retry: "implement-item" }]]);
   assert.deepEqual(seen.trees, []);
+});
+
+// ---------------------------------------------------------------- ITM-1024: a retry whose item is no longer startable names the reason and starts nothing (UC-036 7a)
+//
+// Readings the module file leaves open, which the tests state (the pull request names them):
+//   - "Retry ... whose step or item is still startable" is read for every way a retry is offered: a job queued on a Bridge, a job that ran in a tab (its retry opens the prompt bar) and a job whose task travelled with its hand-over.
+//     A job whose item is not startable is offered neither Retry nor "Open the prompt bar"; the page lists the reasons (<li class="retry-reason">) and calls go() never.
+//   - "The item left its sprint": the sprint file no longer selects it. "The WIP limit is reached": the product follows kanban (WIP limit 3) and three other items are in progress.
+
+const OTHER_SPRINT = SPRINT.replace("  - ITM-0900", "  - ITM-0901");
+const item = (id) => ["---", `id: ${id}`, "title: The work", "level: module", "realises:", "  - UC-001", "modules:", "  - MOD-store", "---", `# ${id} The work`, ""].join("\n");
+const KANBAN = DECLARATION.replace("model: scrum", "model: kanban").replace("scrum.md", "kanban.md").replace("| Sprint | sprint/<team>/<nn> |", "| Development | work/<item> |");
+const KANBAN_ASSIGNMENT = ASSIGNMENT.replace("| Product Owner | alice |", "| Product owner | alice |").replace("| Scrum Master | alice |\n", "").replace("| Developers |", "| Developer |");
+const busy = (n) => { const { path, text } = startRecord({ id: `JOB-20261016-1000-7f0${n}`, kind: "implement-item", worksOn: [`ITM-090${n}`], participant: "dev-two", model: "model-y", route: "bridge lab-pc-4", run: null, retries: null, startedBy: "alice",
+  start: new Date("2026-10-16T10:00:00Z"), agentM: { version: "2026.1.0", commit: "abc1234" }, inputs: [`docs/backlog/ITM-090${n}-work.md@${"b".repeat(40)}`], limit: 5, task: "in parameters", conversation: null, destinations: [], params: { item: `ITM-090${n}` } });
+  return { path, text: appendToRecord(text, { part: "taken", at: new Date("2026-10-16T10:00:00Z"), by: "lab-pc-4" }) }; };
+const crowded = () => { const more = {}; for (const n of [1, 2, 3]) { const { path, text } = busy(n); more[path] = text; more[`docs/backlog/ITM-090${n}-work.md`] = item(`ITM-090${n}`); } return more; };
+const retryButtons = (target) => walk(target, (node) => node.localName === "button" && ["Retry", "Open the prompt bar"].includes(node.textContent));
+const reasonsOf = (target) => byClass(target, "retry-reason").map((node) => node.textContent);
+
+// TST-1024001 · level: unit · module: MOD-main-page
+// guards: UC-036 (7a); A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
+// given: the failed job of dev-cli on ITM-0900, whose sprint (team1's) no longer selects ITM-0900 (it selects ITM-0901)
+// input: the route job drawn
+// expect: no button Retry; the page lists a reason that says ITM-0900 is not selected for a sprint; nothing is written
+test("TST-1024001 a job whose item left its sprint is offered no retry, and the reason is named", async () => {
+  use(1);
+  const { seen, context } = world(jobIn("failed"), { sprint: OTHER_SPRINT, more: { "docs/backlog/ITM-0901-other.md": item("ITM-0901") } });
+  const target = await drawJob(context);
+  assert.deepEqual(retryButtons(target), []);
+  assert.equal(reasonsOf(target).some((text) => /ITM-0900/.test(text) && /sprint/i.test(text)), true, reasonsOf(target).join(" | "));
+  assert.deepEqual(seen.trees, []);
+});
+
+// TST-1024002 · level: unit · module: MOD-main-page
+// guards: UC-036 (7a); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// given: the failed job of dev-cli on ITM-0900 in a kanban product (WIP limit 3) in which ITM-0901, ITM-0902 and ITM-0903 are in progress (a taken job each, none ended)
+// input: the route job drawn
+// expect: no button Retry; the page lists a reason that names the work-in-progress limit; nothing is written
+test("TST-1024002 a job whose product is at its work-in-progress limit is offered no retry, and the reason is named", async () => {
+  use(2);
+  const { seen, context } = world(jobIn("failed"), { declaration: KANBAN, assignment: KANBAN_ASSIGNMENT, more: crowded() });
+  const target = await drawJob(context);
+  assert.deepEqual(retryButtons(target), []);
+  assert.equal(reasonsOf(target).some((text) => /work-in-progress limit/.test(text)), true, reasonsOf(target).join(" | "));
+  assert.deepEqual(seen.trees, []);
+});
+
+// TST-1024003 · level: unit · module: MOD-main-page
+// guards: UC-036 (7a); A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the failed job that ran in a tab, on ITM-0900, which team1's sprint no longer selects
+// input: the route job drawn; a click a person makes on every button the page offers
+// expect: no button Retry or Open the prompt bar; a reason naming ITM-0900 and the sprint; go() is never called; nothing is written (counter-proof: with the item selected, TST-974004 retries the tab job)
+test("TST-1024003 a job that ran in a tab, whose item left its sprint, opens no prompt bar and names the reason", async () => {
+  use(3);
+  const { seen, context } = world(jobIn("failed", { route: "tab" }), { sprint: OTHER_SPRINT, more: { "docs/backlog/ITM-0901-other.md": item("ITM-0901") } });
+  const target = await drawJob(context);
+  assert.deepEqual(retryButtons(target), []);
+  assert.equal(reasonsOf(target).some((text) => /ITM-0900/.test(text) && /sprint/i.test(text)), true, reasonsOf(target).join(" | "));
+  assert.deepEqual(context.went, []);
+  assert.deepEqual(seen.trees, []);
+});
+
+// TST-1024004 · level: unit · module: MOD-main-page
+// guards: UC-036 (7a); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// given: the failed job whose task travelled with its hand-over, on ITM-0900, in a kanban product at its work-in-progress limit (three other items in progress)
+// input: the route job drawn
+// expect: no button Open the prompt bar or Retry; a reason naming the work-in-progress limit; go() is never called; nothing is written
+test("TST-1024004 a job whose task travelled with its hand-over, at the work-in-progress limit, opens no prompt bar and names the reason", async () => {
+  use(4);
+  const { seen, context } = world(jobIn("failed", { task: "with the hand-over" }), { declaration: KANBAN, assignment: KANBAN_ASSIGNMENT, more: crowded() });
+  const target = await drawJob(context);
+  assert.deepEqual(retryButtons(target), []);
+  assert.equal(reasonsOf(target).some((text) => /work-in-progress limit/.test(text)), true, reasonsOf(target).join(" | "));
+  assert.deepEqual(context.went, []);
+  assert.deepEqual(seen.trees, []);
+});
+
+// TST-1024005 · level: unit · module: MOD-main-page
+// guards: UC-036 (7a); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// given: as TST-1024002, but only two other items are in progress, so that ITM-0900 is under the limit of 3
+// input: the route job drawn
+// expect: a button Retry and no reason (the retry of a startable item is still offered)
+test("TST-1024005 a job whose product is under its work-in-progress limit is still offered a retry", async () => {
+  use(5);
+  const more = crowded();
+  for (const path of Object.keys(more).filter((each) => each.includes("7f03"))) delete more[path];
+  const { context } = world(jobIn("failed"), { declaration: KANBAN, assignment: KANBAN_ASSIGNMENT, more });
+  const target = await drawJob(context);
+  assert.equal(walk(target, (node) => node.localName === "button" && node.textContent === "Retry").length, 1);
+  assert.deepEqual(reasonsOf(target), []);
 });
