@@ -1,4 +1,4 @@
-// Module: MOD-documents
+// Module: MOD-personal-data
 // Independent release coverage for ITM-290's approved MOD-personal-data and MOD-browser-store producers.
 
 import test from "node:test";
