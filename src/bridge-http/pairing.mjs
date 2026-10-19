@@ -6,6 +6,10 @@ const node = () => {
 
 const tokenPath = (folder) => node().path.join(folder, "pairing-token");
 
+// How often pairAnew has written this folder's token in this process: a pairing made under an earlier count is over.
+const renewals = new Map();
+export const pairingRenewals = (dataFolder) => renewals.get(tokenPath(dataFolder)) ?? 0;
+
 export async function currentToken(dataFolder) {
   try { return (await node().disk.readFile(tokenPath(dataFolder), "utf8")).trim(); }
   catch (error) {
@@ -20,6 +24,7 @@ export async function pairAnew(dataFolder, token) {
     await disk.mkdir(dataFolder, { recursive: true, mode: 0o700 });
     const value = token ?? crypto.randomBytes(32).toString("base64url");
     await disk.writeFile(tokenPath(dataFolder), value, { encoding: "utf8", mode: 0o600 });
+    renewals.set(tokenPath(dataFolder), pairingRenewals(dataFolder) + 1);
     await disk.chmod(tokenPath(dataFolder), 0o600);
     return value;
   } catch (failure) {
