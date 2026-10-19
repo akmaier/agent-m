@@ -40,7 +40,7 @@ akmaier accepted that draft (`48e16178`).
 - What travels from each platform's run to `publishRelease` is `platform-build.json`, a `PlatformBuild` (:88-90). It
   has no publisher.
 - `buildPlatform`, which runs the verifier, is not built (`src/bridge-build/index.mjs:3`; ITM-961).
-- **The draft for akmaier,** written by developer-sonnet-d:
+- **The draft for akmaier,** written by developer-sonnet-d, on `main` as `da3014b5`:
   - `PlatformBuild` gains `publisher: string | null`, which `buildPlatform` fills from its own verifier, `null` on
     Linux;
   - `publishRelease` writes the two lines from it;
