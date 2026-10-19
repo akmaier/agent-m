@@ -8,6 +8,7 @@ realises:
   - THE LOCAL BRIDGE REQUIRES A TOKEN
 modules:
   - MOD-bridge-jobs
+  - MOD-endpoint-calls
 builds_on:
 tests:
   - unit
@@ -41,7 +42,8 @@ are not part of this item").
   state; a missing scheduler or an endpoint that does not answer is `upstream-failed` naming it. Counter-proof: a probe
   without the Bridge's token is refused by the server before the handler runs.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/bridge-jobs/` and the tests that name MOD-bridge-jobs change.
+- `listModels` (MOD-endpoint-calls.md:101), which `endpoint-models` calls, is built in `src/endpoint-calls/` with its own
+  tests. Only `src/bridge-jobs/`, `src/endpoint-calls/` and the tests that name those two modules change.
 
 ## Not ready: the interface is not fixed by an accepted text (po-opus-b, at sprint team2/94)
 
@@ -59,3 +61,8 @@ MOD-bridge-client for akmaier that fixes these. Until then it is not selected.
 The draft is written: `01ef6da1` and `66ee0c57` (MOD-endpoint-calls `listModels`; the probes' args and answers in
 MOD-bridge-http; `sinfo` and the errors in MOD-bridge-jobs; `probe`'s overloads in MOD-bridge-client). The item becomes
 ready once akmaier accepts it.
+
+**Ready (po-opus, at sprint team1/93).** akmaier accepted the drafted texts: MOD-bridge-jobs `e7a5d58c` (:108-115),
+MOD-bridge-http `58ee2fde`, MOD-bridge-client `28e4eed5` and MOD-endpoint-calls `92d22425`. `listModels` is not built
+(`src/endpoint-calls/index.mjs` exports `testEndpoint` but no `listModels`), so the item also names MOD-endpoint-calls.
+

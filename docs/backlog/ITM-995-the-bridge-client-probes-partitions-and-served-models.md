@@ -7,6 +7,7 @@ realises:
 modules:
   - MOD-bridge-client
 builds_on:
+  - ITM-960
 tests:
   - unit
 origin:
