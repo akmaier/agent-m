@@ -130,6 +130,7 @@ const find = (dir, depth) => {
   }
   return null;
 };
+fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ tool: "app", args: process.argv.slice(2) }) + "\\n");
 const file = find(process.env.HOME, 6);
 if (!file) process.exit(3);
 const settings = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -285,6 +286,21 @@ test("buildPlatform — a .node file in a package a shipped package depends on g
     assert.ok(!run.calls().some((call) => call.tool === "electron-builder"), "nothing was built");
     assert.deepEqual(names(run.folder), []);
   } finally { run.settle(); }
+});
+
+// TST-961009 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS ONE FILE PER PLATFORM; UC-044
+// given: a Linux build and a macOS build, the packaged app of each a program that records the arguments it is started with
+// input: buildPlatform for each; the tunnel check starts the packaged app
+// expect: on Linux the app is started with --no-sandbox (a runner's unpacked chrome-sandbox is not set-user-id root, and Electron then refuses to start; the check measures the tunnels, not the sandbox); on macOS it is started without arguments
+// Planted fault: starting the Linux app without the argument, as the first real nightly run did (SUID sandbox helper not configured), or passing it on macOS too, fails.
+test("buildPlatform — the tunnel check starts the packaged Linux app without Electron's sandbox, and no other app with an argument", async () => {
+  const started = async (platform) => {
+    const run = setting(platform);
+    try { await run.build(); return run.calls().filter((call) => call.tool === "app").map((call) => call.args); } finally { run.settle(); }
+  };
+  assert.deepEqual(await started("linux"), [["--no-sandbox"]]);
+  assert.deepEqual(await started("macos"), [[]]);
 });
 
 // TST-961004 · level: unit · module: MOD-bridge-build
