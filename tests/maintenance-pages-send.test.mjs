@@ -128,6 +128,7 @@ test("DraftChanged shows the draft again and notes nothing", async () => {
   await waitFor(() => byClass(drafted, "reply-problem").length > 0);
   assert.match(textOf(one(drafted, "reply-problem")), /changed|not the mail that was confirmed/i);
   await waitFor(() => ops(w, "show-draft").length > before);
+  assert.ok(ops(w, "show-draft").length > before, "the draft was read from the mailbox again");
   assert.equal(byClass(drafted, "reply-draft").length, 1);
   assert.deepEqual(comments(w), []);
 });
