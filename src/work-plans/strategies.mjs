@@ -13,7 +13,7 @@ import { listJobs } from "../job-ledger/index.mjs";
 import { declarationSchema, gateSchema, gateStates, productWorkflow } from "../product-process/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
-import { traceGraph } from "../trace-graph/index.mjs";
+import { systemDecisions, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { planFindings } from "./checks.mjs";
 import { sprintFacts } from "./facts.mjs";
@@ -45,10 +45,9 @@ async function architectureAndModel(context) {
   const snapshot = context.product.snapshot;
   const graph = await traceGraph(snapshot);
   const nodes = [...graph.nodes.values()];
-  const from = (id, via) => graph.edges.filter((edge) => edge.from === id && edge.via === via);
-  const decisions = nodes.filter((node) => node.kind === "ARC").sort(byId);
-  const system = decisions.filter((node) => from(node.id, "refines").length === 0);
-  const subsystems = decisions.filter((node) => from(node.id, "refines").some((edge) => system.some((each) => each.id === edge.to)) && from(node.id, "designs").length > 0);
+  const { system: systemIds, subsystems: subsystemIds } = systemDecisions(graph);
+  const system = systemIds.map((id) => graph.nodes.get(id));
+  const subsystems = subsystemIds.map((id) => graph.nodes.get(id));
   const modules = nodes.filter((node) => node.kind === "MOD").sort(byId);
 
   const parts = new Map();
