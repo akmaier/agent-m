@@ -18,7 +18,7 @@
 
 import { appendToRecord } from "../job-ledger/index.mjs";
 import { cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
-import { abortOnTab, heldOnTab, queueOnTab } from "./tab.mjs";
+import { abortOnTab, heldOnTab, queueOnTab, tookOnTab } from "./tab.mjs";
 import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
@@ -77,7 +77,7 @@ const UNKNOWN = { reachable: true, reason: null, known: false, running: false, c
 function takenOn(record) {
   const by = record.taken?.by ?? null;
   if (by === null) return "none";
-  if (by === "tab") return "tab";
+  if (by === "tab" || by.startsWith("tab ")) return "tab";
   return /^https?:\/\//.test(by) || by.startsWith("ci ") ? "ci" : "bridge";
 }
 
@@ -90,7 +90,11 @@ function takenOn(record) {
 export async function liveState(record, product, bridges) {
   switch (takenOn(record)) {
     case "none": return { ...UNKNOWN };
-    case "tab": return heldOnTab(record.id) ? { ...UNKNOWN, known: true, running: true } : { ...UNKNOWN };
+    case "tab":
+      if (heldOnTab(record.id)) return { ...UNKNOWN, known: true, running: true };
+      // A job another browser took: its tab's closing cannot be seen here, so it stays unreachable (UC-036 1b).
+      return tookOnTab(record.taken.by) === "this" ? { ...UNKNOWN }
+        : { ...UNKNOWN, reachable: false, reason: "its live state and log exist only in that browser's tab" };
     case "bridge":
       try {
         const job = await listedOnBridge(bridgeNamed(bridges, record.taken.by), record.id);
