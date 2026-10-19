@@ -858,6 +858,54 @@ This product repository keeps its pseudonymisation setting and collaborator cons
 
 This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click.
 
+## settings-instance-lines
+
+The instance repository keeps these settings for everyone who works on the instance. Each line shows a short summary read from its file and *Edit*, which opens the page where the setting is changed. Every reader of the instance repository can read them; a change is a commit under the person's account, made only on a click.
+
+## settings-product-lines
+
+The product's repository keeps these settings for everyone who works on the product. Each line shows a short summary read from its file and *Edit*, which opens the page where the setting is changed. Every reader of the product repository can read them; a change is a commit under the person's account, made only on a click.
+
+## settings-line-participants
+
+The instance's list of participants — the people and agents that can work on its products, with their capabilities, processing place and route — is kept in `docs/participants.md` of the instance repository. Every reader of that repository can read it, and it holds no key or token. The summary counts the participants.
+
+## settings-line-library
+
+The instance's source library — the standards, legal texts and documents that products draw requirements from — is kept as one entry per source under `docs/sources/` of the instance repository. Every reader of that repository can read the entries; the content of a restricted source is kept elsewhere. The summary counts the sources.
+
+## settings-line-models
+
+The instance's process models — the book's catalogue and the models adapted for this instance — are kept under `docs/process-models/` of the instance repository. Every reader of that repository can read them. A product declares which one it uses. The summary counts the models.
+
+## settings-line-instance-resources
+
+The instance's own list of resources — what the instance runs on, such as a cluster or a model endpoint — is kept in `docs/resources.md` of the instance repository, independent of any product's list. Every reader of that repository can read it; a secret appears there by name only. The summary counts the resources.
+
+## settings-line-process
+
+The product's declared process model, with its version, is kept in `docs/process.md` of the product repository. It says how the product is developed: the model, its practices and branches. Every reader of that repository can read it. The summary names the declared model.
+
+## settings-line-roles
+
+The product's role assignments — which participant of the instance fills which role, one file per team — are kept under `docs/role-assignments/` of the product repository. Every reader of that repository can read them. The summary names the teams.
+
+## settings-line-done
+
+The product's Definition of Done — the conditions a pull request meets before it is merged, beyond the job rules — is kept in the section *Definition of Done* of `docs/process.md` of the product repository. Every reader of that repository can read it. The summary shows its first sentence.
+
+## settings-line-schedule
+
+The product's test schedule — which levels of tests run on which occasion, and where — is kept in `docs/tests/schedule.md` of the product repository, and the CI configuration is generated from it. Every reader of that repository can read it. The summary says whether the product has saved a schedule; without one, the book's default applies.
+
+## settings-line-sources
+
+The product's links to the instance's source library — the sources, and the version of each, that apply to the product — are kept in `docs/sources.md` of the product repository. Every reader of that repository can read them. The summary counts the linked sources.
+
+## settings-line-product-resources
+
+The product's resources — what it is built with, tested on or calls at runtime, each pinned to the exact state used — are kept in `docs/resources.md` of the product repository. Every reader of that repository can read the list; a secret appears there by name only. The summary counts the resources.
+
 ## trace-none-yet
 
 Here a list reads none yet when the version shown holds no artifact of that kind at all. A list that reads none instead means the version holds such artifacts and none of them names this requirement.
