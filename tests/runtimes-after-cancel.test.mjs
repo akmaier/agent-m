@@ -97,7 +97,7 @@ test("a branch without a commit after the cancel, a missing branch and a commit 
 test("only a job whose end is cancelled reports commits written after the cancel", async () => {
   const running = fakeProduct();
   running.host.listCiRuns = async () => [];
-  const live = await liveState(record(undefined), { host: running.host }, {});
+  const live = await liveState(record(null), { host: running.host }, {});
   assert.deepEqual(live.writtenAfterCancel, []);
   const finished = fakeProduct();
   assert.deepEqual((await liveState(record({ at: CANCELLED_AT, state: "done" }), { host: finished.host }, {})).writtenAfterCancel, []);
