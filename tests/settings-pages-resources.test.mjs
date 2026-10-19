@@ -548,3 +548,31 @@ test("resources — Save key with no key stores nothing", async (t) => {
   assert.equal(readSetting(page.context.store, "resource-key:shared-llm"), null);
   assert.equal(withClass(entry(page.target, "shared-llm"), "resource-key-state")[0].textContent, "Enter the key first.");
 });
+
+// TST-1074001 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 7; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE
+// given: the product's list holds shared-llm, an endpoint reached by `bridge workstation` whose secret is `browser`; this browser keeps its key under resource-key:shared-llm; the Bridge's fake answers the models only to a probe that carries that key, and otherwise with the diagnosis { reason: "key refused", message: "Invalid API key.", routes: [] }
+// input: press Check on shared-llm
+// expect: exactly one request goes to the Bridge, http://127.0.0.1:4711/v1/probes/endpoint-models, and neither its address, its headers nor its body hold the key — the body is { args: { name, kind: "openai-compatible", baseUrl, model, key: null } }, as for an entry with no key kept —; no request to any other server holds it; the entry says "✗ The Bridge workstation could not list the models: Invalid API key." (an endpoint that needs its key answers with its diagnosis); counter-proof: a probe that carries the key would be answered with the models, and the entry would say "serves"
+test("resources — Check through a Bridge sends no resource key, and an endpoint that needs it answers with its diagnosis", async (t) => {
+  const KEY = "sk_SHAREDLLM_0123456789";
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, BROWSER_LLM) } });
+  writeSetting(page.context.store, "bridge:workstation", { address: "http://127.0.0.1:4711", token: "bridge-token" });
+  writeSetting(page.context.store, "resource-key:shared-llm", { value: KEY, stored: "2026-10-19T09:00:00.000Z" });
+  const calls = [], inner = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (!String(url).startsWith("http://127.0.0.1:4711/")) return inner(url, init);
+    calls.push({ url: String(url), init });
+    const answer = JSON.parse(init.body).args.key === KEY ? { models: ["served-a"] } : { diagnosis: { reason: "key refused", message: "Invalid API key.", routes: [] } };
+    return new Response(JSON.stringify({ answer }), { status: 200 });
+  };
+  const before = page.world.requests.length;
+  await pressed(buttonLabelled(entry(page.target, "shared-llm"), "Check"));
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "http://127.0.0.1:4711/v1/probes/endpoint-models");
+  assert.equal(JSON.stringify(calls[0]).includes(KEY), false, "the Bridge's request holds no key");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { args: { name: "shared-llm", kind: "openai-compatible", baseUrl: "http://workstation.example.org:8000/v1", model: "example-model", key: null } });
+  assert.equal(JSON.stringify(page.world.requests.slice(before)).includes(KEY), false, "no request to any other server holds the key");
+  const said = withClass(entry(page.target, "shared-llm"), "resource-bridge-answer")[0].textContent;
+  assert.equal(said, "✗ The Bridge workstation could not list the models: Invalid API key.");
+});
