@@ -5,7 +5,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -459,6 +459,13 @@ export function githubAdapter(address, { token, tokenName }, links) {
         if (answer !== null) logs.push({ name: job.name, text: await answer.text() });
       }
       return logs;
+    },
+
+    // The runner labels the jobs of a run ask for ("List jobs for a workflow run": each job's `labels`), in the order the server lists the jobs and their labels, each once; a run with no label gives [].
+    async jobLabels(id) {
+      const options = { permission: "Actions", what: `run ${id} of ${address.web}` };
+      const jobs = await everyPage(`${repo}/actions/runs/${encodeURIComponent(id)}/jobs`, options, (answer) => answer.jobs);
+      return [...new Set(jobs.flatMap((job) => job.labels ?? []))];
     },
 
     // The pull requests ("List pull requests": state open, closed or all — a merged one is a closed one with a merged_at —, head `<owner>:<branch>`, 100 to a page, read page by page).
