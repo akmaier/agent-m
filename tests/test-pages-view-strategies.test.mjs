@@ -75,3 +75,19 @@ test("view — hands the recipes chapters-for-tests and resource-pins", () => {
   for (const recipe of ["chapters-for-tests", "resource-pins", "test-selection"]) assert.ok(names("recipes").includes(recipe), recipe);
   assert.ok(names("writers").includes("branch-and-pull-request"));
 });
+
+const failure = async (run) => { try { run(); return null; } catch (error) { return error; } };
+
+// TST-1094001 · level: unit · module: MOD-test-pages
+// guards: UC-027
+// given: only the strategies of the view of MOD-test-pages are registered
+// input: the writer ci-configuration, which the kind set-up-ci names, asked of the registry
+// expect: the kind names it, and the view's strategies hold it — the view hands scheduleStrategies, as docs/architecture/MOD-test-pages.md:106-108 names it —, so that registering the view alone registers it
+test("view — hands the writer ci-configuration of the kind set-up-ci", async () => {
+  const kind = await kindOf("set-up-ci");
+  assert.equal(kind.writer, "ci-configuration");
+  const names = (category) => view.strategies.flatMap((strategies) => Object.keys(strategies[category] ?? {}));
+  assert.ok(names("writers").includes("ci-configuration"), "the writer ci-configuration");
+  const again = await failure(() => registerStrategies("tests/test-pages-view-strategies.test.mjs#again", { writers: { "ci-configuration": () => {} } }));
+  assert.equal(again?.name, "DuplicateStrategy", "the writer is registered by the view, so a second registration is refused");
+});

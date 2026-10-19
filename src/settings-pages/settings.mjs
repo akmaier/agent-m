@@ -9,7 +9,7 @@ import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema } from "../product-process/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
-import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
+import { settingsSchemas, pseudonymisationOf, namedPersonFindings } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
@@ -936,6 +936,19 @@ function productLinks(context) {
   return el("p", "settings-product-links", sources);
 }
 
+// The files of the default branch that still name a collaborator who withdrew (UC-042 5a), by MOD-personal-data's namedPersonFindings, in the order of the repository's paths; the register of consent itself is not among them.
+async function filesNamingWithdrawn(host, branch, name, registerPath, collaboratorsDocument) {
+  const snapshot = await host.readSnapshot(branch);
+  const paths = (snapshot.paths ?? []).filter((path) => path !== registerPath);
+  await snapshot.readMany?.(paths);
+  const named = [];
+  for (const path of paths) {
+    const text = await snapshot.read(path);
+    if (typeof text === "string" && namedPersonFindings(text, path, { names: [name], addresses: [], phones: [], accounts: [] }, collaboratorsDocument, []).length > 0) named.push(path);
+  }
+  return named;
+}
+
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
@@ -1012,6 +1025,7 @@ async function productControls(context) {
   const saveCollaborators = async (text) => {
     try { return await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob }); } catch (error) { collabResult.textContent = error?.message ?? String(error); return null; }
   };
+  const namedFiles = el("div", "settings-collaborator-named");
   const removeName = el("input", "settings-collaborator-remove-name"), removeAccount = el("input", "settings-collaborator-remove-account");
   const remove = el("button", "settings-collaborator-remove btn", "Remove collaborator consent");
   add.addEventListener("click", async (event) => {
@@ -1057,6 +1071,12 @@ async function productControls(context) {
     collaboratorRecords.replaceChildren(...Array.from(collaboratorRecords.childNodes).filter((node) => !node.textContent.startsWith(`${wantedName} · @${wantedAccount} ·`)));
     collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
     if (result.commit) { const address = parseAddress(context.product.address); const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${address.web}/${address.server === "gitlab" ? "-/commit" : "commit"}/${result.commit}`; collabResult.append(link); }
+    try {
+      const named = await filesNamingWithdrawn(context.product.host, defaultBranch, wantedName, collaborators.path, collaboratorsDocument);
+      namedFiles.replaceChildren(...(named.length ? [el("p", null, `${named.length === 1 ? "This file on" : "These files on"} the default branch still ${named.length === 1 ? "names" : "name"} ${wantedName}; change ${named.length === 1 ? "it" : "them"}:`),
+        el("ul", "settings-collaborator-named-files", ...named.map((path) => el("li", null, path)))]
+        : [el("p", "settings-collaborator-named-none", `No file on the default branch still names ${wantedName}.`)]));
+    } catch (error) { namedFiles.replaceChildren(el("p", "warn", `The files that still name ${wantedName} could not be read: ${error?.message ?? error}`)); }
   });
   const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product panel",
@@ -1073,7 +1093,7 @@ async function productControls(context) {
     el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", el("label", null, "Consent date ", agreedDate), " ", add),
     el("h4", null, "Remove collaborator consent"),
     el("p", null, el("label", null, "Name ", removeName)), el("p", null, el("label", null, "Account ", removeAccount)),
-    el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
+    el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult, namedFiles);
 }
 
 // ---------------------------------------------------------------- the repository settings (UC-042 step 3)

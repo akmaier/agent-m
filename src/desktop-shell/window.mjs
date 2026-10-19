@@ -73,7 +73,9 @@ async function agents(target, context) {
     }
     result.replaceChildren(failures);
   });
-  target.replaceChildren(heading, navigation(context), explain("bridge-own-login"), list, save, access, result);
+  // Check again reads the installed agents anew, so that one installed meanwhile is listed without the Bridge restarting (UC-044 3a).
+  const again = button("Check again", () => agents(target, context));
+  target.replaceChildren(heading, navigation(context), explain("bridge-own-login"), list, again, save, access, result);
 }
 let taken = null;
 async function settings(target, context) {
