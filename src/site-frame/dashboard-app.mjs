@@ -268,7 +268,7 @@ async function loadSnapshot() {
 const USE_CASE_PATH = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
 const QUEUE_INDEX_PATH = /^docs\/spec-freigaben\/[^/]+\/index\.md$/;
 const QUEUE_HEAD_PATH = /^docs\/spec-freigaben\/[^/]+\/(?:index|entscheidungen)\.md$/;
-const ITEM_PATH = /^docs\/backlog\/ITM-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const ITEM_PATH = /^docs\/backlog\/ITM-\d{3,}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/\d+\.md$/;
 const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_PATH = /^docs\/architecture\/MOD-[^/]+\.md$/;
