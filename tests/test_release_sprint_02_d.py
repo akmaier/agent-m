@@ -186,11 +186,11 @@ class ProductRuleChecks(unittest.TestCase):
 
     # ------------------------------------------------------------------------------------------------ SELF-SUFFICIENT
 
-    # Expected: each plant refused, naming what the written SPEC.md references — a tool of Agent M's repository
-    # (tools/apply_approvals.py), the dashboard's address on Agent M's Pages site.
+    # Expected: each plant refused, naming what the written SPEC.md references — a file of Agent M's repository
+    # (src/workflow-entries/main.mjs), the dashboard's address on Agent M's Pages site.
     def test_self_sufficient_refuses_a_reference_into_agent_m(self):
-        self.assert_refused("THE PRODUCT REPOSITORY IS SELF-SUFFICIENT", self.writer("Without a token, tools/apply_approvals.py writes them."),
-                            "tools/apply_approvals.py")
+        self.assert_refused("THE PRODUCT REPOSITORY IS SELF-SUFFICIENT", self.writer("Without a token, src/workflow-entries/main.mjs writes them."),
+                            "src/workflow-entries/main.mjs")
         self.assert_refused("THE PRODUCT REPOSITORY IS SELF-SUFFICIENT", self.writer("Review them on https://akmaier.github.io/agent-m/#spec."),
                             "https://akmaier.github.io/agent-m/#spec")
 

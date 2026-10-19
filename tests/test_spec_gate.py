@@ -126,10 +126,9 @@ class SpecGate(unittest.TestCase):
         written = next(f["content"] for f in plan["files"] if f["path"] == "SPEC.md")
         self.assertEqual(written, expected)
 
-    @unittest.expectedFailure
     def test_the_workflow_changes_no_byte_outside_the_approved_section(self):
-        # FINDING F1: tools/apply_approvals.py reads SPEC.md with read_text() — universal newlines — and writes it back, so a
-        # SPEC with CR LF line ends anywhere is rewritten with LF throughout: bytes of sections nobody approved change.
+        # The workflow's writer, applyApproved, reads the SPEC's bytes as they stand, so a SPEC with CR LF line ends anywhere keeps them
+        # (the old Python tool read it with universal newlines and wrote LF throughout: finding F1).
         # Expected: as for the dashboard above — only 01's section is replaced, every other byte stays.
         crlf = self.p.text("SPEC.md").replace("## 1. Rules", "## 1. Rules\r", 1).replace("Rule one holds.", "Rule one holds.\r", 1)
         self.p.write("SPEC.md", crlf)
