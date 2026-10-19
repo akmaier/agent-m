@@ -358,7 +358,7 @@ export const route = {
   name: "participants",
   entry: "settings",
   title: "Participants",
-  async render(target, context) {
+  async render(target, context, params = {}) {
     let opened;
     try { opened = await openedRegister(context.instance.host); } catch (error) {
       target.replaceChildren(el("h2", null, "Participants"), el("p", "participants-unreadable", `The participants register could not be read: ${error?.message ?? error}.`));
@@ -498,7 +498,7 @@ export const route = {
 
     function endpointControls() {
       const names = endpointNames(context.store);
-      if (!names.length) {
+      if (!names.length || state.inlineEndpoint) {
         state.inlineEndpoint = true;
         const name = textInput("participant-endpoint-name", "endpoint", "endpoint name");
         const url = textInput("participant-endpoint-url", "endpointUrl", "http://localhost:11434/v1");
@@ -737,5 +737,20 @@ export const route = {
 
     panel.append(panelTitle, control("Type", type), fieldsBox, formBox, productUseBox, result);
     target.replaceChildren(el("h2", null, "Participants"), el("p", null, add), panel, list);
+
+    // Opened with the parameters `type` and `address` (a resource's *Add as participant*, UC-040 2a): the form of a new participant of that type, with the address where it belongs —
+    // the kept endpoint that has this address, else the URL of a new one. Without both, or with a type no participant has, the page is as it is without them.
+    if (TYPES.includes(params.type) && typeof params.address === "string" && params.address.trim() !== "") {
+      startAdd();
+      const address = params.address.trim();
+      let values = {};
+      if (params.type === "model endpoint") {
+        const kept = endpointNames(context.store).find((name) => readSetting(context.store, `endpoint:${name}`)?.url === address);
+        values = kept ? { endpoint: kept } : { endpoint: "", endpointUrl: address, inlineEndpoint: true };
+      }
+      type.value = params.type;
+      setType(params.type, values);
+      rebuild();
+    }
   },
 };
