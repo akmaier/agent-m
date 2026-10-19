@@ -116,6 +116,11 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       if (method === "GET" && url.pathname === `/repos/${PRODUCT}/issues`) return json(kept.issues.map((issue) => ({ number: issue.number, title: issue.title, body: issue.body, state: issue.state, labels: issue.labels, comments: issue.comments.length, html_url: `${PRODUCT_URL}/issues/${issue.number}` })));
       const comments = /^\/repos\/alice\/product\/issues\/(\d+)\/comments$/.exec(url.pathname);
       if (method === "GET" && comments) return json((kept.issues.find((issue) => issue.number === Number(comments[1]))?.comments ?? []).map((comment) => ({ user: { login: "dev" }, body: comment, created_at: "2026-10-18T09:00:00Z" })));
+      const one_ = /^\/repos\/alice\/product\/issues\/(\d+)$/.exec(url.pathname);
+      if (method === "PATCH" && one_) { kept.issues.find((issue) => issue.number === Number(one_[1])).state = JSON.parse(init.body).state; return json({ number: Number(one_[1]) }); }
+      const labels = /^\/repos\/alice\/product\/issues\/(\d+)\/labels(?:\/(.+))?$/.exec(url.pathname);
+      if (labels && method === "POST") { const target = kept.issues.find((issue) => issue.number === Number(labels[1])); target.labels = [...new Set([...target.labels, ...JSON.parse(init.body).labels])]; return json(target.labels.map((name) => ({ name }))); }
+      if (labels && method === "DELETE") { const target = kept.issues.find((issue) => issue.number === Number(labels[1])); target.labels = target.labels.filter((name) => name !== decodeURIComponent(labels[2])); return json([]); }
       if (method === "POST" && comments && kept.commentStatus) return json({ message: "Resource not accessible by personal access token" }, kept.commentStatus);
       if (method === "POST" && comments) { kept.issues.find((issue) => issue.number === Number(comments[1])).comments.push(JSON.parse(init.body).body); return json({ id: 1 }, 201); }
     }
