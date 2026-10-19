@@ -92,16 +92,20 @@ printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":1,"ou
   process.env.GIT_CONFIG_COUNT = String(pairs.length);
   pairs.forEach(([address, path], at) => { process.env[`GIT_CONFIG_KEY_${at}`] = `url.${path}.insteadOf`; process.env[`GIT_CONFIG_VALUE_${at}`] = address; });
   const originText = (path) => spawnSync(REAL_GIT, ["--git-dir", product.origin, "show", `main:${path}`], { encoding: "utf8" }).stdout;
-  // The wait is for the state the test asserts. The Bridge reaches it through a long chain of git calls (clones, fetches, the taking of each job, a working clone), so how long it takes depends on the
-  // machine; the wait therefore ends when the state holds, or when the Bridge has made no progress - no call of git, no agent started - for `stall` ms, which is a Bridge that has stopped, and says what it had done.
+  // The wait is for the state the test asserts. The Bridge reaches it through a long chain of git calls (clones, fetches, the taking of each job, a working clone), so how long it takes depends on the machine.
+  // The wait therefore ends when the state holds, or when the Bridge has made no progress - no call of git, no agent started - for `stall` ms, which is a Bridge that has stopped, or when `total` ms have passed,
+  // which is a Bridge so slow that the CI job's own limit of two minutes (SPEC.md, tests/test_ci_budget.py) would stop the whole shard with no test to name the cause. Either way it says what the Bridge had done.
   const progress = () => statSync(gits).size + readFileSync(calls, "utf8").length;
-  const until = async (condition, what, { stall = 30000, failed = async () => null } = {}) => {
-    let seen = progress(), since = Date.now();
+  const done = () => `${readFileSync(calls, "utf8").trim().split("\n").filter(Boolean).length} agents started, ${statSync(gits).size} calls of git`;
+  const until = async (condition, what, { stall = 30000, total = 60000, failed = async () => null } = {}) => {
+    const begun = Date.now();
+    let seen = progress(), since = begun;
     for (;;) {
       const found = await condition(); if (found) return found;
       const why = await failed(); if (why) assert.fail(`waited for ${what}, but ${why}`);
       if (progress() !== seen) { seen = progress(); since = Date.now(); }
-      else if (Date.now() - since > stall) assert.fail(`waited for ${what}: nothing happened for ${stall} ms (${statSync(gits).size} calls of git, ${readFileSync(calls, "utf8").trim().split("\n").filter(Boolean).length} agents started)`);
+      else if (Date.now() - since > stall) assert.fail(`waited for ${what}: nothing happened for ${stall} ms (${done()})`);
+      if (Date.now() - begun > total) assert.fail(`waited for ${what}: still not there after ${total} ms, too slow for the CI job's limit (${done()})`);
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
   };
