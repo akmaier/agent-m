@@ -25,7 +25,7 @@ import { loadSchema } from "../documents/index.mjs";
 
 export { declarationFindings } from "./declaration.mjs";
 export { roleAssignmentFindings, holdsRole } from "./assignments.mjs";
-export { workflowOf } from "./workflow.mjs";
+export { productWorkflow, workflowOf } from "./workflow.mjs";
 export { mayDecide, gateStates, recordGateDecision } from "./gates.mjs";
 export { doneCheck } from "./done.mjs";
 
