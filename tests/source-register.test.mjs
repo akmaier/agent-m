@@ -30,6 +30,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { readDocument, writeDocument } from "../src/documents/index.mjs";
 import { sourceSchemas, permittedPlaces } from "../src/source-register/index.mjs";
+import * as register from "../src/source-register/index.mjs";
 
 const MODULE = new URL("../src/source-register/index.mjs", import.meta.url);
 const SCHEMA_FILE = new URL("../src/source-register/source.schema.md", import.meta.url);
@@ -281,4 +282,15 @@ test("permittedPlaces — this instance's entry SRC-vibe-coding, whose licence p
     Files: "the 17 chapters below; version hash `d4dff41c996d8a3f00c2b9323fc36bbeeb608bbbedd0ff301b2c8ac13ca667b3`",
   });
   assert.equal(permittedPlaces(entry), "any");
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the paths of a tree — the SPEC, the links file docs/sources.md, three register entries (docs/sources/SRC-z.md, SRC-a.md, SRC-vibe-coding.md) in a mixed order, a README, a .bak file and a nested file in docs/sources/
+// input: registerPaths(those paths); then registerPaths([])
+// expect: the three entries, in the order given — no README, no nested file, no .bak, not the links file; [] for no paths. No request is made.
+test("registerPaths — the register's entries among a tree's paths, in their order", () => {
+  const paths = ["SPEC.md", "docs/sources/SRC-z.md", "docs/sources.md", "docs/sources/README.md", "docs/sources/SRC-a.md",
+    "docs/sources/SRC-a.md.bak", "docs/sources/SRC-vibe-coding/2026-10-05/01.md", "docs/sources/SRC-vibe-coding.md"];
+  assert.deepEqual(register.registerPaths(paths), ["docs/sources/SRC-z.md", "docs/sources/SRC-a.md", "docs/sources/SRC-vibe-coding.md"]);
+  assert.deepEqual(register.registerPaths([]), []);
 });

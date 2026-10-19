@@ -162,6 +162,26 @@ test("#spec: the app reads the SPEC and the queues' heads in one batch and the o
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product with a register: the links file docs/sources.md and two entries docs/sources/SRC-a.md and SRC-b.md
+// input: open #spec with a token
+// expect: the first wave is one batch of 7 files — the SPEC, the queues' heads and the links file with the two register entries —, the
+//         open queue's proposal a second batch of 1; no file twice, none by itself; the register is read in no batch of its own
+test("#spec: the links file and the register's entries are read in the first wave, beside the SPEC and the queues' heads", async () => {
+  const entry = (id) => ["---", `id: ${id}`, "title: A person", "kind: person", "authority: normative", "licence: may be republished — fixture",
+    `identifier: github.com/${id}`, "---", `# ${id} A person`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
+    "| `2026-10-11` | 2026-10-11 | the fixture | this repository | one file, hashed only |", ""].join("\n");
+  const register = { "docs/sources.md": `# Sources\n\n| Source | Version | Hash | Part |\n|---|---|---|---|\n| SRC-a | 2026-10-11 | ${"0".repeat(64)} | |\n`,
+    "docs/sources/SRC-a.md": entry("SRC-a"), "docs/sources/SRC-b.md": entry("SRC-b") };
+  const srv = await server(await product(register));
+  const page = await openDashboard({ server: srv, hash: "#spec" });
+  const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`, ...Object.keys(register)]);
+  assert.deepEqual(batchesOf(page.requests), ["batch 7", "batch 1"]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1, [`${OPEN}/01-more.md`]]);
+  assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
+  assert.deepEqual(files(page.requests), [], "no file by itself");
+});
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product
 // input: open #spec with a token
 // expect: the whole load — the specification route's reads included — sends its commit and tree once, reads the repository's
