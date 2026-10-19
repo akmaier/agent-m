@@ -81,3 +81,30 @@ test("TST-1103003 the live app opens #replies on MOD-maintenance-pages' route", 
   const issue = await openDashboard({ server: srv, hash: "#replies/issue=7" });
   assert.match(issue.main(), /Read replies/);
 });
+
+// TST-1105001 · level: unit · module: MOD-site-frame
+// guards: UC-039
+// given: the live app on a product, a token stored; the route `replies` of MOD-maintenance-pages recording what it is rendered with
+// input: the dashboard opened at #replies/issue=12/product=https://github.com/acme/product-alpha, then at #replies
+// expect: the route is rendered once with the parameters { issue: "12", product: "https://github.com/acme/product-alpha" }, and for #replies with none; the page shown is the route's
+// Planted fault: the dispatch without the address's parameters (`{}` in place of `routeOf(location.hash).params`) renders the route with none for the first address, and the first assertion fails.
+// The reading the pull request names: the live app writes and reads a route's parameters as `key=value` (routing.mjs routeOf and fragmentOf), as the route's own `go("replies", { issue, product })` does; the module text's `replies/<issue>` is its notation for the route with the parameter issue.
+test("TST-1105001 the live app hands the issue of #replies/issue=<n> to the route", async () => {
+  const { view } = await import("../src/maintenance-pages/index.mjs");
+  const route = view.routes.find((candidate) => candidate.name === "replies");
+  const original = route.render;
+  const seen = [];
+  route.render = async (target, context, params) => { seen.push(params); target.innerHTML = "<p>Read replies (recorded)</p>"; };
+  try {
+    const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
+    const files = {};
+    (function walk(dir) { for (const name of readdirSync(dir)) { const path = join(dir, name); if (statSync(path).isDirectory()) walk(path); else files[relative(FIX, path).split("\\").join("/")] = readFileSync(path, "utf8"); } })(FIX);
+    const srv = await repoServer({ files, history: [], handlers: [] });
+    const withIssue = await openDashboard({ server: srv, hash: "#replies/issue=12/product=https%3A%2F%2Fgithub.com%2Facme%2Fproduct-alpha" });
+    assert.match(withIssue.main(), /recorded/);
+    assert.deepEqual(seen, [{ issue: "12", product: "https://github.com/acme/product-alpha" }]);
+    await openDashboard({ server: srv, hash: "#replies" });
+    assert.deepEqual(seen.at(-1), {});
+    assert.equal(seen.length, 2);
+  } finally { route.render = original; }
+});
