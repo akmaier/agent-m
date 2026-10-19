@@ -45,4 +45,4 @@ akmaier accepted that draft (`48e16178`).
     Linux;
   - `publishRelease` writes the two lines from it;
   - a macOS or Windows build without a name stops with `BuildMissing { platform }`.
-- It waits for akmaier's acceptance of that draft, and for ITM-961, which builds `buildPlatform`.
+- akmaier accepted that draft (`2b0e024e`). It waits for ITM-961, which builds `buildPlatform`.
