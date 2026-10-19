@@ -17,6 +17,7 @@ uses:
   - MOD-markdown-render.showDifference
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.listTags
   - MOD-repository-hosts.webLinks
   - MOD-repository-hosts.repositoryInfo
@@ -137,8 +138,10 @@ instance's host that the frame gives every route, it also reads the instance's p
   MOD-site-frame.confirmDecision — the frame's parts of every route.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.renderMermaid, MOD-markdown-render.showDifference — rows'
   details, the component diagram, the comparison of versions.
-- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.listTags,
-  MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the release tags, a test's code
+- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.readFileAt,
+  MOD-repository-hosts.listTags,
+  MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the text of a file at the commits
+  of its history, the release tags, a test's code
   and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
   MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
   the instance's links are read for the person's own source.
