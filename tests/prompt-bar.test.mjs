@@ -566,24 +566,36 @@ test("startPromptBar — where no participant reached can do the kind it says so
 
 // TST-560005 · level: component · module: MOD-prompt-bar; MOD-job-catalogue
 // guards: UC-019 (2); A PARTICIPANT DECLARES ITS CAPABILITIES
-// given: drafter-a (draft text) and runner (draft text, run code and tests), both reached; the page first shows a subject of the kind converse (needs draft text), then — the window announcing a change of the fragment — one of the kind run-tests (needs run code and tests)
-// input: startPromptBar; then change the subject and announce the change of the fragment
-// expect: first the selector offers drafter-a and runner; once the subject is of the kind run-tests the bar names runner alone, without a select (the offer follows the page)
-test("startPromptBar — the offer follows the subject when the page changes", async () => {
-  const had = Object.getOwnPropertyDescriptor(globalThis, "window");
-  const announcer = new EventTarget();
-  Object.defineProperty(globalThis, "window", { configurable: true, value: announcer });
-  try {
-    endpointAnswers(answer("unused"));
-    const it = page({ rows: [DRAFTER, row("runner", "model endpoint", "endpoint ep2", { capabilities: "draft text, run code and tests", place: "this machine" })], ep2: true });
-    await drawn(it);
-    assert.deepEqual(all(it.target, (node) => node.localName === "option").map(textOf), ["drafter-a — Anthropic, USA", "runner — this machine"]);
-    it.current.subject = subjectOf({ key: "tests:all", title: "The tests", kind: "run-tests" });
-    announcer.dispatchEvent(new Event("hashchange"));
-    await until(() => byClass(it.target, "participant").length === 1 && byClass(it.target, "participant")[0].localName === "span", "the offer follows the new kind");
-    assert.equal(textOf(one(it.target, "participant")), "runner — this machine");
-    assert.equal(all(it.target, (node) => node.localName === "select").length, 0);
-  } finally {
-    if (had) Object.defineProperty(globalThis, "window", had); else delete globalThis.window;
-  }
+// given: drafter-a (draft text) and runner (draft text, run code and tests), both reached; the bar's subject getter first gives a subject of the kind converse (needs draft text), then one of the kind run-tests (needs run code and tests)
+// input: startPromptBar; the getter now gives the new subject; nothing is announced; the person puts the cursor in the input (focus)
+// expect: first the selector offers drafter-a and runner; before the bar is used it still shows both (the getter is read when the bar is used); once the input takes focus the bar names runner alone, without a select
+test("startPromptBar — the offer belongs to the subject the getter gives when the bar is used", async () => {
+  endpointAnswers(answer("unused"));
+  const it = page({ rows: [DRAFTER, row("runner", "model endpoint", "endpoint ep2", { capabilities: "draft text, run code and tests", place: "this machine" })], ep2: true });
+  await drawn(it);
+  assert.deepEqual(all(it.target, (node) => node.localName === "option").map(textOf), ["drafter-a — Anthropic, USA", "runner — this machine"]);
+  it.current.subject = subjectOf({ key: "tests:all", title: "The tests", kind: "run-tests" });
+  await tick();
+  assert.equal(all(it.target, (node) => node.localName === "option").length, 2, "nothing reads the getter before the bar is used");
+  one(it.target, "instruction").dispatchEvent(new Event("focus"));
+  await until(() => byClass(it.target, "participant").length === 1 && byClass(it.target, "participant")[0].localName === "span", "the offer follows the new kind");
+  assert.equal(textOf(one(it.target, "participant")), "runner — this machine");
+  assert.equal(all(it.target, (node) => node.localName === "select").length, 0);
+});
+
+// TST-560006 · level: component · module: MOD-prompt-bar; MOD-job-catalogue
+// guards: UC-019 (2, 3a); A PARTICIPANT DECLARES ITS CAPABILITIES
+// given: drafter-a and drafter-b (draft text each), both reached; the getter first gives a subject of the kind converse, then one of the kind run-tests (needs run code and tests), which neither can do
+// input: startPromptBar; the getter now gives the new subject; the person writes "run the tests" and presses Send without the input having taken focus
+// expect: Send reads the getter: nothing is sent (no request), the page says "Nothing was sent." and that no participant can do run-tests, and the offer is replaced by that statement and its link
+test("Send — reads the subject again: a page no participant can do sends nothing", async () => {
+  endpointAnswers(answer("unused"));
+  const it = page({ rows: [DRAFTER, OTHER], ep2: true });
+  await drawn(it);
+  it.current.subject = subjectOf({ key: "tests:all", title: "The tests", kind: "run-tests" });
+  await sends(it, "run the tests");
+  assert.equal(requests.length, 0);
+  assert.ok(textOf(one(it.target, "status")).includes("Nothing was sent."));
+  assert.match(textOf(it.target), /No participant of this instance can do run-tests: it needs run code and tests\./);
+  assert.equal(byClass(it.target, "participants-link").length, 1);
 });
