@@ -15,7 +15,7 @@
 // keeps every request in order, and it refuses to publish a release that does not yet hold every file the test expects it to hold, so that a publish before the last upload fails.
 // Readings the texts leave open, which the tests state (the pull request names them):
 //   - The returned Release is the one the publishing answers with: tag, name, published (published_at), notes (body) and each asset's name, size, address and the SHA-256 of GitHub's digest "sha256:<hex>".
-//   - A file's upload is refused with UploadFailed { file } when the server serves it with a failure other than a refused token or a used-up limit, and when the server cannot be reached.
+//   - A file's upload is refused with UploadFailed { file } when the server serves it with a failure other than a refused token, a missing permission or a used-up limit, and when the server cannot be reached.
 // Each test states its input and its expected result before it runs. The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
