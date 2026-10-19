@@ -212,7 +212,8 @@ function readFrom(entry, version) {
  * register entry; without it the plan uses the empty string for that current instance. For a source of kind repository,
  * `version.commit` is the commit read: the row's `Read from` records it after the entry's `identifier`, `<address> commit
  * <commit>`, and the files may be none, since the version's bytes are that commit. Throws SameBytes { version } when the file
- * set — or, with a commit, the commit instead — equals that of an already recorded version, and NoteMissing { file } for a file not
+ * set — or, with a commit, the commit instead — equals that of an already recorded version, VersionExists { version } when
+ * `version.version` is the identifier of an existing version whose bytes differ, and NoteMissing { file } for a file not
  * kept that has no note.
  * @param {Document} entry
  */
@@ -231,13 +232,18 @@ export async function versionCommits(entry, files, version) {
       throw failure("SameBytes", `${entry.id} already records the same bytes as ${existing}`, { version: existing });
     }
   }
+  const id = String(version?.version ?? "");
+  // An identifier names one version (A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH): bytes that differ under an identifier an existing version has would
+  // plan that version's own files again. SameBytes, checked above, keeps precedence.
+  if (id && (versions.rows ?? []).some((row) => unquoted(row.cells.Version) === id)) {
+    throw failure("VersionExists", `${entry.id} already records a version ${id}, with other bytes`, { version: id });
+  }
   const kept = files.filter((file) => file.keep);
   const instance = typeof version?.repository === "string" ? version.repository : "";
   const holder = permittedPlaces(entry) === "any" ? instance : entry.fields.content_repository;
   if (kept.length && !holder) {
     throw failure("ContentRepositoryMissing", `${entry.id} is restricted, and its entry names no repository for its files`, { source: entry.id });
   }
-  const id = String(version?.version ?? "");
   if (!id) throw new TypeError("versionCommits: version.version is required");
   const cells = {
     Version: `\`${id}\``,
