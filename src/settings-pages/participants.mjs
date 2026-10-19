@@ -383,14 +383,14 @@ export const route = {
     const productUseBase = productUseBasis(context, opened).catch(() => []);
     const state = {
       name: "", account: "", endpoint: "", endpointUrl: "", endpointKind: "openai-compatible", endpointModel: "", endpointKey: "",
-      inlineEndpoint: false, model: "", context: "", price: "", place: "", workflow: "", runner: "github-hosted", runnerLabel: "", secret: "",
+      inlineEndpoint: false, model: "", context: "", price: "", place: "", runner: "github-hosted", runnerLabel: "", secret: "",
       bridge: "", agent: "", reach: "bridge", through: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
     };
 
     function setType(next, values = {}) {
       state.name = ""; state.account = ""; state.endpoint = ""; state.endpointUrl = ""; state.endpointKind = "openai-compatible";
       state.endpointModel = ""; state.endpointKey = ""; state.inlineEndpoint = false; state.model = ""; state.context = "";
-      state.price = ""; state.place = ""; state.workflow = ""; state.runner = "github-hosted"; state.runnerLabel = ""; state.secret = ""; state.bridge = "";
+      state.price = ""; state.place = ""; state.runner = "github-hosted"; state.runnerLabel = ""; state.secret = ""; state.bridge = "";
       state.agent = ""; state.reach = "bridge"; state.through = ""; state.capabilities = typePreset(next); state.agentList = null; state.agentListText = ""; state.agentTest = null;
       state.saveUntested = false;
       if (next === "model endpoint") {
@@ -541,7 +541,7 @@ export const route = {
       const explainRunner = el("p", "participant-runner-explanation", state.runner === "self-hosted"
         ? "A self-hosted runner serves private repositories only; on a public repository Agent M refuses a job that would run on it, because outside pull requests could run code on that machine."
         : "A hosted runner runs on the forge's machines and uses a secret by name; no key is stored in the participants register.");
-      return [control("Workflow", textInput("participant-workflow", "workflow", "agent-m.yml")), control("Runner", runner),
+      return [control("Runner", runner),
         ...(state.runner === "self-hosted" ? [control("Runner label", textInput("participant-runner-label", "runnerLabel", "gpu"))] : []),
         control("Key secret name", textInput("participant-secret-name", "secret", "ACTIONS_SECRET_NAME")), explainRunner,
         explain("ci-agent-runner"), explain("ci-ssh-alternative"), explain("job-workflow")];
@@ -690,8 +690,8 @@ export const route = {
       // self-hosted runner carries the label self-hosted (as settings.mjs's ciRoute reads it).
       const current = /^ci (?:hosted|runner:(\S+)) secret (\S+)$/.exec(route);
       const earlier = /^workflow (.*?) on (github-hosted|self-hosted) secret (.*)$/.exec(route);
-      const ci = current ? { workflow: "", runner: current[1] === undefined ? "github-hosted" : "self-hosted", label: current[1] ?? "", secret: current[2] }
-        : earlier ? { workflow: earlier[1], runner: earlier[2], label: earlier[2] === "self-hosted" ? "self-hosted" : "", secret: earlier[3] } : null;
+      const ci = current ? { runner: current[1] === undefined ? "github-hosted" : "self-hosted", label: current[1] ?? "", secret: current[2] }
+        : earlier ? { runner: earlier[2], label: earlier[2] === "self-hosted" ? "self-hosted" : "", secret: earlier[3] } : null;
       const bridge = /^bridge (.*?) agent (.*)$/.exec(route);
       return {
         name: text(cells.Name),
@@ -702,7 +702,6 @@ export const route = {
         capabilities: listedValues(cells.Capabilities),
         account: route.startsWith("account ") ? route.slice("account ".length) : "",
         endpoint: route.startsWith("endpoint ") ? route.slice("endpoint ".length) : "",
-        workflow: ci?.workflow ?? "",
         runner: ci?.runner ?? "github-hosted",
         runnerLabel: ci?.label ?? "",
         secret: ci?.secret ?? "",
