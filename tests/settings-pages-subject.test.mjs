@@ -81,3 +81,52 @@ test("TST-1127002 a setting that is not stored is said not to be, and the produc
     assert.ok(!pageOf(product).includes("github_pat_PRODUCT"));
   } finally { kept.restore(); }
 });
+
+const GRAPH = { address: "reports@example.org", route: "graph", folders: ["INBOX"], graph: { clientId: "11111111-2222-3333-4444-555555555555", account: "reports@example.org" } };
+const IMAP = (password) => ({ address: "reports@example.org", route: "imap", folders: ["INBOX"], imap: { bridge: "lab", account: "reports@example.org", password } });
+const mailboxLines = (page) => page.split("\n").filter((line) => /^Mailbox/.test(line));
+
+// TST-1127003 · level: unit · module: MOD-settings-pages
+// guards: UC-049 alternative 3c; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// given: a mailbox of the route IMAP whose password is stored; then the same route with an empty password
+// input: the subject's page for each
+// expect: the mailbox's line names its password and says stored, then not set; the page names no sign-in for the mailbox, and carries no password
+// Planted fault: one line for any route ("its password or sign-in"), or "stored" for an empty password.
+test("TST-1127003 the line of an IMAP mailbox names its password and whether it is stored", () => {
+  for (const [password, state] of [["imap-SECRET", "stored"], ["", "not set"]]) {
+    const { given, restore } = context({ mailbox: IMAP(password) });
+    try {
+      const page = pageOf(route.subject({}, given));
+      assert.deepEqual(mailboxLines(page), [`Mailbox password: ${state}`]);
+      assert.ok(!page.includes("imap-SECRET"));
+    } finally { restore(); }
+  }
+});
+
+// TST-1127004 · level: unit · module: MOD-settings-pages
+// guards: UC-049 alternative 3c; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// given: a mailbox of the route Microsoft (graph) with its account recorded, which stores no password; then the same route with no account recorded
+// input: the subject's page for each
+// expect: the mailbox's line names its sign-in and says stored, then not set; the page does not speak of a password for the mailbox
+// Planted fault: the line of the route IMAP for every route ("Mailbox password"), which says of the Graph mailbox that a password is stored or not set.
+test("TST-1127004 the line of a Microsoft mailbox names its sign-in and not a password", () => {
+  for (const [graph, state] of [[GRAPH.graph, "stored"], [{ clientId: GRAPH.graph.clientId }, "not set"]]) {
+    const { given, restore } = context({ mailbox: { ...GRAPH, graph } });
+    try {
+      assert.deepEqual(mailboxLines(pageOf(route.subject({}, given))), [`Mailbox sign-in: ${state}`]);
+    } finally { restore(); }
+  }
+});
+
+// TST-1127005 · level: unit · module: MOD-settings-pages
+// guards: UC-049 alternative 3c
+// given: a browser with no mailbox
+// input: the subject's page
+// expect: one mailbox line, "Mailbox: not set", naming neither a password nor a sign-in
+// Planted fault: a password line for a mailbox that is not there.
+test("TST-1127005 a browser with no mailbox says the mailbox is not set", () => {
+  const { given, restore } = context({});
+  try {
+    assert.deepEqual(mailboxLines(pageOf(route.subject({}, given))), ["Mailbox: not set"]);
+  } finally { restore(); }
+});
