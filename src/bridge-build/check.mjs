@@ -46,7 +46,7 @@ export function nativeAddon(root, base = root) {
 }
 
 // The first compiled Node addon in the packages the app carries (MOD-bridge-build, "What the app carries": "the packages above that the app needs at
-// run time"): — those package.json names under `dependencies`, and, in the installed tree, the `dependencies` of each,
+// run time"): those package.json names under `dependencies`, and, in the installed tree, the `dependencies` of each,
 // recursively; optional dependencies are not installed, and the build tools (devDependencies and what only they reach) do not ship. A package is
 // found in its own node_modules first, then in the installed tree's. As a path relative to `stage`; null when there is none.
 export function shippedAddon(stage) {
