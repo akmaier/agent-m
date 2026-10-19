@@ -33,6 +33,9 @@ const MR_STATES = { opened: "open", locked: "open", merged: "merged", closed: "c
 const pullOf = (m) => ({ number: m.iid, title: m.title, branch: m.source_branch, base: m.target_branch, head: m.sha, state: MR_STATES[m.state] ?? "closed", draft: m.draft === true,
   url: m.web_url, opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null, body: m.description ?? "" });
 
+// An issue of "New issue" / "List project issues" as the Issue: iid its number, description its body, state opened is open, labels the names.
+const issueOf = (i, comments = []) => ({ number: i.iid, title: i.title, body: i.description ?? "", labels: i.labels ?? [], state: i.state === "closed" ? "closed" : "open", url: i.web_url, comments });
+
 // An entry of the diff of a commit as the change the commit made to the file: added, deleted, renamed — with the path it came
 // from — or modified.
 const changeOf = (d) => (d.new_file ? { path: d.new_path, change: "added" }
@@ -170,6 +173,44 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     async issueCounts() {
       const { counts } = (await read(`${api}/issues_statistics`)).statistics;
       return { open: counts.opened, closed: counts.closed };
+    },
+
+    // The issues of a state, labels and search text ("List project issues": state opened, closed or all; labels; search; per_page 100, page by page). Each issue that may have comments is given them
+    // ("List project issue notes": the system notes, which GitLab writes for its own changes, are not comments).
+    async listIssues({ state, labels, search }) {
+      const found = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const items = await read(`${api}/issues?${new URLSearchParams({ state: state === "open" ? "opened" : state, per_page: String(PAGE), page: String(page),
+          ...(labels.length ? { labels: labels.join(",") } : {}), ...(search ? { search } : {}) })}`);
+        found.push(...items);
+        if (items.length < PAGE) break;
+      }
+      const issues = [];
+      for (const i of found) {
+        const comments = [];
+        for (let page = 1; i.user_notes_count !== 0 && page <= MAX_PAGES; page++) {
+          const items = await read(`${api}/issues/${i.iid}/notes?per_page=${PAGE}&page=${page}`);
+          comments.push(...items.filter((n) => !n.system).map((n) => ({ author: n.author?.username ?? "", body: n.body ?? "", date: n.created_at })));
+          if (items.length < PAGE) break;
+        }
+        issues.push(issueOf(i, comments));
+      }
+      return issues;
+    },
+
+    // A comment on an issue ("Create new issue note").
+    async commentOnIssue(number, body) {
+      await call("POST", `${api}/issues/${number}/notes`, { body: { body } });
+    },
+
+    // Labels added and removed in one call ("Edit an issue": add_labels, remove_labels as comma-separated texts).
+    async setIssueLabels(number, { add, remove }) {
+      await call("PUT", `${api}/issues/${number}`, { body: { ...(add.length ? { add_labels: add.join(",") } : {}), ...(remove.length ? { remove_labels: remove.join(",") } : {}) } });
+    },
+
+    // An issue closed or reopened ("Edit an issue": state_event close or reopen).
+    async setIssueState(number, state) {
+      await call("PUT", `${api}/issues/${number}`, { body: { state_event: state === "closed" ? "close" : "reopen" } });
     },
 
     // The commits that changed a path — the project where the path is null —, newest first, from `ref` (the default branch where

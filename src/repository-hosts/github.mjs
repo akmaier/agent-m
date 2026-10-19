@@ -27,6 +27,10 @@ const releaseOf = (r) => ({ tag: r.tag_name, name: r.name ?? r.tag_name, publish
   assets: (r.assets ?? []).map((a) => ({ name: a.name, size: typeof a.size === "number" ? a.size : null, url: a.browser_download_url,
     sha256: /^sha256:([0-9a-f]{64})$/i.exec(a.digest ?? "")?.[1]?.toLowerCase() ?? null })) });
 
+// An issue of "Create an issue" / "List repository issues" as the Issue: its labels are objects with a name (or texts), its comments those given.
+const issueOf = (i, comments = []) => ({ number: i.number, title: i.title, body: i.body ?? "", labels: (i.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)),
+  state: i.state === "closed" ? "closed" : "open", url: i.html_url, comments });
+
 // A file of "Get a commit" as the change the commit made to it: its status — a copy is an addition, a change of mode a
 // modification —, and for a rename the path it came from. A file the commit left unchanged is no change.
 const CHANGES = { added: "added", copied: "added", removed: "deleted", renamed: "renamed", modified: "modified", changed: "modified" };
@@ -241,6 +245,46 @@ export function githubAdapter(address, { token, tokenName }, links) {
         return (await read(`${SEARCH}?${query}`, { search: true })).total_count;
       };
       return { open: await count("open"), closed: await count("closed") };
+    },
+
+    // The issues of a state and labels ("List repository issues": state, labels as a comma-separated text, per_page 100, page by page), or those a text finds ("Search issues and pull requests" with
+    // repo:, is:issue, state: and label: qualifiers). The issue list holds pull requests too, each with a pull_request key: they are not issues. Each issue that has comments is given them ("List issue comments").
+    async listIssues({ state, labels, search }) {
+      const found = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const items = search
+          ? (await read(`${SEARCH}?${new URLSearchParams({ q: [`repo:${address.path}`, "is:issue", ...(state === "all" ? [] : [`state:${state}`]), ...labels.map((l) => `label:"${l}"`), search].join(" "), per_page: String(PAGE), page: String(page) })}`, { search: true })).items
+          : await read(`${repo}/issues?${new URLSearchParams({ state, per_page: String(PAGE), page: String(page), ...(labels.length ? { labels: labels.join(",") } : {}) })}`);
+        found.push(...items);
+        if (items.length < PAGE) break;
+      }
+      const issues = [];
+      for (const i of found.filter((each) => !each.pull_request)) {
+        const comments = [];
+        for (let page = 1; i.comments > 0 && page <= MAX_PAGES; page++) {
+          const items = await read(`${repo}/issues/${i.number}/comments?per_page=${PAGE}&page=${page}`);
+          comments.push(...items.map((c) => ({ author: c.user?.login ?? "", body: c.body ?? "", date: c.created_at })));
+          if (items.length < PAGE) break;
+        }
+        issues.push(issueOf(i, comments));
+      }
+      return issues;
+    },
+
+    // A comment on an issue ("Create an issue comment").
+    async commentOnIssue(number, body) {
+      await call("POST", `${repo}/issues/${number}/comments`, { body: { body } });
+    },
+
+    // Labels added ("Add labels to an issue") and removed ("Remove a label from an issue", one call each; 404 where the issue does not carry it).
+    async setIssueLabels(number, { add, remove }) {
+      if (add.length) await call("POST", `${repo}/issues/${number}/labels`, { body: { labels: add } });
+      for (const label of remove) await call("DELETE", `${repo}/issues/${number}/labels/${encodeURIComponent(label)}`, { on: { 404: () => null } });
+    },
+
+    // An issue opened or closed ("Update an issue": state).
+    async setIssueState(number, state) {
+      await call("PATCH", `${repo}/issues/${number}`, { body: { state } });
     },
 
     // The commits that changed a path — the repository where the path is null —, newest first, from `ref` (the default branch where

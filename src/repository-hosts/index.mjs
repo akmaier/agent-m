@@ -137,6 +137,12 @@ const KNOWN_FAILURES = new Set(["TokenRefused", "PermissionMissing", "RateLimite
 // touches Node's modules only when it runs a command, is never used there.
 const IN_NODE = typeof process !== "undefined" && Boolean(process.versions?.node);
 
+// A list of non-empty texts; an issue's number is a positive whole number.
+const isTexts = (list) => Array.isArray(list) && list.every((text) => typeof text === "string" && text.trim() !== "");
+const issueNumber = (number) => {
+  if (!Number.isInteger(number) || number < 1) throw new TypeError(`an issue is named by its number, a positive whole number, not ${number}`);
+};
+
 // The adapter of a host with a clone: the snapshot, the files and the commit through the clone; every
 // other function through the REST adapter where a token is given (`rest`), else NotSupported.
 function throughClone(repository, folder, rest) {
@@ -149,6 +155,10 @@ function throughClone(repository, folder, rest) {
     history: rest ? (...a) => rest.history(...a) : without("the history"),
     listTags: rest ? (...a) => rest.listTags(...a) : without("the tags"),
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
+    listIssues: rest ? (...a) => rest.listIssues(...a) : without("the issues"),
+    commentOnIssue: rest ? (...a) => rest.commentOnIssue(...a) : without("a comment on an issue"),
+    setIssueLabels: rest ? (...a) => rest.setIssueLabels(...a) : without("the labels of an issue"),
+    setIssueState: rest ? (...a) => rest.setIssueState(...a) : without("the state of an issue"),
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     releaseAssets: rest ? (...a) => rest.releaseAssets(...a) : without("a release's files"),
     publishRelease: rest ? (...a) => rest.publishRelease(...a) : without("publishing a release"),
@@ -196,6 +206,10 @@ export function connect(address, credentials = {}) {
   const name = tokenName || (github ? "GitHub token" : `GitLab project token for ${repository.web}`);
   const rest = (github ? githubAdapter : gitlabAdapter)(repository, { token: token || null, tokenName: name }, links);
   const adapter = clone ? throughClone(repository, clone, token ? rest : null) : rest;
+  // A write to the repository's tracker is made only with a token that may write: without one it is NotSupported, before any request.
+  const withToken = (what) => {
+    if (!token) throw new HostError("NotSupported", { what: `${what} without a token` }, `${what[0].toUpperCase()}${what.slice(1)} needs a token that may write to the repository; store one first.`);
+  };
   const refused = [...secrets, ...(token ? [token] : [])].filter((s) => s.length > 0);
   // The texts of the blobs read through this host, by their blob SHA: each blob is read once.
   const texts = new Map();
@@ -300,6 +314,43 @@ export function connect(address, credentials = {}) {
     // where the repository is public. Crosses the network; fails with RateLimited — on GitHub with the limit `search` —,
     // NotFound, TokenRefused, Unreachable.
     issueCounts: () => adapter.issueCounts(),
+
+    // listIssues(filter) -> Issue[] — the issues of the repository, each with its comments: those of a state (open unless the filter says closed or all), carrying every label of `labels`, and, with `search`, found
+    // by the server's own search; pull requests are no issues. Every page is read. Crosses the network; fails as readSnapshot, and with NotSupported through a clone without a token. A filter that is not
+    // { state?: "open" | "closed" | "all", labels?: texts, search?: text } is a TypeError.
+    async listIssues(filter = {}) {
+      const { state = "open", labels = [], search } = filter ?? {};
+      if (!["open", "closed", "all"].includes(state)) throw new TypeError(`listIssues lists open, closed or all issues, not ${state}`);
+      if (!isTexts(labels)) throw new TypeError("listIssues gives the labels as a list of texts");
+      if (search !== undefined && (typeof search !== "string" || !search.trim())) throw new TypeError("listIssues gives the search as a text");
+      return adapter.listIssues({ state, labels: [...labels], search });
+    },
+
+    // commentOnIssue(number, body) -> void — a comment on an issue, with the person's token. Crosses the network; fails with TokenRefused, PermissionMissing, RateLimited, Unreachable, and NotSupported without
+    // a token, before any request. A number that is no positive whole number, or a body that is empty, is a TypeError.
+    async commentOnIssue(number, body) {
+      issueNumber(number);
+      if (typeof body !== "string" || !body.trim()) throw new TypeError("commentOnIssue gives the comment as a text");
+      withToken("commenting on an issue");
+      return adapter.commentOnIssue(number, body);
+    },
+
+    // setIssueLabels(number, { add?, remove? }) -> void — labels put on an issue and taken off it; a label the issue does not carry is not a failure. Fails as commentOnIssue. A change that names neither list of texts is a TypeError.
+    async setIssueLabels(number, change) {
+      issueNumber(number);
+      const { add, remove } = change ?? {};
+      if ((add === undefined && remove === undefined) || !isTexts(add ?? []) || !isTexts(remove ?? [])) throw new TypeError("setIssueLabels gives the labels to add and to remove as lists of texts");
+      withToken("labelling an issue");
+      return adapter.setIssueLabels(number, { add: [...(add ?? [])], remove: [...(remove ?? [])] });
+    },
+
+    // setIssueState(number, state) -> void — an issue closed or opened again. Fails as commentOnIssue. A state other than open or closed is a TypeError.
+    async setIssueState(number, state) {
+      issueNumber(number);
+      if (state !== "open" && state !== "closed") throw new TypeError(`setIssueState sets open or closed, not ${state}`);
+      withToken("closing or opening an issue");
+      return adapter.setIssueState(number, state);
+    },
 
     // commitFiles({ branch, expectedHead, files, message }) -> { commit, url } — one commit of all the files, made only if the
     // branch still stands at expectedHead; expectedHead null makes an empty repository's first commit — on GitHub two, the first
