@@ -312,7 +312,7 @@ test("TST-375001: UC-017 main flow saves each participant type from the Particip
       fields: { name: "campus-model", context: "120000", price: "1.00 / 2.00", place: "FAU data centre (EU)" },
       endpoint: "campus", model: "llama-campus", place: "FAU data centre (EU)", capabilities: ["draft text"], route: "endpoint campus" },
     { type: "CI agent", fields: { name: "ci-writer", model: "gpt-5", context: "200000", price: "2.00 / 8.00", place: "GitHub hosted runner" },
-      workflow: "agent-m.yml", runner: "github-hosted", secret: "MODEL_KEY", model: "gpt-5", place: "GitHub hosted runner",
+      runner: "github-hosted", secret: "MODEL_KEY", model: "gpt-5", place: "GitHub hosted runner",
       capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
       route: "ci hosted secret MODEL_KEY" },
     { type: "CLI agent", settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } },
@@ -334,7 +334,6 @@ test("TST-375001: UC-017 main flow saves each participant type from the Particip
     await fillCommon(page, fixture.fields);
     if (fixture.account) await put(one(page, "participant-account"), fixture.account);
     if (fixture.endpoint) await put(one(page, "participant-endpoint"), fixture.endpoint, "change");
-    if (fixture.workflow) await put(one(page, "participant-workflow"), fixture.workflow);
     if (fixture.runner) await put(one(page, "participant-runner"), fixture.runner, "change");
     if (fixture.secret) await put(one(page, "participant-secret-name"), fixture.secret);
     if (fixture.bridge) await put(one(page, "participant-bridge"), fixture.bridge, "change");
@@ -491,7 +490,6 @@ test("TST-375004: UC-017 alternative 5a names restricted sources and still permi
   await put(one(page, "participant-model"), "gpt-5");
   await put(one(page, "participant-context"), "200000");
   await put(one(page, "participant-price"), "2.00 / 8.00");
-  await put(one(page, "participant-workflow"), "agent-m.yml");
   await put(one(page, "participant-runner"), "self-hosted", "change");
   await put(one(page, "participant-runner-label"), "private-lab");
   await put(one(page, "participant-secret-name"), "MODEL_KEY");
