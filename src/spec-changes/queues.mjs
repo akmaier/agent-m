@@ -27,7 +27,7 @@
 
 import { loadSchema, readDocument, readRegister } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
-import { sectionText } from "../spec-document/index.mjs";
+import { parseSpec, replaceSection, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 
 const OWNER = "MOD-spec-changes";
@@ -171,6 +171,34 @@ async function namesOtherSection(snapshot, path, section) {
   if (typeof recordText !== "string") return false;
   const named = readDocument(approvalSchema, path, recordText).fields.section;
   return named !== await blobSha(section);
+}
+
+// The span of an entry in its target: the section of its anchor and every section after it up to, not including, the section of its `until` (MOD-spec-changes, Queue: "`anchor`, `until`"). The
+// one reading of an entry's span, which entryView, acceptEntries, proposeSection and saveEntry share. An `until` that is no later heading of the target — none, or a heading the target lacks — gives
+// the anchor's section alone; so does one that no section of the target ends before. null where the target lacks the anchor.
+export function spanText(spec, anchor, until) {
+  const first = sectionText(spec, anchor);
+  if (first === null || !until) return first;
+  const headings = parseSpec(spec).sections.map((section) => section.heading);
+  const at = headings.indexOf(anchor), ends = headings.indexOf(until, at + 1);
+  if (at < 0 || ends < 0) return first;
+  const start = spec.indexOf(first);
+  let span = first;
+  for (const heading of headings.slice(at + 1, ends)) {
+    const next = sectionText(spec, heading);
+    if (next === null || !spec.startsWith(next, start + span.length)) return first;
+    span += next;
+  }
+  return span;
+}
+
+// The target with the span of the entry replaced by `proposal`, byte for byte, every other byte unchanged (THE APPROVED TEXT IS TAKEN VERBATIM).
+export function replaceSpan(spec, anchor, until, proposal) {
+  const span = spanText(spec, anchor, until);
+  const first = sectionText(spec, anchor);
+  if (span === null || span === first) return replaceSection(spec, anchor, proposal);
+  const start = spec.indexOf(first);
+  return spec.slice(0, start) + proposal + spec.slice(start + span.length);
 }
 
 // The number of the earlier entry whose proposal holds `entry`'s anchor as a section, or null. An earlier entry is one above it in
