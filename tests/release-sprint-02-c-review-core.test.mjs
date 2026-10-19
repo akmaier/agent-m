@@ -1,4 +1,4 @@
-// Release tests of sprint 02, strand C — the approval engine: the gates ITM-014 characterised, the workflow's writer applyApproved, and the
+// Release tests of sprint 02, strand C — the approval engine: the gates ITM-014 characterised, applyApprovals of ITM-016, and the
 // architecture's acceptance on the reader ITM-128 moved (ITM-144). Written by tester-opus (claude-opus-5-5), the Release tester of
 // docs/process.md, who implemented none of the strand's items, from the SPEC rules and use cases they realise; started on
 // sprint/02 at a7b4b9f, 2026-10-01.
@@ -9,15 +9,14 @@
 //
 // Over a fixture repository written in this file — a made-up product's SPEC, one change queue, a use case, a decision, a module —
 // held as a map of path to text. The engine reads it through the ports it takes; the dashboard's commit (planAcceptance, with a
-// token) and the instance workflow's (MOD-spec-changes' applyApproved, without one) are
+// token) and the instance workflow's (applyApprovals, without one; tools/apply_approvals.py, which the workflow still runs) are
 // both driven. Where git history is the evidence, the fixture is committed in a temporary git repository. Each expectation is
 // stated before its case runs, from the rule or the use-case step it names. Known findings of the items are not re-tested here:
-// V1 (blank lines that end a proposal) — see the measurement record.
+// F1–F3 (the Python tool reads CR LF as LF) and V1 (blank lines that end a proposal) — see the measurement record.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -26,8 +25,7 @@ import {
   gitBlobSha, deriveReviewedStatus, deriveSpecStatus, statusByNames, recordIndex, sectionForEntry, planAcceptance,
   parseRecord, parseDecisions, architecturePrerequisites, reviewPage,
 } from "../docs/assets/review-core.mjs";
-import { applyApproved } from "../src/spec-changes/index.mjs";
-import { sectionText } from "../src/spec-document/index.mjs";
+import { applyApprovals } from "../docs/assets/review-core/apply-approvals.mjs";
 import { kindOfPath, parseArchitecture } from "../docs/assets/artifacts.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -102,18 +100,6 @@ const sectionOf = (text, anchor) => { // the section as a reader sees it: from i
 };
 const blob = gitBlobSha;
 
-// The instance workflow's writer, MOD-spec-changes' applyApproved, on the fixture: a Snapshot of the map, with the register entry and the link a product needs
-// for the source its requirements name (`A PRODUCT LINKS THE SOURCES THAT APPLY`). -> { files: [{ path, content }], refused }.
-async function applyApprovals(repo) {
-  const hash = "b".repeat(64);
-  const all = new Map([...repo, ["docs/sources.md", `# Sources\n\n| Source | Version | Hash | Part |\n|---|---|---|---|\n| SRC-po-b | 2026-09-24 | ${hash} | |\n`],
-    ["docs/sources/SRC-po-b.md", `---\nid: SRC-po-b\ntitle: PO B. Example\nkind: person\nauthority: normative\nlicence: fixture\nidentifier: fixture\n---\n# SRC-po-b PO B. Example\n\nA fixture source.\n\n## Versions\n\n| Version | Date | Edition | Read from | Files |\n|---|---|---|---|---|\n| \`2026-09-24\` | 2026-09-24 | fixture | fixture | version hash \`${hash}\` |\n`]]);
-  const paths = [...all.keys()];
-  const blobOf = (path) => (all.has(path) ? createHash("sha1").update(Buffer.concat([Buffer.from(`blob ${Buffer.byteLength(all.get(path))}\0`), Buffer.from(all.get(path))])).digest("hex") : null);
-  const out = await applyApproved({ commit: "0".repeat(40), paths, read: async (path) => all.get(path) ?? null, blob: blobOf }, NOW);
-  return { files: Object.entries(out.files).map(([path, content]) => ({ path, content })), refused: out.refused };
-}
-
 // What the dashboard shows of an entry and the reviewer ticks: the proposal's and the section's blobs as shown.
 async function specItem(repo, nr) {
   const [proposalPath, proposalText, anchor] = PROPOSALS[nr];
@@ -126,7 +112,7 @@ async function specItem(repo, nr) {
 async function specRecordFile(repo, nr, over = {}) {
   const it = await specItem(repo, nr);
   const r = { kind: "spec", queue: Q, entry: it.nn, proposal: it.proposalPath, blob: it.proposalBlob, target: "SPEC.md",
-    anchor: it.anchor, section: await blob(sectionText(repo.get("SPEC.md"), it.anchor) ?? ""), ...over };
+    anchor: it.anchor, section: it.sectionBlob, ...over };
   const name = `spec-${QN}-${it.nn}-${String(r.blob).slice(0, 12)}.md`;
   const text = Object.entries(r).filter(([, v]) => v !== undefined).map(([k, v]) => `${k}: ${v}\n`).join("");
   return [`docs/approvals/${name}`, text];
@@ -155,12 +141,12 @@ const without = (text, section) => text.replace(section, "");
 test("release · gates: a SPEC change is written only with its acceptance, and only its own section", async () => {
   const repo = fixture();
   assert.deepEqual((await planAcceptance({ items: [], read: reader(repo), now: NOW })).files, [], "no acceptance, no file");
-  const none = await applyApprovals(repo);
+  const none = await applyApprovals({ read: reader(repo), now: NOW });
   assert.deepEqual(none.files, [], "no record, nothing written by the workflow");
   const crlf = SPEC.replace("The export is one PDF file.\n", "The export is one PDF file.\r\n");
   for (const [route, run] of [
     ["dashboard", async (r) => filesOf(await planAcceptance({ items: [await specItem(r, 3)], read: reader(r), now: NOW }))],
-    ["workflow", async (r) => { const [p, t] = await specRecordFile(r, 3); r.set(p, t); return filesOf(await applyApprovals(r)); }],
+    ["workflow", async (r) => { const [p, t] = await specRecordFile(r, 3); r.set(p, t); return filesOf(await applyApprovals({ read: reader(r), now: NOW })); }],
   ]) {
     const r = fixture({ "SPEC.md": crlf });
     const files = await run(r);
@@ -184,7 +170,7 @@ test("release · gates: the approved text is written byte for byte, on the dashb
     try {
       let files;
       if (route === "dashboard") files = filesOf(await planAcceptance({ items: [await specItem(r, 1)], read: reader(r), now: NOW }));
-      else { const [p, t] = await specRecordFile(r, 1); r.set(p, t); files = filesOf(await applyApprovals(r)); }
+      else { const [p, t] = await specRecordFile(r, 1); r.set(p, t); files = filesOf(await applyApprovals({ read: reader(r), now: NOW })); }
       const written = files.get("SPEC.md");
       assertInPlace(written, SPEC, "## 2. Title page", "## 3. Old rules", p01, route);
     } finally { PROPOSALS[1][1] = P01; }
@@ -206,7 +192,7 @@ test("release · gates: the current text beside a proposal is the section as it 
   assert.deepEqual(two.needs, [1]);
   const [p, t] = await specRecordFile(repo, 1, { section: await blob("## 2. Title page\n\n(a summary of the rule)\n") });
   repo.set(p, t);
-  const out = await applyApprovals(repo);
+  const out = await applyApprovals({ read: reader(repo), now: NOW });
   assert.deepEqual(out.files, [], "an approval of another current text writes nothing");
   assert.equal(out.refused.length, 1);
 });
@@ -300,6 +286,102 @@ test("release · gates: an acceptance handed a job record writes no approval rec
     const plan = await planAcceptance({ items: [{ kind: "use-case", id: "JOB-20261001-0900-a1b2", path: JOB, blob: await blob(text) }], read: reader(repo), now: NOW });
     assert.deepEqual(plan.files.filter((f) => f.content.includes(JOB)), []);
   });
+
+// ------------------------------------------------------------------------------------------------ ITM-016: applyApprovals
+
+// UC-006 4c · WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE · A STALE APPROVAL IS NOT APPLIED: a record committed
+// on GitHub's page; the workflow applies it with the same checks. Expected for each fault, one record at a time: nothing is
+// written, and the record is refused under its own file name — proposal changed after approval, SPEC section changed after
+// approval, a field missing, an anchor other than the queue's, a proposal outside the queue, an entry the queue does not have.
+// A record already applied (its decision row exists) and a use case's record are passed over: nothing written, nothing refused.
+test("release · applyApprovals: a stale or malformed record is refused by name and nothing is written", async () => {
+  const cases = [
+    ["the proposal changed after approval", (r) => r.set(PROPOSALS[3][0], P03 + "changed after\n"), {}, /proposal changed after approval/],
+    ["the SPEC section changed after approval", (r) => r.set("SPEC.md", SPEC.replace("set in a serif", "set in a Serif")), {}, /SPEC section changed after approval/],
+    ["a field is missing", () => {}, { anchor: undefined }, /missing anchor/],
+    ["the anchor is not the queue's", () => {}, { anchor: "## 1. Export" }, /anchor/],
+    ["the proposal is not a file of the queue", () => {}, { proposal: "SPEC.md" }, /not a file of queue/],
+    ["the queue has no such entry", () => {}, { entry: "07" }, /no entry 7/],
+  ];
+  for (const [what, change, over, reason] of cases) {
+    const r = fixture();
+    const [p, t] = await specRecordFile(r, 3, over);
+    r.set(p, t);
+    change(r);
+    const out = await applyApprovals({ read: reader(r), now: NOW });
+    assert.deepEqual(out.files, [], `${what}: nothing written`);
+    assert.equal(out.refused.length, 1, what);
+    assert.equal(out.refused[0].record, p.split("/").pop(), `${what}: refused by its name`);
+    assert.match(out.refused[0].reason, reason, what);
+    assert.ok(out.report.startsWith(`${p.split("/").pop()}: refused — `), `${what}: the report names it`);
+  }
+  const r = fixture();
+  const [p, t] = await specRecordFile(r, 3);
+  r.set(p, t);
+  r.set(`${Q}/entscheidungen.md`, `${DECISIONS}| 2026-10-01 09:00 UTC | 3 | uebernommen | approval:${p.split("/").pop()} |\n`);
+  r.set(`docs/approvals/UC-001-${(await blob(UC_TEXT)).slice(0, 12)}.md`, `kind: use-case\nfile: ${UC}\nblob: ${await blob(UC_TEXT)}\n`);
+  const out = await applyApprovals({ read: reader(r), now: NOW });
+  assert.deepEqual([out.files, out.refused], [[], []], "already applied and a use case's record: passed over");
+});
+
+// UC-006 4c, 4d · UC-006 postcondition "The SPEC contains exactly the approved text": records of one queue committed together are
+// applied in the order of their names, entry 02 after entry 01, which creates its heading. Expected: SPEC.md holds both
+// proposals and every other byte as before; two decision rows, in that order; a third, stale record beside them refused by
+// name without stopping the others.
+test("release · applyApprovals: several records in one run — each written, in order, a stale one refused beside them", async () => {
+  const r = fixture();
+  const [p1, t1] = await specRecordFile(r, 1);
+  const s2 = SPEC.replace(SECTION_2, P01);
+  const two = { kind: "spec", queue: Q, entry: "02", proposal: PROPOSALS[2][0], blob: await blob(P02), target: "SPEC.md",
+    anchor: "## 5. Appendix", section: await blob(sectionOf(s2, "## 5. Appendix")) };
+  const p2 = `docs/approvals/spec-${QN}-02-${two.blob.slice(0, 12)}.md`;
+  const [p3, t3] = await specRecordFile(r, 3, { blob: await blob("an older proposal\n") });
+  for (const [p, t] of [[p1, t1], [p2, Object.entries(two).map(([k, v]) => `${k}: ${v}\n`).join("")], [p3, t3]]) r.set(p, t);
+  const out = await applyApprovals({ read: reader(r), now: NOW });
+  const files = filesOf(out);
+  assertInPlace(files.get("SPEC.md"), SPEC, "## 2. Title page", "## 3. Old rules", P01.replace("## 5. Appendix\n\nTo be written.\n", P02), "workflow");
+  const rows = [...parseDecisions(files.get(`${Q}/entscheidungen.md`)).entries()].map(([nr, d]) => [nr, d.ref]);
+  assert.deepEqual(rows, [[1, `approval:${p1.split("/").pop()}`], [2, `approval:${p2.split("/").pop()}`]]);
+  assert.deepEqual(out.refused.map((x) => x.record), [p3.split("/").pop()]);
+});
+
+// WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE — "byte for byte as tools/apply_approvals.py" (ITM-016): the same
+// records on the same tree, given to applyApprovals and to the tool the workflow runs, at the same minute. Expected: the same
+// files with the same bytes, the same report line for line, and a refusal on both sides exactly where one side refuses. The
+// tree is LF throughout: on CR LF the tool differs by findings F1–F3, already marked in tests/test_apply_approvals.py.
+test("release · applyApprovals: the same files, bytes and report as tools/apply_approvals.py", async () => {
+  const r = fixture();
+  const recs = [await specRecordFile(r, 1), await specRecordFile(r, 3, { blob: await blob("an older proposal\n") }),
+    await specRecordFile(r, 3, { anchor: undefined, blob: (await blob(P03)).replace(/^./, "0") })];
+  for (const [p, t] of recs) r.set(p, t);
+  r.set(`docs/approvals/UC-001-${(await blob(UC_TEXT)).slice(0, 12)}.md`, `kind: use-case\nfile: ${UC}\nblob: ${await blob(UC_TEXT)}\n`);
+  const engine = await applyApprovals({ read: reader(r), now: NOW });
+  const d = mkdtempSync(join(tmpdir(), "release-02c-py-"));
+  try {
+    for (const [path, text] of r) { mkdirSync(dirname(join(d, path)), { recursive: true }); writeFileSync(join(d, path), text); }
+    const before = new Map([...r]);
+    const py = JSON.parse(execFileSync("python3", ["-c", `
+import sys, json, datetime as d
+sys.path.insert(0, ${JSON.stringify(join(ROOT, "tools"))})
+import apply_approvals as ap
+class Fixed(d.datetime):
+    @classmethod
+    def now(cls, tz=None): return d.datetime(2026, 10, 1, 9, 30, tzinfo=d.timezone.utc)
+ap.dt = type("clock", (), {"datetime": Fixed, "timezone": d.timezone})
+rc, report = ap.apply(${JSON.stringify(d)})
+print(json.dumps({"rc": rc, "report": report}))`], { encoding: "utf8" }));
+    const changed = new Map();
+    const walk = (dir, rel = "") => { for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(dir, e.name), p);
+      else { const t = readFileSync(join(dir, e.name), "utf8"); if (before.get(p) !== t) changed.set(p, t); } } };
+    walk(d);
+    assert.deepEqual(new Map(engine.files.map((f) => [f.path, f.content])), changed, "the same files with the same bytes");
+    assert.equal(engine.report, py.report, "the same report");
+    assert.equal(py.rc === 1, engine.refused.length > 0, "a refusal on both sides");
+    assert.ok(changed.has("SPEC.md") && engine.refused.length === 2, "the case is not vacuous: one applied, two refused");
+  } finally { rmSync(d, { recursive: true, force: true }); }
+});
 
 // ------------------------------------------------------------------------------------------------ UC-022: architecture rests on accepted artifacts
 
