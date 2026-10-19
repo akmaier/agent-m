@@ -34,6 +34,7 @@ const RESOURCES_PATH = "docs/resources.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 const RUN_KIND = "run-tests";
+const EVERY = 5000;
 const RESULTS_BRANCH = "test-results";
 const LEVELS = ["unit", "component", "system", "release", "user"];
 const RELEASE_TAG = /^v(\d+)\.(\d+)\.(\d+)$/;
@@ -177,8 +178,8 @@ function checklistOf(host, { declarations, levels, schedule, commit, again }) {
 //
 // Readings the texts leave open: the levels offered are those the page lists, the preset ones those with no outcome on the commit; the participants are those `eligible` admits for the capabilities of the kind
 // `run-tests`; a participant on the tab's route (a model endpoint) runs no code, so the first other route routesFor offers is the one used; the run panel is drawn once a participant and the person's name are chosen
-// (no identity setting exists, as the route `release` asks for the name directly); the job is queued with the parameters { commit, levels, occasion: "on-demand" }; progress is read on the person's click on
-// Check progress (liveState), with no timer, and a job that has ended redraws the page, so that the new record shows; without a token, the reviewer is sent to the server's page of workflows (webLinks().actions)
+// (no identity setting exists, as the route `release` asks for the name directly); the job is queued with the parameters { commit, levels, occasion: "on-demand" }; progress is read again with setTimeout every 5 s while it
+// is in the page (liveState), and a job that has ended redraws the page, so that the new record shows and the reading stops; without a token, the reviewer is sent to the server's page of workflows (webLinks().actions)
 // with the commit and the levels named, since webLinks has no page of one workflow.
 
 const recordRoute = (route) => (route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
@@ -226,19 +227,23 @@ async function queueRun(state, chosen, ready, person, out) {
     start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
   await queueJob(host, record, offer.route, head.commit);
-  const progress = el("p", "progress");
-  const check = el("button", "check-progress", "Check progress");
-  check.addEventListener("click", async (event) => {
-    if (event?.isTrusted !== true) return;
+  const progress = el("p", "progress", `Job ${id}: queued`);
+  // The progress is read again every EVERY ms while the progress is in the page; once the job has ended the page is drawn again, so that the new record shows, and the reading stops.
+  const read = async () => {
+    if (!progress.isConnected) return;
+    let ended = false;
     try {
       const found = await progressOf(host, id);
       progress.textContent = `Job ${id}: ${found.text}`;
-      if (found.ended) await state.again();
+      ended = found.ended;
     } catch (failure) {
       progress.textContent = `Job ${id}: ${failure?.message ?? failure}`;
     }
-  });
-  out.replaceChildren(el("p", "job-queued", `Job ${id} is queued on the route ${record.route}.`), el("p", null, check), progress);
+    if (ended) await state.again();
+    else setTimeout(read, EVERY);
+  };
+  setTimeout(read, EVERY);
+  out.replaceChildren(el("p", "job-queued", `Job ${id} is queued on the route ${record.route}.`), progress);
 }
 
 async function openRun(state, section) {
