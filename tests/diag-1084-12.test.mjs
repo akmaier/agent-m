@@ -316,3 +316,14 @@ test("diag 1084 — the original test, repeated", async () => {
   });
  }
 });
+
+test("diag 1084 — the maintenance commands git ran", () => {
+  const seen = new Map();
+  for (const line of readFileSync(TRACE, "utf8").split("\n")) {
+    if (!line) continue;
+    let e; try { e = JSON.parse(line); } catch { continue; }
+    if (e.event === "start") { const k = (e.argv || []).slice(0, 4).join(" "); if (/gc|maintenance|pack-refs|repack|prune|daemon/.test(k)) seen.set(k, (seen.get(k) ?? 0) + 1); }
+    if (/daemon/.test(e.event) || /daemon/.test(e.name || "")) seen.set("EVENT " + e.event + " " + (e.name || ""), 1);
+  }
+  console.error("DIAG-MAINT " + JSON.stringify([...seen]) + " " + execSync("git --version", { encoding: "utf8" }).trim());
+});
