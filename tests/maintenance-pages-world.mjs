@@ -58,7 +58,7 @@ const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) 
  * The world: the mails of the mailbox (`mails`, found by `find`), the drafts in Drafts (`drafts`: { ref, inReplyTo, mail }), GitHub's issues of alice/product, the participants' register and the places the mailbox allows.
  * Returns what the fakes kept: the operations the Bridge received, the requests GitHub received, the texts the endpoint returned.
  */
-function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null }) {
+function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, stateDelay = 0 }) {
   const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows) };
   const productFiles = smallProduct();
   let pending = {};
@@ -117,7 +117,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       const comments = /^\/repos\/alice\/product\/issues\/(\d+)\/comments$/.exec(url.pathname);
       if (method === "GET" && comments) return json((kept.issues.find((issue) => issue.number === Number(comments[1]))?.comments ?? []).map((comment) => ({ user: { login: "dev" }, body: comment, created_at: "2026-10-18T09:00:00Z" })));
       const one_ = /^\/repos\/alice\/product\/issues\/(\d+)$/.exec(url.pathname);
-      if (method === "PATCH" && one_) { kept.issues.find((issue) => issue.number === Number(one_[1])).state = JSON.parse(init.body).state; return json({ number: Number(one_[1]) }); }
+      if (method === "PATCH" && one_) { if (stateDelay) await new Promise((resolve) => realTimeout(resolve, stateDelay)); kept.issues.find((issue) => issue.number === Number(one_[1])).state = JSON.parse(init.body).state; return json({ number: Number(one_[1]) }); }
       const labels = /^\/repos\/alice\/product\/issues\/(\d+)\/labels(?:\/(.+))?$/.exec(url.pathname);
       if (labels && method === "POST") { const target = kept.issues.find((issue) => issue.number === Number(labels[1])); target.labels = [...new Set([...target.labels, ...JSON.parse(init.body).labels])]; return json(target.labels.map((name) => ({ name }))); }
       if (labels && method === "DELETE") { const target = kept.issues.find((issue) => issue.number === Number(labels[1])); target.labels = target.labels.filter((name) => name !== decodeURIComponent(labels[2])); return json([]); }
