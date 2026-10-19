@@ -47,6 +47,18 @@ const reasonOf = (error) => [error.message, error.lastOutput, ...(error.blocking
 // The watchers this program runs. A hand-over reaches every one of them.
 const watchers = new Set();
 
+// The jobs this program took, in the order it took them, kept in memory only: what GET /v1/jobs lists (MOD-bridge-jobs, Interfaces).
+const jobsTaken = new Map();
+
+/**
+ * listJobs() -> { id, product, kind, agent, state, started, usage }[] — the jobs this Bridge took since it started, in the order it took them: `state` is `running` while the agent works and, once the job
+ * has ended, the state of its end (`done`, `failed` or `cancelled`); `started` the moment it took the job (ISO); `usage` null while it runs and the usage its end records afterwards. A job another route took is
+ * not listed.
+ */
+export function listJobs() {
+  return [...jobsTaken.values()].map((job) => ({ ...job }));
+}
+
 function createWatcher(config) {
   const { bridgeName, products, every, instance, onSkipped } = config;
   const offered = config.agents.filter((agent) => agent.folder);
@@ -100,7 +112,7 @@ function createWatcher(config) {
     const mine = { controller, done: null };
     running.set(record.id, mine);
     const working = folders.job(record.id);
-    let result = null, failed = null;
+    let result = null, failed = null, listed = null;
     try {
       // Taking is one at a time in this program, on the head read just before: two watchers of one name that took on the same head in the same
       // minute would write the same commit, which a push accepts twice, and both would run the job.
@@ -109,6 +121,8 @@ function createWatcher(config) {
         return takeJob(host, record.path, bridgeName, (await defaultHead(folder)).commit);
       });
       if (!taken.taken) return;
+      listed = { id: record.id, product, kind: record.kind, agent: agent.name, state: "running", started: new Date().toISOString(), usage: null };
+      jobsTaken.set(record.id, listed);
       try {
         const installed = (await installedAgents()).find((each) => each.name === agent.name);
         const head = await host.readSnapshot(taken.commit);
@@ -131,8 +145,11 @@ function createWatcher(config) {
         failed = error;
       }
       await removeClone(working);
-      await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
+      const end = await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
+      listed.state = end.state;
+      listed.usage = end.usage;
     } finally {
+      if (listed?.state === "running") listed.state = "failed";
       tasks.delete(record.id);
       running.delete(record.id);
     }
@@ -157,7 +174,7 @@ function createWatcher(config) {
       const text = await (await host.readSnapshot(commit)).read(record.path);
       try {
         await host.commitFiles({ branch, expectedHead: commit, files: [{ path: record.path, text: appendToRecord(text, part) }], message: `end ${record.id} (${part.state})` });
-        return;
+        return part;
       } catch (error) {
         if (error?.name !== "Moved" || attempt >= 5) throw error;
       }
