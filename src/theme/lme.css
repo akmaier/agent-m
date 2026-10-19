@@ -77,7 +77,7 @@ h1, h2, h3, h4 { color: var(--heading); line-height: 1.25; }
 
 /* A table wider than its panel scrolls sideways in a box of its own, so the page keeps the margins of its heading. */
 .table-scroll { overflow-x: auto; }
-/* The burn-down chart keeps this width — the route backlog of MOD-implementation-pages has Mermaid draw it as wide —, at which its text is the page's body
+/* The burn-down chart keeps this width — backlog-view.mjs has Mermaid draw it as wide —, at which its text is the page's body
    text; a page narrower than that scrolls the chart sideways in its box, as it does a wide table. */
 :root { --burn-down-width: 700px; }
 [data-burn-down] .mermaid svg { width: var(--burn-down-width); }
