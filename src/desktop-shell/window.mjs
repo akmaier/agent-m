@@ -1,8 +1,9 @@
 // Module: MOD-desktop-shell
+import { renderArtifact } from "../markdown-render/index.mjs";
 import { confirmDecision, explain, notice, startPage } from "../site-frame/index.mjs";
 
 const button = (label, action) => { const control = document.createElement("button"); control.textContent = label; control.addEventListener("click", action); return control; };
-const navigation = (context) => { const links = document.createElement("p"); links.append(button("Agents", () => context.go("agents")), button("Pairing", () => context.go("pairing")), button("Settings", () => context.go("settings")), button("Tunnels", () => context.go("tunnels"))); return links; };
+const navigation = (context) => { const links = document.createElement("p"); links.append(button("Agents", () => context.go("agents")), button("Pairing", () => context.go("pairing")), button("Settings", () => context.go("settings")), button("Tunnels", () => context.go("tunnels")), button("Updates", () => context.go("updates"))); return links; };
 // Which origin the Bridge is paired with: the one MOD-bridge-http's pairedWith() gives, or that no request with the token has come since this start.
 const pairedLine = (state) => Object.assign(document.createElement("p"), { textContent: state.pairedWith ? `This Bridge is paired with ${state.pairedWith}.` : "This Bridge is not yet paired since this start." });
 async function pairing(target, context) {
@@ -128,4 +129,32 @@ async function tunnels(target, context) {
   });
   target.replaceChildren(heading, navigation(context), explain("bridge-tunnels"), document.createTextNode("Public key: "), key, button("Copy public key", () => window.bridge.copy(state.publicKey)), instruction, list, host.caption, user.caption, sshPort.caption, saveHost, saved);
 }
-await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "agents", entry: null, title: "Agents", render: agents }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }] }], menuViews: [] });
+// Updates (UC-044 7a): the running version and a newer release when there is one, with its notes; Download is the person's first click, Install and restart the second, after a
+// decision that names the jobs that would end as cancelled. A feed that cannot be read, a download that fails and a signature that does not hold are said, and change nothing.
+async function updates(target, context) {
+  const state = await window.bridge.state("updates");
+  const paragraph = (text) => Object.assign(document.createElement("p"), { textContent: text });
+  const heading = Object.assign(document.createElement("h1"), { textContent: "Agent M Bridge updates" });
+  const shown = [heading, navigation(context), explain("bridge-updates"), paragraph(`Running version ${state.version ?? "unknown"}.`)];
+  if (state.error) shown.push(paragraph(state.error));
+  if (state.refused) shown.push(paragraph(state.refused));
+  if (state.offer) {
+    const notes = document.createElement("div");
+    // The notes are rendered by the site's renderer; where it can render nothing, they are shown as they are written.
+    try { notes.append(renderArtifact(state.offer.notes ?? "")); } catch { /* shown as written, below */ }
+    if (!notes.textContent) notes.textContent = state.offer.notes ?? "";
+    shown.push(paragraph(`Version ${state.offer.version} is available.`), notes);
+    if (!state.ready) shown.push(button("Download", async () => { await window.bridge.state("download-update"); await updates(target, context); }));
+    else {
+      shown.push(paragraph("The update is downloaded and its signature holds."), button("Install and restart", async () => {
+        const running = (await window.bridge.state("running-jobs")).jobs ?? [];
+        const decision = await confirmDecision({ title: "Install the update and restart the Agent M Bridge",
+          lines: running.length ? [`${running.length === 1 ? "This job is" : "These jobs are"} still running and will end as cancelled:`, ...running.map((job) => `${job.id} (${job.kind}, ${job.agent}, ${job.product})`)] : ["No job is running."],
+          confirm: "Install and restart" });
+        if (decision.confirmed) await window.bridge.state("install-update", { confirmed: true });
+      }));
+    }
+  } else if (!state.error && !state.refused) shown.push(paragraph("No newer release is offered."));
+  target.replaceChildren(...shown);
+}
+await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "agents", entry: null, title: "Agents", render: agents }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }, { name: "updates", entry: null, title: "Updates", render: updates }] }], menuViews: [] });

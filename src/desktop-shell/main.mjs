@@ -1,4 +1,5 @@
 // Module: MOD-desktop-shell
+import { createRequire } from "node:module";
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
@@ -6,6 +7,7 @@ import { installedAgents } from "../agent-processes/index.mjs";
 import { listJobs, testAccess } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
+import { createUpdates } from "./updates.mjs";
 import { loadSettings, saveSettings, setJumpHost, takeExport } from "./settings.mjs";
 
 let tray;
@@ -41,13 +43,25 @@ function registerProtocol(electron, instance) {
   });
   return `agent-m://${hostname}${pathname}/desktop-shell/window.html`;
 }
+// The updates of a packaged app: electron-updater's autoUpdater and the key built into the app; null for a start from the source folder, which offers no update.
+// electron-updater is one of the Bridge build's packages, found as MOD-tunnels finds ssh2. Where it cannot be had the Bridge runs as it is and says so on its Updates view.
+function updatesOf(config) {
+  if (!config.updateKey) return null;
+  try {
+    const { autoUpdater } = createRequire(new URL("../bridge-build/package.json", import.meta.url))("electron-updater");
+    return createUpdates({ updater: autoUpdater, key: config.updateKey, version: config.version, instance: config.instance });
+  } catch (failure) {
+    console.error(`The Bridge's updates are not available: ${failure.message}`);
+    return null;
+  }
+}
 const show = (window) => { if (window.isMinimized()) window.restore(); window.show(); window.focus(); };
 
 export async function start(electron, supplied = {}) {
   const given = typeof supplied === "string" ? { ...options(), dataFolder: supplied } : { ...options(), ...supplied };
   // A start that names its instance on the command line is a start from the source folder; any other start is the packaged app's.
   const build = given.instance ? null : readBuild(given.resources ?? process.resourcesPath);
-  const config = build ? { ...given, instance: build.instance, origin: build.origin, updateKey: build.updateKey } : given;
+  const config = build ? { ...given, instance: build.instance, origin: build.origin, updateKey: build.updateKey, version: build.version } : given;
   config.dataFolder ??= defaultDataFolder(electron, config.instance);
   if (!electron.app.requestSingleInstanceLock()) { electron.app.exit(); return null; }
   electron.protocol.registerSchemesAsPrivileged?.([{ scheme: "agent-m", privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
@@ -55,6 +69,10 @@ export async function start(electron, supplied = {}) {
   const page = registerProtocol(electron, config.instance);
   const stored = loadSettings(config.dataFolder, { port: config.port });
   let bridge = null, paused = stored.paused, quitting = false, startupFailure = null;
+  const updates = updatesOf(config);
+  // The first reading of the update feed, at start; the window's Updates view waits for it, and a feed that fails only says so in its state.
+  const firstReading = updates ? updates.start().catch(() => {}) : null;
+  const noUpdates = { version: config.version ?? null, offer: null, ready: false, refused: "This build offers no update.", error: null };
   const window = new electron.BrowserWindow({ webPreferences: { preload: new URL("./preload.cjs", import.meta.url).pathname, contextIsolation: true, nodeIntegration: false } });
   window.webContents.setWindowOpenHandler(({ url }) => { electron.shell.openExternal(url); return { action: "deny" }; });
   window.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("agent-m://")) { event.preventDefault(); electron.shell.openExternal(url); } });
@@ -68,6 +86,14 @@ export async function start(electron, supplied = {}) {
   };
   electron.ipcMain.handle("bridge-state", async (_event, action, value) => {
     if (!action) return bridgeState();
+    // The Updates view (UC-044 7a): the state, the click Download, the second click Install and restart (the window's decision names the running jobs first).
+    if (action === "updates") { await firstReading; return updates ? updates.state() : noUpdates; }
+    if (action === "check-updates") return updates ? updates.check() : noUpdates;
+    if (action === "download-update") return updates ? updates.download() : noUpdates;
+    if (action === "install-update") {
+      if (!updates) throw new TypeError("This build offers no update.");
+      return updates.install(value);
+    }
     if (startupFailure) return bridgeState();
     if (action === "agents") return { platform: platformName(), agents: await installedAgents(), selected: bridge.settings.agents };
     if (action === "save-agents") {
