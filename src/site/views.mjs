@@ -40,7 +40,8 @@ export const DASHBOARD = [
   { view: "issues", file: "issues-view.mjs", useCases: ["UC-012", "UC-033"] },
   // UC-038 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "mail", builtIn: true, useCases: ["UC-038"] },
-  { view: "mail-replies", file: "mail-replies-view.mjs", useCases: ["UC-039"] },
+  // UC-039 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "replies", builtIn: true, useCases: ["UC-039"] },
   { view: "how", file: "how-view.mjs", useCases: ["UC-006", "UC-008"] },
   { view: "settings", file: "settings-view.mjs", useCases: ["UC-042"] },
   // UC-001 is rendered by MOD-settings-pages through dashboard-app's public route dispatch; it has no dashboard view file.

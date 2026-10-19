@@ -46,7 +46,7 @@ import { view as testPages } from "../test-pages/index.mjs";
 import { view as maintenancePages } from "../maintenance-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
-import { routeOf, productHostFollowingStore } from "./routing.mjs";
+import { fragmentOf, routeOf, productHostFollowingStore } from "./routing.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -810,6 +810,15 @@ async function route() {
           else location.hash = params.id ? `#${route}/${encodeURIComponent(params.id)}` : `#${route}`;
         },
       }, {});
+    } else if (kind === "replies") {
+      const repliesRoute = maintenancePages.routes.find((r) => r.name === "replies");
+      await repliesRoute.render(main(), {
+        page: "review", instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route, params = {}) {
+          if (route === "add-product") location.hash = "#add";
+          else location.hash = fragmentOf(route, params);
+        },
+      }, routeOf(location.hash).params);
     } else if (kind === "bridge") {
       const bridge = settingsPages.routes.find((r) => r.name === "bridge");
       await bridge.render(main(), {
