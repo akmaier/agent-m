@@ -44,7 +44,7 @@ import { view as reviewPages } from "../review-pages/index.mjs";
 import { view as tracePages } from "../trace-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
-import { routeOf } from "./routing.mjs";
+import { routeOf, productHostFollowingStore } from "./routing.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -510,7 +510,7 @@ function startNotifications() {
     return; // StorageUnavailable: a browser that refuses storage holds no switch, and no check runs
   }
   if (typeof globalThis.Notification === "undefined") return;
-  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHostFollowingToken() }, addressOf: addressOfNotification });
+  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHostFollowingToken() }, productHost: productHostFollowingStore({ store: notificationsStore }), addressOf: addressOfNotification });
 }
 
 // The instance's host for the checks, which keep it for the page's whole life: each call of its functions goes through a host connected

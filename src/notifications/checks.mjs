@@ -2,8 +2,8 @@
 // Every minute, whether a check is due: the switch on, the browser's permission granted, and this browser's last
 // check five minutes old or older, or never run — so that a page opened after a pause checks at once (UC-047 2a). A
 // due check reads the snapshot of the default branch of the instance and of each product this browser keeps, each
-// with its own host — the instance's as the frame connected it, a product's connected here with its own token, which
-// goes only to its own server (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT) —, takes from each what waits for
+// with its own host — the instance's as the frame connected it, a product's as the frame's productHost gives it, through
+// its own token and the secrets stored at each call (A CLEAR IS A REAL CLEAR; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT) —, takes from each what waits for
 // acceptance with waitingForAcceptance, and compares it with what was notified: up to three of one kind in one
 // repository notified one by one, more than three by one notification of their number; the first check after the
 // switch is turned on (`checked` still null) records what waits then and notifies nothing (A PERSON IS TOLD WHAT
@@ -15,7 +15,7 @@
 // Module: MOD-notifications
 
 import { readSetting, writeSetting } from "../browser-store/index.mjs";
-import { connect, parseAddress } from "../repository-hosts/index.mjs";
+import { parseAddress } from "../repository-hosts/index.mjs";
 import { waitingForAcceptance } from "../progress-measures/index.mjs";
 import { currentRegistration } from "./permission.mjs";
 
@@ -34,7 +34,7 @@ const ROUTE_KEY = {
 };
 
 // watchForAcceptance(page) -> void — started by the frame on the main and the review pages with this page's store,
-// the instance as the frame connected it, and the frame's writing of a review-pages address (MOD-notifications,
+// the instance as the frame connected it, productHost, and the frame's writing of a review-pages address (MOD-notifications,
 // Interfaces). Throws nothing: a store the browser refuses holds no switch, and no check runs.
 export function watchForAcceptance(page) {
   const repoState = new Map(); // repository path -> { host, defaultBranch }, kept for the page's whole life
@@ -52,17 +52,6 @@ function due(notifications) {
   return Date.now() - new Date(notifications.checked).getTime() >= DUE_AFTER_MS;
 }
 
-// Each product this browser keeps, by its address in "products" (MOD-browser-store, Data), connected with its own
-// token read from the catalogue's key for its server (A GITHUB PRODUCT USES A TOKEN OF ITS OWN, A GITLAB PRODUCT
-// USES A PROJECT ACCESS TOKEN).
-function connectProduct(store, address) {
-  const tokenKey = address.server === "github"
-    ? `github-token:${address.path}`
-    : `gitlab-token:${new URL(address.origin).host}/${address.path}`;
-  const token = readSetting(store, tokenKey);
-  return connect(address, { token: token?.value ?? null, tokenName: token?.name ?? null });
-}
-
 async function check(page, repoState) {
   const { store } = page;
   const notifications = readSetting(store, "notifications");
@@ -77,7 +66,7 @@ async function check(page, repoState) {
     { repository: page.instance.repository, makeHost: () => page.instance.host },
     ...products.map((url) => {
       const address = parseAddress(url);
-      return { repository: address.path, makeHost: () => connectProduct(store, address) };
+      return { repository: address.path, makeHost: () => page.productHost(url) };
     }),
   ];
 
