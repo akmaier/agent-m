@@ -16,6 +16,8 @@ import { join } from "node:path";
 // composes that need packages of the Bridge build — MOD-tunnels (ssh2) and MOD-mail-protocols (imapflow, nodemailer) — are replaced by
 // doubles with the same exports: these cases read what the entry does with its resources, and open no tunnel and touch no mailbox.
 const ELECTRON = "export default new Proxy({}, { get: (_, name) => globalThis.__agentMEntryElectron?.[name] });";
+// electron-updater, of the Bridge build's packages: its `autoUpdater` is the fake a case puts in globalThis.__agentMUpdater.
+const UPDATER = "export default { get autoUpdater() { return globalThis.__agentMUpdater; } };";
 const DOUBLES = {
   "/src/tunnels/index.mjs": `export const ensureKey = async () => ({ publicKey: "ssh-ed25519 AAAA double", fingerprint: "SHA256:double" });
     export const openTunnels = async () => {}; export const closeTunnels = async () => {}; export const tunnelState = () => [];
@@ -26,6 +28,7 @@ const moduleUrl = (source) => `data:text/javascript,${encodeURIComponent(source)
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "electron") return { url: moduleUrl(ELECTRON), shortCircuit: true };
+    if (specifier === "electron-updater") return { url: moduleUrl(UPDATER), shortCircuit: true };
     const resolved = next(specifier, context);
     const double = Object.entries(DOUBLES).find(([tail]) => resolved.url.endsWith(tail));
     return double ? { url: moduleUrl(double[1]), shortCircuit: true } : resolved;
