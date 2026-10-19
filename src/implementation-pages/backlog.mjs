@@ -68,8 +68,10 @@ async function contextOf(context) {
     readAll(paths(ITEM_FILE), artifactSchemas().item)]);
   const teams = [...new Set([...assignments.map((a) => ASSIGNMENT_FILE.exec(a.path)?.[1]), ...sprints.map((s) => SPRINT_FILE.exec(s.path)?.[1])].filter(Boolean))];
   const modules = teams.length > 1 ? await readAll(modulePaths, artifactSchemas().module) : [];
-  // The instance is read for the model the declaration names, and for that file only: the page shows the instance itself when both hosts are one.
-  const instanceSnapshot = instance.host === product.host ? snapshot : await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
+  // The instance is read for the model the declaration names, and for that file only, as it stood at the commit the declaration's model_version names (UC-031 step 6a); where that is not named or cannot be read, as it stands now.
+  const declaredCommit = text(declaration?.fields?.model_version);
+  const instanceNow = async () => (instance.host === product.host ? snapshot : instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch));
+  const instanceSnapshot = declaredCommit ? await instance.host.readSnapshot(declaredCommit).catch(instanceNow) : await instanceNow();
   const onlyThat = { paths: instanceSnapshot.paths.filter((path) => path === modelFile), read: (path) => instanceSnapshot.read(path), blob: (path) => instanceSnapshot.blob(path) };
   const model = modelFile ? ((await catalogue(onlyThat)).models.find((each) => each.path === modelFile) ?? null) : null;
   const newest = new Map();

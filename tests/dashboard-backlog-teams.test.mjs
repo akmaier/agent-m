@@ -214,13 +214,13 @@ test("#backlog — a team's closed sprint: its final chart from start through ea
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose pull requests fit into one page of GitHub's pulls API
 // input: open #backlog
-// expect: the load lists the pull requests in one request, and makes 5 requests in all — the commit, the tree, the batch of its 16
-//         files, the batch of the process model its declaration names, and the pull requests: the merge times come from the
+// expect: the load lists the pull requests in one request, and makes 6 requests in all — the commit, the tree, the batch of its 16
+//         files, the commit its declaration's model_version names (the fixture's is not in the repository), the process model, and the pull requests: the merge times come from the
 //         pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES)
-test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 5 requests in all", async () => {
+test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 6 requests in all", async () => {
   const { page } = await backlogPage();
   assert.equal(page.requests.filter((r) => /\/pulls(?:\?|\/|$)/.test(r)).length, 1, page.requests.join(" | "));
-  assert.equal(page.requests.length, 5, page.requests.join(" | "));
+  assert.equal(page.requests.length, 6, page.requests.join(" | "));
 });
 
 // guards: UC-032 step 6; UC-035

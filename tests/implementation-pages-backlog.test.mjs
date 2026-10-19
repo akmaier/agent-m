@@ -306,7 +306,7 @@ test("the page says what is missing or what does not apply: no model, an unknown
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the fixture, with the product's host and the instance's host as one (the page shows the instance itself), and the branch the page has read named in the context
 // input: the route's render
-// expect: the pull requests are listed once; the repository's information is not asked for when the context names the branch, and the snapshot is read once; the default branch is asked for when the context names none; no commit is made
+// expect: the pull requests are listed once; the repository's information is not asked for when the context names the branch, and the snapshot is read once, with the commit the declaration's model_version names; the default branch is asked for when the context names none; no commit is made
 test("a render lists the pull requests once, reads one snapshot, and writes nothing", async () => {
   const named = [];
   const context = contextOf(fixtureFiles(), { calls: named });
@@ -315,7 +315,7 @@ test("a render lists the pull requests once, reads one snapshot, and writes noth
   recorder();
   await route.render(target, context, {});
   assert.equal(named.filter((call) => call === "listPullRequests").length, 1);
-  assert.equal(named.filter((call) => call.startsWith("readSnapshot")).length, 1);
+  assert.deepEqual(named.filter((call) => call.startsWith("readSnapshot")), ["readSnapshot main", `readSnapshot ${"a".repeat(40)}`], "the branch once, and the commit the declaration names once");
   assert.ok(!named.includes("repositoryInfo"), "the branch is the one the context names");
   assert.ok(!named.includes("commitFiles"));
   const asked = [];
