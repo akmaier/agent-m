@@ -289,15 +289,30 @@ test("onDispatch — on GitLab the input job is read from AGENT_M_INPUT_JOB and 
 });
 
 
-test("diag 1084 — the GitLab onDispatch, repeated", async () => {
-  for (let round = 0; round < 60; round += 1) {
-    const requests = fakeEndpoint();
-    await withCheckouts(async (c) => {
-      const env = (extra = {}) => gitlab({ CI_PROJECT_DIR: c.productDir, AGENT_M_PRODUCT_DIR: c.productDir, AGENT_M_INPUT_TASK: "", AGENT_M_INPUT_ENDPOINT: "", ...extra });
-      const status = await runEntry("onDispatch", env(), { now: NOW });
-      assert.equal(status.outcome, "done", status.summary);
-      assert.deepEqual(subjects(c).slice(0, 3), [`end ${JOB}: done`, "gate fixture decided", `take ${JOB} (${PIPELINE})`]);
-      assert.equal(requests.length, 1);
-    });
-  }
+test("diag 1084 — the original test, repeated", async () => {
+ for (let round = 0; round < 50; round += 1) {
+  const requests = fakeEndpoint();
+  assert.ok(runEntry, `runEntry: ${entries.error?.message}`);
+  await withCheckouts(async (c) => {
+    const env = (extra = {}) => gitlab({ CI_PROJECT_DIR: c.productDir, AGENT_M_PRODUCT_DIR: c.productDir, AGENT_M_INPUT_TASK: "", AGENT_M_INPUT_ENDPOINT: "", ...extra });
+    const without = env();
+    delete without.GITLAB_CI;
+    const refused = await runEntry("onDispatch", without, { now: NOW });
+    assert.equal(refused.outcome, "not run");
+    assert.match(refused.summary, /input job is missing/);
+    assert.equal(git(c.origin, "rev-parse", "main"), c.head, "known positive: without GITLAB_CI the origin's main is as it was");
+    assert.equal(requests.length, 0);
+    const status = await runEntry("onDispatch", env(), { now: NOW });
+    assert.equal(status.outcome, "done", status.summary);
+    assert.deepEqual(subjects(c).slice(0, 3), [`end ${JOB}: done`, "gate fixture decided", `take ${JOB} (${PIPELINE})`]);
+    const record = fileAt(c, `docs/jobs/${JOB}.md`);
+    assert.ok(record.includes(`by: ${PIPELINE}`), "the Taken part names the pipeline's address");
+    assert.ok(record.includes(`log: ${PIPELINE}`), "the End names the pipeline's address as its log");
+    assert.match(record, /## End[^]*state: done/);
+    assert.equal(fileAt(c, GATE_PATH), gateText("passed", REASON));
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].address, "https://llm.example.test/v1/chat/completions");
+    assert.equal(requests[0].headers.Authorization, `Bearer ${KEY}`);
+  });
+ }
 });
