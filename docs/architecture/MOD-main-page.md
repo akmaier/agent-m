@@ -13,6 +13,8 @@ uses:
   - MOD-site-frame.explain
   - MOD-site-frame.notice
   - MOD-site-frame.confirmDecision
+  - MOD-site-frame.productHostFollowingStore
+  - MOD-notifications.watchForAcceptance
   - MOD-browser-store.readSetting
   - MOD-bridge-client.bridgeAt
   - MOD-bridge-client.settingsOf
@@ -136,7 +138,10 @@ instance repository through their hosts, and the browser's store for the product
   product chosen and the instance; MOD-site-frame.menuOf — the page of a stage, for a card's product, and the use cases'
   page, for the greeting; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
   MOD-site-frame.notice — a refused token, a used-up rate limit, a source not reached; MOD-site-frame.confirmDecision —
-  cancel, retry and a gate's decision.
+  cancel, retry and a gate's decision; MOD-site-frame.productHostFollowingStore — each kept product's host for the
+  notification checks, through the product's token and the stored secrets at each call.
+- MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, which the page starts with the instance's
+  host, the product hosts and its writing of a review-pages address.
 - MOD-browser-store.readSetting — the products this browser keeps, their tokens, the Bridges' settings.
 - MOD-bridge-client.bridgeAt, MOD-bridge-client.settingsOf — a handle for each Bridge this browser keeps, including one
   reached through the jump host, whose address `settingsOf` gives.
