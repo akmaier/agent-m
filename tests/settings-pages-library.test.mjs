@@ -305,6 +305,7 @@ test("library — the files' hashes are shown whatever time the browser takes to
 // input: the form filled in; Save
 // expect: without a named repository an error beside the form and Save disabled, for `unknown` as for `restricted`; with it the statement names that repository; Save commits the files only to it, at docs/sources/SRC-paid/<version>/, then the entry, which holds no file, to the instance, with `content_repository` the named address
 test("library — restricted content goes only to the repository the person names, a licence unknown counting as restricted", async (t) => {
+  slowDigest(t, 20);
   for (const licence of ["restricted — the publisher's terms", "unknown"]) {
     const b = browser(t);
     const page = await b.page();
@@ -334,6 +335,7 @@ test("library — restricted content goes only to the repository the person name
 // input: Save
 // expect: the file's SHA-256 shown and the statement that nothing of it is stored; one commit holding the entry alone — no file anywhere — whose version records the file with its hash and the note `not stored:`; no named repository is asked
 test("library — a file that is only hashed is stored nowhere, and the note records it", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "standard");
@@ -361,6 +363,7 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
 // input: the file listed, then "Only hash it" ticked, then Save with no note, then the note `cabinet 3, shelf B` typed and Save once more
 // expect: before the tick the field for the note is hidden, after it shown; the first Save commits nothing to the instance, asks no named repository, and its result names iso-26262.pdf and does not say the source is registered; the second Save makes one commit holding the entry alone, whose file table under `### Files of ISO 26262:2018` is `| File | SHA-256 | Kept at |`, `|---|---|---|` and the row `| `iso-26262.pdf` | `<SHA-256>` | cabinet 3, shelf B |`
 test("library — a file that is only hashed asks where its copy is kept, and without the note it is refused by name", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "standard");
@@ -392,6 +395,7 @@ test("library — a file that is only hashed asks where its copy is kept, and wi
 // input: the form filled in, Save
 // expect: the instance gets the entry and b.md, not a.md; the file table has the row of a.md ending `| cabinet 3, shelf B |` and the row of b.md ending `| — |`; the field for the note of the second file is hidden
 test("library — each file only hashed has its own note, and a file kept has a dash", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "documents");
@@ -416,6 +420,7 @@ test("library — each file only hashed has its own note, and a file kept has a 
 // input: Save
 // expect: the repository named in the message, that the token cannot reach it, and the server's page to extend the token as a link; nothing is committed to the instance, so the entry never names content that was not stored; the form stays as it was
 test("library — a named repository the token cannot reach is named, with how to extend the token, and nothing is committed", async (t) => {
+  slowDigest(t, 20);
   for (const named of ["forbidden", "missing"]) {
     const b = browser(t, { named });
     const page = await b.page();
@@ -489,6 +494,7 @@ test("library — a registered source's name leads to its entry, which shows eac
 // input: Save for each
 // expect: the legal text as its entry alone, its identifier the CELEX number and no version row — the fetch is not part of this —; the repository's entry with a version naming the address and the commit it was pinned to, no file stored
 test("library — an EU legal text is registered as its entry alone, a repository as its pinned commit", async (t) => {
+  slowDigest(t, 20);
   const b = browser(t);
   const page = await b.page();
   await register(page, "legal-text");
