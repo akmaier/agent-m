@@ -1,4 +1,4 @@
-# Module: MOD-dashboard-app
+# Module: MOD-site-frame
 # Guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 # Level: component
 """SPEC §13 PROGRESS AND JOB STATE ARE DERIVED, NOT STORED — for the item states of the Backlog tab (ITM-147); the job states

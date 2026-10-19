@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-documents
 # Guards: A DOCUMENT HOLDS NO HISTORY
 # Level: release
 """SPEC section 1 - the check named tests/test_no_history.py.

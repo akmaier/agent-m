@@ -2,7 +2,7 @@
 // Written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md, who implemented nothing of the strand, from
 // the SPEC rules and UC-031 alone; started on sprint/02 at 58b7fe4, 2026-10-01.
 //
-// Module: MOD-process-model
+// Module: MOD-model-catalogue
 // Guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A GATE NAMES WHAT IT CHECKS; A GATE NAMES WHO DECIDES IT; A ROLE NAMES THE CAPABILITIES IT NEEDS; PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE; UC-031
 // Level: release
 //

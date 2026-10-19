@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-workflow-entries
 # Guards: A STALE APPROVAL IS NOT APPLIED; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
 # Level: unit
 """tools/apply_approvals.py — the workflow half of SPEC §10 — and its twin in the approval engine,

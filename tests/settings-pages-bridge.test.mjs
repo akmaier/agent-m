@@ -1,3 +1,4 @@
+// Module: MOD-settings-pages
 // MOD-settings-pages — Bridge pairing and HTTPS settings.
 // Level: unit
 // Guards: UC-044; THE BRIDGE IS PAIRED ONCE; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN;

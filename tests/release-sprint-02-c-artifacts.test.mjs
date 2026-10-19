@@ -2,7 +2,7 @@
 // Written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of the strand's items,
 // from the SPEC rules and use cases they realise; started on sprint/02 at a7b4b9f, 2026-10-01.
 //
-// Module: MOD-artifacts
+// Module: MOD-documents
 // Guards: A REQUIREMENT HAS A REGISTERED SOURCE; A REQUIREMENT HAS FIVE FIELDS; A RESOURCE'S TERMS ENTER AS A SOURCE; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022
 // Level: release
 //

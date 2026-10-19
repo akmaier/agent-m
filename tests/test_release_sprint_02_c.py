@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-test-document
 # Guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022
 # Level: release
 # Release test of sprint 02, strand C (ITM-144), written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md,

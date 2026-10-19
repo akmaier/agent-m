@@ -35,6 +35,8 @@ export function openEditor(target, text, { marks, save, disabledReason = () => n
   let currentMarks = [];
   let lastSaved = area.value;
   let saving = false;
+  // The one rule of unsaved changes: the text differs from the text the editor was opened with or last saved. `close` asks by it, and so does a route through `unsaved`.
+  const unsaved = () => area.value !== lastSaved;
   target.replaceChildren(element("div", "editor", element("div", "text", area, rows), preview), element("p", null, button), result,
     newer);
 
@@ -102,8 +104,9 @@ export function openEditor(target, text, { marks, save, disabledReason = () => n
       update();
       newer.replaceChildren(element("h4", null, "Difference — from the current text to the draft"), difference(against, draft));
     },
+    unsaved,
     close() {
-      if (area.value !== lastSaved && !confirm("Discard unsaved changes?")) return false;
+      if (unsaved() && !confirm("Discard unsaved changes?")) return false;
       target.replaceChildren();
       return true;
     },

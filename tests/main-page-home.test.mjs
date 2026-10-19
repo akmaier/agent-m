@@ -29,6 +29,8 @@
 //     derives from it with the live state of each job that has not ended; a record that changed is read by a request of its own. The stages, the shares, the plan,
 //     the pull requests and what waits stay as they were drawn; the build's rows move. A reading that fails leaves the cards as drawn and adds <p class="warn reread-problem"> reading "The jobs' states could
 //     not be read again. <product>: <the host's reason>", which the next reading that succeeds removes. Once the cards are no longer a child of the element they were drawn into, no reading is made.
+//     While the tab is hidden (`document.visibilityState` is "hidden", MOD-main-page, Data: "except while its tab is hidden") the page starts no reading and sets no timer; when `visibilitychange` shows
+//     the tab again it reads at once each card whose reading fell due meanwhile and leaves the others to their time; a reading in flight is not started again (TST-858001 to TST-858006).
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -38,7 +40,7 @@ import { productCard } from "../src/main-page/cards.mjs";
 import { chosenProduct } from "../src/site-frame/index.mjs";
 import {
   INSTANCE, OTHER, PRODUCT, INSTANCE_TOKEN, INSTANCE_URL, MISSING_URL, OTHER_TOKEN, OTHER_URL, PRODUCT_TOKEN, PRODUCT_URL, RATE_RESET,
-  browser, buildOf, byClass, cardsOf, click, countReads, currentOf, draw, endedJob, failedJob, instanceFiles, network, productFiles, runningJob, smallProduct, stagesOf, timers, waitsOf, withEnd,
+  browser, buildOf, byClass, cardsOf, click, countReads, currentOf, draw, endedJob, failedJob, instanceFiles, network, productFiles, runningJob, smallProduct, stagesOf, timers, visibility, waitsOf, withEnd,
 } from "./main-page-home-harness.mjs";
 
 const home = view.routes.find((candidate) => candidate.name === "home");
@@ -623,6 +625,117 @@ test("TST-847013 a used-up limit with no reset time given is tried again at the 
   await timers.fire(at("12:01"));
   assert.deepEqual(problemsOf(target), ["The jobs' states could not be read again. alice/product: GitHub's request limit for the account these requests are made with is used up; GitHub does not tell this page when it resets."]);
   assert.deepEqual(waitingDelays(), [60000]);
+});
+
+// ---------------------------------------------------------------- the readings pause while the tab is hidden (ITM-858)
+
+// What the readings after `sent` asked, by host: [GitHub, the Bridge lab-pc-4].
+const askedSince = (sent) => [net.requests.slice(sent).filter((request) => request.host === "api.github.com").length, net.requests.slice(sent).filter((request) => request.host === "127.0.0.1:4711").length];
+
+// TST-858001 · level: unit · module: MOD-main-page
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// given: the page drawn at 12:00 UTC with a job running on the Bridge lab-pc-4 (a reading costs 2 requests to GitHub and 1 to the Bridge), the tab shown
+// input: the tab hidden (document.visibilityState "hidden", then visibilitychange); the timer fired at 12:01, and the next one, if one waits, at 12:02 and 12:03; the requests since the hiding counted
+// expect: no request at all in the three minutes, to GitHub or to the Bridge (the base sends 3 for each firing: 9), and no timer waits afterwards — the readings are paused, not postponed
+test("TST-858001 while the tab is hidden the page starts no reading and sets no timer", async () => {
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.install();
+  await draw(home, browser());
+  await visibility.hide(at("12:00"));
+  const sent = net.requests.length;
+  await timers.fire(at("12:01"));
+  for (const minute of ["12:02", "12:03"]) if (timers.waiting.length) await timers.fire(at(minute));
+  assert.deepEqual(askedSince(sent), [0, 0]);
+  assert.deepEqual(waitingDelays(), []);
+});
+
+// TST-858002 · level: unit · module: MOD-main-page
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// given: the page of TST-858001, hidden at 12:00, its timer fired at 12:01 while hidden; the job still running
+// input: the tab shown again at 12:05 UTC (visibilitychange)
+// expect: at once, and with no timer fired, exactly one reading: 2 requests to GitHub — the commit and the tree of alice/product — and 1 to the Bridge; the row reads
+// ["ITM-0900", JOB, "dev-cli", "running", "2h 5m 0s"]; one timer waits again, of 60000 milliseconds
+test("TST-858002 when the tab is shown again the card whose reading fell due is read at once, once", async () => {
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.install();
+  const target = await draw(home, browser());
+  await visibility.hide(at("12:00"));
+  await timers.fire(at("12:01"));
+  const sent = net.requests.length;
+  await visibility.show(at("12:05"));
+  assert.deepEqual(askedSince(sent), [2, 1]);
+  assert.deepEqual(net.requests.slice(sent).filter((request) => request.host === "api.github.com").map(addressOf), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);
+  assert.deepEqual(buildOf(cardsOf(target)[0]), [["ITM-0900", JOB, "dev-cli", "running", "2h 5m 0s"]]);
+  assert.deepEqual(waitingDelays(), [60000]);
+});
+
+// TST-858003 · level: unit · module: MOD-main-page
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// given: the page drawn at 12:00 UTC, the first reading due at 12:01
+// input: the tab hidden and shown again, both at 12:00, before the reading fell due
+// expect: no request; exactly one timer waits, of 60000 milliseconds (the reading is still due at 12:01, and the timer that was waiting is not left beside a second one)
+test("TST-858003 a tab shown again before a reading fell due reads nothing, and leaves one timer", async () => {
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.install();
+  await draw(home, browser());
+  const sent = net.requests.length;
+  await visibility.hide(at("12:00"));
+  await visibility.show(at("12:00"));
+  assert.deepEqual(askedSince(sent), [0, 0]);
+  assert.deepEqual(waitingDelays(), [60000]);
+});
+
+// TST-858004 · level: unit · module: MOD-main-page
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// given: this browser keeps alice/product and bob/other, each with its own token; the page drawn at 12:00; GitHub then refuses requests to alice/product with a used-up limit that resets at 13:00; the timer fired at 12:01 (alice/product's reading
+// fails and is next due at 13:00, bob/other's is read and next due at 12:02); the tab hidden at 12:01; GitHub answering again
+// input: the tab shown at 12:05
+// expect: exactly 2 requests, the commit and the tree of bob/other (the card whose reading fell due); none to alice/product, whose reading is due at 13:00
+test("TST-858004 on resuming only the cards whose reading fell due are read", async () => {
+  net = network({ [PRODUCT]: smallProduct(), [OTHER]: smallProduct({ accepted: ["UC-002"] }), [INSTANCE]: instanceFiles() });
+  net.install();
+  await draw(home, browser({ products: [PRODUCT_URL, OTHER_URL], tokens: { [PRODUCT]: PRODUCT_TOKEN, [OTHER]: OTHER_TOKEN } }));
+  net.refusing = { how: "limit", repository: PRODUCT };
+  await timers.fire(at("12:01"));
+  await visibility.hide(at("12:01"));
+  net.refusing = null;
+  const sent = net.requests.length;
+  await visibility.show(at("12:05"));
+  assert.deepEqual(net.requests.slice(sent).map(addressOf), ["/repos/bob/other/commits/main", "/repos/bob/other/git/trees/<commit>"]);
+});
+
+// TST-858005 · level: unit · module: MOD-main-page
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// given: the page of TST-858002 hidden at 12:00, a card due; the tab shown twice at 12:05, both visibilitychange events fired before either reading has ended
+// input: the two events
+// expect: the card is read once: 2 requests to GitHub and 1 to the Bridge, not 4 and 2 (a reading in flight is not started again)
+test("TST-858005 a tab shown twice in a row reads a due card once", async () => {
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.install();
+  await draw(home, browser());
+  await visibility.hide(at("12:00"));
+  await timers.fire(at("12:01"));
+  const sent = net.requests.length;
+  await Promise.all([visibility.show(at("12:05")), visibility.show(at("12:05"))]);
+  assert.deepEqual(askedSince(sent), [2, 1]);
+});
+
+// TST-858006 · level: unit · module: MOD-main-page
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// given: the page drawn into an element (it listens for visibilitychange while its cards are shown)
+// input: the frame draws another route into the same element; the tab is hidden at 12:04 and shown again at 12:05
+// expect: no request, and the page no longer listens (visibility.listening is 0 after the event that found the cards gone), so that no reading is made for a route that is no longer shown
+test("TST-858006 once the route is no longer shown a tab shown again reads nothing and the page stops listening", async () => {
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.install();
+  const target = await draw(home, browser());
+  assert.equal(visibility.listening, 1, "known positive: the page listens for visibilitychange while its cards are shown");
+  target.replaceChildren("Another route is drawn here.");
+  const sent = net.requests.length;
+  await visibility.hide(at("12:04"));
+  await visibility.show(at("12:05"));
+  assert.deepEqual(askedSince(sent), [0, 0]);
+  assert.equal(visibility.listening, 0);
 });
 
 // ---------------------------------------------------------------- whether a token is stored is the frame's to say (ITM-856)

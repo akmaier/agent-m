@@ -116,3 +116,36 @@ test("TST-603023 the editor of a page drawn earlier is not asked once the route 
   });
 });
 
+for (const { site, route: name, params } of SITES) {
+  // TST-672020 · level: unit · module: MOD-review-pages
+  // guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD
+  // given: the edit page of <site> with its editor never changed, then its text changed to "changed text", and a confirmation that would decline and records what it is asked
+  // input: route.unsaved() before the change, after it, and after route.leave() accepted the discard (the confirmation now accepts)
+  // expect: unsaved is a function; false, true, then false once the editor is closed; the confirmation is asked nothing by the two first calls
+  test(`TST-672020 ${site}: unsaved passes the editor's unsaved through without asking`, async () => {
+    await withConfirm([false, true], async (asked) => {
+      const { route, target } = await draw(fakeProduct(), name, params);
+      assert.equal(typeof route.unsaved, "function", "the route tells the frame whether it holds unsaved changes");
+      assert.equal(editorsIn(target), 1, "known positive: the search finds the editor while it is drawn");
+      assert.equal(route.unsaved(), false);
+      type(target, "changed text");
+      assert.equal(route.unsaved(), true);
+      assert.deepEqual(asked, []);
+      assert.equal(route.leave(), false);
+      assert.equal(route.leave(), true);
+      assert.equal(route.unsaved(), false);
+    });
+  });
+}
+
+// TST-672021 · level: unit · module: MOD-review-pages
+// guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD
+// given: the list page of the use cases, which opens no editor
+// input: route.unsaved()
+// expect: unsaved is a function; it returns false
+test("TST-672021 a page of the route that opens no editor holds no unsaved changes", async () => {
+  const { route } = await draw(fakeProduct(), "use-case", {});
+  assert.equal(typeof route.unsaved, "function", "the route tells the frame whether it holds unsaved changes");
+  assert.equal(route.unsaved(), false);
+});
+

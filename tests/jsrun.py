@@ -1,3 +1,4 @@
+# Module: MOD-test-document
 """Run a JavaScript expression against the dashboard's ES modules and return its JSON value.
 
 The SPEC names Python files as checks for behaviour that lives in docs/assets/*.mjs. Rather than

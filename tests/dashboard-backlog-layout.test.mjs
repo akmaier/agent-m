@@ -4,7 +4,7 @@
 // axes, in a colour that stands out from the chart's background.
 // Run: node --test tests/dashboard-backlog-layout.test.mjs
 //
-// Module: MOD-dashboard-app
+// Module: MOD-implementation-pages
 // Guards: UC-032; UC-035
 // Level: system
 // Given: a controlled Electron browser in light mode and the review page served from this repository's files; the page's

@@ -1,7 +1,7 @@
 // The tunnel commands (docs/assets/bridge-tunnel.mjs) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-bridge-tunnel
+// Module: MOD-bridge-client
 // Guards: EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; UC-011
 // Level: unit
 //

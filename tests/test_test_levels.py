@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-test-document
 # Guards: EVERY TEST HAS ONE LEVEL
 # Level: unit
 """SPEC §12 EVERY TEST HAS ONE LEVEL — every test declares exactly one level from: unit, component, system,

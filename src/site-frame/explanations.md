@@ -672,6 +672,10 @@ is linked to the product, never a newer one, and checks the file's hash: the SHA
 the one recorded when that version was registered. If the hash differs, the content changed since it was registered; nothing is
 sent, Agent M says so, and a new version of the source must be registered first.
 
+## source-selection
+
+Choose which of the product's linked sources the participant works from; the list shows the version the product links, and the part of the source that applies, if the link names one. Under the source stand the files of that version that are stored, all ticked at first; untick any file the participant need not read. A file that was only hashed, whose copy is kept elsewhere, is not offered, because Agent M cannot read it. Nothing is sent until you press *Run*.
+
 ## existing-requirements
 
 Candidates are drafted against the requirements the product already has, not beside them. So Agent M collects every existing

@@ -1,4 +1,4 @@
-# Module: none — the test runner's own names (tests/jsrun.py)
+# Module: MOD-test-document
 # Guards: A MODULE IS A FOLDER
 # Level: unit
 """The names by which tests/jsrun.py reaches a module file.

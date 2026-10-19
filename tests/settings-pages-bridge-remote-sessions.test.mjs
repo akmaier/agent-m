@@ -1,3 +1,4 @@
+// Module: MOD-settings-pages
 // MOD-settings-pages — canonical remote-session setup in the public Bridge route.
 // Level: unit
 // Guards: UC-003; UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE;

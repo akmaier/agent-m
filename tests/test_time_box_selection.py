@@ -1,4 +1,4 @@
-# Module: MOD-work-items; MOD-work-plans
+# Module: MOD-work-plans
 # Guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
 # Level: unit
 """SPEC §13 A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT — when a product's model works in sprints, a team's

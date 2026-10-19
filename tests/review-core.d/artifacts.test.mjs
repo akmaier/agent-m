@@ -1,7 +1,7 @@
 // The artifact formats (docs/assets/artifacts.mjs) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-artifacts
+// Module: MOD-documents
 // Guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER; A FINDING READS LIKE A COMPILER MESSAGE; UC-008
 // Level: unit
 //

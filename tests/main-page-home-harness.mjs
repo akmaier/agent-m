@@ -63,6 +63,32 @@ export const timers = {
   },
 };
 
+// ---------------------------------------------------------------- the tab: whether it is shown, and the change of that
+
+const tab = { listeners: [] };
+/** Gives the fixture document the browser's `visibilityState` ("visible") and its `visibilitychange` listeners; browser() does it for every page. */
+function installTab() {
+  tab.listeners = [];
+  Object.assign(globalThis.document, {
+    visibilityState: "visible",
+    addEventListener: (type, listener) => { if (type === "visibilitychange") tab.listeners.push(listener); },
+    removeEventListener: (type, listener) => { if (type === "visibilitychange") tab.listeners = tab.listeners.filter((held) => held !== listener); },
+  });
+}
+async function changeTab(state, at) {
+  globalThis.document.visibilityState = state;
+  await atNow(() => Promise.all(tab.listeners.map((listener) => listener())), at);
+}
+/**
+ * The tab of the page, as the browser reports it: `hide()` and `show(at)` set `document.visibilityState` to "hidden" or "visible" and then fire `visibilitychange` at the clock `at` (NOW where none is given),
+ * resolving once what the listeners started has ended; `listening` is the number of `visibilitychange` listeners the page holds.
+ */
+export const visibility = {
+  get listening() { return tab.listeners.length; },
+  hide: (at = NOW) => changeTab("hidden", at),
+  show: (at = NOW) => changeTab("visible", at),
+};
+
 // ---------------------------------------------------------------- the files of a small product
 
 const blobOf = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest("hex");
@@ -186,6 +212,7 @@ export const RATE_RESET = Date.parse("2026-10-16T13:00:00Z");
  */
 export function browser({ products = [PRODUCT_URL], tokens = { [PRODUCT]: PRODUCT_TOKEN }, instanceToken = INSTANCE_TOKEN } = {}) {
   installPage({ hostname: "alice.github.io", pathname: "/agent-m/" });
+  installTab();
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: fixtureStorage() });
   const store = openStore(INSTANCE);
   writeSetting(store, "products", products);

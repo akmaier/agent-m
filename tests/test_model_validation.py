@@ -1,4 +1,4 @@
-# Module: MOD-process-model
+# Module: MOD-model-catalogue
 # Guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; A GATE NAMES WHO DECIDES IT; A ROLE NAMES HOW MANY FILL IT
 # Level: unit
 """SPEC §13 — a process model definition is read and validated before any product may declare it

@@ -1,4 +1,4 @@
-# Module: MOD-settings-store
+# Module: MOD-browser-store
 # Guards: CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
 # Level: unit
 """SPEC §7 CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE."""

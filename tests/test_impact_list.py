@@ -1,4 +1,4 @@
-# Module: MOD-traceability
+# Module: MOD-trace-graph
 # Guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 # Level: unit
 """SPEC §3 A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST — before an existing requirement is changed, the artifacts

@@ -2,7 +2,7 @@
 // readByBlob. Deterministic, no network. Run: node --test tests/*.test.mjs
 // The check of readBlob moved, unchanged, to tests/review-core.d/dashboard-reads.test.mjs when the reads left the kernel (ITM-130).
 //
-// Module: MOD-review-core
+// Module: MOD-approvals
 // Guards: STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT
 // Level: unit
 //

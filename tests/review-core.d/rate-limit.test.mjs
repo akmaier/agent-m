@@ -1,7 +1,7 @@
 // A used-up rate limit, told from a refused token (docs/assets/git-host.mjs usedUpLimit) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-git-host
+// Module: MOD-repository-hosts
 // Guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // Level: component
 //

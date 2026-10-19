@@ -2,7 +2,7 @@
 // (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of strand A, from the SPEC and the accepted
 // module file alone; started on sprint/02 at 3ba86fb (the merge of ITM-136, the strand's last item), 2026-10-01.
 //
-// Module: MOD-git-host
+// Module: MOD-repository-hosts
 // Guards: EVERY ARTIFACT NAMES ITS ORIGIN; AN APPROVAL NAMES THE EXACT TEXT; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; GITLAB PRODUCTS ARE SUPPORTED
 // Level: release
 //

@@ -1,3 +1,4 @@
+// Module: MOD-browser-store
 // MOD-browser-store — the values one browser tab keeps in its sessionStorage (readTabValue, writeTabValue).
 
 import test from "node:test";

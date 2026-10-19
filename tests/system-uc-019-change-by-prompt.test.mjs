@@ -135,12 +135,18 @@ const FLOW_EVIDENCE = {
     uc: "The work is handed to GitHub Actions",
     evidence: [[SELF, "TST-377008"], [SELF, "TST-377013"]],
   },
+  "main-2-offers-only-participants-that-can-draft": {
+    uc: "Agent M offers there only participants that can draft text",
+    evidence: [[SELF, "TST-377010"]],
+  },
+  "3a-links-uc-017": {
+    uc: "Agent M says so and links to UC-017",
+    evidence: [[SELF, "TST-377010"]],
+  },
 };
 
 // The parts of a flow the code does otherwise, each a todo test that fails now and names what the code does instead.
 const FLOW_FINDINGS = {
-  "main-2-offers-only-participants-that-can-draft": { uc: "Agent M offers there only participants that can draft text", finding: "UC019-S9", file: SELF, test: "TST-377010" },
-  "3a-links-uc-017": { uc: "Agent M says so and links to UC-017", finding: "UC019-S9", file: SELF, test: "TST-377010" },
   "4a-counts-of-requirements-and-use-cases": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: SELF, test: "TST-377011" },
   "4a-counts-in-the-bar": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
 };
@@ -212,13 +218,14 @@ const filesDraft = (...files) => ({ files });
 // level: system
 // module: MOD-review-pages; MOD-site-frame; MOD-prompt-bar
 // guards: UC-019 (steps 1 to 3, 4); THE PAGE NAMES WHERE IT SENDS; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
-// given: the page of UC-007 with UC-007 and UC-008 in the product, and the register offering drafter (this machine) and observer (Anthropic, USA)
-// input: the author writes "align UC-007 and UC-008 with the new rule" in the bar without naming a target, chooses drafter and presses Send
-// expect: before Send the bar names both participants with their places and nothing has been sent; the one request holds the instruction, the file of UC-007 as the target, the requirement A LOAN HAS A DUE DATE it realises and UC-008 as another use case; the bar names "drafter — this machine" as the destination
+// given: the page of UC-007 with UC-007 and UC-008 in the product, and the register offering drafter (this machine, draft text) and observer (Anthropic, USA, read the repository only)
+// input: the author writes "align UC-007 and UC-008 with the new rule" in the bar without naming a target, and presses Send with drafter
+// expect: before Send the bar names drafter with its place, the only participant that can draft text, and not observer, and nothing has been sent; the one request holds the instruction, the file of UC-007 as the target, the requirement A LOAN HAS A DUE DATE it realises and UC-008 as another use case; the bar names "drafter — this machine" as the destination
 test("TST-377004: UC-019 1-3 the instruction is written in the prompt bar and the open use case is the target", async () => {
   const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7), changed("UC-008", UC8_PATH, UC8))] });
   await onUseCase(s);
-  assert.deepEqual(all(barOf(s), "option").map((option) => option.textContent), ["drafter — this machine", "observer — Anthropic, USA"]);
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(all(barOf(s), "option").length, 0, "observer cannot draft text, so there is nothing to choose among");
   assert.equal(s.endpointRequests.length, 0);
   await send(s, ALIGN, { participant: "drafter" });
   assert.equal(s.endpointRequests.length, 1);
@@ -253,17 +260,18 @@ test("TST-377005: UC-019 5 and 5a Send is the decision to send", async () => {
 // level: system
 // module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
 // guards: UC-019 (4a); NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
-// given: the page of UC-007, the participant drafter whose context holds 1 token, and observer, whose context holds 200000
-// input: the author writes an instruction, chooses drafter and presses Send
-// expect: nothing is sent and nothing is written; the bar says "Nothing was sent." and "drafter does not hold this message: its context holds 1 tokens", and offers observer, "whose context is larger"
-test("TST-377006: UC-019 4a a context that does not fit sends nothing and offers a larger participant", async () => {
+// given: the page of UC-007, the participant drafter whose context holds 1 token, and observer, whose context holds 200000 but which cannot draft text and is not offered
+// input: the author writes an instruction and presses Send with drafter
+// expect: nothing is sent and nothing is written; the bar says "Nothing was sent." and "drafter does not hold this message: its context holds 1 tokens", and "No offered participant has a larger context."; observer is not offered, so it is not named as one to choose
+test("TST-377006: UC-019 4a a context that does not fit sends nothing and names no larger participant where none is offered", async () => {
   const s = await scenario({ extraFiles: useCases, context: 1 });
   await onUseCase(s);
   await send(s, ALIGN, { participant: "drafter" });
   const said = statusOf(s).textContent;
   assert.match(said, /^Nothing was sent\./);
   assert.match(said, /drafter does not hold this message: its context holds 1 tokens, the job needs about \d+\./);
-  assert.match(said, /Choose observer, whose context is larger\./);
+  assert.match(said, /No offered participant has a larger context\./);
+  assert.doesNotMatch(said, /observer/);
   assert.equal(s.endpointRequests.length, 0);
   assert.equal(s.product.writes.length, 0);
 });
@@ -343,18 +351,17 @@ test("TST-377009: UC-019 9 Save records the participant, model, version and roun
 // level: system
 // module: MOD-prompt-bar; MOD-job-runner; MOD-participant-list
 // guards: UC-019 (3a); A PARTICIPANT DECLARES ITS CAPABILITIES
-// given: the page of UC-007, and a participant, observer, that declares only the capability "read repository"
-// input: the author chooses observer and presses Send
-// expect: nothing is sent and nothing is written; the bar says "Nothing was sent." and that observer "lacks the capability \"draft text\""
-test("TST-377014: UC-019 3a a participant that cannot draft text is refused at Send and nothing is sent", async () => {
-  const s = await scenario({ extraFiles: useCases });
+// given: the page of UC-007, and a participant, observer, that declares only the capability "read repository", beside drafter
+// input: the author presses Send
+// expect: observer is not offered, so it is not chosen: the message goes to drafter alone ("Sent to:" names drafter and not observer), and the endpoint receives one request
+test("TST-377014: UC-019 3a a participant that cannot draft text is not offered, so the message goes to the one that can", async () => {
+  const s = await scenario({ extraFiles: useCases, answers: [filesDraft(changed("UC-007", UC7_PATH, UC7))] });
   await onUseCase(s);
-  await send(s, ALIGN, { participant: "observer" });
+  await send(s, ALIGN);
   const said = statusOf(s).textContent;
-  assert.match(said, /^Nothing was sent\./);
-  assert.match(said, /observer, the drafter of this job of change-use-case, lacks the capability "draft text"/);
-  assert.equal(s.endpointRequests.length, 0);
-  assert.equal(s.product.writes.length, 0);
+  assert.match(said, /^Sent to:drafter — this machine/);
+  assert.doesNotMatch(said, /observer/);
+  assert.equal(s.endpointRequests.length, 1);
 });
 
 // TST-377015
@@ -386,12 +393,28 @@ test("TST-377015: UC-019 6c an unusable answer is named, its raw text folded, an
 // module: MOD-prompt-bar; MOD-participant-list
 // guards: UC-019 (steps 2, 3a)
 // given: the register of an instance with one participant that can draft text (drafter) and one that cannot (observer), and the page of UC-007
-// input: read what the bar offers; then, in an instance whose only participant is observer, read what the page says
-// expect: the bar offers drafter only; with no participant able to draft, the page says so and links to UC-017's page
-test("TST-377010: UC-019 2 and 3a the bar offers only participants that can draft text", { todo: "FINDING UC019-S9 - the bar offers every participant of an offered type whose route the browser reaches (offeredAmong in MOD-prompt-bar's offer.mjs): observer, which declares only \"read repository\", is in the selector, and Send refuses it with the capability finding (TST-377014); no link to UC-017's page is offered" }, async () => {
+// input: read what the bar offers; then, in an instance whose only participant is observer, put the cursor in the bar's input, read what the page says and press its link
+// expect: the bar offers drafter only; with no participant able to draft, the bar says that no participant can do change-use-case and that it needs "draft text", offers no participant and no Send to choose, and its link opens the route participants (UC-017's page)
+test("TST-377010: UC-019 2 and 3a the bar offers only participants that can draft text", async () => {
   const s = await scenario({ extraFiles: useCases });
   await onUseCase(s);
-  assert.deepEqual(all(barOf(s), "option").map((option) => option.textContent), ["drafter — this machine"]);
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(all(barOf(s), "option").length, 0);
+  const rows = read("docs/participants.md").split("\n");
+  const onlyObserver = `${rows.slice(0, rows.findIndex((line) => line.startsWith("|---")) + 1).join("\n")}\n`
+    + "| observer | model endpoint | observer-model | 200000 | - | read repository | Anthropic, USA | endpoint fixture |\n";
+  const none = await scenario({ extraFiles: useCases, instanceFiles: { "docs/participants.md": onlyObserver } });
+  await onUseCase(none);
+  // The bar reads the page's subject when it is used (the input takes focus), so the offer now belongs to the page of the use case.
+  one(barOf(none), "textarea", "instruction").dispatchEvent(new Event("focus"));
+  await rest(none);
+  await rest(none);
+  assert.equal(all(barOf(none), "span", "participant").length + all(barOf(none), "select", "participant").length, 0, "no participant is offered");
+  const said = barOf(none).textContent;
+  assert.match(said, /No participant of this instance can do change-use-case: it needs draft text\./);
+  assert.doesNotMatch(said, /observer/);
+  await press(none, namedButton(barOf(none), "Set up participants"));
+  assert.match(none.location.hash, /^#participants/);
 });
 
 // TST-377011

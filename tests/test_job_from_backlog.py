@@ -1,4 +1,4 @@
-# Module: MOD-work-items
+# Module: MOD-work-plans
 # Guards: AGILE IMPLEMENTATION STARTS FROM THE BACKLOG; UC-032
 # Level: unit
 """SPEC §13 AGILE IMPLEMENTATION STARTS FROM THE BACKLOG — in a model that pulls its work from a backlog, every

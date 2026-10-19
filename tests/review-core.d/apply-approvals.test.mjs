@@ -2,7 +2,7 @@
 // instance's apply workflow writes for every `kind: spec` record committed without the dashboard. Deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for A STALE APPROVAL IS NOT APPLIED: node --test tests/*.test.mjs
 //
-// Module: MOD-review-core
+// Module: MOD-spec-changes
 // Guards: A STALE APPROVAL IS NOT APPLIED; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // Level: unit
 //

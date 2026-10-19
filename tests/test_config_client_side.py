@@ -1,4 +1,4 @@
-# Module: MOD-settings-store
+# Module: MOD-browser-store
 # Guards: CONFIGURATION LIVES IN THE BROWSER
 # Level: unit
 """SPEC §7 CONFIGURATION LIVES IN THE BROWSER — the token goes to the browser store and nowhere else."""
