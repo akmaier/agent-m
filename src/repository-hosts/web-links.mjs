@@ -6,7 +6,7 @@
 //
 // Module: MOD-repository-hosts
 //
-// WebLinks' other pages — pipeline schedules, Pages settings and the fork — are added by the items whose use cases open them.
+// A page the server does not offer is null.
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: the permissions of the one fine-grained token, as the parameters and access levels of
 // GitHub's prefilled token page ("Pre-filling fine-grained personal access token details using URL parameters", table
@@ -57,6 +57,10 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
       commitRuns: (commit) => `${address.web}/commit/${encodeURIComponent(commit)}/checks`,
       branch: (name) => `${address.web}/tree/${encodedPath(name)}`,
       runners: `${address.web}/settings/actions/runners/new`,
+      // UC-014: the fork page of the repository, and its Settings > Pages. GitHub has no page of pipeline schedules.
+      fork: `${address.web}/fork`,
+      pagesSettings: `${address.web}/settings/pages`,
+      pipelineSchedules: null,
     });
   }
   // A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN: the project's Access tokens page, where the person creates the project access
@@ -78,5 +82,9 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
     commitRuns: (commit) => `${address.web}/-/commit/${encodeURIComponent(commit)}/pipelines`,
     branch: (name) => `${address.web}/-/tree/${encodedPath(name)}`,
     runners: `${address.web}/-/settings/ci_cd`,
+    // UC-014 and UC-027: the project's fork page, its Deploy > Pages, and its pipeline schedules.
+    fork: `${address.web}/-/forks/new`,
+    pagesSettings: `${address.web}/-/pages`,
+    pipelineSchedules: `${address.web}/-/pipeline_schedules`,
   });
 }
