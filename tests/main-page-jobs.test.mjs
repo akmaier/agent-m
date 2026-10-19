@@ -375,6 +375,127 @@ test("TST-509007 the view hands the frame the route jobs and the strategies of t
   assert.equal(view.strategies[0], sourceStrategies);
 });
 
+// ---------------------------------------------------------------- the list is grouped by state (ITM-970)
+//
+// UC-036 step 2: "Agent M shows one list across products, newest first, grouped by state. *Waiting at a gate* comes first." MOD-main-page, Interfaces `jobs`: "every job of every product and of the
+// instance in one list … waiting at a gate first". Readings the texts leave open, which these tests state (the pull request names them):
+//   - The groups are the states of MOD-job-ledger's JobState in one order — waiting at a gate, running, queued, done, failed, cancelled, ended without record — with `cancelling` within running; the rows
+//     of a group stand newest first by the start of the record, and the job of this tab's conversation (state running) is the first of the running group.
+//   - A group is a header row <tr class="group" data-state="<state>"> with the state's name in its <th class="group-state">, directly above the rows <tr class="job"> of that state; a group none of
+//     whose rows is shown (a filter narrowed it away) has no header.
+// The fixture is that of TST-509001 with four more records of acme/atlas, each added for the test that uses them and taken away after it: a done job of 11:00 (newer than every running job), a failed job
+// of 10:30, a queued job of 11:30 (a record no route has taken and no gate has reached) and a job of lab-pc-4 that the Bridge does not list (the Bridge says it does not know it).
+
+const EXTRA = {
+  "JOB-20261016-1100-hhhh": recordText({ id: "JOB-20261016-1100-hhhh", kind: "write-code", worksOn: ["ITM-030"], participant: "dev-cli", route: "tab", start: "2026-10-16T11:00", taken: "tab",
+    end: { at: "2026-10-16T11:20", state: "done" } }),
+  "JOB-20261016-1030-iiii": recordText({ id: "JOB-20261016-1030-iiii", kind: "write-tests", worksOn: ["ITM-031"], participant: "claude-cli", route: "tab", start: "2026-10-16T10:30", taken: "tab",
+    end: { at: "2026-10-16T10:50", state: "failed", reason: "tests red" } }),
+  "JOB-20261016-1130-jjjj": recordText({ id: "JOB-20261016-1130-jjjj", kind: "write-code", worksOn: ["ITM-032"], participant: "dev-cli", route: "bridge lab-pc-4", start: "2026-10-16T11:30" }),
+  "JOB-20261016-0600-kkkk": recordText({ id: "JOB-20261016-0600-kkkk", kind: "write-code", worksOn: ["ITM-033"], participant: "dev-cli", route: "bridge lab-pc-4", start: "2026-10-16T06:00", taken: "lab-pc-4" }),
+};
+async function withExtras(run) {
+  for (const [id, body] of Object.entries(EXTRA)) REPOSITORIES["acme/atlas"].files[`docs/jobs/${id}.md`] = body;
+  try { return await run(); } finally { for (const id of Object.keys(EXTRA)) delete REPOSITORIES["acme/atlas"].files[`docs/jobs/${id}.md`]; }
+}
+// The list as it stands: [[state named above the group, [identifiers of its rows]]], read from the table in the order of its rows.
+function groupsOf(target) {
+  const groups = [];
+  for (const line of find(target, (node) => node.localName === "tr" && /(^|\s)(group|job)(\s|$)/.test(node.className))) {
+    if (line.className.split(/\s+/).includes("group")) groups.push([byClass(line, "group-state")[0].textContent, []]);
+    else groups.at(-1)?.[1].push(byClass(line, "id")[0].textContent);
+  }
+  return groups;
+}
+
+// TST-970001 · level: unit · module: MOD-main-page
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (step 2)
+// given: the fixture of TST-509001 with four more records of acme/atlas — a done job of 11:00 (hhhh), a failed job of 10:30 (iiii), a queued job of 11:30 (jjjj) and a job of lab-pc-4 from 06:00 that the Bridge does not list (kkkk); the clock at 2026-10-16 12:00 UTC
+// input: the route `jobs` drawn
+// expect: seven groups, each named above its rows, in this order — waiting at a gate [bbbb]; running [ffff 10:00, gggg 09:30, dddd 09:00]; queued [jjjj]; done [hhhh 11:00, aaaa of 15 October]; failed [iiii 10:30, cccc of 14 October]; cancelled [eeee]; ended without record [kkkk] —, each state named once; counter-proof: a list newest first with the waiting rows on top, as it stood, puts the done job of 11:00 and the queued job of 11:30 above the running jobs, which interleaves the states
+test("TST-970001 the rows stand in one group per state, waiting at a gate first, newest first within each, the state named above each group", async () => {
+  install();
+  const target = await withExtras(() => draw(browser()));
+  assert.deepEqual(groupsOf(target), [
+    ["waiting at a gate", ["JOB-20261016-0800-bbbb"]],
+    ["running", ["JOB-20261016-1000-ffff", "JOB-20261016-0930-gggg", "JOB-20261016-0900-dddd"]],
+    ["queued", ["JOB-20261016-1130-jjjj"]],
+    ["done", ["JOB-20261016-1100-hhhh", "JOB-20261015-0900-aaaa"]],
+    ["failed", ["JOB-20261016-1030-iiii", "JOB-20261014-1000-cccc"]],
+    ["cancelled", ["JOB-20261013-0700-eeee"]],
+    ["ended without record", ["JOB-20261016-0600-kkkk"]],
+  ]);
+  assert.equal(rowsOf(target).length, 11, "known positive: every job is listed once");
+  assert.deepEqual(spy.unrouted, []);
+});
+
+// TST-970002 · level: unit · module: MOD-main-page
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (steps 2, 3)
+// given: the drawn list of TST-970001
+// input: the filter state chosen as running; then all again and the filter product chosen as acme/atlas; then the participant claude-cli
+// expect: running leaves one group, running [ffff, gggg, dddd], and no header of another state; acme/atlas leaves running [ffff, gggg], queued [jjjj], done [hhhh], failed [iiii], cancelled [eeee], ended without record [kkkk] in that order — acme/agent-m's waiting and done jobs and acme/library's are gone with their headers —; the participant claude-cli, with the product all again, leaves running [dddd], failed [iiii, cccc]; choosing all brings back the seven groups
+test("TST-970002 the filters narrow every group, and a group with no row shown has no header", async () => {
+  install();
+  const target = await withExtras(() => draw(browser()));
+  const everything = groupsOf(target);
+  assert.equal(everything.length, 7, "known positive: seven groups before any filter");
+  choose(selectOf(target, "state"), "running");
+  assert.deepEqual(groupsOf(target), [["running", ["JOB-20261016-1000-ffff", "JOB-20261016-0930-gggg", "JOB-20261016-0900-dddd"]]]);
+  choose(selectOf(target, "state"), "");
+  choose(selectOf(target, "product"), ATLAS);
+  assert.deepEqual(groupsOf(target), [
+    ["running", ["JOB-20261016-1000-ffff", "JOB-20261016-0930-gggg"]],
+    ["queued", ["JOB-20261016-1130-jjjj"]],
+    ["done", ["JOB-20261016-1100-hhhh"]],
+    ["failed", ["JOB-20261016-1030-iiii"]],
+    ["cancelled", ["JOB-20261013-0700-eeee"]],
+    ["ended without record", ["JOB-20261016-0600-kkkk"]],
+  ]);
+  choose(selectOf(target, "product"), "");
+  choose(selectOf(target, "participant"), "claude-cli");
+  assert.deepEqual(groupsOf(target), [["running", ["JOB-20261016-0900-dddd"]], ["failed", ["JOB-20261016-1030-iiii", "JOB-20261014-1000-cccc"]]]);
+  choose(selectOf(target, "participant"), "");
+  assert.deepEqual(groupsOf(target), everything);
+  assert.deepEqual(spy.unrouted, []);
+});
+
+// TST-970003 · level: unit · module: MOD-main-page
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049 (6c, step 7)
+// given: the fixture of TST-509001 and the prompt bar of TST-509006 with a message running since 10:57:57 UTC
+// input: the route `jobs` drawn at 12:00:00
+// expect: the groups are waiting at a gate [bbbb] and running [this tab's, ffff, gggg, dddd] — the job of this tab is the newest running job and stands first in its group —, then done [aaaa], failed [cccc], cancelled [eeee]
+test("TST-970003 the job of this tab's conversation is the first row of the running group", async () => {
+  install();
+  try { registerStrategies("tests/main-page-jobs.test.mjs", { recipes: { "chapters-for-page": async () => [] } }); } catch (failure) { if (failure.name !== "DuplicateStrategy") throw failure; /* TST-509006 registered it */ }
+  const it = browser();
+  writeSetting(it.store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
+  const foot = document.createElement("div");
+  document.body.append(foot);
+  const subject = { key: "page:jobs", title: "Every job", kind: "converse", entry: null, paramsFor: () => ({ page: "Every job", target: "jobs" }), draftRoute: null, withhold: null, refuses: [] };
+  startPromptBar(foot, { page: "main", store: it.store, instance: { repository: "acme/agent-m", host: it.context.instance.host }, product: () => null, subject: () => subject,
+    explain: () => document.createElement("details"), go() {} });
+  const until = async (condition, what) => { for (let n = 0; n < 400; n += 1) { if (condition()) return; await new Promise((resolve) => setImmediate(resolve)); } assert.fail(`never: ${what}`); };
+  await until(() => byClass(foot, "instruction").length > 0, "the bar is drawn");
+  byClass(foot, "instruction")[0].value = "what runs?";
+  clock.now = NOW - 3723000;
+  globalThis.Date = FixedDate;
+  byClass(foot, "send")[0].dispatchEvent(new Event("click"));
+  await until(() => spy.requests.some((request) => request.url.host === "models.example"), "the message is sent");
+  globalThis.Date = RealDate;
+  try {
+    assert.deepEqual(groupsOf(await draw(it)), [
+      ["waiting at a gate", ["JOB-20261016-0800-bbbb"]],
+      ["running", ["this tab's", "JOB-20261016-1000-ffff", "JOB-20261016-0930-gggg", "JOB-20261016-0900-dddd"]],
+      ["done", ["JOB-20261015-0900-aaaa"]],
+      ["failed", ["JOB-20261014-1000-cccc"]],
+      ["cancelled", ["JOB-20261013-0700-eeee"]],
+    ]);
+  } finally {
+    byClass(foot, "stop")[0].dispatchEvent(new Event("click"));
+    await until(() => byClass(foot, "stop")[0].disabled, "the message has stopped");
+  }
+});
+
 // TST-866001 · level: unit · module: MOD-main-page
 // guards: NO SECRET IN THE REPOSITORY; DEVELOP AGAINST INTERFACES; UC-046
 // given: the same browser, whose store also holds a model endpoint's key, a stored secret; the sources of the route `jobs` as `sourcesOf` gives them
