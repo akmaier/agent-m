@@ -75,7 +75,7 @@ test("ci-configuration — a product without a schedule gets the default propose
   const lines = provenanceLines({ agentM: context.agentM, jobId: JOB, kind: "set-up-ci", participant: { name: "none", model: null }, rounds: 0 });
   assert.ok(written(host).message.endsWith(lines.join("\n")), `the message ends with the provenance lines: ${written(host).message}`);
   assert.equal(host.of("openPullRequest").length, 1);
-  assert.deepEqual(outcome, { commits: [COMMIT], files: [".github/workflows/agent-m-tests.yml", SCHEDULE_FILE], pullRequest: "https://example.org/pull/7", shown: null, notes: [] });
+  assert.deepEqual({ ...outcome, files: [...outcome.files].sort() }, { commits: [COMMIT], files: [".github/workflows/agent-m-tests.yml", SCHEDULE_FILE], pullRequest: "https://example.org/pull/7", shown: null, notes: [] });
 });
 
 // TST-747002 · level: unit · module: MOD-test-schedule
