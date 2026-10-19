@@ -423,12 +423,12 @@ test("draft — Discard drops the requirements and writes nothing", async () => 
 // guards: UC-019 (8, 9); A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A SPEC EDIT IS SAVED AS A PROPOSAL
 // given: the draft of a change of A LOAN HAS A DUE DATE with two candidates that change it: A LOAN HAS A DUE DATE (class change, of itself) and A MEMBER CAN RENEW ONCE (class change, of A LOAN HAS A DUE DATE)
 // input: the route draft; a click on Save; then the person sets the class of A MEMBER CAN RENEW ONCE to new and clicks Save
-// expect: the page shows no composed section and one problem reading "TwoChanges: A LOAN HAS A DUE DATE and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed.";
+// expect: the page shows no composed section and one problem reading "TwoChanges: A LOAN HAS A DUE DATE and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one.";
 //   after the first Save the same text is shown a second time, as the result of Save, the two candidates are still there and nothing is written; after the class is set to new the composed section is shown and the second Save writes one commit whose proposal holds
 //   the changed rule of A LOAN HAS A DUE DATE and the block A MEMBER CAN RENEW ONCE
 test("draft — two candidates that change one requirement are refused on the page and on Save, nothing written", async () => {
   const fake = fakeProduct();
-  const refusal = `TwoChanges: ${LOAN} and ${RENEW} change ${LOAN}: one block would replace the other. Nothing was composed.`;
+  const refusal = `TwoChanges: ${LOAN} and ${RENEW} change ${LOAN}: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one.`;
   const draft = { candidates: [candidate(LOAN, { class: "change", of: LOAN, rule: OVERDUE, passage: "overdue" }), candidate(RENEW, { class: "change", of: LOAN, passage: "renewal" })] };
   const { target } = await showRequirements(fake, { result: resultOf(draft, { rounds: [ROUND_ONE] }) });
   const problems = () => byClass(target, "p", "problem").map((node) => node.textContent);
@@ -449,6 +449,19 @@ test("draft — two candidates that change one requirement are refused on the pa
   const [proposal] = proposalsOf(fake);
   assert.match(proposal.text, /and says when it is overdue/);
   assert.match(proposal.text, new RegExp(`\\*\\*${RENEW}\\*\\*`));
+});
+
+// TST-066501 · level: component · module: MOD-review-pages
+// guards: UC-019 (8, 9); EVERY STEP EXPLAINS ITSELF
+// given: the draft of a change with one candidate of the class change of a requirement the SPEC does not hold
+// input: the route draft
+// expect: counter-proof — the page shows one problem reading "RequirementNotFound: the SPEC holds no requirement NO SUCH REQUIREMENT", which gives no advice on how to go on: the panel's words for two changes are
+//   for that refusal alone
+test("draft — a refusal other than two changes gets no advice on how to go on", async () => {
+  const fake = fakeProduct();
+  const draft = { candidates: [candidate(LOAN, { class: "change", of: "NO SUCH REQUIREMENT", rule: OVERDUE, passage: "overdue" })] };
+  const { target } = await showRequirements(fake, { result: resultOf(draft, { rounds: [ROUND_ONE] }) });
+  assert.deepEqual(byClass(target, "p", "problem").map((node) => node.textContent), ["RequirementNotFound: the SPEC holds no requirement NO SUCH REQUIREMENT"]);
 });
 
 // ---------------------------------------------------------------- the kind converse
