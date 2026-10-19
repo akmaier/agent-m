@@ -97,7 +97,7 @@ const PARTICIPANTS = `# Participants of this instance
 `;
 const STORED_GRAPH = { address: ADDRESS, route: "graph", folders: ["INBOX", "Receipts"], places: [{ place: "this machine", outsideEu: false }], graph: { clientId: CLIENT, account: OLD_ACCOUNT } };
 const STORED_IMAP = { address: ADDRESS, route: "imap", folders: ["INBOX"], places: [{ place: "this machine", outsideEu: false }],
-  imap: { bridge: "laptop", jumpHostNoted: false, imap: { host: "imap.example.test", port: 993, security: "tls" }, smtp: { host: "smtp.example.test", port: 465, security: "tls" },
+  imap: { bridge: "zzz-desk", jumpHostNoted: false, imap: { host: "imap.example.test", port: 993, security: "tls" }, smtp: { host: "smtp.example.test", port: 465, security: "tls" },
     account: "imap.user@example.test", password: "app-password-constructed-001" } };
 
 // A browser with a stored mailbox; Graph answers as `graph` says (default: a mailbox that works).
@@ -107,6 +107,7 @@ function browser(t, { mailbox }) {
   const store = openStore(INSTANCE);
   writeSetting(store, "mailbox", mailbox);
   writeSetting(store, "bridge:laptop", { address: "http://127.0.0.1:4711", token: "laptop-token" });
+  writeSetting(store, "bridge:zzz-desk", { address: "http://127.0.0.1:4712", token: "desk-token" });
   const requests = [], went = [];
   const priorFetch = globalThis.fetch, priorLocation = Object.getOwnPropertyDescriptor(globalThis, "location");
   Object.defineProperty(globalThis, "location", { configurable: true, value: { hostname: "fixture.github.io", pathname: "/instance/", origin: "https://fixture.github.io", href: "https://fixture.github.io/instance/" } });
@@ -130,13 +131,13 @@ function browser(t, { mailbox }) {
 }
 const graphRequests = (b) => b.requests.filter((request) => request.url.startsWith("https://graph.microsoft.com/"));
 const buttonsOf = (root, text) => descendants(root, (node) => node.localName === "button" && node.textContent === text);
-// The first token request finds the sign-in expired; later ones are answered.
-const expiredOnce = () => standIn({ silent: (n) => (n === 1 ? libraryError("InteractionRequiredAuthError", "interaction_required", "the refresh token has expired") : { accessToken: TOKEN, scopes: SCOPES }) });
+// The library knows no account yet — the sign-in has run out, as after a day — until the person signs in; then the token is answered.
+const expiredOnce = () => standIn({ silent: { accessToken: TOKEN, scopes: SCOPES } });
 const line = (shown) => one(shown, "mailbox-setting");
 
 // TST-993001 · level: unit · module: MOD-settings-pages
 // guards: UC-037 (3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
-// given: a stored Microsoft 365 mailbox whose sign-in has expired: the token request finds the refresh token run out
+// given: a stored Microsoft 365 mailbox whose sign-in has expired: the library's cache holds no account for it
 // input: the Settings page; Test on the mailbox line
 // expect: the line says the sign-in has expired and offers one Sign in with Microsoft; no request reaches Microsoft Graph; the connection stays stored; the test is recorded as refused
 test("settings — Test finds an expired Microsoft sign-in and the line offers Sign in with Microsoft", async (t) => {
@@ -165,12 +166,13 @@ test("settings — one click renews the sign-in on the stored connection, which 
   const before = JSON.stringify(readSetting(b.store, "mailbox"));
   await click(buttonsOf(line(shown), "Sign in with Microsoft")[0]);
   assert.equal(seen.logins.length, 1, "the window opens once");
-  assert.equal(seen.configs[0].auth.clientId, CLIENT, "for the stored client identifier");
+  assert.deepEqual([...new Set(seen.configs.map((config) => config.auth.clientId))], [CLIENT], "for the stored client identifier, and for no other");
   assert.equal(seen.logins[0].loginHint, ADDRESS, "offering the stored address");
   assert.deepEqual(seen.logins[0].scopes.slice().sort(), [...SCOPES].sort());
   const after = readSetting(b.store, "mailbox");
   assert.deepEqual(after, { ...STORED_GRAPH, graph: { clientId: CLIENT, account: ACCOUNT } });
   assert.equal(JSON.stringify({ ...after, graph: { ...after.graph, account: OLD_ACCOUNT } }), before, "byte for byte but the account");
+  assert.equal(buttonsOf(line(shown), "Sign in with Microsoft").length, 0, "the renewed sign-in is not offered again");
   assert.equal(readSetting(b.store, "last-test:mailbox").outcome, "refused", "the click tests nothing: the record of the last test stands");
   assert.equal(graphRequests(b).length, 0);
   await click(one(line(shown), "mailbox-test"));
@@ -221,6 +223,24 @@ test("settings — Sign in with Microsoft is offered after an expired sign-in on
   assert.equal(buttonsOf(line(shown), "Sign in with Microsoft").length, 0, "a refused permission is no expired sign-in");
 });
 
+// TST-993006 · level: unit · module: MOD-settings-pages
+// guards: UC-037 (3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
+// given: a stored Microsoft 365 mailbox whose account the library knows, but whose refresh token has run out: the silent token request throws interaction_required
+// input: Test on the mailbox line; one click on Sign in with Microsoft; Test
+// expect: the line offers Sign in with Microsoft after the first Test; after the click the stored entry differs from the first only in graph.account; the second Test is recorded as working
+test("settings — a refresh token that has run out is renewed in the same way", async (t) => {
+  const b = browser(t, { mailbox: { ...STORED_GRAPH, graph: { clientId: CLIENT, account: ACCOUNT } } });
+  standIn({ silent: (n) => (n === 1 ? libraryError("InteractionRequiredAuthError", "interaction_required", "the refresh token has expired") : { accessToken: TOKEN, scopes: SCOPES }) });
+  globalThis.msal.createStandardPublicClientApplication = ((make) => async (config) => { const client = await make(config); client.getAllAccounts = () => [{ username: ACCOUNT }]; return client; })(globalThis.msal.createStandardPublicClientApplication);
+  const shown = await b.open("settings");
+  await click(one(line(shown), "mailbox-test"));
+  assert.match(one(line(shown), "mailbox-line-result").textContent, /sign-in has expired/);
+  await click(buttonsOf(line(shown), "Sign in with Microsoft")[0]);
+  assert.deepEqual(readSetting(b.store, "mailbox"), { ...STORED_GRAPH, graph: { clientId: CLIENT, account: ACCOUNT } });
+  await click(one(line(shown), "mailbox-test"));
+  assert.equal(readSetting(b.store, "last-test:mailbox").outcome, "working");
+});
+
 // TST-993005 · level: unit · module: MOD-settings-pages
 // guards: UC-037 (3b); EVERY STEP EXPLAINS ITSELF
 // given: a stored Microsoft 365 mailbox, and a stored IMAP one, each with the places it allows
@@ -246,7 +266,7 @@ test("mailbox — opened with a stored connection, the route shows the stored fi
   assert.deepEqual([one(form, "mailbox-imap-host").value, one(form, "mailbox-imap-port").value, one(form, "mailbox-imap-security").value], ["imap.example.test", "993", "tls"]);
   assert.deepEqual([one(form, "mailbox-smtp-host").value, one(form, "mailbox-smtp-port").value, one(form, "mailbox-smtp-security").value], ["smtp.example.test", "465", "tls"]);
   assert.equal(one(form, "mailbox-account").value, "imap.user@example.test");
-  assert.equal(one(form, "mailbox-bridge").value, "laptop");
-  assert.equal(one(form, "mailbox-password").value, "", "the password is never put back into a field");
+  assert.equal(one(form, "mailbox-bridge").value, "zzz-desk");
+  assert.ok(!one(form, "mailbox-password").value, "the password is never put back into a field");
   assert.deepEqual(byClass(form, "mailbox-place").filter((box) => box.checked).map((box) => box.getAttribute("data-place")), ["this machine"]);
 });
