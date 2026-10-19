@@ -3,7 +3,7 @@ import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
 import { installedAgents } from "../agent-processes/index.mjs";
-import { testAccess } from "../bridge-jobs/index.mjs";
+import { listJobs, testAccess } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
 import { loadSettings, saveSettings, takeExport } from "./settings.mjs";
@@ -74,6 +74,8 @@ export async function start(electron, supplied = {}) {
       saveSettings(config.dataFolder, { ...bridge.settings, agents: Array.isArray(value?.agents) ? value.agents : [], paused });
       return restart();
     }
+    // The jobs this Bridge took and that still run, which the window's Quit names (UC-044 7b).
+    if (action === "running-jobs") return { jobs: listJobs().filter((job) => job.state === "running") };
     if (action === "test-access") return { results: await testAccess({ instance: repositoryAddress(config.instance), products: bridge.settings.products }) };
     if (action === "settings") return { settings: bridge.settings };
     if (action === "tunnels") return { publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() };
