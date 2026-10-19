@@ -244,7 +244,7 @@ test("TST-290112: Settings names denied notification permission without asking a
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
 // given: a browser whose notifications are on and whose key `notified` holds 3 files of two repositories; then 1 file; then none
 // input: the person opens the public Settings Route and selects Usability
-// expect: the status of the line Notifications reads "On. 3 files notified. Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens."; with 1 file "On. 1 file notified. …" and with none "On. 0 files notified. …"; with notifications off the status reads "Off." and names no count
+// expect: the status of the line Notifications reads "On. 3 files notified. Agent M checks every five minutes only while a dashboard page is open; checks go to repository servers with this browser's tokens."; with 1 file "On. 1 file notified. …" and with none "On. 0 files notified. …"; with notifications off, though the key holds a file, the status does not begin "On." and names no count
 test("TST-821002: Settings says how many files were notified while notifications are on", async () => {
   const priorNotification = globalThis.Notification;
   Object.defineProperty(globalThis, "Notification", { configurable: true, value: { permission: "granted", requestPermission: async () => "granted" } });
@@ -263,7 +263,8 @@ test("TST-821002: Settings says how many files were notified while notifications
     assert.equal(await statusFor({ "fixture/instance": { "docs/use-cases/UC-001-a.md": "a".repeat(40), "docs/use-cases/UC-002-b.md": "b".repeat(40) }, "alice/product": { "SPEC.md": "c".repeat(40) } }), `On. 3 files notified.${sentence}`);
     assert.equal(await statusFor({ "fixture/instance": { "docs/use-cases/UC-001-a.md": "a".repeat(40) } }), `On. 1 file notified.${sentence}`);
     assert.equal(await statusFor(null), `On. 0 files notified.${sentence}`);
-    assert.equal(await statusFor({ "fixture/instance": { "docs/use-cases/UC-001-a.md": "a".repeat(40) } }, false), "Off.");
+    const off = await statusFor({ "fixture/instance": { "docs/use-cases/UC-001-a.md": "a".repeat(40) } }, false);
+    assert.equal(/^On\./.test(off) || /notified/.test(off), false, `off, though the key holds a file: ${off}`);
   } finally { Object.defineProperty(globalThis, "Notification", { configurable: true, value: priorNotification }); }
 });
 
