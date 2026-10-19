@@ -102,7 +102,11 @@ derived. No key enters a repository, a log or a published file.
   build is there and that every checksum and detached signature still holds; reads again the due diligence of every
   package the app carries (ARC-052), and publishes nothing when a licence is no longer known to be compatible with Agent
   M's; writes `SHA256SUMS` and its signature; and publishes every file with its signature, and the feed, as the release
-  `Agent M V` of the tag, its notes naming the version, its commit and the due diligence read, through Access's
+  `Agent M V` of the tag, its notes naming the version, its commit, the due diligence read and the publisher of each
+  signed platform — one line `Publisher (macOS): <name>` and one `Publisher (Windows): <name>`, the name that the
+  platform's own verifier reads from the signed file (`BuildMissing` and `SignatureInvalid` stand if it reads none), so
+  that the dashboard's download page, which cannot read a release file's bytes, shows the name a person is to look for;
+  Linux has no such line, as the system checks no code signature there —, through Access's
   `publishRelease` — a draft release that becomes public only once every file is uploaded, so that no Bridge is offered
   a release whose files are missing. It then compares the SHA-256 the server reports for each file with its own. The
   facts it read are returned for the entry's status. Crosses

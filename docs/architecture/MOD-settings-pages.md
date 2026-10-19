@@ -209,7 +209,10 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     password and the mails, before saving; the folders; the processing places the mail may go to, a place outside the EU
     stated as not compliant before saving; *Store and test*; *Disconnect*.
   - `bridge` — the release's file for this computer's system with its size and the SHA-256 the server reports for it, or,
-    where the server reports none, a link to the release's checksum file; the Bridges this browser keeps, each under its
+    where the server reports none, a link to the release's checksum file, and beside the file the publisher to look for,
+    the name of the line `Publisher (<system>): <name>` that the release's notes hold for this system (MOD-bridge-build),
+    which the folded *Why this warning?* repeats; where the notes hold no such line (Linux, or a release written without
+    it), the page says that the release names no publisher for this system and writes none; the Bridges this browser keeps, each under its
     name: pairing one on this computer or at a forwarded address with the token its window shows, kept under the name it
     reports; *+ Bridge through the jump host*, named by the person, with its port from the range and the two tunnel
     commands for a computer without a Bridge; the jump host and its port range, HTTPS address and web-server login; the
