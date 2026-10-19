@@ -25,6 +25,7 @@ uses:
   - MOD-documents.Schema
   - MOD-documents.Document
   - MOD-documents.documentFindings
+  - MOD-documents.readDocument
   - MOD-text-tools.Finding
   - MOD-identifiers.instanceOfPagesAddress
   - MOD-notifications.watchForAcceptance
@@ -243,7 +244,9 @@ It writes nothing.
   shows, asked once per page, and its snapshot there.
 - MOD-job-runner.registerStrategies — the strategies the loaded views and the prompt bar hand it; MOD-job-runner.Strategies,
   MOD-job-runner.Prepared — the types of `View` and of the run panel.
-- MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema.
+- MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema;
+  MOD-documents.readDocument — a section the person edited, read again by its schema, so that its rows are checked as
+  typed before *Save* is offered.
 - MOD-text-tools.Finding — the findings shown beside a form's fields.
 - MOD-identifiers.instanceOfPagesAddress — the instance that the Pages address names.
 - MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, started on the main and the review
