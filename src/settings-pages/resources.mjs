@@ -1,7 +1,7 @@
 // MOD-settings-pages' route `resources` — a product's resources, or the instance's where the page names no product (UC-040, with 1a, 2c, 7b and 9a): the list `docs/resources.md`
 // of the repository the page is drawn for, grouped by kind, each entry with its pin, licence, maintainer, route, processing place and the name of its secret; *+ Add resource*,
 // *Edit the list* and *Copy from the instance* open the list in a form from MOD-resource-list's schema, whose findings stand beside their fields, and *Save* commits it as the person's own
-// commit on the blob it was opened on (MOD-artifact-edits' saveFile); *Remove* opens the form without the entry (the jobs and tests that name it are listed by ITM-1030, with MOD-resource-list's namedBy, once that is built); *Check* reads a repository's head through its host, shows a newer state beside the pin, and *Move* — one click — commits the new pin; a compute resource reached by a runner is
+// commit on the blob it was opened on (MOD-artifact-edits' saveFile); *Remove* opens the form without the entry and, with a newer state beside the pin, lists the jobs and tests that name the resource (MOD-resource-list's namedBy; listed, not changed); *Check* reads a repository's head through its host, shows a newer state beside the pin, and *Move* — one click — commits the new pin; a compute resource reached by a runner is
 // checked by a check job, which the page prepares and shows in MOD-site-frame's run panel and queues, on the person's click, with MOD-runtimes' queueJob. Each step carries its folded
 // explanation, a topic of MOD-site-frame's explanations (EVERY STEP EXPLAINS ITSELF). The route `resources/instance` is this route with no product, since a route is named by the first part of its fragment.
 //
@@ -25,7 +25,7 @@ import { newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
-import { checkPlan, newerState, readPin, resourceFindings, resourceSchema } from "../resource-list/index.mjs";
+import { checkPlan, namedBy, newerState, readPin, resourceFindings, resourceSchema } from "../resource-list/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, schemaForm } from "../site-frame/index.mjs";
 import { credentialsFor } from "./products.mjs";
@@ -141,6 +141,17 @@ export const route = {
       }));
     }
 
+    // The jobs and tests that name a resource, listed and not changed (UC-040, 1a and 9a): the paths of the job records whose inputs pin it and of the tests that name it.
+    async function namedList(resource) {
+      try {
+        const { jobs, tests } = await namedBy(opened.snapshot, resource.name);
+        const items = [...jobs.map((path) => el("li", "resource-named-job", path)), ...tests.map((path) => el("li", "resource-named-test", path))];
+        return el("div", "resource-named-by", el("p", null, items.length ? `${resource.name} is named by these jobs and tests; they are listed, not changed:` : `No job or test names ${resource.name}.`), el("ul", null, ...items));
+      } catch (error) {
+        return el("div", "resource-named-by", el("p", null, `The jobs and tests that name ${resource.name} could not be read: ${error?.message ?? error}.`));
+      }
+    }
+
     // ------------------------------------------------------------ a repository's pin: the head upstream, a newer state beside the pin, and Move
     async function checkRepository(resource, out) {
       let upstream;
@@ -177,7 +188,7 @@ export const route = {
           move.disabled = false;
         }
       });
-      out.replaceChildren(...lines, el("p", null, move));
+      out.replaceChildren(...lines, await namedList(resource), el("p", null, move));
     }
 
     // ------------------------------------------------------------ a compute resource reached by a runner: a check job, prepared, shown in the run panel and queued on a click
@@ -260,7 +271,8 @@ export const route = {
       const checkButton = el("button", "resource-check btn", "Check");
       checkButton.addEventListener("click", () => check(resource, out));
       const removeButton = el("button", "resource-remove btn", "Remove");
-      removeButton.addEventListener("click", () => {
+      removeButton.addEventListener("click", async () => {
+        out.replaceChildren(await namedList(resource));
         const rows = rowsOf(opened.document).filter((each) => each !== row);
         openForm({ ...opened.document, sections: [{ ...opened.document.sections[0], rows }] }, `Removing ${resource.name}: Save commits the removal.`);
       });
