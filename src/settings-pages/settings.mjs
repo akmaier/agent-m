@@ -3,7 +3,7 @@
 import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readExport, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { confirmDecision, explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema } from "../product-process/index.mjs";
@@ -450,6 +450,23 @@ function browserIdLine(target, context) {
     el("h3", null, "Browser identifier"),
     el("p", null, shown === null ? "not set" : el("span", "settings-browser-id-value", shown)),
     ...(shown === null ? [] : [el("p", null, clear)]));
+}
+
+// The mails marked not an issue (MOD-browser-store's key `not-an-issue`): identifiers only, so its line says how many are marked and has Clear after one confirmation; nothing to test or change.
+function notAnIssueLine(target, context) {
+  const marks = readSetting(context.store, "not-an-issue");
+  const count = Array.isArray(marks) ? marks.length : 0;
+  const clear = el("button", "settings-not-an-issue-clear btn", "Clear");
+  clear.addEventListener("click", async () => {
+    const decision = await confirmDecision({ title: "Clear the mails marked not an issue?", lines: [`${count} mail${count === 1 ? "" : "s"} marked in this browser will be proposed again at the next reading of the mailbox.`], confirm: "Clear the marks" });
+    if (!decision.confirmed) return;
+    clearSetting(context.store, "not-an-issue");
+    await route.render(target, context, {});
+  });
+  return el("section", "settings-not-an-issue panel",
+    el("h3", null, "Mails marked not an issue"),
+    el("p", null, count === 0 ? "not set" : `${count} mail${count === 1 ? "" : "s"} marked`),
+    ...(count === 0 ? [] : [el("p", null, clear)]));
 }
 
 function browserClearControls(context) {
@@ -1252,7 +1269,7 @@ export const route = {
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
-      browserIdLine(target, context), exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
+      browserIdLine(target, context), notAnIssueLine(target, context), exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
     const recording = recordingControls(context);
     const instanceSettings = repositorySettings(inPlace, { className: "settings-instance-settings", heading: "Instance · settings kept in its repository", topic: "settings-instance-lines", topics: INSTANCE_TOPICS, settings: INSTANCE_SETTINGS, hostOf: () => context.instance.host });
