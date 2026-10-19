@@ -137,11 +137,11 @@ async function allFacts(host, snapshot) {
 }
 
 // The facts the scope `build` reads: what buildInProgress takes and nothing else — the plan or the backlog, the job records and the pull requests —,
-// through the repository's default branch. The approval statuses are derived from the tree's paths and blobs, which read no file, so that a step's
-// state is what the scope `all` gives it where no change queue and no gate holds it back; the queues, the declaration, the sprints, the role
-// assignments, the gate records and the module files are not read, nor are the SPEC, the tests, the results, the tags and the information. A fact
-// not read is "unknown" where the type allows it, and empty where it does not.
-async function buildFacts(host) {
+// through the repository's default branch, and what the plan's states depend on: the approval statuses (derived from the tree's paths and blobs, which
+// read no file), the change queues, and the gate records with the declaration, the model and the workflow they are stated against. So a step's
+// state is what the scope `all` gives it. Not read: the sprints, the role assignments, the participants, the module files, nor the SPEC of the product,
+// the tests, the results, the tags and the information. A fact not read is "unknown" where the type allows it, and empty where it does not.
+async function buildFacts(host, instance, instanceAt) {
   const info = await orUnknown(() => host.repositoryInfo());
   const snapshot = await host.readSnapshot(info === "unknown" ? CHECKED_OUT : info.defaultBranch);
   const pullRequests = await orUnknown(() => host.listPullRequests());
@@ -149,18 +149,26 @@ async function buildFacts(host) {
   const pathsOf = (pattern) => snapshot.paths.filter((path) => pattern.test(path)).sort();
   const planned = snapshot.paths.includes(ORDER) || snapshot.paths.some((path) => PLAN_STEP.test(path));
   const itemPaths = pathsOf(planned ? PLAN_STEP : BACKLOG_ITEM);
-  await snapshot.readMany?.([ORDER, ...itemPaths, ...snapshot.paths.filter((path) => path.startsWith(JOB_RECORDS))].filter((path) => snapshot.paths.includes(path)));
-  const [order, items] = await Promise.all([
+  await snapshot.readMany?.([DECLARATION, ORDER, ...itemPaths, ...pathsOf(GATE_RECORD), ...snapshot.paths.filter((path) => path.startsWith(JOB_RECORDS))]
+    .filter((path) => snapshot.paths.includes(path)));
+  await instance.readMany?.((snapshot.paths.includes(DECLARATION) ? [INSTANCE_SPEC] : []).filter((path) => instance.paths?.includes(path)));
+  const [declaration, order, items, gates] = await Promise.all([
+    snapshot.paths.includes(DECLARATION) ? readDocument(declarationSchema, DECLARATION, (await snapshot.read(DECLARATION)) ?? "") : null,
     snapshot.paths.includes(ORDER) ? readDocument(planSchemas.planOrder, ORDER, (await snapshot.read(ORDER)) ?? "") : null,
     readAll(snapshot, itemPaths, artifactSchemas().item),
+    readAll(snapshot, pathsOf(GATE_RECORD), gateSchema),
   ]);
   const approvals = statuses(snapshot);
+  const changeQueues = await queues(snapshot);
+  const { model, workflow, modelUnread } = await declaredModel(declaration, instance, instanceAt);
   const jobs = await listJobs([{ address, snapshot }], new Map());
-  const states = itemStates(items, order, { statuses: approvals, queues: [], jobs, pullRequests, gates: [], workflow: null });
+  const known = workflow !== null && workflow !== "unknown" ? workflow : null;
+  const gateStatesOf = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
+  const states = itemStates(items, order, { statuses: approvals, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known });
   return {
-    address, info: "unknown", snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: [], declaration: null,
-    workflow: "unknown", model: "unknown", modelUnread: null, modelSince: "unknown", participants: [], plan: { order, items, states },
-    sprints: [], assignments: [], held: [], gates: [], gateStates: [], jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: "unknown",
+    address, info: "unknown", snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues, declaration,
+    workflow, model, modelUnread, modelSince: "unknown", participants: [], plan: { order, items, states },
+    sprints: [], assignments: [], held: [], gates, gateStates: gateStatesOf, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: "unknown",
     results: "unknown", tests: "unknown", resourceNeeds: "unknown",
   };
 }
@@ -182,7 +190,7 @@ async function buildFacts(host) {
 export async function productFacts(host, instance, instanceAt, now, bridges, options = { scope: "all" }) {
   const scope = options?.scope ?? "all";
   if (scope !== "all" && scope !== "work" && scope !== "build") throw new TypeError(`a scope is "all", "work" or "build": ${String(scope)}`);
-  if (scope === "build") return buildFacts(host);
+  if (scope === "build") return buildFacts(host, instance, instanceAt);
   const all = scope === "all";
 
   const info = await orUnknown(() => host.repositoryInfo());
