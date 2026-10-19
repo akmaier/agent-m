@@ -59,7 +59,7 @@ export async function start(electron, supplied = {}) {
   window.webContents.setWindowOpenHandler(({ url }) => { electron.shell.openExternal(url); return { action: "deny" }; });
   window.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("agent-m://")) { event.preventDefault(); electron.shell.openExternal(url); } });
   const bridgeState = async () => startupFailure ? { failure: startupFailure }
-    : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused, settings: bridge.settings, publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() });
+    : ({ address: bridge.address, token: bridge.token, instance: config.instance, paused, pairedWith: bridge.pairedWith(), settings: bridge.settings, publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() });
   const restart = async () => {
     if (bridge) await bridge.close();
     bridge = await compose({ instance: config.instance, origin: config.origin, dataFolder: config.dataFolder, port: config.port, paused: () => paused });

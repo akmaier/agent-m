@@ -3,6 +3,8 @@ import { confirmDecision, explain, notice, startPage } from "../site-frame/index
 
 const button = (label, action) => { const control = document.createElement("button"); control.textContent = label; control.addEventListener("click", action); return control; };
 const navigation = (context) => { const links = document.createElement("p"); links.append(button("Agents", () => context.go("agents")), button("Pairing", () => context.go("pairing")), button("Settings", () => context.go("settings")), button("Tunnels", () => context.go("tunnels"))); return links; };
+// Which origin the Bridge is paired with: the one MOD-bridge-http's pairedWith() gives, or that no request with the token has come since this start.
+const pairedLine = (state) => Object.assign(document.createElement("p"), { textContent: state.pairedWith ? `This Bridge is paired with ${state.pairedWith}.` : "This Bridge is not yet paired since this start." });
 async function pairing(target, context) {
   const state = await window.bridge.state();
   target.replaceChildren();
@@ -21,7 +23,7 @@ async function pairing(target, context) {
     const decision = await confirmDecision({ title: "Replace pairing", lines: ["Every paired browser must pair again. The old token will stop working."], confirm: "Pair anew" });
     if (decision.confirmed) { await window.bridge.pairAnew(); notice("info", { text: "The pairing token was replaced. Pair this dashboard again." }); await pairing(target, context); }
   }), button("Quit", () => window.bridge.quit()));
-  target.append(heading, navigation(context), explain("bridge-pairing"), document.createTextNode("Address: "), address, document.createElement("br"), document.createTextNode("Pairing token: "), token, controls);
+  target.append(heading, navigation(context), explain("bridge-pairing"), document.createTextNode("Address: "), address, document.createElement("br"), document.createTextNode("Pairing token: "), token, pairedLine(state), controls);
 }
 const field = (label, value, type = "text") => {
   const input = document.createElement("input"), caption = document.createElement("label");

@@ -68,3 +68,31 @@ test("TST-291006: production window navigation remains reachable after settings 
   await click(document.body, "Use this port");
   await click(document.body, "Settings"); assert.equal(location.hash, "#settings", "retry redraw retains context for navigation");
 });
+
+// TST-1004003 · level: unit · module: MOD-desktop-shell
+// guards: UC-044; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE
+// given: the production Bridge window entry and a constructed preload state that names pairedWith "https://carol.github.io" and, later, null
+// input: the Pairing route is drawn with each state
+// expect: with the origin, the page says "paired with https://carol.github.io" and not "not yet paired since this start"; with null, it says "not yet paired since this start" and not "paired with"
+// Planted fault: always saying one of them, or leaving the origin out, fails one of the two draws.
+test("TST-1004003: MOD-desktop-shell's Pairing view says which origin the Bridge is paired with, or that it is not yet paired since this start", async () => {
+  const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
+  document.head = document.createElement("head"); document.body = document.createElement("body");
+  globalThis.document = document;
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+  const browser = new EventTarget();
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { hash: "#pairing" } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+  let pairedWith = "https://carol.github.io";
+  browser.bridge = { async state() { return { address: "http://127.0.0.1:4711", token: "fixture-token", paused: false, pairedWith }; },
+    async copy() {}, async quit() {}, async retryPort() {}, async pairAnew() {}, async pause() {}, async resume() {} };
+  await import(`../src/desktop-shell/window.mjs?window-paired=${Date.now()}`);
+  const redraw = async () => { browser.dispatchEvent(new Event("hashchange")); await new Promise((resolve) => setImmediate(resolve)); };
+  await redraw();
+  assert.match(document.body.textContent, /paired with https:\/\/carol\.github\.io/);
+  assert.doesNotMatch(document.body.textContent, /not yet paired since this start/);
+  pairedWith = null;
+  await redraw();
+  assert.match(document.body.textContent, /not yet paired since this start/);
+  assert.doesNotMatch(document.body.textContent, /paired with/);
+});
