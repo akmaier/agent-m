@@ -190,6 +190,7 @@ function mailItem(entry, due, box, host, extra) {
   }
   item.append(el("p", null, el("span", "reply-reporter", who(mail.from)), " · ", el("span", "reply-date", mail.date), " · ", el("span", "reply-subject", mail.subject)));
   if (fresh.has(id)) item.append(el("p", "reply-new", "New: this mail came after your question."));
+  if (fresh.has(id)) item.append(el("pre", "reply-text", mail.text));
   if (arrived.has(id)) {
     const offer = el("p", "reply-arrived", "This mail arrived in the thread after the issue was closed. The issue stays closed until you reopen it. ");
     offer.append(button("reopen-issue", "Reopen", async () => {
