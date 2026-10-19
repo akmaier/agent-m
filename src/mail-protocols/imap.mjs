@@ -268,6 +268,5 @@ export function sendDraft(connection, Flow, ref, expected, transmit) {
     const { to, cc } = await parseMail(bytes, "Drafts");
     await transmit(bytes, [...to, ...cc].map((each) => each.address));
     await client.append(await folderMarked(client, "\\Sent"), bytes, ["\\Seen"]);
-    await removeDraft(client, imap, drafts, ref);
   });
 }
