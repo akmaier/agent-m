@@ -149,12 +149,15 @@ function createWatcher(config) {
     const folders = foldersOf(agent.folder);
     const productFolder = folders.product(product);
     await cloneOrFetch(product, productFolder);
+    const productHead = await defaultHead(productFolder);
     const instanceFolder = await cloneOrFetch(instance, folders.instance);
     const instanceHost = await hostOf(instance, instanceFolder);
     const instanceCommit = (await defaultHead(instanceFolder)).commit;
     const host = await hostOf(product, productFolder);
-    // The facts are read through the clone alone: the sprints and the job records need no pull request (productFacts takes a refusal as `unknown`).
-    const clone = { ...host, listPullRequests: async () => { throw Object.assign(new Error("pull requests are not read here"), { name: "NotSupported" }); } };
+    // The facts are read through the clone alone: the sprints and the job records need no pull request (productFacts takes a refusal as `unknown`). They are read at the head the clone fetched
+    // (`productHead`), not at the clone's own branch, which stands where the clone was made: the records this Bridge has queued, taken and ended since are on the origin only.
+    const clone = { ...host, repositoryInfo: async () => ({ ...(await host.repositoryInfo()), defaultBranch: productHead.commit }),
+      listPullRequests: async () => { throw Object.assign(new Error("pull requests are not read here"), { name: "NotSupported" }); } };
     const now = new Date();
     const facts = await productFacts(clone, await instanceHost.readSnapshot(instanceCommit), (commit) => instanceHost.readSnapshot(commit), now, { scope: "work" });
     const due = sprintsToClose(Array.isArray(facts.sprints) ? facts.sprints : [], Array.isArray(facts.plan?.states) ? facts.plan.states : [], now.toISOString().slice(0, 10));

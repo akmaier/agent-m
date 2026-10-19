@@ -157,6 +157,9 @@ const watch = (w, agents, extra = {}) => startWatching({ bridgeName: "lab-pc", a
 const runs = (w) => w.calls().filter((line) => / run /.test(line));
 
 
+// Fifteen intervals of 100 ms, enough for the watcher to read the product again after the close ended, however long a round takes on a slow runner.
+const quiet = () => new Promise((resolve) => setTimeout(resolve, 1500));
+
 // ---------------------------------------------------------------- the sprints of a product
 
 const item = (id) => ["---", `id: ${id}`, `title: ${id} item`, "level: module", "realises:", "  - UC-001", "modules:", "  - MOD-store", "tests:", "  - unit", "origin:", "  - UC-001", "---", `# ${id} item`, "", "## Outcome", "", "o", "", "## Acceptance", "", "a", ""].join("\n");
@@ -179,7 +182,7 @@ test("a sprint whose time box ended and whose closer is an agent of this Bridge 
     const folder = w.folder("agent-work");
     watch(w, [{ name: "opencode", folder }]);
     const [record] = await w.until(() => { const found = closeRecords(w); return found.length && /^## End$/m.test(found[0].text) ? found : null; }, "the close to end");
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await quiet(); // several intervals after the close ended: the sprint is due still (the fixture writer closes nothing), so a second close would be queued by now
 
     const records = closeRecords(w);
     assert.equal(records.length, 1, "one close, however many intervals pass");
@@ -205,7 +208,7 @@ test("a sprint closed by another participant, not yet ended or closed already is
   await world(async (w) => {
     watch(w, [{ name: "opencode", folder: w.folder("agent-work") }]);
     await w.until(() => { const found = closeRecords(w); return found.length && /^## End$/m.test(found[0].text) ? found : null; }, "the close of team1/07 to end");
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await quiet(); // several intervals after the close ended: the sprint is due still (the fixture writer closes nothing), so a second close would be queued by now
 
     const records = closeRecords(w);
     assert.equal(records.length, 1);
@@ -227,7 +230,7 @@ test("a close already queued for the sprint is run, and the Bridge queues no sec
     const queued = w.queue(PRODUCT_A, { ...JOB(ID(1), "drafter"), kind: "close-sprint", worksOn: ["ITM-0001"], params: { sprint: "team1/01" }, route: "bridge lab-pc agent opencode" });
     watch(w, [{ name: "opencode", folder: w.folder("agent-work") }]);
     await w.ended(queued);
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await quiet(); // several intervals after the close ended: the sprint is due still (the fixture writer closes nothing), so a second close would be queued by now
 
     assert.equal(closeRecords(w).length, 1);
     assert.deepEqual(closeRecords(w).map((each) => each.path), [queued.path]);
