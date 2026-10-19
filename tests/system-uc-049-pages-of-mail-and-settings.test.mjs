@@ -112,9 +112,9 @@ test("alternative 3c: the context of the settings page never carries a stored to
 
 // TST-513023 · level: system · module: MOD-prompt-bar · MOD-settings-pages
 // guards: UC-049 alternative 3c; UC-049 main flow (3)
-// given: the settings page of a browser that stores a GitHub token, an endpoint key and a mailbox password
+// given: the settings page of a browser that stores a GitHub token, an endpoint key and a mailbox connection that signs in to Microsoft 365 (the world of tests/uc-039-world.mjs, route graph, stores the sign-in and no password)
 // input: a message sent on the settings page
-// expect: UC-049 3c says "The context names the settings and whether each is stored": the context says of the GitHub token, of the endpoint key and of the mailbox password that it is stored. FINDING: the context is the text the page has drawn, which names the settings but nowhere says, per setting, whether it is stored, so this case is red on main until the subject of the settings page gives that
+// expect: UC-049 3c says "The context names the settings and whether each is stored": the context says of the GitHub token, of the endpoint key and of the mailbox, by its line's name ("Mailbox sign-in" for Microsoft 365, "Mailbox password" for IMAP), that it is stored. FINDING: the context is the text the page has drawn, which names the settings but nowhere says, per setting, whether it is stored, so this case is red on main until the subject of the settings page gives that
 test("alternative 3c: the context names each setting and whether it is stored", { todo: "FINDING UC049-3c — the context of the settings page is the drawn text; it does not say, per setting, whether it is stored — ITM-1127" }, async () => {
   const p = await openReplies({ inbox: [rawMail("n1")], fragment: "#settings", views: [maintenance, settings], rows: [LOCAL, CLOUD] });
   try {
@@ -122,7 +122,7 @@ test("alternative 3c: the context names each setting and whether it is stored", 
     const given = sentBody(await ask(p, "local-llm", "What is stored here?"));
     assert.match(given, /(GitHub token|github-token)[^\n]*\bstored\b/i, "the GitHub token is said to be stored");
     assert.match(given, /(key)[^\n]*\bstored\b/i, "the endpoint key is said to be stored");
-    assert.match(given, /(password)[^\n]*\bstored\b/i, "the mailbox password is said to be stored");
+    assert.match(given, /Mailbox sign-in[^\n]*\bstored\b/i, "the mailbox, by its line's name, is said to be stored");
   } finally { await p.stop(); }
 });
 
