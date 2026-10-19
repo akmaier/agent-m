@@ -14,6 +14,8 @@
 
 import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
+import { eligible } from "../participant-list/index.mjs";
+import { kindOf } from "../job-catalogue/index.mjs";
 import { offeredAmong, placeOf, readParticipants } from "./offer.mjs";
 import { followJob } from "./follow.mjs";
 import { assess, queue, worksOnOf } from "./hand-over.mjs";
@@ -91,7 +93,7 @@ const said = (failure) => `${failure.name ?? "Error"}: ${failure.message}`;
 export function startPromptBar(target, setup) {
   const { store, instance } = setup;
   const state = { stopped: false, controller: null, follower: null, following: false };
-  let offered = [], recording = false, instanceWeb = null;
+  let reached = [], offered = [], recording = false, instanceWeb = null;
 
   const status = el("section", "status");
   const followed = el("section", "following");
@@ -102,6 +104,7 @@ export function startPromptBar(target, setup) {
   const stop = button("stop", "Stop");
   stop.disabled = true;
   let selector = null;
+  const chooser = el("div", "chooser");
 
   const show = (...nodes) => status.replaceChildren(...nodes);
   const problem = (text) => el("p", "problem", text);
@@ -253,7 +256,8 @@ export function startPromptBar(target, setup) {
     if (state.controller || state.stopped) return;
     const instruction = input.value.trim();
     if (instruction === "") { show(problem("Write a message first.")); return; }
-    const participant = chosen();
+    const participant = await rejudged();
+    if (participant === null) { show(problem("Nothing was sent. No participant can do this kind of message.")); return; }
     const controller = new AbortController();
     state.controller = controller;
     send.disabled = true;
@@ -317,11 +321,22 @@ export function startPromptBar(target, setup) {
     }
   }
 
-  async function draw() {
-    const snapshot = await defaultSnapshot(instance.host);
-    instanceWeb = snapshot.repository.web;
-    offered = offeredAmong(await readParticipants(snapshot), store);
-    if (offered.length === 0 || state.stopped) return;
+  // The participants reached that can do the kind of the subject now (UC-019 2): `eligible` judges them against the `needs` of the kind's
+  // definition. The subject is a getter, so the offer is drawn from it whenever the bar is used: when the bar is drawn, when its input or its
+  // selector takes focus, and on *Send*. Where some are reached and none can, the bar says so, names what the kind needs and links the route
+  // `participants` (UC-019 3a).
+  async function judge() {
+    const kind = await kindOf(setup.subject().kind);
+    if (state.stopped) return;
+    offered = eligible(reached, { capabilities: kind.needs }).eligible;
+    const kept = selector?.value;
+    if (offered.length === 0) {
+      selector = null;
+      const link = button("participants-link", "Set up participants");
+      link.addEventListener("click", () => setup.go("participants"));
+      chooser.replaceChildren(el("p", "none-able", `No participant of this instance can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
+      return;
+    }
     const named = (each) => `${each.name} — ${placeOf(each)}`;
     if (offered.length === 1) {
       selector = el("span", "participant", named(offered[0]));
@@ -332,13 +347,31 @@ export function startPromptBar(target, setup) {
         option.value = each.name;
         selector.append(option);
       }
-      selector.value = offered[0].name;
+      selector.value = offered.some((each) => each.name === kept) ? kept : offered[0].name;
+      selector.addEventListener("focus", () => judge().catch(() => {}));
     }
+    chooser.replaceChildren(selector);
+  }
+
+  // The participant a message goes to: the offer is judged again for the subject now, then the chosen one is taken; null where none can.
+  async function rejudged() {
+    await judge();
+    return offered.length === 0 ? null : chosen();
+  }
+
+  async function draw() {
+    const snapshot = await defaultSnapshot(instance.host);
+    instanceWeb = snapshot.repository.web;
+    reached = offeredAmong(await readParticipants(snapshot), store);
+    if (reached.length === 0 || state.stopped) return;
+    await judge();
+    if (state.stopped) return;
+    input.addEventListener("focus", () => judge().catch(() => {}));
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
     stop.addEventListener("click", () => (state.controller ? state.controller.abort() : state.follower?.cancel()));
     conversation.replaceChildren(...conversationOf(store).map(line));
-    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, selector, conversation, input, el("div", "buttons", send, stop), status, followed);
+    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, chooser, conversation, input, el("div", "buttons", send, stop), status, followed);
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
     bar.setAttribute("style", "position: fixed; bottom: 0; left: 0; right: 0;");
