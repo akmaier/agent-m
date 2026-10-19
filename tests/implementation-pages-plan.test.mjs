@@ -60,12 +60,13 @@ const ARCHITECTURE = {
   "docs/architecture/MOD-loose.md": module_("MOD-loose"),
 };
 const USE_CASE = "docs/use-cases/UC-001-load.md";
-// The steps: file order ITM-010, ITM-011, ITM-012; the plan's order puts ITM-012 first, and ITM-011 builds on ITM-010.
+// The steps: file order ITM-010, ITM-011, ITM-012, ITM-013; the plan's order puts ITM-012 first, and ITM-011 builds on ITM-010. The V-model's gate Design → Implementation, decided by the Reviewer, has no record, so ITM-013, a step of the phase Implementation that builds on nothing, waits for it.
 const PLAN = {
   "docs/plan/ITM-010-reader.md": step("ITM-010", "Read the store"),
   "docs/plan/ITM-011-writer.md": step("ITM-011", "Write the store", ["builds_on:", "  - ITM-010"]),
   "docs/plan/ITM-012-loose.md": step("ITM-012", "Loose ends"),
-  "docs/plan/order.md": lines("| Step | Phase |", "| --- | --- |", "| ITM-012 | Implementation |", "| ITM-010 | Implementation |", "| ITM-011 | Implementation |"),
+  "docs/plan/ITM-013-gated.md": step("ITM-013", "Gated work"),
+  "docs/plan/order.md": lines("## Order", "", "| Step | Phase |", "| --- | --- |", "| ITM-012 | Testing |", "| ITM-010 | Testing |", "| ITM-011 | Implementation |", "| ITM-013 | Implementation |"),
 };
 
 // A product whose approval records name the current blob of every file in `accepted`; the others are open, or changed where `changed` names them.
@@ -121,18 +122,20 @@ const text = (node) => node.textContent.replace(/\s+/g, " ").trim();
 
 // TST-1057001 · level: unit · module: MOD-implementation-pages
 // guards: UC-045; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: a V-model product whose architecture is accepted: the system ARC-001, the subsystem ARC-002 designing MOD-reader and MOD-writer, and MOD-loose, designed by none; UC-001 accepted; a plan of three steps whose order puts ITM-012 first, then ITM-010, then ITM-011 (file order is ITM-010, ITM-011, ITM-012), ITM-011 building on ITM-010; no job and no pull request
+// given: a V-model product whose architecture is accepted: the system ARC-001, the subsystem ARC-002 designing MOD-reader and MOD-writer, and MOD-loose, designed by none; UC-001 accepted; a plan of four steps whose order puts ITM-012 first, then ITM-010, ITM-011 and ITM-013 (file order is ITM-010, ITM-011, ITM-012, ITM-013), ITM-011 building on ITM-010, ITM-013 in the phase Implementation, which the gate Design → Implementation, without a record, guards; no job and no pull request
 // input: the route plan's render
-// expect: the architecture lists ARC-001 as the system, ARC-002 as its subsystem with MOD-reader and MOD-writer under it, and MOD-loose under the system; the steps stand in the order ITM-012, ITM-010, ITM-011, each with its state: ITM-012 and ITM-010 ready, waiting for nothing, and ITM-011 "waiting for an item it builds on", waiting for "ITM-010 is not done"; a folded What is this? is there
+// expect: the architecture lists ARC-001 as the system, ARC-002 as its subsystem with MOD-reader and MOD-writer under it, and MOD-loose under the system; the steps stand in the order ITM-012, ITM-010, ITM-011, ITM-013, each with its state: ITM-012 and ITM-010 ready, waiting for nothing; ITM-011 "waiting for an item it builds on", waiting for "ITM-010 is not done"; ITM-013 "waiting", waiting for the gate Design → Implementation, decided by Reviewer; a folded What is this? is there
 // Planted fault: listing the steps in the order of their files, not the plan's order, fails the order assertion.
 test("the plan page shows the architecture beside the steps in the plan's order, each with its state and what it waits for", async () => {
   const { target } = await render(productFiles());
   const tree = byData(target, "data-architecture").map((e) => [e.getAttribute("data-architecture"), e.getAttribute("data-kind"), e.getAttribute("data-under")]);
   assert.deepEqual(tree, [["ARC-001", "system", null], ["ARC-002", "subsystem", "ARC-001"], ["MOD-reader", "module", "ARC-002"], ["MOD-writer", "module", "ARC-002"], ["MOD-loose", "module", "ARC-001"]]);
   const rows = byData(target, "data-step");
-  assert.deepEqual(rows.map((row) => row.getAttribute("data-step")), ["ITM-012", "ITM-010", "ITM-011"], "the plan's order, not the files'");
-  assert.deepEqual(rows.map((row) => [row.getAttribute("data-state"), text(byData(row, "data-waits-for")[0])]),
-    [["ready", ""], ["ready", ""], ["waiting for an item it builds on", "ITM-010 is not done"]]);
+  assert.deepEqual(rows.map((row) => row.getAttribute("data-step")), ["ITM-012", "ITM-010", "ITM-011", "ITM-013"], "the plan's order, not the files'");
+  const waits = rows.map((row) => [row.getAttribute("data-state"), text(byData(row, "data-waits-for")[0])]);
+  assert.deepEqual(waits.slice(0, 3), [["ready", ""], ["ready", ""], ["waiting for an item it builds on", "ITM-010 is not done"]]);
+  assert.equal(waits[3][0], "waiting");
+  assert.match(waits[3][1], /Design → Implementation, decided by Reviewer/);
   assert.match(text(target), /What is this\?/);
 });
 
@@ -140,7 +143,7 @@ test("the plan page shows the architecture beside the steps in the plan's order,
 // guards: UC-045; DIAGRAMS ARE MERMAID IN MARKDOWN
 // given: the product of TST-1057001; Mermaid replaced by a recorder
 // input: the route plan's render
-// expect: Mermaid is handed one diagram, a flowchart whose nodes are the steps in the plan's order, each labelled with its identifier and state, and whose one edge goes from ITM-010 to ITM-011, the step that waits for it
+// expect: Mermaid is handed one diagram, a flowchart whose nodes are the steps in the plan's order, each labelled with its identifier and state (a step that waits for a gate: "waiting"), and whose one edge goes from ITM-010 to ITM-011, the step that waits for it
 // Planted fault: an edge drawn the other way, or a node for a step in file order, changes the text.
 test("the plan page hands Mermaid one diagram of the steps and what each waits for", async () => {
   const { target, drawn } = await render(productFiles());
@@ -150,6 +153,7 @@ test("the plan page hands Mermaid one diagram of the steps and what each waits f
     "  ITM_012[\"ITM-012 — ready\"]",
     "  ITM_010[\"ITM-010 — ready\"]",
     "  ITM_011[\"ITM-011 — waiting for an item it builds on\"]",
+    "  ITM_013[\"ITM-013 — waiting\"]",
     "  ITM_010 --> ITM_011",
   ].join("\n")]);
 });
