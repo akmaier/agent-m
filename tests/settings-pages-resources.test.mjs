@@ -31,7 +31,7 @@ const { view } = await import("../src/settings-pages/index.mjs");
 const { explain } = await import("../src/site-frame/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { connect, parseAddress } = await import("../src/repository-hosts/index.mjs");
-const { writeSetting } = await import("../src/browser-store/index.mjs");
+const { readSetting, writeSetting } = await import("../src/browser-store/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "resources");
 
 const INSTANCE = "akmaier/agent-m";
@@ -48,6 +48,7 @@ const list = (title, ...rows) => `# Resources of ${title}\n\n${HEADER}\n${rows.j
 const DLLS = `| dlls | repository | https://github.com/alice/dlls | ${OLD_PIN} | MIT | the Acme organisation | read on its host | — | — | — |`;
 const CLUSTER = "| cluster | compute | cluster.example.org | — | — | — | runner:gpu | NHR@FAU, Erlangen | — | — |";
 const LLM = "| shared-llm | endpoint | http://workstation.example.org:8000/v1 | example-model | — | — | bridge workstation | the group's workstation | no | ci:LLM_KEY |";
+const BROWSER_LLM = LLM.replace("ci:LLM_KEY", "browser");
 const PRODUCT_LIST = list("thesis-tool", DLLS, CLUSTER);
 const INSTANCE_LIST = list("agent-m", LLM, CLUSTER);
 const PARTICIPANTS = ["# Participants of this instance", "",
@@ -490,4 +491,60 @@ test("resources — Remove and a newer state list the jobs and tests that name t
   assert.ok(named(second)[0].includes("docs/jobs/JOB-20261005-1432-7f3a.md") && named(second)[0].includes("tests/dlls.test.mjs"), named(second)[0]);
   assert.ok(buttonLabelled(entry(second.target, "dlls"), "Move"));
   assert.equal(productCommits(second).length, 0);
+});
+
+// TST-1073001 · level: unit · module: MOD-settings-pages
+// guards: UC-040; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE
+// given: the product's list holds shared-llm, whose secret is `browser`, dlls (secret —) and cluster (secret —)
+// input: render the route
+// expect: the entry of shared-llm has one field for its key, a password field, and a button "Save key"; dlls and cluster have none (counter-proof)
+test("resources — an entry whose secret is `browser` has a field for its key, and no other entry has", async (t) => {
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, CLUSTER, BROWSER_LLM) } });
+  assert.equal(withClass(entry(page.target, "shared-llm"), "resource-key-input").length, 1);
+  assert.equal(withClass(entry(page.target, "shared-llm"), "resource-key-input")[0].type, "password");
+  assert.ok(buttonLabelled(entry(page.target, "shared-llm"), "Save key"));
+  for (const name of ["dlls", "cluster"]) {
+    assert.equal(withClass(entry(page.target, name), "resource-key-input").length, 0);
+    assert.equal(buttonLabelled(entry(page.target, name), "Save key"), undefined);
+  }
+});
+
+// TST-1073002 · level: unit · module: MOD-settings-pages
+// guards: UC-040; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// given: the list as above; the key "hub_KEY0123456789" typed into the field of shared-llm
+// input: a click a script makes on "Save key"; the person's click on "Save key"; the person's click on "Show"
+// expect: the script's click stores nothing; the person's click stores { value: <the key>, stored: <a date> } under resource-key:shared-llm and under no other resource-key setting, writes no commit and sends no request, and the page's text holds the key nowhere; the field is empty and says the key is stored; Show puts the key into the field as text
+test("resources — Save key stores the key as resource-key:<name> on the person's click, and it appears nowhere else", async (t) => {
+  const KEY = "hub_KEY0123456789";
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, BROWSER_LLM, BROWSER_LLM.replace("shared-llm", "other-llm")) } });
+  const input = withClass(entry(page.target, "shared-llm"), "resource-key-input")[0];
+  const before = page.world.requests.length;
+  await typeInto(input, KEY);
+  await press(buttonLabelled(entry(page.target, "shared-llm"), "Save key"));
+  assert.equal(readSetting(page.context.store, "resource-key:shared-llm"), null, "a click a script makes stores nothing");
+  await click(buttonLabelled(entry(page.target, "shared-llm"), "Save key"));
+  const kept = readSetting(page.context.store, "resource-key:shared-llm");
+  assert.equal(kept.value, KEY);
+  assert.match(String(kept.stored), /^\d{4}-\d{2}-\d{2}/);
+  assert.equal(readSetting(page.context.store, "resource-key:other-llm"), null);
+  assert.equal(productCommits(page).length, 0);
+  assert.equal(page.world.requests.length, before);
+  assert.equal(page.target.textContent.includes(KEY), false);
+  assert.equal(input.value, "");
+  assert.match(withClass(entry(page.target, "shared-llm"), "resource-key-state")[0].textContent, /stored in this browser/);
+  await click(buttonLabelled(entry(page.target, "shared-llm"), "Show"));
+  assert.equal(input.value, KEY);
+  assert.equal(input.type, "text");
+});
+
+// TST-1073003 · level: unit · module: MOD-settings-pages
+// guards: UC-040; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE
+// given: the list as above; the field of shared-llm left empty
+// input: the person's click on "Save key"
+// expect: nothing is stored under resource-key:shared-llm, and the entry says "Enter the key first."
+test("resources — Save key with no key stores nothing", async (t) => {
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, BROWSER_LLM) } });
+  await click(buttonLabelled(entry(page.target, "shared-llm"), "Save key"));
+  assert.equal(readSetting(page.context.store, "resource-key:shared-llm"), null);
+  assert.equal(withClass(entry(page.target, "shared-llm"), "resource-key-state")[0].textContent, "Enter the key first.");
 });

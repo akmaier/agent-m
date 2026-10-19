@@ -102,6 +102,7 @@ function settingDescription(key) {
   if (key.startsWith("bridge:")) return { label: `Bridge: ${key.slice("bridge:".length)}`, secret: true, grants: "access to one Bridge", setUpIn: "bridge" };
   if (key.startsWith("remote-session:")) return { label: `Remote session: ${key.slice("remote-session:".length)}`, secret: true, grants: "access to a remote Bridge session", setUpIn: "bridge" };
   if (key.startsWith("last-test:")) return { label: `Last test: ${key.slice("last-test:".length)}`, secret: false, grants: "the recorded result of a setting test", setUpIn: "settings" };
+  if (key.startsWith("resource-key:")) return { label: `Resource key: ${key.slice("resource-key:".length)}`, secret: true, grants: "access to one resource's own server", setUpIn: "resources" };
   if (key.startsWith("acknowledged:")) return { label: `Acknowledged: ${key.slice("acknowledged:".length)}`, secret: false, grants: "the recorded acknowledgement date", setUpIn: "settings" };
   return null;
 }
@@ -168,6 +169,7 @@ function secretOf(key, value) {
   if (!value || typeof value !== "object") return null;
   if (key === "github-token" || key.startsWith("github-token:") || key.startsWith("gitlab-token:")) return text(value.value);
   if (key.startsWith("endpoint:")) return text(value.key);
+  if (key.startsWith("resource-key:")) return text(value.value);
   if (key === "bridge" || key.startsWith("bridge:") || key.startsWith("remote-session:")) return text(value.token);
   if (key === "mailbox") return text(value.imap?.password);
   if (key === "jump-host") return text(value.login) ?? text(value.login?.password);

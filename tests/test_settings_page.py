@@ -56,7 +56,7 @@ PLACES = {
     "bridge": "Bridge", "jump-host": "Jump host", "mailbox": "Mailbox",
     "github-token:sample": "GitHub token: sample", "gitlab-token:sample": "GitLab token: sample", "endpoint:sample": "Endpoint: sample",
     "bridge:sample": "Bridge: sample", "remote-session:sample": "Remote session: sample",
-    "last-test:sample": "GitHub token", "acknowledged:sample": "GitHub token",
+    "last-test:sample": "GitHub token", "acknowledged:sample": "GitHub token", "resource-key:sample": "Resource key: sample",
 }
 STORED = {
     "github-token": TOKEN, "products": ["https://github.com/alice/thesis"], "notifications": {"on": False}, "notified": ["docs/a.md"],
@@ -66,6 +66,7 @@ STORED = {
     "endpoint:sample": {"url": "https://m.example/v1", "kind": "openai-compatible", "model": "m", "key": "k", "throughBridge": False},
     "bridge:sample": {"address": "http://localhost:8765", "token": "labtok"}, "remote-session:sample": {"port": 20001, "token": BRIDGE_SECRET},
     "last-test:sample": {"at": "2026-09-29T10:00:00.000Z", "outcome": "working"}, "acknowledged:sample": "2026-09-01",
+    "resource-key:sample": {"value": "hub_KEY0123456789", "stored": "2026-09-01T00:00:00.000Z"},
 }
 
 
