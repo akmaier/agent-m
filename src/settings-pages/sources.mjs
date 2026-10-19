@@ -14,7 +14,7 @@
 //   - A version can be linked when the register's row for it records its version hash (the `version hash` of its Files cell); a source with no such version cannot be ticked.
 //   - The version is preset to the version the link names, else to the last row of the entry's `## Versions`, its newest. A link that names a version the library does not record
 //     keeps that version as a choice of its own, with the hash its link records.
-//   - A part is suggested for each line of the entry's `## Parts` with a list marker taken off; the part is free text, and an empty part is written as the empty cell.
+//   - A part is suggested for each line of the entry's `## Parts` with a list marker taken off; the part is free text, and an empty part is written as the dash “—”, which MOD-documents' writeDocument leaves an empty cell as, and read back as empty.
 //   - A link row whose source the library does not hold is kept as it is, and named; it cannot be edited here.
 //   - A row the person leaves as it is keeps its cells as the file has them; Save with nothing changed writes nothing, and neither does Save with nothing ticked in a product that has
 //     no `docs/sources.md`.

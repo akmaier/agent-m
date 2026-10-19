@@ -15,7 +15,7 @@
 // happens to word. No topic points to the book: none was found that treats a source library. Each test states its input and its expected
 // result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
