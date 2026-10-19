@@ -293,6 +293,7 @@ async function renderJob(target, context, params, note = null) {
 //   - The participants offered are those for which MOD-work-plans' startable admits every plan item the job works on (the product's facts of the scope `work`, as the prompt bar reads them); for a job on no plan item, the job's own participant.
 //     The team's role assignment and sprint are those whose sprint holds the item, else the one assignment of a product without sprints. Where none is admitted, the reasons are shown and nothing is queued (7a).
 //   - The routes offered are those routesFor gives the chosen participant that are available, no resource need being passed (the scope `work` reads none), as the record writes them.
+//   - The same check comes first for a job that ran in a tab and a job whose task travelled with its hand-over: where no participant is admitted, they are offered neither Retry nor the prompt bar.
 //   - A job that ran in a tab, and a job whose task travelled with its hand-over, are not queued: the prompt bar is opened with the job's kind and parameters, by the route `job` with the parameter `retry`, whose `subject` gives the bar its Subject.
 
 const RETRIABLE = new Set(["failed", "cancelled", "ended without record"]);
@@ -325,15 +326,6 @@ async function retryControls(context, held, read) {
     button.addEventListener("click", (event) => { if (event.isTrusted) openBar(); });
     return button;
   };
-  if (record.task === "with the hand-over") {
-    result.textContent = "Its task travelled with its hand-over and is not in the record: write it again in the prompt bar.";
-    box.append(result, el("p", null, barButton("retry-prompt-bar", "Open the prompt bar")));
-    return box;
-  }
-  if (record.route === "tab") {
-    box.append(el("p", null, barButton("retry", "Retry")), result);
-    return box;
-  }
   const host = read.hostOf.get(held.product);
   let facts, visibility;
   try {
@@ -359,6 +351,15 @@ async function retryControls(context, held, read) {
   }));
   if (holders.length === 0) {
     box.append(el("p", null, "This job cannot be retried now:"), el("ul", "retry-reasons", ...[...reasons].map((reason) => el("li", "retry-reason", reason))), result);
+    return box;
+  }
+  if (record.task === "with the hand-over") {
+    result.textContent = "Its task travelled with its hand-over and is not in the record: write it again in the prompt bar.";
+    box.append(result, el("p", null, barButton("retry-prompt-bar", "Open the prompt bar")));
+    return box;
+  }
+  if (record.route === "tab") {
+    box.append(el("p", null, barButton("retry", "Retry")), result);
     return box;
   }
   holders.sort((a, b) => (b.name === record.participant) - (a.name === record.participant));
