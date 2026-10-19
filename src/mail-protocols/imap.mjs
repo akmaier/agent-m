@@ -267,7 +267,6 @@ export function sendDraft(connection, Flow, ref, expected, transmit) {
     if ((await sha256(bytes)) !== expected) throw bridgeFailure("confirmation-refused", "The draft is not the mail that was confirmed; nothing was sent.");
     const { to, cc } = await parseMail(bytes, "Drafts");
     await transmit(bytes, [...to, ...cc].map((each) => each.address));
-    await client.append(await folderMarked(client, "\\Sent"), bytes, ["\\Seen"]);
     await removeDraft(client, imap, drafts, ref);
   });
 }
