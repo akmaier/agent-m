@@ -906,6 +906,18 @@ The product's links to the instance's source library — the sources, and the ve
 
 The product's resources — what it is built with, tested on or calls at runtime, each pinned to the exact state used — are kept in `docs/resources.md` of the product repository. Every reader of that repository can read the list; a secret appears there by name only. The summary counts the resources.
 
+## trace-versions
+
+A version is the product as it stood at one point: *current* is the text on the default branch, and every other choice is a release tag. A release tag is a name such as `v2026.1.0`, put on a commit when a release was cut; it never moves, so the page shows exactly what the product held then. Choosing a tag shows its requirements, use cases, decisions, modules and tests as they read in that release, and nothing can be edited there. The same address always shows the same version.
+
+## trace-statuses
+
+A use case that realises a requirement has a review status, read from the approval records in the repository: *open* — no one has accepted its current text; *accepted* — a person accepted the text that stands now; *changed since acceptance* — it was accepted once and its text has changed since, so it waits for a new acceptance. A status is derived from the files when the page is drawn; nothing stores it, and it blocks nothing.
+
+## trace-gaps
+
+A gap is a place where the trace from a requirement to what realises it breaks: a requirement no use case realises, one no module or no test names, a use case that realises no requirement, or a name in a use case, module or test that matches no requirement. The lists are derived from the version chosen. Gaps are shown and block nothing: a requirement may rightly wait for its use case, and a version may hold no modules or tests yet, which the page then says.
+
 ## trace-none-yet
 
 Here a list reads none yet when the version shown holds no artifact of that kind at all. A list that reads none instead means the version holds such artifacts and none of them names this requirement.
