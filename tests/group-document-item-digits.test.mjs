@@ -4,7 +4,7 @@
 // Run: node --test tests/group-document-item-digits.test.mjs
 //
 // Module: MOD-group-document
-// Guards: A GROUP HOLDS ONE KIND OF ARTIFACT; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; EVERY ARTIFACT HAS AN IDENTIFIER
+// Guards: A GROUP HOLDS ONE KIND OF ARTIFACT; A GROUP CARRIES NO IDENTIFIER; AN ITEM HAS ONE PLACE IN ITS HIERARCHY; EVERY ARTIFACT HAS AN IDENTIFIER
 // Level: unit
 //
 // Each test states its input and its expected result before it runs (given / input / expect); each pairs the case under test with a three-digit item, still read. The reader does not order items: the items no group names
@@ -32,13 +32,13 @@ test("hierarchy — a group that names ITM-100, ITM-999 and ITM-1000 reads all t
 });
 
 // TST-1091102 · level: unit · module: MOD-group-document
-// guards: A GROUP HOLDS ONE KIND OF ARTIFACT
+// guards: A GROUP CARRIES NO IDENTIFIER
 // given: a group file whose group Sprint names ITM-100 and ITM-99 (line 7), and the known items ITM-100 and ITM-999
 // input: hierarchy(parseGroupFile(text), items)
-// expect: one error, for ITM-99 at line 7, under A GROUP HOLDS ONE KIND OF ARTIFACT — it is no backlog item —; none for ITM-100 (known positive)
+// expect: one error, for ITM-99 at line 7, under A GROUP CARRIES NO IDENTIFIER — an item that is no identifier is read as a group title, and one that looks like an identifier is refused as one —; none for ITM-100 (known positive)
 test("hierarchy — ITM-99 is not a backlog item", () => {
   const { problems } = hierarchy(parseGroupFile(FILE(["ITM-100", "ITM-99"])), ["ITM-100", "ITM-999"]);
-  assert.deepEqual(rules(problems), [["ITM-99", 7, "error", "A GROUP HOLDS ONE KIND OF ARTIFACT"]]);
+  assert.deepEqual(rules(problems), [["ITM-99", 7, "error", "A GROUP CARRIES NO IDENTIFIER"]]);
 });
 
 // TST-1091103 · level: unit · module: MOD-group-document
