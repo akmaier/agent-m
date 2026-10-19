@@ -186,11 +186,12 @@ test("resources — adding a repository pins it to its host's head, and Save com
 
 // TST-642006 · level: unit · module: MOD-settings-pages
 // guards: UC-040 step 7, 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the product's list pins dlls to the commit of 40 "b"; the repository alice/dlls stands at its head, the SHA-1 of "alice/dlls#0"
+// given: the product's list pins dlls and a second repository, other, to the commit of 40 "b"; the repository alice/dlls stands at its head, the SHA-1 of "alice/dlls#0"
 // input: press Check on dlls; then a click a script makes on Move; then the person's click on Move
-// expect: Check writes nothing and shows "A newer state exists upstream: <the head>. The pin is bbbb…" and a button Move; the script's click writes nothing; the person's click writes one commit holding docs/resources.md with only the Pin of dlls changed to the head (the other rows byte for byte), and the line "Pin: <the head>"; then Check says "alice/dlls stands at its pin" (the known positive of the newer-state check: it finds none once moved)
+// expect: Check writes nothing and shows "A newer state exists upstream: <the head>. The pin is bbbb…" and a button Move; the script's click writes nothing; the person's click writes one commit holding docs/resources.md with only the Pin of dlls changed to the head (the other rows, the pinned repository other among them, byte for byte), and the line "Pin: <the head>"; then Check says "alice/dlls stands at its pin" (the known positive of the newer-state check: it finds none once moved)
 test("resources — Check shows a newer state beside the pin, and Move commits the new pin in one click and no other", async (t) => {
-  const page = await open(t);
+  const other = DLLS.replace("| dlls | repository | https://github.com/alice/dlls |", "| other | repository | https://github.com/alice/other |");
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, other, CLUSTER) } });
   const head = headOf("alice/dlls");
   await pressed(buttonLabelled(entry(page.target, "dlls"), "Check"));
   assert.equal(productCommits(page).length, 0, "Check writes nothing");
@@ -201,7 +202,7 @@ test("resources — Check shows a newer state beside the pin, and Move commits t
   assert.equal(productCommits(page).length, 0, "a click a script makes writes nothing");
   await pressed(move);
   assert.equal(productCommits(page).length, 1);
-  assert.equal(productCommits(page)[0].files["docs/resources.md"], list("thesis-tool", DLLS.replace(OLD_PIN, head), CLUSTER));
+  assert.equal(productCommits(page)[0].files["docs/resources.md"], list("thesis-tool", DLLS.replace(OLD_PIN, head), other, CLUSTER));
   assert.equal(line(page.target, "dlls", "resource-pin"), `Pin: ${head}`);
   await pressed(buttonLabelled(entry(page.target, "dlls"), "Check"));
   assert.equal(withClass(entry(page.target, "dlls"), "resource-current")[0].textContent, `✓ https://github.com/alice/dlls stands at its pin, ${head}.`);
