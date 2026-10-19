@@ -8,7 +8,7 @@
 // this item (UC-010, UC-011, UC-036) and are not built yet; nor is a job of a run
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 // ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
-// ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; retryJob is not built yet.
+// ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; ITM-973 builds retryJob (retry.mjs).
 // ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request.
 //
 // Module: MOD-runtimes
@@ -19,6 +19,7 @@
 import { appendToRecord } from "../job-ledger/index.mjs";
 import { cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
 import { abortOnTab, heldOnTab, queueOnTab } from "./tab.mjs";
+import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
 export { routesFor } from "./routes.mjs";
@@ -57,6 +58,14 @@ export async function queueJob(host, start, route, head, bridge) {
   throw new Error(`queueJob: the "${route.kind}" route is not built yet (UC-010, UC-011)`);
 }
 
+/**
+ * retryJob(record, choice, host, head) -> Promise<{ path: string, commit: string }> (MOD-runtimes, Interfaces; retry.mjs) — queues a new job with a new identifier and the record's inputs and
+ * parameters, which names the one it retries, to the chosen participant on the chosen route, with queueJob. Fails with TaskNotInRecord for a job whose task travelled with its hand-over, with
+ * NotHolderOfRole for a participant that does not hold the role, and as queueJob fails.
+ */
+export function retryJob(record, choice, host, head) {
+  return retryWith(record, choice, host, head, queueJob);
+}
 
 // ---------------------------------------------------------------- a job's live state, its log and its cancel (ITM-535, ITM-545)
 
