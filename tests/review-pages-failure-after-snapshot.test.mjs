@@ -71,7 +71,7 @@ test("spec-entry/<id> — a failure raised while the entry's view is built is dr
 
   const problems = byClass(target, "p", "problem");
   assert.equal(problems.length, 1, "one problem paragraph on the page");
-  assert.equal(target.children.at(-1), problems[0], "the paragraph is the last element of the page");
+  assert.equal(target.children.at(-1) === problems[0], true, "the paragraph is the last element of the page");
   assert.equal(problems[0].textContent, LIMIT);
   assert.doesNotMatch(problems[0].textContent, /token/i);
   assert.equal(byClass(problems[0], "a", "token-step").length, 0, "no link to store a token");
