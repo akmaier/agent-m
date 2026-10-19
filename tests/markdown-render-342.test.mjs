@@ -25,10 +25,10 @@ const FAULTS = {
   "TST-342007": ["src/markdown-render/mermaid.mjs", "const requested = drawing.then(() => drawMermaid(source));", "const requested = drawMermaid(source);"],
 };
 
-// The established renderer battery owns the browser-compatible small DOM. Loading it here puts
+// The renderer tests' helper tests/markdown-render-dom.mjs owns the browser-compatible small DOM. Loading it here puts
 // that real controlled DOM in this test process before the same public module is loaded; no test
 // helper is altered or duplicated.
-await import("./markdown-render.test.mjs");
+await import("./markdown-render-dom.mjs");
 const { renderArtifact, renderMermaid, showDifference } = await import("../src/markdown-render/index.mjs");
 async function withSvg(run) {
   const prior = Object.getOwnPropertyDescriptor(globalThis, "SVGElement");

@@ -11,7 +11,7 @@ import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs"
 import { saveFile } from "../artifact-edits/index.mjs";
 import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
-import { checkProduct, credentialsFor, tokenKeyAddress, tokenSettingKey, route as addProductRoute } from "./products.mjs";
+import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, route as endpointsRoute } from "./endpoints.mjs";
@@ -369,9 +369,8 @@ async function refuseWrongTokens(context, text, passphrase) {
   const { settings } = await readExport(text, passphrase);
   for (const [key, entry] of Object.entries(settings)) {
     const address = tokenKeyAddress(key, context.instance?.repository);
-    if (!address) continue;
-    try { connect(address, { token: entry?.value, tokenName: entry?.name, secrets: secretValues(context.store) }); }
-    catch (error) { throw new Error(`Nothing was imported: the token under ${key} is refused. ${error.message}`); }
+    const refused = tokenRefusal(context.store, address, key, entry?.value, entry?.name);
+    if (refused) throw new Error(`Nothing was imported: ${refused}`);
   }
 }
 
@@ -540,6 +539,8 @@ function repositoryLine(target, context, info) {
   save.addEventListener("click", () => {
     const next = value.value.trim();
     if (!acknowledgement.checked || !next || !expiry.value) { result.textContent = "Acknowledge the notice, paste the token, and enter its expiry date first."; return; }
+    const refused = tokenRefusal(context.store, address, info.key, next, stored?.name ?? info.label);
+    if (refused) { result.textContent = `Nothing was stored: ${refused}`; return; }
     writeSetting(context.store, info.key, { ...stored, value: next, name: stored?.name ?? info.label, expires: expiry.value, stored: new Date().toISOString().slice(0, 10) });
     clearSetting(context.store, `last-test:${info.key}`);
     reconnectHosts(context);

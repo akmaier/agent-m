@@ -182,6 +182,7 @@ const COVERED_BY_RELEASE = {
   "THE CORRECTION LOOP HAS A FIXED LIMIT": [
     ev("tests/test_correction_loop.py", "TST-475008"),
     ev(RELEASE_REQUIREMENTS, "TST-418115"),
+    ev(RELEASE_REQUIREMENTS, "TST-418125"),
     ev("tests/specification-and-design-drafting-together.test.mjs", "TST-476060"),
   ],
   "THE ROUNDS ARE COUNTED AND SHOWN": [
@@ -230,7 +231,6 @@ const COVERED_BY_RELEASE = {
 const FINDINGS = {
   "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY": { finding: "UC019-S10", file: SYSTEM, test: "TST-377011" },
   "THE PAGE NAMES WHERE IT SENDS": { finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
-  "THE CORRECTION LOOP HAS A FIXED LIMIT": { finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
   "A PARTICIPANT DECLARES ITS CAPABILITIES": { finding: "UC019-S9", file: SYSTEM, test: "TST-377010" },
 };
 

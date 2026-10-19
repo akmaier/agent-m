@@ -913,3 +913,19 @@ An unfinished item is a selected item that is not done. For each one the Product
 ## sprint-retrospective
 
 The retrospective is where the team — people and agents — writes down what went well, what did not, and what it will change in how it works. For each change, the entry names where it goes: the process model ([UC-031](#use-case/id=UC-031)), the product's Definition of Done ([UC-002](#use-case/id=UC-002)), a participant's instructions or configuration ([UC-017](#use-case/id=UC-017)), or *team agreement* only. Agent M offers the numbers of the sprint as material, derived and not typed: jobs failed or retried, time items waited for a person, flaky tests, and cost where it is known. *Close sprint* stays disabled until the retrospective has at least one entry. A change that an agent's retrospective recommends is proposed for a person to accept and not applied by the agent.
+
+## run
+
+A run carries out the product's process model over what you select. You select the steps of the implementation plan — or, in Scrum or Kanban, backlog items — set the limits and press *Start run*: one click. Agent M then generates the CI configuration if the product has none, implements the steps in the plan's order or the items after those they build on, writes the tests, and at the end shows the validation of what was built: what each module realises, its code and tests, and every gap. You are asked only where the model gives a gate to a person, or when a limit is reached. Implementation, tests and CI can also be started each on its own, for one critical step: [UC-024](#use-case/id=UC-024), [UC-026](#use-case/id=UC-026) and [UC-027](#use-case/id=UC-027).
+
+## run-jobs-at-once
+
+How many jobs the run may have running at the same time. It is preset to the work-in-progress limit of the product's process model, or to 3 where the model sets none. A job that waits for another job or for a gate does not start before it is done, however high the number is; steps that do not depend on each other run side by side up to it.
+
+## run-cost-limit
+
+The most the run may cost. It is counted only from costs the runtimes report: a job whose runtime reports none adds nothing to the count and is shown with its cost unknown. When the limit is reached the run starts no further job, lets the running ones finish, and says that the cost stopped it. You may raise the limit and press *Continue*, which starts the remaining jobs under the same run.
+
+## run-correction-rounds
+
+How many times a draft may go back to its participant to be corrected before it is shown to you with what is left. It is preset to 5 per draft, and it applies to every job of the run that drafts. When the limit is reached the run starts no further job, lets the running ones finish, and says that the rounds stopped it.

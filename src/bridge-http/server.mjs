@@ -1,5 +1,5 @@
 import { bridgeApi, validEndpointTest, validJobRequest } from "./protocol.mjs";
-import { currentToken } from "./pairing.mjs";
+import { currentToken, pairingRenewals } from "./pairing.mjs";
 
 const loopback = new Set(["127.0.0.1", "::1", "localhost"]);
 const reply = (response, status, value, origin) => {
@@ -19,6 +19,7 @@ export async function serveBridge(config, handlers) {
   const token = await currentToken(config.dataFolder);
   const http = globalThis.process?.getBuiltinModule?.("node:http");
   if (!http) throw new Error("Bridge server requires Node.");
+  let paired = null; // { origin, renewals }: the first request since the start or the last pairAnew that carried the token in force; memory only
   const server = http.createServer(async (request, response) => {
     const started = Date.now(), path = new URL(request.url, "http://localhost").pathname;
     const origin = request.headers.origin;
@@ -31,6 +32,7 @@ export async function serveBridge(config, handlers) {
       response.end(); log(204); return;
     }
     if (request.headers[bridgeApi.tokenHeader] !== await currentToken(config.dataFolder)) { error(response, 401, "token-refused", "Bridge token refused.", config.origin); log(401); return; }
+    if (paired?.renewals !== pairingRenewals(config.dataFolder)) paired = { origin, renewals: pairingRenewals(config.dataFolder) };
     const startsWork = request.method === "POST" && (path === "/v1/jobs" || path === "/v1/ask" || path.startsWith("/v1/probes/") || path.startsWith("/v1/mail/"));
     if (config.paused() && startsWork) { error(response, 503, "paused", "Bridge is paused.", config.origin); log(503); return; }
     if (request.method === "GET" && path === "/v1/pair") { reply(response, 200, { bridge: { name: "Bridge", version: "unreleased", platform: process.platform }, origin: config.origin }, config.origin); log(200); return; }
@@ -106,7 +108,8 @@ export async function serveBridge(config, handlers) {
     server.listen(config.port, config.host);
   });
   const address = server.address(), host = address.family === "IPv6" ? `[${address.address}]` : address.address;
-  return { address: `http://${host}:${address.port}`, token, close: () => new Promise((resolve, reject) => {
+  const pairedWith = () => (paired?.renewals === pairingRenewals(config.dataFolder) ? paired.origin : null);
+  return { address: `http://${host}:${address.port}`, token, pairedWith, close: () => new Promise((resolve, reject) => {
     server.close((failure) => failure ? reject(failure) : resolve());
     server.closeIdleConnections?.();
     server.closeAllConnections?.();

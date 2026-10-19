@@ -18,7 +18,7 @@
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { readSetting, writeSetting, clearSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { repositoryChoiceSteps, sharedPagesNotice, defaultExpiry, TOKEN_DAYS } from "./products.mjs";
+import { repositoryChoiceSteps, sharedPagesNotice, defaultExpiry, tokenRefusal, TOKEN_DAYS } from "./products.mjs";
 
 const EXPIRY_WARN_DAYS = 14;
 const INSTANCE_TOKEN_KEY = "github-token";
@@ -97,6 +97,8 @@ export const route = {
       const value = token.value.trim();
       const problem = tokenProblem(value, expires.value);
       if (problem) { check.textContent = problem; return; }
+      const refused = tokenRefusal(store, address, INSTANCE_TOKEN_KEY, value, tokenName);
+      if (refused) { check.textContent = `Nothing was stored: ${refused}`; return; }
       // A new token starts untested: storing it forgets the last test of the one before.
       writeSetting(store, INSTANCE_TOKEN_KEY, { value, name: tokenName, expires: expires.value, stored: new Date().toISOString().slice(0, 10) });
       clearSetting(store, `last-test:${INSTANCE_TOKEN_KEY}`);
