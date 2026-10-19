@@ -59,3 +59,18 @@ test("the topic resource-licence links UC-004 and UC-015, tells the PEAKS exampl
   assert.ok(text.includes("credit-card number"), "known positive: the warning on a leaked key is held");
   for (const phrase of ["(#use-case/id=UC-004)", "(#use-case/id=UC-015)", "PEAKS", "bus factor"]) assert.ok(text.includes(phrase), `${phrase} in the topic resource-licence`);
 });
+
+// TST-1125001 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; UC-040 step 7
+// given: the topic `resource-check`, the folded explanation of Check on a resource (the page makes a check through the Bridge a resource's route names: one harmless request, shown, nothing written)
+// input: read its section
+// expect: it keeps the sentence that a check makes one harmless request, and says of a resource reached through a Bridge that the page asks that Bridge, which lists a cluster's partitions, the models an endpoint serves or gets an answer from an agent, and that the page shows the answer; it does not say that the page does not make that request
+// Planted fault: the old sentence "which this page does not make yet" fails the last assertion; a section without the Bridge's three answers fails the third.
+test("the topic resource-check says what the page does through a Bridge and no longer says it does not make that request", () => {
+  const text = section("resource-check").replace(/\s+/g, " ");
+  assert.match(text, /A check makes one harmless request to the resource/, "known positive: the section is held");
+  assert.match(text, /through a Bridge is checked by a request through the Bridge/);
+  for (const phrase of ["partitions", "models", "answer from"]) assert.ok(text.includes(phrase), `${phrase} in the topic resource-check`);
+  assert.match(text, /shows the answer/);
+  assert.doesNotMatch(text, /does not make (that request )?yet/);
+});
