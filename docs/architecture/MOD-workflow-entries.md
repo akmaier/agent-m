@@ -112,7 +112,7 @@ It runs in Node, in GitHub Actions or GitLab CI, on hosted or self-hosted runner
 - `product.mjs` — the entries of a product's job workflow.
 - `instance.mjs` — the entries of the instance's workflows.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `.github/workflows/apply-approvals.yml`, `.github/workflows/fetch-sources.yml`: named here, since GitHub fixes their place; `apply-approvals.yml` runs `onApprovalsCommitted` and nothing else, as this module states.
+  - `.github/workflows/apply-approvals.yml`, `.github/workflows/fetch-sources.yml`, `.github/workflows/main-changed.yml`: named here, since GitHub fixes their place; `apply-approvals.yml` runs `onApprovalsCommitted` and `main-changed.yml` runs `onMainChanged`, each and nothing else, as this module states.
   - `tools/apply_approvals.py`: removed once the workflow runs the entry.
   - `tests/test_apply_approvals.py`: its header names this module.
 
@@ -126,8 +126,7 @@ the file names, in a checkout of the repository the event concerns. In a product
 `onDoneCheck` in its Definition-of-Done job and `onTestsFinished` after each run's tests; on GitLab each file is included
 from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its entries —
 `onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and on dispatch
-for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the default branch — and does nothing but run it, so that a change between
-jobs may add it (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`).
+for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the default branch — and does nothing but run it.
 
 ## Interfaces
 
