@@ -489,7 +489,7 @@ export function mailboxSetting(context) {
     const set = readSetting(context.store, "mailbox") !== null;
     state.textContent = set ? "" : "Mailbox: not set";
     open.textContent = set ? "Change" : "Connect a mailbox";
-    block.replaceChildren(...(set ? [line.node] : [state, ...(line.node.childNodes.length ? [line.node] : [])]), el("p", null, open));
+    block.replaceChildren(...(set ? [line.node] : [state, line.node]), el("p", null, open));
   }
   line = mailboxLine(context, { changed: draw });
   draw();
