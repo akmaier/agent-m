@@ -19,6 +19,7 @@ import { explain, readProblem } from "../site-frame/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { button, el, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
+import { byClassChecked, loadStage, panelOf, participantList } from "./jobs.mjs";
 
 const KINDS = {
   requirements: { title: "requirements" },
@@ -28,6 +29,9 @@ const KINDS = {
   tests: { title: "tests" },
 };
 const pathOf = (kind) => `docs/groups/${kind}.md`;
+
+// The topics behind the folded explanations of a drafting page that the run panel of *Propose groups* shares with the others.
+const PROPOSE = { explain: { draft: { participant: "drafting-participant", panel: "run-panel", ci: "ci-agent-draft" } } };
 
 // The kind of node, in MOD-trace-graph's graph, that the group file of each kind arranges (as MOD-artifact-edits' recipe items-of-kind and the check group-rules read them).
 const NODE_KIND = { requirements: "requirement", "use-cases": "UC", architecture: "ARC", modules: "MOD", tests: "TST" };
@@ -235,6 +239,16 @@ async function show(where, kind) {
     drawSide();
   }
 
+  // The moves of a proposal arrive as pending changes, each applied alone, in order, to the tree as it stands; those the tree refuses are listed with their reasons (UC-021 1b, 3).
+  function adopt(proposed) {
+    const result = replay(tree, proposed);
+    tree = result.tree;
+    moves = [...moves, ...result.applied];
+    refusedNow = [...refusedNow, ...result.refused];
+    draw();
+    return result;
+  }
+
   async function saveNow() {
     resultBox.replaceChildren();
     const text = groupFileText(tree);
@@ -287,6 +301,40 @@ async function show(where, kind) {
   }
 
   draw();
+  target.append(await proposeGroups(where, kind, items, adopt));
+}
+
+// *Propose groups* (UC-021 1b): the participants that can draft text, and a button that shows the run panel of the kind propose-groups for the one chosen — what is sent where, and Run. The job
+// writes nothing; its moves are handed to `adopt`, which makes them pending changes.
+async function proposeGroups(where, kind, items, adopt) {
+  const { token, context } = where;
+  const box = el("section", "arrange-propose", el("h3", null, "Propose groups"), explain(PROPOSE.explain.draft.participant));
+  const stage = el("div", "stage");
+  let loaded;
+  try {
+    loaded = await loadStage(where, "propose-groups");
+  } catch (failure) {
+    box.append(readProblem(failure, Boolean(token)));
+    return box;
+  }
+  const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
+  const offered = participantList(drafters, participants, product, needs);
+  const show = button("btn arrange-propose-run", "Propose groups");
+  async function presentMoves(outcome, result) {
+    const proposed = Array.isArray(outcome.draft?.moves) ? outcome.draft.moves : [];
+    const done = adopt(proposed);
+    result.append(el("p", "proposed", `${proposed.length} move${proposed.length === 1 ? "" : "s"} proposed, ${done.applied.length} pending; nothing is written until Save arrangement.`));
+    if (outcome.remaining?.length) result.append(el("ul", "left", ...outcome.remaining.map((finding) => el("li", "left", `${finding.rule}: ${finding.what} — ${finding.fix}`))));
+  }
+  show.addEventListener("click", async () => {
+    stage.replaceChildren();
+    if (!token) { stage.append(el("p", "problem", "A job is recorded and its result written with your token. ", tokenStep(context))); return; }
+    const chosen = drafters.find((participant) => byClassChecked(offered, participant.name));
+    if (!chosen) { stage.append(el("p", "problem", "Choose the participant that drafts.")); return; }
+    await panelOf({ ...where, definition, kind: PROPOSE, jobKind: "propose-groups", params: { kind }, worksOn: items, present: presentMoves, chosen, participants, instanceSnapshot, product, needs, stage });
+  });
+  box.append(offered, show, stage);
+  return box;
 }
 
 export const arrangeRoute = { name: "arrange", entry: null, title: "Arrange", render };
