@@ -586,7 +586,7 @@ test("resources — an endpoint or an agent that also works on the product opens
   const CODER = "| coder | agent | https://agents.example.org/coder | — | — | — | bridge workstation | the group's workstation | no | — |";
   const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, LLM, CODER) } });
   assert.ok(buttonLabelled(entry(page.target, "dlls"), "Check"), "known positive: the repository's entry has its buttons");
-  assert.equal(buttonLabelled(entry(page.target, "dlls"), "Add as participant"), undefined);
+  assert.equal(Boolean(buttonLabelled(entry(page.target, "dlls"), "Add as participant")), false, "a repository has no Add as participant");
   const before = page.world.requests.length;
   await pressed(buttonLabelled(entry(page.target, "shared-llm"), "Add as participant"));
   await pressed(buttonLabelled(entry(page.target, "coder"), "Add as participant"));
