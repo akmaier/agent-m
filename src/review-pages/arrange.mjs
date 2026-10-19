@@ -1,0 +1,301 @@
+// arrange.mjs — the arrangement of one kind (docs/architecture/MOD-review-pages.md, Parts: "arrange.mjs — the hierarchy of a group file, moves, pending changes"; Interfaces: the route `arrange/<group kind>`; UC-021): the hierarchy of the
+// kind with every item once, moves and new and renamed groups, the pending changes beside the tree, and *Save arrangement*, which commits the group file `docs/groups/<kind>.md` and nothing else, through MOD-artifact-edits' saveGroupFile on
+// the blob read when the route opened.
+//
+// Module: MOD-review-pages
+//
+// It writes only through saveGroupFile, and only on a person's click (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK). The hierarchy, the moves and the file's text are MOD-group-document's: this file draws them and keeps the pending changes. Where the
+// texts leave a reading open, this file takes the one it names:
+//   - The address `arrange/<group kind>` is the route `arrange` with the parameter `kind` (`#arrange/kind=use-cases`), since the frame reads the first part of a fragment as a route's name and the others as `key=value`. The group kinds are the file
+//     names requirements, use-cases, architecture, modules and tests.
+//   - The items of a kind are a requirement's name (the SPEC), a use case's, a decision's or a module's identifier (read from the file names under docs/), a test's identifier (its declaration).
+//   - The working tree is the group file as read; an item no group names is added to it, at the top level, when a move takes it, so that the file never lists an item the person did not place. A new group is put at the top level or in the group the
+//     person names; a moved item or group goes last into its target. Each move is applied alone, in order, to the tree as it stands: a refused one is listed with its reason and is no pending change.
+//   - On `changed meanwhile` the pending changes are applied again, in order, to the newer file: those that still apply stay pending, the others are named with their reasons.
+
+import { fallbackEditLinks, saveGroupFile } from "../artifact-edits/index.mjs";
+import { applyMoves, groupFileText, hierarchy, parseGroupFile } from "../group-document/index.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
+import { isTestFile, testDeclarations } from "../test-document/index.mjs";
+import { button, el, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
+import { fallbackPages } from "./file-edit.mjs";
+
+const KINDS = {
+  requirements: { title: "requirements" },
+  "use-cases": { title: "use cases" },
+  architecture: { title: "architecture decisions" },
+  modules: { title: "modules" },
+  tests: { title: "tests" },
+};
+const pathOf = (kind) => `docs/groups/${kind}.md`;
+
+// The identifiers (a requirement's name for requirements) of the items of a kind in a snapshot, in the order of their paths.
+async function itemsOf(kind, snapshot) {
+  const named = (pattern) => snapshot.paths.flatMap((path) => { const found = pattern.exec(path); return found ? [found[1]] : []; });
+  if (kind === "use-cases") return named(/^docs\/use-cases\/(UC-\d+)-[^/]+\.md$/);
+  if (kind === "architecture") return named(/^docs\/architecture\/(ARC-\d+)-[^/]+\.md$/);
+  if (kind === "modules") return named(/^docs\/architecture\/(MOD-[A-Za-z0-9-]+)\.md$/);
+  if (kind === "requirements") {
+    const spec = await snapshot.read("SPEC.md");
+    return spec === null ? [] : [...parseSpec(spec).requirements.keys()];
+  }
+  const files = snapshot.paths.filter(isTestFile);
+  try { await snapshot.readMany?.(files); } catch { /* read one by one */ }
+  const ids = [];
+  for (const path of files) for (const declaration of testDeclarations(path, (await snapshot.read(path)) ?? "")) if (!ids.includes(declaration.id)) ids.push(declaration.id);
+  return ids;
+}
+
+// ---------------------------------------------------------------- the tree and the moves
+
+const clone = (tree) => structuredClone(tree);
+function walkGroups(groups, path, visit) {
+  for (const group of groups) {
+    const here = [...path, group.title];
+    visit(group, here);
+    walkGroups(group.groups, here, visit);
+  }
+}
+const placesOf = (tree) => {
+  const ids = [];
+  const take = (members) => members.forEach((member) => ids.push(member.id));
+  take(tree.members);
+  walkGroups(tree.groups, [], (group) => take(group.members));
+  return ids;
+};
+
+function describe(move) {
+  const where = (path) => (path.length ? `“${path.join(" › ")}”` : "the top level");
+  if (move.op === "create") return `Add the group “${move.title}”${move.in.length ? ` in ${where(move.in)}` : ""}`;
+  if (move.op === "rename") return `Rename the group “${move.group.join(" › ")}” to “${move.title}”`;
+  if (move.op === "move") return `Move ${move.item} to ${where(move.to)}`;
+  if (move.op === "move-group") return `Move the group “${move.group.join(" › ")}” into ${where(move.to)}`;
+  if (move.op === "delete") return `Delete the empty group “${move.group.join(" › ")}”`;
+  return `Move the content of “${move.group.join(" › ")}” up one level`;
+}
+
+// The moves applied one by one to the tree: { tree, applied, refused }. An item no group names is first added at the top level, so that the move can take it.
+function replay(base, moves) {
+  let tree = clone(base);
+  const applied = [], refused = [];
+  for (const move of moves) {
+    const trial = clone(tree);
+    if (move.op === "move" && !placesOf(trial).includes(move.item)) trial.members.push({ id: move.item, line: 0 });
+    const result = applyMoves(trial, [move]);
+    if (result.refused.length) refused.push({ move, reason: result.refused[0].reason });
+    else { tree = result.tree; applied.push(move); }
+  }
+  return { tree, applied, refused };
+}
+
+// ---------------------------------------------------------------- the page
+
+async function render(target, context, params) {
+  const kind = params?.kind;
+  if (!Object.hasOwn(KINDS, kind ?? "")) {
+    target.replaceChildren(el("h2", null, "Arrange"), el("p", "problem", `Arrange which kind? Open the arrangement of ${Object.keys(KINDS).join(", ")}: #arrange/kind=<kind>.`));
+    return;
+  }
+  const where = await readPlace(target, context);
+  if (where === null) return;
+  try {
+    await show(where, kind);
+  } catch (failure) {
+    target.append(readProblem(failure, Boolean(where.token)));
+  }
+}
+
+async function show(where, kind) {
+  const { target, snapshot, token, host, context } = where;
+  const path = pathOf(kind);
+  const items = await itemsOf(kind, snapshot);
+  let openedBlob = snapshot.blob(path);
+  let base = parseGroupFile(path, (await snapshot.read(path)) ?? "");
+  let moves = [];
+  let tree = clone(base);
+  let refusedNow = [];
+
+  const page = el("section", "arrange");
+  const treeBox = el("div", "arrange-tree-box");
+  const sideBox = el("div", "arrange-side");
+  const resultBox = el("div", "arrange-result-box");
+  target.append(el("h2", null, `Arrange the ${KINDS[kind].title}`), explain("group-is-a-heading"), page);
+  page.append(treeBox, sideBox, resultBox);
+
+  function groupOptions() {
+    const options = [{ label: "Top level", path: [] }];
+    walkGroups(tree.groups, [], (group, here) => options.push({ label: here.join(" › "), path: here }));
+    return options;
+  }
+  const select = (className, label) => {
+    const choice = el("select", className);
+    choice.setAttribute("aria-label", label);
+    for (const option of groupOptions()) {
+      const node = el("option", null, option.label);
+      node.value = JSON.stringify(option.path);
+      choice.append(node);
+    }
+    return choice;
+  };
+
+  function applyOne(move) {
+    const result = replay(tree, [move]);
+    if (result.refused.length) { refusedNow = [...refusedNow, ...result.refused]; draw(); return; }
+    tree = result.tree;
+    moves = [...moves, move];
+    draw();
+  }
+
+  // The marks: the members that stand in two places, the items no group names, the members that match no item.
+  function marks() {
+    const places = placesOf(tree);
+    const seen = new Set(), twice = new Set();
+    for (const id of places) (seen.has(id) ? twice : seen).add(id);
+    const view = hierarchy(tree, items);
+    const unplaced = items.filter((id) => !places.includes(id));
+    return { twice, unplaced, unknown: new Set(view.unknown) };
+  }
+
+  const dragged = { value: null };
+  function dropOn(path) {
+    const key = dragged.value;
+    dragged.value = null;
+    if (!key) return;
+    if (key.group) applyOne({ op: "move-group", group: key.group, to: path });
+    else applyOne({ op: "move", item: key.item, to: path });
+  }
+
+  function draggable(node, key) {
+    node.setAttribute("draggable", "true");
+    node.addEventListener("dragstart", (event) => {
+      event.stopPropagation?.();
+      dragged.value = key;
+      event.dataTransfer?.setData?.("text/plain", key.item ?? key.group.join(" › "));
+    });
+  }
+  const dropTarget = (node, path) => {
+    node.addEventListener("dragover", (event) => event.preventDefault?.());
+    node.addEventListener("drop", (event) => { event.preventDefault?.(); event.stopPropagation?.(); dropOn(path); });
+  };
+
+  function moveControls(key) {
+    const choice = select("arrange-move", `Move ${key.item ?? key.group.join(" › ")} to`);
+    const go = button("arrange-move-to", "Move to …");
+    go.addEventListener("click", () => {
+      const to = JSON.parse(choice.value || "[]");
+      applyOne(key.group ? { op: "move-group", group: key.group, to } : { op: "move", item: key.item, to });
+    });
+    return [choice, go];
+  }
+
+  function itemNode(member, mark) {
+    const node = el("li", "arrange-item", el("span", "id", member.id));
+    node.setAttribute("data-id", member.id);
+    for (const text of mark) node.append(" ", el("span", "mark", text));
+    node.append(" ", ...moveControls({ item: member.id }));
+    draggable(node, { item: member.id });
+    return node;
+  }
+
+  function groupNode(group, here, m) {
+    const node = el("li", "arrange-group");
+    node.setAttribute("data-title", group.title);
+    const rename = el("input", "arrange-rename");
+    rename.setAttribute("aria-label", `New title of ${group.title}`);
+    rename.value = group.title;
+    const renameGo = button("arrange-rename-go", "Rename");
+    renameGo.addEventListener("click", () => { if (rename.value.trim() && rename.value !== group.title) applyOne({ op: "rename", group: here, title: rename.value.trim() }); });
+    const lift = button("arrange-lift", "Move content up one level");
+    lift.addEventListener("click", () => applyOne({ op: "lift", group: here }));
+    node.append(el("strong", "title", group.title), " ", rename, renameGo, " ", lift, " ", ...moveControls({ group: here }),
+      el("ul", null, ...group.groups.map((child) => groupNode(child, [...here, child.title], m)), ...group.members.map((member) => itemNode(member, markOf(member.id, m)))));
+    draggable(node, { group: here });
+    dropTarget(node, here);
+    return node;
+  }
+  const markOf = (id, m) => [...(m.twice.has(id) ? ["named twice"] : []), ...(m.unknown.has(id) ? ["unknown member"] : [])];
+
+  function drawTree() {
+    const m = marks();
+    const list = el("ul", "arrange-tree", ...tree.groups.map((group) => groupNode(group, [group.title], m)), ...tree.members.map((member) => itemNode(member, markOf(member.id, m))),
+      ...m.unplaced.map((id) => itemNode({ id }, ["not yet placed"])));
+    dropTarget(list, []);
+    const title = el("input", "arrange-group-title");
+    title.setAttribute("aria-label", "Title of the new group");
+    const into = select("arrange-group-in", "Put the new group in");
+    const add = button("arrange-new-group", "+ Group");
+    add.addEventListener("click", () => {
+      if (!title.value.trim()) return;
+      applyOne({ op: "create", title: title.value.trim(), in: JSON.parse(into.value || "[]") });
+    });
+    treeBox.replaceChildren(list, el("p", "arrange-add", title, " in ", into, " ", add));
+  }
+
+  function drawSide() {
+    const save = button("arrange-save", "Save arrangement");
+    save.addEventListener("click", () => saveNow());
+    sideBox.replaceChildren(el("h3", null, "Pending changes"), el("ol", "arrange-pending", ...moves.map((move) => el("li", "arrange-pending-item", describe(move)))),
+      el("ul", "arrange-refused", ...refusedNow.map(({ move, reason }) => el("li", "arrange-refused-item", `${describe(move)}: ${reason}`))), el("p", null, save));
+  }
+
+  function draw() {
+    drawTree();
+    drawSide();
+  }
+
+  async function saveNow() {
+    resultBox.replaceChildren();
+    const text = groupFileText(tree);
+    if (!token) {
+      if (parseServer(context) === "gitlab") {
+        resultBox.replaceChildren(el("p", "problem arrange-result", "A GitLab product is written with the project's own token. ", tokenStep(context)));
+        return;
+      }
+      const pages = fallbackEditLinks([{ path, text, existing: openedBlob !== null }], snapshot);
+      const box = el("div", "arrange-fallback");
+      resultBox.append(box);
+      if (fallbackPages(box, pages)) await openGithubEditor({ ...pages[0], text });
+      return;
+    }
+    try {
+      const outcome = await saveGroupFile(host, { kind, text, openedBlob });
+      if (outcome.refused === "changed meanwhile") {
+        base = parseGroupFile(path, outcome.current ?? "");
+        openedBlob = outcome.currentBlob;
+        const result = replay(base, moves);
+        tree = result.tree;
+        moves = result.applied;
+        refusedNow = result.refused.map((each) => ({ move: each.move, reason: `no longer applies — ${each.reason}` }));
+        draw();
+        resultBox.replaceChildren(el("p", "problem arrange-result", `The group file changed meanwhile, so nothing was written. The newer arrangement is shown with ${moves.length ? "the changes that still apply" : "no change that still applies"}${result.refused.length ? "; the others are named beside the tree" : ""}.`));
+        return;
+      }
+      if (outcome.refused === "not one place") {
+        resultBox.replaceChildren(el("p", "problem arrange-result", `Nothing was written: ${outcome.items.join(", ")} would stand in more than one place.`));
+        return;
+      }
+      base = parseGroupFile(path, text);
+      tree = clone(base);
+      moves = [];
+      refusedNow = [];
+      openedBlob = outcome.blob;
+      draw();
+      const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
+      resultBox.replaceChildren(el("p", "arrange-result", "Saved in ", link(commit, "commit-link", `commit ${outcome.commit.slice(0, 7)}`), "."));
+    } catch (failure) {
+      if (failure.name === "PermissionMissing") {
+        const pages = fallbackEditLinks([{ path, text, existing: openedBlob !== null }], snapshot);
+        const box = el("div", "arrange-fallback");
+        resultBox.replaceChildren(el("p", "problem arrange-result", failure.message), box);
+        if (!pages.refused && fallbackPages(box, pages)) await openGithubEditor({ ...pages[0], text });
+        return;
+      }
+      resultBox.replaceChildren(el("p", "problem arrange-result", `${failure.name}: ${failure.message} — nothing was written.`));
+    }
+  }
+
+  draw();
+}
+
+export const arrangeRoute = { name: "arrange", entry: null, title: "Arrange", render };
