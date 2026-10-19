@@ -8,13 +8,13 @@
 // Guards: THE BRIDGE RUNS AS AN APP; A CANCELLED JOB WRITES NOTHING MORE; UC-044
 // Level: unit
 //
-// Deterministic, no network, no real agent: the instance and the product are bare repositories in a temporary folder that git reaches through its own `url.<path>.insteadOf`; the agents are fixture executables named
+// Deterministic, no network, no real agent (the test waits for its agents as long as the Bridge goes on working, see `until`): the instance and the product are bare repositories in a temporary folder that git reaches through its own `url.<path>.insteadOf`; the agents are fixture executables named
 // opencode and claude, which with two wrappers for git and sleep are the whole PATH of the test. The kind is decide-gate, whose recipe and writer the test registers. Each test states its input and its expected result before it runs
 // (given / input / expect). The counter-proofs are in the pull request.
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -69,9 +69,11 @@ const JOB = (id, participant) => ({ id, kind: "decide-gate", worksOn: ["A JOB IS
 // The Bridge's computer: the fixture agents wait for a gate file that is never opened; each writes a mark to `calls` when it starts. -> the world given to `run`.
 async function world(run) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-1055-")));
-  const bin = join(root, "bin"), calls = join(root, "calls"), gate = join(root, "gate");
-  mkdirSync(bin); writeFileSync(calls, "");
-  script(bin, "git", `exec ${REAL_GIT} "$@"`); script(bin, "sleep", `exec ${REAL_SLEEP} "$@"`);
+  const bin = join(root, "bin"), calls = join(root, "calls"), gate = join(root, "gate"), gits = join(root, "git-calls");
+  mkdirSync(bin); writeFileSync(calls, ""); writeFileSync(gits, "");
+  // Every call of git is written down, so that the test can tell a Bridge that is slow from one that has stopped; QUIT_TEST_GIT_DELAY (seconds) slows each call, as a loaded runner does.
+  const slow = process.env.QUIT_TEST_GIT_DELAY ? `${REAL_SLEEP} ${process.env.QUIT_TEST_GIT_DELAY}; ` : "";
+  script(bin, "git", `printf '.' >> ${gits}; ${slow}exec ${REAL_GIT} "$@"`); script(bin, "sleep", `exec ${REAL_SLEEP} "$@"`);
   const answer = JSON.stringify({ draft: { decision: "passed", reason: "ok" }, answers: [] });
   const event = JSON.stringify({ type: "text", part: { text: answer } });
   script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';;
@@ -90,9 +92,22 @@ printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":1,"ou
   process.env.GIT_CONFIG_COUNT = String(pairs.length);
   pairs.forEach(([address, path], at) => { process.env[`GIT_CONFIG_KEY_${at}`] = `url.${path}.insteadOf`; process.env[`GIT_CONFIG_VALUE_${at}`] = address; });
   const originText = (path) => spawnSync(REAL_GIT, ["--git-dir", product.origin, "show", `main:${path}`], { encoding: "utf8" }).stdout;
-  const until = async (condition, what, ms = 25000) => {
-    for (const end = Date.now() + ms; Date.now() < end;) { const found = await condition(); if (found) return found; await new Promise((resolve) => setTimeout(resolve, 25)); }
-    assert.fail(`waited for ${what}`);
+  // The wait is for the state the test asserts. The Bridge reaches it through a long chain of git calls (clones, fetches, the taking of each job, a working clone), so how long it takes depends on the machine.
+  // The wait therefore ends when the state holds, or when the Bridge has made no progress - no call of git, no agent started - for `stall` ms, which is a Bridge that has stopped, or when `total` ms have passed,
+  // which is a Bridge so slow that the CI job's own limit of two minutes (SPEC.md, tests/test_ci_budget.py) would stop the whole shard with no test to name the cause. Either way it says what the Bridge had done.
+  const progress = () => statSync(gits).size + readFileSync(calls, "utf8").length;
+  const done = () => `${readFileSync(calls, "utf8").trim().split("\n").filter(Boolean).length} agents started, ${statSync(gits).size} calls of git`;
+  const until = async (condition, what, { stall = 30000, total = 60000, failed = async () => null } = {}) => {
+    const begun = Date.now();
+    let seen = progress(), since = begun;
+    for (;;) {
+      const found = await condition(); if (found) return found;
+      const why = await failed(); if (why) assert.fail(`waited for ${what}, but ${why}`);
+      if (progress() !== seen) { seen = progress(); since = Date.now(); }
+      else if (Date.now() - since > stall) assert.fail(`waited for ${what}: nothing happened for ${stall} ms (${done()})`);
+      if (Date.now() - begun > total) assert.fail(`waited for ${what}: still not there after ${total} ms, too slow for the CI job's limit (${done()})`);
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
   };
   const prior = process.env.PATH;
   process.env.PATH = bin;
@@ -120,7 +135,9 @@ test("confirming Quit with two jobs running ends both records as cancelled", asy
     const entry = await startEntry({ resources, appData, argv: [`--instance=${INSTANCE_NAME}`, "--origin=https://carol.github.io", `--port=${port}`, `--data-folder=${data}`] });
     try {
       assert.equal(entry.outcome.kind, "loaded", `the entry started (errors: ${entry.errors.join(" | ")})`);
-      await w.until(() => w.started().length === 2, "both agents to start");
+      // A Bridge that failed to start (a port taken, a folder not writable) says so in its state: that is the failure to report, not a wait.
+      const startFailure = async () => { const state = await entry.fake.handlers["bridge-state"]({}); return state.failure ? `the Bridge did not start: ${state.failure.name}: ${state.failure.message}` : null; };
+      await w.until(() => w.started().length === 2, "both agents to start", { failed: startFailure });
       const { jobs } = await entry.fake.handlers["bridge-state"]({}, "running-jobs");
       assert.deepEqual(jobs.map((job) => [job.id, job.state]).sort(), [[first.id, "running"], [second.id, "running"]]);
       await entry.fake.handlers.quit({});
