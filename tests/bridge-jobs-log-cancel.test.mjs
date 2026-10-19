@@ -9,7 +9,7 @@
 // Level: unit
 //
 // The world is that of tests/bridge-jobs-list.test.mjs, written again here (a test file imports no other test file): bare repositories that git reaches through insteadOf, a fixture agent named opencode, the kind
-// decide-gate with fixture strategies. The agent prints a first line at once, records its process identifier and, when `gated`, waits for the gate file before it answers. Readings taken, named in the pull request:
+// decide-gate with fixture strategies. The agent prints a first event line at once, records its process identifier and, when `gated`, waits for the gate file before it answers. Readings taken, named in the pull request:
 //   - A job's log is the lines the agent's process writes to its standard output, in order, without their line breaks, kept in memory as long as the Bridge runs; `from` is the index of the first line wanted, 0 where none is
 //     given; `lines` are those from `from` on; `next` is the index after the last line, the `from` to ask next; `ended` is true once the job has ended, whatever way. A `from` that is no whole number of at least 0 is
 //     `invalid-request`.
@@ -112,7 +112,7 @@ async function world(run, { gated = false, fails = false } = {}) {
   script(bin, "sleep", `exec ${REAL_SLEEP} "$@"`);
   const event = JSON.stringify({ type: "text", part: { text: JSON.stringify({ draft: { decision: "passed", reason: "@PWD@" }, answers: [] }) } }).replace("@PWD@", `'"$PWD"'`);
   script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';;
-run) printf '%s\\n' "$PWD $*" >> ${calls}; echo $$ > ${pidfile}; printf '%s\\n' 'step one'; ${gated ? `while [ ! -e ${gate} ]; do sleep 0.02; done; ` : ""}${fails ? "echo boom >&2; exit 3; " : ""}printf '%s\\n' ok >> ${finished}
+run) printf '%s\\n' "$PWD $*" >> ${calls}; echo $$ > ${pidfile}; printf '%s\\n' '{"type":"step_start"}'; ${gated ? `while [ ! -e ${gate} ]; do sleep 0.02; done; ` : ""}${fails ? "echo boom >&2; exit 3; " : ""}printf '%s\\n' ok >> ${finished}
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
   const instance = repository(root, "instance", { "docs/participants.md": PARTICIPANTS, "marker.md": "v1\n" });
   const first = git(instance.seed, "rev-parse", "HEAD");
@@ -158,6 +158,8 @@ const runs = (w) => w.calls().filter((line) => / run /.test(line));
 
 const list = () => jobHandlers()["GET /v1/jobs"]({});
 
+// The first line the fixture agent prints, at once: an event the agent's output format allows and the job ignores.
+const FIRST = '{"type":"step_start"}';
 const log = (id, from) => jobHandlers()["GET /v1/jobs/{id}/log"]({ params: { id }, query: from === undefined ? {} : { from: String(from) } });
 const cancel = (id) => jobHandlers()["POST /v1/jobs/{id}/cancel"]({ params: { id } });
 const code = async (promise) => { try { await promise; return null; } catch (error) { return error.code ?? error.message; } };
@@ -167,14 +169,14 @@ const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { retu
 // guards: UC-044; UC-036
 // given: a job whose agent has printed its first line and waits for a gate
 // input: GET /v1/jobs/{id}/log, with no from, with from 0 and with from 1; then the gate opened, the job ended, and GET again from 1 and from the next
-// expect: while it runs: lines ["step one"], next 1, ended false (the same for from 0), and no lines for from 1 with next 1; once it has ended: lines from 1 on are the agent's other lines (the answer, then the usage line), next their count, ended true; from the next, no line and ended true
+// expect: while it runs: lines [the agent's first event line], next 1, ended false (the same for from 0), and no lines for from 1 with next 1; once it has ended: lines from 1 on are the agent's other lines (the answer, then the usage line), next their count, ended true; from the next, no line and ended true
 test("GET /v1/jobs/{id}/log gives the lines from a line on, as they grow, and says when the job has ended", async () => {
   await world(async (w) => {
     const job = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));
     watch(w, [{ name: "opencode", folder: w.folder("agent-work") }], { every: 50 });
     await w.until(() => runs(w).length === 1, "the agent to start");
     const live = await w.until(async () => { const got = await log(job.id); return got.lines.length ? got : null; }, "the first line");
-    assert.deepEqual(live, { lines: ["step one"], next: 1, ended: false });
+    assert.deepEqual(live, { lines: [FIRST], next: 1, ended: false });
     assert.deepEqual(await log(job.id, 0), live);
     assert.deepEqual(await log(job.id, 1), { lines: [], next: 1, ended: false });
     w.release();
