@@ -50,6 +50,40 @@ const watchers = new Set();
 // The jobs this program took, in the order it took them, kept in memory only: what GET /v1/jobs lists (MOD-bridge-jobs, Interfaces).
 const jobsTaken = new Map();
 
+// The log of each job this program took: the lines its agent's process wrote to standard output, in order, and whether the job has ended; and the jobs still running, to cancel. In memory only.
+const logs = new Map();
+const live = new Map();
+
+/** jobLog(id, from) -> { lines, next, ended } — the lines of a job's log from `from` on, the index after the last line, and whether the job has ended; not-found for a job this Bridge did not take. */
+export function jobLog(id, from = 0) {
+  const entry = logs.get(id);
+  if (!entry) throw failure("not-found", "This Bridge took no such job.");
+  return { lines: entry.lines.slice(from), next: entry.lines.length, ended: entry.ended };
+}
+
+/**
+ * cancelJob(id) -> Promise<{ confirmed: true }> — stops the agent's process of a running job and answers once the job has ended (its end written as cancelled); a job that has ended already is
+ * confirmed as it is; not-found for a job this Bridge did not take.
+ */
+export async function cancelJob(id) {
+  const entry = live.get(id);
+  if (!entry) {
+    if (!jobsTaken.has(id)) throw failure("not-found", "This Bridge took no such job.");
+    return { confirmed: true };
+  }
+  entry.controller.abort();
+  while (!entry.done && live.has(id)) await new Promise((resolve) => setTimeout(resolve, 5));
+  await entry.done?.catch(() => {});
+  return { confirmed: true };
+}
+
+// The text an agent wrote, added to a job's log line by line: a line is complete at its line break.
+function appended(entry, chunk) {
+  const pieces = (entry.partial + chunk).split("\n");
+  entry.partial = pieces.pop();
+  entry.lines.push(...pieces);
+}
+
 /**
  * listJobs() -> { id, product, kind, agent, state, started, usage }[] — the jobs this Bridge took since it started, in the order it took them: `state` is `running` while the agent works and, once the job
  * has ended, the state of its end (`done`, `failed` or `cancelled`); `started` the moment it took the job (ISO); `usage` null while it runs and the usage its end records afterwards. A job another route took is
@@ -111,6 +145,8 @@ function createWatcher(config) {
     const controller = new AbortController();
     const mine = { controller, done: null };
     running.set(record.id, mine);
+    live.set(record.id, mine);
+    const logged = { lines: [], partial: "", ended: false };
     const working = folders.job(record.id);
     let result = null, failed = null, listed = null;
     try {
@@ -123,6 +159,7 @@ function createWatcher(config) {
       if (!taken.taken) return;
       listed = { id: record.id, product, kind: record.kind, agent: agent.name, state: "running", started: new Date().toISOString(), usage: null };
       jobsTaken.set(record.id, listed);
+      logs.set(record.id, logged);
       try {
         const installed = (await installedAgents()).find((each) => each.name === agent.name);
         const head = await host.readSnapshot(taken.commit);
@@ -140,7 +177,7 @@ function createWatcher(config) {
         await workingClone(product, working);
         const driver = agentDriver(installed, { workdir: working, keyVariable: null }, participant);
         const prepared = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
-        result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal });
+        result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal, onOutput: (chunk) => appended(logged, chunk) });
       } catch (error) {
         failed = error;
       }
@@ -150,6 +187,9 @@ function createWatcher(config) {
       listed.usage = end.usage;
     } finally {
       if (listed?.state === "running") listed.state = "failed";
+      if (logged.partial) { logged.lines.push(logged.partial); logged.partial = ""; }
+      logged.ended = true;
+      live.delete(record.id);
       tasks.delete(record.id);
       running.delete(record.id);
     }

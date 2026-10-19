@@ -1,7 +1,7 @@
 import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
 import { endpointDriver, endpointExchange, listModels as nodeListModels, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
 import { listPartitions } from "./probes.mjs";
-import { handOver, listJobs } from "./watch.mjs";
+import { cancelJob, handOver, jobLog, listJobs } from "./watch.mjs";
 
 function validEndpointConfig(value) {
   return value && typeof value === "object" && typeof value.name === "string"
@@ -54,6 +54,14 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
     },
     // The jobs this Bridge took since it started, with their live states, in the form MOD-bridge-client's bridgeJobs reads.
     "GET /v1/jobs": async () => ({ jobs: listJobs() }),
+    // A job's log from a line on, as it grows; `from` is the index of the first line wanted.
+    "GET /v1/jobs/{id}/log": async ({ params, query }) => {
+      const from = query?.from === undefined ? 0 : Number(query.from);
+      if (query?.from !== undefined && (String(query.from).trim() === "" || !Number.isInteger(from) || from < 0)) throw failure("invalid-request", "The first line wanted is a whole number of at least 0.");
+      return jobLog(params.id, from);
+    },
+    // Stops the agent's process; answers once it has ended, after which the job commits nothing more.
+    "POST /v1/jobs/{id}/cancel": async ({ params }) => cancelJob(params.id),
     "POST /v1/jobs": async ({ body }) => {
       if (![body?.product, body?.record, body?.commit].every((value) => typeof value === "string" && value)) {
         throw failure("invalid-request", "A job is handed over with its product, its record and its commit.");
