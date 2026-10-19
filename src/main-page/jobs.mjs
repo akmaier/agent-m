@@ -16,7 +16,7 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { chosenProduct } from "../site-frame/index.mjs";
+import { chosenProduct, explain } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { liveState, jobLog } from "../runtimes/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
@@ -156,10 +156,33 @@ async function everyJob(context) {
 }
 const unreadableList = (unreadable) => (unreadable.length ? [el("ul", "unreadable", ...unreadable.map((source) => el("li", "source", `${source.address}: ${source.reason}`)))] : []);
 
+// The folded explanation of each state of the list and of each kind of runtime (UC-036: "Every state, and every kind of runtime, carries a folded What is this?"), once each, whether or
+// not a job is in it. The topics stand in MOD-site-frame's explanations.md; the frame's check reads these tables for the topics the route names.
+const STATE_TOPIC = {
+  "waiting at a gate": "job-state-waiting-at-a-gate", running: "job-state-running", queued: "job-state-queued", done: "job-state-done", failed: "job-state-failed",
+  cancelled: "job-state-cancelled", "ended without record": "job-state-ended-without-record",
+};
+const RUNTIME_TOPIC = { tab: "job-runtime-tab", ci: "job-runtime-ci", bridge: "job-runtime-bridge" };
+const RUNTIME_NAME = { tab: "This browser's tab", ci: "CI", bridge: "A Bridge" };
+
+function explanations() {
+  const states = GROUPS.map((state) => {
+    const box = el("div", "job-state-explain", el("strong", null, state), " ", explain(STATE_TOPIC[state]));
+    box.setAttribute("data-state", state);
+    return box;
+  });
+  const runtimes = Object.keys(RUNTIME_TOPIC).map((runtime) => {
+    const box = el("div", "job-runtime-explain", el("strong", null, RUNTIME_NAME[runtime]), " ", explain(RUNTIME_TOPIC[runtime]));
+    box.setAttribute("data-runtime", runtime);
+    return box;
+  });
+  return el("section", "job-explanations", el("h3", null, "States"), ...states, el("h3", null, "Where jobs run"), ...runtimes);
+}
+
 async function render(target, context) {
   target.replaceChildren(el("h2", null, "Every job"), el("p", "reading", "Reading…"));
   const { jobRows, lives, unreadable } = await everyJob(context);
-  target.replaceChildren(el("h2", null, "Every job"), ...unreadableList(unreadable), ...drawList(listOf(jobRows, lives), context.go));
+  target.replaceChildren(el("h2", null, "Every job"), ...unreadableList(unreadable), ...drawList(listOf(jobRows, lives), context.go), explanations());
 }
 
 /**

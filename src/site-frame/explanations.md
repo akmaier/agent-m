@@ -995,3 +995,43 @@ resource reached through a Bridge is checked by a request through the Bridge, wh
 The instance has resources of its own that a product may use as well, such as a cluster. **Copy from the instance** puts one of them
 into this product's list, where you edit and save it like any other. The copy is not linked to the original: a later change on
 either side leaves the other unchanged.
+
+## job-state-waiting-at-a-gate
+
+The job stopped at a gate of the product's workflow and goes no further until the gate's decider has decided. The decider is a person or an agent holding the deciding role, or a CI check, as the gate names it. Open the job to see what the gate checks and the artifacts to examine; a gate that is yours is passed or rejected there, with one click. A job can also wait at a question for the author. These jobs are listed first.
+
+## job-state-running
+
+The participant is working on the job right now. The runtime that holds the job says so: the browser tab, the GitHub Actions or GitLab CI run, or the Bridge. Open the job to follow its log while it runs, and press **Cancel** to stop it.
+
+## job-state-queued
+
+The job was handed to a route and no runtime has picked it up yet. A CI job waits for the workflow run to start, a Bridge job for the Bridge to take it. You can cancel a queued job; nothing has been written for it.
+
+## job-state-done
+
+The job finished. Its result is linked from the job: the commits and the pull request it made, or the draft it returned. A done job stays in the list as the record of what was done.
+
+## job-state-failed
+
+The job ended with an error. The reason and the log are linked from the job. **Retry** starts a new job with a new identifier and the same inputs, with the same participant or another holder of the role; the earlier job stays in the list.
+
+## job-state-cancelled
+
+A person stopped the job. Whatever it pushed before it was stopped stays on its branch, and it writes nothing afterwards. **Retry** starts a new job with the same inputs.
+
+## job-state-ended-without-record
+
+The job was started, but its record has no end and no runtime knows it any more: the tab was closed, or the Bridge was restarted while it ran. Nothing says how it ended. Look at its branch for what it wrote, and retry it if the work is still needed.
+
+## job-runtime-tab
+
+A job in the **browser tab** is a conversation with a model endpoint that this page runs for you. It leaves no record in the repository and ends when you close the tab. It is listed here as this tab's, while it runs.
+
+## job-runtime-ci
+
+A job on **CI** runs on the server's own machines: a GitHub Actions workflow run or a GitLab CI pipeline of the product's job workflow, on a hosted runner or on a self-hosted one with a label. Its state is read from the run, and its log is the run's page on the server. The key it needs is a CI secret of the repository.
+
+## job-runtime-bridge
+
+A job on a **Bridge** runs on a computer of yours, where the Bridge is installed, with a coding agent that is logged in there. This browser keeps each Bridge under its name and asks it for its jobs with its token. If the Bridge does not answer, the job is shown with the reason, and its state stays as the record says.
