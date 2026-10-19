@@ -19,6 +19,7 @@ import { ownText } from "./own-file.mjs";
 export { scheduleFindings } from "./rules.mjs";
 export { occasionsOf, secretsNeeded } from "./occasions.mjs";
 export { ciConfiguration } from "./generate.mjs";
+export { proposeSchedule, applyPipelineSchedule } from "./propose.mjs";
 
 const OWNER = "MOD-test-schedule";
 const SCHEMA_FILE = "schedule.schema.md";
