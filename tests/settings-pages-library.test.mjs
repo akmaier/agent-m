@@ -227,7 +227,21 @@ async function describe(page, fields) {
 const SELECTED = [fileOf("a.md", "# A\n"), fileOf("b.md", "# B\n")];
 // The tick of "only hash it", as a person makes it: the field takes the tick, then reports the change.
 async function tickHashed(page) { const box = one(page, "library-file-only-hashed"); box.checked = true; await fire(box, "change"); }
-async function chooseFiles(page, files) { const input = one(page, "library-files"); input.files = files; await fire(input, "change"); }
+// Waits for `condition`, bounded by the clock: the page hashes the files one after the other, and how long that takes is not fixed.
+async function until(condition, what, ms = 5000) {
+  const deadline = Date.now() + ms;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+// The files chosen as a person chooses them: the field takes them, reports the change, and the page shows each with its SHA-256 before the test goes on.
+async function chooseFiles(page, files) {
+  const input = one(page, "library-files");
+  input.files = files;
+  await fire(input, "change");
+  await until(() => byClass(page, "library-file-hash").length === files.length, `the hashes of ${files.length} files`);
+}
 
 // TST-472753 · level: unit · module: MOD-settings-pages
 // guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-004 4, 5, 6
@@ -248,6 +262,7 @@ test("library — documents that may be republished are committed to the instanc
   assert.deepEqual(b.commits, []);
   assert.equal(saveOf(form).disabled, false);
   await click(saveOf(form));
+  await until(() => /SRC-handbook/.test(one(page, "library-result").textContent), "the result of the one click");
   assert.equal(b.commits.length, 1, "one commit, one click");
   assert.deepEqual([b.commits[0].branch, b.commits[0].expectedHead], ["main", "h".repeat(40)], "on the branch's head as it was read");
   assert.deepEqual(instanceFiles(b).map((file) => file.path).sort(), ["docs/sources/SRC-handbook.md", `docs/sources/SRC-handbook/${TODAY}/a.md`, `docs/sources/SRC-handbook/${TODAY}/b.md`]);
