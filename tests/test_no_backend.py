@@ -55,8 +55,8 @@ VENDOR = ("src/markdown-render/vendor/", "src/mail-routes/vendor/",
 CODE = (".html", ".css", ".mjs", ".js")
 
 PERMITTED_HOSTS = {
-    # The repository server of the instance and of GitHub products: its API, its raw files, its own pages.
-    "api.github.com", "raw.githubusercontent.com", "github.com",
+    # The repository server of the instance and of GitHub products: its API, its raw files, its upload host for a release's files, its own pages.
+    "api.github.com", "raw.githubusercontent.com", "uploads.github.com", "github.com",
     # The mail provider: Microsoft Graph and its sign-in (Microsoft 365).
     "graph.microsoft.com", "login.microsoftonline.com",
     # The local bridge, on this machine or at the near end of a tunnel's forward.
