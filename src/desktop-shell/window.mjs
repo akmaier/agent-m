@@ -35,6 +35,8 @@ const quit = async () => {
   }
   window.bridge.quit();
 };
+// The main process asks for the same decision when the tray's Quit is pressed while jobs run.
+window.bridge.onQuitRequested?.(() => quit());
 const field = (label, value, type = "text") => {
   const input = document.createElement("input"), caption = document.createElement("label");
   input.type = type; input.value = value ?? ""; caption.textContent = label; caption.append(input); return { caption, input };
