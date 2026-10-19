@@ -11,6 +11,9 @@ export const sha256Hex = (bytes) => createHash("sha256").update(bytes).digest("h
 // The detached signature of `bytes`: base64 on one line.
 export const signBytes = (privatePem, bytes) => sign(null, bytes, privatePem).toString("base64");
 
+// The public half of the update key, as the PEM text the app carries as update-key.pem (MOD-desktop-shell, Data).
+export const publicPem = (privatePem) => createPublicKey(privatePem).export({ type: "spki", format: "pem" });
+
 // Whether `signature` is the publisher's signature of `bytes`; the public half is derived from the private key.
 export function signatureHolds(privatePem, bytes, signature) {
   try {
