@@ -15,6 +15,7 @@ import { queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
+import { planFindings } from "./checks.mjs";
 import { sprintFacts } from "./facts.mjs";
 import { selectionOf as selectionOfRecord } from "./sprints.mjs";
 import { planOrderSchema, sprintSchema } from "./schemas.mjs";
@@ -158,6 +159,63 @@ async function sprintFactsRecipe(context, params) {
     part(`result records of sprint ${name}`, recordLines.length ? recordLines.join("\n") : "no record of the branch test-results names a head commit of the increment")];
 }
 
+const DECLARED = "THE PROCESS MODEL IS DECLARED PER PRODUCT";
+const ARCHITECTURE_FILE = /^docs\/architecture\/(?:ARC-\d+-[^/]+|MOD-[^/]+)\.md$/;
+const ITEM_ID = /(?:^|\/)(ITM-\d{3,})-/;
+const slugOf = (title) => String(title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "step";
+
+/**
+ * The check plan-checks(draft, context) -> Promise<Finding[]> — planFindings on the drafted plan of a job of the kind `draft-plan`, with the product's workflow (productWorkflow); where the product has
+ * none — no declaration, or the instance holds no model at its `model_file` at its `model_version` — one error finding that names the declared model and its commit. The draft is the answer of the
+ * kind, `{ steps: [{ title, implements, level, phase, after }] }`; each entry becomes a step with an identifier after the product's highest: `implements` names modules (a step of level module), a
+ * subsystem's decision (level subsystem, its `modules` the modules the decision designs) or `system` (level system, every module), its tests are the draft's `level` (the system's also `release`),
+ * `after` the titles it builds on; the order is the drafted sequence with each phase. The steps replace the product's plan in the source the graph is read from. A finding about a drafted step
+ * names it by its title.
+ */
+async function planChecks(draft, context) {
+  const { snapshot } = context.product;
+  const error = (what, fix) => [finding({ artifact: PROCESS, line: 1, kind: "error", rule: DECLARED, what, fix })];
+  const declarationText = await snapshot.read(PROCESS);
+  if (declarationText === null) return error("the product declares no process model: docs/process.md is missing, so there is no workflow to check the plan against", "declare the process model first (UC-002)");
+  const declaration = readDocument(declarationSchema, PROCESS, declarationText);
+  const instanceAt = (commit) => (context.instance.host ? context.instance.host.readSnapshot(commit) : Promise.resolve(context.instance.snapshot));
+  const workflow = await productWorkflow(declaration, instanceAt, (await context.instance.snapshot.read("SPEC.md")) ?? "");
+  if (workflow === null) {
+    return error(`the product has no workflow: the instance holds no model at ${declaration.fields.model_file} at ${declaration.fields.model_version}, the model and commit it declared`,
+      "declare a model the instance's catalogue holds, at a version that holds it (UC-031)");
+  }
+
+  const schemas = artifactSchemas();
+  const architecture = await Promise.all(snapshot.paths.filter((each) => ARCHITECTURE_FILE.test(each)).sort()
+    .map(async (each) => readDocument(/\/ARC-/.test(each) ? schemas.decision : schemas.module, each, (await snapshot.read(each)) ?? "")));
+  const designs = (id) => architecture.find((document) => (document.id ?? document.fields?.id) === id)?.fields?.designs ?? [];
+  const moduleIds = architecture.filter((document) => String(document.id ?? document.fields?.id).startsWith("MOD-")).map((document) => document.id ?? document.fields?.id);
+  const highest = Math.max(0, ...snapshot.paths.map((each) => Number(ITEM_ID.exec(each)?.[1].slice(4) ?? 0)));
+  const drafted = (draft?.steps ?? []).map((each, index) => ({ ...each, id: `ITM-${String(highest + index + 1).padStart(3, "0")}` }));
+  const idOfTitle = new Map(drafted.map((each) => [each.title, each.id]));
+  const files = new Map();
+  for (const each of drafted) {
+    const implemented = asList(each.implements);
+    const system = implemented.includes("system");
+    const subsystem = implemented.filter((name) => name.startsWith("ARC-"));
+    const level = system ? "system" : subsystem.length ? "subsystem" : "module";
+    const named = system ? moduleIds : subsystem.length ? subsystem.flatMap(designs) : implemented;
+    const tests = system ? ["system", "release"] : [each.level];
+    const list = (key, values) => (values.length ? [`${key}:`, ...values.map((value) => `  - ${value}`)] : [`${key}: []`]);
+    const after = asList(each.after).map((title) => idOfTitle.get(title)).filter(Boolean);
+    files.set(`docs/plan/${each.id}-${slugOf(each.title)}.md`, [ "---", `id: ${each.id}`, `title: ${String(each.title).replace(/[:\n]/g, " ")}`, `level: ${level}`, ...list("realises", []), ...list("modules", named),
+      ...list("builds_on", after), ...list("tests", tests), "origin: []", "---", `# ${each.id} ${each.title}`, ""].join("\n"));
+  }
+  const orderText = ["## Order", "", "| Step | Phase |", "| --- | --- |", ...drafted.map((each) => `| ${each.id} | ${each.phase} |`), ""].join("\n");
+  files.set(ORDER, orderText);
+  const stepDocuments = [...files].filter(([each]) => each !== ORDER).map(([each, content]) => readDocument(schemas.item, each, content));
+  const source = { paths: [...snapshot.paths.filter((each) => !each.startsWith("docs/plan/")), ...files.keys()], read: async (each) => files.get(each) ?? snapshot.read(each) };
+  const titleOf = new Map(drafted.map((each) => [each.id, each.title]));
+  const named = (value) => String(value).replace(/ITM-\d{3,}/g, (id) => (titleOf.has(id) ? `the step "${titleOf.get(id)}"` : id));
+  return (await planFindings(readDocument(planOrderSchema, ORDER, orderText), stepDocuments, architecture, workflow, source))
+    .map((each) => finding({ artifact: named(each.artifact), line: each.line, kind: each.kind, rule: each.rule, what: named(each.what), fix: named(each.fix) }));
+}
+
 const REVIEW_RULE = "AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM";
 const RETRO_RULE = "A SPRINT ENDS WITH A RETROSPECTIVE";
 const PROCESS_RULE = "AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF";
@@ -213,5 +271,5 @@ function sprintRecordChecks(draft) {
   return found;
 }
 
-/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model and sprint-facts and the check sprint-record-checks, the three built so far. */
-export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "sprint-facts": sprintFactsRecipe }, checks: { "sprint-record-checks": sprintRecordChecks } };
+/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model and sprint-facts and the checks plan-checks and sprint-record-checks, the four built so far. */
+export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "sprint-record-checks": sprintRecordChecks } };

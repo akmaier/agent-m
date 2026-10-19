@@ -17,7 +17,7 @@
 // Schema, in the type below, is MOD-documents' type of that name.
 import { planOrderSchema, sprintSchema } from "./schemas.mjs";
 
-export { backlogFindings } from "./checks.mjs";
+export { backlogFindings, planFindings } from "./checks.mjs";
 export { conflicts, heldItems, undecidedHeads } from "./sprints.mjs";
 export { sprintFacts } from "./facts.mjs";
 export { itemStates, startable } from "./states.mjs";
