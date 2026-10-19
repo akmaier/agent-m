@@ -181,13 +181,13 @@ test("work that no file holds, or no work, is refused by name — MOD-run-planne
 // TST-568008 · level: unit · module: MOD-run-planner
 // guards: UC-024
 // given: the fixture product, the recipe registered under the owner MOD-run-planner with stand-ins for the other strategies the kind `implement` names (`rests-on-accepted`,
-// `chapters-for-implementation` and the writer `branch-and-pull-request`; `instruction` is the runner's own)
+// `chapters-for-implementation`, `resource-pins` and the writer `branch-and-pull-request`; `instruction` is the runner's own)
 // input: prepareJob("implement", context with params.items = ["ITM-001"], no drafter)
 // expect: it does not throw UnknownStrategy, and its parts of the recipe `implementation-inputs` are the 11 parts of the item, in the order of the first test
 test("the kind implement prepares with the recipe registered — MOD-run-planner", async () => {
   registerStrategies("MOD-run-planner", runPlanner.runStrategies);
   registerStrategies("tests/run-planner-inputs.test.mjs", {
-    recipes: { "chapters-for-implementation": async () => [] },
+    recipes: { "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
     preconditions: { "rests-on-accepted": async () => null },
     writers: { "branch-and-pull-request": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
   });
