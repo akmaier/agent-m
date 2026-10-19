@@ -321,6 +321,7 @@ test("library — restricted content goes only to the repository the person name
     assert.equal(saveOf(form).disabled, false);
     assert.deepEqual([b.commits.length, b.posts.length], [0, 0]);
     await click(saveOf(form));
+    await until(() => b.order.length === 2, "the content and then the entry committed");
     assert.deepEqual(b.order, ["named", "instance"], `${licence}: the content first, then the entry`);
     assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-paid.md"], "the public instance holds the entry only");
     assert.equal(entryOfCommit(b, "SRC-paid").fields.content_repository, NAMED);
@@ -348,6 +349,7 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
   assert.equal(inputOf(form, "licence").value, "restricted");
   assert.match(one(page, "library-public").textContent, /nothing of iso-26262\.pdf is stored/i);
   await click(saveOf(form));
+  await until(() => b.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-iso-26262.md"]);
   const written = instanceFiles(b)[0].text;
   assert.match(written, /not stored: iso-26262\.pdf/);
@@ -375,12 +377,14 @@ test("library — a file that is only hashed asks where its copy is kept, and wi
   const form = await describe(page, { id: "SRC-iso-26262", title: "ISO 26262", authority: "normative" });
   assert.equal(saveOf(form).disabled, false, "the page adds no check of its own");
   await click(saveOf(form));
+  await until(() => byClass(page, "library-result").some((node) => node.textContent.includes("iso-26262.pdf")), "the refusal naming the file");
   assert.deepEqual(b.commits, [], "nothing is committed without the note");
   assert.deepEqual(b.posts, []);
   assert.equal(one(page, "library-result").textContent.includes("iso-26262.pdf"), true, "the refusal names the file");
   assert.equal(one(page, "library-result").textContent.includes("is registered"), false);
   await put(one(page, "library-file-kept-at"), "cabinet 3, shelf B");
   await click(saveOf(one(page, "library-form-box")));
+  await until(() => b.commits.length === 1, "the commit");
   assert.equal(b.commits.length, 1);
   assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-iso-26262.md"]);
   const table = ["### Files of ISO 26262:2018", "", "| File | SHA-256 | Kept at |", "|---|---|---|",
@@ -408,6 +412,7 @@ test("library — each file only hashed has its own note, and a file kept has a 
   await put(byClass(page, "library-file-kept-at")[0], "cabinet 3, shelf B");
   const form = await describe(page, { id: "SRC-handbook", title: "Handbook", authority: "advisory", licence: "may be republished — CC BY 4.0" });
   await click(saveOf(form));
+  await until(() => b.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(b).map((file) => file.path).sort(), ["docs/sources/SRC-handbook.md", `docs/sources/SRC-handbook/${TODAY}/b.md`]);
   const text = instanceFiles(b).find((file) => file.path === "docs/sources/SRC-handbook.md").text;
   assert.equal(text.includes(`| \`a.md\` | \`${sha(bytesOf("# A\n"))}\` | cabinet 3, shelf B |`), true);
@@ -428,6 +433,7 @@ test("library — a named repository the token cannot reach is named, with how t
     await chooseFiles(page, SELECTED);
     await describe(page, { id: "SRC-paid", title: "Paid norm", authority: "normative", licence: "restricted — terms", content_repository: NAMED });
     await click(saveOf(one(page, "library-form-box")));
+    await until(() => byClass(page, "library-result").some((node) => /alice\/restricted-content/.test(node.textContent)), `${named}: the message naming the repository`);
     const result = one(page, "library-result");
     assert.match(result.textContent, /alice\/restricted-content/, named);
     assert.match(result.textContent, /token/i);
@@ -502,6 +508,7 @@ test("library — an EU legal text is registered as its entry alone, a repositor
   await describe(page, { id: "SRC-ai-act-2", title: "AI Act, again", authority: "normative", licence: "may be republished — EU law" });
   assert.equal(inputOf(one(page, "library-form-box"), "identifier").value.length > 0, true);
   await click(saveOf(one(page, "library-form-box")));
+  await until(() => b.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(b).map((file) => file.path), ["docs/sources/SRC-ai-act-2.md"]);
   const entry = entryOfCommit(b, "SRC-ai-act-2");
   assert.equal(entry.sections.find((section) => section.heading === "## Versions").rows?.length ?? 0, 0);
@@ -513,6 +520,7 @@ test("library — an EU legal text is registered as its entry alone, a repositor
   await put(one(second, "library-repository-address"), NAMED);
   await describe(second, { id: "SRC-guidelines", title: "Guidelines", authority: "advisory", licence: "may be republished — MIT" });
   await click(saveOf(one(second, "library-form-box")));
+  await until(() => c.commits.length === 1, "the commit");
   assert.deepEqual(instanceFiles(c).map((file) => file.path), ["docs/sources/SRC-guidelines.md"]);
   const written = instanceFiles(c)[0].text;
   assert.ok(written.includes(NAMED) && written.includes("a".repeat(40)), "the address and the commit are the version's");
