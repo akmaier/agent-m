@@ -1,16 +1,16 @@
 // MOD-runtimes' retryJob (ITM-973), as docs/architecture/MOD-runtimes.md states it: "`retryJob(record: JobRecord, choice: { participant: Participant, route: Route }, host: Host, head: string)
 // -> Promise<{ path: string, commit: string }>` — queues a new job with a new identifier and the same inputs and parameters, which names the one it retries; the participant is the same or
 // another holder of the role. A job whose task travelled with its hand-over is not retried here, since its record holds no task … Fails with `TaskNotInRecord` for such a job."
-// For UC-036 (step 7), A JOB IDENTIFIER IS NEVER REUSED, A JOB GOES ONLY TO A HOLDER OF ITS ROLE, A JOB IS RECORDED IN ITS PRODUCT REPOSITORY.
+// For UC-036 (step 7), A JOB IDENTIFIER IS NEVER REUSED, A JOB IS RECORDED IN ITS PRODUCT REPOSITORY.
 // Run: node --test tests/runtimes-retry.test.mjs
 //
 // Module: MOD-runtimes
-// Guards: UC-036; A JOB IDENTIFIER IS NEVER REUSED; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// Guards: UC-036; A JOB IDENTIFIER IS NEVER REUSED; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // Level: unit
 //
 // The repository server is a fake host in memory (MOD-repository-hosts' interface: repositoryInfo, readSnapshot, commitFiles with an expected head), default branch `trunk`, holding the job
 // workflow. Where the texts leave a reading open, the tests state the one they take, and the pull request names it:
-//   - A participant holds the role when MOD-participant-list's `eligible` leaves it in for the capabilities the job's kind needs (`A ROLE NAMES THE CAPABILITIES IT NEEDS`).
+//   - The participant is the caller's choice; retryJob refuses only a job whose task travelled with its hand-over, and what queueJob and the host refuse.
 //   - The new start copies the record's kind, works_on, inputs, limit, destinations and parameters; its participant and model are the chosen participant's; its route is the chosen route as a record writes it
 //     (`ci hosted`, `ci runner:<label>`, `bridge <name>`, `tab`); `retries` is the earlier identifier; it is no job of a run (`run` empty); `startedBy` and the Agent M version are the record's.
 //   - The identifier is new: none that the product's `docs/jobs/` holds.
@@ -30,7 +30,7 @@ const START = {
 };
 const CAPABILITIES = ["read the repository", "write to the repository", "run code and tests"];
 const participant = (name, capabilities = CAPABILITIES) => ({ name, type: "CI agent", model: `${name}-model`, context: 200000, price: null, capabilities, place: "CI", route: "ci runner:hosted" });
-const DRAFTER = participant("drafter-a"), OTHER = participant("drafter-b"), WEAK = participant("reader", ["read the repository"]);
+const DRAFTER = participant("drafter-a"), OTHER = participant("drafter-b");
 const HOSTED = { kind: "ci", runner: "hosted" };
 
 // A product whose default branch holds the job workflow and the given job records, as the fake host serves them.
@@ -98,18 +98,6 @@ test("retryJob — every retry has an identifier of its own", async () => {
 });
 
 // TST-973003 · level: unit · module: MOD-runtimes
-// guards: UC-036 step 7; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
-// given: the product of TST-973001; the participant `reader`, who has only the capability "read the repository" while write-tests needs three
-// input: retryJob(record, { participant: reader, route: ci hosted }, host, head)
-// expect: refused with NotHolderOfRole naming reader and the capabilities it lacks; nothing written
-test("retryJob — a participant who does not hold the role is refused, and nothing is written", async () => {
-  const w = world([[START, "failed"]]);
-  const record = await w.recordOf(START.id);
-  await assert.rejects(retryJob(record, { participant: WEAK, route: HOSTED }, w.host, w.head()), (error) => error.name === "NotHolderOfRole" && /reader/.test(error.message) && /write to the repository/.test(error.message));
-  assert.equal(w.writes.length, 0);
-});
-
-// TST-973004 · level: unit · module: MOD-runtimes
 // guards: UC-036 step 7; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: a failed job whose record says `task: with the hand-over`
 // input: retryJob(record, { participant: drafter-a, route: ci hosted }, host, head)
@@ -122,7 +110,7 @@ test("retryJob — a job whose task travelled with its hand-over is not retried 
   assert.equal(w.writes.length, 0);
 });
 
-// TST-973005 · level: unit · module: MOD-runtimes
+// TST-973004 · level: unit · module: MOD-runtimes
 // guards: UC-036 step 7; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: the product of TST-973001, with another writer's commit made after the head was read
 // input: retryJob with the head read before

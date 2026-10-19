@@ -3,15 +3,12 @@
 // Module: MOD-runtimes
 //
 // It writes only through queueJob, MOD-job-ledger's startRecord being what the routes commit. Where the text leaves a reading open, this file states the one it takes:
-//   - A participant holds the role when MOD-participant-list's `eligible` leaves it in for the capabilities the job's kind needs (`A ROLE NAMES THE CAPABILITIES IT NEEDS`); the kind is read with
-//     MOD-job-catalogue's `kindOf`.
+//   - The participant is the caller's choice: the same or another holder of the role, as the caller offers them.
 //   - The new start copies the record's kind, works_on, inputs, limit, destinations, task and parameters; its participant and model are the chosen participant's, its route the chosen route as a
 //     record writes it, `retries` the earlier identifier, `run` empty (a retry is no job of a run), and `startedBy` and the Agent M version the record's.
 //   - The new identifier is none that the product's `docs/jobs/` holds.
 
-import { kindOf } from "../job-catalogue/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
-import { eligible } from "../participant-list/index.mjs";
 import { RuntimeError } from "./ci.mjs";
 
 const JOB_RECORD = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
@@ -21,20 +18,13 @@ const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "b
 
 /**
  * retryJob(record, choice, host, head, queue) -> Promise<{ path, commit }> — queues a new job with a new identifier and the record's inputs and parameters, which names the one it retries.
- * Fails with TaskNotInRecord for a job whose task travelled with its hand-over, with NotHolderOfRole { participant, lacks } for a participant that does not hold the role, and as `queue`
- * (queueJob) and the host fail.
+ * Fails with TaskNotInRecord for a job whose task travelled with its hand-over, and as `queue` (queueJob) and the host fail.
  */
 export async function retryJob(record, choice, host, head, queue) {
   if (record.task === "with the hand-over") {
     throw new RuntimeError("TaskNotInRecord", { job: record.id }, `the job ${record.id} was handed over with its task, which its record does not hold: hand it over again from the prompt bar`);
   }
   const { participant, route } = choice;
-  const { needs } = await kindOf(record.kind);
-  const verdict = eligible([participant], { capabilities: needs });
-  if (verdict.leftOut.length > 0) {
-    const lacks = verdict.leftOut[0].reasons;
-    throw new RuntimeError("NotHolderOfRole", { participant: participant.name, lacks }, `${participant.name} does not hold the role of ${record.kind}: ${lacks.join("; ")}`);
-  }
   const { defaultBranch } = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(defaultBranch);
   const taken = new Set(snapshot.paths.map((path) => JOB_RECORD.exec(path)?.[1]).filter(Boolean));

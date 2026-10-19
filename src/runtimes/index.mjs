@@ -60,8 +60,8 @@ export async function queueJob(host, start, route, head, bridge) {
 
 /**
  * retryJob(record, choice, host, head) -> Promise<{ path: string, commit: string }> (MOD-runtimes, Interfaces; retry.mjs) — queues a new job with a new identifier and the record's inputs and
- * parameters, which names the one it retries, to the chosen participant on the chosen route, with queueJob. Fails with TaskNotInRecord for a job whose task travelled with its hand-over, with
- * NotHolderOfRole for a participant that does not hold the role, and as queueJob fails.
+ * parameters, which names the one it retries, to the chosen participant on the chosen route, with queueJob. Fails with TaskNotInRecord for a job whose task travelled with its hand-over, and as
+ * queueJob fails.
  */
 export function retryJob(record, choice, host, head) {
   return retryWith(record, choice, host, head, queueJob);
