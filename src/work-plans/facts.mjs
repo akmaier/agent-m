@@ -5,15 +5,12 @@
 // Module: MOD-work-plans
 
 import { flakyTests } from "../result-records/index.mjs";
-import { naming, selectionOf } from "./sprints.mjs";
+import { selectionOf } from "./sprints.mjs";
 
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-// The names a pull request's body lists on a line "<label>: a, b".
-const bodyList = (body, label) => {
-  const line = text(body).split("\n").find((each) => each.startsWith(`${label}:`));
-  return line ? line.slice(label.length + 1).split(",").map((part) => part.trim()).filter(Boolean) : [];
-};
+const list = (value) => (Array.isArray(value) ? value.map(text).filter(Boolean) : []);
+const idOf = (document) => text(document?.id ?? document?.fields?.id);
 
 // The cost of the rows: the sum of the known ones per currency; "unknown" where none is known.
 function costOf(rows) {
@@ -29,21 +26,26 @@ function costOf(rows) {
 }
 
 /**
- * sprintFacts(sprint, facts: { states, jobs, results, pullRequests, issues }) -> Promise<{ increment, notDone, numbers }> — see MOD-work-plans;
+ * sprintFacts(sprint, facts: { items, tests, states, jobs, results, pullRequests, issues }) -> Promise<{ increment, notDone, numbers }> — see MOD-work-plans;
  * async because MOD-result-records' flakyTests, which it calls once for the head of each merged pull request of the increment, is.
  */
 export async function sprintFacts(sprint, facts) {
   const selection = selectionOf(sprint);
   const pullRequests = facts.pullRequests ?? [];
+  const states = facts.states ?? [];
+  const documents = new Map((facts.items ?? []).map((document) => [idOf(document), document]));
   const increment = [], heads = new Set();
   for (const item of selection) {
-    const merged = pullRequests.find((pullRequest) => pullRequest?.state === "merged" && naming(pullRequest, item));
-    if (!merged) continue;
-    increment.push({ item, pullRequest: text(merged.number), realises: bodyList(merged.body, "Realises"), tests: bodyList(merged.body, "Tests") });
-    heads.add(merged.head);
+    const done = states.find((each) => each.item === item && each.state === "done" && each.pullRequest);
+    if (!done) continue;
+    const realises = list(documents.get(item)?.fields?.realises);
+    const tests = (facts.tests ?? []).filter((each) => list(each.guards).some((guard) => realises.includes(guard))).map((each) => text(each.id));
+    increment.push({ item, pullRequest: text(done.pullRequest), realises, tests });
+    const merged = pullRequests.find((pullRequest) => text(pullRequest?.number) === text(done.pullRequest));
+    if (merged?.head) heads.add(merged.head);
   }
   const done = new Set(increment.map((each) => each.item));
-  const notDone = selection.filter((item) => !done.has(item)).map((item) => (facts.states ?? []).find((state) => state.item === item)
+  const notDone = selection.filter((item) => !done.has(item)).map((item) => states.find((state) => state.item === item)
     ?? { item, state: "unknown", reason: "no state is known for it", job: null, pullRequest: null });
 
   const rows = (facts.jobs ?? []).filter((row) => (row.record?.worksOn ?? []).some((item) => selection.includes(item)));

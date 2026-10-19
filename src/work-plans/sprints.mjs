@@ -57,7 +57,7 @@ function usedBy(modules, architecture) {
 }
 
 // A pull request belongs to an item when its head branch or its title holds the item's identifier, not followed by a digit.
-export const naming = (pullRequest, id) => {
+const naming = (pullRequest, id) => {
   const pattern = new RegExp(`(?<![A-Za-z0-9])${id}(?![0-9])`, "i");
   return pattern.test(text(pullRequest?.branch)) || pattern.test(text(pullRequest?.title));
 };
