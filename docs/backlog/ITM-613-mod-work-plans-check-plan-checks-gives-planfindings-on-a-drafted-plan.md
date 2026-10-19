@@ -8,6 +8,7 @@ modules:
   - MOD-work-plans
 builds_on:
   - ITM-610
+  - ITM-1100
 tests:
   - unit
 origin:

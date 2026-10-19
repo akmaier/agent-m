@@ -11,6 +11,7 @@ modules:
   - MOD-workflow-entries
   - MOD-settings-pages
 builds_on:
+  - ITM-1100
 tests:
   - unit
 origin:

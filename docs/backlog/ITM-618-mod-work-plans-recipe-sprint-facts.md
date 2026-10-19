@@ -9,6 +9,7 @@ modules:
 builds_on:
   - ITM-610
   - ITM-581
+  - ITM-1100
 tests:
   - unit
 origin:
