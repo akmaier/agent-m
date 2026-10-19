@@ -20,6 +20,11 @@ function option(value, label) {
   return node;
 }
 
+// An old value that says it goes through a Bridge and names none (ITM-269): every test of it asks for a named choice first.
+export const namesNoBridge = (setting) => setting?.throughBridge === true && !(typeof setting.bridge === "string" && setting.bridge);
+export const CHOOSE_BRIDGE_DISCLOSURE = "This endpoint was stored as going through a Bridge, and no Bridge is named. Choose the Bridge that reaches it; nothing is sent until you do.";
+export const CHOOSE_BRIDGE_TEXT = "This endpoint was stored for a Bridge without naming it. Choose the Bridge that reaches it before testing; nothing was sent. ";
+
 function endpointKey(name) {
   return name ? `endpoint:${name}` : null;
 }
@@ -110,7 +115,7 @@ export const route = {
     const knownBridgeNames = bridgeNames(context.store);
     const selectedBridge = typeof loadedSetting?.bridge === "string" ? loadedSetting.bridge : "";
     // An old value that says it goes through a Bridge and names none asks for a named choice before it is tested.
-    let awaitingChoice = loadedSetting?.throughBridge === true && !selectedBridge;
+    let awaitingChoice = namesNoBridge(loadedSetting);
     const options = selectedBridge && !knownBridgeNames.includes(selectedBridge)
       ? [...knownBridgeNames, selectedBridge] : knownBridgeNames;
     const name = el("input", "endpoint-name");
@@ -133,7 +138,7 @@ export const route = {
 
     const discloseDestination = () => {
       if (awaitingChoice) {
-        disclosure.textContent = "This endpoint was stored as going through a Bridge, and no Bridge is named. Choose the Bridge that reaches it; nothing is sent until you do.";
+        disclosure.textContent = CHOOSE_BRIDGE_DISCLOSURE;
         return;
       }
       let configuredBridge = null;
@@ -169,7 +174,7 @@ export const route = {
       if (awaitingChoice) {
         const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
         setup.addEventListener("click", () => context.go("bridge", {}));
-        result.replaceChildren("This endpoint was stored for a Bridge without naming it. Choose the Bridge that reaches it before testing; nothing was sent. ", setup);
+        result.replaceChildren(CHOOSE_BRIDGE_TEXT, setup);
         return;
       }
       const stored = settingFrom(fields);

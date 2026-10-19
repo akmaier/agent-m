@@ -14,7 +14,7 @@ import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, recordTest, route as endpointsRoute } from "./endpoints.mjs";
+import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxLine } from "./mailbox.mjs";
 
@@ -88,6 +88,10 @@ function endpointLine(target, context, info) {
     show.textContent = hidden ? "Hide" : "Show";
   });
   test.addEventListener("click", async () => {
+    if (namesNoBridge(setting)) {
+      result.textContent = `${CHOOSE_BRIDGE_TEXT}Press Change to choose it.`;
+      return;
+    }
     if (setting.bridge) {
       let bridgeSettings;
       try { bridgeSettings = endpointBridgeSettings(context.store, setting.bridge); } catch (error) {
@@ -127,7 +131,7 @@ function endpointLine(target, context, info) {
     el("p", null, `Model: ${setting.model}`),
     status,
     el("p", null, el("label", null, "API key ", key, " ", show)),
-    el("p", "settings-endpoint-disclosure", setting.bridge
+    el("p", "settings-endpoint-disclosure", namesNoBridge(setting) ? CHOOSE_BRIDGE_DISCLOSURE : setting.bridge
       ? `Agent M sends one short test request to Bridge ${setting.bridge}. Its optional endpoint key is inside that Bridge request; Bridge and jump-host credentials are sent only as authorisation headers, never in a URL or repository.`
       : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.`),
     el("p", null, test, " ", change, " ", clear),
