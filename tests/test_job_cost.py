@@ -184,7 +184,6 @@ class TestJobCost(unittest.TestCase):
     # FINDING P1: the amount is 105 USD, a million times too much. jobCost (src/job-ledger/cost.mjs:19) multiplies the tokens by the price as the register states it, and MOD-participant-list's priceOf
     # (src/participant-list/index.mjs:105) gives the register's numbers - a price per million tokens - unchanged; the unit test of jobCost (tests/job-ledger.test.mjs) hands it a price per token. The cost
     # shown for a priced participant is wrong by 10^6, which is a cost guessed wrong rather than unknown.
-    @unittest.expectedFailure
     def test_usage_at_the_declared_price_per_million_tokens_is_priced_per_million(self):
         check(self, GUESSED + " - usage at a price")
 
