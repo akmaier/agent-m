@@ -917,3 +917,32 @@ test("participants — testing a new endpoint in place presets use tools from th
     assert.deepEqual(checkedCapabilities(page), expected);
   }
 });
+
+// TST-1096001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; THE MODEL DETERMINES THE PHASES AND THE GATES; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: two products whose declarations name the model docs/process-models/team-scrum.md at the commit VERSION; an instance that held the model at VERSION with the role Developers needing read, write and run code and tests, and holds it now, on its default branch, with the role needing one more capability, "sign releases"; dev-a holds the first three
+// input: the author opens Change for dev-a, unchecks "write to the repository", and the page lists the product use
+// expect: the instance was asked for its snapshot at VERSION; the list says that holder dev-a of the role Developers lacks the capability write to the repository, and does not say that it lacks "sign releases" (the model is read as the product declared it, at model_version, not as the instance holds it now)
+// Planted fault: reading the instance's current catalogue, as productBasisOf did, adds "sign releases" to what dev-a lacks and never asks for VERSION.
+test("participants — each product's roles are read from the model at the version its declaration names", async (t) => {
+  const products = fixtureProductHosts();
+  const b = browser(t, { files: { [PARTICIPANTS]: USED_PARTICIPANTS, ...instanceProcessFiles(), [MODEL_PATH]: MODEL_TEXT.replace("run code and tests |", "run code and tests, sign releases |") },
+    settings: { products: [PRODUCT_ALPHA, PRODUCT_BETA] }, products });
+  const asked = [];
+  const current = b.context.instance.host.readSnapshot;
+  b.context.instance.host.readSnapshot = async (ref) => {
+    asked.push(ref);
+    if (ref !== VERSION) return current(ref);
+    const files = { ...instanceProcessFiles(), [PARTICIPANTS]: USED_PARTICIPANTS };
+    return { commit: VERSION, paths: Object.keys(files).sort(), read: async (path) => files[path] ?? null, blob: (path) => (files[path] === undefined ? null : blobSha(files[path])) };
+  };
+  const page = await b.page();
+  await click(changeButton(page, "dev-a"));
+  const write = byClass(page, "participant-capability").find((box) => box.value === "write to the repository");
+  write.checked = false;
+  await fire(write, "change");
+  const use = one(page, "participant-product-use");
+  assert.ok(asked.includes(VERSION), `the instance was read at ${VERSION}; asked: ${asked.join(", ")}`);
+  assert.match(use.textContent, /holder dev-a of the role Developers lacks the capability write to the repository/);
+  assert.doesNotMatch(use.textContent, /sign releases/);
+});
