@@ -144,7 +144,8 @@ test("queueJob — the tab's route commits the job's start and its taking in one
   assert.match(change.files[0].text, /\n## Taken\n\nat: 2026-10-12 09:30 UTC\nby: tab [0-9a-f]{16}\n+$/, "with its taking, by tab and this browser's identifier");
   assert.deepEqual(result, { path: RECORD_PATH, commit: fake.head() });
   const record = await fake.record();
-  assert.deepEqual([record.id, record.taken?.by], [START.id, "tab"]);
+  assert.equal(record.id, START.id);
+  assert.match(record.taken?.by, /^tab [0-9a-f]{16}$/, "taken by tab and this browser's identifier (MOD-runtimes.md:172)");
 });
 
 // TST-472712 · level: unit · module: MOD-runtimes
