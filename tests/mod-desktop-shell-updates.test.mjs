@@ -215,3 +215,22 @@ test("TST-1054006 the feed is read at start and once a day", async () => {
     assert.equal(f.updater.calls.filter((call) => call === "checkForUpdates").length, 2);
   } finally { f.done(); }
 });
+
+// TST-1054009 · level: unit · module: MOD-desktop-shell
+// guards: UC-044; THE BRIDGE IS UPDATED ONLY BY THE PERSON'S CHOICE
+// given: an offered release, downloaded and verified
+// input: the daily check runs again before the person's second click; then install({ confirmed: true })
+// expect: the downloaded, verified update stays ready (the check neither forgets the file nor offers again), and the install calls quitAndInstall once
+// Planted fault: a check that resets the state loses the verified download, and the install rejects with NothingDownloaded.
+test("TST-1054009 a check that runs after the download leaves the verified update ready to install", async () => {
+  const f = fixture();
+  try {
+    await f.updates.check();
+    await f.updates.download();
+    const state = await f.updates.check();
+    assert.equal(state.ready, true);
+    assert.deepEqual(state.offer, { version: "2026.11.0", notes: "Fixes the **tunnels**." });
+    await f.updates.install({ confirmed: true });
+    assert.equal(f.updater.calls.filter((call) => call === "quitAndInstall").length, 1);
+  } finally { f.done(); }
+});
