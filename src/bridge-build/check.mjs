@@ -179,7 +179,9 @@ export async function tunnelCheck({ platform, executable, appId, ssh2, timeout =
       jumpHost: { hostname: "127.0.0.1", user: "check", sshPort: server.port }, tunnels: [plan("reverse", reversePort), plan("forward", forwardPort)],
     }));
     let exited = null;
-    child = spawn(executable, [], {
+    // On Linux the check starts Electron without its sandbox: the unpacked chrome-sandbox of a runner is not set-user-id root, and Electron then refuses to
+    // start. The check measures the tunnels, not the sandbox.
+    child = spawn(executable, platform === "linux" ? ["--no-sandbox"] : [], {
       env: { ...globalThis.process.env, HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, ".config"), APPDATA: join(home, "AppData", "Roaming") },
       stdio: ["ignore", "ignore", "pipe"],
     });
