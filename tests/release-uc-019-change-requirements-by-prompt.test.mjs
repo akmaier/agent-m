@@ -447,7 +447,7 @@ async function withWorkflow(s, answers, verify) {
     const environment = { GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "push", GITHUB_WORKSPACE: join(root, "ws"),
       GITHUB_SERVER_URL: "https://github.com", GITHUB_REPOSITORY: s.repo, GITHUB_REF_NAME: "main", GITHUB_SHA: product.commit,
       GITHUB_RUN_ID: "418", GITHUB_ACTOR: "akmaier", AGENT_M_RUNNER: "hosted", AGENT_M_PRODUCT_DIR: product.checkout,
-      AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN", AGENT_M_KEY_NAMES: "CI_KEY", AGENT_M_TOKEN: "fixture-person-token", CI_KEY: "fixture-model-key" };
+      AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN", AGENT_M_KEY_NAMES: "CI_KEY", AGENT_M_TOKEN: "github_pat_fixture-person-token", CI_KEY: "fixture-model-key" };
     // CI owns a fresh registry in its own process, not the dashboard's already-registered strategies.
     const script = `import {runEntry} from ${JSON.stringify(new URL("../src/workflow-entries/main.mjs", import.meta.url).href)};
       const answers=${JSON.stringify(answers)},requests=[]; globalThis.fetch=async(url,init={})=>{if(!String(url).startsWith("https://fixture-endpoint.example.test/"))throw Error("uncontrolled request: "+url);requests.push(JSON.parse(init.body));return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify({draft:answers[Math.min(requests.length-1,answers.length-1)],answers:[]})}}]}),{status:200})};
