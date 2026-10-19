@@ -178,7 +178,9 @@ export const route = {
           const answer = await probe(bridge, "agent", { agent: resource.name });
           return said("✓", `The Bridge ${plan.bridge} got an answer from ${resource.name}${answer?.version ? ` (${answer.version})` : ""}.`);
         }
-        const answer = await probe(bridge, "endpoint-models", { name: resource.name, kind: "openai-compatible", baseUrl: resource.address, model: resource.pin ?? "", key: keyOf(resource) });
+        // No key goes to the Bridge: a resource's key leaves the browser only to that resource's own server (A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE),
+        // and a request to the Bridge is a request to another origin. An endpoint that needs its key answers with its diagnosis, which is shown.
+        const answer = await probe(bridge, "endpoint-models", { name: resource.name, kind: "openai-compatible", baseUrl: resource.address, model: resource.pin ?? "", key: null });
         if (answer?.diagnosis) return said("✗", `The Bridge ${plan.bridge} could not list the models: ${answer.diagnosis.message}`);
         return said("✓", `The Bridge ${plan.bridge} serves: ${answer.models.join(", ")}.`);
       } catch (error) {
