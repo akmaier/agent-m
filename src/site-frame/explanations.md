@@ -1099,3 +1099,29 @@ A job on **CI** runs on the server's own machines: a GitHub Actions workflow run
 ## job-runtime-bridge
 
 A job on a **Bridge** runs on a computer of yours, where the Bridge is installed, with a coding agent that is logged in there. This browser keeps each Bridge under its name and asks it for its jobs with its token. If the Bridge does not answer, the job is shown with the reason, and its state stays as the record says.
+
+## implementation-plan
+
+The implementation plan decides how the accepted architecture is assembled into software, before any of it is implemented: the modules of each subsystem in the order of the interfaces they use, then the integration of each subsystem, then the system, each step with the tests of its level. It is the V-model's idea that "whenever you define something on the way down, you should already know how you will check it on the way back up": what the architecture decomposed, the plan integrates again.
+
+| A step for | It implements or integrates | Its tests |
+|---|---|---|
+| a module | the module, as its file describes it | unit tests |
+| a subsystem | the subsystem's modules, as its decision describes their interplay | component tests |
+| the system | the subsystems, as the decision that states the system describes it | system tests, and the release tests of the use cases, written by a participant other than the implementer |
+
+In the reuse-oriented model, a module whose decision adopts a library or a service is configured or adapted in its step rather than developed. In Scrum and Kanban the backlog takes this place. In the book *Vibe Coding*: chapter 6.
+
+## plan-step-states
+
+Each step of the plan shows its state: *waiting* for a step it depends on, *ready*, *in progress* or *done*. No state is stored in the plan: each is derived from the job records and the pull requests.
+
+## plan-draft
+
+*Draft the plan* opens a run panel. The run panel names the drafting participant, where it processes data and what is sent: the architecture, the process model and the existing plan. The click on Run is the decision.
+
+The participant drafts the plan from the bottom up: one step for each module, a module after every module whose interface it uses; then one step for each subsystem's integration; then one step for the system. Each step names the phase of the model it belongs to, and the model's gates stand between the phases. Agent M checks the complete draft: a module, a subsystem or the system without a step, a module ordered before one whose interface it uses, or a step without the tests of its level goes back to the participant as a finding.
+
+## plan-save
+
+*Save plan* is one click: it commits one Markdown file for each step under `docs/plan/`, each an item `ITM-<nnn>-<slug>.md` naming what it implements or integrates and the tests of its level, and the order of the steps in `docs/plan/order.md`. From then on implementation jobs start only for steps of the plan. Nothing is written before the click.
