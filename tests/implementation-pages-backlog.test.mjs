@@ -102,20 +102,21 @@ const PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: 
   pr({ number: 4, item: "ITM-005", base: "experiment/x", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T15:00:00Z" })];
 
 // A host of this file's own, answering the part of MOD-repository-hosts' interface the route uses; `calls` keeps what it was asked.
-function hostOf(files, pullRequests, calls = []) {
-  const snapshot = { repository: { server: "github", path: "acme/product", web: ADDRESS }, ref: "main", commit: "c".repeat(40), paths: Object.keys(files), blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
-    read: async (path) => { calls.push(`read ${path}`); return Object.hasOwn(files, path) ? files[path] : null; } };
+function hostOf(files, pullRequests, calls = [], commits = {}) {
+  const snapshotOf = (files) => ({ repository: { server: "github", path: "acme/product", web: ADDRESS }, ref: "main", commit: "c".repeat(40), paths: Object.keys(files), blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
+    read: async (path) => { calls.push(`read ${path}`); return Object.hasOwn(files, path) ? files[path] : null; } });
+  const snapshot = snapshotOf(files);
   return {
     async repositoryInfo() { calls.push("repositoryInfo"); return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
-    async readSnapshot(ref) { calls.push(`readSnapshot ${ref}`); return snapshot; },
+    async readSnapshot(ref) { calls.push(`readSnapshot ${ref}`); return Object.hasOwn(commits, ref) ? snapshotOf(commits[ref]) : snapshot; },
     async listPullRequests() { calls.push("listPullRequests"); return pullRequests; },
     async commitFiles() { calls.push("commitFiles"); throw new Error("a render writes nothing"); },
   };
 }
 // The context a route gets: the product's host and the instance's, as the frame hands them; where the product is the instance, one host.
-function contextOf(files, { pullRequests = PRS, calls = [], tokenStored = true, instanceFiles = null } = {}) {
+function contextOf(files, { pullRequests = PRS, calls = [], tokenStored = true, instanceFiles = null, instanceCommits = {} } = {}) {
   const host = hostOf(files, pullRequests, calls);
-  return { calls, page: "review", instance: { repository: "acme/agent-m", host: instanceFiles ? hostOf(instanceFiles, [], calls) : host }, product: { address: ADDRESS, kind: "github", host, tokenStored }, store: {}, go() {} };
+  return { calls, page: "review", instance: { repository: "acme/agent-m", host: instanceFiles ? hostOf(instanceFiles, [], calls, instanceCommits) : host }, product: { address: ADDRESS, kind: "github", host, tokenStored }, store: {}, go() {} };
 }
 async function render(files, options = {}) {
   const context = contextOf(files, options);
@@ -361,4 +362,22 @@ test("Start sprint is taken up only on a trusted click", async () => {
   assert.ok(!calls.includes("commitFiles"), "nothing is written");
   await listener({ isTrusted: true });
   assert.match(result(), /Name the sprint's goal/, "a trusted click is taken up (known positive)");
+});
+
+// TST-681012 · level: unit · module: MOD-implementation-pages
+// guards: UC-031 step 6a; THE CATALOGUE IS DATA
+// given: a declaration whose model_version names a commit of the instance; the model file at that commit plans sprints, and the same file now declares none (Sprints no)
+// input: the route's render with the two hosts
+// expect: the model is read as it stood at the commit the declaration names: the teams' sprint panels are drawn and the page does not say that the model works without sprints
+test("the model is read as it stood at the commit the declaration names, not as it stands now", async () => {
+  const productFiles = fixtureFiles();
+  delete productFiles["docs/process-models/fixture.md"];
+  const then = readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8");
+  const now = then.replace("| Sprints | yes |", "| Sprints | no |");
+  assert.notEqual(now, then, "known positive: the fixture changes");
+  const commit = "a".repeat(40);
+  const { html, context } = await render(productFiles, { instanceFiles: { "docs/process-models/fixture.md": now, "SPEC.md": "# Instance\n" }, instanceCommits: { [commit]: { "docs/process-models/fixture.md": then, "SPEC.md": "# Instance\n" } } });
+  assert.ok(context.calls.includes(`readSnapshot ${commit}`), "the commit is read");
+  assert.match(html, /data-team="team1"/);
+  assert.doesNotMatch(html, /works without sprints/);
 });
