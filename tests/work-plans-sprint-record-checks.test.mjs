@@ -161,9 +161,9 @@ test("sprint-record-checks — every fault of a draft is found, each once", asyn
 // guards: UC-041
 // given: the module's workStrategies
 // input: its recipes and checks
-// expect: the recipe architecture-and-model, built before, is still there beside the check sprint-record-checks: nothing already registered changes
+// expect: the recipe architecture-and-model, built before, is still there beside the check sprint-record-checks, and the recipes are those built so far, architecture-and-model and sprint-facts (ITM-618): nothing already registered changes
 test("workStrategies — adds the check and changes no registration", () => {
   assert.equal(typeof workStrategies.recipes["architecture-and-model"], "function");
   assert.equal(typeof workStrategies.checks?.["sprint-record-checks"], "function");
-  assert.deepEqual(Object.keys(workStrategies.recipes), ["architecture-and-model"]);
+  assert.deepEqual(Object.keys(workStrategies.recipes), ["architecture-and-model", "sprint-facts"]);
 });

@@ -21,8 +21,7 @@
 import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { artifactSchemas, readDocument, readRegister } from "../documents/index.mjs";
-import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
-import { declarationSchema, gateSchema, gateStates, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
+import { declarationSchema, gateSchema, gateStates, productWorkflow, roleAssignmentSchema } from "../product-process/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { heldItems, itemStates, planSchemas, undecidedHeads } from "../work-plans/index.mjs";
@@ -66,37 +65,18 @@ async function orUnknown(read) {
   }
 }
 
-// What the catalogue of the instance at the commit the declaration names makes of the declared model, and the workflow derived
-// from it, read as participants.mjs' productBasisOf reads them (a first workflow for the practices' names, then the practices'
-// files from the instance at that commit, then the workflow with them).
-async function declaredModel(declaration, instance, instanceAt) {
+// The facts of the product's declared model and workflow: what MOD-product-process' productWorkflow gives, read with the instance's SPEC; `model` is the
+// workflow's model. Where the instance cannot read the commit the declaration names, they are "unknown" and `modelUnread` keeps the error; where the
+// instance holds no model at `model_file`, they are null.
+async function declaredWorkflow(declaration, instance, instanceAt) {
   if (declaration === null) return { model: null, workflow: null, modelUnread: null };
-  const commit = text(declaration.fields.model_version);
-  const unread = (error) => {
+  try {
+    const workflow = await productWorkflow(declaration, instanceAt, (await instance.read(INSTANCE_SPEC)) ?? "");
+    return workflow === null ? { model: null, workflow: null, modelUnread: null } : { model: workflow.model, workflow, modelUnread: null };
+  } catch (error) {
     if (!UNREADABLE.has(error?.name)) throw error;
-    return { model: "unknown", workflow: "unknown", modelUnread: { commit, error: error.name } };
-  };
-  let at, held;
-  try {
-    at = await instanceAt(commit);
-    held = await catalogue(at);
-  } catch (error) {
-    return unread(error);
+    return { model: "unknown", workflow: "unknown", modelUnread: { commit: text(declaration.fields.model_version), error: error.name } };
   }
-  const model = held.models.find((candidate) => candidate.path === text(declaration.fields.model_file)) ?? null;
-  if (model === null) return { model: null, workflow: null, modelUnread: null };
-  const specText = (await instance.read(INSTANCE_SPEC)) ?? "";
-  const names = workflowOf(declaration, model, [], specText).practices;
-  let practices;
-  try {
-    practices = (await Promise.all(held.practices.filter((practice) => names.includes(practice.name)).map(async (practice) => {
-      const practiceText = await at.read(practice.path);
-      return practiceText === null ? null : readDocument(modelSchema.practice, practice.path, practiceText);
-    }))).filter(Boolean);
-  } catch (error) {
-    return unread(error);
-  }
-  return { model, workflow: workflowOf(declaration, model, practices, specText), modelUnread: null };
 }
 
 // The blobs the gates check, by path: the product's current blob of each artifact a gate record names (as done.mjs of
@@ -160,7 +140,7 @@ async function buildFacts(host, instance, instanceAt) {
   ]);
   const approvals = statuses(snapshot);
   const changeQueues = await queues(snapshot);
-  const { model, workflow, modelUnread } = await declaredModel(declaration, instance, instanceAt);
+  const { model, workflow, modelUnread } = await declaredWorkflow(declaration, instance, instanceAt);
   const jobs = await listJobs([{ address, snapshot }], new Map());
   const known = workflow !== null && workflow !== "unknown" ? workflow : null;
   const gateStatesOf = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
@@ -218,7 +198,7 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   ]);
   const approvals = statuses(snapshot);
   const changeQueues = await queues(snapshot);
-  const { model, workflow, modelUnread } = await declaredModel(declaration, instance, instanceAt);
+  const { model, workflow, modelUnread } = await declaredWorkflow(declaration, instance, instanceAt);
   const registerText = await instance.read(PARTICIPANTS);
   const participants = registerText === null ? [] : participantsOf(readRegister(participantSchema(), PARTICIPANTS, registerText).document);
 

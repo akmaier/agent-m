@@ -151,15 +151,13 @@ test("a product without its process model is refused by name — MOD-work-plans"
 
 // TST-610006 · level: unit · module: MOD-work-plans
 // guards: UC-045; ONE DEFINITION, THREE DRIVERS
-// given: the fixture product, the recipe registered under the owner MOD-work-plans with stand-ins for the other strategies the kind `draft-plan` names (the precondition `rests-on-accepted`, the check `plan-checks`
-// and the writer `plan-steps`)
+// given: the fixture product, the recipe registered under the owner MOD-work-plans with stand-ins for the other strategies the kind `draft-plan` names (the precondition `rests-on-accepted` and the writer `plan-steps`); the check `plan-checks` is MOD-work-plans' own (ITM-613)
 // input: prepareJob("draft-plan", context, no drafter)
 // expect: it does not throw UnknownStrategy, and its parts of the recipe `architecture-and-model` are the nine parts of TST-610001, in that order
 test("the kind draft-plan prepares with the recipe registered — MOD-work-plans", async () => {
   registerStrategies("MOD-work-plans", workPlans.workStrategies);
   registerStrategies("tests/work-plans-architecture-and-model.test.mjs", {
     preconditions: { "rests-on-accepted": async () => null },
-    checks: { "plan-checks": () => [] },
     writers: { "plan-steps": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
   });
   const prepared = await offline(() => prepareJob("draft-plan", contextOf(FILES), { drafter: null, reviewers: [] }));

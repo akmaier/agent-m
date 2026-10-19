@@ -109,11 +109,12 @@ const placeEntry = (place) => (isOutsideEu(place) ? { place, outsideEu: true, no
 
 // The connected mailbox of this browser (UC-037 steps 8, 6a, 8a): its address, route, folders and allowed places with its state, Test, Disconnect and Processing places.
 // -> { node, refresh } — `refresh` shows the stored connection anew; with none stored the block holds an empty .mailbox-connected and nothing to press.
-export function mailboxLine(context) {
+export function mailboxLine(context, { changed = () => {} } = {}) {
   const store = context.store;
   const node = el("section", "settings-mailbox panel");
   const result = el("p", "mailbox-line-result"), disconnected = el("p", "mailbox-disconnected");
   const text = el("p", "mailbox-connected");
+  let renewal = null; // *Sign in with Microsoft*, offered after a Test that found the sign-in expired
 
   const stateOf = () => {
     const last = readSetting(store, "last-test:mailbox");
@@ -137,9 +138,32 @@ export function mailboxLine(context) {
       result.textContent = `✓ Tested. ${counts}${counts ? " · " : ""}${tested.drafts ? "Drafts found" : "Drafts not found"} · ${tested.sent ? "Sent found" : "Sent not found"} · ${tested.sending === "works" ? "sending works" : `sending does not work: ${tested.sending}`} · route ${tested.route} · ${tested.encryption}`;
     } catch (error) {
       result.textContent = stored.route === "graph" ? graphFailureText(error) : failureText(error, stored);
+      renewal = stored.route === "graph" && error?.name === "SignInExpired" ? renewalButton(stored) : null;
     }
     writeSetting(store, "last-test:mailbox", { at: new Date().toISOString(), outcome });
     show();
+  }
+
+  // *Sign in with Microsoft* after an expired sign-in: the provider's window opens for the stored client identifier and address; the stored connection is written again with the signed-in
+  // account and nothing else changed. It tests nothing: the next Test does.
+  function renewalButton(stored) {
+    const button = el("button", "mailbox-renew btn primary", "Sign in with Microsoft");
+    button.addEventListener("click", async () => {
+      result.textContent = "Opening Microsoft's sign-in window…";
+      try {
+        const { account } = await signIn(stored.graph.clientId, stored.address);
+        const now = readSetting(store, "mailbox") ?? stored;
+        writeSetting(store, "mailbox", { ...now, graph: { ...now.graph, account } });
+        renewal = null;
+        show();
+        result.textContent = `Signed in as ${account}. Press Test.`;
+      } catch (error) {
+        let returnAddress = "";
+        try { returnAddress = pagesAddress(context.instance.repository); } catch { /* none */ }
+        result.textContent = signInFailure(error, returnAddress);
+      }
+    });
+    return button;
   }
 
   async function disconnect(stored) {
@@ -194,7 +218,7 @@ export function mailboxLine(context) {
 
   function show() {
     const stored = readSetting(store, "mailbox");
-    if (!stored?.imap && !stored?.graph) { text.textContent = ""; node.replaceChildren(text, result, disconnected); return; }
+    if (!stored?.imap && !stored?.graph) { text.textContent = ""; node.replaceChildren(text, result, disconnected); changed(); return; }
     const { connected, words } = stateOf();
     const how = stored.graph ? "Microsoft 365 (web API)" : `IMAP through ${stored.imap.bridge}`;
     const places = (stored.places ?? []).length ? stored.places.map((each) => (each.outsideEu ? `${each.place} (outside the EU)` : each.place)).join(", ") : "none: mails are only read, never handed to a participant";
@@ -205,7 +229,8 @@ export function mailboxLine(context) {
     testButton.addEventListener("click", () => test(stored));
     disconnectButton.addEventListener("click", () => disconnect(stored));
     placesButton.addEventListener("click", () => changePlaces(readSetting(store, "mailbox") ?? stored, panel));
-    node.replaceChildren(el("h3", null, "Mailbox"), text, el("p", "mailbox-state", words), el("p", null, testButton, " ", placesButton, " ", disconnectButton), panel, result, disconnected);
+    node.replaceChildren(el("h3", null, "Mailbox"), text, el("p", "mailbox-state", words), el("p", null, testButton, " ", placesButton, " ", disconnectButton), panel, result, ...(renewal ? [el("p", null, renewal)] : []), disconnected);
+    changed();
   }
   show();
   return { node, refresh: show };
@@ -434,6 +459,36 @@ export const route = {
     });
     setup.addEventListener("click", () => context.go("bridge", {}));
 
+    // Opened with a stored connection (the Settings page's Change), the form shows its fields; a password or a token is never put back into a field.
+    const stored = readSetting(store, "mailbox");
+    if (stored) {
+      address.value = stored.address ?? "";
+      routeSelect.value = stored.route === "graph" ? "graph" : "imap";
+      showRoute();
+      folders.value = (stored.folders ?? []).join(", ");
+      const held = new Set((stored.places ?? []).map((each) => each.place));
+      for (const { box, place } of placeBoxes) box.checked = held.has(place);
+      for (const place of held) {
+        if (placeBoxes.some((each) => each.place === place)) continue;
+        const box = el("input", "mailbox-place");
+        box.type = "checkbox"; box.checked = true; box.setAttribute("data-place", place);
+        box.addEventListener("change", showPlaceNotice);
+        placeBoxes.push({ box, place });
+        placesBox.append(el("p", null, el("label", null, box, " ", place)));
+      }
+      if (stored.graph) {
+        clientId.value = stored.graph.clientId ?? "";
+        signedInAccount = stored.graph.account ?? null;
+      } else if (stored.imap) {
+        imapHost.value = stored.imap.imap.host; imapPort.value = String(stored.imap.imap.port); imapSecurity.value = stored.imap.imap.security;
+        smtpHost.value = stored.imap.smtp.host; smtpPort.value = String(stored.imap.smtp.port); smtpSecurity.value = stored.imap.smtp.security;
+        account.value = stored.imap.account ?? ""; accountTouched = true;
+        if (bridges.some((bridge) => bridge.name === stored.imap.bridge)) bridgeSelect.value = stored.imap.bridge;
+        showJumpNotice();
+      }
+      showPlaceNotice();
+    }
+
     target.replaceChildren(
       el("h2", null, "Connect a mailbox"),
       labelled("Mail address", address),
@@ -472,3 +527,25 @@ export const route = {
     );
   },
 };
+
+/**
+ * mailboxSetting(context) -> Element — the mailbox among the settings of this browser (the tab Endpoints & Agents of the page `settings`): not set, with *Connect a mailbox*; or the
+ * connected mailbox as `mailboxLine` shows it, with *Change*. Both open the route `mailbox` (`context.go("mailbox", {})`).
+ */
+export function mailboxSetting(context) {
+  const block = el("section", "mailbox-setting");
+  const state = el("p", "mailbox-setting-state");
+  const open = el("button", "mailbox-setting-open btn", "");
+  open.addEventListener("click", () => context.go("mailbox", {}));
+  let line = null; // mailboxLine calls `changed` while it is made, before `line` is set
+  function draw() {
+    if (!line) return;
+    const set = readSetting(context.store, "mailbox") !== null;
+    state.textContent = set ? "" : "Mailbox: not set";
+    open.textContent = set ? "Change" : "Connect a mailbox";
+    block.replaceChildren(...(set ? [line.node] : [state, line.node]), el("p", null, open));
+  }
+  line = mailboxLine(context, { changed: draw });
+  draw();
+  return block;
+}
