@@ -261,12 +261,16 @@ function pullsServed(list, asked) {
     if (url.origin !== "https://api.github.com" || url.pathname !== `/repos/${REPO}/pulls` || init.method !== "GET") return null;
     asked.push(url.search);
     if (list === null) return new Response(JSON.stringify({ message: "Server Error" }), { status: 500, headers: { "Content-Type": "application/json" } });
-    return new Response(JSON.stringify(Number(url.searchParams.get("page") ?? 1) === 1 ? list : []), { status: 200, headers: { "Content-Type": "application/json" } });
+    const wanted = url.searchParams.get("state") ?? "open", served = list.filter((p) => wanted === "all" || (wanted === "open") === (p.state === "open"));
+    return new Response(JSON.stringify(Number(url.searchParams.get("page") ?? 1) === 1 ? served : []), { status: 200, headers: { "Content-Type": "application/json" } });
   };
 }
-async function removeTeam1(list) {
+const CLOSED_SPRINT = "---\nsprint: 1\ngoal: Store\nstart: 2026-09-14\nend: 2026-09-28\ncloser: alice\nbranch: sprint/team1/01\nselection:\n  - ITM-001\n---\n# team1 Sprint 01\n\n## Review\n\nDone.\n";
+async function removeTeam1(list, { closed = false } = {}) {
   const asked = [];
-  const server = await repoServer({ files: fixtureFiles(), handlers: [pullsServed(list, asked)] });
+  const files = fixtureFiles();
+  if (closed) files["docs/backlog/sprints/team1/01.md"] = CLOSED_SPRINT;
+  const server = await repoServer({ files, handlers: [pullsServed(list, asked)] });
   const page = await openDashboard({ server, hash: "#roles" });
   await page.click('[data-remove="team1"]');
   return { server, asked, said: inMain('[data-remove-result="team1"]')?.innerHTML ?? "" };
@@ -303,12 +307,17 @@ test("#roles — a team with an item whose pull request is open, merged elsewher
 
 // TST-1064003 · level: component · module: MOD-implementation-pages
 // guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
-// given: team1, whose sprint selected ITM-001, and a product whose server cannot list its pull requests (500)
-// input: Remove team for team1
+// given: team1, whose sprint selected ITM-001 and is open, and again closed (its review recorded); a product whose server cannot list its pull requests (500)
+// input: Remove team for team1 in each
 // expect: the pull requests were asked for; the team is not removed, never guessed released: the result names ITM-001, and nothing is written
 test("#roles — when the pull requests cannot be read, the team is not removed and the item is named", async () => {
-  const { server, asked, said } = await removeTeam1(null);
-  assert.ok(asked.length > 0, "the pull requests were asked for");
-  assert.match(said, /ITM-001/);
-  assert.equal(server.writes.length, 0);
+  for (const closed of [false, true]) {
+    const { server, asked, said } = await removeTeam1(null, { closed });
+    assert.ok(asked.length > 0, "the pull requests were asked for");
+    assert.match(said, /ITM-001/, closed ? "a closed sprint" : "an open sprint");
+    assert.equal(server.writes.length, 0);
+  }
+  // known positive: with an empty list of pull requests a closed sprint, whose item no pull request of the sprint's branch merged, holds nothing
+  const read = await removeTeam1([], { closed: true });
+  assert.equal(read.server.writes.length, 1, "a closed sprint with the pull requests read and none merged is not held");
 });
