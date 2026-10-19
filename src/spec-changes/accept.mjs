@@ -49,6 +49,18 @@ import { queueAt, queuesAt, queues, replaceSpan, spanText } from "./queues.mjs";
 // Whether a requirement stated by the proposal is another than the one the section holds under its name: its source, rule or check.
 const differs = (was, is) => was.source !== is.source || was.rule !== is.rule || was.check !== is.check;
 
+// The trace graph of a snapshot, built once for as long as the snapshot object lives (a snapshot is one repository at one commit and does not change), so that N open entries of one snapshot build one graph
+// and not N: entryView's signature is unchanged. The promise is kept, so that entries asked at once share the build; a build that failed is not kept, and the next call builds it again.
+const GRAPHS = new WeakMap();
+export function graphOf(snapshot) {
+  if (!GRAPHS.has(snapshot)) {
+    const built = traceGraph(snapshot);
+    GRAPHS.set(snapshot, built);
+    built.catch(() => { if (GRAPHS.get(snapshot) === built) GRAPHS.delete(snapshot); });
+  }
+  return GRAPHS.get(snapshot);
+}
+
 // The impact list of a proposal against the section that holds now (both texts, "" for none): every name withdrawn, added or
 // changed, with the identifiers of the artifacts that name it. The graph of the snapshot is built only when a name is touched.
 // `elsewhere` (the requirements the whole target holds, by name) is given where the section that holds now is none — the entry's anchor is not in the target: a name the target already holds is then no addition,
@@ -65,7 +77,7 @@ export async function impactOf(snapshot, before, after, elsewhere = null) {
     }),
   ];
   if (named.length === 0) return [];
-  const graph = await traceGraph(snapshot);
+  const graph = await graphOf(snapshot);
   return named.map(({ name, change }) => ({
     name, change, referencedBy: [...new Set(requirementImpact(graph, name).map((place) => place.id))],
   }));
