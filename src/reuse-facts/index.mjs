@@ -326,8 +326,8 @@ export async function registryFacts(candidate, productLicence, options = {}) {
   };
 }
 
-// The Hub's own origin: the only one a Hub key is sent to (MOD-reuse-facts, Interfaces: hubFacts).
-const HUB_ORIGIN = "https://huggingface.co";
+// The Hub's own origin, as registries.md writes it in front of /api/: the only one a Hub key is sent to (MOD-reuse-facts, Interfaces: hubFacts).
+const HUB_ORIGIN = REGISTRIES.get("huggingface-model").package.split("/api/")[0];
 // A Hub identifier is the Hub's own path: `owner/name` or a bare `name` for a model, `datasets/owner/name` or `datasets/name` for a dataset.
 const HUB_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
@@ -367,7 +367,7 @@ export async function hubFacts(id, key) {
   const read = TODAY();
   const fetcher = globalThis.fetch;
   if (typeof fetcher !== "function") throw new TypeError("hubFacts needs fetch to read the Hugging Face Hub");
-  const headers = key && new URL(address).origin === HUB_ORIGIN ? { Authorization: `Bearer ${key}` } : {};
+  const headers = key && address.startsWith(`${HUB_ORIGIN}/`) ? { Authorization: `Bearer ${key}` } : {};
   let answer;
   try {
     answer = await fetcher(address, { headers });
