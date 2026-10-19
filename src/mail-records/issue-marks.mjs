@@ -3,7 +3,7 @@
 
 const identifierPattern = "MAIL-[0-9a-fA-F]{16}";
 const wholeIdentifier = new RegExp(`^${identifierPattern}$`);
-const wholeItemIdentifier = /^ITM-\d{3}$/;
+const wholeItemIdentifier = /^ITM-\d{3,}$/;
 const listedIdentifier = new RegExp("`(" + identifierPattern + ")`", "g");
 const addedMail = new RegExp("^Mail `(" + identifierPattern + ")` added on \\d{4}-\\d{2}-\\d{2}\\.$");
 
@@ -72,8 +72,8 @@ const mailNotes = [
   ["question-sent", new RegExp("^Question sent to `(" + identifierPattern + ")` on (\\d{4}-\\d{2}-\\d{2})\\.$")],
   ["no-reply", new RegExp("^No reply to `(" + identifierPattern + ")`, decided on (\\d{4}-\\d{2}-\\d{2})\\.$")],
 ];
-const itemAdded = /^Backlog item `(ITM-\d{3})` added: \S.*$/;
-const closedWith = /^Closed with \S.*?(?:; item `(ITM-\d{3})`)?\.$/;
+const itemAdded = /^Backlog item `(ITM-\d{3,})` added: \S.*$/;
+const closedWith = /^Closed with \S.*?(?:; item `(ITM-\d{3,})`)?\.$/;
 
 /**
  * The texts of item-added and closed-with carry no date; their note takes the date of the comment's createdAt.
