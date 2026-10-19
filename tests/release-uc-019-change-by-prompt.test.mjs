@@ -149,6 +149,7 @@ const COVERED_BY_RELEASE = {
   "A PARTICIPANT DECLARES ITS CAPABILITIES": [
     ev("tests/test_participants.py", "TST-475029"),
     ev(SYSTEM, "TST-377014"),
+    ev(SYSTEM, "TST-377010"),
   ],
   "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA": [
     ev("tests/test_participants.py", "TST-475029"),
@@ -231,7 +232,6 @@ const FINDINGS = {
   "NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY": { finding: "UC019-S10", file: SYSTEM, test: "TST-377011" },
   "THE PAGE NAMES WHERE IT SENDS": { finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
   "THE CORRECTION LOOP HAS A FIXED LIMIT": { finding: "UC019-S13", file: RELEASE_REQUIREMENTS, test: "TST-418125" },
-  "A PARTICIPANT DECLARES ITS CAPABILITIES": { finding: "UC019-S9", file: SYSTEM, test: "TST-377010" },
 };
 
 // TST-377101
@@ -295,14 +295,14 @@ const committed = (s) => [...s.product.writes, ...s.instance.writes].flatMap((wr
 // level: release
 // module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
 // guards: UC-019 (NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY)
-// given: the page of UC-007 with UC-008 in the product, a participant, drafter, whose context holds 1 token, and one with a larger context
+// given: the page of UC-007 with UC-008 in the product, a participant, drafter, whose context holds 1 token, and one with a larger context that cannot draft text, so the bar does not offer it
 // input: the author presses Send
-// expect: nothing is sent and nothing is written; the bar says that drafter does not hold this message and its context holds 1 tokens - what does not fit, by participant - and offers the larger one
+// expect: nothing is sent and nothing is written; the bar says that drafter does not hold this message and its context holds 1 tokens - what does not fit, by participant - and that no offered participant has a larger context
 test("TST-377104: UC-019 NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY", async () => {
   const s = await scenario({ extraFiles: useCases, context: 1 });
   await onUseCase(s);
   await send(s, ALIGN, { participant: "drafter" });
-  assert.match(statusOf(s).textContent, /^Nothing was sent\.drafter does not hold this message: its context holds 1 tokens, the job needs about \d+\. Choose observer, whose context is larger\./);
+  assert.match(statusOf(s).textContent, /^Nothing was sent\.drafter does not hold this message: its context holds 1 tokens, the job needs about \d+\. No offered participant has a larger context\./);
   assert.equal(s.endpointRequests.length, 0);
   assert.equal(s.product.writes.length, 0);
 });
@@ -311,16 +311,17 @@ test("TST-377104: UC-019 NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY", async ()
 // level: release
 // module: MOD-prompt-bar; MOD-site-frame
 // guards: UC-019 (THE PAGE NAMES WHERE IT SENDS)
-// given: the page of UC-007, and drafter (this machine) and observer (Anthropic, USA) offered
+// given: the page of UC-007, and drafter (this machine), the only participant that can draft text, offered; observer (Anthropic, USA) cannot and is not
 // input: the author writes an instruction; later Send; at the moment the endpoint receives the exchange the test reads the bar
-// expect: before Send the selector names each participant with its processing place; when the exchange reaches the endpoint the bar already says "Sent to:" and "drafter — this machine"
+// expect: before Send the bar names drafter with its processing place and has nothing to choose among; when the exchange reaches the endpoint the bar already says "Sent to:" and "drafter — this machine"
 test("TST-377105: UC-019 THE PAGE NAMES WHERE IT SENDS", async () => {
   let seen = null;
   let current = null;
   const s = await scenario({ extraFiles: useCases, answers: [(requests) => { seen = statusOf(current).textContent; return filesDraft(changed("UC-007", UC7_PATH, UC7)); }] });
   current = s;
   await onUseCase(s);
-  assert.deepEqual(all(barOf(s), "option").map((option) => option.textContent), ["drafter — this machine", "observer — Anthropic, USA"]);
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(all(barOf(s), "option").length, 0, "observer cannot draft text, so there is nothing to choose among");
   assert.equal(s.endpointRequests.length, 0);
   await send(s, ALIGN, { participant: "drafter" });
   assert.match(seen, /^Sent to:drafter — this machine/, "the destination is named before the exchange is answered");
