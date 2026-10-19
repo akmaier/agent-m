@@ -194,7 +194,7 @@ async function resumable(env, composed) {
   const { instance, product } = composed;
   // The facts are read through the clone alone: the gates and jobs need no pull request, and the server's answer is not asked for (productFacts takes a refusal as `unknown`).
   const clone = { ...product.host, listPullRequests: async () => { throw Object.assign(new Error("pull requests are not read here"), { name: "NotSupported" }); } };
-  const facts = await productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, {}, { scope: "work" });
+  const facts = await productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, { scope: "work" });
   const wanted = routeOf(env.job.runner);
   const rows = [];
   for (const { record, state } of facts.jobs) {

@@ -71,7 +71,7 @@ export async function onMainChanged(env) {
   try {
     // The facts are read from the snapshot already read: the host answers it for the branch the entry runs for.
     const same = { ...host, readSnapshot: (ref) => (ref === "HEAD" || ref === env.branch ? Promise.resolve(snapshot) : host.readSnapshot(ref)) };
-    const facts = await productFacts(same, snapshot, (at) => host.readSnapshot(at), env.now, {}, { scope: "all" });
+    const facts = await productFacts(same, snapshot, (at) => host.readSnapshot(at), env.now, { scope: "all" });
     const overview = await publishOverview(host, snapshot, facts);
     written ||= overview.written;
     done.push(overview.written ? `Added the overview of ${commit} to overview-cache.` : `overview-cache holds the overview of ${commit} already.`);
