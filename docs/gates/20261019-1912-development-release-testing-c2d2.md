@@ -32,4 +32,4 @@ ITM-1103, pull request #1137 into `sprint/team2/97`, passes on `8c9210c0`. CI is
      changed by developer-sonnet-f in its own commit `8c9210c0`. f is not the implementer. It passed in the coordinator's merge
      test.
 5. **Named as untested.** Not handing the address's parameters to the route fails nothing. The route `replies/<issue>` takes
-   its issue from them. 97.md gives that test to developer-sonnet-f, in ITM-1104's pull request.
+   its issue from them. That test is registered as ITM-1105 (MOD-site-frame).
