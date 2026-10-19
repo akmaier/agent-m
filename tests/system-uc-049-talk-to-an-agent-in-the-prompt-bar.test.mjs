@@ -397,7 +397,7 @@ const filesDraft = (...files) => ({ files });
 const draftOf = (s) => all(s.target, "div", "draft")[0];
 
 // TST-513016 · level: system · module: MOD-prompt-bar · MOD-review-pages
-// guards: UC-049 main flow (5, 6) and alternative 6a; A GENERATED ARTIFACT IS A PROPOSAL; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-049 main flow (5, 6); UC-049 alternative 6a; A GENERATED ARTIFACT IS A PROPOSAL; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the page of the use case UC-007, and a participant whose answer proposes an edit of UC-007 and of UC-008
 // input: Send; Review the draft; the person's click on Discard
 // expect: the proposed edits open in the editor as their difference against the current text (the added line of 2b is marked); before the person's decision nothing is written; Discard writes nothing — no commit, no job record, no conversation record — and the draft is gone from the tab

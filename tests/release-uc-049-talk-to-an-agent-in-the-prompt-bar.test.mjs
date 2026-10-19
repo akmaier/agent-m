@@ -26,6 +26,7 @@ const ROOT = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, ROOT), "utf8");
 const GRAPH = "tests/system-uc-049-talk-to-an-agent-in-the-prompt-bar.test.mjs";
 const PAGES = "tests/system-uc-049-pages-of-mail-and-settings.test.mjs";
+const RELEASE = "tests/release-uc-049-talk-to-an-agent-in-the-prompt-bar.test.mjs";
 const register = (...rows) => ({ "docs/participants.md": registerOf(...rows) });
 const scripted = (node) => node.dispatchEvent(Object.assign(new Event("click"), { scripted: true }));
 
@@ -58,7 +59,7 @@ const COVERED_BY_RELEASE = {
   "A RECORD IS EVIDENCE, NOT A PROPOSAL": [GRAPH, "tests/review-core.test.mjs", "tests/prompt-bar-record.test.mjs"],
   "NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY": [PAGES, "tests/test_mail_privacy.py", "tests/prompt-bar-record.test.mjs"],
   "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE": [PAGES, "tests/test_mail_privacy.py"],
-  "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY": [GRAPH, "tests/prompt-bar-hand-over.test.mjs"],
+  "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY": [GRAPH, RELEASE, "tests/prompt-bar-hand-over.test.mjs"],
   "A PARTICIPANT DECLARES ITS CAPABILITIES": [GRAPH, "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
   "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA": [GRAPH, "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": [GRAPH, "tests/review-core.test.mjs", "tests/job-runner-tools.test.mjs"],
@@ -70,15 +71,15 @@ const COVERED_BY_RELEASE = {
   "ONE DEFINITION, THREE DRIVERS": [GRAPH, "tests/runtimes-tab-endpoint-tools.test.mjs"],
   "A GENERATED ARTIFACT IS A PROPOSAL": [GRAPH, "tests/review-core.test.mjs"],
   "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK": [GRAPH, "tests/review-core.test.mjs", "tests/prompt-bar-hand-over.test.mjs"],
-  "A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET": [GRAPH],
-  "A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET": [GRAPH],
+  "A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET": [GRAPH, RELEASE],
+  "A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET": [GRAPH, RELEASE],
   "AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT": [GRAPH, "tests/test_artifact_provenance.py"],
   "A REQUIREMENTS JOB RECEIVES THE CHAPTER ON REQUIREMENTS ENGINEERING": [GRAPH, "tests/test_job_reading.py"],
   "A TEST JOB RECEIVES THE CHAPTER ON TESTING": [GRAPH, "tests/test_job_reading.py"],
   "AN ARCHITECTURE JOB RECEIVES THE CHAPTERS ON MODELING, ARCHITECTURE, DESIGN AND IMPLEMENTATION": [GRAPH, "tests/test_job_reading.py"],
   "AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING": ["tests/test_job_reading.py"],
   "A CANCELLED JOB WRITES NOTHING MORE": [GRAPH, "tests/prompt-bar-hand-over.test.mjs"],
-  "NO COST IS GUESSED": [GRAPH],
+  "NO COST IS GUESSED": [GRAPH, RELEASE],
   "AN UNSUPPORTED ENDPOINT SAYS SO": [GRAPH],
   "EVERY STEP EXPLAINS ITSELF": [GRAPH, "tests/site-frame.test.mjs", "tests/settings-pages-add-product.test.mjs", "tests/settings-pages-setup.test.mjs"],
 };
