@@ -147,7 +147,7 @@ test("module headers — `Module: MOD-x` in the first lines of a code file; test
   assert.deepEqual(headerModules("const x = 'Module: MOD-a';\n"), [], "only a line that is a header, not a string in code");
   assert.ok(isCodePath("src/reader.js") && isCodePath("src/review.py") && isCodePath("docs/assets/review-core.mjs"));
   assert.ok(!isCodePath("src/notes.md") && !isCodePath("vendor/lib.js") && !isCodePath("node_modules/x/i.js")
-    && !isCodePath("docs/assets/vendor/marked.esm.js") && !isCodePath("logo.png"));
+    && !isCodePath("src/markdown-render/vendor/marked.esm.js") && !isCodePath("logo.png"));
   assert.ok(isTestPath("tests/reader.test.js") && isTestPath("tests/test_x.py") && isTestPath("src/x.spec.ts") && isTestPath("pkg/x_test.go"));
   assert.ok(isTestPath("tests/helpers.js") && isTestPath("pkg/__tests__/x.js"), "a file in a tests folder is a test");
   assert.ok(!isTestPath("src/reader.js") && !isTestPath("src/contest.js"));
