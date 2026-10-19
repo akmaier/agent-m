@@ -160,7 +160,7 @@ test("TST-1041101: the system test declares every step and every alternative flo
 // input: for each realised requirement read the Check line; list the files it names that do not exist; list the requirements with an automatic check that neither the system test (by its guards) nor an existing named file checks
 // expect: every requirement UC-040 realises has a Check line in the SPEC; every file a Check line names exists; every requirement with an automatic check is guarded by the system test or checked by an existing file
 test("TST-1041110: every automatic requirement UC-040 realises is checked by evidence that exists",
-  { todo: "FINDING — SPEC.md names tests/test_resources.py as the check of twelve requirements UC-040 realises and tests/test_no_secret_written.py as the check of two; neither file exists, so A RESOURCE IS USED, A PARTICIPANT DEVELOPS has no executable evidence at all and the others are checked by the system test alone (a backlog item to be added by the Product Owner)." }, () => {
+  { todo: "FINDING ITM-1130 (test_resources.py) and ITM-1131 (test_no_secret_written.py) — SPEC.md names tests/test_resources.py as the check of twelve requirements UC-040 realises and tests/test_no_secret_written.py as the check of two; neither file exists, so A RESOURCE IS USED, A PARTICIPANT DEVELOPS has no executable evidence at all and the others are checked by the system test alone (a backlog item to be added by the Product Owner)." }, () => {
     const checks = specChecks();
     const guardedBySystem = new Set(testDeclarations(SYSTEM, read(SYSTEM)).flatMap((one) => one.guards.flatMap((guard) => guard.split(";").map((part) => part.trim()))));
     const absent = new Set(), unchecked = [];
@@ -378,7 +378,7 @@ test("release · UC-040 3a and 7a: what cannot be reached is named, and nothing 
 // input: add the compute resource "alex"; type the route "bridge hpc", the place and, as its secret, the value "sk-live-0123456789abcdef" into the row; press "Save"
 // expect: step 8 "name of the secret — never its value": the value stands in no commit of any repository
 test("release · UC-040 8: a secret's value typed into the list is never committed",
-  { todo: "FINDING — after the person edits the list the form checks nothing, so the value is committed to docs/resources.md of the product: src/site-frame/forms.mjs:80-81 (documentNow) hands an edited section over as { heading, line, text } with no rows, documentFindings (forms.mjs:102) and the page's extraChecks (src/settings-pages/resources.mjs:63) find no row in it, and Save writes the text (resources.mjs:129)." }, async (t) => {
+  { todo: "FINDING ITM-1122 — after the person edits the list the form checks nothing, so the value is committed to docs/resources.md of the product: src/site-frame/forms.mjs:80-81 (documentNow) hands an edited section over as { heading, line, text } with no rows, documentFindings (forms.mjs:102) and the page's extraChecks (src/settings-pages/resources.mjs:63) find no row in it, and Save writes the text (resources.mjs:129)." }, async (t) => {
     const page = await visit(t, FRAGMENT);
     await addResource(page, "compute", "alex", "alex.nhr.fau.de");
     await typeInto(listText(page), listText(page).value.replace("| alex | compute | alex.nhr.fau.de | — | — | — | — | — | — | — |", "| alex | compute | alex.nhr.fau.de | — | — | — | bridge hpc | NHR@FAU, Erlangen | — | sk-live-0123456789abcdef |"));
