@@ -42,6 +42,7 @@ uses:
   - MOD-runtimes.revertAfterCancel
   - MOD-work-plans.startable
   - MOD-prompt-bar.currentJob
+  - MOD-prompt-bar.Subject
   - MOD-source-register.sourceStrategies
 provides:
   - view
@@ -58,7 +59,7 @@ decisions a person takes on a job. It serves UC-046 and UC-036.
 It shows only what the services derive; it computes no share and no state of its own (`PROGRESS AND JOB STATE ARE
 DERIVED, NOT STORED`). Its own routes run no job in the tab; the prompt bar on this page does, so it hands the frame the
 strategies a conversation's kinds need beyond the runner's own — `sourceStrategies`, for the book's chapters of the page.
-Retrying a job that ran in a tab opens the view that runs its kind, with the job's inputs.
+Retrying a job that ran in a tab opens the prompt bar on this page with the job's kind and parameters: the route `job` gives the bar, for the retry, the subject (`MOD-prompt-bar.Subject`) of that kind with the job's parameters.
 
 It runs in a browser, loaded by `index.html` through MOD-site-frame.
 
@@ -155,7 +156,7 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
   MOD-product-process.recordGateDecision — the decision.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
-  MOD-prompt-bar.currentJob — the job of this tab's conversation;
+  MOD-prompt-bar.currentJob — the job of this tab's conversation; MOD-prompt-bar.Subject — the subject the route `job` gives the prompt bar for the retry of a job that ran in a tab;
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
   MOD-runtimes.liveState, MOD-runtimes.jobLog,
   MOD-runtimes.cancelJob, MOD-runtimes.retryJob — live states, logs, cancel and retry at each job's route, the Bridges
