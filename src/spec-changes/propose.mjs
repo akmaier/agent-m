@@ -388,7 +388,7 @@ export async function proposeSection(host, change) {
   const replaced = mine?.entries.find(sameSection) ?? null;
   const alsoReplacing = all.flatMap((queue) => (queue.folder === mine?.folder ? [] : queue.entries.filter(sameSection).map((entry) => ({ queue: queue.folder, entry: entry.number }))));
 
-  const impact = await impactOf(snapshot, before ?? "", change.text);
+  const impact = await impactOf(snapshot, before ?? "", change.text, before === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
   const files = [];
   let folder, number, day, proposalPath, rationalePath;
   if (mine) {
@@ -446,7 +446,7 @@ export async function saveEntry(host, edit) {
   const old = (await snapshot.read(entry.rationale)) ?? "";
   const origin = /\*\*Origin\.\*\* ([^\n]*)/.exec(old)?.[1] ?? `an edit of the entry; saved by ${edit.person}.`;
   const provenance = /\n\*\*Provenance\.\*\*[^\n]*\n/.exec(old)?.[0] ?? "";
-  const impact = await impactOf(snapshot, before ?? "", edit.text);
+  const impact = await impactOf(snapshot, before ?? "", edit.text, before === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
   const rationale = `${sectionRationale({ anchor: entry.anchor, why: edit.why }, impact, origin)}${provenance}`;
   const findings = documentFindings(queueRationaleSchema, readDocument(queueRationaleSchema, entry.rationale, rationale));
   if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);

@@ -51,12 +51,15 @@ const differs = (was, is) => was.source !== is.source || was.rule !== is.rule ||
 
 // The impact list of a proposal against the section that holds now (both texts, "" for none): every name withdrawn, added or
 // changed, with the identifiers of the artifacts that name it. The graph of the snapshot is built only when a name is touched.
-export async function impactOf(snapshot, before, after) {
+// `elsewhere` (the requirements the whole target holds, by name) is given where the section that holds now is none — the entry's anchor is not in the target: a name the target already holds is then no addition,
+// it is changed when its source, rule or check differs from the target's, and not named otherwise.
+export async function impactOf(snapshot, before, after, elsewhere = null) {
   const was = parseSpec(before).requirements, is = parseSpec(after).requirements;
   const { withdrawn, added } = renamedRequirements(before, after);
   const named = [
     ...withdrawn.map((name) => ({ name, change: "withdrawn" })),
     ...[...is.keys()].flatMap((name) => {
+      if (added.includes(name) && elsewhere?.has(name)) return differs(elsewhere.get(name), is.get(name)) ? [{ name, change: "changed" }] : [];
       if (added.includes(name)) return [{ name, change: "added" }];
       return differs(was.get(name), is.get(name)) ? [{ name, change: "changed" }] : [];
     }),
@@ -88,7 +91,7 @@ export async function entryView(queue, entry, snapshot) {
     proposal: { text: proposalText, blob: item.proposal.blob },
     difference: lineDiff(heldNow ?? "", proposalText),
     rationale,
-    impact: await impactOf(snapshot, heldNow ?? "", proposalText),
+    impact: await impactOf(snapshot, heldNow ?? "", proposalText, heldNow === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null),
     state: item.state,
     createdBy: item.createdBy,
   };
