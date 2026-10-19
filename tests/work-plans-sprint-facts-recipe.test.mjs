@@ -1,5 +1,5 @@
 // The recipe `sprint-facts` of MOD-work-plans' `workStrategies` (ITM-618), as the accepted text of docs/architecture/MOD-work-plans.md states it
-// (read from main, blob 613160a4d773): "recipe `sprint-facts` — the sprint's facts, the product's issues opened or closed during the sprint, its job
+// (read from main, blob ee571b6be5a5; the issues by `opened` or `closed` since ITM-1102): "recipe `sprint-facts` — the sprint's facts, the product's issues opened or closed during the sprint, its job
 // records and result records — each named as a source; never a mail. The sprint is the one the job's parameter `sprint` names; its facts are
 // `sprintFacts` of the product's items, of its tests with what each guards (`isTestFile`, `testDeclarations`), of the items' states (`itemStates`,
 // with the product's workflow), of its jobs (`listJobs`, without live states), of the branch `test-results` (the product host's `readSnapshot`),
@@ -12,7 +12,7 @@
 //
 // The readings, named in the pull request: the job's parameter `sprint` is the sprint's name `<team>/<nn>` (sprintOf's); the recipe's parts are the
 // sprint's record, its facts as JSON, its issues, its job records and its result records, each line of the last three naming its source; an Issue
-// carries no date of its own (MOD-repository-hosts), so an issue is the sprint's when one of its comments is dated within the sprint's time box;
+// names when it was opened and closed (MOD-repository-hosts, ITM-1102), so an issue is the sprint's when its `opened` or its `closed` is dated within the sprint's time box (the days start to end, both included);
 // the result records are those of the head commits of the increment's merged pull requests.
 // The product is a fixture held in memory behind a host of this file's own; nothing reaches the network. Each test states its input and its expected
 // result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
@@ -57,7 +57,7 @@ const snapshotOf = (files, web) => ({ repository: { server: "github", path: "acm
 const named = (name) => Object.assign(new Error(name), { name });
 const pullRequest = (number, id, state, head) => ({ number, title: `${id}: the work`, branch: `job/${id}`, base: "main", head, state, draft: false, url: `${ADDRESS}/pull/${number}`,
   opened: "2026-10-13T08:00:00Z", merged: state === "merged" ? "2026-10-14T09:30:00Z" : null, closed: null, body: "" });
-const issue = (number, date) => ({ number, title: `Issue ${number}`, body: "", labels: [], state: "closed", url: `${ADDRESS}/issues/${number}`, comments: [{ author: "alice", body: "seen", date }] });
+const issue = (number, opened, closed = null, comments = []) => ({ number, title: `Issue ${number}`, body: "", labels: [], state: closed ? "closed" : "open", url: `${ADDRESS}/issues/${number}`, opened, closed, comments });
 
 // The context of a close-sprint job; the host answers readSnapshot (the product, the branch test-results), listPullRequests and listIssues.
 function contextOf({ params = { sprint: "team1/01" }, issues = [issue(7, "2026-10-14T10:00:00Z"), issue(8, "2026-09-01T10:00:00Z")], noIssues = false, files = productFiles() } = {}) {
@@ -109,7 +109,7 @@ test("the sprint is the one the job's parameter names; a sprint without a record
 
 // TST-618003 · level: unit · module: MOD-work-plans
 // guards: UC-041; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
-// given: the fixture; the host lists issue 7 (a comment dated 2026-10-14, within the sprint's time box 2026-10-12 to 2026-10-19) and issue 8 (its only comment dated 2026-09-01)
+// given: the fixture; the host lists issue 7 (opened 2026-10-14, within the sprint's time box 2026-10-12 to 2026-10-19) and issue 8 (opened 2026-09-01, still open)
 // input: the recipe
 // expect: the issues part names issue 7 by its address and not issue 8; the host was asked for the issues of every state; the job records part names JOB-20261014-0900-a1b2 (it works on ITM-002, selected) with its record path and not JOB-20261014-1000-c3d4 (ITM-003, of the other sprint); the result records part names the record runs/<H1>/20261014-1000-commit-aaaa.md; no part names a mail
 // Planted fault: listing every issue, or every job, puts issue 8 or the other job into a part.
@@ -152,4 +152,34 @@ test("the item states are derived with the product's workflow, read at the commi
   await recipe(setting);
   assert.ok(setting.asked.some(([name, ref]) => name === "instance" && ref === DECLARED), "the instance was read at the declared commit");
   assert.ok(setting.asked.some(([name, ref]) => name === "readSnapshot" && ref === "test-results"), "the branch test-results was read");
+});
+
+// TST-1102003 · level: unit · module: MOD-work-plans
+// guards: UC-041; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
+// given: the fixture, sprint team1/01 (time box 2026-10-12 to 2026-10-19); the host lists issue 20 (opened 2026-10-13, closed 2026-10-15, no comment), 21 (opened 2026-09-01, still open, no comment), 22 (opened 2026-09-01, closed 2026-10-16),
+//   23 (opened 2026-10-18, still open), 24 (opened 2026-09-01, closed 2026-09-02, with a comment dated 2026-10-14), 25 (opened 2026-10-19T23:00:00Z, the last day), 26 (opened 2026-10-11T23:59:59Z, the day before)
+// input: the recipe
+// expect: the issues part names 20, 22, 23 and 25 and not 21, 24 or 26; the host was asked with state "all"; the facts part is the same as without the issues
+// Planted fault: reading a comment's date instead of the issue's dates names 24 and misses 20; reading only `opened` misses 22; asking for open issues only misses 20 and 22; a time box end taken as exclusive misses 25.
+test("an issue opened or closed within the sprint's time box is among its facts, with or without a comment; one opened before and still open is not", async () => {
+  const note = [{ author: "alice", body: "seen", date: "2026-10-14T10:00:00Z" }];
+  const issues = [issue(20, "2026-10-13T08:00:00Z", "2026-10-15T09:00:00Z"), issue(21, "2026-09-01T08:00:00Z"), issue(22, "2026-09-01T08:00:00Z", "2026-10-16T09:00:00Z"), issue(23, "2026-10-18T08:00:00Z"),
+    issue(24, "2026-09-01T08:00:00Z", "2026-09-02T08:00:00Z", note), issue(25, "2026-10-19T23:00:00Z"), issue(26, "2026-10-11T23:59:59Z")];
+  const setting = contextOf({ issues });
+  const parts = await recipe(setting);
+  const text = byName(parts, "issues of sprint team1/01").text;
+  for (const n of [20, 22, 23, 25]) assert.match(text, new RegExp(`issue #${n} `));
+  for (const n of [21, 24, 26]) assert.doesNotMatch(text, new RegExp(`issue #${n} `));
+  assert.deepEqual(setting.asked.find(([name]) => name === "listIssues")[1], { state: "all" });
+  assert.deepEqual(byName(parts, "facts of sprint team1/01").text, byName(await recipe(contextOf({ issues: [] })), "facts of sprint team1/01").text);
+});
+
+// TST-1102004 · level: unit · module: MOD-work-plans
+// guards: UC-041
+// given: the fixture; the host lists issues of which none is opened or closed within the time box
+// input: the recipe
+// expect: the issues part says that none of the product's issues was opened or closed within the time box
+test("where no issue is dated within the time box, the issues part says so", async () => {
+  const parts = await recipe(contextOf({ issues: [issue(30, "2026-09-01T08:00:00Z")] }));
+  assert.match(byName(parts, "issues of sprint team1/01").text, /none of the product's issues was opened or closed within the time box/);
 });
