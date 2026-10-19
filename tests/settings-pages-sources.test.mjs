@@ -386,9 +386,9 @@ test("sources — the page names the repository Save writes to, and rendering wr
 // guards: UC-015
 // given: the view of MOD-settings-pages
 // input: read its routes
-// expect: exactly one route is named sources, under the menu entry settings, titled "Requirement sources"; the routes settings, setup, add-product, endpoints, participants, bridge, mailbox and library are still there, in this order, before it
+// expect: exactly one route is named sources, under the menu entry settings, titled "Requirement sources"; the routes settings, setup, add-product, endpoints, participants, bridge, mailbox and library are still there, in this order, before it (routes added after it do not change this)
 test("sources — the module's view holds one route sources under the entry settings, after the routes it had", () => {
-  assert.deepEqual(view.routes.map((candidate) => candidate.name), ["settings", "setup", "add-product", "endpoints", "participants", "bridge", "mailbox", "library", "sources"]);
+  assert.deepEqual(view.routes.map((candidate) => candidate.name).slice(0, 9), ["settings", "setup", "add-product", "endpoints", "participants", "bridge", "mailbox", "library", "sources"]);
   const found = view.routes.filter((candidate) => candidate.name === "sources");
   assert.equal(found.length, 1);
   assert.equal(found[0].entry, "settings");
