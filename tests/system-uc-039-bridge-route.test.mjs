@@ -120,7 +120,7 @@ test("alternatives 5a and 5b on the IMAP route: the hash changes with the edit, 
     assert.ok(textBody(p.smtp.messages[0].bytes).includes("Edited reply text before sending."), "the edited draft was sent");
     const spent = p.state.calls.find((call) => call.operation === "send");
     const { mailHandlers } = await import("../src/mail-protocols/index.mjs");
-    await assert.rejects(mailHandlers()["POST /v1/mail/send"]({ params: { operation: "send" }, body: { connection: spent.connection, args: spent.args } }), (error) => error.code === "confirmation-refused" || error.code === "not-found");
+    await assert.rejects(mailHandlers()["POST /v1/mail/send"]({ params: { operation: "send" }, body: { connection: spent.connection, args: spent.args } }), (error) => error.code === "confirmation-refused", "the Bridge refuses the spent confirmation, before it looks for the draft");
     assert.equal(p.smtp.messages.length, 1, "the second request sent nothing");
   });
 });
