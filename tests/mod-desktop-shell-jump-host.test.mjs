@@ -6,13 +6,13 @@
 // Guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-044
 // Level: unit
 //
-// The production window entry runs in a small EventTarget DOM, as tests/mod-desktop-shell-window.test.mjs has it. The window's `bridge.state(...)` answers as src/desktop-shell/main.mjs does for the actions it names: here the
-// settings are the real ones, MOD-desktop-shell's settings.mjs, kept in a temporary data folder as `settings.json`. Readings taken, named in the pull request: the window asks `save-jump-host` with the hostname, the SSH
-// user and the SSH port, and the file's `setJumpHost(dataFolder, { hostname, user, sshPort })` keeps them; an empty SSH port is 22; an empty hostname or an empty user, or a port outside 1 to 65535, is refused with an error named
-// InvalidSettings and nothing is written. The counter-proofs are in the pull request.
+// The production window entry runs in a small EventTarget DOM, as tests/mod-desktop-shell-window.test.mjs has it. The window's `bridge.state(...)` is a constructed preload: it answers the settings and tunnels the test sets, records what the window sends and, for `save-jump-host`, answers what the test says. What the entry
+// does with that request is tests/mod-desktop-shell-jump-host-entry.test.mjs's, over the app's real entry (src/desktop-shell/main.mjs); nothing of its dispatch is written again here. Readings taken, named in the pull request: the window asks `save-jump-host` with the hostname, the SSH
+// user and the SSH port as typed (the port a text), and shows a refusal as "Not saved: …"; the file's `setJumpHost(dataFolder, { hostname, user, sshPort })` keeps them; an empty SSH port is 22; an empty hostname or an empty user, or a port outside
+// 1 to 65535, is refused with an error named InvalidSettings and nothing is written. The counter-proofs are in the pull request.
 
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -37,7 +37,8 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 // The input inside the label whose text starts with `caption`.
 const inputOf = (root, caption) => descendants(root, (node) => node.localName === "label" && node.textContent.startsWith(caption))[0]?.childNodes.find((child) => child instanceof Element && child.localName === "input");
 
-async function windowOver(dataFolder) {
+// The production window over a constructed preload. `sent` records every `save-jump-host` request; `answer` is what the test makes the preload do with it: a function that updates the constructed jump host, or throws.
+async function windowOver(answer) {
   const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
   document.head = document.createElement("head"); document.body = document.createElement("body");
   globalThis.document = document;
@@ -45,61 +46,70 @@ async function windowOver(dataFolder) {
   const browser = new EventTarget(), location = { hash: "#tunnels" };
   Object.defineProperty(globalThis, "location", { configurable: true, value: location });
   Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+  const sent = [];
+  let jumpHost = null;
   browser.bridge = {
     async state(action, value) {
-      if (action === "settings") return { settings: shell.loadSettings(dataFolder) };
+      if (action === "settings") return { settings: { name: "This computer", port: 4711, products: [], every: 30, jumpHost } };
       if (action === "tunnels") return { publicKey: "ssh-ed25519 fixture", tunnels: [] };
-      if (action === "save-jump-host") { shell.setJumpHost(dataFolder, value); return {}; }
+      if (action === "save-jump-host") { sent.push(value); jumpHost = answer(value) ?? jumpHost; return {}; }
       return { address: "http://127.0.0.1:4711", token: "fixture-token", paused: false };
     },
     async copy() {}, async quit() {},
   };
   await import(`../src/desktop-shell/window.mjs?jump-host=${Date.now()}`);
   await settle();
-  return document;
+  return { document, sent };
 }
 const fill = (document, host, user, port) => { inputOf(document.body, "Jump host").value = host; inputOf(document.body, "SSH user").value = user; inputOf(document.body, "SSH port").value = port; };
 
 // TST-1053101 · level: unit · module: MOD-desktop-shell
 // guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044 (6a.1)
-// given: a Bridge data folder with no jump host, and the production window on Tunnels
+// given: the production window on Tunnels over a constructed preload that keeps no jump host at first and, when it is sent one, keeps it
 // input: hostname jump.example.test, SSH user agentm and SSH port 2222 entered, then the button Save jump host pressed
-// expect: before: the sentence asks for a jump host and does not name one; after: settings.json holds jumpHost { hostname: "jump.example.test", user: "agentm", sshPort: 2222 } and the Tunnels view names agentm@jump.example.test in its sentence
-test("a jump host entered in the window is kept in settings.json and named in the Tunnels view", async () => {
-  const folder = mkdtempSync(join(tmpdir(), "agent-m-1053-"));
-  try {
-    const document = await windowOver(folder);
-    assert.equal(shell.loadSettings(folder).jumpHost, null, "known positive: no jump host at first");
-    assert.doesNotMatch(document.body.textContent, /@jump\.example\.test/);
-    fill(document, "jump.example.test", "agentm", "2222");
-    const save = buttons(document.body, "Save jump host")[0];
-    assert.ok(save, "the Tunnels view has a Save jump host button");
-    save.dispatchEvent(new Event("click"));
-    await settle();
-    assert.deepEqual(JSON.parse(readFileSync(join(folder, "settings.json"), "utf8")).jumpHost, { hostname: "jump.example.test", user: "agentm", sshPort: 2222 });
-    assert.match(document.body.textContent, /agentm@jump\.example\.test/);
-  } finally { rmSync(folder, { recursive: true, force: true }); }
+// expect: before: no sentence names user@hostname; the window sent exactly one save-jump-host with { hostname: "jump.example.test", user: "agentm", sshPort: "2222" } — as typed, the port a text —; after: the Tunnels view is drawn again and names agentm@jump.example.test in its sentence
+test("the window sends the jump host as typed and names it in the Tunnels view", async () => {
+  const { document, sent } = await windowOver((value) => ({ hostname: value.hostname, user: value.user, sshPort: Number(value.sshPort) }));
+  assert.doesNotMatch(document.body.textContent, /@jump\.example\.test/, "known positive: no jump host at first");
+  fill(document, "jump.example.test", "agentm", "2222");
+  const save = buttons(document.body, "Save jump host")[0];
+  assert.ok(save, "the Tunnels view has a Save jump host button");
+  save.dispatchEvent(new Event("click"));
+  await settle();
+  assert.deepEqual(sent, [{ hostname: "jump.example.test", user: "agentm", sshPort: "2222" }]);
+  assert.match(document.body.textContent, /agentm@jump\.example\.test/);
 });
 
 // TST-1053102 · level: unit · module: MOD-desktop-shell
 // guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044 (6a.1)
-// given: a Bridge data folder with no jump host, and the production window on Tunnels
-// input: the hostname left empty, SSH user agentm, SSH port 22, then Save jump host; then the user left empty with a hostname; then SSH port 70000
-// expect: each is refused: nothing is written (no settings.json) and the view says it was not saved; the same button with a hostname, a user and an empty port keeps the jump host with SSH port 22
-test("an empty hostname, an empty user or a port outside 1 to 65535 is refused, and an empty port is 22", async () => {
+// given: the production window on Tunnels over a constructed preload that refuses the request with an error named InvalidSettings ("The jump host needs a hostname.")
+// input: the hostname left empty, SSH user agentm, SSH port 22, then Save jump host
+// expect: the window shows "Not saved: The jump host needs a hostname." and names no user@hostname
+test("the window shows a refusal of the jump host as not saved", async () => {
+  const { document, sent } = await windowOver(() => { throw Object.assign(new Error("The jump host needs a hostname."), { name: "InvalidSettings" }); });
+  fill(document, "", "agentm", "22");
+  buttons(document.body, "Save jump host")[0].dispatchEvent(new Event("click"));
+  await settle();
+  assert.equal(sent.length, 1);
+  assert.match(document.body.textContent, /Not saved: The jump host needs a hostname\./);
+  assert.doesNotMatch(document.body.textContent, /agentm@/);
+});
+
+// TST-1053103 · level: unit · module: MOD-desktop-shell
+// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044 (6a.1)
+// given: a Bridge data folder with no settings file
+// input: setJumpHost with an empty hostname, an empty user, a blank hostname, the port 70000 and the port 0; then with hostname " jump.example.test ", user "agentm" and an empty port; then with the port "2222"
+// expect: the first five throw an error named InvalidSettings and no settings.json exists; the sixth keeps { hostname: "jump.example.test", user: "agentm", sshPort: 22 }, the seventh the port 2222; the other settings are those of loadSettings
+test("setJumpHost refuses what is not a jump host, trims, and takes 22 for an empty port", () => {
   const folder = mkdtempSync(join(tmpdir(), "agent-m-1053-"));
   try {
-    const document = await windowOver(folder);
-    const press = async () => { buttons(document.body, "Save jump host")[0].dispatchEvent(new Event("click")); await settle(); };
-    for (const [host, user, port] of [["", "agentm", "22"], ["jump.example.test", "", "22"], ["jump.example.test", "agentm", "70000"]]) {
-      fill(document, host, user, port);
-      await press();
-      assert.equal(existsSync(join(folder, "settings.json")), false, `nothing written for ${JSON.stringify([host, user, port])}`);
-      assert.match(document.body.textContent, /not saved/i);
+    for (const value of [{ hostname: "", user: "agentm", sshPort: 22 }, { hostname: "jump.example.test", user: "", sshPort: 22 }, { hostname: " ", user: "agentm", sshPort: 22 },
+      { hostname: "jump.example.test", user: "agentm", sshPort: "70000" }, { hostname: "jump.example.test", user: "agentm", sshPort: "0" }]) {
+      assert.throws(() => shell.setJumpHost(folder, value), (error) => error.name === "InvalidSettings", JSON.stringify(value));
     }
-    assert.throws(() => shell.setJumpHost(folder, { hostname: " ", user: "agentm", sshPort: 22 }), (error) => error.name === "InvalidSettings");
-    fill(document, "jump.example.test", "agentm", "");
-    await press();
-    assert.deepEqual(shell.loadSettings(folder).jumpHost, { hostname: "jump.example.test", user: "agentm", sshPort: 22 });
+    assert.equal(existsSync(join(folder, "settings.json")), false, "nothing written");
+    assert.deepEqual(shell.setJumpHost(folder, { hostname: " jump.example.test ", user: "agentm", sshPort: "" }).jumpHost, { hostname: "jump.example.test", user: "agentm", sshPort: 22 });
+    assert.deepEqual(shell.setJumpHost(folder, { hostname: "jump.example.test", user: "agentm", sshPort: "2222" }).jumpHost, { hostname: "jump.example.test", user: "agentm", sshPort: 2222 });
+    assert.deepEqual(shell.loadSettings(folder).jumpHost, { hostname: "jump.example.test", user: "agentm", sshPort: 2222 });
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
