@@ -1,4 +1,4 @@
-# Module: MOD-work-items
+# Module: MOD-work-plans
 """The fixture product the tests of sprints, item states and the work-in-progress limit share (tests/test_wip_limit.py,
 tests/test_time_box_selection.py, tests/test_job_from_backlog.py): the backlog of ITM-033's fixture product
 (tests/fixtures/backlog/docs/backlog/, ITM-014 to ITM-017, every name it realises accepted in known.json), the model

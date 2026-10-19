@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-spec-document
 # Guards: A REQUIREMENT HAS FIVE FIELDS
 # Level: unit
 """SPEC §3 A REQUIREMENT HAS FIVE FIELDS — name, source with a date, rule, occasion and check.

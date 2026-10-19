@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-bridge-client
 # Guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING
 # Level: release
 """SPEC section 14 - the check named tests/test_mail_routes.py.

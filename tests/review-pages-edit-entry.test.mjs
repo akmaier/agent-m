@@ -1,3 +1,4 @@
+// Module: MOD-review-pages
 // MOD-review-pages' editing of an open SPEC entry in place (ITM-397), as the accepted text of docs/architecture/MOD-review-pages.md states it: "an open SPEC entry saved in
 // place, in its own queue (UC-006 3a, UC-018 1a); every save only on the blob the file or section was opened on", with the SPEC-entry descriptor's `save` being `entry`:
 // Edit on an open entry opens the editor on its proposal, the blob noted, and Save goes through MOD-spec-changes' saveEntry into the entry's own queue; a refused save keeps

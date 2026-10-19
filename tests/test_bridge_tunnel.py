@@ -1,4 +1,4 @@
-# Module: MOD-bridge-tunnel
+# Module: MOD-bridge-client
 # Guards: A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; UC-011
 # Level: unit
 """SPEC §6 A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK — the dashboard's side (UC-011 1c).

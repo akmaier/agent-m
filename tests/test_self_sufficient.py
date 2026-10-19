@@ -1,3 +1,4 @@
+# Module: MOD-documents
 # Guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
 # Level: unit
 """SPEC §0 THE PRODUCT REPOSITORY IS SELF-SUFFICIENT — no artifact references a file or service that exists only inside

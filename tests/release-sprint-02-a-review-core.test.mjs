@@ -2,7 +2,7 @@
 // (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of strand A, from the SPEC, UC-024 and the
 // accepted architecture alone; started on sprint/02 at 3ba86fb (the merge of ITM-136, the strand's last item), 2026-10-01.
 //
-// Module: MOD-review-core
+// Module: MOD-approvals
 // Guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-024; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN APPROVAL NAMES THE EXACT TEXT
 // Level: release
 //

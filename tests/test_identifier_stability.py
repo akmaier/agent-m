@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-identifiers
 # Guards: THE NAME IS THE ID AND IT SURVIVES
 # Level: unit
 """SPEC §1 THE NAME IS THE ID AND IT SURVIVES — an identifier travels with its artifact when the artifact

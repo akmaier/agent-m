@@ -1,4 +1,4 @@
-# Module: MOD-work-items
+# Module: MOD-work-plans
 # Guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; UC-032
 # Level: unit
 """SPEC §13 THE BACKLOG LIVES IN THE PRODUCT REPOSITORY — a product's backlog is kept as Markdown under docs/backlog/ of

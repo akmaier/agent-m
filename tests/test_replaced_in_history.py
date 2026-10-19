@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-spec-changes
 # Guards: THE REPLACED TEXT STAYS REACHABLE
 # Level: unit
 """SPEC §9 THE REPLACED TEXT STAYS REACHABLE — characterisation tests of ITM-014 (a refactoring job).

@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-spec-changes
 # Guards: THE APPROVED TEXT IS TAKEN VERBATIM
 # Level: unit
 """SPEC §9 THE APPROVED TEXT IS TAKEN VERBATIM — characterisation tests of ITM-014 (a refactoring job).

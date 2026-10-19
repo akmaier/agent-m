@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-test-document
 # Guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 # Level: release
 """SPEC §12 — the check named tests/test_test_battery.py.

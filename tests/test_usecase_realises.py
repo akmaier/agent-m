@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-documents
 # Guards: A USE CASE REALISES NAMED REQUIREMENTS
 # Level: unit
 """SPEC §4 A USE CASE REALISES NAMED REQUIREMENTS — a use case names the requirements it realises, each by its name in

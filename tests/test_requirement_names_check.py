@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-spec-document
 # Guards: A REQUIREMENT NAMES ITS CHECK
 # Level: unit
 """SPEC §3 A REQUIREMENT NAMES ITS CHECK — the check field names the test that guards the requirement, or
