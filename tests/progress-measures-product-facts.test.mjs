@@ -1,4 +1,4 @@
-// MOD-progress-measures' productFacts with the scope `work` (ITM-536), as the accepted text of
+// MOD-progress-measures' productFacts with the scope `work` (ITM-536) and `build`, publishOverview and storedOverview (ITM-940), as the accepted text of
 // docs/architecture/MOD-progress-measures.md states it: "productFacts(host, instance, instanceAt, now, bridges, options?: { scope:
 // "all" | "work" }) -> Promise<Facts> — with the scope `work`, what MOD-prompt-bar asks before a hand-over starts, it reads only what
 // MOD-work-plans' `itemStates` and `startable` and MOD-product-process' `holdsRole` take — the approval statuses, the change queues,
@@ -10,7 +10,7 @@
 // Run: node --test tests/progress-measures-product-facts.test.mjs
 //
 // Module: MOD-progress-measures
-// Guards: UC-032; UC-049; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// Guards: UC-032; UC-049; STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // Level: unit
 //
 // Each test states its input and its expected values in its own text (given / input / expect); no expected value is read from a
@@ -432,4 +432,247 @@ test("productFacts — the scope all adds the requirements, tests, results, tags
   const f = fixture();
   await assert.rejects(productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "everything" }), { name: "TypeError" });
   assert.deepEqual(f.calls, []);
+});
+
+// ---------------------------------------------------------------- the scope build, and the overview of a commit stored (ITM-940)
+//
+// MOD-progress-measures (accepted blob 30691d42): "with the scope `build`, what `buildInProgress` takes and nothing else — the plan or the
+// backlog, the job records and the live state of every job that has not ended, and the pull requests"; "`publishOverview(host, snapshot,
+// facts)` — adds `<commit>.json` to the branch `overview-cache` by `commitFiles`, on the head it read: the stage shares and what waits for a
+// person, from `facts` read with the scope `all` at the snapshot's commit. `written` is `false` when the branch holds the file already.
+// … fails as `commitFiles` fails, with `NotFound` naming the branch when the repository has none."; "`storedOverview(snapshot)` — the overview
+// stored for the snapshot's commit, read with the snapshot's `readOn` in one request; `null` when the branch or the file is missing or holds
+// another format." Data: `<commit>.json` … `{ commit, shares, waiting }`.
+// Readings these tests state (the pull request names them):
+//   - The live state of a job that has not ended is asked by no scope today (the bridges are unused, see the scope `work`); the scope `build` asks it
+//     as little as `all` does.
+//   - The scope `build` takes the approval statuses, which are derived from the tree's paths and blobs and read no file, so that an item's state is
+//     what the scope `all` gives it where no change queue and no gate holds it back; it reads neither the queues, the declaration, the sprints, the
+//     role assignments, the gate records, the module files, nor the SPEC, the tests, the results, the tags or the information. The facts it reads not are
+//     "unknown" where the Facts type allows it, else empty.
+//   - A file of the stored overview is `{ commit, shares, waiting }` as JSON and a line end; one of another shape, or naming another commit, is another format.
+
+import * as measures from "../src/progress-measures/index.mjs";
+
+const TEST_FILE = "tests/unit.test.mjs";
+const withTests = () => ({ ...productFiles(), [TEST_FILE]: "// TST-001 · level: unit · module: MOD-store\n// guards: FIRST RULE\ntest(\"a\", () => {});\n" });
+const build = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "build" });
+const readPaths = (f) => [...f.product.reads.keys()].sort();
+const COMMIT = "c".repeat(40), OVERVIEW_HEAD = "0".repeat(39) + "1";
+
+// TST-940001 · level: unit · module: MOD-progress-measures
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product with a test file
+// input: productFacts(…, { scope: "build" }); and, as a known positive, the same product with the scope "all"
+// expect: the product's files read are exactly the four backlog items, the job record, the change queue (its index and decisions files, and the SPEC.md they stand against), the declaration docs/process.md and the gate record —
+// no use case, no decision or module file, no test file, no sprint, no role assignment; the host is asked repositoryInfo, readSnapshot("main") and listPullRequests, and nothing else (no tags, no test-results, no containsCommit);
+// instanceAt is asked once, for the commit the declaration names, and the instance's docs/participants.md is not read. The scope "all" reads the test file too
+test("TST-940001 productFacts, scope build — reads the plan or backlog, the job records, the pull requests, the change queues and the gate records, and no use case, decision, test or other file", async () => {
+  const f = fixture({ files: withTests() });
+  const facts = await build(f);
+  assert.deepEqual(readPaths(f), ["SPEC.md", "docs/backlog/ITM-001-store.md", "docs/backlog/ITM-002-pages.md", "docs/backlog/ITM-003-mail.md", "docs/backlog/ITM-004-feed.md",
+    "docs/gates/20261014-1000-development-sprint-review-a1b2.md", "docs/jobs/JOB-20261014-0900-a1b2.md", "docs/process.md",
+    "docs/spec-freigaben/2026-03-01_waiting/entscheidungen.md", "docs/spec-freigaben/2026-03-01_waiting/index.md"]);
+  assert.deepEqual(f.calls, [["repositoryInfo"], ["readSnapshot", "main"], ["listPullRequests"]]);
+  assert.deepEqual(f.asked, [MODEL_VERSION]);
+  assert.equal(f.instance.reads.has("docs/participants.md"), false);
+  assert.deepEqual(facts.pullRequests.map((p) => p.number), [1, 2]);
+  assert.deepEqual(facts.jobs.map((row) => row.record.id), ["JOB-20261014-0900-a1b2"]);
+  assert.deepEqual(facts.gateStates.map((state) => [state.gate, state.state]), [["Development → Sprint Review", "passed"], ["Sprint Retrospective → Sprint Planning", "pending"]]);
+
+  const every = fixture({ files: withTests() });
+  await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
+  assert.equal(every.product.reads.has(TEST_FILE), true, "known positive: the scope all reads the test file");
+});
+
+// TST-940002 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
+// given: the fixture product (ITM-001 merged, ITM-002 under way by a queued job, ITM-003 realising the open UC-002, ITM-004 ready)
+// input: buildInProgress of the facts read with the scope "build", and of the facts read with the scope "all"
+// expect: both lists are the same and hold one row, for ITM-002 and the job JOB-20261014-0900-a1b2; the plan's states from the scope "build" are those of the scope "all": ITM-001 done, ITM-002 in progress, ITM-003 waiting for acceptance, ITM-004 ready
+test("TST-940002 buildInProgress gives the same list from the facts of the scope build as from those of the scope all", async () => {
+  const small = await build(fixture({ files: withTests() }));
+  const every = fixture({ files: withTests() });
+  const all = await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
+  const rows = measures.buildInProgress(small);
+  assert.deepEqual(rows.map((row) => [row.item, row.job]), [["ITM-002", "JOB-20261014-0900-a1b2"]]);
+  assert.deepEqual(rows, measures.buildInProgress(all));
+  assert.deepEqual(small.plan.states.map((s) => [s.item, s.state]), all.plan.states.map((s) => [s.item, s.state]));
+  assert.deepEqual(small.plan.states.map((s) => [s.item, s.state]), [["ITM-001", "done"], ["ITM-002", "in progress"], ["ITM-003", "waiting for acceptance"], ["ITM-004", "ready"]]);
+});
+
+// TST-940003 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product
+// input: productFacts(…, { scope: "build" })
+// expect: the same fields as the scope "work" has; info, requirements, tags, results and tests are "unknown", graph "unknown"; the model is scrum (read for the gates); a host that does no server operations gives unknown pull requests, the states that need them unknown (ITM-001, ITM-004), ITM-002 waiting for ITM-001, and no row of the build
+test("TST-940003 productFacts, scope build — the facts it does not read are unknown, and a host without server operations gives unknown pull requests", async () => {
+  const facts = await build(fixture());
+  assert.deepEqual(Object.keys(facts).sort(), Object.keys(await work(fixture())).sort());
+  for (const field of ["info", "graph", "requirements", "modelSince", "schedule", "ci", "tags", "results", "tests", "resourceNeeds"]) {
+    assert.equal(facts[field], "unknown", field);
+  }
+  assert.equal(facts.model.name, "scrum");
+  const bare = await build(fixture({ serverOperations: false }));
+  assert.equal(bare.pullRequests, "unknown");
+  assert.deepEqual(bare.plan.states.map((s) => [s.item, s.state]), [["ITM-001", "unknown"], ["ITM-002", "waiting for an item it builds on"], ["ITM-003", "waiting for acceptance"], ["ITM-004", "unknown"]]);
+  assert.deepEqual(measures.buildInProgress(bare), [], "nothing is guessed: ITM-001's state is unknown, so ITM-002 is not listed");
+});
+
+// A product whose one change queue targets the use case UC-001 itself: its entry 01 is open, and ITM-002 (a job queued) realises UC-001.
+function queuedFiles() {
+  const files = withTests();
+  files["docs/spec-freigaben/2026-03-01_waiting/index.md"] = QUEUE_INDEX.replaceAll("`SPEC.md`", `\`${UC1}\``);
+  return files;
+}
+
+// TST-940008 · level: unit · module: MOD-progress-measures
+// guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product in which an open change queue (entry 01, state open) targets UC-001, which ITM-002 realises, and a job of ITM-002 is queued
+// input: productFacts(…, { scope: "build" }) and productFacts(…, { scope: "all" }); buildInProgress of each
+// expect: ITM-002 is "waiting for acceptance" with the reason that UC-001 is still in the queue 2026-03-01_waiting#1, in both; buildInProgress gives [] in both — a step held back by a change queue is not in the build
+test("TST-940008 a step a change queue holds back is not in the build, in the scope build as in the scope all", async () => {
+  const small = await build(fixture({ files: queuedFiles() }));
+  const every = fixture({ files: queuedFiles() });
+  const all = await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
+  for (const facts of [small, all]) {
+    const state = facts.plan.states.find((each) => each.item === "ITM-002");
+    assert.equal(state.state, "waiting for acceptance");
+    assert.match(state.reason, /UC-001 is still in docs\/spec-freigaben\/2026-03-01_waiting#1/);
+    assert.deepEqual(measures.buildInProgress(facts), []);
+  }
+  assert.deepEqual(small.plan.states.map((s) => [s.item, s.state]), all.plan.states.map((s) => [s.item, s.state]));
+});
+
+// A product that keeps a plan: ITM-010, realising the accepted UC-001, in the phase Sprint Review, with a job queued for it and no record of the gate "Development → Sprint Review" (its record is not held).
+function gatedFiles() {
+  const files = withTests();
+  for (const path of Object.keys(files)) if (/^docs\/backlog\/ITM-|^docs\/gates\//.test(path)) delete files[path];
+  files["docs/backlog/sprints/team1/01.md"] = sprintRecord(["ITM-010"]);
+  files["docs/plan/ITM-010-store.md"] = item("ITM-010", { realises: ["UC-001"], modules: ["MOD-store"] });
+  files["docs/plan/order.md"] = ["# Order of the plan", "", "## Order", "", "| Step | Phase |", "|---|---|", "| ITM-010 | Sprint Review |", ""].join("\n");
+  files["docs/jobs/JOB-20261014-0900-a1b2.md"] = JOB.replace("ITM-002", "ITM-010");
+  return files;
+}
+
+// TST-940009 · level: unit · module: MOD-progress-measures
+// guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: a product with a plan whose step ITM-010 (UC-001 accepted) is in the phase Sprint Review, a job queued for it, and no record of the gate "Development → Sprint Review", which stands before that phase
+// input: productFacts(…, { scope: "build" }) and productFacts(…, { scope: "all" }); buildInProgress of each
+// expect: ITM-010 is "waiting" in both, the reason naming the gate "Development → Sprint Review", decided by Product Owner; buildInProgress gives [] in both — a step a gate holds back is not in the build; with the gate record present
+// (known positive) ITM-010 is "in progress" in both and buildInProgress lists it
+test("TST-940009 a step a gate holds back is not in the build, in the scope build as in the scope all", async () => {
+  const both = async (files) => {
+    const every = fixture({ files });
+    return [await build(fixture({ files })), await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" })];
+  };
+  for (const facts of await both(gatedFiles())) {
+    const state = facts.plan.states.find((each) => each.item === "ITM-010");
+    assert.equal(state.state, "waiting");
+    assert.match(state.reason, /Development → Sprint Review, decided by Product Owner/);
+    assert.deepEqual(measures.buildInProgress(facts), []);
+  }
+  const files = gatedFiles();
+  files["docs/gates/20261014-1000-development-sprint-review-a1b2.md"] = productFiles()["docs/gates/20261014-1000-development-sprint-review-a1b2.md"];
+  for (const facts of await both(files)) {
+    assert.equal(facts.plan.states.find((each) => each.item === "ITM-010").state, "in progress");
+    assert.deepEqual(measures.buildInProgress(facts).map((row) => row.item), ["ITM-010"]);
+  }
+});
+
+// An overview branch (a fake of a Snapshot of the branch `overview-cache`): its files by path, readOn counted.
+function overviewBranch(files = {}) {
+  const asked = [];
+  return {
+    asked, commit: OVERVIEW_HEAD, paths: Object.keys(files), ref: "overview-cache",
+    blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
+    read: async (path) => { asked.push(["read", path]); return files[path] ?? null; },
+  };
+}
+// The host of a repository that holds the branch `overview-cache` (or none), recording every commitFiles.
+function overviewHost(branch) {
+  const commits = [];
+  return {
+    commits,
+    async readSnapshot(ref) {
+      if (ref !== "overview-cache") throw named("NotFound", `no snapshot of ${ref}`);
+      if (branch === null) throw named("NotFound", "alice/product at overview-cache was not found.");
+      return branch;
+    },
+    async commitFiles(change) { commits.push(change); return { commit: "9".repeat(40), url: "https://example.test/commit" }; },
+  };
+}
+const allFacts = async (files) => { const f = fixture({ files }); return productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "all" }); };
+
+// TST-940004 · level: unit · module: MOD-progress-measures
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product read with the scope "all" at the commit ccc…c; a repository whose branch overview-cache holds no file for that commit
+// input: publishOverview(host, snapshot, facts)
+// expect: { commit: "ccc…c", written: true }; exactly one commitFiles, on the branch "overview-cache", expectedHead the branch's head 00…01, one file `ccc…c.json` whose text is the JSON { commit, shares, waiting } and a line end — shares the six stages in their order,
+// waiting what waitingForAPerson gives, whose first two entries are UC-002 (open) and the open SPEC change entry — and no other file
+test("TST-940004 publishOverview adds <commit>.json with the stage shares and what waits, on the head it read", async () => {
+  const facts = await allFacts(withTests());
+  const host = overviewHost(overviewBranch());
+  const done = await measures.publishOverview(host, facts.snapshot, facts);
+  assert.deepEqual(done, { commit: COMMIT, written: true });
+  assert.equal(host.commits.length, 1);
+  assert.deepEqual([host.commits[0].branch, host.commits[0].expectedHead, host.commits[0].files.map((file) => file.path)], ["overview-cache", OVERVIEW_HEAD, [`${COMMIT}.json`]]);
+  const stored = JSON.parse(host.commits[0].files[0].text);
+  assert.equal(host.commits[0].files[0].text.endsWith("}\n"), true);
+  assert.deepEqual(Object.keys(stored), ["commit", "shares", "waiting"]);
+  assert.equal(stored.commit, COMMIT);
+  assert.deepEqual(stored.shares.map((entry) => entry.stage), ["Requirements", "Use cases", "Architecture", "Implementation", "Tests", "Release"]);
+  assert.deepEqual(stored.shares, JSON.parse(JSON.stringify(await measures.stageShares(facts))));
+  assert.deepEqual(stored.waiting, measures.waitingForAPerson(facts));
+  assert.deepEqual(stored.waiting.slice(0, 2).map((entry) => [entry.kind, entry.id]), [["use case", "UC-002"], ["SPEC change", "spec-2026-03-01_waiting-01"]]);
+});
+
+// TST-940005 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the same facts; a branch overview-cache that holds ccc…c.json already; and a repository with no branch overview-cache
+// input: publishOverview twice (the file held; no branch)
+// expect: the first gives { commit: "ccc…c", written: false } and sends no commitFiles — the file is left as it is; the second rejects with an error named NotFound that names the branch
+test("TST-940005 publishOverview leaves a file the branch holds as it is, and fails with NotFound naming a missing branch", async () => {
+  const facts = await allFacts(withTests());
+  const held = overviewHost(overviewBranch({ [`${COMMIT}.json`]: "{}\n" }));
+  assert.deepEqual(await measures.publishOverview(held, facts.snapshot, facts), { commit: COMMIT, written: false });
+  assert.deepEqual(held.commits, []);
+  await assert.rejects(measures.publishOverview(overviewHost(null), facts.snapshot, facts), (error) => error.name === "NotFound" && /overview-cache/.test(error.message));
+});
+
+// A snapshot of the product (its commit ccc…c) whose readOn is the one the test gives, counted.
+function withReadOn(readOn) {
+  const calls = [];
+  return { calls, snapshot: { commit: COMMIT, paths: [], blob: () => null, read: async (path) => { calls.push(["read", path]); return null; },
+    readOn: async (branch, path) => { calls.push(["readOn", branch, path]); return readOn(branch, path); } } };
+}
+
+// TST-940006 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the overview that TST-940004 stores, served by the snapshot's readOn
+// input: storedOverview(snapshot)
+// expect: { shares, waiting } as stored — the same lists publishOverview wrote —; exactly one request, readOn("overview-cache", "ccc…c.json"), and no read
+test("TST-940006 storedOverview reads the overview of the snapshot's commit with one readOn, and gives its shares and what waits", async () => {
+  const facts = await allFacts(withTests());
+  const host = overviewHost(overviewBranch());
+  await measures.publishOverview(host, facts.snapshot, facts);
+  const text = host.commits[0].files[0].text;
+  const held = withReadOn(() => text);
+  const overview = await measures.storedOverview(held.snapshot);
+  assert.deepEqual(overview, { shares: JSON.parse(text).shares, waiting: JSON.parse(text).waiting });
+  assert.equal(overview.shares.length, 6);
+  assert.deepEqual(held.calls, [["readOn", "overview-cache", `${COMMIT}.json`]]);
+});
+
+// TST-940007 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: snapshots whose readOn gives null (no branch or no file); text that is no JSON; JSON of another shape; an overview naming another commit; and a readOn that fails with NotFound (no branch)
+// input: storedOverview of each
+// expect: null for each — the branch or the file missing, or another format, is no failure
+test("TST-940007 storedOverview gives null for a missing branch or file and for another format", async () => {
+  const good = JSON.stringify({ commit: COMMIT, shares: [], waiting: [] });
+  const cases = [() => null, () => "not json", () => "[]", () => JSON.stringify({ commit: COMMIT, shares: {} , waiting: [] }), () => JSON.stringify({ commit: "d".repeat(40), shares: [], waiting: [] }),
+    () => { throw named("NotFound", "no branch overview-cache"); }];
+  for (const [at, readOn] of cases.entries()) assert.equal(await measures.storedOverview(withReadOn(readOn).snapshot), null, `case ${at}`);
+  assert.deepEqual(await measures.storedOverview(withReadOn(() => good).snapshot), { shares: [], waiting: [] }, "known positive: a well-formed overview is returned");
 });

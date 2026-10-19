@@ -1,6 +1,6 @@
 // facts.mjs — productFacts: one product's facts, read once from its default branch through its host
 // (docs/architecture/MOD-progress-measures.md, Interfaces: Facts, productFacts; STATUS IS DERIVED FROM THE RECORDS, PROGRESS AND
-// JOB STATE ARE DERIVED, NOT STORED). The scope `work` reads what is listed below; the scope `all` adds the requirements, the tests,
+// JOB STATE ARE DERIVED, NOT STORED). The scope `build` reads what buildFacts lists; the scope `work` reads what is listed below; the scope `all` adds the requirements, the tests,
 // the branch `test-results`, the tags and `info`; `graph` stays "unknown" in both. Every other fact is "unknown". The files are read ahead through
 // Snapshot.readMany, in batches of a hundred where the host can.
 //
@@ -136,8 +136,46 @@ async function allFacts(host, snapshot) {
   return { requirements, tags, results, tests: tests.flat() };
 }
 
+// The facts the scope `build` reads: what buildInProgress takes and nothing else — the plan or the backlog, the job records and the pull requests —,
+// through the repository's default branch, and what the plan's states depend on: the approval statuses (derived from the tree's paths and blobs, which
+// read no file), the change queues, and the gate records with the declaration, the model and the workflow they are stated against. So a step's
+// state is what the scope `all` gives it. Not read: the sprints, the role assignments, the participants, the module files, nor the SPEC of the product,
+// the tests, the results, the tags and the information. A fact not read is "unknown" where the type allows it, and empty where it does not.
+async function buildFacts(host, instance, instanceAt) {
+  const info = await orUnknown(() => host.repositoryInfo());
+  const snapshot = await host.readSnapshot(info === "unknown" ? CHECKED_OUT : info.defaultBranch);
+  const pullRequests = await orUnknown(() => host.listPullRequests());
+  const address = snapshot.repository?.web ?? "";
+  const pathsOf = (pattern) => snapshot.paths.filter((path) => pattern.test(path)).sort();
+  const planned = snapshot.paths.includes(ORDER) || snapshot.paths.some((path) => PLAN_STEP.test(path));
+  const itemPaths = pathsOf(planned ? PLAN_STEP : BACKLOG_ITEM);
+  await snapshot.readMany?.([DECLARATION, ORDER, ...itemPaths, ...pathsOf(GATE_RECORD), ...snapshot.paths.filter((path) => path.startsWith(JOB_RECORDS))]
+    .filter((path) => snapshot.paths.includes(path)));
+  await instance.readMany?.((snapshot.paths.includes(DECLARATION) ? [INSTANCE_SPEC] : []).filter((path) => instance.paths?.includes(path)));
+  const [declaration, order, items, gates] = await Promise.all([
+    snapshot.paths.includes(DECLARATION) ? readDocument(declarationSchema, DECLARATION, (await snapshot.read(DECLARATION)) ?? "") : null,
+    snapshot.paths.includes(ORDER) ? readDocument(planSchemas.planOrder, ORDER, (await snapshot.read(ORDER)) ?? "") : null,
+    readAll(snapshot, itemPaths, artifactSchemas().item),
+    readAll(snapshot, pathsOf(GATE_RECORD), gateSchema),
+  ]);
+  const approvals = statuses(snapshot);
+  const changeQueues = await queues(snapshot);
+  const { model, workflow, modelUnread } = await declaredModel(declaration, instance, instanceAt);
+  const jobs = await listJobs([{ address, snapshot }], new Map());
+  const known = workflow !== null && workflow !== "unknown" ? workflow : null;
+  const gateStatesOf = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
+  const states = itemStates(items, order, { statuses: approvals, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known });
+  return {
+    address, info: "unknown", snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues, declaration,
+    workflow, model, modelUnread, modelSince: "unknown", participants: [], plan: { order, items, states },
+    sprints: [], assignments: [], held: [], gates, gateStates: gateStatesOf, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: "unknown",
+    results: "unknown", tests: "unknown", resourceNeeds: "unknown",
+  };
+}
+
 /**
- * productFacts(host, instance, instanceAt, now, bridges, options?) -> Promise<Facts> — with the scope `work`, what
+ * productFacts(host, instance, instanceAt, now, bridges, options?) -> Promise<Facts> — with the scope `build`, what buildInProgress takes
+ * and nothing else (buildFacts above); with the scope `work`, what
  * MOD-progress-measures' file lists for it, read once from the product's default branch through `host`; every other field is
  * "unknown". With the scope `all`, the default, it adds the requirements of SPEC.md, the declarations of the test files, the
  * branch `test-results`, the tags and the repository's information; graph, modelSince, schedule, ci and resourceNeeds stay "unknown".
@@ -146,12 +184,13 @@ async function allFacts(host, snapshot) {
  * @param {(commit: string) => Promise<object>} instanceAt the instance's Snapshot at a commit, for the commit a declaration names
  * @param {Date} now unused with the scope `work`
  * @param {Record<string, object>} bridges unused with the scope `work`: no live state is asked
- * @param {{ scope: "all" | "work" }} [options]
+ * @param {{ scope: "all" | "work" | "build" }} [options]
  * @returns {Promise<object>}
  */
 export async function productFacts(host, instance, instanceAt, now, bridges, options = { scope: "all" }) {
   const scope = options?.scope ?? "all";
-  if (scope !== "all" && scope !== "work") throw new TypeError(`a scope is "all" or "work": ${String(scope)}`);
+  if (scope !== "all" && scope !== "work" && scope !== "build") throw new TypeError(`a scope is "all", "work" or "build": ${String(scope)}`);
+  if (scope === "build") return buildFacts(host, instance, instanceAt);
   const all = scope === "all";
 
   const info = await orUnknown(() => host.repositoryInfo());

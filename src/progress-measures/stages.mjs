@@ -204,3 +204,47 @@ export async function waitingForAcceptance(host, snapshot) {
   }] : [];
   return [...specChanges, ...reviewed, ...releaseReport];
 }
+
+// ---------------------------------------------------------------- the overview of a commit, stored
+
+// The branch that holds the overviews, one `<commit>.json` for each commit of the default branch (MOD-progress-measures, Data).
+const OVERVIEW_BRANCH = "overview-cache";
+
+/**
+ * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json` to the branch
+ * `overview-cache` by commitFiles, on the head it read: `{ commit, shares, waiting }`, the stage shares and what waits for a person from
+ * `facts`, read with the scope `all` at the snapshot's commit. `written` is false when the branch holds the file already, which is left as it
+ * is. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
+ * @param {object} host MOD-repository-hosts' Host @param {object} snapshot the product's snapshot @param {object} facts
+ */
+export async function publishOverview(host, snapshot, facts) {
+  const commit = snapshot.commit;
+  if (typeof commit !== "string" || commit === "") throw new TypeError("publishOverview needs the snapshot of a commit");
+  const path = `${commit}.json`;
+  const branch = await host.readSnapshot(OVERVIEW_BRANCH);
+  if (branch.paths.includes(path)) return { commit, written: false };
+  const overview = { commit, shares: await stageShares(facts), waiting: waitingForAPerson(facts) };
+  await host.commitFiles({ branch: OVERVIEW_BRANCH, expectedHead: branch.commit ?? null, message: `Overview of ${commit}`,
+    files: [{ path, text: `${JSON.stringify(overview)}\n` }] });
+  return { commit, written: true };
+}
+
+/**
+ * storedOverview(snapshot) -> Promise<{ shares, waiting } | null> — the overview stored for the snapshot's commit, read with the snapshot's
+ * readOn in one request; null where the branch or the file is missing or holds another format (not JSON, another shape, another commit).
+ * @param {object} snapshot
+ */
+export async function storedOverview(snapshot) {
+  let text;
+  try {
+    text = await snapshot.readOn(OVERVIEW_BRANCH, `${snapshot.commit}.json`);
+  } catch (error) {
+    if (error?.name === "NotFound") return null;
+    throw error;
+  }
+  if (typeof text !== "string") return null;
+  let held;
+  try { held = JSON.parse(text); } catch { return null; }
+  if (held === null || typeof held !== "object" || held.commit !== snapshot.commit || !Array.isArray(held.shares) || !Array.isArray(held.waiting)) return null;
+  return { shares: held.shares, waiting: held.waiting };
+}
