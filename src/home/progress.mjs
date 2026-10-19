@@ -24,7 +24,7 @@ import { itemState } from "../../docs/assets/work-items/flow.mjs";
 import { parseProductAddress } from "../../docs/assets/git-host.mjs";
 
 const SPEC_ENTRY = /^docs\/spec-freigaben\/([^/]+)\/(\d{2,})-[^/]+\.md$/;
-const ITEM_FILE = { plan: /^docs\/plan\/ITM-\d{3}-[^/]+\.md$/, backlog: /^docs\/backlog\/ITM-\d{3}-[^/]+\.md$/ };
+const ITEM_FILE = { plan: /^docs\/plan\/ITM-\d{3,}-[^/]+\.md$/, backlog: /^docs\/backlog\/ITM-\d{3,}-[^/]+\.md$/ };
 const JOB_RECORD = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 const RELEASE_TAG = /^v\d{4}\.\d+\.\d+$/;
 const NAMED_TEST = /\btests\/[\w./-]*[\w]/g;
