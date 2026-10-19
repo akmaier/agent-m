@@ -17,14 +17,17 @@
 
 import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { join, normalize } from "node:path";
 import { stageElectron, openWindow } from "./site-usability.d/browser.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
 const TYPES = { ".css": "text/css", ".html": "text/html" };
-const SHEETS = ["/src/theme/lme.css", "/docs/assets/style.css"];
+// The style sheets a page links, as addresses of the served site, in the order the page links them.
+const sheetsOf = (page, base) => [...readFileSync(join(root, page), "utf8").matchAll(/<link rel="stylesheet" href="([^"]+)">/g)]
+  .map(([, href]) => new URL(href, `http://site${base}`).pathname);
+const SHEETS = sheetsOf("docs/index.html", "/docs/");
 const MINIMUM = 4;
 
 let server = null, browser = null, page = null;
@@ -102,4 +105,29 @@ test("TST-1071002: the counter-proof: without the buttons' margins the gap is ze
     const measured = found[`${name}, margins set to zero`];
     assert.equal(Math.abs(measured.before) < 0.5 && Math.abs(measured.after) < 0.5, true, `${name}: ${JSON.stringify(measured)}`);
   }
+});
+
+// TST-1071003 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the two entry pages of the site, index.html (the main page) and docs/index.html (the review pages), and the sheet src/theme/lme.css that both link
+// input: the style sheets each page links
+// expect: each page that links src/theme/lme.css links src/site-frame/look.css too, after it — the sheet that now draws the buttons —, and the known positive: both pages link lme.css
+test("TST-1071003: every page that drew its buttons from lme.css links look.css, after it", () => {
+  for (const [page, base] of [["index.html", "/"], ["docs/index.html", "/docs/"]]) {
+    const sheets = sheetsOf(page, base);
+    assert.equal(sheets.includes("/src/theme/lme.css"), true, `known positive: ${page} links lme.css`);
+    assert.equal(sheets.indexOf("/src/site-frame/look.css") > sheets.indexOf("/src/theme/lme.css"), true, `${page}: ${JSON.stringify(sheets)}`);
+  }
+});
+
+// TST-1071004 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT
+// given: the text of src/site-frame/look.css and of src/theme/lme.css
+// input: the rules for the class .btn and the rule that gives a button its gap
+// expect: look.css holds the .btn rules and the gap rule `button, .btn { margin-inline: …}`; lme.css, a file taken over, holds none of them — the buttons section moved into the module, and the rest of lme.css stays
+test("TST-1071004: the buttons section, with the gap rule, stands in look.css and no longer in lme.css", () => {
+  const look = readFileSync(join(root, "src/site-frame/look.css"), "utf8"), lme = readFileSync(join(root, "src/theme/lme.css"), "utf8");
+  assert.equal(/^\.btn \{/m.test(look) && /^button, \.btn \{ margin-inline: /m.test(look), true, "look.css holds the buttons section");
+  assert.equal(/\.btn/.test(lme) || /margin-inline/.test(lme), false, "lme.css holds no button rule");
+  assert.equal(/\.menu \{/.test(lme), true, "known positive: the rest of lme.css stays (its menu)");
 });
