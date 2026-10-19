@@ -19,6 +19,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { queues } from "../src/spec-changes/index.mjs";
+import { batchAnswer, atCommit } from "./repository-hosts-batch-fake.mjs";
 
 const text = (...lines) => `${lines.join("\n")}\n`;
 const gitBlob = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
@@ -67,12 +68,7 @@ function fakeGitHub({ graphql = null } = {}) {
     if (url.pathname === "/graphql") {
       const own = graphql?.();
       if (own) return own;
-      const repository = {};
-      for (const [, alias, expression] of body.query.matchAll(/(\w+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
-        const held = FILES[JSON.parse(expression).slice(41)];
-        repository[alias] = held === undefined ? null : { text: held, isTruncated: false };
-      }
-      return json({ data: { rateLimit: { cost: 1, remaining: 4999 }, repository } });
+      return json(batchAnswer(body.query, { held: atCommit(HEAD, FILES) }));
     }
     if (url.pathname === `${prefix}/commits/main`) return json({ sha: HEAD, commit: { tree: { sha: "t" } } });
     if (url.pathname === `${prefix}/git/trees/${HEAD}`) return json({ tree: Object.entries(FILES).map(([path, body1]) => ({ path, type: "blob", sha: gitBlob(body1) })) });
