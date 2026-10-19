@@ -95,6 +95,32 @@ class EverySettingOnOnePage(unittest.TestCase):
         self.assertEqual(keys_without_place(fixture, PLACES), ["bridge-token"])
 
 
+# UC-042 step 3: every setting the instance's and a product's repository keep, and the title of its line on the page.
+REPOSITORY_PLACES = {
+    "participants": "Participants", "source library": "Source library", "process models": "Process models", "instance resources": "Resources",
+    "process model": "Process model", "role assignments": "Role assignments", "definition of done": "Definition of Done",
+    "test schedule": "Test schedule", "linked sources": "Linked sources", "resources": "Resources",
+}
+
+
+def repository_settings_without_place(settings: list[str], places: dict) -> list[str]:
+    """The repository settings for which the table of places names no line on the page."""
+    return [name for name in settings if name not in places]
+
+
+class EveryRepositorySettingHasALine(unittest.TestCase):
+    def test_each_repository_setting_has_a_place_and_the_page_draws_its_line(self):
+        source = (SRC / "settings-pages" / "settings.mjs").read_text(encoding="utf-8")
+        self.assertEqual(repository_settings_without_place(list(REPOSITORY_PLACES), REPOSITORY_PLACES), [])
+        self.assertEqual(len(REPOSITORY_PLACES), 10, "UC-042's table names ten repository settings besides the switch, pseudonymisation and collaborators")
+        for setting, title in REPOSITORY_PLACES.items():
+            self.assertIn(f'"{title}"', source, f"{setting} has a line titled {title} in the module that draws the page")
+
+    def test_counter_proof_a_repository_setting_without_a_line_fails(self):
+        fixture = list(REPOSITORY_PLACES) + ["retention"]
+        self.assertEqual(repository_settings_without_place(fixture, REPOSITORY_PLACES), ["retention"])
+
+
 class TestedAndCleared(unittest.TestCase):
     def test_each_browser_setting_has_test_and_clear(self):
         # A line is tested and cleared by its own Test and Clear; the mailbox is cleared by Disconnect, the notifications by Switch off,

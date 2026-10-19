@@ -343,8 +343,10 @@ async function startSite({ page, views }) {
     drawSelector(product?.address ?? null);
     drawMenu(route?.entry ?? entryKey, product?.address ?? null);
     const context = { page, instance, product, store,
+      // The chosen product goes into the fragment unless the caller names a product; the empty product names the instance itself, and the fragment then holds none.
       go: (name, given = {}) => {
-        location.hash = fragmentOf(name, product && !("product" in given) ? { ...given, product: product.address } : given);
+        const { product: named, ...others } = given;
+        location.hash = fragmentOf(name, named === "" ? others : product && !("product" in given) ? { ...given, product: product.address } : given);
       } };
     if (!route) {
       shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context, fragment };
