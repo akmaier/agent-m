@@ -216,3 +216,17 @@ test("the view offers the route plan under Implementation", () => {
   assert.equal(route.entry, "implementation");
   assert.equal(route.title, "Plan");
 });
+
+// TST-1057007 · level: unit · module: MOD-implementation-pages
+// guards: UC-045
+// given: a V-model product with an accepted architecture and no plan under docs/plan/
+// input: the route plan's render
+// expect: the architecture is listed as in TST-1057001; the page says that no plan is saved yet; it shows no step and hands Mermaid no diagram
+// Planted fault: drawing an empty diagram, or hiding the architecture for want of steps, fails.
+test("the plan page of a planned product without a plan shows the architecture and says no plan is saved", async () => {
+  const { target, drawn } = await render(productFiles({ plan: false }));
+  assert.deepEqual(byData(target, "data-architecture").map((e) => e.getAttribute("data-architecture")), ["ARC-001", "ARC-002", "MOD-reader", "MOD-writer", "MOD-loose"]);
+  assert.match(text(target), /no plan is saved yet/i);
+  assert.equal(byData(target, "data-step").length, 0);
+  assert.deepEqual(drawn.texts, []);
+});
