@@ -18,7 +18,7 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { chosenProduct, confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { cancelJob, liveState, jobLog, jobTrail, retryJob, routesFor } from "../runtimes/index.mjs";
+import { cancelJob, liveState, jobLog, jobTrail, retryJob, revertAfterCancel, routesFor } from "../runtimes/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
 import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
@@ -278,6 +278,7 @@ async function renderJob(target, context, params, note = null) {
   if (note) page.append(el("p", "job-cancel-result", note));
   if (gate) page.append(await gateDecision(context, held, read, gate));
   if (RETRIABLE.has(row.state)) page.append(await retryControls(context, held, read));
+  if (row.state === "cancelled") page.append(await afterCancelSection(held, read));
   page.append(await trailSection(held, read));
   page.append(el("h3", null, "Cost"), el("p", "job-cost", costLine(held.cost)));
   const log = el("div", "job-log");
@@ -504,6 +505,37 @@ async function trailSection(held, read) {
   box.append(trail.runs.length ? el("ul", "job-runs", ...trail.runs.map((each) => el("li", "job-run", `${each.workflow} — ${each.state} `, link("run-link", each.url, "Open"))))
     : el("p", "job-runs-none", "No CI runs."));
   return box;
+}
+
+// A commit the job made after its cancel is flagged, with Revert beside the commits (UC-036 6a): MOD-runtimes' liveState reports them, revertAfterCancel reverts them in one commit on the job's branch. Revert is one click through the
+// frame's dialog of a decision, on the person's click alone; it reverts all the commits flagged. The branch's head is read just before, and a branch that moved meanwhile is told, with nothing written.
+async function afterCancelSection({ record, product }, read) {
+  const host = read.hostOf.get(product);
+  let commits;
+  try {
+    commits = (await liveState(record, { host }, read.bridges)).writtenAfterCancel;
+  } catch {
+    return el("div", "job-after-cancel-none");
+  }
+  if (commits.length === 0) return el("div", "job-after-cancel-none");
+  const result = el("p", "job-revert-result");
+  const revert = el("button", "job-revert btn", "Revert");
+  revert.setAttribute("type", "button");
+  revert.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
+    const decision = await confirmDecision({ title: `Revert the commits written after the cancel of ${record.id}?`, lines: [`One commit on the branch ${record.id} gives back every file these ${commits.length} commit${commits.length === 1 ? "" : "s"} changed its text from before them.`, ...commits.map((commit) => commit.slice(0, 12))], confirm: "Revert the commits" });
+    if (!decision.confirmed) return;
+    revert.disabled = true;
+    try {
+      const [{ commit: head }] = await host.readHistory(null, { ref: record.id, limit: 1, changes: false });
+      const { commit } = await revertAfterCancel(record, { host }, commits, head);
+      result.textContent = `Reverted in ${commit.slice(0, 12)}.`;
+    } catch (failure) {
+      revert.disabled = false;
+      result.textContent = failure?.name === "Moved" ? "The branch moved meanwhile: nothing was written. Read the page again." : `The commits could not be reverted: ${String(failure?.message ?? failure)}`;
+    }
+  });
+  return el("section", "job-after-cancel", el("h3", null, "Written after the cancel"), el("ul", null, ...commits.map((commit) => el("li", "job-after-cancel-commit", `${commit.slice(0, 12)} was written after the cancel`))), el("p", null, revert), result);
 }
 
 // A job shown as cancelling is read again later, while its page stands (UC-036 6a).

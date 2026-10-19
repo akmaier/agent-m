@@ -30,7 +30,7 @@
 import { reviewedId } from "../artifacts.mjs";
 import { parseRequirements } from "../artifacts/requirements.mjs";
 import { parseModel } from "../process-model.mjs";
-import { buildOrder } from "../work-items.mjs";
+import { buildOrder, byNumber } from "../work-items.mjs";
 import { itemState } from "../work-items/flow.mjs";
 import { pullRequests } from "../git-host/pull-requests.mjs";
 import { isGitLab, webFileUrl } from "../git-host.mjs";
@@ -41,7 +41,7 @@ import { declarationSchema, roleAssignmentSchema } from "../../../src/product-pr
 import { connect, parseAddress } from "../../../src/repository-hosts/index.mjs";
 
 const DECLARATION = "docs/process.md";
-const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_FILE = /^docs\/backlog\/sprints\/([^/]+)\/(\d+)\.md$/;
 const ASSIGNMENT_FILE = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
@@ -95,6 +95,8 @@ function context(app) {
       const [, team, nn] = SPRINT_FILE.exec(record.path);
       if (!newest.has(team) || Number(nn) > Number(newest.get(team).nn)) newest.set(team, { record, nn, name: `${team}/${nn}` });
     }
+    // The items in the order of their numbers (ITM-999 before ITM-1000), as Start sprint writes a selection in the order they stand here.
+    items.sort((a, b) => byNumber(idOf(a), idOf(b)));
     return { declaration, modelFile, parsed, model: parsed ? modelOf(parsed) : null, assignments, sprints, items, modules, teams,
       newest, requirements: [...parseRequirements(specText ?? "").values()].filter((r) => !r.withdrawn).map((r) => r.name),
       useCases: useCases.filter((u) => u.status === "accepted").map((u) => u.id) };

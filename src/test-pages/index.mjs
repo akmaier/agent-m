@@ -12,5 +12,7 @@ import { route as generate } from "./generate.mjs";
 import { resultStrategies } from "../result-records/index.mjs";
 import { approvalStrategies } from "../approvals/index.mjs";
 import { routeStrategies } from "../runtimes/index.mjs";
+import { sourceStrategies } from "../source-register/index.mjs";
+import { resourceStrategies } from "../resource-list/index.mjs";
 
-export const view = { routes: [release, schedule, runs, generate], strategies: [resultStrategies, approvalStrategies, routeStrategies] };
+export const view = { routes: [release, schedule, runs, generate], strategies: [resultStrategies, approvalStrategies, routeStrategies, sourceStrategies, resourceStrategies] };

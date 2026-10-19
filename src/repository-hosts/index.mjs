@@ -1,6 +1,6 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
 // returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setPipelineSchedule, listCiRuns,
-// cancelCiRun, ciRunLog and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
+// cancelCiRun, ciRunLog, ciRunLabels and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
 // Module: MOD-repository-hosts
@@ -169,6 +169,7 @@ function throughClone(repository, folder, rest) {
     listCiRuns: rest ? (...a) => rest.listCiRuns(...a) : without("the CI runs"),
     cancelCiRun: rest ? (...a) => rest.cancelCiRun(...a) : without("cancelling a CI run"),
     jobLogs: rest ? (...a) => rest.jobLogs(...a) : without("the log of a CI run"),
+    jobLabels: rest ? (...a) => rest.jobLabels(...a) : without("the labels of a CI run"),
     listPullRequests: rest ? (...a) => rest.listPullRequests(...a) : without("the pull requests"),
     openPullRequest: rest ? (...a) => rest.openPullRequest(...a) : without("a pull request"),
     mergePullRequest: rest ? (...a) => rest.mergePullRequest(...a) : without("a merge"),
@@ -550,6 +551,13 @@ export function connect(address, credentials = {}) {
       if (typeof id !== "string" || !id.trim()) throw new TypeError("a CI run is named by its identifier");
       const logs = await adapter.jobLogs(id);
       return logs.length ? logs.map(({ name, text }) => `${name}\n${text === "" || text.endsWith("\n") ? text : `${text}\n`}`).join("") : null;
+    },
+
+    // ciRunLabels(id) -> string[] — the runner labels the jobs of the run ask for: on GitHub the `labels` of each job of the workflow run, on GitLab the tags of each job of the pipeline; each once, [] for a run whose
+    // jobs ask for none. Crosses the network; fails as readSnapshot — a run the server does not know is NotFound. Through a clone, the server's answer where a token is given, else NotSupported.
+    async ciRunLabels(id) {
+      if (typeof id !== "string" || !id.trim()) throw new TypeError("a CI run is named by its identifier");
+      return adapter.jobLabels(id);
     },
 
     // webLinks() -> WebLinks — the server's own pages for this repository. No request is made.

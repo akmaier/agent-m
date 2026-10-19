@@ -38,10 +38,15 @@ export const temporary = () => mkdtempSync(join(tmpdir(), "agent-m-entry-"));
 function constructedElectron(appData) {
   const exits = [];
   const handlers = {};
-  const record = { windows: [], loadedUrl: null, quits: 0, exits, appEvents: {} };
+  const record = { trays: [], windows: [], loadedUrl: null, quits: 0, exits, appEvents: {} };
   let settle;
   const outcome = new Promise((resolve) => { settle = resolve; });
   record.outcome = outcome;
+  class Tray {
+    constructor(image) { this.image = image; record.trays.push(this); }
+    setContextMenu() {}
+    on() {}
+  }
   class BrowserWindow {
     constructor() { this.webContents = { setWindowOpenHandler() {}, on() {} }; record.windows.push(this); }
     on() {}
@@ -63,6 +68,9 @@ function constructedElectron(appData) {
     handlers,
     shell: { openExternal() {} },
     BrowserWindow,
+    Tray,
+    Menu: { buildFromTemplate: (template) => ({ template }) },
+    nativeImage: { createFromPath: (path) => ({ path }) },
   });
   record.exited = null;
   record.whenExited = new Promise((resolve) => { record.exited = resolve; });
@@ -72,9 +80,11 @@ function constructedElectron(appData) {
 let counter = 0;
 // Starts the entry as Electron would: with these command-line arguments and this resources folder. Resolves with what the
 // entry did — it loaded its window, or it asked to quit — together with what it printed as an error.
-export async function startEntry({ resources, argv = [], appData }) {
+export async function startEntry({ resources, argv = [], appData, platform = null }) {
   const fake = constructedElectron(appData);
   const errors = [];
+  const savedPlatform = Object.getOwnPropertyDescriptor(process, "platform");
+  if (platform) Object.defineProperty(process, "platform", { configurable: true, value: platform });
   const saved = { argv: process.argv, resourcesPath: process.resourcesPath, error: console.error };
   globalThis.__agentMEntryElectron = fake;
   process.argv = [process.argv[0], "src/desktop-shell/main.mjs", ...argv];
@@ -86,6 +96,7 @@ export async function startEntry({ resources, argv = [], appData }) {
     const outcome = await Promise.race([fake.outcome, new Promise((_, reject) => setTimeout(() => reject(new Error("The entry neither loaded its window nor asked to quit.")), 5000))]);
     return { fake, outcome, errors };
   } finally {
+    if (platform) Object.defineProperty(process, "platform", savedPlatform);
     process.argv = saved.argv; process.resourcesPath = saved.resourcesPath; console.error = saved.error;
   }
 }
