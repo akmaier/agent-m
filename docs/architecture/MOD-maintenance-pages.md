@@ -35,6 +35,7 @@ uses:
   - MOD-mail-records.listedMailIds
   - MOD-mail-records.notesOf
   - MOD-mail-records.noteText
+  - MOD-personal-data.peopleIn
   - MOD-personal-data.personHits
   - MOD-personal-data.checkersFor
   - MOD-personal-data.pseudonymisationOf
@@ -159,7 +160,8 @@ instance's participants.
   expired.
 - MOD-mail-records.listedMailIds, MOD-mail-records.notesOf, MOD-mail-records.noteText — an issue's mails, its notes, and
   the text of a note offered again.
-- MOD-personal-data.personHits, MOD-personal-data.checkersFor, MOD-personal-data.pseudonymisationOf — the hits of the
+- MOD-personal-data.peopleIn — the people of a mail `repliesDue` gives, which carries none;
+  MOD-personal-data.personHits, MOD-personal-data.checkersFor, MOD-personal-data.pseudonymisationOf — the hits of the
   mail's people, the three checkers, and whether the product rewrites report data.
 - MOD-mail-handling.readNewMail, MOD-mail-handling.decideMail, MOD-mail-handling.repliesDue,
   MOD-mail-handling.storeReplies, MOD-mail-handling.sendReply, MOD-mail-handling.askReporter,
