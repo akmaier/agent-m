@@ -16,7 +16,7 @@
 //   - A repository's pin is the head of its default branch, read through the host of its address; its licence and maintainer are entered by the person (no interface of the page's uses gives them).
 //   - The check job works on UC-040 (a job's works_on holds identifiers, not a resource's name); the resource it checks is its parameter `resource`.
 //   - schemaForm gives the section under the title of resources.schema.md a field, headed by the title line (src/site-frame/forms.mjs).
-//   - The jobs and tests that name a resource, on *Move* and *Remove*, are ITM-1030's; the Bridge's probe and the Hugging Face Hub's revision are ITM-995's and ITM-996's, built into ITM-997.
+//   - The jobs and tests that name a resource, on *Move* and *Remove*, are ITM-1030's. A check through a Bridge (ITM-997): an endpoint is probed for its served models with the endpoint configuration { name, kind: "openai-compatible", baseUrl: its address, model: its pin, key: null }, compute for its partitions; the Hub's revision (ITM-996's hubFacts) is the pin of data and a model.
 // The counter-proofs (a planted fault in src/settings-pages/ and the test's failing result) are recorded in the pull request.
 
 import test from "node:test";
@@ -304,18 +304,142 @@ test("resources — a runner is not offered for a public product, and the page s
   assert.equal(productCommits(page).length, 0);
 });
 
-// TST-642012 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7; THE LOCAL BRIDGE REQUIRES A TOKEN
-// given: the product's list holds shared-llm, an endpoint reached by `bridge workstation`, and dlls
+// TST-997001 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 7; THE LOCAL BRIDGE REQUIRES A TOKEN; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: the product's list holds shared-llm, an endpoint reached by `bridge workstation`; this browser keeps the Bridge workstation (address http://127.0.0.1:4711, token bridge-token), whose fake answers the probe endpoint-models with the models served-a and served-b
 // input: press Check on shared-llm
-// expect: the page says that the check of an endpoint through the Bridge workstation (served models) is not built yet and that nothing was read; no request goes to any server for it
-test("resources — a check through a Bridge is said not to be built, and reads nothing", async (t) => {
+// expect: exactly one request goes to http://127.0.0.1:4711/v1/probes/endpoint-models, with the token in the protocol header and the body { args: { name: "shared-llm", kind: "openai-compatible", baseUrl: <its address>, model: "example-model", key: null } }; the entry says "✓ The Bridge workstation serves: served-a, served-b."; nothing is written and no request goes to GitHub
+test("resources — Check on an endpoint asks the Bridge its route names for the served models, and writes nothing", async (t) => {
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, LLM) } });
+  writeSetting(page.context.store, "bridge:workstation", { address: "http://127.0.0.1:4711", token: "bridge-token" });
+  const calls = [], inner = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).startsWith("http://127.0.0.1:4711/")) { calls.push({ url: String(url), init }); return new Response(JSON.stringify({ answer: { models: ["served-a", "served-b"] } }), { status: 200 }); }
+    return inner(url, init);
+  };
+  const before = page.world.requests.length;
+  await pressed(buttonLabelled(entry(page.target, "shared-llm"), "Check"));
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "http://127.0.0.1:4711/v1/probes/endpoint-models");
+  assert.equal(calls[0].init.headers["x-agent-m-bridge-token"], "bridge-token");
+  assert.deepEqual(JSON.parse(calls[0].init.body), { args: { name: "shared-llm", kind: "openai-compatible", baseUrl: "http://workstation.example.org:8000/v1", model: "example-model", key: null } });
+  assert.equal(withClass(entry(page.target, "shared-llm"), "resource-bridge-answer")[0].textContent, "✓ The Bridge workstation serves: served-a, served-b.");
+  assert.equal(page.world.requests.length, before);
+  assert.equal(productCommits(page).length, 0);
+});
+
+// TST-997002 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 7; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: as TST-997001, but the Bridge answers { diagnosis: { reason: "key refused", message: "Invalid API key.", routes: [] } }
+// input: press Check on shared-llm
+// expect: the entry says "✗ The Bridge workstation could not list the models: Invalid API key." and does not say "serves" (counter-proof of TST-997001)
+test("resources — a Bridge's diagnosis is shown as the failure it is", async (t) => {
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, LLM) } });
+  writeSetting(page.context.store, "bridge:workstation", { address: "http://127.0.0.1:4711", token: "bridge-token" });
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => String(url).startsWith("http://127.0.0.1:4711/")
+    ? new Response(JSON.stringify({ answer: { diagnosis: { reason: "key refused", message: "Invalid API key.", routes: [] } } }), { status: 200 }) : inner(url, init);
+  await pressed(buttonLabelled(entry(page.target, "shared-llm"), "Check"));
+  const said = withClass(entry(page.target, "shared-llm"), "resource-bridge-answer")[0].textContent;
+  assert.equal(said, "✗ The Bridge workstation could not list the models: Invalid API key.");
+  assert.equal(said.includes("serves"), false);
+});
+
+// TST-997003 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 7
+// given: the product's list holds hpc, compute reached by `bridge hpc`; this browser keeps the Bridge hpc (address http://127.0.0.1:4712), whose fake answers the probe partitions with debug (up) and gpu (drain)
+// input: press Check on hpc
+// expect: one request, to http://127.0.0.1:4712/v1/probes/partitions with the body { args: {} }; the entry says "✓ The Bridge hpc lists the partitions: debug (up), gpu (drain)."
+test("resources — Check on compute reached by a Bridge lists the cluster's partitions", async (t) => {
+  const hpc = "| hpc | compute | hpc.example.org | — | — | — | bridge hpc | NHR@FAU, Erlangen | — | — |";
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, hpc) } });
+  writeSetting(page.context.store, "bridge:hpc", { address: "http://127.0.0.1:4712", token: "hpc-token" });
+  const calls = [], inner = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).startsWith("http://127.0.0.1:4712/")) { calls.push({ url: String(url), init }); return new Response(JSON.stringify({ answer: { partitions: [{ name: "debug", state: "up" }, { name: "gpu", state: "drain" }] } }), { status: 200 }); }
+    return inner(url, init);
+  };
+  await pressed(buttonLabelled(entry(page.target, "hpc"), "Check"));
+  assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4712/v1/probes/partitions"]);
+  assert.deepEqual(JSON.parse(calls[0].init.body), { args: {} });
+  assert.equal(withClass(entry(page.target, "hpc"), "resource-bridge-answer")[0].textContent, "✓ The Bridge hpc lists the partitions: debug (up), gpu (drain).");
+});
+
+// TST-997004 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 7; THE LOCAL BRIDGE REQUIRES A TOKEN
+// given: the product's list holds shared-llm reached by `bridge workstation`; this browser keeps no Bridge of that name
+// input: press Check on shared-llm
+// expect: the entry says "This browser does not keep Bridge workstation." and no request goes to any Bridge or server
+test("resources — a check through a Bridge this browser does not keep says so and reads nothing", async (t) => {
   const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, LLM) } });
   const before = page.world.requests.length;
   await pressed(buttonLabelled(entry(page.target, "shared-llm"), "Check"));
-  assert.equal(withClass(entry(page.target, "shared-llm"), "resource-not-built")[0].textContent,
-    "The check of a endpoint through the Bridge workstation (served models) is not built yet; nothing was read.");
+  assert.equal(withClass(entry(page.target, "shared-llm"), "resource-bridge-answer")[0].textContent, "✗ This browser does not keep Bridge workstation.");
   assert.equal(page.world.requests.length, before);
+});
+
+// A Hub that answers as the Hugging Face Hub's model API does; every request to it is recorded.
+const hubAnswering = (answer) => {
+  const calls = [], inner = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    if (!String(url).startsWith("https://huggingface.co/")) return inner(url, init);
+    calls.push({ url: String(url), init });
+    if (answer instanceof Error) throw answer;
+    return new Response(JSON.stringify(answer), { status: 200 });
+  };
+  return calls;
+};
+const HUB_NEW = "c".repeat(40);
+const TINY = `| tiny | model | someone/tiny | ${OLD_PIN} | MIT | someone | read on its host | — | — | — |`;
+
+// TST-997005 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 8; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION
+// given: the product's list pins the Hub model someone/tiny to the revision of 40 "b"; the Hub's fake answers the revision of 40 "c"
+// input: press Check on tiny; a click a script makes on Move; the person's click on Move
+// expect: Check reads the Hub (one request to huggingface.co) and writes nothing; it shows "A newer state exists upstream: cccc…. The pin is bbbb…." and Move; the script's click writes nothing; the person's click writes one commit with only the Pin of tiny changed
+test("resources — a Hub model's pin is read from the Hub, shown beside the pin, and moved by the person's click alone", async (t) => {
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, TINY) } });
+  const calls = hubAnswering({ sha: HUB_NEW, cardData: { license: "mit" }, gated: false });
+  await pressed(buttonLabelled(entry(page.target, "tiny"), "Check"));
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /^https:\/\/huggingface\.co\/api\/models\/someone\/tiny/);
+  assert.equal(productCommits(page).length, 0);
+  assert.equal(withClass(entry(page.target, "tiny"), "resource-newer")[0].textContent, `A newer state exists upstream: ${HUB_NEW}. The pin is ${OLD_PIN}.`);
+  const move = buttonLabelled(entry(page.target, "tiny"), "Move");
+  await press(move);
+  await settled(current);
+  assert.equal(productCommits(page).length, 0, "a click a script makes writes nothing");
+  await pressed(move);
+  assert.equal(productCommits(page).length, 1);
+  assert.equal(productCommits(page)[0].files["docs/resources.md"], list("thesis-tool", DLLS, TINY.replace(OLD_PIN, HUB_NEW)));
+  assert.equal(line(page.target, "tiny", "resource-pin"), `Pin: ${HUB_NEW}`);
+});
+
+// TST-997006 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 8; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// given: the same list; the Hub's fake answers the revision the list already pins
+// input: press Check on tiny
+// expect: the entry says "✓ someone/tiny stands at its pin, bbbb…." and offers no Move (counter-proof of TST-997005)
+test("resources — a Hub model that stands at its pin offers no Move", async (t) => {
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, TINY) } });
+  hubAnswering({ sha: OLD_PIN, cardData: { license: "mit" }, gated: false });
+  await pressed(buttonLabelled(entry(page.target, "tiny"), "Check"));
+  assert.equal(withClass(entry(page.target, "tiny"), "resource-current")[0].textContent, `✓ someone/tiny stands at its pin, ${OLD_PIN}.`);
+  assert.equal(buttonLabelled(entry(page.target, "tiny"), "Move"), undefined);
+});
+
+// TST-997007 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 8; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// given: the same list; the Hub does not answer a browser (its fake rejects with a TypeError)
+// input: press Check on tiny
+// expect: the entry says "✗ the Hub did not answer for tiny (someone/tiny); paste a full revision instead — the pin stays as it is."; no Move; nothing is written
+test("resources — a Hub that does not answer is named and the person pastes the revision instead", async (t) => {
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, TINY) } });
+  hubAnswering(new TypeError("Failed to fetch"));
+  await pressed(buttonLabelled(entry(page.target, "tiny"), "Check"));
+  assert.equal(withClass(entry(page.target, "tiny"), "resource-unreachable")[0].textContent, "✗ the Hub did not answer for tiny (someone/tiny); paste a full revision instead — the pin stays as it is.");
+  assert.equal(buttonLabelled(entry(page.target, "tiny"), "Move"), undefined);
+  assert.equal(productCommits(page).length, 0);
 });
 
 // TST-642013 · level: unit · module: MOD-settings-pages
