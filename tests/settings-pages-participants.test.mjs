@@ -8,11 +8,11 @@
 // Guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The route is driven only through MOD-settings-pages' public view. The DOM is the browser stand-in of tests/site-frame.test.mjs,
+// The route is driven only through MOD-settings-pages' public view. The DOM is the browser stand-in of tests/site-frame-dom.mjs,
 // because the route uses MOD-site-frame's schemaForm and folded explanations. The instance host is local to this file: it
 // exposes docs/participants.md and docs/sources/SRC-*.md, and records the one commit saveFile makes.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -657,4 +657,88 @@ test("participants — Change reads a CI agent's route in the schema's form and 
     assert.equal(one(page, "participant-secret-name").value, secret, `${name}: secret`);
     assert.equal(one(page, "participant-route-preview").textContent, preview, `${name}: route`);
   }
+});
+
+// A subagent is a CLI or sandboxed agent that another CLI agent of the register starts; its route is `through <participant>` (MOD-participant-list, Data: Route; reachedThrough).
+const HEAD = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
+const CAPS = "read the repository, write to the repository, run code and tests";
+const AGENTS_REGISTER = `# Participants of this instance\n\n${HEAD}\n`
+  + `| alice | person | — | — | — | ${CAPS} | — | account github.com/alice |\n`
+  + `| dev-a | CLI agent | codex | 200000 | — | ${CAPS} | this machine | bridge laptop agent codex |\n`
+  + `| dev-c | CLI agent | claude | 200000 | — | ${CAPS} | this machine | bridge laptop agent claude |\n`
+  + `| box | sandboxed agent | codex | 200000 | — | ${CAPS} | sandbox vm | bridge sandbox agent codex |\n`;
+const SUBAGENT_REGISTER = `${AGENTS_REGISTER}| helper | CLI agent | codex | 100000 | — | ${CAPS} | this machine | through dev-a |\n`;
+const optionsOf = (select) => byTag(select, "option").map((option) => option.value);
+
+// TST-999001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: the register lists a person alice, the CLI agents dev-a and dev-c, and the sandboxed agent box; the author adds a CLI agent, and then a sandboxed agent
+// input: for each type: name it helper, see that participant-reach offers bridge and through, choose "through", look at the select participant-through, choose dev-a, enter the model and the place, Save
+// expect: participant-through offers exactly dev-a and dev-c (the CLI agents of the register — not alice, not the sandboxed agent box); the route preview reads "through dev-a"; no Bridge select, no agent field and no Test is shown; Save is available, makes one commit of docs/participants.md only, and the new row has the chosen type and the Route `through dev-a`; the rows already there are unchanged
+test("participants — a CLI or sandboxed agent is saved as a subagent through one of the register's CLI agents", async (t) => {
+  for (const type of ["CLI agent", "sandboxed agent"]) {
+    const b = browser(t, { files: { [PARTICIPANTS]: AGENTS_REGISTER } });
+    const page = await b.page();
+    await addParticipant(page, type);
+    await put(one(page, "participant-name"), "helper");
+    assert.deepEqual(optionsOf(one(page, "participant-reach")), ["bridge", "through"], type);
+    assert.equal(byClass(page, "participant-bridge").length, 1, `${type}: the Bridge is offered while it is reached on a Bridge`);
+    await put(one(page, "participant-reach"), "through", "change");
+    assert.deepEqual(optionsOf(one(page, "participant-through")), ["dev-a", "dev-c"], type);
+    await put(one(page, "participant-through"), "dev-a", "change");
+    await put(one(page, "participant-model"), "codex");
+    await put(one(page, "participant-place"), "this machine");
+    assert.equal(one(page, "participant-route-preview").textContent, "through dev-a", type);
+    for (const gone of ["participant-bridge", "participant-agent", "participant-list-agents", "participant-agent-test"]) assert.equal(byClass(page, gone).length, 0, `${type}: no .${gone}`);
+    await save(page);
+    assert.equal(b.commits.length, 1, `${type}: one commit`);
+    assert.deepEqual(b.commits[0].files.map((file) => file.path), [PARTICIPANTS]);
+    const rows = committedRows(b);
+    assert.deepEqual(rows.slice(0, 4).map((row) => [row.Name, row.Route]), [["alice", "account github.com/alice"], ["dev-a", "bridge laptop agent codex"], ["dev-c", "bridge laptop agent claude"], ["box", "bridge sandbox agent codex"]]);
+    assert.deepEqual([rows[4].Name, rows[4].Type, rows[4].Route], ["helper", type, "through dev-a"]);
+  }
+});
+
+// TST-999002 · level: unit · module: MOD-settings-pages
+// guards: UC-017
+// given: the register holds the subagent helper (a CLI agent, route `through dev-a`) beside alice, dev-a, dev-c and box
+// input: open Change for helper; look at the form; change its processing place to "lab machine"; Save
+// expect: participant-reach reads "through", participant-through reads "dev-a" and offers exactly dev-a and dev-c (not helper itself, not box, not alice); the route preview reads "through dev-a" and the draft row in the form holds `through dev-a`; no Bridge select is shown; Save is available and makes one commit in which helper has the place "lab machine" and the Route `through dev-a`, and the other four rows are as they were
+test("participants — Change keeps a subagent's route through its CLI agent instead of blanking it", async (t) => {
+  const b = browser(t, { files: { [PARTICIPANTS]: SUBAGENT_REGISTER } });
+  const page = await b.page();
+  await click(changeButton(page, "helper"));
+  assert.equal(one(page, "participant-reach").value, "through");
+  assert.equal(one(page, "participant-through").value, "dev-a");
+  assert.deepEqual(optionsOf(one(page, "participant-through")), ["dev-a", "dev-c"]);
+  assert.equal(one(page, "participant-route-preview").textContent, "through dev-a");
+  assert.match(rowTextOf(page), /\| helper \| CLI agent \| codex \| 100000 \| — \| .* \| this machine \| through dev-a \|/);
+  assert.equal(byClass(page, "participant-bridge").length, 0);
+  await put(one(page, "participant-place"), "lab machine");
+  await save(page);
+  assert.equal(b.commits.length, 1);
+  const rows = committedRows(b);
+  assert.deepEqual(rows.map((row) => row.Name), ["alice", "dev-a", "dev-c", "box", "helper"]);
+  const helper = rows.find((row) => row.Name === "helper");
+  assert.deepEqual([helper["Processing place"], helper.Route], ["lab machine", "through dev-a"]);
+  assert.deepEqual(rows.filter((row) => row.Name !== "helper").map((row) => row.Route),
+    ["account github.com/alice", "bridge laptop agent codex", "bridge laptop agent claude", "bridge sandbox agent codex"]);
+});
+
+// TST-999003 · level: unit · module: MOD-settings-pages
+// guards: UC-017
+// given: the same register; dev-a is reached on a Bridge (route `bridge laptop agent codex`), and this browser keeps the Bridge laptop
+// input: open Change for dev-a and look at how it is reached; then choose "through" and look at the choices; then choose "bridge" again
+// expect: participant-reach first reads "bridge" and the Bridge select is shown (a CLI agent that is no subagent is unchanged); after "through" participant-through offers dev-c and helper but not dev-a itself; after "bridge" the Bridge select is back and the route preview reads "bridge laptop agent codex"
+test("participants — a CLI agent reached on a Bridge is offered as a subagent except from itself, and can go back to its Bridge", async (t) => {
+  const b = browser(t, { files: { [PARTICIPANTS]: SUBAGENT_REGISTER }, settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } } });
+  const page = await b.page();
+  await click(changeButton(page, "dev-a"));
+  assert.equal(one(page, "participant-reach").value, "bridge");
+  assert.equal(byClass(page, "participant-bridge").length, 1);
+  await put(one(page, "participant-reach"), "through", "change");
+  assert.deepEqual(optionsOf(one(page, "participant-through")), ["dev-c", "helper"]);
+  await put(one(page, "participant-reach"), "bridge", "change");
+  assert.equal(byClass(page, "participant-bridge").length, 1);
+  assert.equal(one(page, "participant-route-preview").textContent, "bridge laptop agent codex");
 });

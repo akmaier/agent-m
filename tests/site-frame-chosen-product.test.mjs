@@ -19,12 +19,12 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { installPage, offline, outside } from "./site-frame-start.d/dom.mjs";
-import { openStore, writeSetting } from "../src/browser-store/index.mjs";
+import { changeFragment, installPage, offline, outside } from "./site-frame-start.d/dom.mjs";
+import { clearSetting, openStore, writeSetting } from "../src/browser-store/index.mjs";
 
 installPage({ hostname: "acme.github.io", pathname: "/instance/docs/index.html" });
 offline();
-const { chosenProduct } = await import("../src/site-frame/index.mjs");
+const { chosenProduct, startPage } = await import("../src/site-frame/index.mjs");
 
 const WIDGET = "https://github.com/acme/widget";
 const OTHER = "https://github.com/acme/other";
@@ -89,4 +89,165 @@ test("TST-856003 the chosen GitLab product says its own project token is stored;
   const other = await chosenProduct({ store: browserKeeping([APP], ["github-token:team/app"]), fragment: fragmentOf(APP) });
   assert.equal(other.kind, "gitlab");
   assert.equal(other.tokenStored, false);
+});
+
+// ---- ITM-669: a navigation that keeps the product keeps its Host ----
+// The Host keeps the texts of the blobs it has read (MOD-repository-hosts), so a page that is given a new Host at every change of the fragment reads a file again. The fixture below is
+// a counting GitHub: it answers the commit, the tree and the file requests of the product https://github.com/acme/widget and records every request. The readings these tests take:
+//   - "a blob read" is one request for a file's text: raw.githubusercontent.com/acme/widget/c1/<path> without a token, api.github.com/repos/acme/widget/contents/<path>?ref=c1 with one.
+//   - "a navigation that keeps the product" is a change of the fragment whose `product` names the same address; the store's token and secrets for it are unchanged.
+//   - The commit and the tree are read at every snapshot, so a navigation still reads them: keeping the Host does not change that.
+const PATHS = { "SPEC.md": ["s1", "spec text"], "gaps.md": ["s2", "gaps text"] };
+
+// Puts a counting GitHub in place of the fixture's fetch; returns its record and a function that puts the fixture's fetch back.
+function countingGitHub() {
+  const seen = { blobs: [], snapshots: 0 };
+  const before = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const address = String(url);
+    const file = Object.keys(PATHS).find((path) => address.includes(`/${path}`));
+    if (/\/commits\/main$/.test(address)) return new Response(JSON.stringify({ sha: "c1" }), { status: 200, headers: { "content-type": "application/json" } });
+    if (address.includes("/git/trees/c1")) {
+      seen.snapshots += 1;
+      return new Response(JSON.stringify({ tree: Object.entries(PATHS).map(([path, [sha]]) => ({ type: "blob", path, sha })) }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (file) { seen.blobs.push(file); return new Response(PATHS[file][1], { status: 200 }); }
+    return new Response("{}", { status: 404 });
+  };
+  return { seen, restore: () => { globalThis.fetch = before; } };
+}
+
+// What a route does with the product's Host: reads one file of the snapshot of main.
+async function readFileOf(product, path) {
+  return (await product.host.readSnapshot("main")).read(path);
+}
+
+// TST-669001 · level: unit · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a browser that keeps the product https://github.com/acme/widget and no token, and a counting GitHub that serves SPEC.md and gaps.md of commit c1
+// input: chosenProduct for the widget's fragment three times in a row, as three navigations that keep the product do (spec, gaps, spec), and after each a read of SPEC.md, gaps.md, SPEC.md through the product's host
+// expect: the three results hold the same host; the texts are "spec text", "gaps text", "spec text"; SPEC.md was requested once and gaps.md once (not SPEC.md twice); three trees were read
+test("TST-669001 three navigations that keep the product give the same host, and SPEC.md read in the first is not requested in the third", async () => {
+  const github = countingGitHub();
+  try {
+    const store = browserKeeping([WIDGET]);
+    const first = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    const text1 = await readFileOf(first, "SPEC.md");
+    const second = await chosenProduct({ store, fragment: `#gaps/product=${encodeURIComponent(WIDGET)}` });
+    const text2 = await readFileOf(second, "gaps.md");
+    const third = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    const text3 = await readFileOf(third, "SPEC.md");
+    assert.equal(first.host === second.host && second.host === third.host, true, "the same host");
+    assert.deepEqual([text1, text2, text3], ["spec text", "gaps text", "spec text"]);
+    assert.deepEqual(github.seen.blobs, ["SPEC.md", "gaps.md"], "each file requested once");
+    assert.equal(github.seen.snapshots, 3, "one tree read for each snapshot");
+  } finally { github.restore(); }
+});
+
+// TST-669002 · level: unit · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: a browser that keeps the widget and its token github-token:acme/widget, and the counting GitHub
+// input: chosenProduct twice with the same store and fragment, a read of SPEC.md after each; then the token is replaced by another value under the same key, chosenProduct again and SPEC.md read; then the token is cleared, chosenProduct again
+// expect: the first two results hold the same host and SPEC.md was requested once by them; after the token is replaced the host is a different one and SPEC.md is requested a second time; after the token is cleared the host is different from the one before and tokenStored is false
+test("TST-669002 a host is kept only while the product's token is the one it was connected with: a replaced or cleared token gives a new host", async () => {
+  const github = countingGitHub();
+  try {
+    const store = browserKeeping([WIDGET], ["github-token:acme/widget"]);
+    const a = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    await readFileOf(a, "SPEC.md");
+    const b = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    await readFileOf(b, "SPEC.md");
+    assert.equal(a.host === b.host, true, "same token, same host");
+    assert.equal(github.seen.blobs.length, 1, "one request for SPEC.md");
+
+    writeSetting(store, "github-token:acme/widget", { value: "pat-replaced", name: "token", expires: "2030-01-01" });
+    const c = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    await readFileOf(c, "SPEC.md");
+    assert.equal(c.host === b.host, false, "a replaced token gives a new host");
+    assert.equal(github.seen.blobs.length, 2, "the new host reads SPEC.md again");
+
+    clearSetting(store, "github-token:acme/widget");
+    const d = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    assert.equal(d.host === c.host, false, "a cleared token gives a new host");
+    assert.equal(d.tokenStored, false);
+  } finally { github.restore(); }
+});
+
+// TST-669003 · level: unit · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A PRODUCT IS NAMED BY ITS ADDRESS
+// given: a browser that keeps the products https://github.com/acme/widget and https://github.com/acme/other
+// input: chosenProduct for the widget, then for the other product, then for the widget again
+// expect: the widget's two results hold the same host; the other product's host is a different one
+test("TST-669003 each product has its own host, and going to another product and back gives the widget's first host", async () => {
+  const store = browserKeeping([WIDGET, OTHER]);
+  const first = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+  const other = await chosenProduct({ store, fragment: fragmentOf(OTHER) });
+  const again = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+  assert.equal(first.host === again.host, true, "the widget's host is kept");
+  assert.equal(other.host === first.host, false, "the other product has its own host");
+});
+
+// A commit that would write `text` on a host: refused with SecretRefused before any request when the text holds a stored secret.
+const commitOf = (host, text) => host.commitFiles({ branch: "main", expectedHead: "a".repeat(40), files: [{ path: "docs/note.md", text }], message: "note" });
+
+// TST-669005 · level: unit · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; NO SECRET IN THE REPOSITORY
+// given: a browser that keeps the widget and the instance's token github-token with the value "pat-first-value"
+// input: chosenProduct twice; then the instance's token is replaced by "pat-second-value" and chosenProduct is called again
+// expect: the first two results hold the same host; the third holds a different host, which refuses a commit whose text holds "pat-second-value" with a SecretRefused naming docs/note.md, before any request
+test("TST-669005 a stored secret that changes gives a new host, so a kept host never holds a stale list of secrets", async () => {
+  const requests = [], before = globalThis.fetch;
+  globalThis.fetch = async (url) => { requests.push(String(url)); throw new TypeError("offline"); };
+  try {
+    const store = browserKeeping([WIDGET]);
+    writeSetting(store, "github-token", { value: "pat-first-value", name: "token", expires: "2030-01-01" });
+    const a = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    const b = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    assert.equal(a.host === b.host, true, "the secrets did not change: the same host");
+    writeSetting(store, "github-token", { value: "pat-second-value", name: "token", expires: "2030-01-01" });
+    const c = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    assert.equal(c.host === b.host, false, "a changed secret gives a new host");
+    await assert.rejects(commitOf(c.host, "text with pat-second-value inside"), (error) => error.name === "SecretRefused" && error.path === "docs/note.md");
+    assert.deepEqual(requests, [], "refused before any request");
+  } finally { globalThis.fetch = before; }
+});
+
+// TST-669006 · level: unit · module: MOD-site-frame
+// guards: NO SECRET IN THE REPOSITORY
+// given: a browser that keeps the widget and the instance's token github-token with the value "pat-instance-value"
+// input: chosenProduct for the widget twice (the second as a navigation that keeps the product), then a commit through the second result's host whose text holds "pat-instance-value"
+// expect: the kept host refuses it with a SecretRefused naming docs/note.md, and no request was made
+test("TST-669006 the kept host still refuses a stored secret", async () => {
+  const requests = [], before = globalThis.fetch;
+  globalThis.fetch = async (url) => { requests.push(String(url)); throw new TypeError("offline"); };
+  try {
+    const store = browserKeeping([WIDGET]);
+    writeSetting(store, "github-token", { value: "pat-instance-value", name: "token", expires: "2030-01-01" });
+    await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    const kept = await chosenProduct({ store, fragment: fragmentOf(WIDGET) });
+    await assert.rejects(commitOf(kept.host, "a note with pat-instance-value in it"), (error) => error.name === "SecretRefused" && error.path === "docs/note.md");
+    assert.deepEqual(requests, []);
+  } finally { globalThis.fetch = before; }
+});
+
+// TST-669004 · level: unit · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the review page started with two fixture routes, spec and gaps, each reading its own file through context.product.host, a browser that keeps the widget, and the counting GitHub
+// input: the fragment #spec/product=<widget>, then #gaps/product=<widget>, then #spec/product=<widget> again, each announced as a change of the fragment
+// expect: SPEC.md requested once and gaps.md requested once over the three navigations
+test("TST-669004 over the page, spec then gaps then spec reads SPEC.md once", async () => {
+  const github = countingGitHub();
+  try {
+    const fixture = installPage({ hostname: "acme.github.io", pathname: "/instance/docs/index.html", hash: `#spec/product=${encodeURIComponent(WIDGET)}` });
+    globalThis.setInterval = () => 1;
+    writeSetting(openStore("acme/instance"), "products", [WIDGET]);
+    const read = (name, path) => ({ name, entry: "requirements", title: name, async render(target, context) { target.textContent = await readFileOf(context.product, path); } });
+    await startPage({ page: "review", views: [{ routes: [read("spec", "SPEC.md"), read("gaps", "gaps.md")], strategies: [] }] });
+    const settle = () => new Promise((resolve) => setImmediate(resolve));
+    for (const name of ["gaps", "spec"]) {
+      changeFragment(fixture, `#${name}/product=${encodeURIComponent(WIDGET)}`);
+      for (let turn = 0; turn < 20; turn += 1) await settle();
+    }
+    assert.deepEqual(github.seen.blobs, ["SPEC.md", "gaps.md"]);
+  } finally { github.restore(); }
 });

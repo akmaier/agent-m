@@ -152,7 +152,7 @@ class TestAgentMsOwnSprints(unittest.TestCase):
         module, to compare the module's reading of the front matter with what the record shows."""
         text = path.read_text(encoding="utf-8")
         table = text.split("\n## Selection\n", 1)[1].split("\n## ", 1)[0]
-        return [m.group(1) for m in re.finditer(r"^\| \d+ \| (ITM-\d{3}) \|", table, re.M)]
+        return [m.group(1) for m in re.finditer(r"^\| \d+ \| (ITM-\d{3,}) \|", table, re.M)]
 
     # Module (as the case stated it): MOD-work-items; MOD-work-plans
     # TST-475051 · level: unit · module: MOD-work-items
@@ -163,7 +163,7 @@ class TestAgentMsOwnSprints(unittest.TestCase):
     def test_every_sprint_record_of_this_repository_is_read_without_a_problem(self):
         paths = sorted(self.OWN.glob("*.md"))
         self.assertGreaterEqual(len(paths), 2)
-        items = {p.name[:7] for p in (DOCS / "backlog").glob("ITM-*.md")}
+        items = {re.match(r"ITM-\d{3,}", p.name).group(0) for p in (DOCS / "backlog").glob("ITM-*.md")}
         for path in paths:
             s = sprint_file(path)
             self.assertEqual(s["problems"], [], path.name)
@@ -325,6 +325,39 @@ class TestSprintsAndALimitBothHold(unittest.TestCase):
         self.assertEqual(got["state"], "done")
         self.assertEqual(kinds(got), ["pull-request"])
 
+
+
+class TestSelectionsTakeThreeOrMoreDigits(unittest.TestCase):
+    """ITM-<nnn> takes three or more digits; the items that hold the limit are listed by their number."""
+
+    def test_a_selection_may_name_an_item_of_four_digits(self):
+        self.assertEqual(problems(edited(OPEN, "  - ITM-017\n", "  - ITM-1000\n")), [])
+        self.assertEqual(sprint_of(edited(OPEN, "  - ITM-017\n", "  - ITM-1000\n"))["selection"],
+                         ["ITM-014", "ITM-1000", "ITM-016"])
+
+    def test_a_selection_may_name_an_item_of_three_digits(self):
+        self.assertEqual(problems(edited(OPEN, "  - ITM-017\n", "  - ITM-999\n")), [])
+
+    def test_counter_proof_a_selection_naming_an_item_of_two_digits_is_a_problem(self):
+        self.assertEqual(problems(edited(OPEN, "  - ITM-017\n", "  - ITM-99\n")),
+                         [(8, "error", SELECTED, 'the selection names "ITM-99", which is no item ITM-<nnn>')])
+
+    def test_counter_proof_a_selection_naming_an_item_of_four_digits_a_second_time_is_a_problem(self):
+        self.assertEqual(problems(edited(edited(OPEN, "  - ITM-017\n", "  - ITM-1000\n"), "  - ITM-016\n", "  - ITM-1000\n")),
+                         [(9, "error", SELECTED, "the selection names ITM-1000 a second time")])
+
+    def test_a_pull_request_of_an_item_of_four_digits_holds_a_slot_of_the_limit_in_the_order_of_the_numbers(self):
+        backlog = ["ITM-014", "ITM-015", "ITM-016", "ITM-017", "ITM-999", "ITM-1000"]
+        got = item_state("ITM-017", "scrum-wip", sprint="open", backlog=backlog,
+                         prs=[pr(1, "ITM-1000"), pr(2, "ITM-999")])
+        self.assertEqual(kinds(got), ["wip-limit"])
+        self.assertEqual([i["id"] for i in got["reasons"][0]["inProgress"]], ["ITM-999", "ITM-1000"])
+
+    def test_counter_proof_a_pull_request_naming_four_digits_is_not_an_item_of_three(self):
+        backlog = ["ITM-014", "ITM-015", "ITM-016", "ITM-017", "ITM-100"]
+        got = item_state("ITM-017", "scrum-wip", sprint="open", backlog=backlog,
+                         prs=[pr(1, "ITM-1000"), pr(2, "ITM-014")])
+        self.assertTrue(starts(got))
 
 
 class TestSeveralTeamsRunSprints(unittest.TestCase):

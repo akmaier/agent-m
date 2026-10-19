@@ -10,7 +10,7 @@
 // Guards: THE CATALOGUE IS DATA; EVERY STEP EXPLAINS ITSELF; UC-031
 // Level: unit
 //
-// This imports the shared small DOM of tests/site-frame.test.mjs unchanged, as the other tests of the views do. The real MOD-model-catalogue, MOD-product-process,
+// This imports the shared small DOM of tests/site-frame-dom.mjs unchanged, as the other tests of the views do. The real MOD-model-catalogue, MOD-product-process,
 // MOD-browser-store, MOD-repository-hosts and MOD-site-frame run as they are; the only thing that is faked is the global `fetch`, a spy that answers the fixtures' GitHub
 // repositories and refuses any other address with a TypeError (the request is then kept as `unrouted`). No request leaves the fixtures.
 //
@@ -25,7 +25,7 @@
 //   - A product declares a model when its docs/process.md names the model's file in model_file, as the route `process` reads the declaration.
 //   - The folded What is this? is the <details class="explain"> that explain(topic) returns.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

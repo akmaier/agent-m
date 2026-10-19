@@ -9,7 +9,7 @@
 
 // This imports the module's existing browser harness unchanged, then exercises its public explain interface. The harness
 // supplies the minimal browser DOM used by MOD-markdown-render; the topics remain this test's only subject.
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { explain } from "../src/site-frame/index.mjs";

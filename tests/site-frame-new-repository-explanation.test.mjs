@@ -12,7 +12,7 @@
 // This imports the module's existing browser harness unchanged, as tests/site-frame-mailbox-explanations.test.mjs does, then exercises the public explain interface. Each test
 // states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

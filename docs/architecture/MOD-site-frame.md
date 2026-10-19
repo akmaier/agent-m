@@ -17,6 +17,8 @@ uses:
   - MOD-repository-hosts.webLinks
   - MOD-repository-hosts.HostError
   - MOD-repository-hosts.Snapshot
+  - MOD-repository-hosts.readSnapshot
+  - MOD-repository-hosts.repositoryInfo
   - MOD-job-runner.registerStrategies
   - MOD-job-runner.Strategies
   - MOD-job-runner.Prepared
@@ -223,7 +225,9 @@ It writes nothing.
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
   each with its own token; MOD-repository-hosts.webLinks — the renewal page of a token; MOD-repository-hosts.HostError —
-  to tell a host's failure from a fault of the page itself; MOD-repository-hosts.Snapshot — the type of the snapshot a route's `reads` is given, whose `readMany` the frame calls.
+  to tell a host's failure from a fault of the page itself; MOD-repository-hosts.Snapshot — the type of the snapshot a route's `reads` is given, whose `readMany` the frame calls;
+  MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.readSnapshot — the default branch of the repository a route
+  shows, asked once per page, and its snapshot there.
 - MOD-job-runner.registerStrategies — the strategies the loaded views and the prompt bar hand it; MOD-job-runner.Strategies,
   MOD-job-runner.Prepared — the types of `View` and of the run panel.
 - MOD-documents.Schema, MOD-documents.Document, MOD-documents.documentFindings — the form built from a schema.

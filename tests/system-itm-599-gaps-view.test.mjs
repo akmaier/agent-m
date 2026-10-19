@@ -100,7 +100,7 @@ test("with a token, the gaps page is drawn from one GraphQL batch for the files 
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: the gaps page opened at main, once without and once with a token (the two cases above), then the address of a view the page does not draw, which asks the product for nothing
 // input: the address #trace/key=gaps/ref=main/product=<the product> is opened a second time, at the same commit of main
-// expect: the page shows the same lists; the product is asked for 4 REST calls and the 1 file SPEC.md from the raw host without a token, for 5 REST calls with one — and for no GraphQL batch and no other file: the graph of the commit is kept, not read again
+// expect: the page shows the same lists; the product is asked for 4 REST calls, with a token and without — and for no GraphQL batch and no file, SPEC.md included, not through the contents API with a token either: the frame keeps the product's host across the navigation (ITM-669), so a blob it has read is not read again, and the graph of the commit is kept as well
 test("opening the gaps page a second time at the same commit asks for the lists' files no more", async (t) => {
   for (const token of [false, true]) {
     const page = await visit(t, GAPS, { token });
@@ -113,7 +113,7 @@ test("opening the gaps page a second time at the same commit asks for the lists'
     await until(pageIsGaps);
     await settle();
     const second = page.product().slice(first);
-    assert.deepEqual(counted(second), token ? { api: 5, graphql: 0, raw: 0 } : { api: 4, graphql: 0, raw: 1 }, token ? "with a token" : "without a token");
+    assert.deepEqual(counted(second), { api: 4, graphql: 0, raw: 0 }, token ? "with a token" : "without a token");
     assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
   }
 });

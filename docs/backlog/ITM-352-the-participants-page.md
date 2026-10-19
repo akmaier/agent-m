@@ -60,3 +60,15 @@ participant that products use (ITM-354) are not part of this item.
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/settings-pages/` and the tests that name MOD-settings-pages change.
+
+**Read at sprint team1/93 (developer-sonnet-d): two points of its Acceptance do not hold.**
+- **The place preset is untested.** Removing `src/settings-pages/participants.mjs:398-400` leaves every test passing.
+- **A CI agent's row is not saved "in the schema's form".**
+  - MOD-participant-list.md:56 gives `ci hosted secret <NAME>` and `ci runner:<label> secret <NAME>`.
+  - `participants.mjs:136` writes `workflow <workflow> on <runner> secret <secret>`, pinned by TST-352001 and TST-375001.
+  - MOD-runtimes' `routeOf` (`src/runtimes/routes.mjs:20`) reads only the schema's forms. So `routesFor` offers a CI agent
+    registered through the page no route to any job (measured: the schema's forms give one offer each, the page's give
+    none).
+  - The form has no field for a runner's label.
+- **It joins sprint team1/93 for both points.** TST-352001's and TST-375001's expected routes change to the schema's form
+  as the item's own output (`d995c09b`). `settings.mjs:826-834`, which reads the page's form as legacy, is read with it.
