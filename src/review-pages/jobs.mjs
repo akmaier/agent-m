@@ -36,7 +36,7 @@ const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
 
 // The endpoints of the participants as the tab's route calls them: the configuration the page stored for each, and whether it is reached through a Bridge.
-function connectionsOf(participants, store) {
+export function connectionsOf(participants, store) {
   const endpoints = {}, bridges = {};
   const connectBridge = (name) => {
     if (!name || bridges[name]) return;
@@ -147,7 +147,7 @@ const inputsOf = (root, className) => {
 };
 export const byClassChecked = (list, name, role = "participant") => inputsOf(list, role).some((box) => box.value === name && box.checked);
 
-async function preparedRun(run, snapshot = run.snapshot, params = run.params) {
+export async function preparedRun(run, snapshot = run.snapshot, params = run.params) {
   const { context, token, host, definition, chosen, participants, instanceSnapshot } = run;
   const now = new Date();
   const taken = new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));

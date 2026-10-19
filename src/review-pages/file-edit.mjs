@@ -10,6 +10,7 @@ import { explain } from "../site-frame/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { graphFindings, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
+import { offerCheck } from "./check-edit.mjs";
 import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
 
 const SCHEMA = { "use-case": "useCase", "architecture-decision": "decision", module: "module" };
@@ -83,6 +84,8 @@ export async function showFileEdit(where, kind, file) {
   // The findings across artifacts (graphFindings) of the edited file of a decision or a module: the graph of the repository with the edited text in
   // place of the file, read asynchronously; they are handed to the editor when they are in, unless the text has moved on.
   let editor = null, latest = null;
+  // The findings of *Check this edit*, each a warning: they stand beside the marks of the schema and the graph while the text is edited.
+  let reviewed = [];
   const reads = new Map();
   const readOnce = (path) => (reads.has(path) ? reads : reads.set(path, snapshot.read(path))).get(path);
   async function acrossArtifacts(text, own) {
@@ -94,8 +97,8 @@ export async function showFileEdit(where, kind, file) {
     const document = readDocument(schema, file.path, text);
     const found = documentFindings(schema, document);
     if (kind.kind === "use-case") found.push(...unmatchedRealises(document.id ?? file.id, text, requirements));
-    else acrossArtifacts(text, [...found]).catch(() => {});
-    return found;
+    else acrossArtifacts(text, [...found, ...reviewed]).catch(() => {});
+    return [...found, ...reviewed];
   };
   const disabledReason = (text) => {
     const id = readDocument(schema, file.path, text).id;
@@ -128,5 +131,7 @@ export async function showFileEdit(where, kind, file) {
   }
 
   editor = openEditor(editorBox, body, { marks, save, disabledReason });
+  // An edit of the architecture may be checked before it is saved (UC-023 step 3): the check saves nothing, and needs the person's token for the job's person.
+  if (token && kind.kind !== "use-case") await offerCheck(where, file, editor, (found) => { reviewed = found; editor.setMarks(marks(editor.text())); });
   return editor;
 }
