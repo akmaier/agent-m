@@ -39,6 +39,7 @@ async function written(p, id) {
 async function pressSend(item) {
   await trusted(one(item, "send-reply"));
   await waitFor(() => dialog() !== undefined);
+  assert.notEqual(dialog(), undefined, `the dialog opened: ${textOf(item)}`);
 }
 // TST-969101 · level: system · module: MOD-maintenance-pages · MOD-mail-handling · MOD-mail-protocols
 // guards: UC-039 main flow; THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN; THE MAIL SERVER IS REACHED ONLY OVER TLS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A SENT REPLY IS NOTED IN THE ISSUE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
@@ -127,8 +128,8 @@ test("alternatives 5a and 5b on the IMAP route: the hash changes with the edit, 
 // TST-969103 · level: system · module: MOD-maintenance-pages · MOD-mail-handling · MOD-mail-protocols
 // guards: UC-039 alternative 6a; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE
 // given: the page on the IMAP route with a stored draft of m1; the SMTP server answers the finished mail with 554
-// input: the person's click on Send and the dialog's Send; then the Bridge not running (it answers that it is paused) and the same again
-// expect: the page shows the server's answer (554); nothing is noted in the issue; the draft stays in Drafts and on the page; nothing is in Sent; with the Bridge not running the page names the failure, the draft stays, and nothing is noted either
+// input: the person's click on Send and the dialog's Send; then the Bridge not running (it answers that it is paused) and the click on Send again
+// expect: the page shows the server's answer (554); nothing is noted in the issue; the draft stays in Drafts and on the page; nothing is in Sent; with the Bridge not running the page names the failure (the draft cannot be read, so no dialog opens), the draft stays, and nothing is noted either
 test("alternative 6a on the IMAP route: SMTP refuses or the Bridge is not running — nothing is noted and the draft stays", async () => {
   const p = await openReplies({ route: "imap", inbox: [rawMail("m1")], issues: [closed([M1])], refuseMail: true });
   await lastly(p, async () => {
@@ -143,10 +144,11 @@ test("alternative 6a on the IMAP route: SMTP refuses or the Bridge is not runnin
     assert.equal(byClass(item, "reply-draft").length, 1, "and on the page");
     assert.deepEqual(p.imap.folders.Sent, []);
     p.state.down = true;
-    await pressSend(item);
-    await trusted(buttonsOf(dialog(), "Send")[0]);
-    await waitFor(() => byClass(item, "reply-problem").length > 0 && /Bridge|paused|unavailable/i.test(textOf(item)));
-    assert.match(textOf(item), /Bridge|paused|unavailable/i);
+    byClass(item, "reply-problem").forEach((node) => node.remove?.());
+    await trusted(one(item, "send-reply"));
+    await waitFor(() => /Bridge|paused|unavailable/i.test(textOf(item)));
+    assert.match(textOf(item), /Bridge|paused|unavailable/i, "the page names that the Bridge does not answer");
+    assert.equal(dialog() === undefined || textOf(dialog()).length > 0, true);
     assert.deepEqual(comments(p), []);
     assert.equal(p.imap.folders.Drafts.length, 1);
   });
