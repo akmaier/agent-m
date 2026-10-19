@@ -28,7 +28,7 @@ const KINDS = [
   ["architecture-decision", /^ARC-\d{3}$/],
   ["module", new RegExp(`^MOD-${SLUG}$`)],
   ["test", /^TST-\d{3}$/],
-  ["backlog-item", /^ITM-\d{3}$/],
+  ["backlog-item", /^ITM-\d{3,}$/],
   ["resource", new RegExp(`^RES-${SLUG}$`)],
   ["job", new RegExp(`^JOB-${SLUG}$`)],
 ];
@@ -47,7 +47,7 @@ const FILES = [
   ["use-case", "docs/use-cases/", (n) => n !== "README.md", /^(UC-\d{3})-[^/]+\.md$/, "UC-<nnn>-<slug>.md", true],
   ["architecture", "docs/architecture/", (n) => n !== "README.md",
     new RegExp(`^(ARC-\\d{3})-[^/]+\\.md$|^(MOD-${SLUG})\\.md$`), "ARC-<nnn>-<slug>.md or MOD-<slug>.md", true],
-  ["backlog-item", "docs/backlog/", (n) => n.startsWith("ITM"), /^(ITM-\d{3})-[^/]+\.md$/, "ITM-<nnn>-<slug>.md", false],
+  ["backlog-item", "docs/backlog/", (n) => n.startsWith("ITM"), /^(ITM-\d{3,})-[^/]+\.md$/, "ITM-<nnn>-<slug>.md", false],
   ["job", "docs/jobs/", () => true, new RegExp(`^(JOB-${SLUG})\\.md$`), "JOB-<id>.md", false],
   ["source", "docs/sources/", () => true, new RegExp(`^(SRC-${SLUG})\\.md$`), "SRC-<slug>.md", false],
 ];
@@ -69,13 +69,16 @@ function nameIn(path, folder) {
   return name.endsWith(".md") && !name.includes("/") ? name : null;
 }
 
+// The order of a path: by its text, except that an item's number counts as a number, so that ITM-999 comes before ITM-1000.
+const inOrder = (path) => path.replace(/\bITM-(\d+)/, (m, digits) => `ITM-${digits.padStart(12, "0")}`);
+
 // identifiers(files) -> { items, problems } — every identifier of one version of a repository: items
 // [{ id, kind, path, line, withdrawn, note }], `note` the withdrawal note of a withdrawn requirement, decision or module; and a
 // finding for an artifact that carries no identifier, a malformed one, another one than its file name, or one that another
 // artifact carries too.
 export function identifiers(files) {
   const items = [], problems = [];
-  for (const [path, raw] of Object.entries(files ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+  for (const [path, raw] of Object.entries(files ?? {}).sort(([a], [b]) => (inOrder(a) < inOrder(b) ? -1 : inOrder(a) > inOrder(b) ? 1 : 0))) {
     const text = String(raw ?? "");
     if (path === "SPEC.md") {
       const reqs = parseRequirements(text);
@@ -181,7 +184,7 @@ export function stabilityProblems(earlier, later) {
 // requirement name nor a use case. A withdrawn decision or module is passed over; a vendored file is not the product's code.
 export function originProblems(files) {
   const out = [];
-  for (const [path, raw] of Object.entries(files ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+  for (const [path, raw] of Object.entries(files ?? {}).sort(([a], [b]) => (inOrder(a) < inOrder(b) ? -1 : inOrder(a) > inOrder(b) ? 1 : 0))) {
     const text = String(raw ?? "");
     const name = nameIn(path, "docs/use-cases/");
     if (name && name !== "README.md") {
