@@ -342,3 +342,28 @@ test("resources — the view gives the route resources and hands the frame MOD-r
   assert.equal(view.strategies.length, 1);
   assert.deepEqual(Object.keys(view.strategies[0].recipes), ["resource-check"]);
 });
+
+// TST-1030005 · level: unit · module: MOD-settings-pages
+// guards: UC-040 step 1a, 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// given: the product holds the record docs/jobs/JOB-20261005-1432-7f3a.md whose inputs pin dlls, the record JOB-20261005-1500-aaaa whose inputs pin cluster-two, the test tests/dlls.test.mjs that names dlls, and tests/cluster.test.mjs that does not
+// input: press Remove on dlls; on another page, press Check on dlls
+// expect: Remove lists, in the entry of dlls, the record and tests/dlls.test.mjs and neither of the others, and writes nothing; Check, beside the line of the newer state and the button Move, lists the same two paths and writes nothing
+test("resources — Remove and a newer state list the jobs and tests that name the resource, and change neither", async (t) => {
+  const files = { "docs/resources.md": PRODUCT_LIST,
+    "docs/jobs/JOB-20261005-1432-7f3a.md": `---\nid: JOB-20261005-1432-7f3a\nkind: implement\ninputs:\n  - dlls@${OLD_PIN}\nlimit: 5\n---\n`,
+    "docs/jobs/JOB-20261005-1500-aaaa.md": `---\nid: JOB-20261005-1500-aaaa\nkind: implement\ninputs:\n  - cluster-two@${OLD_PIN}\nlimit: 5\n---\n`,
+    "tests/dlls.test.mjs": "// guards the library dlls\n", "tests/cluster.test.mjs": "// guards the cluster\n" };
+  const named = (page) => withClass(entry(page.target, "dlls"), "resource-named-by").map((node) => node.textContent);
+  const page = await open(t, { productFiles: files });
+  await pressed(buttonLabelled(entry(page.target, "dlls"), "Remove"));
+  assert.equal(named(page).length, 1);
+  assert.ok(named(page)[0].includes("docs/jobs/JOB-20261005-1432-7f3a.md") && named(page)[0].includes("tests/dlls.test.mjs"), named(page)[0]);
+  assert.ok(!named(page)[0].includes("JOB-20261005-1500-aaaa") && !named(page)[0].includes("tests/cluster.test.mjs"), named(page)[0]);
+  assert.equal(productCommits(page).length, 0);
+  const second = await open(t, { productFiles: files });
+  await pressed(buttonLabelled(entry(second.target, "dlls"), "Check"));
+  assert.equal(named(second).length, 1);
+  assert.ok(named(second)[0].includes("docs/jobs/JOB-20261005-1432-7f3a.md") && named(second)[0].includes("tests/dlls.test.mjs"), named(second)[0]);
+  assert.ok(buttonLabelled(entry(second.target, "dlls"), "Move"));
+  assert.equal(productCommits(second).length, 0);
+});
