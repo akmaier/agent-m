@@ -39,12 +39,10 @@ uses:
   - MOD-trace-graph.tracesTo
   - MOD-job-ledger.JobRow
   - MOD-job-ledger.listJobs
-  - MOD-runtimes.liveState
   - MOD-runtimes.jobWorkflowFiles
   - MOD-runtimes.ResourceNeed
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.reachableBy
-  - MOD-bridge-client.Bridge
   - MOD-participant-list.Participant
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
@@ -139,8 +137,8 @@ The six stages of the main page, each a share between 0 and 1:
   declared; `plan`
   the steps of the implementation plan in their order, or the backlog items after the items they build on, with their
   states; `sprints` the sprints of every team, a team's running or last sprint being its newest; `assignments` the
-  role assignments; `held` what the teams' sprints hold (MOD-work-plans' `heldItems`); `jobs` every job of the product with the live state of those that have not ended — a row whose source
-  cannot be read says so —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
+  role assignments; `held` what the teams' sprints hold (MOD-work-plans' `heldItems`); `jobs` every job of the product, each with the state its record gives — a caller that asks the live
+  states of those that have not ended derives the rows again with MOD-job-ledger's `listJobs` —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
   the runs of the default branch's head; `ci.configured` whether the configuration Agent M generates from the schedule
   is present, `ci.drift` how it differs from the schedule, `ci.jobWorkflow` whether the job workflow of MOD-runtimes is
   present; `results` the branch `test-results`, `null` while there is none; `resourceNeeds` the routes that reach the
@@ -148,10 +146,9 @@ The six stages of the main page, each a share between 0 and 1:
   MOD-runtimes' `routesFor` for a job whose kind needs the product's resources. A fact only the server gives — `info`,
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
-- `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date, bridges:
-  Record<string, Bridge>, options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
-  `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the live state of every job
-  that has not ended, and the pull requests —; with the scope `work`, what MOD-prompt-bar
+- `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date,
+  options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
+  `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the pull requests —; with the scope `work`, what MOD-prompt-bar
   asks before a hand-over starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
@@ -161,8 +158,7 @@ The six stages of the main page, each a share between 0 and 1:
   records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
   commit the declaration's `model_version` names, read with `instanceAt`, and the history of the declaration, the
   instance's participants, the plan or the backlog
-  and the sprints, the gate records, the job records and the live state of every job that has not ended — from the CI
-  service, from the Bridges given in `bridges` and from this tab, through MOD-runtimes' `liveState` —, the pull
+  and the sprints, the gate records, the job records, the pull
   requests — and, for the head commits MOD-work-plans' `undecidedHeads` names, whether the default branch contains them,
   through the host's `containsCommit`, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations of the files MOD-test-document's `isTestFile` names and the resource list. It builds no trace graph: `graph` is `"unknown"` in both scopes, and a view that shows traces builds them with MOD-trace-graph's `traceGraph` when it is drawn.
   Considers:
@@ -183,8 +179,10 @@ The six stages of the main page, each a share between 0 and 1:
   - It also accepts a host that does no server operations, such as a Bridge's local clone, whose functions for the pull
     requests, the CI runs, the tags and the repository's information refuse with `NotSupported`: those facts are then
     `"unknown"`, and merges and CI results are advanced by the Workflows' entries and the page.
-  - A source of live states that cannot be read — a Bridge that does not answer — leaves its jobs as their records say,
-    marked as not reachable (UC-035 1b), and progress is still computed from the repository.
+  - It asks no job's live state: the rows of `jobs` give the state of the record. A caller that asks the live states —
+    from the CI service, from the Bridges and from this tab, through MOD-runtimes' `liveState` — derives the rows again with `listJobs`; a
+    runtime that does not answer leaves its jobs as their records say, marked as not reachable (UC-035 1b), and progress is
+    still computed from the repository.
   - Crosses the network. Errors, all of the product's host: `NotFound` (a private repository without a token that
     reaches it), `TokenRefused`, `RateLimited`, `Unreachable`.
 - `progressIn(facts: Facts, now: Date) -> { measure: string, planned: { grid: { entries: Array<{ requirement: string,
@@ -260,7 +258,7 @@ The six stages of the main page, each a share between 0 and 1:
 `Workflow` is MOD-product-process'; `Model` MOD-model-catalogue's; `ItemState` MOD-work-plans'; `Queue`
 MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-graph's; `JobRow` MOD-job-ledger's;
 `Participant` MOD-participant-list's; `Document` MOD-documents'; `Host`, `Snapshot`, `RepositoryInfo`, `PullRequest` and
-`CiRun` MOD-repository-hosts'; `Bridge` MOD-bridge-client's.
+`CiRun` MOD-repository-hosts'.
 
 ## Files
 
@@ -293,10 +291,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-test-document.TestDeclaration, testDeclarations, isTestFile, MOD-trace-graph.Graph, traceGraph, tracesTo — which
   tests guard which requirement, which files are test files, and the traces behind a cell of the grid.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.
-- MOD-runtimes.liveState, jobWorkflowFiles, ResourceNeed — the live state of jobs that have not ended, the paths of the
-  job workflow, and the type of a resource need.
+- MOD-runtimes.jobWorkflowFiles, ResourceNeed — the paths of the job workflow, and the type of a resource need.
 - MOD-resource-list.resourceSchema, reachableBy — the product's resources and the routes that reach them.
-- MOD-bridge-client.Bridge — the Bridges whose jobs' live states are asked.
 - MOD-participant-list.Participant, participantSchema, participantsOf — the participants and their roles.
 - MOD-documents.Document, readDocument, readRegister, artifactSchemas — the files by their schemas, the items and the
   module files among them.
