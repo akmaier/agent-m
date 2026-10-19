@@ -23,6 +23,8 @@ lacks a use, and no code is wrong.
 
 ## Not ready: a draft for akmaier
 
+The draft is `aedaf5cf`, on `main` and reviewed. The item is built once an approval record names its blob.
+
 The draft adds the use to MOD-job-ledger's `uses:` and its Uses section, with what it is used for. No code changes.
 
 ## Acceptance

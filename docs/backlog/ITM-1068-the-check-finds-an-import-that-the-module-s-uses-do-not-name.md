@@ -8,6 +8,12 @@ modules:
   - MOD-trace-graph
 builds_on:
   - ITM-1016
+  - ITM-1112
+  - ITM-1113
+  - ITM-1114
+  - ITM-1115
+  - ITM-1116
+  - ITM-1141
 tests:
   - component
 origin:
@@ -51,3 +57,11 @@ g's read-only probe found the imports that their module's uses do not name, on t
 - **Already named on `main`:** MOD-work-plans' `isTestFile` and `testDeclarations`, which `3baeb13a` added. The probe read the
   sprint branch's older text.
 - **Not found:** the item's own example, `home.mjs:24` → MOD-notifications. It is read again when the check is built.
+
+**Draft `cc802cf0` for akmaier (po-opus-b, 2026-10-19).** `graphFindings` gains the import as an error. Once it is
+accepted, the item builds it, with these additions to its acceptance:
+- A test over this repository's own files fails a pull request that adds an import its module's uses do not name, as
+  `tests/test_coverage_report.py` does for `EVERY CODE FILE BELONGS TO A MODULE`.
+- Both `graphFindings` and `moduleRows` decide it by one function.
+- It builds on ITM-1112 to ITM-1116 and ITM-1141, so that main holds none before the error exists.
+
