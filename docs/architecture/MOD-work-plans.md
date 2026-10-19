@@ -176,11 +176,13 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
   no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
   and, as a warning, an item that restates an existing one.
-- `sprintFacts(sprint: Document, facts: { states: ItemState[], jobs: JobRow[], results: Snapshot, pullRequests:
-  PullRequest[], issues: Issue[] }) -> { increment: Array<{ item: string, pullRequest: string, realises: string[],
+- `sprintFacts(sprint: Document, facts: { items: Document[], tests: Array<{ id: string, guards: string[] }>, states:
+  ItemState[], jobs: JobRow[], results: Snapshot, pullRequests: PullRequest[], issues: Issue[] }) -> { increment: Array<{ item: string, pullRequest: string, realises: string[],
   tests: string[] }>, notDone: ItemState[], numbers: { failedJobs: number, retriedJobs: number, correctionRounds: number,
   waitingAtGates: string, waitingForAPerson: string, flakyTests: string[], cost: string } }` — the sprint's increment,
-  what is not done and why, and the numbers of the sprint, each derived; `results` is the branch `test-results`; a cost
+  what is not done and why, and the numbers of the sprint, each derived; `items` are the backlog items or plan steps, from
+  which an item's `realises` come, and `tests` the tests of the product with the requirements each guards, so that an
+  item's tests are those that guard a requirement it realises; `results` is the branch `test-results`; a cost
   only where a job's row has one (`NO COST IS GUESSED`).
 - `sprintsToClose(sprints: Document[], states: ItemState[], today: string) -> Array<{ sprint: string, closer: string,
   because: "time box ended" | "every selected item done" | "ended by the Product Owner" }>` — every sprint whose record

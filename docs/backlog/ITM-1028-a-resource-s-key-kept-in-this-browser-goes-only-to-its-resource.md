@@ -43,3 +43,10 @@ MOD-browser-store.md:75-75:
 - Counter-proof: a key sent to another origin fails the test.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only the folders of the named modules and their tests change.
+
+**Read at sprint team1/93 (developer-sonnet-a): met.** Existing tests cover its Acceptance:
+- TST-1073004: the key stored as a secret of this browser;
+- TST-996003 (`src/reuse-facts/index.mjs:365-372`): a Hub key only in `Authorization` to the Hub's origin;
+- TST-1073002 and 003: the key nowhere else on the page.
+The one request that broke the rule, the key sent to a Bridge, is ITM-1074.
+
