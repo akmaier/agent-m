@@ -68,7 +68,7 @@ const COVERED_BY_RELEASE = {
   "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT": [GRAPH, "tests/review-core.test.mjs"],
   "NO SECRET IN THE REPOSITORY": [GRAPH, "tests/prompt-bar-record.test.mjs"],
   "NO SERVER": [GRAPH, "tests/test_no_backend.py"],
-  "ONE DEFINITION, THREE DRIVERS": [GRAPH, "tests/runtimes-tab-endpoint-tools.test.mjs"],
+  "ONE DEFINITION, THREE DRIVERS": [GRAPH, "tests/runtimes-tab-endpoint-tools.test.mjs", "tests/test_single_definition.py"],
   "A GENERATED ARTIFACT IS A PROPOSAL": [GRAPH, "tests/review-core.test.mjs"],
   "THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK": [GRAPH, "tests/review-core.test.mjs", "tests/prompt-bar-hand-over.test.mjs"],
   "A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET": [GRAPH, RELEASE],
@@ -80,7 +80,7 @@ const COVERED_BY_RELEASE = {
   "AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING": ["tests/test_job_reading.py"],
   "A CANCELLED JOB WRITES NOTHING MORE": [GRAPH, "tests/prompt-bar-hand-over.test.mjs"],
   "NO COST IS GUESSED": [GRAPH, RELEASE],
-  "AN UNSUPPORTED ENDPOINT SAYS SO": [GRAPH],
+  "AN UNSUPPORTED ENDPOINT SAYS SO": [GRAPH, "tests/test_endpoint_diagnosis.py"],
   "EVERY STEP EXPLAINS ITSELF": [GRAPH, "tests/site-frame.test.mjs", "tests/settings-pages-add-product.test.mjs", "tests/settings-pages-setup.test.mjs"],
 };
 const REVIEW_ONLY = ["CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI", "ONE CLICK PER DECISION"];
@@ -90,16 +90,12 @@ const MISSING_CHECKS = {
   "tests/test_job_record.py": ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"],
   // ITM-1131
   "tests/test_no_secret_written.py": ["NO SECRET IN THE REPOSITORY"],
-  // ITM-1133
-  "tests/test_single_definition.py": ["ONE DEFINITION, THREE DRIVERS"],
   // ITM-1134
   "tests/test_runtime_levels.py": ["A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET", "A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET"],
   // ITM-1135
   "tests/test_job_cancel.py": ["A CANCELLED JOB WRITES NOTHING MORE"],
   // ITM-1136
   "tests/test_job_cost.py": ["NO COST IS GUESSED"],
-  // ITM-1137
-  "tests/test_endpoint_diagnosis.py": ["AN UNSUPPORTED ENDPOINT SAYS SO"],
 };
 
 // TST-513201 · level: release · module: MOD-prompt-bar · MOD-site-frame
@@ -148,8 +144,8 @@ test("TST-513201: UC-049 release coverage names every automatic requirement, and
 // guards: UC-049; every requirement UC-049 realises
 // given: the files the SPEC names as the checks of the requirements UC-049 realises
 // input: ask whether each exists
-// expect: every file the SPEC names exists. FINDING: seven of them do not (MISSING_CHECKS: the checks of the job record, of the secret, of the single definition, of the runtime levels, of the cancelling of a job, of its cost and of the endpoint's diagnosis), so this case is red on main until they are written
-test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", { todo: "FINDING UC049-checks — seven files the SPEC names as checks of requirements UC-049 realises are not in the repository (MISSING_CHECKS: ITM-1132, ITM-1131, ITM-1133, ITM-1134, ITM-1135, ITM-1136, ITM-1137)" }, () => {
+// expect: every file the SPEC names exists. FINDING: five of them do not (MISSING_CHECKS: the checks of the job record, of the secret, of the runtime levels, of the cancelling of a job and of its cost), so this case is red on main until they are written
+test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", { todo: "FINDING UC049-checks — five files the SPEC names as checks of requirements UC-049 realises are not in the repository (MISSING_CHECKS: ITM-1132, ITM-1131, ITM-1134, ITM-1135, ITM-1136)" }, () => {
   const absent = Object.keys(MISSING_CHECKS).filter((file) => !existsSync(new URL(file, ROOT)));
   assert.deepEqual(absent, [], `the SPEC names these files and they do not exist`);
 });

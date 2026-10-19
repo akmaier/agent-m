@@ -19,6 +19,7 @@ import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/
 import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
+import { settingsSubject } from "./subject.mjs";
 
 // The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");
@@ -26,6 +27,9 @@ const PAGE = Symbol("the Settings page's own context");
 // The tab each Settings page shows, by the page's own context: a render the page asks for itself keeps the tab the person
 // chose; Settings opened anew, with a context of its own, shows its first tab.
 const chosenTabs = new WeakMap();
+
+// The element each Settings page is drawn in, by the context the frame gave it: its text is what the subject carries besides the settings' states.
+const drawnOn = new WeakMap();
 
 // The page keeps the instance and the product it was given in objects of its own, so that connecting their hosts again changes nothing its caller holds.
 const pageContext = (given) => ({ ...given, instance: given.instance && { ...given.instance }, product: given.product && { ...given.product } });
@@ -1228,7 +1232,9 @@ export const route = {
   name: "settings",
   entry: "settings",
   title: "Settings",
+  subject: (params, context) => settingsSubject(context, () => drawnOn.get(context)?.textContent ?? ""),
   async render(target, given) {
+    drawnOn.set(given, target);
     // A line that renders the page again hands back the context of its tab; the page keeps its own.
     const context = given[PAGE] ?? pageContext(given);
     // UC-042 steps 2 and 3, UC-011 step 1, UC-044 step 4: the forms that set up a model endpoint or the Bridge open in
