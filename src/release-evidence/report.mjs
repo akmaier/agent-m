@@ -373,14 +373,10 @@ export async function acceptAndRelease(host, report, decision, person, today) {
   const existingTag = (await host.listTags(tag)).find((t) => t.name === tag);
   if (existingTag) throw new ReleaseEvidenceError("TagExists", { commit: existingTag.commit }, `${tag} already stands, on ${existingTag.commit}.`);
 
-  // Gap, noted rather than designed around: approval-record.schema.md's own prose reads "limitation ... zero or more
-  // lines <TST or rate> — <reason>, one per line", but MOD-documents' "lines" shape (src/documents/read-write.mjs,
-  // typed/writeDocument) joins a list field's several items onto its one line, comma separated, and refuses an item
-  // that itself holds a comma — not a file this item changes. A reason is therefore recorded without a comma.
   const approvalPath = `docs/approvals/release-v${version}-${blob.slice(0, 12)}.md`;
   const approvalText = writeDocument(approvalSchema, {
     fields: { kind: "release-report", file: report.path, blob,
-      limitation: ids.map((id) => `${id} — ${limitations[id]}`) },
+      ...(ids.length ? { limitation: ids.map((id) => `${id} — ${limitations[id]}`) } : {}) },
   });
 
   // Read just before the write (not `branchSnapshot`, read earlier, for the job record): the report, the approval and

@@ -53,7 +53,7 @@ def js(expr: str):
     code = ("".join(f"import * as {n} from '{p.as_uri()}';" for n, p in named.items())
             + f"const v = await (async () => {{ {expr} }})();"
             "process.stdout.write(JSON.stringify(v === undefined ? null : v));")
-    r = subprocess.run(["node", "--input-type=module", "-e", code], capture_output=True, text=True)
+    r = subprocess.run(["node", "--input-type=module"], input=code, capture_output=True, text=True)
     if r.returncode != 0:
         raise AssertionError(r.stderr.strip()[-800:])
     return json.loads(r.stdout)

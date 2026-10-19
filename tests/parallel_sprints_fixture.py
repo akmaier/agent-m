@@ -53,7 +53,7 @@ PULL_REQUESTS = [{"number": int(row["Number"]), "title": f"Pull request {row['Nu
                   "base": row["Base"], "head": "a" * 40, "state": row["State"], "draft": False,
                   "url": f"https://github.com/alice/product/pull/{row['Number']}", "opened": "2026-10-01T08:00:00Z",
                   "merged": row["Merged"] or None, "closed": row["Merged"] or None} for row in DATA["## Pull requests"]]
-SELECTIONS = {path: re.findall(r"^  - (ITM-\d{3})$", (FIX / path).read_text(encoding="utf-8").split("\n---")[0], re.M)
+SELECTIONS = {path: re.findall(r"^  - (ITM-\d{3,})$", (FIX / path).read_text(encoding="utf-8").split("\n---")[0], re.M)
               for path in SPRINTS}
 
 
