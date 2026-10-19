@@ -73,7 +73,7 @@ async function agents(target, context) {
     }
     result.replaceChildren(failures);
   });
-  target.replaceChildren(heading, navigation(context), explain("bridge-pairing"), list, save, access, result);
+  target.replaceChildren(heading, navigation(context), explain("bridge-own-login"), list, save, access, result);
 }
 let taken = null;
 async function settings(target, context) {
@@ -96,7 +96,7 @@ async function settings(target, context) {
     }
   });
   if (taken) result.textContent = `Taken over: ${taken.products.length} product address(es), jump host ${taken.jumpHost.hostname}, ${taken.tunnels.length} tunnel plan(s).`;
-  target.replaceChildren(Object.assign(document.createElement("h1"), { textContent: "Bridge settings" }), navigation(context), explain("bridge-pairing"), name.caption, port.caption, products.caption, every.caption, save, exportText.caption, passphrase.caption, bridge.caption, own.caption, imported, result);
+  target.replaceChildren(Object.assign(document.createElement("h1"), { textContent: "Bridge settings" }), navigation(context), explain("bridge-import-export"), name.caption, port.caption, products.caption, every.caption, save, exportText.caption, passphrase.caption, bridge.caption, own.caption, imported, result);
 }
 async function tunnels(target, context) {
   const state = await window.bridge.state("tunnels"), heading = document.createElement("h1"), key = document.createElement("code"), list = document.createElement("ul");
@@ -104,6 +104,6 @@ async function tunnels(target, context) {
   for (const tunnel of state.tunnels) { const item = document.createElement("li"); item.textContent = `${tunnel.name}: ${tunnel.state}${tunnel.reason ? ` (${tunnel.reason})` : ""}`; list.append(item); }
   const jump = (await window.bridge.state("settings")).settings.jumpHost, instruction = document.createElement("p");
   instruction.textContent = jump ? `Add this public key to ~/.ssh/authorized_keys for ${jump.user}@${jump.hostname}, or give it to that jump host's administrator.` : "Set a jump host in a settings export to open tunnels.";
-  target.replaceChildren(heading, navigation(context), explain("bridge-pairing"), document.createTextNode("Public key: "), key, button("Copy public key", () => window.bridge.copy(state.publicKey)), instruction, list);
+  target.replaceChildren(heading, navigation(context), explain("bridge-tunnels"), document.createTextNode("Public key: "), key, button("Copy public key", () => window.bridge.copy(state.publicKey)), instruction, list);
 }
 await startPage({ page: "bridge", views: [{ strategies: [], routes: [{ name: "pairing", entry: null, title: "Pairing", render: pairing }, { name: "agents", entry: null, title: "Agents", render: agents }, { name: "settings", entry: null, title: "Settings", render: settings }, { name: "tunnels", entry: null, title: "Tunnels", render: tunnels }] }], menuViews: [] });
