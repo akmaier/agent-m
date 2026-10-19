@@ -387,6 +387,16 @@ export const route = {
       bridge: "", agent: "", reach: "bridge", through: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
     };
 
+    // A model endpoint's *use tools* is preset from its endpoint's last test (UC-017 step 3): ticked where the model called the tool it was
+    // offered, unticked where it answered in text only; an endpoint never tested, or whose test did not reach the model, changes nothing, and no other capability is touched.
+    let capabilityBoxes = [];
+    function presetTools() {
+      const tested = readSetting(context.store, `last-test:endpoint:${state.endpoint.trim()}`);
+      if (typeof tested?.tools !== "boolean") return;
+      state.capabilities = CAPABILITIES.filter((name) => (name === "use tools" ? tested.tools : state.capabilities.includes(name)));
+      for (const box of capabilityBoxes) box.checked = state.capabilities.includes(box.value);
+    }
+
     function setType(next, values = {}) {
       state.name = ""; state.account = ""; state.endpoint = ""; state.endpointUrl = ""; state.endpointKind = "openai-compatible";
       state.endpointModel = ""; state.endpointKey = ""; state.inlineEndpoint = false; state.model = ""; state.context = "";
@@ -396,6 +406,7 @@ export const route = {
       if (next === "model endpoint") {
         state.endpoint = firstEndpoint(context.store);
         state.inlineEndpoint = state.endpoint === "";
+        presetTools();
       }
       if (BRIDGE_TYPES.has(next)) state.bridge = bridgeNames(context.store)[0] ?? "";
       if (next === "CI agent") state.place = "GitHub hosted runner";
@@ -460,7 +471,12 @@ export const route = {
     function selectInput(className, key, values) {
       const input = el("select", className, ...values.map((value) => option(value)));
       input.value = state[key];
-      input.addEventListener("change", () => { state[key] = input.value; buildForm(); routePreview.textContent = routeOf(type.value, state); });
+      input.addEventListener("change", () => {
+        state[key] = input.value;
+        if (key === "endpoint") presetTools();
+        buildForm();
+        routePreview.textContent = routeOf(type.value, state);
+      });
       return input;
     }
 
@@ -478,6 +494,7 @@ export const route = {
         });
         return box;
       });
+      capabilityBoxes = inputs;
       return el("fieldset", "participant-capabilities", el("legend", null, "Capabilities"),
         ...inputs.map((box) => el("p", null, el("label", null, box, " ", box.value))), explain("capabilities-and-place"));
     }
@@ -520,6 +537,8 @@ export const route = {
           try {
             const checked = await testEndpoint(endpointConfig(state));
             recordTest(context.store, endpoint.key, checked);
+            presetTools();
+            buildForm();
             testResult.textContent = endpointTestResultText(checked);
           } catch (error) {
             testResult.textContent = `The endpoint could not be tested: ${error?.message ?? error}.`;

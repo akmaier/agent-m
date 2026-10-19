@@ -495,8 +495,8 @@ test("TST-512007: through a Bridge, text only shows the endpoint's message folde
 // guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: a constructed text-only answer
 // input: the author tests the endpoint "campus" on the endpoints Route
-// expect: the last test kept beside the endpoint is exactly { at, outcome: "working" } with at an ISO date and no other field (the stored format of last-test is unchanged)
-test("TST-512008: showing the answer about tools leaves the stored last test as { at, outcome }", async () => {
+// expect: the last test kept beside the endpoint is exactly { at, outcome: "working", tools: false } with at an ISO date and no other field (MOD-browser-store: `last-test:<key>` is { at, outcome, tools? })
+test("TST-512008: showing the answer about tools keeps the stored last test as { at, outcome, tools }", async () => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = scripted([{ status: 200, body: textAnswer("plain") }], []);
   try {
@@ -505,7 +505,8 @@ test("TST-512008: showing the answer about tools leaves the stored last test as 
     type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
     await click(byClass(target, "endpoint-test")[0]);
     const recorded = readSetting(store, "last-test:endpoint:campus");
-    assert.deepEqual(Object.keys(recorded).sort(), ["at", "outcome"]);
+    assert.deepEqual(Object.keys(recorded).sort(), ["at", "outcome", "tools"]);
+    assert.equal(recorded.tools, false);
     assert.equal(recorded.outcome, "working");
   } finally { globalThis.fetch = oldFetch; }
 });
@@ -618,4 +619,35 @@ test("TST-269011: the Settings line's Test of a named-Bridge endpoint still goes
     await click(byClass(target, "settings-endpoint-test")[0]);
     assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4711/v1/probes/endpoint-test"]);
   } finally { globalThis.fetch = oldFetch; }
+});
+
+// ---------------------------------------------------------------- the last test keeps whether the model called the tool (ITM-998)
+
+async function storeAfterTest(answer) {
+  const store = freshStore(), oldFetch = globalThis.fetch;
+  globalThis.fetch = scripted([answer], []);
+  try {
+    const target = await render(store);
+    type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
+    type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
+    await click(byClass(target, "endpoint-test")[0]);
+    return store;
+  } finally { globalThis.fetch = oldFetch; }
+}
+
+// TST-998001 · level: unit · module: MOD-settings-pages
+// guards: UC-003 (step 5); UC-017 (step 3)
+// given: an endpoint tested directly three times: the model calls the probe tool; it answers in text only; the key is refused (401)
+// input: the author fills the endpoints Route and presses Save and test
+// expect: last-test:endpoint:campus holds tools true for the first, tools false for the second, and no `tools` key for the refused test (the test did not reach the model); each keeps its outcome as before
+test("TST-998001: the last test of an endpoint keeps whether the model called the tool, and nothing where the test did not reach it", async () => {
+  const called = readSetting(await storeAfterTest({ status: 200, body: CALLED }), "last-test:endpoint:campus");
+  assert.equal(called.outcome, "working");
+  assert.equal(called.tools, true);
+  const text = readSetting(await storeAfterTest({ status: 200, body: textAnswer("I cannot call tools.") }), "last-test:endpoint:campus");
+  assert.equal(text.outcome, "working");
+  assert.equal(text.tools, false);
+  const refused = readSetting(await storeAfterTest({ status: 401, body: { error: { message: "Invalid API key." } } }), "last-test:endpoint:campus");
+  assert.equal(refused.outcome, "refused");
+  assert.equal(Object.hasOwn(refused, "tools"), false);
 });
