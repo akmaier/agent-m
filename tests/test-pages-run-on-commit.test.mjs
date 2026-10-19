@@ -16,14 +16,16 @@
 //     `eligible` admits for the capabilities of the kind `run-tests`, and <input class="person"> for the person's name (no identity setting exists). Once a participant and a name are chosen the run panel
 //     (MOD-site-frame's runPanel) is drawn, with <p class="where"> (the route the job is queued on), <p class="paid-services"> and <p class="secrets-used"> (the names MOD-test-schedule's secretsNeeded gives).
 //   - Participants on the tab's route (a model endpoint) run no code and are not offered a route here; the first other available route of a participant is the one used, as the review pages use it.
-//   - A job is queued with parameters { commit, levels, occasion: "on demand" } where levels are the checked ones; progress is shown by <button class="check-progress"> "Check progress", which reads the job's record and asks
-//     MOD-runtimes' liveState; <p class="progress"> says "queued" for a job no runtime has taken and "running" for one whose run the server lists as running. No timer runs.
+//   - A job is queued with parameters { commit, levels, occasion: "on-demand" } where levels are the checked ones. Its progress shows without a click (UC-028 6, 7): <p class="progress"> says "queued" for a job no runtime has
+//     taken and "running" for one whose run the server lists as running, read again with setTimeout every 5000 ms (one timer waits at a time) by reading the job's record and asking MOD-runtimes' liveState; once the job has
+//     ended the page is drawn again, so that the new record shows, and no timer waits; when the progress element is no longer in the page (the route was left) the next reading is not made and no timer is set.
+//     The tests fire the timers themselves (a fake clock); nothing sleeps.
 //   - 5a: <p class="missing-capability"> names "run code and tests" and holds <a class="uc-017"> to #use-case/id=UC-017; no Run is offered. 5b (no token stored): no panel and no job; <p class="no-token"> names the commit and the
 //     levels and holds <a class="workflow-page"> to webLinks().actions, the server's page of the workflows, where the reviewer starts the run.
 // The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 const { view } = await import("../src/test-pages/index.mjs");
@@ -53,6 +55,13 @@ const textOf = (node) => node.textContent.replace(/\s+/g, " ");
 const flush = async () => { for (let n = 0; n < 60; n += 1) await new Promise((resolve) => setImmediate(resolve)); };
 const trusted = async (node) => { const event = new Event("click"); Object.defineProperty(event, "isTrusted", { value: true }); node.dispatchEvent(event); await flush(); };
 const changed = async (node) => { node.dispatchEvent(new Event("change")); await flush(); };
+// The fake clock: setTimeout and clearTimeout of this file keep the timers a page sets; a test fires them.
+const realSet = globalThis.setTimeout, realClear = globalThis.clearTimeout;
+const clock = { waiting: [] };
+globalThis.setTimeout = (run, delay) => { const timer = { run, delay }; clock.waiting.push(timer); return timer; };
+globalThis.clearTimeout = (timer) => { clock.waiting = clock.waiting.filter((held) => held !== timer); };
+const fire = async () => { const due = clock.waiting; clock.waiting = []; for (const timer of due) await timer.run(); await flush(); };
+afterEach(() => { clock.waiting = []; });
 const runButton = (root) => byTag(root, "button").find((button) => textOf(button) === "Run");
 
 // ---------------------------------------------------------------- the fixtures
@@ -92,13 +101,14 @@ function productHost(options = {}) {
   const { web = PRODUCT, written = [] } = options;
   const files = { "SPEC.md": SPEC, "tests/sample.test.mjs": TESTS, "docs/tests/schedule.md": SCHEDULE, "docs/resources.md": RESOURCES, [WORKFLOW]: "name: Agent M jobs\n" };
   const entry = { commit: COMMIT, parents: [], author: { account: null, name: "x" }, date: "2026-10-17T09:00:00Z", message: "Fix the list", changes: [] };
-  const committed = () => Object.fromEntries(written.flatMap((call) => call.files.map((file) => [file.path, options.taken ? appendToRecord(file.text, options.taken) : file.text])));
+  const queued = () => written.length > 0;
+  const committed = () => Object.fromEntries(written.flatMap((call) => call.files.map((file) => [file.path, [options.taken ?? []].flat().reduce((text, part) => appendToRecord(text, part), file.text)])));
   return {
     repositoryInfo: async () => ({ defaultBranch: "main", visibility: "private", canWrite: true, archived: false, description: "" }),
     readHistory: async () => [entry],
     listPullRequests: async () => [],
     listTags: async () => [],
-    readSnapshot: async (ref) => (ref === "test-results" ? snapshotOf("r".repeat(40), RESULTS) : snapshotOf(ref === "main" ? HEAD : ref, { ...files, ...committed() })),
+    readSnapshot: async (ref) => { if (ref === "test-results") return snapshotOf("r".repeat(40), options.results ?? RESULTS); if (queued()) options.reads = (options.reads ?? 0) + 1; return snapshotOf(ref === "main" ? HEAD : ref, { ...files, ...committed() }); },
     commitFiles: async (call) => { written.push(call); return { commit: "f".repeat(40) }; },
     listCiRuns: async () => options.runs ?? [],
     ciRunLog: async () => null,
@@ -204,23 +214,72 @@ test("run on this commit — one click on Run queues one job of the kind run-tes
 
 // TST-761005 · level: unit · module: MOD-test-pages
 // guards: UC-028 (6, 7)
-// given: the queued job; the record as committed, untaken
-// input: the person's click on Check progress; then the job taken on a CI run the server lists as running; the click again
-// expect: the first reading says the job is queued; the second says it is running
-test("run on this commit — the progress of the queued job is read from its record and the runtime", async () => {
+// given: the queued job; the record as committed, untaken; a fake clock
+// input: Run pressed; the clock fired; then the job taken on a CI run the server lists as running, the clock fired; then the job ended with a result record on test-results, the clock fired
+// expect: no button to check progress exists; one timer of 5000 ms waits after Run; the first reading says the job is queued, the second that it is running; after the end the page is drawn again, so that the level release has an outcome, and no timer waits
+test("run on this commit — the progress is read again at an interval and the page is drawn again when the job has ended", async () => {
   const written = [];
   const taken = { part: "taken", at: new Date("2026-10-18T10:05:00Z"), by: `${PRODUCT}/actions/runs/42` };
-  const options = { written, runs: [], taken: null };
+  const options = { written, runs: [], taken: null, results: RESULTS };
   const shown = await page(options);
   const form = await open(shown);
   await choose(form);
   await trusted(runButton(byClass(form, "run-panel")[0]));
-  await trusted(byClass(form, "check-progress")[0]);
+  assert.equal(byClass(form, "check-progress").length, 0, "no click is asked for");
+  assert.deepEqual(clock.waiting.map((timer) => timer.delay), [5000]);
+  await fire();
   assert.match(textOf(byClass(form, "progress")[0]), /queued/);
+  assert.equal(clock.waiting.length, 1, "it goes on while the job has not ended");
   options.taken = taken;
   options.runs = [{ id: "42", workflow: "agent-m-jobs.yml", commit: HEAD, event: "push", state: "running", url: taken.by, started: null, ended: null }];
-  await trusted(byClass(form, "check-progress")[0]);
+  await fire();
   assert.match(textOf(byClass(form, "progress")[0]), /running/);
+  options.taken = [taken, { part: "end", at: new Date("2026-10-18T10:20:00Z"), state: "done", results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: null, log: null }];
+  options.results = { ...RESULTS, [`runs/${COMMIT}/20261018-1015-on-demand-eeee.md`]: RECORD.replace("TST-902 | system | passed", "TST-902 | system | failed").replace("| TST-901 | unit | passed | |", "| TST-901 | unit | passed | |\n| TST-906 | release | passed | |") };
+  await fire();
+  assert.equal(clock.waiting.length, 0, "no timer waits after the end");
+  const summary = byClass(descendants(shown, (node) => node.getAttribute?.("data-level") === "release")[0], "summary")[0];
+  assert.match(textOf(summary), /1 passed/, "the new record shows");
+});
+
+// TST-761009 · level: unit · module: MOD-test-pages
+// guards: UC-028 (6)
+// given: the queued job, a timer waiting
+// input: the route is left (the page's target is emptied); the clock fired
+// expect: the job's record and the runtime are not read again, and no timer waits
+test("run on this commit — the reading stops when the route is left", async () => {
+  const written = [];
+  const options = { written, runs: [], taken: null, reads: 0 };
+  const shown = await page(options);
+  const form = await open(shown);
+  await choose(form);
+  await trusted(runButton(byClass(form, "run-panel")[0]));
+  assert.equal(clock.waiting.length, 1);
+  const before = options.reads;
+  shown.replaceChildren();
+  await fire();
+  assert.equal(options.reads, before, "nothing is read after the route was left");
+  assert.equal(clock.waiting.length, 0);
+});
+
+// TST-761010 · level: unit · module: MOD-test-pages
+// guards: UC-028 (6, 7)
+// given: the queued job, then ended
+// input: the clock fired for the ending reading and again twice
+// expect: after the ending reading no timer waits and the further firings read nothing
+test("run on this commit — the reading stops when the job has ended", async () => {
+  const end = { part: "end", at: new Date("2026-10-18T10:20:00Z"), state: "failed", results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: "tests red", log: null };
+  const options = { written: [], runs: [], taken: end, reads: 0 };
+  const shown = await page(options);
+  const form = await open(shown);
+  await choose(form);
+  await trusted(runButton(byClass(form, "run-panel")[0]));
+  await fire();
+  assert.equal(clock.waiting.length, 0, "the ended job sets no further timer");
+  const before = options.reads;
+  await fire();
+  await fire();
+  assert.equal(options.reads, before);
 });
 
 // TST-761006 · level: unit · module: MOD-test-pages
