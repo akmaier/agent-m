@@ -43,6 +43,7 @@ provides:
   - instanceOf
   - chosenProduct
   - productHostFollowingStore
+  - tokenKeyOf
   - explain
   - runPanel
   - confirmDecision
@@ -141,7 +142,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
   "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
-  token, so that a view hands `readProblem` the fact without reading the store's keys itself.
+  token, so that a view hands `readProblem` the fact without reading the store's keys itself. `go` writes the chosen
+  product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the
+  address then holds none.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
   `menuOf` gives them, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
@@ -185,6 +188,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   holds at that call — the connection `chosenProduct` makes —, so that a token cleared or replaced since is not used and a
   commit that holds a stored secret is refused (`A CLEAR IS A REAL CLEAR`, `NO SECRET IN THE REPOSITORY`). One host for
   each product, however often it is asked for. Errors: the `TypeError` of MOD-repository-hosts' `parseAddress` for an entry that is no repository address.
+- `tokenKeyOf(address: RepositoryAddress) -> string` — the key a product's own token is kept under in the browser's store: `github-token:<owner>/<repository>` for a GitHub product,
+  `gitlab-token:<server>/<project>` for a GitLab product (MOD-browser-store, Data). It reads nothing and is the one place that rule stands, for the frame and for the pages that
+  read a product's token setting, such as the name it is stored under.
 - `explain(topic: string, label?: string) -> Element` — the folded *What is this?* of a topic, or the fold under the
   label a use case names for it (such as *Why these?*), from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a

@@ -29,7 +29,7 @@ ended or the WIP limit is reached. Agent M names the reason and starts nothing (
 
 The draft for this item is accepted (`1c30ad0b` and the acceptances before it); quoted from `main` at 40e04d8d:
 
-MOD-main-page.md:119-121:
+MOD-main-page.md:122-124:
 
 > (`revertAfterCancel`); *Retry* for a failed, cancelled or ended job whose step or item is still startable
 >     (MOD-work-plans' `startable` — otherwise the reasons are shown and nothing is queued, UC-036 7a), as a new job, with the same participant or another holder of its role on a route offered for it; for a job waiting
