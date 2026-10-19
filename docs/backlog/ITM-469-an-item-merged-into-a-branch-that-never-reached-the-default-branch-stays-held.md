@@ -48,3 +48,10 @@ tells it from the pull requests; until then it does not start.
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/work-plans/` and the tests that name MOD-work-plans change.
+
+**Read at sprint team1/93 (developer-sonnet-e): built.** `heldItems` in `src/work-plans/sprints.mjs:67-95` (`reaches`,
+`reachesDefaultBranch`, `inDefaultBranch`, `onDefault`), from the work of ITM-516 and ITM-1010 (`72287ffb`, `ad16310b`), meets
+MOD-work-plans.md:156-157. `tests/work-plans-sprints.test.mjs:165` runs this item's own case: ITM-292 merged by #280 into
+`sprint/19` stays held, is released once `sprint/19` reaches `main`, and is not held when merged straight into `main`. It
+passes unchanged. A default branch of another name is handled through `onDefault`, as the text says. It is done.
+
