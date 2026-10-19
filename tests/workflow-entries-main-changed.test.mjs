@@ -201,12 +201,12 @@ const moduleText = (id, provides, uses = []) => ["---", `id: ${id}`, `title: ${i
   "uses:", ...uses.map((name) => `  - ${name}`), "provides:", ...provides.map((name) => `  - ${name}`), "---", `# ${id}`, ""].join("\n");
 const DOER = "docs/architecture/MOD-doer.md", STEADY = "docs/architecture/MOD-steady.md", FRESH = "docs/architecture/MOD-fresh.md", USER = "docs/architecture/MOD-user.md";
 const DOER_V1 = moduleText("MOD-doer", ["doIt", "gone"]), DOER_V2 = moduleText("MOD-doer", ["doIt"]);
-const STEADY_TEXT = moduleText("MOD-steady", ["steady"]);
+const STEADY_TEXT = moduleText("MOD-steady", ["steady"]), USER_TEXT = moduleText("MOD-user", ["use"], ["MOD-doer.gone"]);
 async function impactCommits() {
   const record = async (path, text) => [`docs/approvals/${path.split("/").pop().slice(0, -3)}-${(await blobSha(text)).slice(0, 12)}.md`, `kind: module\nfile: ${path}\nblob: ${await blobSha(text)}\n`];
   return [
-    { message: "the instance", files: { ...FILES, [DOER]: DOER_V1, [STEADY]: STEADY_TEXT, [USER]: moduleText("MOD-user", ["use"], ["MOD-doer.gone"]) } },
-    { message: "accept MOD-doer and MOD-steady", files: Object.fromEntries([await record(DOER, DOER_V1), await record(STEADY, STEADY_TEXT)]) },
+    { message: "the instance", files: { ...FILES, [DOER]: DOER_V1, [STEADY]: STEADY_TEXT, [USER]: USER_TEXT } },
+    { message: "accept MOD-doer, MOD-steady and MOD-user", files: Object.fromEntries([await record(DOER, DOER_V1), await record(STEADY, STEADY_TEXT), await record(USER, USER_TEXT)]) },
     { message: "change MOD-doer, add MOD-fresh", files: { [DOER]: DOER_V2, [FRESH]: moduleText("MOD-fresh", ["fresh"]) } },
   ];
 }
