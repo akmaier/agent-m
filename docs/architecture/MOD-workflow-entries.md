@@ -202,7 +202,8 @@ for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChange
   - It adds the commit's graph and the impact lists of its decision and module files that are not accepted
     (MOD-trace-graph's `publishGraph`). Each such file comes with the text it was last accepted at and that text's commit:
     MOD-approvals' `statuses` names the files, and `lastAcceptedText` gives each one's text, read once per file here.
-  - It adds the commit's overview of the main page (MOD-progress-measures' `publishOverview`).
+  - It adds the commit's overview of the main page and the facts its files alone give (MOD-progress-measures'
+    `publishOverview`).
   - A file the branches already hold for that commit is left as it is: `nothing to do`. A failure of one leaves the other
     written and ends the entry `failed`, naming it. The pages then derive what is missing as before, so nothing is
     wrong, only slower.

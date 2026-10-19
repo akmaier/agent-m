@@ -283,7 +283,9 @@ and `docs/participants.md` of the instance.
 - MOD-trace-graph.traceGraph, MOD-trace-graph.graphFindings, MOD-trace-graph.coverageGaps,
   MOD-trace-graph.requirementImpact, MOD-trace-graph.architectureImpact — the marks across artifacts, the requirements
   no use case realises, and the impact lists; MOD-trace-graph.storedImpacts and MOD-repository-hosts.readFileAt — the
-  impact lists stored for the commit, and the last accepted texts they name.
+  impact lists stored for the commit, and the last accepted texts they name. A graph of a commit's own files is asked
+  for with that commit, so that the graph `onMainChanged` stored for it is read where there is one
+  (MOD-workflow-entries); a graph over an edited text is built from the files.
 - MOD-approvals.statuses, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses and acceptance; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.
