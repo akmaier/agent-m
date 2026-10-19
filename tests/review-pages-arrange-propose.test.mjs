@@ -236,3 +236,52 @@ test("arrange — without a token Propose groups offers no run", async () => {
   assert.match(byClass(target, "section", "arrange-propose")[0].textContent, /token/);
   assert.deepEqual(requests, []);
 });
+
+// TST-072705 · level: unit · module: MOD-review-pages
+// guards: UC-021 (1b); ONE CLICK PER DECISION
+// given: the same page and no participant chosen
+// input: Propose groups pressed
+// expect: counter-proof — "Choose the participant that drafts." is said, no run panel is shown, and nothing is sent
+test("arrange — Propose groups without a chosen participant says so and shows no run panel", async () => {
+  endpointAnswers();
+  const target = await show(fakeProduct());
+  click(byClass(target, "button", "arrange-propose-run")[0]);
+  await until(() => byClass(target, "p", "problem").length === 1, "the problem");
+  assert.match(byClass(target, "p", "problem")[0].textContent, /Choose the participant that drafts\./);
+  assert.equal(byClass(target, "section", "run-panel").length, 0);
+  assert.deepEqual(requests, []);
+});
+
+// TST-072706 · level: unit · module: MOD-review-pages
+// guards: UC-021 (1b, 3, 2a); AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// given: the same page and a participant whose answer holds a good move (UC-004 into the existing group Review) and one the tree refuses (UC-002 into a group that does not exist)
+// input: Run
+// expect: the good move is a pending change; the refused one is listed among the refused moves with its reason and is no pending change; the group file is unchanged
+test("arrange — a proposed move the tree refuses is listed with its reason and is no pending change", async () => {
+  endpointAnswers([{ op: "move", item: "UC-004", to: ["Review"] }, { op: "move", item: "UC-002", to: ["Nowhere"] }]);
+  const fake = fakeProduct();
+  const target = await show(fake);
+  const panel = await panelFor(target);
+  click(runButtons(panel)[0]);
+  await until(() => byClass(target, "li", "arrange-refused-item").length === 1, "the refused move");
+  assert.deepEqual(pending(target), ["Move UC-004 to “Review”"]);
+  assert.match(byClass(target, "li", "arrange-refused-item")[0].textContent, /Move UC-002 to “Nowhere”: /);
+  assert.equal(fake.files()[GROUPS_PATH], PRODUCT[GROUPS_PATH]);
+});
+
+// TST-072707 · level: unit · module: MOD-review-pages
+// guards: UC-021 (1b, 2); ONE CLICK PER DECISION
+// given: the same page where the author has already added the group "Mine" by hand
+// input: Propose groups and Run, with a participant whose answer is one move (UC-004 into Review)
+// expect: the proposal is added to what the author did: two pending changes, the author's first, and nothing the author did is lost
+test("arrange — a proposal comes on top of the changes the author already made", async () => {
+  endpointAnswers([{ op: "move", item: "UC-004", to: ["Review"] }]);
+  const target = await show(fakeProduct());
+  byClass(target, "input", "arrange-group-title")[0].value = "Mine";
+  click(byClass(target, "button", "arrange-new-group")[0]);
+  assert.deepEqual(pending(target), ["Add the group “Mine”"], "known positive: the author's change stands");
+  const panel = await panelFor(target);
+  click(runButtons(panel)[0]);
+  await until(() => pending(target).length === 2, "the proposal");
+  assert.deepEqual(pending(target), ["Add the group “Mine”", "Move UC-004 to “Review”"]);
+});
