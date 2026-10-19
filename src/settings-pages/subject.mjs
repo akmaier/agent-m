@@ -5,23 +5,28 @@
 
 import { listSettings, readSetting } from "../browser-store/index.mjs";
 
-// The line a setting is named by: the secret a family keeps, for the settings whose label does not say it.
-function nameOf(info) {
-  if (info.key === "mailbox") return "Mailbox (its password or sign-in)";
-  if (info.key.startsWith("endpoint:")) return `Endpoint key: ${info.key.slice("endpoint:".length)}`;
-  return info.label;
+// The mailbox is one setting that stores what its route stores: the IMAP route its password, the Microsoft route its sign-in, which is stored once the connection has an
+// account recorded (Store and test records it after the sign-in); with no mailbox, nothing. -> { name, stored } for the mailbox's line.
+function mailboxLine(store) {
+  const kept = readSetting(store, "mailbox");
+  if (kept === null || kept === undefined) return { name: "Mailbox", stored: false };
+  if (kept.route === "graph") return { name: "Mailbox sign-in", stored: typeof kept.graph?.account === "string" && kept.graph.account !== "" };
+  return { name: "Mailbox password", stored: typeof kept.imap?.password === "string" && kept.imap.password !== "" };
 }
 
-// Whether a setting is stored: the key holds a value; an endpoint without a key is stored but its key is not.
-function isStored(info, store) {
-  const kept = readSetting(store, info.key);
-  if (kept === null || kept === undefined) return false;
-  if (info.key.startsWith("endpoint:")) return typeof kept?.key === "string" && kept.key !== "";
-  return true;
+// One setting's line: its name and whether it is stored. An endpoint is named by its key, and is stored when it holds one.
+function lineOf(info, store) {
+  if (info.key === "mailbox") return mailboxLine(store);
+  if (info.key.startsWith("endpoint:")) {
+    const kept = readSetting(store, info.key);
+    return { name: `Endpoint key: ${info.key.slice("endpoint:".length)}`, stored: typeof kept?.key === "string" && kept.key !== "" };
+  }
+  return { name: info.label, stored: readSetting(store, info.key) !== null };
 }
 
 // Settings that are records of the browser, not settings a person sets: they are not named.
-const RECORDS = ["notified", "browser"];
+// The mailbox's sign-in has no key of its own: the mailbox's line says it.
+const RECORDS = ["notified", "browser", "mailbox-sign-in"];
 const named = (info) => info.label !== undefined && !RECORDS.includes(info.key) && !/^(last-test|acknowledged):/.test(info.key);
 
 /**
@@ -36,7 +41,7 @@ export function settingsSubject(context, drawn = () => "") {
     kind: "converse",
     entry: "settings",
     paramsFor: () => ({
-      page: ["Settings", "Settings", address, drawn(), ...listSettings(context.store).filter(named).map((info) => `${nameOf(info)}: ${isStored(info, context.store) ? "stored" : "not set"}`)].join("\n"),
+      page: ["Settings", "Settings", address, drawn(), ...listSettings(context.store).filter(named).map((info) => lineOf(info, context.store)).map(({ name, stored }) => `${name}: ${stored ? "stored" : "not set"}`)].join("\n"),
     }),
     draftRoute: null,
     withhold: null,
