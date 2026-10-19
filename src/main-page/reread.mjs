@@ -76,7 +76,7 @@ export function readAgain({ target, cards, nodes, held, store }) {
       const { source, facts, shares, current, model } = card.entry;
       try {
         const jobs = await jobsAgain(card.entry, store);
-        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress({ ...facts, jobs }) });
+        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress({ ...facts, jobs }), own: source.own === true });
         problems.delete(at);
         card.due = now + EVERY;
       } catch (failure) {

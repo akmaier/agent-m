@@ -5,7 +5,7 @@
 // Run: node --test tests/main-page-home.test.mjs
 //
 // Module: MOD-main-page
-// Guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; THE BUILD IS SHOWN AS IT HAPPENS; WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046
+// Guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; THE BUILD IS SHOWN AS IT HAPPENS; WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046; THE MENU FOLLOWS THE PROCESS; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
 // Each test states its input and its expected values in its own text (given / input / expect); no expected value is read from a document. The real MOD-progress-measures, MOD-job-ledger,
@@ -22,7 +22,7 @@
 //   - A link is a <button type="button"> that calls the ViewContext's go(route, params): "Open" at the end of an item that waits (.wait-link), "+ Add product" (.add-product, only beside Agent M's
 //     own card) and "Open the token's setting" (.token-setting, in a card that could not be read). The routes are use-case, spec-entry, job (a failed job, or a gate waiting at a job's record),
 //     process (a gate waiting at the declaration), add-product and settings; an item of a product also hands `product: <its address>`. No address is written by the page.
-//   - The page draws no greeting, no explanation and no link from a stage (ITM-829), and no *Get your own Agent M* (ITM-655).
+//   - The page draws a greeting with its folded explanation and a link from each stage (ITM-829; TST-829001, TST-829002), and no *Get your own Agent M* (ITM-655).
 //   - While the page is open it reads the jobs' states again once a minute (MOD-main-page, Data: "at an interval the repository servers' rate limits allow"): the timer is a setTimeout of 60,000 milliseconds,
 //     set when the cards are drawn and again after each reading, and a test fires it itself at a clock it names. A reading is made for each card that was read and whose repository this browser keeps a token
 //     for (without one the network's limit is 60 requests an hour, which readings once a minute would use up): the default branch's snapshot — its commit and its tree, two requests — and the rows listJobs
@@ -40,7 +40,7 @@ import { productCard } from "../src/main-page/cards.mjs";
 import { chosenProduct } from "../src/site-frame/index.mjs";
 import {
   INSTANCE, OTHER, PRODUCT, INSTANCE_TOKEN, INSTANCE_URL, MISSING_URL, OTHER_TOKEN, OTHER_URL, PRODUCT_TOKEN, PRODUCT_URL, RATE_RESET,
-  browser, buildOf, byClass, cardsOf, click, countReads, currentOf, draw, endedJob, failedJob, instanceFiles, network, productFiles, runningJob, smallProduct, stagesOf, timers, visibility, waitsOf, withEnd,
+  browser, buildOf, byClass, cardsOf, click, countReads, currentOf, draw, endedJob, failedJob, find, instanceFiles, network, productFiles, runningJob, smallProduct, stagesOf, timers, visibility, waitsOf, withEnd,
 } from "./main-page-home-harness.mjs";
 
 const home = view.routes.find((candidate) => candidate.name === "home");
@@ -765,4 +765,47 @@ test("TST-856004 the route home reads the product's token key no oftener than th
     net.restore();
     timers.restore();
   }
+});
+
+// TST-829001 · level: unit · module: MOD-main-page
+// guards: UC-046; EVERY STEP EXPLAINS ITSELF
+// given: this browser keeps the product alice/product
+// input: the route home drawn
+// expect: the first child of the page is the greeting: a heading "Welcome to Agent M", a sentence naming "requirements-driven software engineering with people and agents", a paragraph on what to do first (the requirements and the use cases, then a product), and a link "Review the use cases" whose address is "docs/index.html#use-cases"; and a folded "What is this?"; the cards come after it
+test("TST-829001 the page opens with a greeting: Agent M's name, what it is, what to do first, Review the use cases, and its folded explanation", async () => {
+  net = network({ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() });
+  net.install();
+  const target = await draw(home, browser());
+  const [greeting] = byClass(target, "greeting");
+  assert.ok(greeting, "the greeting is drawn");
+  assert.equal(target.children[0], greeting, "the greeting comes before the cards");
+  assert.equal(find(greeting, (node) => node.localName === "h1")[0].textContent, "Welcome to Agent M");
+  assert.match(byClass(greeting, "lead")[0].textContent, /requirements-driven software engineering with people and agents/);
+  assert.match(byClass(greeting, "first")[0].textContent, /requirements and the use cases.*add the repository of a product/);
+  const [review] = find(greeting, (node) => node.localName === "a" && node.textContent === "Review the use cases");
+  assert.equal(review.getAttribute("href"), "docs/index.html#use-cases");
+  const [folded] = find(greeting, (node) => node.localName === "details");
+  assert.equal(folded.getAttribute("open"), null, "the explanation is folded");
+  assert.equal(find(folded, (node) => node.localName === "summary")[0].textContent, "What is this?");
+});
+
+// TST-829002 · level: unit · module: MOD-main-page
+// guards: UC-046; THE MENU FOLLOWS THE PROCESS
+// given: this browser keeps the product alice/product; and, in a second browser, no product, so that Agent M's own card is drawn
+// input: the route home drawn in each
+// expect: each of the six stages of a card is a link, in this order of stage and menu entry — Requirements to Requirements, Use cases to Use cases, Architecture to Architecture, Implementation to Implementation, Tests to Tests, Release to Releases — whose address is "docs/index.html#<entry>", followed for the product's card by "/product=" and the percent-encoded address "https%3A%2F%2Fgithub.com%2Falice%2Fproduct"; Agent M's own card has the same addresses without "/product="
+test("TST-829002 each stage of a card links to the menu entry of the same place in the process, for the card's product", async () => {
+  const entries = ["requirements", "use-cases", "architecture", "implementation", "tests", "releases"];
+  const stages = ["Requirements", "Use cases", "Architecture", "Implementation", "Tests", "Release"];
+  const linksOf = (card) => byClass(card, "stage").map((stage) => [stage.getAttribute("data-stage"), byClass(stage, "stage-link")[0]?.getAttribute("href")]);
+  net = network({ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() });
+  net.install();
+  const product = cardsOf(await draw(home, browser()))[0];
+  assert.deepEqual(linksOf(product), stages.map((stage, at) => [stage, `docs/index.html#${entries[at]}/product=https%3A%2F%2Fgithub.com%2Falice%2Fproduct`]));
+
+  net.restore();
+  net = network({ [INSTANCE]: instanceFiles() });
+  net.install();
+  const own = cardsOf(await draw(home, browser({ products: [], tokens: {} })))[0];
+  assert.deepEqual(linksOf(own), stages.map((stage, at) => [stage, `docs/index.html#${entries[at]}`]));
 });

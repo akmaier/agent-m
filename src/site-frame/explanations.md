@@ -933,3 +933,9 @@ The most the run may cost. It is counted only from costs the runtimes report: a 
 ## run-correction-rounds
 
 How many times a draft may go back to its participant to be corrected before it is shown to you with what is left. It is preset to 5 per draft, and it applies to every job of the run that drafts. When the limit is reached the run starts no further job, lets the running ones finish, and says that the rounds stopped it.
+
+## main-page
+
+This page shows where each product of this instance stands on its way through the process: one bar of six stages, each filled by the share of its work that is accepted or done, and each stage a link to the page where that stage's work is reviewed and done. While this browser manages no product, it shows Agent M itself, on its way to its first release.
+
+Everything is read from the repositories when the page opens; nothing is stored. Your products and your token live only in this browser. The menu above leads through the process in its order.

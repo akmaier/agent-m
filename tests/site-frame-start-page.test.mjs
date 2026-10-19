@@ -7,7 +7,7 @@
 //
 // Module: MOD-site-frame
 // Guards: THE MENU FOLLOWS THE PROCESS; EVERY STEP EXPLAINS ITSELF; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A PRODUCT IS
-//   NAMED BY ITS ADDRESS; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-008; UC-020
+//   NAMED BY ITS ADDRESS; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; UC-008; UC-020; UC-046
 // Level: unit
 //
 // Each test names its input and states its expected values in its own text; none reads an expected result from the SPEC, a use
@@ -620,4 +620,53 @@ test("TST-865007 the Bridge's window also shows a failing route as a problem, ex
   await settle();
   assert.equal(problems(refused).length, 0);
   assert.deepEqual(all(refused.body, "p").filter((p) => p.className.startsWith("notice ")).map((p) => p.className), ["notice token-refused"]);
+});
+
+// TST-829003 · level: unit · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS; A PRODUCT IS NAMED BY ITS ADDRESS
+// given: the address of a product this browser keeps, https://github.com/acme/widget
+// input: menuOf("main", [], WIDGET); menuOf("review", ["tests"], WIDGET); menuOf("review", ["tests"], null); menuOf("review", ["tests"])
+// expect: with the product, each href that is not null is the entry's own address followed by "/product=" and the percent-encoded address — main: docs/index.html#requirements/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget and so on for the eight entries; review: #tests/product=… for the served entry and null for the seven others; with null, or without a product, the entry's alone (#tests)
+test("TST-829003 menuOf writes the /product= part of each address once, for the product it is given", () => {
+  const enc = "https%3A%2F%2Fgithub.com%2Facme%2Fwidget";
+  const keys = ["requirements", "use-cases", "architecture", "implementation", "tests", "releases", "maintenance", "settings"];
+  assert.deepEqual(menuOf("main", [], WIDGET).map((entry) => entry.href), keys.map((key) => `docs/index.html#${key}/product=${enc}`));
+  assert.deepEqual(menuOf("review", ["tests"], WIDGET).map((entry) => entry.href), keys.map((key) => (key === "tests" ? `#tests/product=${enc}` : null)));
+  assert.equal(menuOf("review", ["tests"], null)[4].href, "#tests");
+  assert.equal(menuOf("review", ["tests"])[4].href, "#tests");
+});
+
+// TST-829004 · level: unit · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS; A PRODUCT IS NAMED BY ITS ADDRESS
+// given: the review page with the view of TST-531001, the widget kept, and the fragment #alpha/product=<the widget>
+// input: startPage; then the fragment changes to #beta without a product
+// expect: the links of the menu are those menuOf gives for the product — "#requirements/product=<the widget>", "#use-cases/product=<the widget>", "#tests/product=<the widget>" — and, after the change, "#requirements", "#use-cases", "#tests"
+test("TST-829004 the links of the menu are those menuOf gives for the chosen product", async () => {
+  const page = await start({ products: [WIDGET], fragment: `#alpha/product=${encoded(WIDGET)}` });
+  const hrefs = () => page.menu.children.filter((entry) => entry.localName === "a").map((entry) => entry.getAttribute("href"));
+  assert.deepEqual(hrefs(), ["requirements", "use-cases", "tests"].map((key) => `#${key}/product=${encoded(WIDGET)}`));
+  changeFragment(page, "#beta");
+  await settle();
+  assert.deepEqual(hrefs(), ["#requirements", "#use-cases", "#tests"]);
+});
+
+// TST-829005 · level: unit · module: MOD-site-frame
+// guards: UC-046; THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK
+// given: the main page, the review page and the Bridge's window, each started with one route
+// input: startPage on each
+// expect: on the main and on the review page the body holds, after the route's main and before the footer of the prompt bar, a footer of class site-footer with: a link to the book Vibe Coding (https://link.springer.com/book/9783032399069), a link to the Pattern Recognition Lab (https://lme.tf.fau.de/), the sentence that no server is operated and that a page writes only when the person clicks, and a link to Agent M's source repository (https://github.com/akmaier/agent-m); the Bridge's window has no site footer
+test("TST-829005 the main and the review pages draw the site footer after the route and before the page's foot, the Bridge's window does not", async () => {
+  for (const name of ["main", "review"]) {
+    const page = await start({ page: name });
+    const kids = page.body.children.map((child) => child.className);
+    assert.deepEqual(page.body.children.map((child) => child.localName), ["header", "section", "main", "footer", "footer"], name);
+    assert.equal(kids[3], "site-footer", `${name}: after the route, before the foot`);
+    assert.equal(kids[4], "site-frame-prompt-bar", `${name}: the page's foot is last`);
+    const footer = page.body.children[3];
+    const links = all(footer, "a").map((anchor) => [anchor.textContent, anchor.getAttribute("href")]);
+    assert.deepEqual(links, [["Vibe Coding", "https://link.springer.com/book/9783032399069"], ["Pattern Recognition Lab", "https://lme.tf.fau.de/"], ["github.com/akmaier/agent-m", "https://github.com/akmaier/agent-m"]], name);
+    assert.match(footer.textContent, /No server: this page reads the repositories directly and writes only when you click — one commit under your own account\./, name);
+  }
+  const bridge = await start({ page: "bridge" });
+  assert.equal(all(bridge.body, "footer").length, 0, "the Bridge's window has no footer");
 });

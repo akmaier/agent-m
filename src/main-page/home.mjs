@@ -18,12 +18,13 @@
 
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { chosenProduct } from "../site-frame/index.mjs";
+import { chosenProduct, menuOf } from "../site-frame/index.mjs";
 import { productFacts, stageShares, currentStage, buildInProgress, waitingForAPerson } from "../progress-measures/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { bridgesOf, liveStatesOf } from "./jobs.mjs";
 import { el, productCard, readingCard, errorCard } from "./cards.mjs";
 import { waitsList } from "./waits.mjs";
+import { greeting } from "./greeting.mjs";
 import { readAgain } from "./reread.mjs";
 
 const reasonOf = (failure) => String(failure?.message ?? failure);
@@ -55,7 +56,7 @@ async function cardOf(source, reading, go) {
     const facts = await factsOf(source, reading);
     const shares = await stageShares(facts);
     const model = facts.model?.name ?? null, current = currentStage(shares);
-    return { card: productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(facts) }),
+    return { card: productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(facts), own: source.own === true }),
       held: { source, facts, shares, current, model },
       waits: waitingForAPerson(facts).map((item) => ({ ...item, product: source.title, address: source.address, own: source.own === true })) };
   } catch (failure) {
@@ -68,12 +69,13 @@ async function render(target, context) {
   const sources = await sourcesOf(context);
   const nodes = sources.map((source) => (source.reason === undefined ? readingCard(source) : errorCard({ ...source, go: context.go })));
   const cards = el("section", "cards", ...nodes);
+  const greet = greeting({ useCasesHref: menuOf("main", []).find((entry) => entry.key === "use-cases").href });
   const add = el("button", "add-product", "+ Add product");
   add.setAttribute("type", "button");
   add.addEventListener("click", () => context.go("add-product"));
   const adding = sources[0]?.own === true ? [add] : [];
   const waiting = el("section", "waits", el("h2", null, "What waits for a person"), el("p", "muted", "Reading…"));
-  target.replaceChildren(cards, ...adding, waiting);
+  target.replaceChildren(greet, cards, ...adding, waiting);
 
   let reading;
   try {
@@ -82,7 +84,7 @@ async function render(target, context) {
   } catch (failure) {
     const reason = `Agent M's own repository could not be read: ${reasonOf(failure)}`;
     cards.replaceChildren(...sources.map((source) => errorCard({ ...source, reason, go: context.go })));
-    target.replaceChildren(cards, ...adding, waitsList([], { several: false, go: context.go }));
+    target.replaceChildren(greet, cards, ...adding, waitsList([], { several: false, go: context.go }));
     return;
   }
   const waits = [], held = [];
@@ -94,7 +96,7 @@ async function render(target, context) {
     held[at] = result.held;
     cards.replaceChildren(...nodes);
   }));
-  target.replaceChildren(cards, ...adding, waitsList(waits.flat(), { several: sources.length > 1, go: context.go }));
+  target.replaceChildren(greet, cards, ...adding, waitsList(waits.flat(), { several: sources.length > 1, go: context.go }));
   readAgain({ target, cards, nodes, held, store: context.store });
 }
 

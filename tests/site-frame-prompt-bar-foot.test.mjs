@@ -101,7 +101,7 @@ async function start(page) {
   const alpha = { name: "alpha", entry: "requirements", title: "Alpha", async render(target) { target.textContent = "alpha"; } };
   await startPage({ page, views: [{ routes: [alpha], strategies: [] }], menuViews: [] });
   const body = fixture.document.body;
-  return { body, footer: all(body, "footer")[0] ?? null };
+  return { body, footer: all(body, "footer").find((node) => node.className === "site-frame-prompt-bar") ?? null };
 }
 
 // The page started, the bar drawn into the footer, and the bar given the height `height`; the browser then tells the MutationObserver of
