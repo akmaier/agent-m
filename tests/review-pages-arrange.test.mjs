@@ -14,7 +14,7 @@
 //
 // Where the texts leave a reading open, the tests state the one they take, and the pull request names it:
 //   - The address `arrange/<group kind>` is the route `arrange` with the parameter `kind` (`#arrange/kind=use-cases`): the frame reads the first part of a fragment as the route's name and the others as `key=value`. The group kinds are the file names
-//     requirements, use-cases, architecture, modules and tests; the items of a kind are a requirement's name (the SPEC), a use case's, a decision's or a module's identifier (from the file names under docs/), a test's identifier (its declaration).
+//     requirements, use-cases, architecture, modules and tests; the items of a kind are a requirement's name (the SPEC), a use case's, a decision's or a module's identifier (from the file names under docs/), a test's identifier (its declaration); they are the nodes of that kind in MOD-trace-graph's graph, so a decision and a module file carry their `id` in their front matter.
 //   - The page: <section class="arrange"> with <ul class="arrange-tree"> of <li class="arrange-group" data-title> (holding its own members and groups) and <li class="arrange-item" data-id>; a mark is <span class="mark">: "not yet placed" (an item no group names,
 //     shown at the top level), "unknown member" (a member that matches no item) and "named twice" (a member that stands in two places, on both). Each item and group has <select class="arrange-move"> (its options "Top level" and a group by its path of titles
 //     joined with " › ") and <button class="arrange-move-to"> "Move to …"; each group <input class="arrange-rename"> with <button class="arrange-rename-go"> "Rename" and <button class="arrange-lift"> "Move content up one level"; the tree has
@@ -48,7 +48,8 @@ const PRODUCT = {
   "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "tests/loan.test.mjs": TEST_FILE,
   "docs/use-cases/UC-001-lend-a-book.md": useCase("UC-001", "Lend a book"), "docs/use-cases/UC-002-return-a-book.md": useCase("UC-002", "Return a book"),
   "docs/use-cases/UC-003-pay-a-fine.md": useCase("UC-003", "Pay a fine"), "docs/use-cases/UC-004-reserve-a-book.md": useCase("UC-004", "Reserve a book"),
-  "docs/architecture/ARC-001-lending.md": "# ARC-001 Lending\n", "docs/architecture/MOD-lending.md": "# MOD-lending Lending\n",
+  "docs/architecture/ARC-001-lending.md": text("---", "id: ARC-001", "title: Lending", "forced_by:", "  - A LOAN HAS A DUE DATE", "---", "# ARC-001 Lending"),
+  "docs/architecture/MOD-lending.md": text("---", "id: MOD-lending", "title: Lending", "folder: src/lending/", "realises:", "  - A LOAN HAS A DUE DATE", "---", "# MOD-lending Lending"),
 };
 const GROUPS_PATH = "docs/groups/use-cases.md";
 // The group file of the use cases: UC-001 and UC-002 under Review, UC-003 and UC-009 (which no use case matches) under Derivation; UC-004 stands in no group.
