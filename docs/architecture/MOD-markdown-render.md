@@ -60,10 +60,11 @@ vendored libraries in `vendor/README.md` — one line per library: name, version
   level; a diagram that does not parse is shown with the parser's message beside its source. The prose beside a diagram
   stays what holds (`THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW`); this function only draws.
 - `openEditor(target: Element, text: string, options: { marks: (text: string) -> Finding[], save: (text: string) ->
-  Promise<SaveOutcome>, linkFor?: (identifier: string) -> string | null }) -> Editor` — the editor of
+  Promise<SaveOutcome>, disabledReason?: (text: string) -> string | null }) -> Editor` — the editor of
   `EDITS ARE PREPARED ON THE DASHBOARD`: Markdown on the left, the live preview with its diagrams on the right, following
   each keystroke; the caller's marks shown beside their lines in the one compiler form, without blocking; *Save* calls
-  `save`. On `refused` the edited text stays in the editor and the newer version is shown beside it with the difference
+  `save`, and is disabled, with `Save is disabled: <reason>` shown, while `disabledReason` gives a reason for the text as it stands (a changed
+  identifier, for instance), so that a caller never reaches into the editor's buttons. On `refused` the edited text stays in the editor and the newer version is shown beside it with the difference
   (`A REFUSED SAVE KEEPS THE EDIT`); leaving with unsaved changes asks first.
 - `Editor` — `{ text() -> string, showDraft(draft: string, against: string) -> void, setMarks(findings: Finding[]) ->
   void, unsaved() -> boolean, close() -> boolean }`; `unsaved` says whether the text holds changes that are not saved, without asking; `close` asks first when it
