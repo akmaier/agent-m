@@ -56,3 +56,20 @@ jobs:
         run: |
           files=$(node "$RUNNER_TEMP/level.mjs" release tests/*.test.mjs)
           node --test $files
+  bridge-build-real:
+    # The real Linux build of the Bridge (TST-961006 of tests/bridge-build-build-platform.test.mjs): the real npm, electron-builder and
+    # Electron, an AppImage, and the app started under a virtual display for the tunnel check. It takes minutes, so no pull request runs it
+    # (A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES); the job carries a timeout of its own.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends xvfb
+      - name: Install Bridge app packages
+        run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
+      - name: Build the real Linux Bridge under a virtual display
+        run: BRIDGE_BUILD_REAL=1 xvfb-run --auto-servernum node --test tests/bridge-build-build-platform.test.mjs
