@@ -29,7 +29,7 @@ const ROW = (name, type, capabilities, place, route, context = 200000) => `| ${n
 export const DRAFTER = ROW("drafter", "model endpoint", "draft text", "this machine", "endpoint fixture");
 export const TOOLER = ROW("tooler", "model endpoint", "draft text, read the repository, use tools", "Anthropic, USA", "endpoint fixture");
 export const AGENT = ROW("agent-cli", "CLI agent", "draft text, read the repository, write to the repository, run code and tests, use tools", "this machine", "bridge release-bridge agent claude");
-export const SUBAGENT = ROW("sub-cli", "CLI agent", "draft text", "this machine", "a Claude Code subagent that `agent-cli` starts on this machine");
+export const SUBAGENT = ROW("sub-cli", "CLI agent", "draft text", "this machine", "through agent-cli");
 export const CI_AGENT = ROW("ci-agent", "CI agent", "draft text, read the repository, write to the repository, run code and tests", "GitHub Actions in the USA", "ci hosted secret CI_KEY");
 
 export const RUN_URL = "https://github.com/akmaier/lending-tool/actions/runs/7";
