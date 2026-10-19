@@ -32,7 +32,7 @@ const SECRETS = { macos: ["BRIDGE_MACOS_CERTIFICATE", "BRIDGE_MACOS_CERTIFICATE_
 const ALL = [...new Set(Object.values(SECRETS).flat())];
 const secrets = (without = []) => Object.fromEntries(ALL.map((name) => [name, without.includes(name) ? null : "secret"]));
 const env = (release) => ({ entry: "onReleaseTagged", service: "github", event: { name: "push", payload: null }, checkout: "/work/instance", repository: "https://github.com/alice/agent-m",
-  branch: "v2026.1.0", agentM: { commit: "a".repeat(40) }, token: "token", now: new Date("2026-10-19T10:00:00Z"), job: {},
+  branch: "v2026.1.0", agentM: { commit: "a".repeat(40) }, token: `ghs_${"a".repeat(36)}`, now: new Date("2026-10-19T10:00:00Z"), job: {},
   release: { tag: "v2026.1.0", phase: "build", platform: null, folder: "/work/out", folders: [], secrets: secrets(), ...release } });
 const fakes = ({ failBuild = null, failPublish = null } = {}) => {
   const calls = [];

@@ -1,5 +1,5 @@
 // instance.mjs — the entries of the instance's workflows (MOD-workflow-entries, Parts): onApprovalsCommitted, onSourcesCommitted and onMainChanged;
-// onReleaseTagged is another item's.
+// onReleaseTagged runs the Bridge's release.
 //
 // Module: MOD-workflow-entries
 //
@@ -12,6 +12,8 @@ import { finding } from "../text-tools/index.mjs";
 import { lastAcceptedText, statuses } from "../approvals/index.mjs";
 import { productFacts, publishOverview } from "../progress-measures/index.mjs";
 import { publishGraph } from "../trace-graph/index.mjs";
+import { connect, parseAddress } from "../repository-hosts/index.mjs";
+import * as bridgeBuild from "../bridge-build/index.mjs";
 import { composeInstance } from "./compose.mjs";
 
 const RULE = "A STALE APPROVAL IS NOT APPLIED";
@@ -189,4 +191,53 @@ export async function onSourcesCommitted(env) {
     ...(env.agentM.commit ? ["", `Agent-M-Commit: ${env.agentM.commit}`] : [])].join("\n") + "\n";
   await host.commitFiles({ branch: env.branch, expectedHead: snapshot.commit, files, message });
   return { outcome: "done", summary: [`Fetched ${names.join(", ")}.`, ...unchanged].join(" "), findings: [] };
+}
+
+// The secrets a platform's build needs (MOD-bridge-build, Data), by the names the release workflow gives them.
+const BUILD_SECRETS = {
+  macos: ["BRIDGE_MACOS_CERTIFICATE", "BRIDGE_MACOS_CERTIFICATE_PASSWORD", "BRIDGE_NOTARY_KEY", "BRIDGE_NOTARY_KEY_ID", "BRIDGE_NOTARY_ISSUER", "BRIDGE_UPDATE_KEY"],
+  windows: ["BRIDGE_WINDOWS_CERTIFICATE", "BRIDGE_WINDOWS_CERTIFICATE_PASSWORD", "BRIDGE_UPDATE_KEY"],
+  linux: ["BRIDGE_UPDATE_KEY"],
+};
+const notRun = (summary) => ({ outcome: "not run", summary: `${summary} Nothing was built or published.`, findings: [] });
+const failedWith = (what, error, rest = "") => ({ outcome: "failed", findings: [],
+  summary: `${what} failed: ${error?.name && error.name !== "Error" ? `${error.name}: ` : ""}${error?.message ?? error}${error?.file ? ` (${error.file})` : ""}.${rest}` });
+
+/**
+ * onReleaseTagged(env: CiEnvironment, functions?: { buildPlatform, publishRelease }) -> Promise<EntryStatus> — in the instance, on a release tag. The release workflow runs it
+ * on each platform's runner with env.release.phase `build` and the platform, where it calls MOD-bridge-build's buildPlatform once for that platform; then once with the phase
+ * `publish`, where it calls publishRelease once with the folders the builds wrote. `functions` are MOD-bridge-build's by default. A missing tag, platform, folder, token or
+ * secret ends the run `not run`, naming it, before a function is called; a failed build or a signature that cannot be verified ends it `failed`, and nothing is published
+ * then (`THE BRIDGE IS SIGNED BY ITS PUBLISHER`).
+ */
+export async function onReleaseTagged(env, functions = bridgeBuild) {
+  const release = env.release ?? {};
+  if (!release.tag) return notRun("The release tag is missing: GITHUB_REF_NAME names the tag the workflow runs for.");
+  if (release.phase === "build") {
+    const platform = release.platform;
+    if (!platform) return notRun("RELEASE_PLATFORM is missing: the platform this runner builds for (macos, windows or linux).");
+    if (!Object.hasOwn(BUILD_SECRETS, platform)) return notRun(`RELEASE_PLATFORM ${platform} is no platform of the Bridge.`);
+    if (!release.folder) return notRun("RELEASE_FOLDER is missing: the folder the build writes.");
+    const missing = BUILD_SECRETS[platform].filter((name) => !release.secrets?.[name]);
+    if (missing.length) return notRun(`The secret ${missing.join(", ")} is missing for the ${platform} build.`);
+    try {
+      const built = await functions.buildPlatform({ platform, checkout: env.checkout, tag: release.tag, folder: release.folder });
+      return { outcome: "done", summary: `Built the Bridge for ${platform} at ${release.tag}: ${built?.files?.length ?? 0} files in ${release.folder}.`, findings: [] };
+    } catch (error) {
+      return failedWith(`The ${platform} build of ${release.tag}`, error, " The platform's files are not handed on, so nothing is published.");
+    }
+  }
+  if (release.phase === "publish") {
+    if (!env.token) return notRun("GITHUB_TOKEN is missing: the workflow's own token is passed to the step as GITHUB_TOKEN.");
+    if (!release.secrets?.BRIDGE_UPDATE_KEY) return notRun("The secret BRIDGE_UPDATE_KEY is missing for the release.");
+    if (!release.folders?.length) return notRun("RELEASE_FOLDERS is missing: the folders the platforms' builds wrote.");
+    try {
+      const host = connect(parseAddress(env.repository), { token: env.token });
+      const { published, facts } = await functions.publishRelease(host, { tag: release.tag, folders: release.folders });
+      return { outcome: "done", summary: `Published ${published.length} files as the release of ${release.tag}; read the due diligence of ${facts.length} packages.`, findings: [] };
+    } catch (error) {
+      return failedWith(`The release of ${release.tag}`, error, " Nothing was published.");
+    }
+  }
+  return notRun("RELEASE_PHASE is missing: `build` on each platform's runner, or `publish` once.");
 }
