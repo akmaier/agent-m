@@ -22,7 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { setImmediate as flushAsync } from "node:timers/promises";
-import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { openStore, readSetting, writeSetting, clearSetting } from "../src/browser-store/index.mjs";
 import { notificationState, switchOn, switchOff, watchForAcceptance } from "../src/notifications/index.mjs";
 
 const INSTANCE = "akmaier/agent-m";
@@ -163,6 +163,27 @@ test("switchOn asks the browser's permission only on the call, and a refusal sto
     assert.deepEqual(readSetting(store, "notifications"), { checked: null }, "granted: the switch is stored, no check made yet");
     assert.equal(allowed.on, true);
     assert.equal(allowed.permission, "granted");
+  } finally { browser.restore(); }
+});
+
+// TST-821001 · level: unit · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: a fresh store; the key `notified` holds two files of the instance and one file of a product (3 in all); the browser stood in for
+// input: notificationState(store) with notifications on (the key `notifications` stored); with the key `notifications` absent; with notifications on and the key `notified` absent; and with notifications on and `notified` holding the files of one repository only
+// expect: `notified` is 3 with the switch on; 0 with the switch off, though `notified` holds 3; 0 with the switch on and no `notified`; 2 for the one repository holding two; the call asks the browser's permission 0 times
+test("notificationState counts the files the key `notified` holds over every repository, and 0 while off or without the key", () => {
+  const store = openFreshStore();
+  const browser = installBrowser({ permission: "granted" });
+  try {
+    writeSetting(store, "notified", { [INSTANCE]: { "docs/use-cases/UC-001-a.md": "a".repeat(40), "docs/use-cases/UC-002-b.md": "b".repeat(40) }, "alice/product": { "SPEC.md": "c".repeat(40) } });
+    assert.equal(notificationState(store).notified, 0, "off: nothing is counted, though the key holds 3 files");
+    writeSetting(store, "notifications", { checked: null });
+    assert.equal(notificationState(store).notified, 3, "on: two files of the instance and one of the product");
+    writeSetting(store, "notified", { [INSTANCE]: { "docs/use-cases/UC-001-a.md": "a".repeat(40), "docs/use-cases/UC-002-b.md": "b".repeat(40) } });
+    assert.equal(notificationState(store).notified, 2, "on: one repository holding two files");
+    clearSetting(store, "notified");
+    assert.equal(notificationState(store).notified, 0, "on, without the key");
+    assert.equal(browser.calls.requestPermission, 0, "the state asks nothing");
   } finally { browser.restore(); }
 });
 
