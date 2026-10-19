@@ -1,5 +1,6 @@
 import { agentDriver, installedAgents, testAgent } from "../agent-processes/index.mjs";
-import { endpointDriver, endpointExchange, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
+import { endpointDriver, endpointExchange, listModels as nodeListModels, testEndpoint as nodeTestEndpoint } from "../endpoint-calls/index.mjs";
+import { listPartitions } from "./probes.mjs";
 import { handOver } from "./watch.mjs";
 
 function validEndpointConfig(value) {
@@ -36,10 +37,10 @@ async function drafted({ name, folder }, prompt) {
 }
 
 /**
- * jobHandlers({ testEndpoint, agents }) — the handlers of the jobs routes. `agents` are the agents the Bridge offers, as its settings name
+ * jobHandlers({ testEndpoint, listModels, partitions, agents }) — the handlers of the jobs routes. `agents` are the agents the Bridge offers, as its settings name
  * them with their working folders: `{ name, folder }`. The asks in flight are kept in memory only.
  */
-export function jobHandlers({ testEndpoint = nodeTestEndpoint, agents = [] } = {}) {
+export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = nodeListModels, partitions = listPartitions, agents = [] } = {}) {
   const offered = (name) => (typeof name === "string" ? agents.find((candidate) => candidate.name === name) : undefined);
   const asks = new Map();
   return {
@@ -102,5 +103,15 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, agents = [] } = {
         throw failure("upstream-failed", error?.message ?? "Bridge endpoint-test handler failed.");
       }
     },
+    "POST /v1/probes/endpoint-models": async ({ body }) => {
+      if (!validEndpointConfig(body?.args)) throw failure("invalid-request", "Endpoint-models configuration is invalid.");
+      try {
+        const config = { name: body.args.name, kind: body.args.kind, baseUrl: body.args.baseUrl, model: body.args.model, key: body.args.key };
+        return { answer: await listModels(config) };
+      } catch (error) {
+        throw failure("upstream-failed", error?.message ?? "Bridge endpoint-models handler failed.");
+      }
+    },
+    "POST /v1/probes/partitions": async () => ({ answer: { partitions: await partitions() } }),
   };
 }
