@@ -35,7 +35,7 @@ ITM-671 (MOD-review-pages), pull request #1077 into `sprint/team1/95`, passes on
     - after Save;
     - after *Check this edit* on the architecture draft.
 
-  No test expectation is weakened.
+  No other expectation of the red tests changes.
 - **It meets the Acceptance and UC-018 7a.** Leaving `draft` or `<k>/draft` with an unsaved edit asks first, and a
   refusal keeps the page and its address.
 - **CI:** 20 of 20 checks passed on the head (run 39262556618).
