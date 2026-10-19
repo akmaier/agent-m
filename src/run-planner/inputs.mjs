@@ -9,7 +9,7 @@
 //
 // The product's coding standards file is not part of it: the accepted text names no path for one.
 
-import { traceGraph } from "../trace-graph/index.mjs";
+import { systemDecisions, traceGraph } from "../trace-graph/index.mjs";
 
 const SPEC = "SPEC.md";
 const INTERFACES = "## Interfaces";
@@ -53,7 +53,7 @@ async function implementationInputs(context, params) {
     return node;
   };
   const from = (id, via) => graph.edges.filter((edge) => edge.from === id && edge.via === via);
-  const system = [...graph.nodes.values()].filter((node) => node.kind === "ARC" && from(node.id, "refines").length === 0).map((node) => node.id).sort();
+  const { system, subsystems } = systemDecisions(graph);
 
   const parts = new Map();
   const give = async (name, path, text) => {
@@ -77,8 +77,6 @@ async function implementationInputs(context, params) {
     const modules = from(name, "changes").map((edge) => edge.to);
     if (work.level === "system") {
       for (const id of system) await file(id, "ARC");
-      const subsystems = [...graph.nodes.values()].filter((node) => node.kind === "ARC" && from(node.id, "refines").some((edge) => system.includes(edge.to))
-        && from(node.id, "designs").length > 0).map((node) => node.id).sort();
       for (const id of subsystems) await file(id, "ARC");
       for (const useCase of [...graph.nodes.values()].filter((node) => node.kind === "UC").sort((a, b) => (a.id < b.id ? -1 : 1))) await give(useCase.path, useCase.path);
     } else if (work.level === "subsystem") {

@@ -27,11 +27,11 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 // TST-633001 · level: unit · module: MOD-trace-graph
 // guards: UC-045; UC-024
 // given: a graph with the decisions ARC-001 (refines none), ARC-002 (refines ARC-001, designs MOD-a), ARC-003 (refines ARC-001, designs none), ARC-004 (refines ARC-002, designs MOD-b), and a second system ARC-010 (refines none) with ARC-012 (refines ARC-010, designs MOD-c and MOD-d)
-// input: systemDecisions(graph)
+// input: systemDecisions(graph), the nodes listed out of order (ARC-010 before ARC-001, ARC-012 before ARC-002)
 // expect: system ["ARC-001", "ARC-010"]; subsystems ["ARC-002", "ARC-012"]; ARC-003 (designs no module) and ARC-004 (refines a subsystem, not the system) are in neither
 test("systemDecisions — the decisions that refine no other, and the ones that refine them and design a module, by identifier", () => {
   assert.equal(typeof systemDecisions, "function", "MOD-trace-graph provides systemDecisions");
-  const graph = graphOf([["ARC-004", "ARC"], ["ARC-012", "ARC"], ["ARC-001", "ARC"], ["ARC-010", "ARC"], ["ARC-003", "ARC"], ["ARC-002", "ARC"], ["MOD-a", "MOD"], ["MOD-b", "MOD"], ["MOD-c", "MOD"], ["MOD-d", "MOD"]],
+  const graph = graphOf([["ARC-004", "ARC"], ["ARC-012", "ARC"], ["ARC-010", "ARC"], ["ARC-001", "ARC"], ["ARC-003", "ARC"], ["ARC-002", "ARC"], ["MOD-a", "MOD"], ["MOD-b", "MOD"], ["MOD-c", "MOD"], ["MOD-d", "MOD"]],
     [["ARC-002", "ARC-001", "refines"], ["ARC-002", "MOD-a", "designs"], ["ARC-003", "ARC-001", "refines"], ["ARC-004", "ARC-002", "refines"], ["ARC-004", "MOD-b", "designs"],
       ["ARC-012", "ARC-010", "refines"], ["ARC-012", "MOD-c", "designs"], ["ARC-012", "MOD-d", "designs"]]);
   assert.deepEqual(systemDecisions(graph), { system: ["ARC-001", "ARC-010"], subsystems: ["ARC-002", "ARC-012"] });
