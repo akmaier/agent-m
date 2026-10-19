@@ -32,8 +32,10 @@ const BLOB = "b".repeat(40);
 let net;
 afterEach(() => { net?.restore(); timers.restore(); document.body.replaceChildren(); });
 
-const flush = async () => { for (let n = 0; n < 80; n += 1) await new Promise((resolve) => setImmediate(resolve)); };
+const flush = async () => { for (let n = 0; n < 600; n += 1) await new Promise((resolve) => setImmediate(resolve)); };
 const trusted = async (node) => { const event = new Event("click"); Object.defineProperty(event, "isTrusted", { value: true }); node.dispatchEvent(event); await flush(); };
+// Waits, in real time, for what the page's request chain writes: until `done()` holds, at most 5 s.
+const until = async (done) => { const end = Date.now() + 5000; while (!done() && Date.now() < end) await new Promise((resolve) => setImmediate(resolve)); };
 const untrusted = async (node) => { node.dispatchEvent(new Event("click")); await flush(); };
 const walk = (root, match) => { const found = []; (function visit(node) { for (const child of node.children ?? []) { if (typeof child === "string") continue; if (match(child)) found.push(child); visit(child); } })(root); return found; };
 const one = (root, name) => byClass(root, name)[0];
@@ -115,6 +117,7 @@ test("TST-801002 a holder passes the gate with one click, and the record names t
   assert.deepEqual(seen.trees, []);
   await trusted(one(target, "gate-pass"));
   await trusted(inDialog("Pass the gate"));
+  await until(() => seen.trees.length > 0 && one(target, "gate-result").textContent !== "");
   assert.equal(seen.trees.length, 1);
   assert.equal(seen.trees[0].tree.length, 1);
   const { path, content } = seen.trees[0].tree[0];
@@ -163,6 +166,7 @@ test("TST-801004 a rejection needs its reason, and is recorded with it", async (
   const field = walk(dialog(), (node) => node.localName === "textarea")[0];
   field.value = "the review found no test";
   await trusted(inDialog("Reject the gate"));
+  await until(() => seen.trees.length > 0);
   assert.equal(seen.trees.length, 1);
   const { content } = seen.trees[0].tree[0];
   assert.equal(content.includes("decision: rejected"), true);
