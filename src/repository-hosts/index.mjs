@@ -176,6 +176,15 @@ function throughClone(repository, folder, rest) {
     containsCommit: (...a) => clone.containsCommit(...a),
     snapshot: (ref) => clone.snapshot(ref),
     readFile: (commit, path) => clone.readFile(commit, path),
+    // Each commit read in the clone: a commit whose tree holds no such file is null.
+    async readFileAt(path, commits) {
+      const texts = new Map();
+      for (const commit of commits) {
+        const { commit: found, blobs } = await clone.snapshot(commit);
+        texts.set(commit, blobs.has(path) ? await clone.readFile(found, path) : null);
+      }
+      return texts;
+    },
     commitFiles: (change) => clone.commitFiles(change),
   };
 }
@@ -276,6 +285,15 @@ export function connect(address, credentials = {}) {
     // server names for the author, or null; the date the commit was committed; every file it changed, as added, modified,
     // deleted or renamed — with the path it came from — or, with `changes: false`, none. Crosses the network; fails as readSnapshot.
     readHistory: (path, options) => adapter.history(path ?? null, options ?? {}),
+
+    // readFileAt(path, commits) -> Map(commit -> text | null) — the text of one file at each of several commits, in the order given, null where a commit does not hold it, a commit named twice read once. It reads in
+    // batches, not one snapshot for each commit: with a token on GitHub, one request for each hundred commits through the GraphQL API, as readMany reads; without a token, one raw read for each commit, outside the
+    // API; on a GitLab server one request for each commit; in a clone, in the clone. Crosses the network; fails as readSnapshot. A path that is empty or a commit that is no commit identifier is a TypeError.
+    async readFileAt(path, commits) {
+      if (typeof path !== "string" || !path.trim()) throw new TypeError("readFileAt names the file to read");
+      if (!Array.isArray(commits) || commits.some((commit) => !HEAD.test(String(commit)))) throw new TypeError("readFileAt names the commits to read the file at, as commit identifiers");
+      return adapter.readFileAt(path, [...new Set(commits)]);
+    },
 
     // listTags(pattern) -> { name, commit }[] — the tags of the repository, every one of them across however many pages the
     // server answers in, optionally only those whose name matches pattern, a glob with * as its only wildcard (e.g. "v*").

@@ -117,6 +117,23 @@ export function githubAdapter(address, { token, tokenName }, links) {
     throw await refusal(answer, { ...context, write: false, ...more });
   };
 
+  // The blobs of many objects ("<commit>:<path>") in one request of GitHub's GraphQL API ("repository.object(expression:)" on a Blob; one aliased field for each, a call without connections costing 1 point):
+  // the token alone reaches it. -> an array in the order given: { text, isTruncated } where the object is a blob, null where it is none. A used-up limit is told by the headers of the answer, which GraphQL gives
+  // also on its 200 with the error type RATE_LIMITED.
+  const blobsOf = async (expressions) => {
+    const query = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){${expressions.map((e, i) =>
+      `f${i}:object(expression:${JSON.stringify(e)}){...on Blob{text isTruncated}}`).join(" ")}}}`;
+    const [owner, name] = address.path.split("/");
+    const answer = await call("POST", GRAPHQL, { body: { query, variables: { owner, name } }, write: false, permission: "Contents", what: address.web });
+    const said = await json(answer, API);
+    if ((said?.errors ?? []).some((e) => e?.type === "RATE_LIMITED")) {
+      throw await refusal(new Response(null, { status: 403, headers: { ...Object.fromEntries(answer.headers), "x-ratelimit-remaining": "0" } }),
+        { ...context, write: false });
+    }
+    const found = said?.data?.repository;
+    return expressions.map((_, i) => found?.[`f${i}`] ?? null);
+  };
+
   // A branch's reference: read at git/ref/heads/…, moved at git/refs/heads/… ("Get a reference", "Update a reference").
   const heads = (branch) => `heads/${encodeURIComponent(branch).replace(/%2F/g, "/")}`;
   // The commit the branch stands at now, or null when there is no such branch — in an empty repository there is none.
@@ -325,24 +342,34 @@ export function githubAdapter(address, { token, tokenName }, links) {
     // truncated (isTruncated) is left out, and its own readFile reads it. At most BATCH paths. A used-up limit is told by the
     // headers of the answer, which GraphQL gives also on its 200 with the error type RATE_LIMITED.
     readFiles: token ? async (commit, paths) => {
-      const query = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){${paths.map((p, i) =>
-        `f${i}:object(expression:${JSON.stringify(`${commit}:${p}`)}){...on Blob{text isTruncated}}`).join(" ")}}}`;
-      const [owner, name] = address.path.split("/");
-      const answer = await call("POST", GRAPHQL, { body: { query, variables: { owner, name } }, write: false, permission: "Contents", what: address.web });
-      const said = await json(answer, API);
-      if ((said?.errors ?? []).some((e) => e?.type === "RATE_LIMITED")) {
-        throw await refusal(new Response(null, { status: 403, headers: { ...Object.fromEntries(answer.headers), "x-ratelimit-remaining": "0" } }),
-          { ...context, write: false });
-      }
-      const found = said?.data?.repository;
+      const blobs = await blobsOf(paths.map((p) => `${commit}:${p}`));
       const texts = new Map();
-      if (!found) return texts;
       paths.forEach((p, i) => {
-        const blob = found[`f${i}`];
+        const blob = blobs[i];
         if (blob && typeof blob.text === "string" && !blob.isTruncated) texts.set(p, blob.text);
       });
       return texts;
     } : undefined,
+
+    // One file's text at each of many commits -> Map(commit -> text | null), in the order given. With a token, one request of the GraphQL API for each BATCH commits (the same `object(expression:)` query as
+    // readFiles, one aliased field for each commit): a commit whose object is no blob holds no file (null); a file the answer gives as truncated or binary is read by its own readFile. Without a token, one read
+    // of the raw text for each commit, outside the API.
+    async readFileAt(path, commits) {
+      const texts = new Map();
+      if (!token) {
+        for (const commit of commits) texts.set(commit, await this.readFile(commit, path));
+        return texts;
+      }
+      for (let at = 0; at < commits.length; at += BATCH) {
+        const batch = commits.slice(at, at + BATCH);
+        const blobs = await blobsOf(batch.map((commit) => `${commit}:${path}`));
+        for (const [i, commit] of batch.entries()) {
+          const blob = blobs[i];
+          texts.set(commit, !blob ? null : typeof blob.text === "string" && !blob.isTruncated ? blob.text : await this.readFile(commit, path));
+        }
+      }
+      return texts;
+    },
 
     // One commit of all the files on the head that was read: the branch is checked to stand at expectedHead, the tree is built
     // on that commit's tree, the commit's only parent is expectedHead, and the branch is moved to it only as a fast-forward —
