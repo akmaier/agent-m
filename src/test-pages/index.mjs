@@ -11,5 +11,6 @@ import { route as runs } from "./runs.mjs";
 import { route as generate } from "./generate.mjs";
 import { resultStrategies } from "../result-records/index.mjs";
 import { approvalStrategies } from "../approvals/index.mjs";
+import { routeStrategies } from "../runtimes/index.mjs";
 
-export const view = { routes: [release, schedule, runs, generate], strategies: [resultStrategies, approvalStrategies] };
+export const view = { routes: [release, schedule, runs, generate], strategies: [resultStrategies, approvalStrategies, routeStrategies] };
