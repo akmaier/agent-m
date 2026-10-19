@@ -33,3 +33,12 @@ takes the issues whose dates fall within the time box.
 
 - Once the draft is accepted: an issue opened and closed within the sprint without a comment is among its facts; one
   opened before and still open is not. Each over the two adapters' fixtures.
+
+**The draft is on main for akmaier** (`2dc885e2`, reviewed). Once it is accepted, the item is ready. For its build:
+- **Callers of the changed return** (agreements 92 and 95), to be named and run:
+  - code: `src/mail-handling/intake.mjs`, `replies.mjs` and `strategies.mjs`;
+  - modules: MOD-mail-handling, MOD-maintenance-pages and MOD-work-plans;
+  - tests that may pin the whole `Issue`: `repository-hosts-issues`, `repository-hosts-create-issue`, the three mail-handling
+    tests, `artifact-edits`, `release-sprint-02-a-dashboard-app` and `review-core.d/dashboard-app`. A release test among them
+    is changed by a non-implementer.
+- `sprint-facts` lists the issues with `state: "all"`, or it misses the closed ones.
