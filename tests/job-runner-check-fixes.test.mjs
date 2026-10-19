@@ -265,7 +265,7 @@ test("test-declarations — a branch the host does not hold is sent back as a fi
 const part = (name) => ({ name, text: `the text of ${name}`, size: 0, sources: [], required: true });
 for (const [category, strategies] of Object.entries({
   preconditions: { "rests-on-accepted": async () => null },
-  recipes: { "test-selection": async () => [part("selection")], "chapters-for-tests": async () => [part("chapter 13")] },
+  recipes: { "test-selection": async () => [part("selection")], "chapters-for-tests": async () => [part("chapter 13")], "resource-pins": async () => [part("pins")] },
   checks: { "test-proposals": () => [] },
   writers: { "branch-and-pull-request": async () => ({ commits: [], files: [], pullRequest: null, shown: null }) },
 })) {

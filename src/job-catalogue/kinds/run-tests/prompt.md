@@ -7,3 +7,7 @@ test with its `level` and its `outcome`: `passed`, `failed`, `not run` when its 
 ## The commit, the levels and their commands
 
 {{commit-and-levels}}
+
+## The product's resources, with their pinned states
+
+{{resource-pins}}

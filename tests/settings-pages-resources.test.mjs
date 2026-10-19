@@ -461,11 +461,11 @@ test("resources — each step carries its folded explanation, and the topics exi
 // guards: UC-040 step 7b; ONE DEFINITION, THREE DRIVERS
 // given: the view MOD-settings-pages gives the frame
 // input: read view.routes and view.strategies
-// expect: the routes include one named resources, and the strategies hold one set with the recipe resource-check, which the frame registers for the page's run panel
+// expect: the routes include one named resources, and the strategies hold one set with the recipes of MOD-resource-list, resource-check and resource-pins, which the frame registers for the page's run panel
 test("resources — the view gives the route resources and hands the frame MOD-resource-list's strategies", () => {
   assert.ok(view.routes.some((candidate) => candidate.name === "resources"));
   assert.equal(view.strategies.length, 1);
-  assert.deepEqual(Object.keys(view.strategies[0].recipes), ["resource-check"]);
+  assert.deepEqual(Object.keys(view.strategies[0].recipes), ["resource-check", "resource-pins"]);
 });
 
 // TST-1030005 · level: unit · module: MOD-settings-pages

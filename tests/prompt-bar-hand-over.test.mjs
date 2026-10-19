@@ -12,7 +12,7 @@
 //
 // Each test states its expected result in its own text; none reads it from a document. The real MOD-job-runner, MOD-runtimes, MOD-job-catalogue (the kinds `converse` and `implement`),
 // MOD-job-ledger, MOD-work-plans, MOD-progress-measures, MOD-product-process, MOD-bridge-client and MOD-markdown-render run as they are; the strategies of other modules that the kinds name
-// are fixtures (the recipes `implementation-inputs`, `chapters-for-implementation` and `chapters-for-page` give no part; the writer `branch-and-pull-request` writes nothing, since no run is made here) or the real approvals' precondition `rests-on-accepted`. The repository
+// are fixtures (the recipes `implementation-inputs`, `chapters-for-implementation`, `resource-pins` and `chapters-for-page` give no part; the writer `branch-and-pull-request` writes nothing, since no run is made here) or the real approvals' precondition `rests-on-accepted`. The repository
 // servers are fixtures in memory (default branch `trunk`) that keep every commit attempt, every started workflow and every CI call; the model endpoint ep1 and the Bridge lab-pc stand behind
 // the global `fetch`, which keeps every request, so that a request to any other address is seen: it must be none. The clock is a fake one (node:test's mock timers for setTimeout): no test waits
 // for 15 real seconds. A script's click is a plain Event (isTrusted false); a person's click is an Event whose isTrusted is true. The task of every hand-over holds words that appear nowhere else
@@ -217,7 +217,7 @@ function network() {
 
 // The strategies of other modules that the kinds `converse` and `implement` name.
 registerStrategies("tests/prompt-bar-hand-over.test.mjs", {
-  recipes: { "chapters-for-page": async () => [], "implementation-inputs": async () => [], "chapters-for-implementation": async () => [] },
+  recipes: { "chapters-for-page": async () => [], "implementation-inputs": async () => [], "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
   preconditions: { "rests-on-accepted": approvalStrategies.preconditions["rests-on-accepted"] },
   writers: { "branch-and-pull-request": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
 });
