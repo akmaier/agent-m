@@ -1,5 +1,5 @@
-// instance.mjs — the entries of the instance's workflows (MOD-workflow-entries, Parts): ITM-364 builds onApprovalsCommitted; onSourcesCommitted
-// and onReleaseTagged are other items'.
+// instance.mjs — the entries of the instance's workflows (MOD-workflow-entries, Parts): onApprovalsCommitted, onSourcesCommitted and onMainChanged;
+// onReleaseTagged is another item's.
 //
 // Module: MOD-workflow-entries
 //
@@ -9,6 +9,7 @@ import { readDocument } from "../documents/index.mjs";
 import { applyApproved } from "../spec-changes/index.mjs";
 import { fetchLegalText, recogniseLegalText, sourceSchemas, versionCommits } from "../source-register/index.mjs";
 import { finding } from "../text-tools/index.mjs";
+import { publishGraph } from "../trace-graph/index.mjs";
 import { composeInstance } from "./compose.mjs";
 
 const RULE = "A STALE APPROVAL IS NOT APPLIED";
@@ -38,6 +39,28 @@ export async function onApprovalsCommitted(env) {
   await host.commitFiles({ branch: env.branch, expectedHead: snapshot.commit,
     files: Object.entries(files).map(([path, text]) => ({ path, text })), message });
   return { outcome: refused.length ? "failed" : "done", summary: [`Applied ${names.join(", ")}.`, ...refusedLines].join(" "), findings: stale };
+}
+
+/**
+ * onMainChanged(env: CiEnvironment) -> Promise<EntryStatus> — in the instance, on every push to the default branch: adds the commit's graph to the
+ * branch trace-cache through MOD-trace-graph's publishGraph, on the commit's snapshot read once. A graph the branch holds already is left as it is
+ * (`nothing to do`). A missing token ends the entry at once as `not run`; a failure — the branch missing, or moved meanwhile, so that the run can be
+ * made again — ends it `failed` naming the graph. The pages then derive what is missing as before, so nothing is wrong, only slower. (The impact lists and
+ * the overview of the main page are ITM-941's.)
+ */
+export async function onMainChanged(env) {
+  if (!env.token) return { outcome: "not run", summary: "GITHUB_TOKEN is missing: the workflow's own token is passed to the step as GITHUB_TOKEN. Nothing was written.", findings: [] };
+  if (!env.branch) return { outcome: "not run", summary: "GITHUB_REF_NAME is missing: the branch the workflow runs for. Nothing was written.", findings: [] };
+  const { host } = composeInstance(env);
+  const snapshot = await host.readSnapshot(env.branch);
+  try {
+    const { commit, written } = await publishGraph(host, snapshot);
+    return written ? { outcome: "done", summary: `Added the graph of ${commit} to trace-cache.`, findings: [] }
+      : { outcome: "nothing to do", summary: `trace-cache holds the graph of ${commit} already.`, findings: [] };
+  } catch (error) {
+    const moved = error?.name === "Moved" ? " The branch moved on meanwhile: run the entry again." : "";
+    return { outcome: "failed", summary: `The graph of ${snapshot.commit} was not added to trace-cache: ${error?.message ?? error}${moved}`, findings: [] };
+  }
 }
 
 function isWaitingLegalText(entry) {
