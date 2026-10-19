@@ -2,7 +2,7 @@
 // Route, ViewContext and PageSetup; startPage for the Bridge's window and for the main and the review pages, the last two with the
 // start of the prompt bar (subject.mjs gives it the subject of the route shown); embedRoute; menuOf (menu.mjs); instanceOf; chosenProduct
 // (routing.mjs); explain; readProblem; runPanel (run-panel.mjs); confirmDecision (decision.mjs); notice (notices.mjs); schemaForm (forms.mjs), without its options secretKeys
-// and readOnly. Not built yet: the frame's own check of the topics.
+// and readOnly. The frame's own check of the topics is tests/site-frame-topics.mjs.
 //
 // Module: MOD-site-frame
 //
