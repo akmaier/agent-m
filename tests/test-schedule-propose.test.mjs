@@ -131,7 +131,7 @@ test("proposeSchedule — GitLab: the product's .gitlab-ci.yml gains the include
 
 // TST-746003 · level: unit · module: MOD-test-schedule
 // guards: GITLAB PRODUCTS ARE SUPPORTED
-// given: a GitLab product whose .gitlab-ci.yml writes its include: as a single string, as a quoted string, as a flow map, as a one-key map, and as a map of several keys (a string or a map means the same as a list of that one entry); and two that name Agent M's file already, one as a string and one as a map
+// given: a GitLab product whose .gitlab-ci.yml writes its include: as a single string, as a quoted string, as a flow map, as a one-key map, as a flow list, and as a map of several keys (a string or a map means the same as a list of that one entry); and two that name Agent M's file already, one as a string and one as a map
 // input: proposeSchedule for each
 // expect: the new .gitlab-ci.yml holds include: as a list of the existing entry, as it was written, then "- local: .gitlab/agent-m-tests.yml", with every other line as it was; for the two that name Agent M's file already, .gitlab-ci.yml is not part of the commit; nothing is refused
 // Planted fault: refusing the form, or leaving the string or the map unconverted so that the entry is lost, or writing Agent M's entry beside a map as a second key, changes the bytes asserted here.
@@ -145,6 +145,8 @@ test("proposeSchedule — GitLab: an include: that is a string or a map is rewri
     { name: "a one-key map", text: `include:\n  local: other.yml\n${rest}`, expected: `include:\n  - local: other.yml\n${entry}${rest}` },
     { name: "a map of several keys", text: `include:\n  project: group/shared\n  file: ci.yml\n${rest}`,
       expected: `include:\n  - project: group/shared\n    file: ci.yml\n${entry}${rest}` },
+    { name: "a flow list", text: `include: [other.yml, 'x.yml']\n${rest}`, expected: `include: [other.yml, 'x.yml', { local: .gitlab/agent-m-tests.yml }]\n${rest}` },
+    { name: "a flow list that holds Agent M's file", text: `include: [other.yml, .gitlab/agent-m-tests.yml]\n${rest}`, expected: undefined },
     { name: "a string that is Agent M's file", text: `include: .gitlab/agent-m-tests.yml\n${rest}`, expected: undefined },
     { name: "a map that is Agent M's file", text: `include:\n  local: .gitlab/agent-m-tests.yml\n${rest}`, expected: undefined },
   ];
