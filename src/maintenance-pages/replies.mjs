@@ -1,6 +1,6 @@
 // The routes `replies` and `replies/<issue>` — replies to answer (UC-039 steps 1 to 4, and 2b, 3a, 4a), as docs/architecture/MOD-maintenance-pages.md states them and ITM-966 builds them: closed issues with mails to answer, answers received, open
 // issues; an issue with what solved it and each listed mail found in the mailbox with its draft; *Draft replies* with its run panel, or a reply written without a participant; each draft complete — recipient, subject, body, attachments — and
-// editable (ITM-966); *Send* with its confirmation repeating recipient and subject, a reply sent but not noted and its note offered again, and *No reply* (ITM-967). Asking a reporter, reopening and closing are ITM-968's.
+// editable (ITM-966); *Send* with its confirmation repeating recipient and subject, a reply sent but not noted and its note offered again, and *No reply* (ITM-967). *Ask the reporter* with *Send and wait*, the answer received, removing the label, *Reopen* and *Leave closed*, and *Close and reply* (ITM-968).
 //
 // Module: MOD-maintenance-pages
 //
@@ -15,6 +15,10 @@
 //     (SendRefused with the server's answer, ConfirmationRefused, DraftChanged, a sign-in expired, a Bridge not running) leaves the draft and notes nothing; DraftChanged shows the draft again. A failure of the note after the send (Access's: a token refused,
 //     a permission missing) names the reply as sent and not noted and offers the note again; where the failure's name does not tell (Unreachable is both), the draft's presence in Drafts tells.
 //   - *No reply* is offered for every mail not yet noted, a mail not found in the mailbox and a mail not sendable included, and calls noReply once, on a click, without a dialog (one click per decision).
+//   - On an open issue (groups open and answer received) the draft of a mail is a question: it is sent with *Send and wait* (askReporter) after the same confirmation, which labels the issue waiting-for-reporter and notes the question; the issue stays open.
+//     A mail found, sendable and not noted has *Ask the reporter*, which stores an empty question draft with the original quoted (a question written by hand; a participant drafts it in ITM-1026). On a closed issue the draft is a reply, sent with *Send*.
+//   - A mail is *new* under answer received when its mail-added note follows the last question-sent note; a mail *arrived* in a closed issue's thread when its mail-added note follows the issue's closing note (the order of the comments, which is the order of the notes).
+//     *Reopen* (setIssueState open) is the person's click; *Leave closed* calls nothing and takes the offer away; no mail reopens an issue by itself. *Close and reply* closes an open issue with setIssueState, reads the issues again and shows it under to answer.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
@@ -22,8 +26,8 @@ import { readSetting } from "../browser-store/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
-import { noReply, repliesDue, sendReply, storeReplies } from "../mail-handling/index.mjs";
-import { noteText } from "../mail-records/index.mjs";
+import { askReporter, noReply, repliesDue, sendReply, storeReplies } from "../mail-handling/index.mjs";
+import { issueLabels, noteText, notesOf } from "../mail-records/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
@@ -111,7 +115,7 @@ function draftBlock(box, mail, initial, ctx) {
       }
     });
     const outcome = el("div", "reply-outcome", ...said);
-    const send = button("send-reply", "Send", async () => {
+    const send = button("send-reply", ctx.mode === "ask" ? "Send and wait" : "Send", async () => {
       outcome.replaceChildren();
       let mailShown;
       try {
@@ -120,14 +124,16 @@ function draftBlock(box, mail, initial, ctx) {
         outcome.append(el("p", "reply-problem", `The draft could not be read: ${failed(failure)}`));
         return;
       }
-      const decision = await confirmDecision({ title: `Send the reply to ${mailShown.to.map(who).join(", ")}?`,
+      const asking = ctx.mode === "ask";
+      const decision = await confirmDecision({ title: `Send the ${asking ? "question" : "reply"} to ${mailShown.to.map(who).join(", ")}?`,
         lines: [`To: ${mailShown.to.map(who).join(", ")}`, ...(mailShown.cc?.length ? [`Cc: ${mailShown.cc.map(who).join(", ")}`] : []), `Subject: ${mailShown.subject}`,
-          `Attachments: ${(mailShown.attachments ?? []).map((each) => `${each.name} (${each.size} bytes)`).join(", ") || "none"}`, mailShown.body], confirm: "Send" });
+          `Attachments: ${(mailShown.attachments ?? []).map((each) => `${each.name} (${each.size} bytes)`).join(", ") || "none"}`, mailShown.body], confirm: asking ? "Send and wait" : "Send" });
       if (!decision.confirmed) return;
       send.disabled = true;
       try {
-        await sendReply(box, ctx.host, ctx.due.issue, mail.id, mailShown);
-        block.replaceChildren(el("p", "reply-sent", `The reply was sent to ${mailShown.to.map(who).join(", ")} and is noted in the issue.`));
+        await (asking ? askReporter : sendReply)(box, ctx.host, ctx.due.issue, mail.id, mailShown);
+        block.replaceChildren(el("p", "reply-sent", asking ? `The question was sent to ${mailShown.to.map(who).join(", ")}; the issue is labelled ${issueLabels.waitingForReporter} and stays open.`
+          : `The reply was sent to ${mailShown.to.map(who).join(", ")} and is noted in the issue.`));
       } catch (failure) {
         send.disabled = false;
         const kept = MAILBOX_FAILURES.has(failure?.name) ? true : NOTE_FAILURES.has(failure?.name) ? false : await box.showDraft(ref).then(() => true, () => false);
@@ -140,7 +146,7 @@ function draftBlock(box, mail, initial, ctx) {
         const again = button("note-again", "Note the reply again", async () => {
           again.disabled = true;
           try {
-            await ctx.host.commentOnIssue(ctx.due.issue, noteText("reply-sent", mail.id, today()));
+            await ctx.host.commentOnIssue(ctx.due.issue, noteText(ctx.mode === "ask" ? "question-sent" : "reply-sent", mail.id, today()));
             block.replaceChildren(el("p", "reply-sent", "The reply was sent and is noted in the issue now."));
           } catch (error) {
             again.disabled = false;
@@ -159,9 +165,10 @@ function draftBlock(box, mail, initial, ctx) {
   return block;
 }
 
-function mailItem(entry, due, box, host) {
+function mailItem(entry, due, box, host, extra) {
   const { id, mail, draft, noted } = entry;
-  const ctx = { due, host };
+  const { group, arrived, fresh, redraw } = extra;
+  const ctx = { due, host, mode: group === "to-answer" ? "reply" : "ask" };
   const item = el("li", "reply-mail");
   item.setAttribute("data-mail", id);
   const noteOnly = () => item.replaceChildren(el("p", "reply-noted", "A reply, or the decision not to answer, is noted in the issue."));
@@ -178,11 +185,20 @@ function mailItem(entry, due, box, host) {
     return item;
   }
   item.append(el("p", null, el("span", "reply-reporter", who(mail.from)), " · ", el("span", "reply-date", mail.date), " · ", el("span", "reply-subject", mail.subject)));
+  if (fresh.has(id)) item.append(el("p", "reply-new", "New: this mail came after your question."));
+  if (arrived.has(id)) {
+    const offer = el("p", "reply-arrived", "This mail arrived in the thread after the issue was closed. The issue stays closed until you reopen it. ");
+    offer.append(button("reopen-issue", "Reopen", async () => {
+      try { await host.setIssueState(due.issue, "open"); await redraw(); } catch (failure) { offer.append(el("span", "reply-problem", ` The issue could not be reopened: ${failed(failure)}`)); }
+    }), " ", button("leave-closed", "Leave closed", () => offer.remove()));
+    item.append(offer);
+  }
   if (noted) { item.append(el("p", "reply-noted", "A reply, or the decision not to answer, is noted in the issue.")); return item; }
   if (replyAddress(mail) === null) item.append(el("p", "reply-not-sendable", "not sendable: the mail has no usable reply address."));
   else if (draft) item.append(draftBlock(box, mail, draft, ctx));
   else {
-    const write = button("write-reply", "Write the reply myself", async () => {
+    const asking = ctx.mode === "ask";
+    const write = button(asking ? "ask-reporter" : "write-reply", asking ? "Ask the reporter" : "Write the reply myself", async () => {
       write.disabled = true;
       try {
         const [{ draft: stored, problem }] = await storeReplies(box, [{ mail, body: "" }]);
@@ -197,6 +213,16 @@ function mailItem(entry, due, box, host) {
   }
   item.append(el("p", null, none()));
   return item;
+}
+
+// What the notes of an issue say of its mails: those added after the last question (new), and those added after the issue was closed (arrived).
+async function arrivalsOf(host, due) {
+  const found = (await host.listIssues({ state: "all" })).find((each) => each.number === due.issue);
+  const notes = found ? notesOf({ number: found.number, body: found.body, comments: found.comments.map((comment) => ({ body: comment.body, createdAt: comment.date })) }) : [];
+  const after = (kind) => notes.slice(notes.findLastIndex((note) => note.kind === kind) + 1).filter((note) => note.kind === "mail-added").map((note) => note.subject);
+  const closed = notes.findLastIndex((note) => note.kind === "closed-with");
+  return { fresh: new Set(notes.findLastIndex((note) => note.kind === "question-sent") < 0 ? [] : after("question-sent")),
+    arrived: new Set(closed < 0 ? [] : after("closed-with")) };
 }
 
 // Draft replies: the participants the mailbox allows, the run panel and Run.
@@ -291,10 +317,23 @@ function groupsOf(out, ctx) {
 async function issueOf(out, ctx, params, redraw) {
   const due = GROUPS.flatMap(([, field]) => ctx.due[field]).find((each) => String(each.issue) === String(params.issue) && (!params.product || each.product === params.product));
   if (!due) { out.replaceChildren(el("p", "reply-problem", `Issue ${params.issue} is in none of the groups of the last reading.`)); return; }
-  const list = el("ul", "reply-mails", ...due.mails.map((entry) => mailItem(entry, due, ctx.box, ctx.products.get(due.product)?.host)));
+  const group = GROUPS.find(([, field]) => ctx.due[field].includes(due))[0];
+  const host = ctx.products.get(due.product)?.host;
+  const { fresh, arrived } = host ? await arrivalsOf(host, due).catch(() => ({ fresh: new Set(), arrived: new Set() })) : { fresh: new Set(), arrived: new Set() };
+  const list = el("ul", "reply-mails", ...due.mails.map((entry) => mailItem(entry, due, ctx.box, host, { group, arrived, fresh, redraw })));
+  const controls = [];
+  const act = (className, text, run) => {
+    const node = button(className, text, async () => {
+      node.disabled = true;
+      try { await run(); await redraw(); } catch (failure) { node.disabled = false; out.append(el("p", "reply-problem", `${text}: ${failed(failure)}`)); }
+    });
+    return node;
+  };
+  if (group === "answer-received") controls.push(act("remove-label", "Remove the label", () => host.setIssueLabels(due.issue, { remove: [issueLabels.waitingForReporter] })), " ");
+  if (group !== "to-answer") controls.push(act("close-and-reply", "Close and reply", () => host.setIssueState(due.issue, "closed")));
   out.replaceChildren(el("section", "replies-step-issue", el("h3", null, `Issue #${due.issue} of ${ctx.products.get(due.product)?.name ?? due.product}`),
-    el("p", "reply-solved", `Solved by: ${due.closedBy ?? "not known"} · Release: ${due.release ?? "not known"}`), list, fold(STEP_TEXT.issue)));
-  out.append(await draftingSection(due, ctx, redraw));
+    el("p", "reply-solved", `Solved by: ${due.closedBy ?? "not known"} · Release: ${due.release ?? "not known"}`), ...(controls.length ? [el("p", "reply-issue-controls", ...controls)] : []), list, fold(STEP_TEXT.issue)));
+  if (group === "to-answer") out.append(await draftingSection(due, ctx, redraw));
 }
 
 async function render(target, context, params = {}) {
