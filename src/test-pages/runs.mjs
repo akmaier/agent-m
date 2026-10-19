@@ -8,8 +8,7 @@
 // what is still missing. Readings: a failed outcome is entered with what the person saw, which goes into the record's Failures row with the declaration's expected result and the log cell "entered by hand"; a
 // `|` or a line break in that text is written as `/` or a space, so that it stays one cell.
 //
-// Not part of this item: Run on this commit (ITM-761), the link to the branch `test-results` and to the run itself where the records cannot be
-// read (ITM-855). The page builds no folded explanation: explanations.md holds no topic of runs and the frame's file is not this module's.
+// Not part of this item: Run on this commit (ITM-761). The page builds no folded explanation: explanations.md holds no topic of runs and the frame's file is not this module's.
 //
 // Readings the texts leave open: the log of a failed test is asked of ciRunLog with the id that ends the record's `run` address, when webLinks().run(id) gives that address back; the last release
 // is the highest tag v<major>.<minor>.<patch>; a record is read with readDocument and resultSchema.run, since readRegister refuses a schema of two tables.
@@ -170,10 +169,13 @@ async function detail(target, context, commit) {
   try {
     results = await host.readSnapshot(RESULTS_BRANCH);
   } catch {
-    const link = el("a", null, "Open the server's page of runs");
-    link.setAttribute("href", host.webLinks().actions);
+    const links = host.webLinks();
+    const branch = el("a", null, `Open the branch ${RESULTS_BRANCH} on the server`);
+    branch.setAttribute("href", links.branch(RESULTS_BRANCH));
+    const runs = el("a", null, "Open the runs of this commit on the server");
+    runs.setAttribute("href", links.commitRuns(commit));
     target.replaceChildren(head, el("p", "unreadable", "The result records cannot be read from the browser, for example in a private repository without a token. ",
-      link));
+      branch, " ", runs));
     return;
   }
   const snapshot = await host.readSnapshot(commit);
