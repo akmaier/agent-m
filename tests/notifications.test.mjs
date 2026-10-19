@@ -349,3 +349,36 @@ test("a repository that cannot be read is skipped until the next check", async (
     });
   } finally { browser.restore(); }
 });
+
+// TST-863101 · level: unit · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; A CLEAR IS A REAL CLEAR
+// given: a store that keeps the product https://github.com/alice/thesis; a page given productHost, a function that records the product it is asked for and gives a fake host of that product, and a fetch that records every call and refuses it; a baseline check with one use case waiting in the product
+// input: watchForAcceptance's page; a second check five minutes later at which another use case of the product has come to wait
+// expect: productHost is asked for "https://github.com/alice/thesis" (the entry in `products`); the second check notifies the new use case once, naming alice/thesis; notified holds the product's two files; the module made no fetch of its own (0 calls)
+test("a kept product is read through the host productHost gives, and the module connects none itself", async () => {
+  const store = openFreshStore();
+  writeSetting(store, "notifications", { checked: null });
+  writeSetting(store, "products", ["https://github.com/alice/thesis"]);
+  const browser = installBrowser();
+  const { host } = fakeHost();
+  const product = fakeHost();
+  const { addressOf } = fakeAddressOf();
+  const asked = [], fetched = [];
+  const priorFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => { fetched.push(String(url)); throw new TypeError("offline"); };
+  try {
+    const first = { id: "UC-001", path: "docs/use-cases/UC-001-first.md", blob: sha1("UC-001@1") };
+    const second = { id: "UC-002", path: "docs/use-cases/UC-002-second.md", blob: sha1("UC-002@1") };
+    product.setWaiting([first]);
+    watchForAcceptance({ ...makePage(store, host, addressOf), productHost: (address) => { asked.push(address); return product.host; } });
+    await flushAsync();
+    writeSetting(store, "notifications", { checked: minutesAgo(6) });
+    product.setWaiting([first, second]);
+    browser.tick();
+    await flushAsync();
+    assert.equal(asked.length > 0 && asked.every((address) => address === "https://github.com/alice/thesis"), true, JSON.stringify(asked));
+    assert.deepEqual(browser.shown.map((shown) => [shown.title, shown.body]), [["UC-002 waits for your acceptance", "alice/thesis"]]);
+    assert.deepEqual(readSetting(store, "notified")["alice/thesis"], { [first.path]: first.blob, [second.path]: second.blob });
+    assert.deepEqual(fetched, [], "no request of the module's own");
+  } finally { globalThis.fetch = priorFetch; browser.restore(); }
+});
