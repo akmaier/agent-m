@@ -1,6 +1,6 @@
 // MOD-progress-measures' productFacts with the scope `work` (ITM-536) and `build`, publishOverview and storedOverview (ITM-940), as the accepted text of
-// docs/architecture/MOD-progress-measures.md states it: "productFacts(host, instance, instanceAt, now, bridges, options?: { scope:
-// "all" | "work" }) -> Promise<Facts> — with the scope `work`, what MOD-prompt-bar asks before a hand-over starts, it reads only what
+// docs/architecture/MOD-progress-measures.md states it: "productFacts(host, instance, instanceAt, now, options?: { scope:
+// "all" | "work" | "build" }) -> Promise<Facts> — with the scope `work`, what MOD-prompt-bar asks before a hand-over starts, it reads only what
 // MOD-work-plans' `itemStates` and `startable` and MOD-product-process' `holdsRole` take — the approval statuses, the change queues,
 // the declaration with its model and workflow, the participants, the plan or the backlog, the sprints, the role assignments, the
 // gate records with their states, the job records without asking their live state, and the pull requests with `held` —, and every
@@ -157,14 +157,14 @@ function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, se
   return { host, calls, product, instance, instanceAt, asked };
 }
 
-const work = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "work" });
+const work = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "work" });
 
 // ---------------------------------------------------------------- what is read
 
 // TST-536001 · level: unit · module: MOD-progress-measures
 // guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
 // given: the fixture product (UC-001 accepted by a record naming its blob, UC-002 open; one open SPEC change entry; scrum declared at the commit 5…5; alice and developer-a in the instance's register; four backlog items; team1's sprint; team1's role assignment; one passed gate record; one job record; a merged and an open pull request) and its instance
-// input: productFacts(host, instance, instanceAt, now, {}, { scope: "work" })
+// input: productFacts(host, instance, instanceAt, now, { scope: "work" })
 // expect: address "https://github.com/alice/product"; UC-001 accepted and UC-002 open in statuses; one queue, 2026-03-01_waiting, whose entry 01 is open; the declaration's model "scrum"; model and workflow of scrum with the phases Sprint Planning, Development, Sprint Review, Sprint Retrospective; modelUnread null; participants alice and developer-a; plan.order null and plan.items ITM-001 to ITM-004; sprints [docs/backlog/sprints/team1/01.md]; assignments [docs/role-assignments/team1.md]; gates [the one record]; one job JOB-20261014-0900-a1b2 of a product at the address; pullRequests numbered 1 and 2
 test("productFacts, scope work — reads the statuses, queues, declaration with model and workflow, participants, backlog, sprints, role assignments, gates, jobs and pull requests", async () => {
   const f = fixture();
@@ -419,7 +419,7 @@ test("productFacts — the scope all adds the requirements, tests, results, tags
   assert.ok(await work(fixture()));
   for (const options of [{ scope: "all" }, undefined]) {
     const f = fixture();
-    const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, {}, options);
+    const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, options);
     assert.deepEqual(facts.requirements, []);
     assert.deepEqual(facts.tags, [{ name: "v2026.1.0", commit: H1 }]);
     assert.equal(facts.results, null);
@@ -430,22 +430,21 @@ test("productFacts — the scope all adds the requirements, tests, results, tags
     assert.deepEqual(f.calls, [["repositoryInfo"], ["readSnapshot", "main"], ["listPullRequests"], ["readSnapshot", "test-results"], ["listTags"]]);
   }
   const f = fixture();
-  await assert.rejects(productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "everything" }), { name: "TypeError" });
+  await assert.rejects(productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "everything" }), { name: "TypeError" });
   assert.deepEqual(f.calls, []);
 });
 
 // ---------------------------------------------------------------- the scope build, and the overview of a commit stored (ITM-940)
 //
 // MOD-progress-measures (accepted blob 30691d42): "with the scope `build`, what `buildInProgress` takes and nothing else — the plan or the
-// backlog, the job records and the live state of every job that has not ended, and the pull requests"; "`publishOverview(host, snapshot,
+// backlog, the job records and the pull requests"; "`productFacts` asks no job's live state: the rows of `jobs` give the state of the record"; "`publishOverview(host, snapshot,
 // facts)` — adds `<commit>.json` to the branch `overview-cache` by `commitFiles`, on the head it read: the stage shares and what waits for a
 // person, from `facts` read with the scope `all` at the snapshot's commit. `written` is `false` when the branch holds the file already.
 // … fails as `commitFiles` fails, with `NotFound` naming the branch when the repository has none."; "`storedOverview(snapshot)` — the overview
 // stored for the snapshot's commit, read with the snapshot's `readOn` in one request; `null` when the branch or the file is missing or holds
 // another format." Data: `<commit>.json` … `{ commit, shares, waiting }`.
 // Readings these tests state (the pull request names them):
-//   - The live state of a job that has not ended is asked by no scope today (the bridges are unused, see the scope `work`); the scope `build` asks it
-//     as little as `all` does.
+//   - productFacts takes no bridges and asks no job's live state in any scope: the fifth argument is the options, and a job's row gives the state its record gives.
 //   - The scope `build` takes the approval statuses, which are derived from the tree's paths and blobs and read no file, so that an item's state is
 //     what the scope `all` gives it where no change queue and no gate holds it back; it reads neither the queues, the declaration, the sprints, the
 //     role assignments, the gate records, the module files, nor the SPEC, the tests, the results, the tags or the information. The facts it reads not are
@@ -456,7 +455,7 @@ import * as measures from "../src/progress-measures/index.mjs";
 
 const TEST_FILE = "tests/unit.test.mjs";
 const withTests = () => ({ ...productFiles(), [TEST_FILE]: "// TST-001 · level: unit · module: MOD-store\n// guards: FIRST RULE\ntest(\"a\", () => {});\n" });
-const build = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "build" });
+const build = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "build" });
 const readPaths = (f) => [...f.product.reads.keys()].sort();
 const COMMIT = "c".repeat(40), OVERVIEW_HEAD = "0".repeat(39) + "1";
 
@@ -481,7 +480,7 @@ test("TST-940001 productFacts, scope build — reads the plan or backlog, the jo
   assert.deepEqual(facts.gateStates.map((state) => [state.gate, state.state]), [["Development → Sprint Review", "passed"], ["Sprint Retrospective → Sprint Planning", "pending"]]);
 
   const every = fixture({ files: withTests() });
-  await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
+  await productFacts(every.host, every.instance, every.instanceAt, NOW, { scope: "all" });
   assert.equal(every.product.reads.has(TEST_FILE), true, "known positive: the scope all reads the test file");
 });
 
@@ -493,7 +492,7 @@ test("TST-940001 productFacts, scope build — reads the plan or backlog, the jo
 test("TST-940002 buildInProgress gives the same list from the facts of the scope build as from those of the scope all", async () => {
   const small = await build(fixture({ files: withTests() }));
   const every = fixture({ files: withTests() });
-  const all = await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
+  const all = await productFacts(every.host, every.instance, every.instanceAt, NOW, { scope: "all" });
   const rows = measures.buildInProgress(small);
   assert.deepEqual(rows.map((row) => [row.item, row.job]), [["ITM-002", "JOB-20261014-0900-a1b2"]]);
   assert.deepEqual(rows, measures.buildInProgress(all));
@@ -534,7 +533,7 @@ function queuedFiles() {
 test("TST-940008 a step a change queue holds back is not in the build, in the scope build as in the scope all", async () => {
   const small = await build(fixture({ files: queuedFiles() }));
   const every = fixture({ files: queuedFiles() });
-  const all = await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
+  const all = await productFacts(every.host, every.instance, every.instanceAt, NOW, { scope: "all" });
   for (const facts of [small, all]) {
     const state = facts.plan.states.find((each) => each.item === "ITM-002");
     assert.equal(state.state, "waiting for acceptance");
@@ -564,7 +563,7 @@ function gatedFiles() {
 test("TST-940009 a step a gate holds back is not in the build, in the scope build as in the scope all", async () => {
   const both = async (files) => {
     const every = fixture({ files });
-    return [await build(fixture({ files })), await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" })];
+    return [await build(fixture({ files })), await productFacts(every.host, every.instance, every.instanceAt, NOW, { scope: "all" })];
   };
   for (const facts of await both(gatedFiles())) {
     const state = facts.plan.states.find((each) => each.item === "ITM-010");
@@ -602,7 +601,7 @@ function overviewHost(branch) {
     async commitFiles(change) { commits.push(change); return { commit: "9".repeat(40), url: "https://example.test/commit" }; },
   };
 }
-const allFacts = async (files) => { const f = fixture({ files }); return productFacts(f.host, f.instance, f.instanceAt, NOW, {}, { scope: "all" }); };
+const allFacts = async (files) => { const f = fixture({ files }); return productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "all" }); };
 
 // TST-940004 · level: unit · module: MOD-progress-measures
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
@@ -675,4 +674,18 @@ test("TST-940007 storedOverview gives null for a missing branch or file and for 
     () => { throw named("NotFound", "no branch overview-cache"); }];
   for (const [at, readOn] of cases.entries()) assert.equal(await measures.storedOverview(withReadOn(readOn).snapshot), null, `case ${at}`);
   assert.deepEqual(await measures.storedOverview(withReadOn(() => good).snapshot), { shares: [], waiting: [] }, "known positive: a well-formed overview is returned");
+});
+
+// TST-1070001 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product, with a job record that has not ended
+// input: productFacts(host, instance, instanceAt, now, { scope: "all" }) and its parameters; and a host that fails on any request for a job's live state (none is made)
+// expect: productFacts takes four required parameters and the options (no bridges), and the job's row gives the state its record gives, `queued`, with the source reachable
+test("TST-1070001 productFacts takes no bridges and asks no job's live state: a job's row gives the state of its record", async () => {
+  assert.equal(productFacts.length, 4);
+  const f = fixture({ files: withTests() });
+  const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "all" });
+  const row = facts.jobs.find((each) => each.record.id === "JOB-20261014-0900-a1b2");
+  assert.equal(row.state, "queued");
+  assert.equal(row.source.reachable, true);
 });
