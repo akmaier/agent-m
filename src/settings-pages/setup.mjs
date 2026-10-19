@@ -31,9 +31,9 @@ function el(name, className, ...children) {
   return node;
 }
 
-// What is wrong with a pasted token and its expiry date, or null.
+// What is missing from a pasted token and its expiry date, or null. The form of the token is not judged here: `connect` alone tells it (tokenRefusal).
 function tokenProblem(value, expires) {
-  if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{20,}$/.test(value)) return "That is not a GitHub token — it starts with github_pat_ and is long.";
+  if (!value) return "Paste the token first.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expires)) return "Enter the date the token expires — GitHub showed it when you created the token.";
   return null;
 }
