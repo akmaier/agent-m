@@ -41,7 +41,7 @@ import { declarationSchema, roleAssignmentSchema } from "../../../src/product-pr
 import { connect, parseAddress } from "../../../src/repository-hosts/index.mjs";
 
 const DECLARATION = "docs/process.md";
-const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_FILE = /^docs\/backlog\/sprints\/([^/]+)\/(\d+)\.md$/;
 const ASSIGNMENT_FILE = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
