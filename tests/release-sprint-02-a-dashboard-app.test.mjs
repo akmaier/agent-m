@@ -510,8 +510,8 @@ const ADDRESSES = ["", ...VIEWS.map((v) => `#${v.view}`),
 // no stylesheet. Known positive of the recorder: the load of #uc asks for the use-case views' file, which is there.
 test("release · ITM-129 UC-024: a page load of every address asks for no file below docs/assets/ that is not there", async () => {
   const w = await world();
-  const start = await open(w, { hash: "", direct: true });
-  assert.ok(start.asked().some((u) => u.endsWith("/dashboard/built.json")), "known positive: the recorder sees the list of built files asked for");
+  const roles = await open(w, { hash: "#roles", direct: true });
+  assert.ok(roles.asked().some((u) => u.endsWith("/dashboard/roles-view.mjs")), "known positive: the recorder sees the view's file asked for");
   const notThere = {};
   for (const hash of ADDRESSES) {
     const page = await open(w, { hash, direct: true });
@@ -533,7 +533,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
   // A view is built where its file is on the disk, or where the app hands its address to a route of MOD-review-pages or to the fold
   // of the topic `accepting`, so that its file is gone.
-  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "mail", "replies", "arrange", "process", "roles", "backlog"]);
+  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "mail", "replies", "arrange"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
@@ -542,14 +542,12 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   assert.match(fallback, /#use-case\/id=UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
-      assert.ok(["add", "setup", "release", "mail", "replies", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add and Setup routes, the test pages' route release, the maintenance pages' routes mail and replies and the implementation pages' routes process, roles and backlog have no dashboard file");
+      assert.ok(["add", "setup", "release", "mail", "replies"].includes(v.view), "only the public settings-pages Add and Setup routes, the test pages' route release and the maintenance pages' routes mail and replies have no dashboard file");
       const dispatched = fs.readFileSync(APP_FILE, "utf8");
       if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
       else if (v.view === "release") assert.match(dispatched, /testPages\.routes\.find\(\(r\) => r\.name === "release"\)/, "#release dispatches the public route");
       else if (v.view === "mail") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "mail"\)/, "#mail dispatches the maintenance pages' public route");
       else if (v.view === "replies") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "replies"\)/, "#replies dispatches the maintenance pages' public route");
-      else if (v.view === "backlog") assert.match(dispatched, /implementationPages\.routes\.find\(\(r\) => r\.name === "backlog"\)/, "#backlog dispatches the implementation pages' public route");
-      else if (v.view === "process" || v.view === "roles") assert.match(dispatched, /implementationPages\.routes\.find\(\(r\) => r\.name === kind\)/, `#${v.view} dispatches the implementation pages' public route`);
       else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
       continue;
     }
@@ -619,7 +617,7 @@ const HOST_PROVIDES = new Set(["assetAnswer", "assetRequest", "authHeaders", "br
 test("release · ITM-130 EVERY ARTIFACT NAMES ITS ORIGIN: no file of the dashboard imports the git host's request helper",
   () => {
     assert.deepEqual(importsOf('import {\n  fetchText as f, readFile,\n} from "../git-host.mjs";')[0].names, ["fetchText", "readFile"], "known positive");
-    assert.ok(SHELL_FILES.length >= 2, SHELL_FILES.map(rel).join(", "));
+    assert.ok(SHELL_FILES.length >= 5, SHELL_FILES.map(rel).join(", "));
     const helpers = SHELL_FILES.flatMap((f) => namesFrom(f, "MOD-git-host").filter((n) => n === "fetchText" || n === "request").map((n) => `${rel(f)}: ${n}`));
     assert.deepEqual(helpers, []);
   });
