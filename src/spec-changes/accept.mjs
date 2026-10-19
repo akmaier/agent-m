@@ -9,7 +9,7 @@
 //
 //   - `queue` is the queue's folder as Queue.folder gives it, docs/spec-freigaben/<folder>; a queue or an entry the snapshot does not
 //     hold is a RangeError (entryView) or a refusal (acceptEntries, applyApproved).
-//   - `current` is the section that holds now: MOD-spec-document's sectionText of the entry's target — the file its own row names —
+//   - `current` is the section that holds now — the entry's span, every section from its anchor up to its `until` (queues.mjs spanText): MOD-spec-document's sectionText of the entry's target — the file its own row names —
 //     for its anchor, with the blob of those exact bytes. Where the target does not hold the anchor — a new section, or an entry
 //     that waits for its anchor — or the snapshot cannot read the target, there is none and `current` is null; `createdBy` names
 //     the entry that creates the anchor.
@@ -38,13 +38,13 @@
 //     or not.
 //   - The commit's message names the entries and, as MOD-approvals' acceptShown does, the person who accepted.
 
-import { parseSpec, renamedRequirements, replaceSection, sectionText } from "../spec-document/index.mjs";
+import { parseSpec, renamedRequirements, sectionText } from "../spec-document/index.mjs";
 import { blobSha, lineDiff } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
-import { queueAt, queuesAt, queues } from "./queues.mjs";
+import { queueAt, queuesAt, queues, replaceSpan, spanText } from "./queues.mjs";
 
 // Whether a requirement stated by the proposal is another than the one the section holds under its name: its source, rule or check.
 const differs = (was, is) => was.source !== is.source || was.rule !== is.rule || was.check !== is.check;
@@ -80,7 +80,7 @@ export async function entryView(queue, entry, snapshot) {
   const item = found?.entries.find((candidate) => candidate.number === entry);
   if (!item) throw new RangeError(`entryView: the snapshot holds no entry ${entry} of the queue ${queue}`);
   const targetText = await snapshot.read(item.file);
-  const heldNow = typeof targetText === "string" ? sectionText(targetText, item.anchor) : null;
+  const heldNow = typeof targetText === "string" ? spanText(targetText, item.anchor, item.until) : null;
   const proposalText = item.proposal.path ? (await snapshot.read(item.proposal.path)) ?? "" : "";
   const rationale = item.rationale ? (await snapshot.read(item.rationale)) ?? "" : "";
   return {
@@ -150,7 +150,7 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
       }
       const spec = await get(entry.file);
       if (typeof spec !== "string") { refuse(item, `the target ${entry.file} does not exist`); continue; }
-      const before = sectionText(spec, entry.anchor);
+      const before = spanText(spec, entry.anchor, entry.until);
       if (before === null) {
         const by = entry.createdBy;
         refuse(item, by === null ? `its heading “${entry.anchor}” is not in ${entry.file}, and no entry of the queue creates it`
@@ -166,7 +166,7 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
         refuse(item, `the SPEC section changed after it was ${verb} — open it again`);
         continue;
       }
-      put(entry.file, replaceSection(spec, entry.anchor, proposal));
+      put(entry.file, replaceSpan(spec, entry.anchor, entry.until, proposal));
       const recordFile = item.record.slice(APPROVALS.length);
       if (records) {
         files.set(item.record, writeDocument(approvalSchema, { fields: { kind: "spec", queue: queue.folder, entry: pad2(entry.number),
