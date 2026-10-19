@@ -6,7 +6,7 @@ import { installedAgents } from "../agent-processes/index.mjs";
 import { testAccess } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
 import { compose } from "./compose.mjs";
-import { loadSettings, saveSettings, takeExport } from "./settings.mjs";
+import { loadSettings, saveSettings, setJumpHost, takeExport } from "./settings.mjs";
 
 let tray;
 
@@ -79,6 +79,10 @@ export async function start(electron, supplied = {}) {
     if (action === "tunnels") return { publicKey: bridge.key.publicKey, tunnels: await bridge.tunnels() };
     if (action === "save-settings") {
       saveSettings(config.dataFolder, { ...bridge.settings, ...value, paused });
+      return restart();
+    }
+    if (action === "save-jump-host") {
+      setJumpHost(config.dataFolder, value);
       return restart();
     }
     if (action === "import-settings") {
