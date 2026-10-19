@@ -495,8 +495,8 @@ test("TST-512007: through a Bridge, text only shows the endpoint's message folde
 // guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: a constructed text-only answer
 // input: the author tests the endpoint "campus" on the endpoints Route
-// expect: the last test kept beside the endpoint is exactly { at, outcome: "working" } with at an ISO date and no other field (the stored format of last-test is unchanged)
-test("TST-512008: showing the answer about tools leaves the stored last test as { at, outcome }", async () => {
+// expect: the last test kept beside the endpoint is exactly { at, outcome: "working", tools: false } with at an ISO date and no other field (MOD-browser-store: `last-test:<key>` is { at, outcome, tools? })
+test("TST-512008: showing the answer about tools keeps the stored last test as { at, outcome, tools }", async () => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = scripted([{ status: 200, body: textAnswer("plain") }], []);
   try {
@@ -505,7 +505,8 @@ test("TST-512008: showing the answer about tools leaves the stored last test as 
     type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
     await click(byClass(target, "endpoint-test")[0]);
     const recorded = readSetting(store, "last-test:endpoint:campus");
-    assert.deepEqual(Object.keys(recorded).sort(), ["at", "outcome"]);
+    assert.deepEqual(Object.keys(recorded).sort(), ["at", "outcome", "tools"]);
+    assert.equal(recorded.tools, false);
     assert.equal(recorded.outcome, "working");
   } finally { globalThis.fetch = oldFetch; }
 });
