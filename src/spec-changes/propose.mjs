@@ -31,7 +31,7 @@ import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./accept.mjs";
-import { queueRationaleSchema, queues } from "./queues.mjs";
+import { queueRationaleSchema, queues, spanText } from "./queues.mjs";
 
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
@@ -377,7 +377,7 @@ export async function proposeSection(host, change) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
   const targetText = await snapshot.read(change.target);
-  const before = typeof targetText === "string" ? sectionText(targetText, change.anchor) : null;
+  const before = typeof targetText === "string" ? spanText(targetText, change.anchor, change.until) : null;
   if ((before === null ? null : await blobSha(before)) !== change.openedBlob) return { refused: "changed meanwhile", current: before };
   if (!info.canWrite && snapshot.repository.server === "gitlab") throw failure("TokenRequired", "a GitLab product is written with a token");
 
@@ -442,7 +442,7 @@ export async function saveEntry(host, edit) {
   if (!info.canWrite && snapshot.repository.server === "gitlab") throw failure("TokenRequired", "a GitLab product is written with a token");
 
   const targetText = await snapshot.read(entry.file);
-  const before = typeof targetText === "string" ? sectionText(targetText, entry.anchor) : null;
+  const before = typeof targetText === "string" ? spanText(targetText, entry.anchor, entry.until) : null;
   const old = (await snapshot.read(entry.rationale)) ?? "";
   const origin = /\*\*Origin\.\*\* ([^\n]*)/.exec(old)?.[1] ?? `an edit of the entry; saved by ${edit.person}.`;
   const provenance = /\n\*\*Provenance\.\*\*[^\n]*\n/.exec(old)?.[0] ?? "";
