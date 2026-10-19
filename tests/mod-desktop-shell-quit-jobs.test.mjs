@@ -90,7 +90,7 @@ printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":1,"ou
   process.env.GIT_CONFIG_COUNT = String(pairs.length);
   pairs.forEach(([address, path], at) => { process.env[`GIT_CONFIG_KEY_${at}`] = `url.${path}.insteadOf`; process.env[`GIT_CONFIG_VALUE_${at}`] = address; });
   const originText = (path) => spawnSync(REAL_GIT, ["--git-dir", product.origin, "show", `main:${path}`], { encoding: "utf8" }).stdout;
-  const until = async (condition, what, ms = 40000) => {
+  const until = async (condition, what, ms = 25000) => {
     for (const end = Date.now() + ms; Date.now() < end;) { const found = await condition(); if (found) return found; await new Promise((resolve) => setTimeout(resolve, 25)); }
     assert.fail(`waited for ${what}`);
   };
@@ -133,6 +133,6 @@ test("confirming Quit with two jobs running ends both records as cancelled", asy
         assert.match(record, /^reason: the Bridge was quit$/m);
         assert.equal(w.originText(`docs/gates/${job.id}.md`), "", "the writer wrote nothing");
       }
-    } finally { for (const folder of [appData, data, resources]) rmSync(folder, { recursive: true, force: true }); }
+    } finally { await stopEntry(entry); for (const folder of [appData, data, resources]) rmSync(folder, { recursive: true, force: true }); }
   });
 });
