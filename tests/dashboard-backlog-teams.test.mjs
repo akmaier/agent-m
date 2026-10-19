@@ -10,7 +10,7 @@
 // Guards: UC-032; UC-035; EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; EVERY STEP EXPLAINS ITSELF
 // Level: component
 //
-// The real dashboard (the harness's APP_FILE) and its view docs/assets/dashboard/backlog-view.mjs run in
+// The real dashboard (the harness's APP_FILE) and the route `backlog` of MOD-implementation-pages run in
 // tests/app-harness.mjs against a GitHub API mock; this file brings a fake of GitHub's pulls API and of "Create a reference".
 // The fixture product works in sprints without a time box, with a work-in-progress limit of 2, and has two teams. team1 runs
 // its sprint 01 since 2026-09-14 on its own branch, with ITM-001 — merged into that branch on 2026-09-15 — and ITM-002, whose
@@ -214,13 +214,13 @@ test("#backlog — a team's closed sprint: its final chart from start through ea
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose pull requests fit into one page of GitHub's pulls API
 // input: open #backlog
-// expect: the load lists the pull requests in one request, and makes 5 requests in all — the commit, the tree, the batch of its 16
-//         files, the batch of the process model its declaration names, and the pull requests: the merge times come from the
+// expect: the load lists the pull requests in one request, and makes 6 requests in all — the commit, the tree, the batch of its 16
+//         files, the commit its declaration's model_version names (the fixture's is not in the repository), the process model, and the pull requests: the merge times come from the
 //         pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES)
-test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 5 requests in all", async () => {
+test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 6 requests in all", async () => {
   const { page } = await backlogPage();
   assert.equal(page.requests.filter((r) => /\/pulls(?:\?|\/|$)/.test(r)).length, 1, page.requests.join(" | "));
-  assert.equal(page.requests.length, 5, page.requests.join(" | "));
+  assert.equal(page.requests.length, 6, page.requests.join(" | "));
 });
 
 // guards: UC-032 step 6; UC-035
