@@ -108,7 +108,7 @@ function addressOfNotification(route, params, repository) {
 }
 
 // Opens this browser's MOD-browser-store store of the instance, connects the instance's host with the dashboard's own
-// stored GitHub token — store.getToken(), settings-store.mjs's agent-m.github-token, as process-view.mjs's own
+// stored GitHub token — store.getToken(), settings-store.mjs's agent-m.github-token, as the dashboard's own connect() for the routes of MOD-implementation-pages
 // connect() uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/08.md: MOD-browser-store's own
 // "github-token" setting is never written, so the instance was always checked with no token) — and starts the checks
 // — only where this browser could ever show one at all: real browsers always define Notification (permission.mjs's
