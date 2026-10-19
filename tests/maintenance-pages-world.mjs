@@ -1,5 +1,5 @@
 // The world of the tests of MOD-maintenance-pages' replies page — a helper, no test of its own: the browser, the repositories and the clock of tests/main-page-home-harness.mjs, and over its fake GitHub this file's fake of the Bridge lab-pc-4
-// (the mail operations drafts, sent, find, show-draft, store-draft, update-draft, confirm-send, send), of GitHub's issues of alice/product and of the model endpoints ep1 and ep2. Used by tests/maintenance-pages-replies.test.mjs (ITM-966),
+// (the mail operations read, drafts, sent, find, show-draft, store-draft, update-draft, confirm-send, send), of GitHub's issues of alice/product and of the model endpoints ep1 and ep2. Used by tests/maintenance-pages-replies.test.mjs (ITM-966),
 // tests/maintenance-pages-send.test.mjs (ITM-967) and tests/maintenance-pages-ask.test.mjs (ITM-968). It holds no expected result.
 //
 // Module: MOD-maintenance-pages
@@ -61,7 +61,7 @@ const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) 
  * Returns what the fakes kept: the operations the Bridge received, the requests GitHub received, the texts the endpoint returned.
  * For the route `mail` (ITM-964): `reading` is what the Bridge's operation `read` returns; `answer(request)` is the answer of a model endpoint or of an agent on the Bridge to a request ({ origin, body }), a draft object that is wrapped as the endpoint answers; `product` adds files to the product's repository.
  */
-function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, reading = [], answer = null, product = {} }) {
+function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, reading = null, stateDelay = 0, answer = null, product = {} }) {
   const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows) };
   const productFiles = { ...smallProduct(), ...product };
   let pending = {};
@@ -87,7 +87,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       const operation = url.pathname.slice("/v1/mail/".length);
       const { args } = JSON.parse(init.body);
       kept.bridge.push({ operation, args });
-      if (operation === "read") return json(reading);
+      if (operation === "read") return json(reading ?? mails);
       if (operation === "drafts") return json(kept.drafts);
       if (operation === "sent") return json([]);
       if (operation === "find") {
@@ -129,7 +129,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       const comments = /^\/repos\/alice\/product\/issues\/(\d+)\/comments$/.exec(url.pathname);
       if (method === "GET" && comments) return json((kept.issues.find((issue) => issue.number === Number(comments[1]))?.comments ?? []).map((comment) => ({ user: { login: "dev" }, body: comment, created_at: "2026-10-18T09:00:00Z" })));
       const one_ = /^\/repos\/alice\/product\/issues\/(\d+)$/.exec(url.pathname);
-      if (method === "PATCH" && one_) { kept.issues.find((issue) => issue.number === Number(one_[1])).state = JSON.parse(init.body).state; return json({ number: Number(one_[1]) }); }
+      if (method === "PATCH" && one_) { if (stateDelay) await new Promise((resolve) => realTimeout(resolve, stateDelay)); kept.issues.find((issue) => issue.number === Number(one_[1])).state = JSON.parse(init.body).state; return json({ number: Number(one_[1]) }); }
       const labels = /^\/repos\/alice\/product\/issues\/(\d+)\/labels(?:\/(.+))?$/.exec(url.pathname);
       if (labels && method === "POST") { const target = kept.issues.find((issue) => issue.number === Number(labels[1])); target.labels = [...new Set([...target.labels, ...JSON.parse(init.body).labels])]; return json(target.labels.map((name) => ({ name }))); }
       if (labels && method === "DELETE") { const target = kept.issues.find((issue) => issue.number === Number(labels[1])); target.labels = target.labels.filter((name) => name !== decodeURIComponent(labels[2])); return json([]); }

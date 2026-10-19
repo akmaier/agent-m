@@ -30,13 +30,13 @@ const writes = (w) => w.kept.github.filter((request) => request.method !== "GET"
 const day = () => new Date().toISOString().slice(0, 10);
 
 /** The standard issues and, besides them: issue 8, closed, whose mail `arrived` was added after the closing note; issue 9, open, listing a mail that has a draft in Drafts. */
-async function fixture() {
+async function fixture(extra = {}) {
   const f = await standard();
   const [orig, early, arrived, qdraft] = [await mailOf("orig"), await mailOf("early"), await mailOf("arrived"), await mailOf("qdraft")];
   const draft = { ref: { route: "bridge", uid: 2, uidValidity: 7 }, inReplyTo: qdraft.messageId, mail: qdraft, to: ERIKA, subject: "Re: Subject qdraft", body: "Fixed in 1.5." };
   const eight = issueRecord(8, "closed", [orig], { comments: [noteText("mail-added", early.id, day()), "Closed with pull request https://github.com/alice/product/pull/11.", noteText("mail-added", arrived.id, day())] });
   const nine = issueRecord(9, "open", [qdraft]);
-  const w = world({ mails: [...f.found, orig, early, arrived, qdraft], drafts: [...f.drafts, draft], issues: [...f.issues, eight, nine] });
+  const w = world({ mails: [...f.found, orig, early, arrived, qdraft], drafts: [...f.drafts, draft], issues: [...f.issues, eight, nine], ...extra });
   const target = await opened(w);
   await read(target);
   return { ...f, mails: { ...f.mails, orig, early, arrived, qdraft }, w, target };
@@ -143,13 +143,16 @@ test("a mail that arrived in a closed issue's thread offers Reopen and Leave clo
 // input: the issue 9 drawn; the person's click on Close and reply; the issue 4 drawn
 // expect: Close and reply is offered on 9 and not on 4 (nor is Ask the reporter on 4); the click closes issue 9 once (state closed); the page then shows that issue under to answer with its mail and its draft complete
 test("Close and reply closes the open issue and shows its drafts", async () => {
-  const f = await fixture();
+  // The server answers the change of state slowly, as a loaded machine does: the page's earlier draw of issue 9 (an open issue, its draft a question) stands meanwhile.
+  const f = await fixture({ stateDelay: 80 });
   const four = await issue(f, 4);
   assert.deepEqual([byClass(four, "close-and-reply").length, byClass(four, "ask-reporter").length], [0, 0]);
   const detail = await issue(f, 9);
   assert.equal(f.w.kept.issues.find((each) => each.number === 9).state, "open");
   await trusted(one(detail, "close-and-reply"));
-  await waitFor(() => byClass(itemOf(detail, f.mails.qdraft.id), "reply-draft").length > 0);
+  // What the test asserts below is what it waits for: the state kept as closed, and the redrawn draft complete (its body shown, Send offered).
+  const draftNow = () => itemOf(detail, f.mails.qdraft.id);
+  await waitFor(() => f.w.kept.issues.find((each) => each.number === 9).state === "closed" && byClass(draftNow(), "draft-body").length > 0 && buttonsOf(draftNow(), "Send").length > 0);
   const patches = f.w.kept.github.filter((request) => request.method === "PATCH");
   assert.equal(patches.length, 1);
   assert.deepEqual(JSON.parse(patches[0].body), { state: "closed" });

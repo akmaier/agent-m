@@ -10,12 +10,13 @@
 //   - Create issue is disabled while a hit of the mail's people stands in the title or the text, and while either is empty. A created issue of the kind change is followed by a link to its route `issue/<n>` (step 10: Propose SPEC change).
 //   - The products are those this browser keeps (`products`), each connected with its own token (else, for GitHub, the instance's). The mailbox is the stored connection; on the Bridge route the Bridge it names, by its stored name.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as the schedule page of MOD-test-pages does).
-//   - The subject the route gives the prompt bar holds the `MAIL-` identifiers of the listed mails and no text of any mail, and refuses `propose-edit` and `hand-over` (MOD-maintenance-pages.md, Interfaces); ITM-510 extends it for a
-//     participant the mailbox allows.
+//   - The subject a route that shows mail gives the prompt bar (mailSubject, ITM-510; MOD-maintenance-pages.md, Interfaces): its page holds the `MAIL-` identifiers of the listed mails, and, per mail, its sender, subject, date, text and attachments only for a
+//     participant whose `place` is among the places the mailbox's connection allows and that does not declare "write to the repository"; it refuses `propose-edit` and `hand-over`; its `withhold` gives a reason for a message that holds a name, address, phone
+//     number or account of a listed mail's people (personHits) or a passage of a listed mail's own text — a run of at least twenty characters of it, whatever the case and the spacing —, and null otherwise.
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
-import { readDocument } from "../documents/index.mjs";
+import { readDocument, readRegister } from "../documents/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
@@ -55,8 +56,8 @@ function button(className, text, listener) {
   return node;
 }
 
-// The mail identifiers of the mails now listed: what the subject of this route gives the prompt bar.
-let listedIds = [];
+// The mails now listed with their people: what the subject of this route gives the prompt bar (in memory only, while shown).
+let listed = [];
 
 // The hosts of the products this browser keeps, by their address as the store lists it: each with its own token, else, for GitHub, the instance's.
 export function productsOf(store) {
@@ -110,7 +111,7 @@ async function sessionOf(context, have, products) {
   const info = await instanceHost.repositoryInfo();
   const instanceSnapshot = await instanceHost.readSnapshot(info.defaultBranch);
   const register = await instanceSnapshot.read(REGISTER);
-  const participants = register == null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document);
   return { instanceHost, instanceSnapshot, participants, places: have.connection.places ?? [], allowed: (have.connection.places ?? []).map((each) => each.place), products, store: context.store, box: have.box };
 }
 
@@ -339,6 +340,7 @@ async function proposeSection(session, entries, reviews, choice, hooks) {
 }
 
 async function render(target, context) {
+  listed = []; // a page drawn anew lists no mail until the mailbox is read
   const out = el("div", "mail-out");
   const read = button("read-mailbox", "Read mailbox", async () => {
     out.replaceChildren(el("p", "muted", "Reading the mailbox…"));
@@ -357,13 +359,13 @@ async function render(target, context) {
         });
         out.replaceChildren(problem, again);
       } else out.replaceChildren(problem);
-      listedIds = [];
+      listed = [];
       return;
     }
     const list = el("ul", "mail-list");
     const shown = new Map();
     const reviews = new Map();
-    const onMarked = (id) => { shown.get(id)?.remove(); reviews.delete(id); listedIds = listedIds.filter((each) => each !== id); };
+    const onMarked = (id) => { shown.get(id)?.remove(); reviews.delete(id); listed = listed.filter((each) => each.mail.id !== id); };
     const choice = { participant: null, checkers: null, person: "" };
     const hooks = { changed: () => {} };
     let session = null, sessionProblem = null;
@@ -379,7 +381,7 @@ async function render(target, context) {
     else if (session && found.proposable.length) {
       try { propose = await proposeSection(session, found.proposable, reviews, choice, hooks); } catch (failure) { propose = el("p", "mail-propose-problem", `No participant can be offered: ${failed(failure)}`); }
     }
-    listedIds = found.proposable.map(({ mail }) => mail.id);
+    listed = [...found.proposable];
     const attached = el("ul", "mail-attached", ...found.attached.map((each) => {
       const issue = link(`#issue/${each.issue}`, "issue-link", `#${each.issue}`);
       return el("li", "mail-attached-item", `Mail ${each.id} belongs to the thread of issue `, issue);
@@ -390,8 +392,40 @@ async function render(target, context) {
   target.replaceChildren(el("h2", null, "Mail"), el("section", "mail-step-read", el("p", null, read), fold(STEP_TEXT.read)), out);
 }
 
-function subject() {
-  return { key: "mail", title: "Mail", kind: "converse", entry: null, paramsFor: () => ({ page: ["Mail", ...listedIds].join("\n") }), draftRoute: null, withhold: null, refuses: ["propose-edit", "hand-over"] };
+const PASSAGE = 20;
+const squeeze = (text) => String(text).toLowerCase().replace(/\s+/g, " ");
+// The runs of PASSAGE characters of a text, once each.
+const runsOf = (text) => { const runs = new Set(); for (let at = 0; at + PASSAGE <= text.length; at += 1) runs.add(text.slice(at, at + PASSAGE)); return runs; };
+
+/**
+ * mailSubject({ key, title, entries, store }) -> Subject — what a route that shows mail gives the prompt bar (UC-049 3b). `entries()` gives the mails now shown, each `{ mail, people }`. The page holds the identifiers of the mails and, only for a
+ * participant at a place the mailbox allows that does not write to the repository, their sender, subject, date, text and attachments; `refuses` names propose-edit and hand-over; `withhold(text)` names the mail's people found in the text, or a passage of a
+ * mail's own text, and is null where there is none.
+ */
+export function mailSubject({ key, title, entries, store }) {
+  const places = () => (readSetting(store, "mailbox")?.places ?? []).map((each) => each.place);
+  const mayRead = (participant) => Boolean(participant?.place) && places().includes(participant.place) && !(participant.capabilities ?? []).includes("write to the repository");
+  const pageFor = (participant) => {
+    const lines = [title];
+    for (const { mail } of entries()) {
+      lines.push(mail.id);
+      if (!mayRead(participant)) continue;
+      lines.push(`From: ${who(mail.from)}`, `Subject: ${mail.subject}`, `Date: ${mail.date}`, mail.text,
+        ...(mail.attachments ?? []).map((each) => `Attachment ${each.name} (${each.type}, ${each.size} bytes)${each.text ? `: ${each.text}` : ""}`));
+    }
+    return lines.join("\n");
+  };
+  const withhold = (text) => {
+    const found = [];
+    for (const { people } of entries()) found.push(...personHits(String(text), people).map((hit) => hit.value));
+    if (found.length) return `the text names the mail's people: ${[...new Set(found)].join(", ")}`;
+    const mine = runsOf(squeeze(text));
+    if (entries().some(({ mail }) => [...runsOf(squeeze(mail.text))].some((run) => mine.has(run)))) return "the text quotes a passage of a mail";
+    return null;
+  };
+  return { key, title, kind: "converse", entry: null, paramsFor: (participant) => ({ page: pageFor(participant) }), draftRoute: null, withhold, refuses: ["propose-edit", "hand-over"] };
 }
+
+const subject = (params, context) => mailSubject({ key: "mail", title: "Mail", entries: () => listed, store: context.store });
 
 export const route = { name: "mail", entry: "maintenance", title: "Mail", render, subject };
