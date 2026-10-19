@@ -77,3 +77,16 @@ test("versionCommits — the commit of an existing version is refused as SameByt
   const plan = await versionCommits(both, [], later("2026-12-01", C3));
   assert.deepEqual(rowsOf(writtenEntry(plan).entry).map((row) => row.cells["Read from"]), [`${GUIDE} commit ${C1}`, `${GUIDE} commit ${C2}`, `${GUIDE} commit ${C3}`]);
 });
+
+// TST-925002 · level: unit · module: MOD-source-register
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A SOURCE VERSION IS NEVER OVERWRITTEN
+// given: the entry SRC-guide of a repository source with the versions 2026-10-01 (commit 96210fa4…) and 2026-11-01 (commit 240ddc98…)
+// input: versionCommits(entry, [], …) with the version 2026-10-01 and the commit fc67b7a0… (a commit no version records), and with the version 2026-12-01 and the same commit
+// expect: the first rejects with VersionExists whose field version is "2026-10-01" and nothing is returned; the second resolves with a plan (a new identifier with a new commit is a new version)
+test("versionCommits — a repository's new commit under the identifier of an existing version is refused as VersionExists", async () => {
+  const first = await registered();
+  const both = writtenEntry(await versionCommits(first.entry, [], later("2026-11-01", C2))).entry;
+  await assert.rejects(() => versionCommits(both, [], later("2026-10-01", C3)), (error) => error.name === "VersionExists" && error.version === "2026-10-01");
+  const plan = await versionCommits(both, [], later("2026-12-01", C3));
+  assert.deepEqual(rowsOf(writtenEntry(plan).entry).map((row) => row.cells.Version), ["`2026-10-01`", "`2026-11-01`", "`2026-12-01`"]);
+});
