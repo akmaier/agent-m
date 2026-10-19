@@ -113,7 +113,7 @@ export async function start(electron, supplied = {}) {
   if (process.platform === "linux") {
     window.on("close", (event) => { if (!quitting) event.preventDefault(); });
   } else if (electron.Tray) {
-    tray = new electron.Tray(electron.nativeImage.createFromPath(join(sourceRoot, "site-frame", "brand", "prl-lettered.png")));
+    tray = new electron.Tray(electron.nativeImage.createFromPath(join(sourceRoot, "desktop-shell", "icons", "tray.png")));
     tray.setContextMenu(electron.Menu.buildFromTemplate([{ label: "Open Agent M Bridge", click: () => show(window) }, { label: "Pause", click: () => { paused = true; } }, { label: "Resume", click: () => { paused = false; } }, { label: "Quit", click: () => electron.app.quit() }]));
     tray.on("click", () => show(window));
     window.on("close", (event) => { if (!quitting) { event.preventDefault(); window.hide(); } });
