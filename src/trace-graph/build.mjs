@@ -17,6 +17,7 @@ import { identifiersIn, kindOfIdentifier, positionalReferences } from "../identi
 import { parseSpec } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { importEdges, importsOf, isCodePath, readsImports } from "./code.mjs";
+import { graphFromText } from "./stored.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -180,12 +181,24 @@ function readerOf(path) {
   return isCodePath(path) && readsImports(path) ? (_path, text) => ({ nodes: [codeNode(path)], edges: [], imports: importsOf(path, text) }) : null;
 }
 
+// The graph stored for `commit` on the branch trace-cache, read once through the source's readOn: null without a commit or a readOn, for a
+// missing branch or file, for a text of another format or of another commit, and when readOn fails — none of these is a failure; the graph is then built.
+async function storedFor(source, commit) {
+  if (!commit || typeof source.readOn !== "function") return null;
+  try {
+    const text = await source.readOn("trace-cache", `${commit}.json`);
+    return typeof text === "string" ? graphFromText(text, commit) : null;
+  } catch { return null; }
+}
+
 // traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph> — reads, in the order source.paths lists
 // them, the files of the module's Data that this file selects; every other path is no artifact and is left out of the nodes,
 // though it stays among `files`, which holds every path source lists. A path source.read resolves null for is listed in unread
 // with the reason and contributes no node; so is a file that is not read as its format — the reader throws, and its message
 // is the reason —, and the graph holds the others. Rejects only when source.read itself rejects.
 export async function traceGraph(source, options = {}) {
+  const storedGraph = await storedFor(source, options.commit);
+  if (storedGraph) return storedGraph;
   const nodes = new Map();
   const edges = [], links = [], positions = [], unread = [], imported = [];
   await source.readMany?.(source.paths.filter((path) => readerOf(path)));

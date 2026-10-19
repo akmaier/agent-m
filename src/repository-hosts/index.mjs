@@ -231,6 +231,17 @@ export function connect(address, credentials = {}) {
             for (const [sha, path] of batch) if (got.has(path) && !texts.has(sha)) texts.set(sha, Promise.resolve(got.get(path)));
           }
         },
+        // readOn(branch, path) -> the text of a file on another branch of the same repository, in one request (the API's contents with a
+        // token, the raw host without), or null when the branch or the file does not exist. Not kept: the branch moves on.
+        async readOn(branch, path) {
+          if (typeof branch !== "string" || !branch.trim() || typeof path !== "string" || !path) throw new TypeError("readOn names a branch and a path");
+          try {
+            return await adapter.readFile(branch, path);
+          } catch (e) {
+            if (clone && !(e instanceof HostError)) return null; // a clone holds no such branch or file
+            throw e;
+          }
+        },
         read(path) {
           const sha = blobs.get(path);
           if (!sha) return Promise.resolve(null);

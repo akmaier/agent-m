@@ -21,7 +21,8 @@
 
 /**
  * The files of one repository at one commit, as the caller hands them; a snapshot of Access fits it.
- * @typedef {{ paths: string[], read: (path: string) => Promise<string | null>, readMany?: (paths: string[]) => Promise<void> }} TextSource
+ * @typedef {{ paths: string[], read: (path: string) => Promise<string | null>, readMany?: (paths: string[]) => Promise<void>,
+ * readOn?: (branch: string, path: string) => Promise<string | null> }} TextSource
  */
 
 /**
@@ -126,5 +127,6 @@
  */
 
 export { traceGraph } from "./build.mjs";
+export { graphFromText, graphText } from "./stored.mjs";
 export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
 export { architectureImpact, coverageGaps, moduleOrder, moduleRows, requirementImpact, tracesTo } from "./derive.mjs";
