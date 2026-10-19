@@ -1,5 +1,5 @@
 // MOD-main-page's route `jobs` — the folded explanations of every job state and every kind of runtime (ITM-975; UC-036: "Every state, and every kind of runtime, carries a
-// folded What is this?"). The route draws, once each, the explanation of the seven states and of the runtimes tab, CI and Bridge, whether or not a job is in them; the topics
+// folded What is this?"). The route draws, once each, the explanation of the eight states and of the runtimes tab, CI and Bridge, whether or not a job is in them; the topics
 // stand in src/site-frame/explanations.md (MOD-site-frame), and the frame's own check (tests/site-frame-topics.mjs) finds a topic the route names and the file lacks.
 // Run: node --test tests/main-page-jobs-explanations.test.mjs
 //
@@ -62,15 +62,15 @@ const find = (root, match) => {
 };
 const byClass = (root, name) => find(root, (node) => node.className.split(/\s+/).includes(name));
 
-const STATES = ["waiting at a gate", "running", "queued", "done", "failed", "cancelled", "ended without record"];
+const STATES = ["waiting at a gate", "running", "cancelling", "queued", "done", "failed", "cancelled", "ended without record"];
 const RUNTIMES = ["tab", "ci", "bridge"];
 
 // TST-975001 · level: unit · module: MOD-main-page
 // guards: EVERY STEP EXPLAINS ITSELF; UC-036
 // given: an instance with no job; known positive: the route draws a heading "Every job"
 // input: the route `jobs` drawn
-// expect: seven elements with the class job-state-explain, one for each of the states waiting at a gate, running, queued, done, failed, cancelled and ended without record (attribute data-state), and three with the class job-runtime-explain for tab, ci and bridge (attribute data-runtime), each holding exactly one folded explanation (details with the class explain) whose text beyond its summary is not empty
-test("the route jobs draws the folded explanation of each of the seven states and of the tab, CI and Bridge runtimes, once each", async () => {
+// expect: eight elements with the class job-state-explain, one for each of the states waiting at a gate, running, cancelling (within running in the list, ITM-972), queued, done, failed, cancelled and ended without record (attribute data-state), and three with the class job-runtime-explain for tab, ci and bridge (attribute data-runtime), each holding exactly one folded explanation (details with the class explain) whose text beyond its summary is not empty
+test("the route jobs draws the folded explanation of each of the eight states and of the tab, CI and Bridge runtimes, once each", async () => {
   const target = await draw();
   assert.equal(find(target, (node) => node.localName === "h2")[0].textContent, "Every job", "known positive: the page is drawn");
   const states = byClass(target, "job-state-explain");
