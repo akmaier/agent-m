@@ -22,7 +22,7 @@
 // list or a number, which a field shows as text and hands over as the text typed; the section under a document's title.
 // The editor of a section brings a Save of its own; it hands nothing over, since the form's one Save does.
 
-import { documentFindings } from "../documents/index.mjs";
+import { documentFindings, readDocument } from "../documents/index.mjs";
 import { openEditor } from "../markdown-render/index.mjs";
 
 // What the Save of a section's editor answers.
@@ -73,16 +73,22 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
   // The lines between the front matter and the first section, the title among them, as the document given holds them.
   const lead = given.sections.length ? given.sections[0].line - frontLines(given.fields) - 1 : lineEnds(given.body);
 
+  // A section the person edited: the text typed and, where the schema names a table for it, the rows of that table read again from the text typed — as MOD-documents reads a file —, so that the checks see them; each
+  // row on the line it has below the section's heading at `line`.
+  function editedSection(heading, line, text) {
+    const read = readDocument(schema, given.path ?? schema.path, `${heading}\n${text}`).sections.find((section) => section.heading === heading);
+    return read?.rows ? { heading, line, text, rows: read.rows.map((row) => ({ ...row, line: row.line - read.line + line })) } : { heading, line, text };
+  }
+
   // The document as the person has left the form.
   function documentNow() {
     const fields = {};
     for (const key of [...keys, ...Object.keys(given.fields)]) if (values[key] !== undefined) fields[key] = values[key];
-    const sections = given.sections.map((section) => (edits.has(section.heading)
-      ? { heading: section.heading, line: section.line, text: edits.get(section.heading) } : section));
+    const sections = given.sections.map((section) => (edits.has(section.heading) ? editedSection(section.heading, section.line, edits.get(section.heading)) : section));
     for (const [heading, text] of edits) {
       if (sections.some((section) => section.heading === heading)) continue;
       const later = sections.findIndex((section) => headings.indexOf(section.heading) > headings.indexOf(heading));
-      sections.splice(later < 0 ? sections.length : later, 0, { heading, line: 0, text });
+      sections.splice(later < 0 ? sections.length : later, 0, editedSection(heading, 0, text));
     }
     let line = frontLines(fields) + 1 + lead;
     return { ...given, fields, sections: sections.map((section) => {
