@@ -56,9 +56,9 @@ const writes = (server) => server.requests.filter((r) => r.method !== "GET").map
 // ---------------------------------------------------------------- GitHub's fixture: issues 3 (open, two labels, one comment), 4 (a pull request), 5 (closed) and the comments
 
 const GH_ISSUES = [
-  { number: 3, title: "The export fails", body: "Empty file.", labels: [{ name: "defect" }, { name: "export" }], state: "open", html_url: `${GH_WEB}/issues/3`, comments: 1 },
-  { number: 4, title: "A pull request", body: "", labels: [], state: "open", html_url: `${GH_WEB}/pull/4`, comments: 0, pull_request: {} },
-  { number: 5, title: "Old wish", body: "Dark mode.", labels: [{ name: "change" }], state: "closed", html_url: `${GH_WEB}/issues/5`, comments: 0 },
+  { number: 3, title: "The export fails", body: "Empty file.", labels: [{ name: "defect" }, { name: "export" }], state: "open", html_url: `${GH_WEB}/issues/3`, comments: 1, created_at: "2026-10-01T08:00:00Z", closed_at: null },
+  { number: 4, title: "A pull request", body: "", labels: [], state: "open", html_url: `${GH_WEB}/pull/4`, comments: 0, pull_request: {}, created_at: "2026-10-02T08:00:00Z", closed_at: null },
+  { number: 5, title: "Old wish", body: "Dark mode.", labels: [{ name: "change" }], state: "closed", html_url: `${GH_WEB}/issues/5`, comments: 0, created_at: "2026-09-01T08:00:00Z", closed_at: "2026-09-03T08:00:00Z" },
 ];
 const GH_COMMENTS = { 3: [{ user: { login: "alice" }, body: "Seen on 1.2.", created_at: "2026-10-12T09:00:00Z" }] };
 function githubServer() {
@@ -78,14 +78,14 @@ function githubServer() {
     return json(404, { message: "Not Found" });
   });
 }
-const GH_ISSUE_3 = { number: 3, title: "The export fails", body: "Empty file.", labels: ["defect", "export"], state: "open", url: `${GH_WEB}/issues/3`, comments: [{ author: "alice", body: "Seen on 1.2.", date: "2026-10-12T09:00:00Z" }] };
-const GH_ISSUE_5 = { number: 5, title: "Old wish", body: "Dark mode.", labels: ["change"], state: "closed", url: `${GH_WEB}/issues/5`, comments: [] };
+const GH_ISSUE_3 = { number: 3, title: "The export fails", body: "Empty file.", labels: ["defect", "export"], state: "open", url: `${GH_WEB}/issues/3`, opened: "2026-10-01T08:00:00Z", closed: null, comments: [{ author: "alice", body: "Seen on 1.2.", date: "2026-10-12T09:00:00Z" }] };
+const GH_ISSUE_5 = { number: 5, title: "Old wish", body: "Dark mode.", labels: ["change"], state: "closed", url: `${GH_WEB}/issues/5`, opened: "2026-09-01T08:00:00Z", closed: "2026-09-03T08:00:00Z", comments: [] };
 
 // ---------------------------------------------------------------- GitLab's fixture: issues 7 (opened, labels, a system note and a comment) and 8 (closed)
 
 const GL_ISSUES = [
-  { iid: 7, title: "The export fails", description: "Empty file.", labels: ["defect", "export"], state: "opened", web_url: `${GL_WEB}/-/issues/7` },
-  { iid: 8, title: "Old wish", description: "Dark mode.", labels: ["change"], state: "closed", web_url: `${GL_WEB}/-/issues/8` },
+  { iid: 7, title: "The export fails", description: "Empty file.", labels: ["defect", "export"], state: "opened", web_url: `${GL_WEB}/-/issues/7`, created_at: "2026-10-01T08:00:00Z", closed_at: null },
+  { iid: 8, title: "Old wish", description: "Dark mode.", labels: ["change"], state: "closed", web_url: `${GL_WEB}/-/issues/8`, created_at: "2026-09-01T08:00:00Z", closed_at: "2026-09-03T08:00:00Z" },
 ];
 const GL_NOTES = { 7: [{ author: { username: "alice" }, body: "Seen on 1.2.", created_at: "2026-10-12T09:00:00Z", system: false }, { author: { username: "alice" }, body: "added ~defect label", created_at: "2026-10-12T09:01:00Z", system: true }] };
 function gitlabServer() {
@@ -103,8 +103,8 @@ function gitlabServer() {
     return json(404, { message: "404 Not found" });
   });
 }
-const GL_ISSUE_7 = { number: 7, title: "The export fails", body: "Empty file.", labels: ["defect", "export"], state: "open", url: `${GL_WEB}/-/issues/7`, comments: [{ author: "alice", body: "Seen on 1.2.", date: "2026-10-12T09:00:00Z" }] };
-const GL_ISSUE_8 = { number: 8, title: "Old wish", body: "Dark mode.", labels: ["change"], state: "closed", url: `${GL_WEB}/-/issues/8`, comments: [] };
+const GL_ISSUE_7 = { number: 7, title: "The export fails", body: "Empty file.", labels: ["defect", "export"], state: "open", url: `${GL_WEB}/-/issues/7`, opened: "2026-10-01T08:00:00Z", closed: null, comments: [{ author: "alice", body: "Seen on 1.2.", date: "2026-10-12T09:00:00Z" }] };
+const GL_ISSUE_8 = { number: 8, title: "Old wish", body: "Dark mode.", labels: ["change"], state: "closed", url: `${GL_WEB}/-/issues/8`, opened: "2026-09-01T08:00:00Z", closed: "2026-09-03T08:00:00Z", comments: [] };
 
 // TST-581001 · level: unit · module: MOD-repository-hosts
 // guards: UC-012

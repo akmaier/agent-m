@@ -34,7 +34,8 @@ const pullOf = (m) => ({ number: m.iid, title: m.title, branch: m.source_branch,
   url: m.web_url, opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null, body: m.description ?? "" });
 
 // An issue of "New issue" / "List project issues" as the Issue: iid its number, description its body, state opened is open, labels the names.
-const issueOf = (i, comments = []) => ({ number: i.iid, title: i.title, body: i.description ?? "", labels: i.labels ?? [], state: i.state === "closed" ? "closed" : "open", url: i.web_url, comments });
+const issueOf = (i, comments = []) => ({ number: i.iid, title: i.title, body: i.description ?? "", labels: i.labels ?? [], state: i.state === "closed" ? "closed" : "open", url: i.web_url,
+  opened: i.created_at, closed: i.state === "closed" ? i.closed_at ?? null : null, comments });
 
 // An entry of the diff of a commit as the change the commit made to the file: added, deleted, renamed — with the path it came
 // from — or modified.

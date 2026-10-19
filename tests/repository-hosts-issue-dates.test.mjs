@@ -37,8 +37,8 @@ const GH = [
   { number: 6, title: "Reopened", body: "", labels: [], state: "open", html_url: `${GH_WEB}/issues/6`, comments: 0, created_at: OTHER, closed_at: CLOSED },
 ];
 const GL = [
-  { iid: 7, title: "Open", description: "", labels: [], state: "opened", web_url: `${GL_WEB}/-/issues/7`, created_at: OPENED, closed_at: null },
-  { iid: 8, title: "Closed without a note", description: "", labels: [], state: "closed", web_url: `${GL_WEB}/-/issues/8`, created_at: OTHER, closed_at: CLOSED },
+  { iid: 7, title: "Open", description: "", labels: [], state: "opened", user_notes_count: 0, web_url: `${GL_WEB}/-/issues/7`, created_at: OPENED, closed_at: null },
+  { iid: 8, title: "Closed without a note", description: "", labels: [], state: "closed", user_notes_count: 0, web_url: `${GL_WEB}/-/issues/8`, created_at: OTHER, closed_at: CLOSED },
 ];
 const github = () => serving((r) => {
   if (r.path === `${GH_PREFIX}/issues` && r.method === "GET") return json(200, Number(r.query.page ?? 1) === 1 ? GH : []);

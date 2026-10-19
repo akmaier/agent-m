@@ -91,7 +91,7 @@ function checkedBlobs(records, snapshot) {
  * - "facts of sprint <name>": `sprintFacts` as JSON, of the product's items (the plan's steps, else the backlog's), its tests with what each guards, the items' states (`itemStates`, with the
  *   workflow `productWorkflow` gives from the declaration, read at the version it names), its jobs (`listJobs`, without live states), the branch `test-results` (the host's readSnapshot) and its
  *   pull requests;
- * - "issues of sprint <name>": the issues the host gives whose comment is dated within the sprint's time box (an Issue carries no date of its own), one line each with its address; where the host gives
+ * - "issues of sprint <name>": the issues the host gives (of every state) whose `opened` or `closed` is dated within the sprint's time box, one line each with its address; where the host gives
  *   none, one line saying they were not read, with the reason;
  * - "job records of sprint <name>": the product's jobs that work on an item of the selection, one line each with the job and the path of its record;
  * - "result records of sprint <name>": the records of the branch test-results for the head of each merged pull request of the increment, one line each with its path.
@@ -131,20 +131,20 @@ async function sprintFactsRecipe(context, params) {
   if (host) {
     try { results = await host.readSnapshot("test-results"); } catch (error) { if (!["NotFound", "NotSupported"].includes(error?.name)) throw error; }
   }
-  const facts = await sprintFacts(sprint, { items, tests, states, jobs, results, pullRequests: pullRequests === "unknown" ? [] : pullRequests, issues: [] });
-
   const start = day(sprint.fields.start), end = day(sprint.fields.end) || day(context.now.toISOString());
-  let issueLines;
+  const within = (date) => date && day(date) >= start && day(date) <= end;
+  let sprintIssues = [], issueLines;
   try {
     const issues = host ? await host.listIssues({ state: "all" }) : null;
     if (issues === null) throw failure("NotSupported", "the product has no host");
-    issueLines = issues.filter((each) => (each.comments ?? []).some((comment) => day(comment.date) >= start && day(comment.date) <= end))
-      .map((each) => `- issue #${each.number} ${each.title} — ${each.url}`);
-    if (issueLines.length === 0) issueLines = ["none of the product's issues has a comment within the time box"];
+    sprintIssues = issues.filter((each) => within(each.opened) || within(each.closed));
+    issueLines = sprintIssues.map((each) => `- issue #${each.number} ${each.title} — ${each.url}`);
+    if (issueLines.length === 0) issueLines = ["none of the product's issues was opened or closed within the time box"];
   } catch (error) {
     if (error?.name !== "NotSupported") throw error;
     issueLines = [`The issues were not read: the product's host gives none (${error.name}).`];
   }
+  const facts = await sprintFacts(sprint, { items, tests, states, jobs, results, pullRequests: pullRequests === "unknown" ? [] : pullRequests, issues: sprintIssues });
 
   const selection = new Set(selectionOfRecord(sprint));
   const jobLines = jobs.filter((row) => (row.record.worksOn ?? []).some((item) => selection.has(item)))
