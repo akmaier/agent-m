@@ -262,6 +262,28 @@ test("library — documents that may be republished are committed to the instanc
   assert.match(one(page, "library-result").textContent, /SRC-handbook/);
 });
 
+// Every SHA-256 the page asks the browser for takes `ms` longer, as on a loaded runner; the digest is put back after the test.
+function slowDigest(t, ms) {
+  const subtle = globalThis.crypto.subtle, own = Object.hasOwn(subtle, "digest"), real = subtle.digest;
+  subtle.digest = async (...args) => { await new Promise((resolve) => setTimeout(resolve, ms)); return real.apply(subtle, args); };
+  t.after(() => { if (own) subtle.digest = real; else delete subtle.digest; });
+}
+
+// TST-1011001 · level: unit · module: MOD-settings-pages
+// guards: UC-004 4; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: the documents route, the two files of TST-472753 ("# A\n", "# B\n"), and a browser whose every SHA-256 takes 20 ms longer than it does here
+// input: the two files chosen
+// expect: however long the hashing takes, the page shows both files, each with the SHA-256 of its own bytes, in the order chosen — sha256("# A\n") = aa1237b773c38dbddef583c4868aaea7a44c5237ea7923aecca5513764b42d80 and sha256("# B\n") = a81d3fbddd441e2d690b9c03c18251323a295c8eb8ebbfb81ca45b63bf8d5a06 — and the test does not read the page before it shows them
+test("library — the files' hashes are shown whatever time the browser takes to hash them", async (t) => {
+  slowDigest(t, 20);
+  const b = browser(t);
+  const page = await b.page();
+  await register(page, "documents");
+  await chooseFiles(page, SELECTED);
+  const hashes = byClass(page, "library-file-hash").map((node) => node.textContent.match(/[0-9a-f]{64}/)?.[0]);
+  assert.deepEqual(hashes, ["aa1237b773c38dbddef583c4868aaea7a44c5237ea7923aecca5513764b42d80", "a81d3fbddd441e2d690b9c03c18251323a295c8eb8ebbfb81ca45b63bf8d5a06"]);
+});
+
 // TST-472754 · level: unit · module: MOD-settings-pages
 // guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A SOURCE DECLARES ITS LICENCE; UC-004 3, 4b, 6
 // given: the documents route, two files, a licence `restricted`; and the same with `unknown`; the named repository without and with its address
