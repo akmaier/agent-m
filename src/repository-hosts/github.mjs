@@ -29,7 +29,8 @@ const releaseOf = (r) => ({ tag: r.tag_name, name: r.name ?? r.tag_name, publish
 
 // An issue of "Create an issue" / "List repository issues" as the Issue: its labels are objects with a name (or texts), its comments those given.
 const issueOf = (i, comments = []) => ({ number: i.number, title: i.title, body: i.body ?? "", labels: (i.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)),
-  state: i.state === "closed" ? "closed" : "open", url: i.html_url, comments });
+  state: i.state === "closed" ? "closed" : "open", url: i.html_url,
+  opened: i.created_at, closed: i.state === "closed" ? i.closed_at ?? null : null, comments });
 
 // A file of "Get a commit" as the change the commit made to it: its status — a copy is an addition, a change of mode a
 // modification —, and for a rename the path it came from. A file the commit left unchanged is no change.
