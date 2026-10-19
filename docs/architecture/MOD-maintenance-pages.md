@@ -7,6 +7,7 @@ follows:
   - ARC-038
 uses:
   - MOD-site-frame.View
+  - MOD-site-frame.ViewContext
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
@@ -146,7 +147,8 @@ instance's participants.
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
   MOD-site-frame.runPanel, MOD-site-frame.confirmDecision, MOD-site-frame.schemaForm — the frame's parts, the run panels,
-  the dialog of every send, and the form of a backlog item.
+  the dialog of every send, and the form of a backlog item; MOD-site-frame.ViewContext — `addressOf`, the address of
+  every link from one of its routes to another, such as an issue's on `replies`.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
 - MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
 - MOD-browser-store.readSetting — the mailbox connection, the endpoints' configurations and the Bridges' settings;

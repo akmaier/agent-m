@@ -138,13 +138,15 @@ It keeps nothing but what is on the screen. It owns these formats:
   `subject` gives `null` for these parameters, has the frame's default: the kind `converse`, the route's title, and as the page the route's title, the menu entry, the product, and the text the route has drawn, which holds no stored secret, since a stored
   secret is shown only in a hidden field (`A STORED SECRET IS HIDDEN UNTIL SHOWN`).
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
-  host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
+  host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) ->
+  void, addressOf(route: string, params?: Record<string, string>) -> string }`
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
   "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
   token, so that a view hands `readProblem` the fact without reading the store's keys itself. `go` writes the chosen
   product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the
-  address then holds none.
+  address then holds none. `addressOf` gives the address `go` would go to, with the same product, as a link's target;
+  a route writes no address of its own.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
   `menuOf` gives them, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
