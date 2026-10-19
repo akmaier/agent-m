@@ -58,9 +58,9 @@ const SMALL = () => smallProduct({ jobs: [RUNNING] });
 // guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
 // given: the module's view
 // input: its routes and its strategies read
-// expect: the routes are exactly [home, jobs], home the first (the frame shows the first route for an address that names none); home is named "home", titled "Agent M", sits under no entry of the menu (entry null) and keeps the frame's default subject (no `subject`); the strategies are exactly [sourceStrategies] of MOD-source-register
+// expect: the routes are exactly [home, jobs, job], home the first (the frame shows the first route for an address that names none); home is named "home", titled "Agent M", sits under no entry of the menu (entry null) and keeps the frame's default subject (no `subject`); the strategies are exactly [sourceStrategies] of MOD-source-register
 test("TST-827001 the view hands the frame the routes home and jobs, home first, and the strategies of the source register", () => {
-  assert.deepEqual(view.routes.map((candidate) => candidate.name), ["home", "jobs"]);
+  assert.deepEqual(view.routes.map((candidate) => candidate.name), ["home", "jobs", "job"]);
   assert.equal(home.title, "Agent M");
   assert.equal(home.entry, null);
   assert.equal("subject" in home, false);

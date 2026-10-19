@@ -364,9 +364,9 @@ test("TST-509006 the job of this tab's conversation is listed first among the ro
 // guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; ONE DASHBOARD SHOWS EVERY JOB; UC-049
 // given: the module's view
 // input: its routes, its strategies and the route `jobs` read
-// expect: the routes are exactly [home, jobs]; the route is named "jobs", has the title "Every job", sits under no entry of the menu (entry null) and keeps the frame's default subject (no `subject`); the strategies are exactly [sourceStrategies] of MOD-source-register
+// expect: the routes are exactly [home, jobs, job]; the route is named "jobs", has the title "Every job", sits under no entry of the menu (entry null) and keeps the frame's default subject (no `subject`); the strategies are exactly [sourceStrategies] of MOD-source-register
 test("TST-509007 the view hands the frame the route jobs and the strategies of the source register", () => {
-  assert.deepEqual(view.routes.map((candidate) => candidate.name), ["home", "jobs"]);
+  assert.deepEqual(view.routes.map((candidate) => candidate.name), ["home", "jobs", "job"]);
   assert.equal(route.title, "Every job");
   assert.equal(route.entry, null);
   assert.equal("subject" in route, false);
