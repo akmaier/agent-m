@@ -86,12 +86,19 @@ const COVERED_BY_RELEASE = {
 const REVIEW_ONLY = ["CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI", "ONE CLICK PER DECISION"];
 // The files the SPEC names as the check of a requirement of UC-049 and that this repository does not hold (the pull request names the items that build them).
 const MISSING_CHECKS = {
+  // ITM-1132
   "tests/test_job_record.py": ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"],
+  // ITM-1131
   "tests/test_no_secret_written.py": ["NO SECRET IN THE REPOSITORY"],
+  // ITM-1133
   "tests/test_single_definition.py": ["ONE DEFINITION, THREE DRIVERS"],
+  // ITM-1134
   "tests/test_runtime_levels.py": ["A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET", "A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET"],
+  // ITM-1135
   "tests/test_job_cancel.py": ["A CANCELLED JOB WRITES NOTHING MORE"],
+  // ITM-1136
   "tests/test_job_cost.py": ["NO COST IS GUESSED"],
+  // ITM-1137
   "tests/test_endpoint_diagnosis.py": ["AN UNSUPPORTED ENDPOINT SAYS SO"],
 };
 
@@ -142,7 +149,7 @@ test("TST-513201: UC-049 release coverage names every automatic requirement, and
 // given: the files the SPEC names as the checks of the requirements UC-049 realises
 // input: ask whether each exists
 // expect: every file the SPEC names exists. FINDING: seven of them do not (MISSING_CHECKS: the checks of the job record, of the secret, of the single definition, of the runtime levels, of the cancelling of a job, of its cost and of the endpoint's diagnosis), so this case is red on main until they are written
-test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", { todo: "FINDING UC049-checks — seven files the SPEC names as checks of requirements UC-049 realises are not in the repository (MISSING_CHECKS)" }, () => {
+test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", { todo: "FINDING UC049-checks — seven files the SPEC names as checks of requirements UC-049 realises are not in the repository (MISSING_CHECKS: ITM-1132, ITM-1131, ITM-1133, ITM-1134, ITM-1135, ITM-1136, ITM-1137)" }, () => {
   const absent = Object.keys(MISSING_CHECKS).filter((file) => !existsSync(new URL(file, ROOT)));
   assert.deepEqual(absent, [], `the SPEC names these files and they do not exist`);
 });
