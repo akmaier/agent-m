@@ -21,7 +21,7 @@ const CARRIED = [...new Set(["electron", ...Object.keys(MANIFEST.dependencies ??
 
 // One failure, named by `name`, with its fields (MOD-bridge-build, Interfaces): BuildMissing { platform } · SignatureInvalid { file } ·
 // LicenceNotCompatible { package } · ChecksumMismatch { file } · SecretMissing { secret }.
-class ReleaseError extends Error {
+export class ReleaseError extends Error {
   constructor(name, fields, message) {
     super(message);
     this.name = name;

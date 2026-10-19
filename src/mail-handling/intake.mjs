@@ -3,6 +3,7 @@
 
 import { listedMailIds, noteText, threadMatch, undecided, withMailIds, issueLabels } from "../mail-records/index.mjs";
 import { peopleIn, personHits } from "../personal-data/index.mjs";
+import { readSetting, writeSetting } from "../browser-store/index.mjs";
 
 /** The labels an issue from a mail may carry (AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE). */
 const MAIL_LABELS = [issueLabels.defect, issueLabels.change];
@@ -75,21 +76,21 @@ export async function readNewMail(mailbox, products, marked) {
 }
 
 /**
- * decideMail(mail, decision, host) -> Promise<{ issue: number | null }> — carries out the person's one click on a mail.
+ * decideMail(mail, decision, host, store) -> Promise<{ issue: number | null }> — carries out the person's one click on a mail.
  * `create` searches the title and the text once more for the mail's people and refuses with `PersonFound` on a hit, writing
  * nothing; otherwise it creates one issue labelled `defect` or `change` whose text ends with the mail's identifier. `add`
- * lists the mail on an existing issue by one `mail-added` note. `not-an-issue` is another item's (ITM-956): it throws a
- * TypeError and writes nothing. The host's errors pass unchanged.
+ * lists the mail on an existing issue by one `mail-added` note. `not-an-issue` adds the mail's identifier to this browser's marks in `store` (the setting
+ * `not-an-issue`, a list in the order marked, without repeats) and writes to no host; without a store it is a TypeError. The host's errors pass unchanged.
  * @param {{ id: string, people: object }} mail
  * @param {{ kind: string }} decision
  * @param {object | null} host
+ * @param {object} [store] MOD-browser-store's Store, as the page opened it for the instance
  */
-export async function decideMail(mail, decision, host) {
+export async function decideMail(mail, decision, host, store) {
   switch (decision?.kind) {
     case "create": return create(mail, decision, host);
     case "add": return add(mail, decision, host);
-    case "not-an-issue":
-      throw new TypeError("decideMail: the decision not-an-issue is not carried out yet; the mark is ITM-956's.");
+    case "not-an-issue": return mark(mail, store);
     default:
       throw new TypeError(`decideMail: ${JSON.stringify(decision?.kind)} is not a decision (create, add, not-an-issue).`);
   }
@@ -116,4 +117,12 @@ async function add(mail, { issue }, host) {
   needHost(host, "add");
   await host.commentOnIssue(issue, noteText("mail-added", mail.id, today()));
   return { issue };
+}
+
+function mark(mail, store) {
+  if (!store) throw new TypeError("decideMail: the decision not-an-issue is kept in the browser's store, which was not given.");
+  const kept = readSetting(store, "not-an-issue");
+  const marks = Array.isArray(kept) ? kept : [];
+  if (!marks.includes(mail.id)) writeSetting(store, "not-an-issue", [...marks, mail.id]);
+  return { issue: null };
 }

@@ -351,18 +351,14 @@ test("TST-952016 add lists the mail on the existing issue by one mail-added note
 // level: unit
 // module: MOD-mail-handling
 // guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; UC-038
-// given: the decision not-an-issue, whose mark is another item's (ITM-956); a host that records its calls, and no host
-// input: decideMail with { kind: "not-an-issue" } with a host and with null
-// expect: both reject with a TypeError whose message names ITM-956; the host receives no call
-test("TST-952017 not an issue throws a TypeError naming ITM-956 and writes nothing", async () => {
+// given: the decision not-an-issue, whose mark is kept in the store (ITM-956: tests/mail-handling-mark.test.mjs); a host that records its calls, and no store
+// input: decideMail with { kind: "not-an-issue" } with a host and with null, both without a store
+// expect: both reject with a TypeError (a mark needs the store); the host receives no call
+test("TST-952017 not an issue without a store throws a TypeError and writes nothing", async () => {
   const host = fakeHost([]);
-  await assert.rejects(handling.decideMail?.({ id: NEW_ID, people: ERIKA_PEOPLE }, { kind: "not-an-issue" }, host), (error) => {
-    assert.ok(error instanceof TypeError);
-    assert.match(error.message, /ITM-956/);
-    return true;
-  });
+  await assert.rejects(handling.decideMail?.({ id: NEW_ID, people: ERIKA_PEOPLE }, { kind: "not-an-issue" }, host), TypeError);
   assert.deepEqual(host.calls, []);
-  await assert.rejects(handling.decideMail?.({ id: NEW_ID, people: ERIKA_PEOPLE }, { kind: "not-an-issue" }, null), (error) => error instanceof TypeError && /ITM-956/.test(error.message));
+  await assert.rejects(handling.decideMail?.({ id: NEW_ID, people: ERIKA_PEOPLE }, { kind: "not-an-issue" }, null), TypeError);
 });
 
 // TST-952018
