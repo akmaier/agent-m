@@ -170,20 +170,21 @@ test("TST-1005003: MOD-desktop-shell ends the start with an error naming build.j
     assert.equal(started.fake.windows.length, 0, "no window is made");
     assert.equal(await refused(port), true, "nothing listens on the Bridge's port");
     assert.deepEqual(readdirSync(appData), [], "no data folder is made");
-  } finally { rmSync(appData, { recursive: true, force: true }); rmSync(resources, { recursive: true, force: true }); }
+  } finally { await stopEntry(started); rmSync(appData, { recursive: true, force: true }); rmSync(resources, { recursive: true, force: true }); }
 });
 
 // TST-1005004 · level: unit · module: MOD-desktop-shell
 // guards: UC-044; THE BRIDGE RUNS AS AN APP
-// given: three resources folders whose build.json cannot be used — a directory in its place, a text that is not JSON, and a JSON object without the instance and the origin; the entry started with no command-line argument over each
+// given: four resources folders whose build.json cannot be used — a directory in its place, a text that is not JSON, a JSON object with an instance and no origin, and one with an origin and no instance; the entry started with no command-line argument over each
 // input: the entry's start, once for each folder
 // expect: each time the entry asks to quit and prints an error that names build.json; no window is made and the per-user data place holds no data folder
-// Planted fault: accepting a build.json without an origin lets the start go on, and the third folder's window or data folder appears.
+// Planted fault: accepting a build.json without an origin, or without an instance, lets the start go on, and that folder's window or data folder appears.
 test("TST-1005004: MOD-desktop-shell ends the start with an error naming build.json when the file is unreadable or unusable", async () => {
   const unusable = {
     "a directory in its place": (folder) => mkdirSync(join(folder, "build.json")),
     "text that is not JSON": (folder) => writeFileSync(join(folder, "build.json"), "{ not json"),
-    "no instance and no origin": (folder) => writeFileSync(join(folder, "build.json"), JSON.stringify({ appId: BUILD.appId, version: BUILD.version, commit: BUILD.commit })),
+    "an instance and no origin": (folder) => writeFileSync(join(folder, "build.json"), JSON.stringify({ ...BUILD, origin: undefined })),
+    "an origin and no instance": (folder) => writeFileSync(join(folder, "build.json"), JSON.stringify({ ...BUILD, instance: undefined })),
   };
   for (const [description, make] of Object.entries(unusable)) {
     const appData = temporary(), resources = resourcesFolder({ build: null });
@@ -194,7 +195,7 @@ test("TST-1005004: MOD-desktop-shell ends the start with an error naming build.j
       assert.match(started.errors.join("\n"), /build\.json/, `${description}: the error names the file`);
       assert.equal(started.fake.windows.length, 0, `${description}: no window is made`);
       assert.deepEqual(readdirSync(appData), [], `${description}: no data folder is made`);
-    } finally { rmSync(appData, { recursive: true, force: true }); rmSync(resources, { recursive: true, force: true }); }
+    } finally { await stopEntry(started); rmSync(appData, { recursive: true, force: true }); rmSync(resources, { recursive: true, force: true }); }
   }
 });
 
