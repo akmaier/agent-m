@@ -29,6 +29,10 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
+const TRACE = join(tmpdir(), `trace2-${process.pid}.jsonl`);
+process.env.GIT_TRACE2_EVENT = TRACE;
+const openGits = () => { if (!existsSync(TRACE)) return []; const started = new Map(); for (const line of readFileSync(TRACE, "utf8").split("\n")) { if (!line) continue; let e; try { e = JSON.parse(line); } catch { continue; } if (e.event === "start") started.set(e.sid, (e.argv || []).join(" ")); if (e.event === "exit" || e.event === "atexit") started.delete(e.sid); } return [...started].map(([sid, argv]) => `${sid} ${argv}`); };
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startRecord } from "../src/job-ledger/index.mjs";
@@ -217,6 +221,7 @@ async function withCheckouts(run) {
     const origin = repository(root, "product", { "README.md": "# Thesis tool\n", [start.path]: start.text }, productDir);
     return await run({ root, productDir, origin, head: git(productDir, "rev-parse", "HEAD") });
   } finally {
+    { const open = openGits(); if (open.length) console.error(`DIAG-OPEN-GIT ${open.length}\n${open.join("\n")}`); }
     try { rmSync(root, { recursive: true, force: true }); } catch (error) {
       const sh = (c) => { try { return execSync(c, { encoding: "utf8", shell: "/bin/bash" }); } catch (e) { return String(e.message); } };
       const at = Date.now();
