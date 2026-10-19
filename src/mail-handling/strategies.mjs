@@ -11,14 +11,16 @@ const part = (name, text) => ({ name, text, size: 0, sources: [], required: true
  * chosen mails, each with its people and the names of the attachments the person ticked for it —, and `products`, `{ address:
  * string, host: Host }[]`. One part per mail with its identifier, subject, date and text, and the text of its ticked
  * attachments, numbered rather than named (a name can name a person); one part with the products and their descriptions; one part
- * with the titles and numbers of their open issues. The mail's headers go into no part: each mail's people go into
- * `context.people`, keyed by the mail's identifier, for the check `people-search`.
+ * with the titles and numbers of their open issues. The mail's headers go into no part: the people of all the chosen mails go
+ * into the job's parameters as one `People` (`params.people`), where the check `people-search` of MOD-personal-data reads them.
  */
 async function mailBatch(context, params) {
   const mails = params.mails ?? [];
   const products = params.products ?? [];
 
-  context.people = Object.fromEntries(mails.map(({ mail, people }) => [mail.id, people]));
+  const people = { names: [], addresses: [], phones: [], accounts: [] };
+  for (const each of mails) for (const key of Object.keys(people)) people[key].push(...(each.people[key] ?? []).filter((value) => !people[key].includes(value)));
+  context.params.people = people;
   const parts = mails.map(({ mail, ticked = [] }) => {
     const attached = mail.attachments.filter((each) => ticked.includes(each.name) && each.text !== null);
     const lines = [`Mail ${mail.id}`, `Subject: ${mail.subject}`, `Date: ${mail.date}`, "", mail.text];
