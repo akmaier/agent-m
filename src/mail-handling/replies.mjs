@@ -6,7 +6,7 @@ import { issueLabels, listedMailIds, mailId, noteText, notesOf } from "../mail-r
 const today = () => new Date().toISOString().slice(0, 10);
 const NOT_SENDABLE = "not sendable";
 const ADDRESS = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
-const CLOSED_WITH = /^Closed with (\S.*?)(?:; item `ITM-\d{3}`)?\.$/;
+const CLOSED_WITH = /^Closed with (\S.*?)(?:; item `ITM-\d{3,}`)?\.$/;
 
 /** A host's `Issue` as MOD-mail-records reads an issue: a comment's `date` is its `createdAt`. */
 const issueText = (issue) => ({
