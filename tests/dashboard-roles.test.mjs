@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { repoServer, openDashboard } from "./app-harness.mjs";
+import { repoServer, openDashboard, REPO } from "./app-harness.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const inMain = (selector) => globalThis.document.getElementById("main").querySelector(selector);
@@ -247,4 +247,68 @@ test("#roles — the page is laid out as #uc and #arc are: panels with their exp
   const panels = html.split('<section class="panel"').slice(1);
   assert.ok(panels.length >= 4, "the roles, two teams, the change");
   for (const panel of panels) assert.match(panel, /<details class="explain"><summary>What is this\?<\/summary>/);
+});
+
+// ---------------------------------------------------------------- Remove team reads the product's pull requests (ITM-1064)
+
+// A pull request of GitHub's list as the host reads it: the item's identifier in its head branch, merged or not, into a base.
+const pull = (number, { branch = "item/ITM-001-store-the-drafts", base = "main", state = "merged" } = {}) => ({
+  number, title: `ITM-001: store the drafts (#${number})`, head: { ref: branch, sha: `${number}`.padStart(40, "0") }, base: { ref: base }, state: state === "open" ? "open" : "closed",
+  draft: false, html_url: `https://github.com/${REPO}/pull/${number}`, created_at: "2026-09-20T09:00:00Z", merged_at: state === "merged" ? "2026-09-21T09:00:00Z" : null,
+  closed_at: state === "open" ? null : "2026-09-21T09:00:00Z", body: "" });
+function pullsServed(list, asked) {
+  return async (url, init) => {
+    if (url.origin !== "https://api.github.com" || url.pathname !== `/repos/${REPO}/pulls` || init.method !== "GET") return null;
+    asked.push(url.search);
+    if (list === null) return new Response(JSON.stringify({ message: "Server Error" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(Number(url.searchParams.get("page") ?? 1) === 1 ? list : []), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+}
+async function removeTeam1(list) {
+  const asked = [];
+  const server = await repoServer({ files: fixtureFiles(), handlers: [pullsServed(list, asked)] });
+  const page = await openDashboard({ server, hash: "#roles" });
+  await page.click('[data-remove="team1"]');
+  return { server, asked, said: inMain('[data-remove-result="team1"]')?.innerHTML ?? "" };
+}
+
+// TST-1064001 · level: component · module: MOD-implementation-pages
+// guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team1, whose sprint selected ITM-001, and a product whose server lists the merged pull request of ITM-001 into the default branch main
+// input: Remove team for team1
+// expect: the server was asked for the product's pull requests; the team is removed in one commit that deletes docs/role-assignments/team1.md; the result names no held item
+test("#roles — a team whose sprint's item has a pull request merged into the default branch is removed", async () => {
+  const { server, asked, said } = await removeTeam1([pull(31)]);
+  assert.ok(asked.length > 0, "the pull requests were read");
+  assert.equal(server.writes.length, 1);
+  assert.deepEqual(Object.keys(server.writes[0].files), ["docs/role-assignments/team1.md"]);
+  assert.doesNotMatch(said, /ITM-001/);
+});
+
+// TST-1064002 · level: component · module: MOD-implementation-pages
+// guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team1, whose sprint selected ITM-001; known positive: TST-1064001; and, in turn, a product whose server lists an open pull request of ITM-001, none at all, a pull request merged into another branch that no later merge brings to main, and a merged pull request of another item
+// input: Remove team for team1 in each
+// expect: in each the team is not removed, the result names ITM-001, and nothing is written
+test("#roles — a team with an item whose pull request is open, merged elsewhere or missing is refused, the item named", async () => {
+  const cases = [["an open pull request", [pull(32, { state: "open" })]], ["no pull request", []], ["a merge into another branch", [pull(33, { base: "sprint/team1/01" })]],
+    ["a merged pull request of another item", [{ ...pull(34), title: "ITM-002: other (#34)", head: { ref: "item/ITM-002-other", sha: "4".repeat(40) } }]]];
+  for (const [what, list] of cases) {
+    const { server, asked, said } = await removeTeam1(list);
+    assert.ok(asked.length > 0, `${what}: the pull requests were read`);
+    assert.match(said, /ITM-001/, what);
+    assert.equal(server.writes.length, 0, `${what}: nothing is written`);
+  }
+});
+
+// TST-1064003 · level: component · module: MOD-implementation-pages
+// guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team1, whose sprint selected ITM-001, and a product whose server cannot list its pull requests (500)
+// input: Remove team for team1
+// expect: the pull requests were asked for; the team is not removed, never guessed released: the result names ITM-001, and nothing is written
+test("#roles — when the pull requests cannot be read, the team is not removed and the item is named", async () => {
+  const { server, asked, said } = await removeTeam1(null);
+  assert.ok(asked.length > 0, "the pull requests were asked for");
+  assert.match(said, /ITM-001/);
+  assert.equal(server.writes.length, 0);
 });
