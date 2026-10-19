@@ -29,6 +29,7 @@ UC-014 steps 1 to 5, from "A guided page opens; it asks for the person's GitHub 
 
 - With the owner known, each step opens its exact GitHub page.
 - The Actions step offers *Later*.
+- The address `#get-your-own/step=actions`, which MOD-review-pages links to (ITM-656), opens the Actions step.
 - Every step carries its folded explanation.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
