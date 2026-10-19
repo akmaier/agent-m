@@ -516,3 +516,25 @@ test("alternative 6c: a conversation held on a page of the instance is recorded 
   assert.ok(inInstance[0][1].includes("A message held on the instance's page."));
   assert.deepEqual(Object.keys(s.product.files).filter((path) => path.startsWith("docs/conversations/")), []);
 });
+
+// TST-513027 · level: system · module: MOD-prompt-bar · MOD-workflow-entries · MOD-spec-changes
+// guards: UC-049 alternative 4a; A GENERATED ARTIFACT IS A PROPOSAL
+// given: handy proposes handing over a change of the requirement A LOAN HAS A DUE DATE (the kind change-requirements); the person's click queues it; the run is the real entry onDispatch on fixture checkouts, with the coding agent answering a draft of the change
+// input: Hand over; the run
+// expect: UC-049 4a.3 says the run's answer appears with the commits it made — artifacts committed as open —: the run ends done and commits the change as an open proposal. FINDING: the run ends failed with "entrySections needs the job's source as text": the record the bar queues carries the requirement and no source (the person's own source, which the message of the tab names), so this case is red on main until the hand-over gives the job its source
+test("alternative 4a: a hand-over of a change of requirements runs to its end and commits an open proposal", { todo: "FINDING UC049-4a-source — a handed-over change-requirements job fails in the workflow for want of its source (the record queued by the bar names the requirement and no source)" }, async () => {
+  const s = await scenario({ instanceFiles: register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
+  const w = watch(s, { script: [answer("Handing on.", { handOver: { kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible." } })] });
+  const clock = followClock();
+  await sendNow(s, "Please change this rule.", { participant: "handy" });
+  await free(s);
+  await until(() => all(barOf(s), "button", "queue").length > 0, "the hand-over is offered");
+  await press(s, all(barOf(s), "button", "queue")[0]);
+  const [path, record] = queuedRecord(s);
+  await withWorkflow(s, { answers: [], inputs: w.dispatches[0].inputs, files: { [path]: record }, agent: { answer: draft() } }, async ({ status, git, product }) => {
+    assert.equal(status.outcome, "done", status.summary);
+    assert.ok(git(product.origin, "ls-tree", "-r", "--name-only", "main").split("\n").some((each) => each.endsWith(".begruendung.md")), "an open proposal is committed");
+  });
+  clock.stop();
+  w.stop();
+});
