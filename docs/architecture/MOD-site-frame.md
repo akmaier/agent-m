@@ -141,7 +141,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
   "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
-  token, so that a view hands `readProblem` the fact without reading the store's keys itself.
+  token, so that a view hands `readProblem` the fact without reading the store's keys itself. `go` writes the chosen
+  product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the
+  address then holds none.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
   `menuOf` gives them, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
