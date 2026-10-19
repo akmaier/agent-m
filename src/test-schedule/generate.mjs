@@ -6,7 +6,7 @@
 import { participantsOf } from "../participant-list/index.mjs";
 import { formatFinding } from "../text-tools/index.mjs";
 import { scheduleFindings } from "./rules.mjs";
-import { OCCASIONS, occasionsOf, rowsOf, secretsNeeded } from "./occasions.mjs";
+import { OCCASIONS, nightlyCron, nightlyRows, occasionsOf, rowsOf, secretsNeeded } from "./occasions.mjs";
 import { ownText } from "./own-file.mjs";
 
 const NAMES = ["github-head", "github-job", "github-done", "gitlab-head", "gitlab-job", "gitlab-done"];
@@ -73,11 +73,6 @@ function runnerOf(cells, participants) {
   return /runner:(\S+)/.exec(participantsOf(participants).find((p) => p.name === named)?.route ?? "")?.[1] ?? null;
 }
 
-const nightlyCron = (schedule) => {
-  const [hour, minute] = schedule.fields.nightly.split(":").map(Number);
-  return `${minute} ${hour} * * *`;
-};
-
 /**
  * ciConfiguration(schedule, target, resources, participants) -> { files, include, pipelineSchedule } — the configuration
  * generated from the schedule: on GitHub `.github/workflows/agent-m-tests.yml`; on GitLab `.gitlab/agent-m-tests.yml`, the
@@ -119,11 +114,11 @@ export function ciConfiguration(schedule, target, resources, participants) {
         + "node .agent-m/src/workflow-entries/main.mjs onTestsFinished; fi"),
     });
   }));
-  const nightlyRows = rows.map(({ cells }) => cells.Row).filter((row) => occasionsOf(row, schedule).includes("nightly"));
+  const nightly = nightlyRows(schedule);
   const instance = { instance: target.instance, commit: target.instanceCommit };
   if (github) {
     const head = fill(TEMPLATES["github-head"], {
-      nightly: nightlyRows.length ? `  schedule:\n    - cron: "${nightlyCron(schedule)}"` : "",
+      nightly: nightly.length ? `  schedule:\n    - cron: "${nightlyCron(schedule)}"` : "",
     });
     const done = fill(TEMPLATES["github-done"], instance);
     return { files: { [GITHUB_FILE]: head + [...jobs, done].join("") }, include: null, pipelineSchedule: null };
@@ -132,6 +127,6 @@ export function ciConfiguration(schedule, target, resources, participants) {
   return {
     files: { [GITLAB_FILE]: TEMPLATES["gitlab-head"] + [...jobs, done].join("\n") },
     include: { file: ".gitlab-ci.yml", entry: INCLUDE_ENTRY },
-    pipelineSchedule: nightlyRows.length ? { cron: nightlyCron(schedule), rows: nightlyRows } : null,
+    pipelineSchedule: nightly.length ? { cron: nightlyCron(schedule), rows: nightly } : null,
   };
 }

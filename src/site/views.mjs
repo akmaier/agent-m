@@ -34,7 +34,8 @@ export const DASHBOARD = [
   { view: "tests-browser", file: "tests-browser-view.mjs", useCases: ["UC-029"] },
   { view: "tests-schedule", file: "tests-schedule-view.mjs", useCases: ["UC-027"] },
   { view: "tests-generate", file: "tests-generate-view.mjs", useCases: ["UC-026"] },
-  { view: "release", file: "release-view.mjs", useCases: ["UC-013"] },
+  // UC-013 is rendered by MOD-test-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "release", builtIn: true, useCases: ["UC-013"] },
   { view: "audit", file: "audit-view.mjs", useCases: ["UC-030"] },
   { view: "issues", file: "issues-view.mjs", useCases: ["UC-012", "UC-033"] },
   { view: "mail", file: "mail-view.mjs", useCases: ["UC-038"] },
@@ -56,8 +57,9 @@ export const DASHBOARD = [
   { section: "clear", builtIn: true, useCases: ["UC-042"] },
 ];
 
-// The views whose file is built: builtFiles is the list of docs/assets/dashboard/built.json. -> Set of view names
+// The views that are built: those whose file is in builtFiles, the list of docs/assets/dashboard/built.json, and the built-in
+// ones, which the app hands to a module's route. -> Set of view names
 export function builtViews(builtFiles) {
   const built = new Set(builtFiles);
-  return new Set(DASHBOARD.filter((v) => v.view && built.has(v.file)).map((v) => v.view));
+  return new Set(DASHBOARD.filter((v) => v.view && (v.builtIn || built.has(v.file))).map((v) => v.view));
 }

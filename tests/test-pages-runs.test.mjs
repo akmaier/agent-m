@@ -66,7 +66,7 @@ const RECORDS = { [`runs/${COMMIT}/20261018-1000-commit-aaaa.md`]: FIRST, [`runs
 const snapshotOf = (commit, files) => ({ commit, paths: Object.keys(files), blob: () => "b".repeat(40), read: async (path) => files[path] ?? null });
 
 // The product's host. `results` is the branch test-results (an Error: reading it fails); `logs` maps a run id to its log.
-function productHost({ results = RECORDS, logs = { 777: "the full log of run 777" }, schedule = null, asked = [] } = {}) {
+function productHost({ results = RECORDS, logs = { 777: "the full log of run 777" }, schedule = null, asked = [], web = PRODUCT } = {}) {
   const files = { "SPEC.md": SPEC, "tests/sample.test.mjs": TESTS, ...(schedule ? { "docs/tests/schedule.md": schedule } : {}) };
   const entry = (commit, message, date) => ({ commit, parents: [], author: { account: null, name: "x" }, date, message, changes: [] });
   const known = { [COMMIT]: entry(COMMIT, "Fix the list\n\nlong text", "2026-10-17T09:00:00Z"), [OTHER]: entry(OTHER, "Older commit", "2026-10-16T09:00:00Z"),
@@ -81,7 +81,9 @@ function productHost({ results = RECORDS, logs = { 777: "the full log of run 777
       return snapshotOf(ref, files);
     },
     ciRunLog: async (id) => { asked.push(["log", id]); return logs[id] ?? null; },
-    webLinks: () => ({ actions: ACTIONS, run: (id) => `${PRODUCT}/actions/runs/${id}`, secrets: `${PRODUCT}/settings/secrets/actions` }),
+    // ITM-889's entries: commitRuns and branch give a page from the commit's or the branch's name alone; `web` is the server's address of the repository.
+    webLinks: () => ({ actions: `${web}/actions`, run: (id) => { asked.push(["run", id]); return `${web}/actions/runs/${id}`; }, secrets: `${web}/settings/secrets/actions`,
+      commitRuns: (commit) => { asked.push(["commitRuns", commit]); return `${web}/commit/${commit}/checks`; }, branch: (name) => { asked.push(["branch", name]); return `${web}/tree/${name}`; } }),
   };
 }
 
@@ -221,13 +223,13 @@ test("runs — a worse rate is shown with both rates", async () => {
 // guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: a private repository without a token: reading the branch test-results fails
 // input: the route runs rendered for the commit
-// expect: the page says that the records cannot be read from the browser, links the server's page of runs (webLinks().actions) and shows no line of any level and no outcome
-test("runs — records that cannot be read say so and link the server's page of runs", async () => {
+// expect: the page says that the records cannot be read from the browser, links the branch test-results (webLinks().branch) and the runs of this commit (webLinks().commitRuns) and shows no line of any level and no outcome
+test("runs — records that cannot be read say so and link the branch test-results and the runs of the commit", async () => {
   const shown = await page({ results: Object.assign(new Error("no token"), { name: "TokenRefused" }) });
   const unreadable = byClass(shown, "unreadable")[0];
   assert.ok(unreadable, "a notice");
   assert.match(textOf(unreadable), /cannot be read/);
-  assert.deepEqual(byTag(unreadable, "a").map((link) => link.getAttribute("href")), [ACTIONS]);
+  assert.deepEqual(byTag(unreadable, "a").map((link) => link.getAttribute("href")), [`${PRODUCT}/tree/test-results`, `${PRODUCT}/commit/${COMMIT}/checks`]);
   assert.equal(byClass(shown, "summary").length, 0, "no level line");
   assert.doesNotMatch(textOf(shown), /passed/i);
 });
@@ -244,4 +246,42 @@ test("runs — a record marked uncommitted is shown and not counted", async () =
   assert.match(textOf(record), /bridge-pc.*uncommitted changes|uncommitted changes.*bridge-pc/);
   assert.equal(byClass(testOf(shown, "TST-902"), "outcome")[0].textContent, "passed");
   assert.match(textOf(byClass(levelOf(shown, "unit"), "summary")[0]), /1 failed/);
+});
+
+// TST-855001 · level: unit · module: MOD-test-pages
+// guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// given: a private repository without a token (reading test-results fails), whose server's pages are those of another address (a GitLab-shaped one), and the route runs/<commit>
+// input: the route rendered for the commit
+// expect: the notice holds two links, in this order: the branch test-results and the runs of this commit, each the address webLinks gives for that name, each with a text that names what it leads to; none is the page of all runs (actions)
+test("runs — the links of records that cannot be read come from webLinks, for the branch test-results and for this commit", async () => {
+  const web = "https://gitlab.example/group/product";
+  const shown = await page({ results: Object.assign(new Error("no token"), { name: "TokenRefused" }), web });
+  const links = byTag(byClass(shown, "unreadable")[0], "a");
+  assert.deepEqual(links.map((link) => link.getAttribute("href")), [`${web}/tree/test-results`, `${web}/commit/${COMMIT}/checks`]);
+  assert.match(textOf(links[0]), /test-results/);
+  assert.match(textOf(links[1]), /commit|run/i);
+});
+
+// TST-855002 · level: unit · module: MOD-test-pages
+// guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// given: as TST-855001, with a record of the log asked and the run's address asked of the fake
+// input: the route rendered for the commit
+// expect: webLinks was asked for branch("test-results") and commitRuns(<the commit>) and for nothing that needs a run's identifier: neither run(id) nor ciRunLog
+test("runs — the link to the run of the commit needs no run identifier", async () => {
+  const asked = [];
+  await page({ results: Object.assign(new Error("no token"), { name: "TokenRefused" }), asked });
+  assert.deepEqual(asked.filter(([what]) => ["branch", "commitRuns", "run", "log"].includes(what)), [["branch", "test-results"], ["commitRuns", COMMIT]]);
+});
+
+// TST-855003 · level: unit · module: MOD-test-pages
+// guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// given: a repository whose records can be read
+// input: the route rendered for the commit
+// expect: no notice that the records cannot be read, no link to the branch test-results or to the runs of the commit, and webLinks asked for neither
+test("runs — where the records can be read, the links of the unreadable case are not shown", async () => {
+  const asked = [];
+  const shown = await page({ asked });
+  assert.equal(byClass(shown, "unreadable").length, 0);
+  assert.deepEqual(byTag(shown, "a").map((link) => link.getAttribute("href")).filter((href) => /test-results|\/checks$/.test(href)), []);
+  assert.deepEqual(asked.filter(([what]) => ["branch", "commitRuns"].includes(what)), []);
 });
