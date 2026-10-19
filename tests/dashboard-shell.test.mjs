@@ -56,7 +56,7 @@ const MENU_OF_TODAY = [
   '<a href="#arc" role="tab" id="tab-arc" data-entry="architecture">Architecture</a>',
   '<a href="#backlog" role="tab" id="tab-backlog" data-entry="implementation">Implementation</a>',
   '<span class="soon" data-entry="tests" aria-disabled="true" title="Tests — not built yet">Tests</span>',
-  '<span class="soon" data-entry="maintenance" aria-disabled="true" title="Maintenance — not built yet">Maintenance</span>',
+  '<a href="#mail" role="tab" id="tab-mail" data-entry="maintenance" title="Issues and mail">Maintenance</a>',
   '<a href="#settings" role="tab" id="tab-settings" data-entry="settings" title="Every setting Agent M uses"><span aria-hidden="true">⚙</span> Settings</a>',
 ];
 

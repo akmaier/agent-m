@@ -38,7 +38,8 @@ export const DASHBOARD = [
   { view: "release", builtIn: true, useCases: ["UC-013"] },
   { view: "audit", file: "audit-view.mjs", useCases: ["UC-030"] },
   { view: "issues", file: "issues-view.mjs", useCases: ["UC-012", "UC-033"] },
-  { view: "mail", file: "mail-view.mjs", useCases: ["UC-038"] },
+  // UC-038 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "mail", builtIn: true, useCases: ["UC-038"] },
   { view: "mail-replies", file: "mail-replies-view.mjs", useCases: ["UC-039"] },
   { view: "how", file: "how-view.mjs", useCases: ["UC-006", "UC-008"] },
   { view: "settings", file: "settings-view.mjs", useCases: ["UC-042"] },
