@@ -10,12 +10,14 @@ import { writeSetting } from "../src/browser-store/index.mjs";
 import { mailId, noteText, withMailIds } from "../src/mail-records/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { mailStrategies } from "../src/mail-handling/index.mjs";
+import { privacyStrategies } from "../src/personal-data/index.mjs";
 import { routeStrategies } from "../src/runtimes/index.mjs";
 import { INSTANCE, PRODUCT, PRODUCT_URL, browser, byClass, draw, headOf, instanceFiles, network, smallProduct, timers } from "./main-page-home-harness.mjs";
 
 const pages = await import("../src/maintenance-pages/index.mjs").catch((error) => ({ error }));
-const route = () => pages.view?.routes.find((candidate) => candidate.name === "replies");
-for (const [at, strategies] of [mailStrategies, routeStrategies].entries()) {
+const routeNamed = (name) => pages.view?.routes.find((candidate) => candidate.name === name);
+const route = () => routeNamed("replies");
+for (const [at, strategies] of [mailStrategies, routeStrategies, privacyStrategies].entries()) {
   try { registerStrategies(`tests/maintenance-pages-replies.test.mjs#${at}`, strategies); } catch { /* registered by the page's own view */ }
 }
 
@@ -57,10 +59,11 @@ const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) 
 /**
  * The world: the mails of the mailbox (`mails`, found by `find`), the drafts in Drafts (`drafts`: { ref, inReplyTo, mail }), GitHub's issues of alice/product, the participants' register and the places the mailbox allows.
  * Returns what the fakes kept: the operations the Bridge received, the requests GitHub received, the texts the endpoint returned.
+ * For the route `mail` (ITM-964): `reading` is what the Bridge's operation `read` returns; `answer(request)` is the answer of a model endpoint or of an agent on the Bridge to a request ({ origin, body }), a draft object that is wrapped as the endpoint answers; `product` adds files to the product's repository.
  */
-function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, stateDelay = 0 }) {
+function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, reading = null, stateDelay = 0, answer = null, product = {} }) {
   const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows) };
-  const productFiles = smallProduct();
+  const productFiles = { ...smallProduct(), ...product };
   let pending = {};
   net = network({ [INSTANCE]: files, [PRODUCT]: productFiles }, { bridgeLists: null });
   net.install();
@@ -72,7 +75,8 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
     imap: { bridge: "lab-pc-4", jumpHostNoted: false, imap: { host: "imap.example.org", port: 993, security: "tls" }, smtp: { host: "smtp.example.org", port: 587, security: "starttls" }, account: "reports@example.org", password: "mail-password-966" } });
   writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1" });
   writeSetting(context.store, "endpoint:ep2", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k2" });
-  const kept = { bridge: [], github: [], endpoint: [], drafts: [...drafts], issues: issues.map((issue) => ({ ...issue })), send, commentStatus };
+  const asked = new Map();
+  const kept = { bridge: [], github: [], endpoint: [], ask: [], drafts: [...drafts], issues: issues.map((issue) => ({ ...issue })), send, commentStatus };
   let nextUid = 100;
   let inner = globalThis.fetch;
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -83,7 +87,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       const operation = url.pathname.slice("/v1/mail/".length);
       const { args } = JSON.parse(init.body);
       kept.bridge.push({ operation, args });
-      if (operation === "read") return json(mails);
+      if (operation === "read") return json(reading ?? mails);
       if (operation === "drafts") return json(kept.drafts);
       if (operation === "sent") return json([]);
       if (operation === "find") {
@@ -112,6 +116,13 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       }
       return json({ error: "not-found", message: `unknown operation ${operation}` }, 404);
     }
+    if (url.origin === BRIDGE && url.pathname === "/v1/ask" && method === "POST") {
+      const request = { origin: url.origin, body: JSON.parse(init.body) };
+      kept.ask.push(request);
+      asked.set(`ask-${kept.ask.length}`, JSON.stringify(answer ? answer(request) : { draft: { replies: texts }, answers: [] }));
+      return json({ ask: `ask-${kept.ask.length}` });
+    }
+    if (url.origin === BRIDGE && url.pathname.startsWith("/v1/ask/") && method === "GET") return json({ state: "done", text: asked.get(url.pathname.slice("/v1/ask/".length)), usage: null });
     if (url.host === "api.github.com" && url.pathname.startsWith(`/repos/${PRODUCT}/issues`)) {
       kept.github.push({ method, path: url.pathname, body: init.body ?? null });
       if (method === "GET" && url.pathname === `/repos/${PRODUCT}/issues`) return json(kept.issues.map((issue) => ({ number: issue.number, title: issue.title, body: issue.body, state: issue.state, labels: issue.labels, comments: issue.comments.length, html_url: `${PRODUCT_URL}/issues/${issue.number}` })));
@@ -126,8 +137,9 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
       if (method === "POST" && comments) { kept.issues.find((issue) => issue.number === Number(comments[1])).comments.push(JSON.parse(init.body).body); return json({ id: 1 }, 201); }
     }
     if (url.origin === "https://ep1.example.test" || url.origin === "https://ep2.example.test") {
-      kept.endpoint.push({ origin: url.origin, body: JSON.parse(init.body) });
-      return json({ choices: [{ message: { content: JSON.stringify({ draft: { replies: texts }, answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
+      const request = { origin: url.origin, body: JSON.parse(init.body) };
+      kept.endpoint.push(request);
+      return json({ choices: [{ message: { content: JSON.stringify(answer ? answer(request) : { draft: { replies: texts }, answers: [] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
     }
     if (url.host === "api.github.com" && url.pathname === `/repos/${PRODUCT}/commits/${headOf(PRODUCT)}`) return inner(new URL(`https://api.github.com/repos/${PRODUCT}/commits/main`), init);
     if (url.host === "api.github.com" && url.pathname.startsWith(`/repos/${PRODUCT}/git/`) && !url.pathname.includes("/git/trees/")) {
@@ -149,9 +161,8 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
 }
 
 async function opened(w, params = {}, name = "replies") {
-  const found = pages.view?.routes.find((candidate) => candidate.name === name);
-  assert.ok(found, `the route ${name}: ${pages.error?.message}`);
-  return draw(found, w.context, params);
+  assert.ok(routeNamed(name), `the route ${name}: ${pages.error?.message}`);
+  return draw(routeNamed(name), w.context, params);
 }
 async function read(target) {
   await trusted(one(target, "read-replies"));
@@ -182,4 +193,4 @@ const start = async (extra = {}) => {
 };
 
 
-export { BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, issueRecord };
+export { routeNamed, BRIDGE, ERIKA, SECRET, PRODUCT_URL, PRODUCT, walk, one, textOf, flush, waitFor, trusted, buttonsOf, itemOf, mailOf, world, opened, read, issuesIn, standard, start, pages, route, byClass, noteText, REGISTER, LOCAL, CLOUD, issueRecord };
