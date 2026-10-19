@@ -634,3 +634,59 @@ test("add-product — the address field's folded explanation is the 'repository'
   const near = elements(target, looksExplained)[0];
   assert.equal(near.textContent, explainedAs("repository"));
 });
+
+// TST-1021002 · level: unit · module: MOD-settings-pages
+// guards: UC-001 step 3; A GITHUB PRODUCT USES A TOKEN OF ITS OWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: a fresh add-product route for a GitHub product, the instance's token stored, the notice acknowledged
+// input: the author pastes a GitLab token (glpat-…) in Step A and presses Store and check; then a GitHub token
+// expect: for the GitLab token nothing is stored, no request leaves the page, and Step A shows a line that names github-token:alice/thesis-tool and does not hold the token; known positive: the GitHub token is stored and checked
+test("add-product — GitHub's Step A refuses a GitLab token before it stores anything", async () => {
+  const WRONG = "glpat-WRONG0123456789abcdef";
+  const store = freshStore();
+  seedToken(store, "github-token", { value: "github_pat_INSTANCE" });
+  const target = await renderAddress(contextOf(store), GH_WEB);
+  const a = stepTitled(target, "Step A · A key for the product");
+  const [ack, tokenField] = byTag(a, "input");
+  const storeBtn = byTag(a, "button")[0];
+  ack.checked = true; ack.dispatchEvent(new Event("change"));
+  tokenField.value = WRONG;
+  const requests = countedScript([]);
+  await withFetch(requests.fetch, () => click(storeBtn));
+  assert.equal(readSetting(store, "github-token:alice/thesis-tool"), null, "failure node: the pasted token is stored before connect");
+  assert.equal(requests.requests, 0, "nothing is sent for a token the page refuses");
+  const shown = byClass(a, "result").map((p) => p.textContent).join(" ");
+  assert.match(shown, /github-token:alice\/thesis-tool/);
+  assert.match(shown, /GitLab token/);
+  assert.equal(shown.includes(WRONG), false, "the line never holds the token");
+  tokenField.value = "github_pat_ALICE0123456789";
+  await withFetch(scripted([repoInfoStep({ visibility: "private", canWrite: true })]), () => click(storeBtn));
+  assert.equal(readSetting(store, "github-token:alice/thesis-tool").value, "github_pat_ALICE0123456789", "known positive");
+});
+
+// TST-1021003 · level: unit · module: MOD-settings-pages
+// guards: UC-001 3c; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: a fresh add-product route for a GitLab project, the notice acknowledged
+// input: the author pastes a GitHub token (github_pat_…) in Step B and presses Store and check; then a GitLab project token
+// expect: for the GitHub token nothing is stored, no request leaves the page, and Step B shows a line that names the project's token setting and does not hold the token; known positive: the project token is stored and checked
+test("add-product — GitLab's Step B refuses a GitHub token before it stores anything", async () => {
+  const WRONG = "github_pat_WRONG0123456789abcdef";
+  const KEY = `gitlab-token:gitlab.example.org/${GL_GROUP_PATH}`;
+  const store = freshStore();
+  const target = await renderAddress(contextOf(store), GL_WEB);
+  const b = stepTitled(target, "Step B · Give the key to Agent M");
+  const [ack, tokenField] = byTag(b, "input");
+  const storeBtn = byTag(b, "button").at(-1);
+  ack.checked = true; ack.dispatchEvent(new Event("change"));
+  tokenField.value = WRONG;
+  const requests = countedScript([]);
+  await withFetch(requests.fetch, () => click(storeBtn));
+  assert.equal(readSetting(store, KEY), null, "failure node: the pasted token is stored before connect");
+  assert.equal(requests.requests, 0, "nothing is sent for a token the page refuses");
+  const shown = lastResultOf(b);
+  assert.ok(shown.includes(KEY), "the line names the setting");
+  assert.match(shown, /GitHub token/);
+  assert.equal(shown.includes(WRONG), false, "the line never holds the token");
+  tokenField.value = "glpat-TEAM0123456789";
+  await withFetch(scripted([gitlabInfoStep({ level: 40 })]), () => click(storeBtn));
+  assert.equal(readSetting(store, KEY).value, "glpat-TEAM0123456789", "known positive");
+});
