@@ -53,6 +53,7 @@ uses:
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.reachableBy
   - MOD-approvals.approvalStrategies
+  - MOD-source-register.sourceStrategies
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-job-catalogue.kindOf
@@ -102,7 +103,7 @@ formats are those of the modules it uses.
 ## Interfaces
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `scheduleStrategies`, `resultStrategies`,
-  `routeStrategies`, `approvalStrategies`:
+  `routeStrategies`, `approvalStrategies`, `sourceStrategies`:
   - `schedule` — the table of levels by occasion, a form from the schedule's schema, the book's default marked as such
     until one is saved; the release candidate column that cannot be cleared and the commit and pull request columns that
     refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row
@@ -175,4 +176,5 @@ the result records on the branch `test-results`, the product's resources and the
   MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.runOnTab, MOD-runtimes.liveState, MOD-runtimes.jobLog —
   proposing and writing tests and running levels on their routes.
 - MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-runtimes.routeStrategies,
-  MOD-approvals.approvalStrategies — the strategies of its kinds, handed to the frame.
+  MOD-approvals.approvalStrategies, MOD-source-register.sourceStrategies — the strategies of its kinds, handed to the
+  frame.
