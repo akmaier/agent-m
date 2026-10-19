@@ -199,11 +199,11 @@ test("TST-971007 a row of the list links its job's page, and a job no source hol
 // guards: ONE DASHBOARD SHOWS EVERY JOB
 // given: the module's view
 // input: the route `job` read
-// expect: named "job", titled "Job", under no entry of the menu (entry null), with the frame's default subject (no `subject`) and a render function
+// expect: named "job", titled "Job", under no entry of the menu (entry null), a render function and a `subject` that gives the frame's default (null) for the parameters of an ordinary page and the bar's Subject only for a retry (ITM-974)
 test("TST-971008 the view hands the frame the route job", () => {
   assert.equal(job.name, "job");
   assert.equal(job.title, "Job");
   assert.equal(job.entry, null);
-  assert.equal("subject" in job, false);
+  assert.equal(job.subject({ id: "JOB-20261016-1000-ffff" }), null);
   assert.equal(typeof job.render, "function");
 });
