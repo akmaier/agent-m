@@ -26,6 +26,7 @@ uses:
   - MOD-repository-hosts.mergePullRequest
   - MOD-repository-hosts.listCiRuns
   - MOD-repository-hosts.ciRunLog
+  - MOD-repository-hosts.ciRunLabels
   - MOD-repository-hosts.webLinks
   - MOD-documents.readRegister
   - MOD-test-document.testDeclarations
@@ -109,7 +110,8 @@ formats are those of the modules it uses.
     until one is saved; the release candidate column that cannot be cleared and the commit and pull request columns that
     refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row
     among the participants that can run tests, and for a row on a self-hosted runner the server's runner page with the
-    label the runner must carry and a folded explanation, the row's runs shown as queued until one is online; the
+    label the runner must carry and a folded explanation, the row's runs — the queued runs whose `ciRunLabels` hold
+    that label — shown as queued until one is online; the
     secrets needed, by name, with the server's secrets page; *Save*,
     which opens with `proposeSchedule` one pull request holding the schedule and the configuration generated from it;
     its CI result, and *Merge* once green, after which, on a GitLab server, `applyPipelineSchedule` sets the project's
@@ -156,7 +158,9 @@ the result records on the branch `test-results`, the product's resources and the
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.listTags,
   MOD-repository-hosts.listPullRequests — the commits to choose from; MOD-repository-hosts.repositoryInfo — the
   repository's visibility for the routes of a job; MOD-repository-hosts.mergePullRequest,
-  MOD-repository-hosts.listCiRuns — the schedule's pull request, its CI and its merge; MOD-repository-hosts.ciRunLog,
+  MOD-repository-hosts.listCiRuns — the schedule's pull request, its CI and its merge;
+  MOD-repository-hosts.ciRunLabels — which queued runs wait for a self-hosted row's runner;
+  MOD-repository-hosts.ciRunLog,
   MOD-repository-hosts.webLinks — a run's log, the runs of a commit, the branch `test-results`, and the secrets,
   workflow, runner and pipeline schedule pages.
 - MOD-documents.readRegister, MOD-resource-list.resourceSchema, MOD-participant-list.participantSchema — the product's
