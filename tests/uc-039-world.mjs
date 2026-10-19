@@ -56,6 +56,16 @@ const upgrade = (socket, attach) => {
   attach(secured, true);
 };
 
+// The envelope of a raw mail, as the IMAP server of tests/mail-protocols-read.test.mjs gives it (the Bridge finds a mail by the Message-ID of its envelope).
+const nstring = (value) => (value === undefined || value === null ? "NIL" : `"${String(value).replace(/(["\\])/g, "\\$1")}"`);
+const headerOf_ = (message, name) => new RegExp(`^${name}: (.*)$`, "im").exec(message)?.[1] ?? null;
+const addressOf = (value) => {
+  if (value === null) return "NIL";
+  const found = /^(?:"?(.*?)"? )?<?([^@<>\s]+)@([^<>\s]+)>?$/.exec(value);
+  return found ? `((${nstring(found[1])} NIL ${nstring(found[2])} ${nstring(found[3])}))` : "NIL";
+};
+const envelope = (message) => `ENVELOPE (${nstring(headerOf_(message, "Date"))} ${nstring(headerOf_(message, "Subject"))} ${addressOf(headerOf_(message, "From"))} ${addressOf(headerOf_(message, "From"))} ${addressOf(headerOf_(message, "Reply-To") ?? headerOf_(message, "From"))} ${addressOf(headerOf_(message, "To"))} ${addressOf(headerOf_(message, "Cc"))} NIL ${nstring(headerOf_(message, "In-Reply-To"))} ${nstring(headerOf_(message, "Message-ID"))})`;
+
 // The IMAP server. `folders` maps a folder to its messages as raw texts; the folders Drafts and Sent are there as well, announced with their special use. The server keeps what a test needs to look at: `folders`
 // ({ uid, raw, deleted }), every command with whether the connection was encrypted, every login.
 async function imapServer(seed) {
@@ -128,10 +138,13 @@ async function imapServer(seed) {
         return;
       }
       if (command === "UID" && rest[0].toUpperCase() === "FETCH") {
-        const wanted = rest[1];
+        const wanted = rest[1], items = line.slice(line.indexOf("(")).toUpperCase();
         for (const message of folders[folder]) {
           if (!wanted.split(",").some((part) => { const [from, to] = part.split(":"); return message.uid >= Number(from) && message.uid <= (to === undefined ? Number(from) : to === "*" ? Infinity : Number(to)); })) continue;
-          active.write(Buffer.concat([Buffer.from(`* ${message.uid} FETCH (UID ${message.uid} BODY[] {${message.raw.length}}${CRLF}`), message.raw, Buffer.from(`)${CRLF}`)]));
+          const text = message.raw.toString("utf8");
+          const head = `* ${message.uid} FETCH (UID ${message.uid}${items.includes("ENVELOPE") ? ` ${envelope(text)}` : ""}`;
+          if (items.includes("BODY")) active.write(Buffer.concat([Buffer.from(`${head} BODY[] {${message.raw.length}}${CRLF}`), message.raw, Buffer.from(`)${CRLF}`)]));
+          else write(`${head})`);
         }
         ok("UID FETCH completed"); return;
       }
