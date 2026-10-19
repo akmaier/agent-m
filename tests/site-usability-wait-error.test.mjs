@@ -96,9 +96,9 @@ test("TST-938006: both checks pass the child's stderr on when they fail", () => 
 });
 
 // ---------------------------------------------------------------- a window that does not open (the gate's rejection of a646bea3)
-// openWindow runs the executable it is given. These give it a shell script that is no browser: it writes what the case says to its stderr, serves no page and
-// exposes no debugging target. On Linux the script starts behind xvfb-run, whose display needs a moment before the script runs, so the cases give the
-// window 8 s. `limit` (the third parameter of openWindow) is how long the window's page may take to appear among the debugging targets.
+// openWindow runs the launch command it is given (`launch`, an option of openWindow: { command, arguments_ }). These give it a shell script that is no browser: it writes
+// what the case says to its stderr, serves no page and exposes no debugging target, and it is started as it is, with no virtual display and no window manager in front of it
+// (ITM-1020). `limit` (an option of openWindow) is how long the window's page may take to appear among the debugging targets.
 
 // stand(body) -> { executable, remove } — a script of a folder of its own that runs `body`.
 function stand(body) {
@@ -111,7 +111,7 @@ function stand(body) {
 async function failureOf(body, limit) {
   const { executable, remove } = stand(body);
   try {
-    await openWindow(executable, "http://127.0.0.1:1/__blank", { limit });
+    await openWindow(executable, "http://127.0.0.1:1/__blank", { limit, launch: { command: executable, arguments_: [] } });
     return null;
   } catch (failure) { return failure; } finally { remove(); }
 }
@@ -143,4 +143,55 @@ test("TST-938008: counter-proof — a child that wrote nothing is named as havin
 // expect: the message is the failure's own: nothing claims that a child wrote nothing
 test("TST-938009: a failure with no window behind it is not said to have an empty stderr", () => {
   assert.equal(withStderr(new Error("the window did not open"), undefined).message, "the window did not open");
+});
+
+// ---------------------------------------------------------------- a stand-in goes through no display or window manager (ITM-1020)
+// TST-938007 timed out at 30 s once on CI while its sibling, with the same script apart from its body, ended at its own limit of 8 s: the time went before the wait of `limit` began, in
+// electronCommand's blocking calls of xvfb-run and openbox (and, where openbox is missing, apt-get), which every openWindow made on Linux. These cases run on any platform: they
+// present the platform as Linux and put a folder first on the PATH whose xvfb-run does not answer.
+
+// withLinuxWithoutDisplay(run) — runs `run` as on Linux with an xvfb-run that sleeps instead of answering; restores the platform and the PATH afterwards.
+async function withLinuxWithoutDisplay(run) {
+  const folder = mkdtempSync(join(tmpdir(), "agent-m-1020-path-"));
+  writeFileSync(join(folder, "xvfb-run"), "#!/bin/sh\nexec sleep 30\n");
+  chmodSync(join(folder, "xvfb-run"), 0o755);
+  const platform = Object.getOwnPropertyDescriptor(process, "platform"), path = process.env.PATH;
+  Object.defineProperty(process, "platform", { value: "linux" });
+  process.env.PATH = `${folder}:${path}`;
+  try { return await run(); } finally {
+    Object.defineProperty(process, "platform", platform);
+    process.env.PATH = path;
+    rmSync(folder, { recursive: true, force: true });
+  }
+}
+
+// TST-1020001 · level: unit · module: MOD-site-frame
+// guards: A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY
+// given: the platform presented as Linux, an xvfb-run that sleeps 30 s instead of answering, and a stand-in that writes "STAND-IN-STDERR-ALIVE" to its stderr and stays alive
+// input: openWindow(stand-in, address, { limit: 1500, launch: { command: stand-in, arguments_: [] } })
+// expect: openWindow rejects within 4 s of the start with a failure that holds "STAND-IN-STDERR-ALIVE" and does not say the virtual display is unavailable: no xvfb-run or openbox is asked for a stand-in
+test("TST-1020001: a stand-in window is started as it is, with no display or window manager asked for", { timeout: 20000 }, async () => {
+  const { executable, remove } = stand('echo "STAND-IN-STDERR-ALIVE" >&2\nexec sleep 60');
+  try {
+    const started = Date.now();
+    const failure = await withLinuxWithoutDisplay(() => openWindow(executable, "http://127.0.0.1:1/__blank", { limit: 1500, launch: { command: executable, arguments_: [] } }).then(() => null, (error) => error));
+    assert.equal(failure instanceof Error, true);
+    assert.equal(failure.message.includes("STAND-IN-STDERR-ALIVE"), true, failure?.message);
+    assert.equal(failure.message.includes("virtual display"), false, failure?.message);
+    assert.equal(Date.now() - started < 4000, true, `took ${Date.now() - started} ms`);
+  } finally { remove(); }
+});
+
+// TST-1020002 · level: unit · module: MOD-site-frame
+// guards: A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY
+// given: the same platform and xvfb-run, and the same stand-in, but no launch command
+// input: openWindow(stand-in, address, { limit: 1500 })
+// expect: the staging of the real window is unchanged: openWindow goes through electronCommand, whose xvfb-run does not answer, and rejects with "Linux virtual display unavailable" (the known positive of TST-1020001: a window without a launch command is still staged)
+test("TST-1020002: a window without a launch command still goes through the display and the window manager", { timeout: 20000 }, async () => {
+  const { executable, remove } = stand("exec sleep 60");
+  try {
+    const failure = await withLinuxWithoutDisplay(() => openWindow(executable, "http://127.0.0.1:1/__blank", { limit: 1500 }).then(() => null, (error) => error));
+    assert.equal(failure instanceof Error, true);
+    assert.equal(failure.message.includes("Linux virtual display unavailable"), true, failure?.message);
+  } finally { remove(); }
 });
