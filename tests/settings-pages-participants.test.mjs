@@ -251,7 +251,7 @@ function browser(t, { files = {}, settings = {}, visibility = "private", product
   t.after(() => { document.body.replaceChildren(); });
   const context = { page: "review", instance: { repository: INSTANCE, host }, product: null, store, productHosts, go() {} };
   return { store, commits, files: current, context, productCommits,
-    async page() { const target = document.createElement("div"); document.body.append(target); await route().render(target, context, {}); await settle(); return target; } };
+    async page(params = {}) { const target = document.createElement("div"); document.body.append(target); await route().render(target, context, params); await settle(); return target; } };
 }
 
 async function addParticipant(page, type) {
@@ -685,6 +685,51 @@ test("participants — every control of a CI agent's form changes the saved row,
       });
       assert.notEqual(row, baseline, `${runner}: changing ${names[at]} changes the saved row`);
     }
+  }
+});
+
+// TST-1031002 · level: unit · module: MOD-settings-pages
+// guards: UC-040 (2a); UC-017 step 3; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
+// given: the public participants Route and an empty register; this browser keeps no endpoint
+// input: the route opened with the parameters type "model endpoint" and address "http://workstation.example.org:8000/v1"
+// expect: the form of a new participant is open ("Add participant"), its type reads "model endpoint" and its endpoint URL reads the address — the endpoint is configured inline, as for a browser that keeps none —; the register is not written
+test("participants — opened with a type and an address, the form of a new participant shows them filled in", async (t) => {
+  const b = browser(t);
+  const page = await b.page({ type: "model endpoint", address: "http://workstation.example.org:8000/v1" });
+  assert.equal(one(page, "participants-add-panel").hidden, false);
+  assert.equal(one(page, "participant-type").value, "model endpoint");
+  assert.equal(one(page, "participant-endpoint-url").value, "http://workstation.example.org:8000/v1");
+  assert.deepEqual(b.commits, []);
+});
+
+// TST-1031003 · level: unit · module: MOD-settings-pages
+// guards: UC-040 (2a); UC-017 step 3
+// given: this browser keeps the endpoint campus at https://models.example/v1; and, in another browser, only the endpoint other at https://other.example/v1
+// input: the route opened with type "model endpoint" and the address https://models.example/v1; and with the address http://workstation.example.org:8000/v1
+// expect: for the address a kept endpoint has, the endpoint is that one (the select reads campus); for an address none has, the endpoint URL of an inline form reads the address, whatever endpoints are kept; and with the type "CLI agent" the form is open with that type
+test("participants — the address picks the kept endpoint that has it, or is the URL of a new one", async (t) => {
+  const settings = { "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus" } };
+  const known = await browser(t, { settings }).page({ type: "model endpoint", address: "https://models.example/v1" });
+  assert.equal(one(known, "participant-endpoint").value, "campus");
+  const unknown = await browser(t, { settings: { "endpoint:other": { url: "https://other.example/v1", kind: "openai-compatible", model: "m" } } })
+    .page({ type: "model endpoint", address: "http://workstation.example.org:8000/v1" });
+  assert.equal(one(unknown, "participant-endpoint-url").value, "http://workstation.example.org:8000/v1");
+  const agent = await browser(t).page({ type: "CLI agent", address: "https://agents.example.org/coder" });
+  assert.equal(one(agent, "participants-add-panel").hidden, false);
+  assert.equal(one(agent, "participant-type").value, "CLI agent");
+});
+
+// TST-1031004 · level: unit · module: MOD-settings-pages
+// guards: UC-040 (2a); UC-017
+// given: the same registers
+// input: the route opened with no parameters, with only an address, and with a type no participant has
+// expect: counter-proof: the form of a new participant stays closed (hidden), the type empty, and no endpoint URL is drawn — a form without the parameters stays empty
+test("participants — without a type and an address the form stays closed and empty", async (t) => {
+  for (const params of [{}, { address: "http://workstation.example.org:8000/v1" }, { type: "robot", address: "x" }]) {
+    const page = await browser(t).page(params);
+    assert.equal(one(page, "participants-add-panel").hidden, true, JSON.stringify(params));
+    assert.equal(Boolean(one(page, "participant-type").value), false, JSON.stringify(params));
+    assert.equal(byClass(page, "participant-endpoint-url").length, 0, JSON.stringify(params));
   }
 });
 

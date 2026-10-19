@@ -343,6 +343,15 @@ export const route = {
     }
 
     // ------------------------------------------------------------ the entries, by kind
+    // An endpoint or an agent that also works on the product is a participant too, and a separate entry (UC-040 2a): *Add as participant* opens the participants route with the
+    // participant type that kind stands for and the resource's address, and writes nothing.
+    const PARTICIPANT_TYPE = { endpoint: "model endpoint", agent: "CLI agent" };
+    function participantButton(resource) {
+      if (!PARTICIPANT_TYPE[resource.kind]) return [];
+      const button = el("button", "resource-add-participant btn", "Add as participant");
+      button.addEventListener("click", () => context.go("participants", { type: PARTICIPANT_TYPE[resource.kind], address: resource.address }));
+      return [" ", button];
+    }
     function entryOf(resource, row) {
       const out = el("div", "resource-out");
       const checkButton = el("button", "resource-check btn", "Check");
@@ -364,7 +373,7 @@ export const route = {
         el("p", "resource-secret", `Secret: ${secretShown(resource.secret)}`),
         el("ul", "resource-findings", ...resourceFindings([resource]).map((found) => el("li", found.kind, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`))),
         ...(resource.secret === "browser" ? [keyFieldOf(resource)] : []),
-        el("p", null, checkButton, " ", removeButton), out);
+        el("p", null, checkButton, " ", removeButton, ...participantButton(resource)), out);
       section.setAttribute("data-resource", resource.name);
       return section;
     }

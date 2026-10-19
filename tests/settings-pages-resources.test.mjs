@@ -576,3 +576,22 @@ test("resources — Check through a Bridge sends no resource key, and an endpoin
   const said = withClass(entry(page.target, "shared-llm"), "resource-bridge-answer")[0].textContent;
   assert.equal(said, "✗ The Bridge workstation could not list the models: Invalid API key.");
 });
+
+// TST-1031001 · level: unit · module: MOD-settings-pages
+// guards: UC-040 (2a); ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
+// given: the product's list holds dlls (a repository), shared-llm (an endpoint at http://workstation.example.org:8000/v1) and coder (an agent at https://agents.example.org/coder)
+// input: the resources route drawn for the product; Add as participant pressed on shared-llm and on coder
+// expect: an endpoint and an agent each have an Add as participant button, and a repository has none (known positive: the other buttons of the entry are there); pressing it on shared-llm calls go("participants", { type: "model endpoint", address: "http://workstation.example.org:8000/v1" }) and on coder go("participants", { type: "CLI agent", address: "https://agents.example.org/coder" }) — one call each, nothing written, no request to any server
+test("resources — an endpoint or an agent that also works on the product opens the participants route with its type and address", async (t) => {
+  const CODER = "| coder | agent | https://agents.example.org/coder | — | — | — | bridge workstation | the group's workstation | no | — |";
+  const page = await open(t, { productFiles: { "docs/resources.md": list("thesis-tool", DLLS, LLM, CODER) } });
+  assert.ok(buttonLabelled(entry(page.target, "dlls"), "Check"), "known positive: the repository's entry has its buttons");
+  assert.equal(Boolean(buttonLabelled(entry(page.target, "dlls"), "Add as participant")), false, "a repository has no Add as participant");
+  const before = page.world.requests.length;
+  await pressed(buttonLabelled(entry(page.target, "shared-llm"), "Add as participant"));
+  await pressed(buttonLabelled(entry(page.target, "coder"), "Add as participant"));
+  assert.deepEqual(page.went, [["participants", { type: "model endpoint", address: "http://workstation.example.org:8000/v1" }],
+    ["participants", { type: "CLI agent", address: "https://agents.example.org/coder" }]]);
+  assert.equal(page.world.requests.length, before);
+  assert.deepEqual(page.world.commits(PRODUCT_REPO), []);
+});

@@ -18,9 +18,10 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { chosenProduct, confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
+import { cancelJob, liveState, jobLog, retryJob, routesFor } from "../runtimes/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
+import { startable } from "../work-plans/index.mjs";
 import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
-import { cancelJob, liveState, jobLog } from "../runtimes/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
@@ -273,6 +274,7 @@ async function renderJob(target, context, params, note = null) {
   if (CANCELLABLE.has(row.state)) page.append(cancelControls(target, context, params, held, read));
   if (note) page.append(el("p", "job-cancel-result", note));
   if (gate) page.append(await gateDecision(context, held, read, gate));
+  if (RETRIABLE.has(row.state)) page.append(await retryControls(context, held, read));
   page.append(el("h3", null, "Cost"), el("p", "job-cost", costLine(held.cost)));
   const log = el("div", "job-log");
   page.append(el("h3", null, "Log"), log);
@@ -280,6 +282,118 @@ async function renderJob(target, context, params, note = null) {
   drawLog(log, page, held, read); // not awaited: the page stands while the log follows its runtime
   if (row.state === "cancelling") readAgainLater(page, target, context, params);
 }
+
+// ---------------------------------------------------------------- Retry (UC-036 step 7, 1c, 7a)
+//
+// Where the texts leave a reading open, this file takes the one it names:
+//   - The participants offered are those for which MOD-work-plans' startable admits every plan item the job works on (the product's facts of the scope `work`, as the prompt bar reads them); for a job on no plan item, the job's own participant.
+//     The team's role assignment and sprint are those whose sprint holds the item, else the one assignment of a product without sprints. Where none is admitted, the reasons are shown and nothing is queued (7a).
+//   - The routes offered are those routesFor gives the chosen participant that are available, no resource need being passed (the scope `work` reads none), as the record writes them.
+//   - A job that ran in a tab, and a job whose task travelled with its hand-over, are not queued: the prompt bar is opened with the job's kind and parameters, by the route `job` with the parameter `retry`, whose `subject` gives the bar its Subject.
+
+const RETRIABLE = new Set(["failed", "cancelled", "ended without record"]);
+const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
+const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+
+// The parameters of the records whose retry opened the prompt bar, by the job: the bar's Subject gives them to the kind (the address carries the kind alone).
+const RETRY_PARAMS = new Map();
+function subjectOf(params) {
+  if (!params?.retry || !params.id) return null;
+  return { key: `retry:${params.id}`, title: `Retry ${params.id}`, kind: params.retry, entry: null, paramsFor: () => structuredClone(RETRY_PARAMS.get(params.id) ?? {}), draftRoute: null, withhold: null, refuses: [] };
+}
+
+function teamOf(item, facts, workflow) {
+  const held = facts.held.find((each) => each.item === item);
+  if (held) {
+    return { assignment: facts.assignments.find((each) => each.path.endsWith(`/${held.team}.md`)) ?? null, sprint: facts.sprints.find((each) => each.path.endsWith(`/${held.sprint}.md`)) ?? null };
+  }
+  return workflow?.model?.flow?.sprints !== true && facts.assignments.length === 1 ? { assignment: facts.assignments[0], sprint: null } : { assignment: null, sprint: null };
+}
+
+async function retryControls(context, held, read) {
+  const { record } = held;
+  const box = el("div", "job-retry");
+  const result = el("p", "retry-result");
+  const openBar = () => { RETRY_PARAMS.set(record.id, record.params); context.go("job", { id: record.id, product: held.product, retry: record.kind }); };
+  const barButton = (className, label) => {
+    const button = el("button", `${className} btn`, label);
+    button.setAttribute("type", "button");
+    button.addEventListener("click", (event) => { if (event.isTrusted) openBar(); });
+    return button;
+  };
+  if (record.task === "with the hand-over") {
+    result.textContent = "Its task travelled with its hand-over and is not in the record: write it again in the prompt bar.";
+    box.append(result, el("p", null, barButton("retry-prompt-bar", "Open the prompt bar")));
+    return box;
+  }
+  if (record.route === "tab") {
+    box.append(el("p", null, barButton("retry", "Retry")), result);
+    return box;
+  }
+  const host = read.hostOf.get(held.product);
+  let facts, visibility;
+  try {
+    const instanceHost = context.instance.host;
+    const snapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
+    facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+    visibility = (await host.repositoryInfo()).visibility;
+  } catch (failure) {
+    box.append(el("p", "warn retry-unreadable", `Retry could not be prepared: ${String(failure?.message ?? failure)}`));
+    return box;
+  }
+  const workflow = facts.workflow === "unknown" ? null : facts.workflow;
+  const items = record.worksOn.filter((id) => facts.plan.states.some((state) => state.item === id));
+  const reasons = new Set();
+  const holders = items.length === 0 ? facts.participants.filter((each) => each.name === record.participant) : facts.participants.filter((each) => items.every((item) => {
+    const { assignment, sprint } = teamOf(item, facts, workflow);
+    const verdict = startable(item, facts.plan.states, { workflow, assignment, sprint, held: facts.held, wip: workflow?.model?.flow?.wip ?? null, participants: [each] });
+    // The job being retried has itself ended badly, which blocks its item ("job <id> is failed") or, ended without a record, keeps it in progress: those reasons are what a retry resolves, so they do not count.
+    const own = (reason) => reason.includes(record.id) || (held.state === "ended without record" && reason === `${item} is in progress already.`);
+    const blocking = verdict.startable ? [] : verdict.reasons.filter((reason) => !own(reason));
+    blocking.forEach((reason) => reasons.add(reason));
+    return blocking.length === 0;
+  }));
+  if (holders.length === 0) {
+    box.append(el("p", null, "This job cannot be retried now:"), el("ul", "retry-reasons", ...[...reasons].map((reason) => el("li", "retry-reason", reason))), result);
+    return box;
+  }
+  holders.sort((a, b) => (b.name === record.participant) - (a.name === record.participant));
+  const jobWorkflow = WORKFLOWS.some((path) => facts.snapshot.paths.includes(path));
+  const participant = el("select", "retry-participant", ...holders.map((each) => { const option = el("option", null, each.name); option.value = each.name; return option; }));
+  participant.value = holders[0].name;
+  const route = el("select", "retry-route");
+  let offered = new Map();
+  const fillRoutes = () => {
+    const chosen = holders.find((each) => each.name === participant.value);
+    offered = new Map(routesFor(chosen, facts.participants, { visibility, jobWorkflow }, []).filter((each) => each.available).map((each) => [recordRoute(each.route), each.route]));
+    route.replaceChildren(...[...offered.keys()].map((text) => { const option = el("option", null, text); option.value = text; return option; }));
+  };
+  participant.addEventListener("change", fillRoutes);
+  fillRoutes();
+  const retry = el("button", "retry btn", "Retry");
+  retry.setAttribute("type", "button");
+  retry.addEventListener("click", async (event) => {
+    if (!event.isTrusted || retry.disabled) return;
+    const taken = offered.get(route.value) ?? [...offered.values()][0];
+    if (taken === undefined) { result.textContent = `${participant.value} has no route a job takes.`; return; }
+    const answer = await confirmDecision({ title: `Retry ${record.id}?`, lines: [`A new job is queued with the same inputs and parameters for ${participant.value}, on ${recordRoute(taken)}; it names ${record.id}, which stays in the list.`], confirm: "Retry the job" });
+    if (!answer.confirmed) return;
+    retry.disabled = true;
+    try {
+      const queued = await retryJob(record, { participant: holders.find((each) => each.name === participant.value), route: taken }, host, facts.snapshot.commit);
+      result.textContent = `Queued as ${queued.path.match(/(JOB-[^/.]+)\.md$/)?.[1] ?? queued.path}; it names ${record.id}.`;
+    } catch (failure) {
+      if (failure?.name === "TaskNotInRecord") { result.textContent = "Its task is not in the record: write it again in the prompt bar."; box.append(el("p", null, barButton("retry-prompt-bar", "Open the prompt bar"))); } else {
+        result.textContent = decisionFailure(failure);
+        retry.disabled = false;
+      }
+    }
+  });
+  box.append(el("p", null, el("label", null, "Participant ", participant), " ", el("label", null, "Route ", route), " ", retry), result);
+  return box;
+}
+
+const decisionFailure = (failure) => (failure?.name === "Moved" ? "The product changed meanwhile: nothing was written. Open the job again." : `${String(failure?.message ?? failure)} — nothing was written.`);
 
 // ---------------------------------------------------------------- a gate the job waits at (UC-034 step 7, 7a)
 //
@@ -304,7 +418,7 @@ function personOf(store, product) {
 }
 
 // What the page says of a gate decision's failure.
-const decisionFailure = (failure) => (failure?.name === "Moved" ? "The product changed meanwhile: nothing was written. Open the job again, since the gate may have been decided." : `${String(failure?.message ?? failure)} — nothing was written.`);
+const gateFailure = (failure) => (failure?.name === "Moved" ? "The product changed meanwhile: nothing was written. Open the job again, since the gate may have been decided." : `${String(failure?.message ?? failure)} — nothing was written.`);
 
 async function gateDecision(context, held, read, gate) {
   const box = el("div", "gate-decision");
@@ -349,7 +463,7 @@ async function gateDecision(context, held, read, gate) {
       { workflow, assignment, workBy: record.participant ? [record.participant] : [], head: facts.snapshot.commit, now: new Date(), trailers: [] });
       result.textContent = `The gate ${gate.gate} was ${decision} by ${person}; the job's route resumes or ends the job when it notices the record.`;
     } catch (failure) {
-      result.textContent = decisionFailure(failure);
+      result.textContent = gateFailure(failure);
       pass.disabled = false;
       reject.disabled = false;
     }
@@ -395,4 +509,4 @@ function cancelControls(target, context, params, held, read) {
 /**
  * job: Route — { name: "job", entry: null, title: "Job", render }; `params.id` names the job, `params.product` (where given) the product that holds it.
  */
-export const job = { name: "job", entry: null, title: "Job", render: (target, context, params) => renderJob(target, context, params) };
+export const job = { name: "job", entry: null, title: "Job", render: (target, context, params) => renderJob(target, context, params), subject: (params) => subjectOf(params) };
