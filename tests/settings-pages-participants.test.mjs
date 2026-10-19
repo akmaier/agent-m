@@ -293,7 +293,7 @@ test("participants — each participant type is added through the schema form an
     { type: "model endpoint", name: "campus-model", settings: { "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus", key: "endpoint-secret" } },
       fields: { endpoint: "campus", place: "FAU data centre (EU)" }, place: "FAU data centre (EU)", capabilities: ["draft text"], route: "endpoint campus" },
     { type: "CI agent", name: "ci-writer", fields: { model: "gpt-5", workflow: "agent-m.yml", runner: "github-hosted", secret: "MODEL_KEY", place: "GitHub hosted runner" },
-      place: "GitHub hosted runner", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], route: "workflow agent-m.yml on github-hosted secret MODEL_KEY" },
+      place: "GitHub hosted runner", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], route: "ci hosted secret MODEL_KEY" },
     { type: "CLI agent", name: "codex-local", settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } },
       fields: { model: "gpt-5", bridge: "laptop", agent: "codex", place: "this machine" },
       place: "this machine", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], route: "bridge laptop agent codex" },
@@ -574,4 +574,87 @@ test("participants — a participant no product uses saves without the product-u
   const dev = committedRows(b).find((row) => row.Name === "dev-b");
   assert.ok(dev);
   assert.equal(dev["Processing place"], "lab machine");
+});
+
+// TST-352005 · level: unit · module: MOD-settings-pages
+// guards: UC-017 step 5; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// given: the public participants Route, an empty register, and a Bridge and an endpoint kept in this browser
+// input: the author chooses each type in turn and has not typed a processing place
+// expect: the place is preset where it can be told — CI agent "GitHub hosted runner", CLI agent "this machine", sandboxed agent
+//   "sandbox" — and is empty for a model endpoint, where Agent M cannot tell, and absent for a person; a preset place is changed by typing
+test("participants — the processing place is preset by type where it can be told, and changeable", async (t) => {
+  const b = browser(t, { settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" },
+    "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus" } } });
+  const page = await b.page();
+  const expected = [["CI agent", "GitHub hosted runner"], ["CLI agent", "this machine"], ["sandboxed agent", "sandbox"], ["model endpoint", ""]];
+  for (const [type, place] of expected) {
+    await addParticipant(page, type);
+    assert.equal(one(page, "participant-place").value, place, `${type}: preset processing place`);
+  }
+  await addParticipant(page, "person");
+  assert.equal(byClass(page, "participant-place").length, 0, "a person has no processing place");
+  await addParticipant(page, "CLI agent");
+  await put(one(page, "participant-place"), "lab machine");
+  assert.equal(one(page, "participant-place").value, "lab machine");
+  assert.match(rowTextOf(page), /\| lab machine \|/);
+});
+
+// TST-352006 · level: unit · module: MOD-settings-pages
+// guards: UC-017 step 3; A PARTICIPANT HAS ONE OF FIVE TYPES; NO SECRET IN THE REPOSITORY
+// given: the public participants Route, an empty register, and the CI-agent form with its runner on the server's machines
+// input: the author chooses the self-hosted runner, types the runner's label gpu and the key's secret name MODEL_KEY, saves; and, on another page, leaves the label empty
+// expect: no runner-label field while the runner is the server's own; with the self-hosted runner a runner-label field, the route
+//   preview "ci runner:gpu secret MODEL_KEY" and, after Save, that route in the committed row; with the label empty Save is withheld
+test("participants — a CI agent's route is written in the schema's form, with the runner's label for a self-hosted runner", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await addParticipant(page, "CI agent");
+  assert.equal(byClass(page, "participant-runner-label").length, 0, "no label field while the runner is the server's own");
+  await put(one(page, "participant-name"), "ci-gpu");
+  await put(one(page, "participant-model"), "gpt-5");
+  await put(one(page, "participant-workflow"), "agent-m.yml");
+  await put(one(page, "participant-secret-name"), "MODEL_KEY");
+  assert.equal(one(page, "participant-route-preview").textContent, "ci hosted secret MODEL_KEY");
+  await put(one(page, "participant-runner"), "self-hosted", "change");
+  assert.equal(one(page, "participant-route-preview").textContent, "", "a self-hosted runner without its label has no route yet");
+  assert.equal(saveOf(one(page, "participants-form-box")).disabled, true, "Save is withheld without the label");
+  await put(one(page, "participant-runner-label"), "gpu");
+  await put(one(page, "participant-place"), "lab machine");
+  assert.equal(one(page, "participant-route-preview").textContent, "ci runner:gpu secret MODEL_KEY");
+  await save(page);
+  assert.equal(b.commits.length, 1);
+  assert.equal(committedRows(b).at(-1).Route, "ci runner:gpu secret MODEL_KEY");
+  assert.doesNotMatch(b.commits[0].files[0].text, /workflow/);
+});
+
+// TST-352007 · level: unit · module: MOD-settings-pages
+// guards: UC-017 step 7a; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: a register with three CI agents: one on the schema's route "ci runner:gpu secret GPU_KEY", and two saved earlier in the form
+//   "workflow agent-m.yml on github-hosted secret OLD_KEY" and "workflow agent-m.yml on self-hosted secret SELF_KEY"
+// input: the author opens Change for each
+// expect: the runner, the runner's label and the secret are read back from the route — gpu / GPU_KEY, the server's own runner / OLD_KEY,
+//   and, for the earlier self-hosted form, the label self-hosted (the label every self-hosted runner has) / SELF_KEY — and the route
+//   preview shows each in the schema's form
+test("participants — Change reads a CI agent's route in the schema's form and in the form saved earlier", async (t) => {
+  const row = (name, route) => `| ${name} | CI agent | gpt-5 | — | — | draft text, read the repository | lab machine | ${route} |`;
+  const register = `${EMPTY_PARTICIPANTS}${[
+    row("ci-gpu", "ci runner:gpu secret GPU_KEY"),
+    row("ci-old", "workflow agent-m.yml on github-hosted secret OLD_KEY"),
+    row("ci-old-self", "workflow agent-m.yml on self-hosted secret SELF_KEY"),
+  ].join("\n")}\n`;
+  const expected = [
+    ["ci-gpu", "self-hosted", "gpu", "GPU_KEY", "ci runner:gpu secret GPU_KEY"],
+    ["ci-old", "github-hosted", undefined, "OLD_KEY", "ci hosted secret OLD_KEY"],
+    ["ci-old-self", "self-hosted", "self-hosted", "SELF_KEY", "ci runner:self-hosted secret SELF_KEY"],
+  ];
+  for (const [name, runner, label, secret, preview] of expected) {
+    const b = browser(t, { files: { [PARTICIPANTS]: register } });
+    const page = await b.page();
+    await click(changeButton(page, name));
+    assert.equal(one(page, "participant-runner").value, runner, `${name}: runner`);
+    if (label === undefined) assert.equal(byClass(page, "participant-runner-label").length, 0, `${name}: no label field`);
+    else assert.equal(one(page, "participant-runner-label").value, label, `${name}: label`);
+    assert.equal(one(page, "participant-secret-name").value, secret, `${name}: secret`);
+    assert.equal(one(page, "participant-route-preview").textContent, preview, `${name}: route`);
+  }
 });
