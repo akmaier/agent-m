@@ -9,8 +9,8 @@
 // Inputs are in the forms of their modules: the sprint a Document of planSchemas.sprint, states ItemState, jobs MOD-job-ledger's JobRow, pull requests MOD-repository-hosts'
 // PullRequest, results a Snapshot of the branch test-results. Nothing reaches the network. The text leaves these readings open, which the pull request names:
 //   - sprintFacts is async, as MOD-result-records' flakyTests, which it calls, is.
-//   - A selected item is done when a merged pull request names it in its branch or title (as itemStates reads it); its pullRequest is that pull request's number.
-//     What it realises and its tests are the lines "Realises: a, b" and "Tests: x, y" of that pull request's body.
+//   - A selected item is in the increment when its ItemState is done with a pull request; that pull request is the entry's pullRequest. Its realises are those of its item
+//     document (facts.items); its tests are the ids of the tests (facts.tests, { id, guards }) that guard a requirement it realises, in the order given.
 //   - A job of the sprint is a row whose record's worksOn names a selected item. failedJobs: rows in state failed; retriedJobs: rows whose record names a job it retries;
 //     correctionRounds: the rounds of the records' ends.
 //   - waitingAtGates: "<n> gates reached, <m> not resumed" over the gates of those records ("none" for none); waitingForAPerson: "<n> jobs" that ended waiting for a person or
@@ -24,11 +24,14 @@ import assert from "node:assert/strict";
 
 const HEAD_1 = "1".repeat(40), HEAD_2 = "2".repeat(40);
 const sprint = { kind: "sprint", path: "docs/backlog/sprints/team1/01.md", id: "team1/01", fields: { sprint: 1, selection: ["ITM-001", "ITM-002", "ITM-003"] }, sections: [], appended: [], body: "" };
+const item = (id, realises) => ({ kind: "item", path: `docs/backlog/${id}.md`, id, fields: { id, realises }, sections: [], appended: [], body: "" });
+const ITEMS = [item("ITM-001", ["UC-032", "A STORE KEEPS BOOKS"]), item("ITM-002", ["UC-033"]), item("ITM-003", ["UC-034"])];
+const TESTS = [{ id: "TST-001", guards: ["A STORE KEEPS BOOKS"] }, { id: "TST-002", guards: ["UC-032", "UC-099"] }, { id: "TST-003", guards: ["UC-033"] }, { id: "TST-004", guards: ["UC-099"] }];
 const pr = (number, branch, state, head, body = "") => ({ number, title: `${branch} work`, branch, base: "main", head, state, draft: false, url: `https://example.test/pull/${number}`,
   opened: "2026-10-01T10:00:00Z", merged: state === "merged" ? "2026-10-02T10:00:00Z" : null, closed: null, body });
 const PULL_REQUESTS = [
-  pr(7, "item/ITM-001-store", "merged", HEAD_1, "The store.\n\nRealises: UC-032, A STORE KEEPS BOOKS\nTests: TST-001, TST-002\n"),
-  pr(8, "item/ITM-002-pages", "open", HEAD_2, "Realises: UC-033\nTests: TST-003\n"),
+  pr(7, "item/ITM-001-store", "merged", HEAD_1, "The store."),
+  pr(8, "item/ITM-002-pages", "open", HEAD_2, ""),
 ];
 const state = (item, kind, reason, pullRequest = null) => ({ item, state: kind, reason, job: null, pullRequest });
 const STATES = [state("ITM-001", "done", null, "7"), state("ITM-002", "in progress", "pull request 8 is open for review", "8"), state("ITM-003", "blocked", "job J-3 failed")];
@@ -50,16 +53,16 @@ const RUNS = new Map([
   [`runs/${HEAD_2}/20261007-1000-commit-cccc.md`, run([["TST-003", "unit", "passed", ""]])],
 ]);
 const results = { paths: [...RUNS.keys()], read: async (path) => RUNS.get(path) ?? null };
-const facts = (over = {}) => ({ states: STATES, jobs: JOBS, results, pullRequests: PULL_REQUESTS, issues: [], ...over });
+const facts = (over = {}) => ({ items: ITEMS, tests: TESTS, states: STATES, jobs: JOBS, results, pullRequests: PULL_REQUESTS, issues: [], ...over });
 
 const { sprintFacts } = await import("../src/work-plans/index.mjs").catch((error) => ({ sprintFacts: async () => { throw error; } }));
 
 // TST-986001 · level: unit · module: MOD-work-plans
 // guards: A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; UC-041
-// given: ITM-001 with a merged pull request, ITM-002 with an open one, ITM-003 with none
+// given: ITM-001 done with pull request 7, ITM-002 in progress with an open one, ITM-003 blocked; TST-004 guards a requirement no item of the sprint realises
 // input: sprintFacts of the sprint
-// expect: the increment is ITM-001 alone, with pull request 7, what it realises and its tests
-test("the increment holds exactly the items whose pull request is merged", async () => {
+// expect: the increment is ITM-001 alone, with pull request 7, what its item realises and the tests that guard it (not TST-004)
+test("the increment holds exactly the items that are done with a pull request", async () => {
   const { increment } = await sprintFacts(sprint, facts());
   assert.deepEqual(increment, [{ item: "ITM-001", pullRequest: "7", realises: ["UC-032", "A STORE KEEPS BOOKS"], tests: ["TST-001", "TST-002"] }]);
 });
@@ -113,4 +116,16 @@ test("a sprint with nothing done has an empty increment and quiet numbers", asyn
   assert.deepEqual(increment, []);
   assert.deepEqual(notDone.map((each) => each.item), ["ITM-001", "ITM-002", "ITM-003"]);
   assert.deepEqual(numbers, { failedJobs: 0, retriedJobs: 0, correctionRounds: 0, waitingAtGates: "none", waitingForAPerson: "none", flakyTests: [], cost: "unknown" });
+});
+
+// TST-986006 · level: unit · module: MOD-work-plans
+// guards: A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; UC-041
+// given: the same inputs, but ITM-001's state in progress while its pull request is merged on the host, and no item documents
+// input: sprintFacts of the sprint
+// expect: ITM-001 is not in the increment (the state decides, not a pull request's name); with no item documents the lists of an entry are empty
+test("the state decides what is done, and an entry without an item document has no requirements or tests", async () => {
+  const undone = STATES.map((each) => (each.item === "ITM-001" ? state("ITM-001", "in progress", "a job runs", "7") : each));
+  assert.deepEqual((await sprintFacts(sprint, facts({ states: undone }))).increment, []);
+  const bare = (await sprintFacts(sprint, facts({ items: [], tests: [] }))).increment;
+  assert.deepEqual(bare, [{ item: "ITM-001", pullRequest: "7", realises: [], tests: [] }]);
 });
