@@ -1,6 +1,6 @@
 // The routes `replies` and `replies/<issue>` — replies to answer (UC-039 steps 1 to 4, and 2b, 3a, 4a), as docs/architecture/MOD-maintenance-pages.md states them and ITM-966 builds them: closed issues with mails to answer, answers received, open
 // issues; an issue with what solved it and each listed mail found in the mailbox with its draft; *Draft replies* with its run panel, or a reply written without a participant; each draft complete — recipient, subject, body, attachments — and
-// editable (ITM-966); *Send* with its confirmation repeating recipient and subject, a reply sent but not noted and its note offered again, and *No reply* (ITM-967). *Ask the reporter* with *Send and wait*, the answer received, removing the label, *Reopen* and *Leave closed*, and *Close and reply* (ITM-968).
+// editable (ITM-966); *Send* with its confirmation repeating recipient and subject, a reply sent but not noted and its note offered again, and *No reply* (ITM-967). *Ask the reporter* with *Send and wait*, *Draft question* by a participant, the answer received, removing the label, *Reopen* and *Leave closed*, and *Close and reply* (ITM-968).
 //
 // Module: MOD-maintenance-pages
 //
@@ -19,6 +19,8 @@
 //     A mail found, sendable and not noted has *Ask the reporter*, which stores an empty question draft with the original quoted (a question written by hand; a participant drafts it in ITM-1026). On a closed issue the draft is a reply, sent with *Send*.
 //   - A mail is *new* under answer received when its mail-added note follows the last question-sent note; a mail *arrived* in a closed issue's thread when its mail-added note follows the issue's closing note (the order of the comments, which is the order of the notes).
 //     *Reopen* (setIssueState open) is the person's click; *Leave closed* calls nothing and takes the offer away; no mail reopens an issue by itself. *Close and reply* closes an open issue with setIssueState, reads the issues again and shows it under to answer.
+//   - *Draft question* (ITM-1026) opens, in the mail's item, the run panel of `draft-replies` with the person's point as the parameter `question` over the issue and that one mail: the participants are those of the drafting of replies (draft text, a place the mailbox allows),
+//     the panel appears once the point, a participant and a name are given, and the question the participant returns is stored as a draft and shown with *Send and wait*; the start record names the issue and the product, not the point.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
@@ -43,6 +45,7 @@ const STEP_TEXT = {
   read: "Read replies reads every issue of the products that lists mails, the mailbox's Drafts and Sent folders, and finds each listed mail by its identifier. A reply found in Sent that no issue notes yet is noted in its issue now. Nothing in the mailbox is changed. Book: ch. 14, Evolution Processes and Change Identification.",
   groups: "Three groups: closed issues with a listed mail that has no reply note (to answer), issues labelled waiting-for-reporter with a new mail (answer received), and the open ones. Open an issue to see what solved it and its mails.",
   issue: "The issue with what solved it, and per listed mail the mail itself, found in the mailbox through its identifier, with its draft in Drafts if there is one. A draft is shown complete and can be edited here; each edit is saved to the draft. Nothing is sent from this page.",
+  question: "Draft question asks a participant to write one question to the reporter of this mail, from your point: what you want to know. Only participants whose processing place the mailbox allows are offered; the panel states where the participant processes data and exactly what it receives: the issue, your point and this mail. The question is stored as a draft in the mailbox's Drafts folder and nowhere else; you send it with Send and wait.",
   drafting: "Draft replies asks a participant for one text per mail: what the problem was, what was done, from which version the fix is live. Only participants whose processing place the mailbox allows are offered; the panel states where the participant processes data and exactly what it receives. The texts are stored as drafts in the mailbox's Drafts folder and nowhere else. Or write a reply yourself: an empty draft opens with the original quoted.",
 };
 
@@ -210,6 +213,13 @@ function mailItem(entry, due, box, host, extra) {
       }
     });
     item.append(el("p", null, write));
+    if (asking) {
+      const question = button("draft-question", "Draft question", async () => {
+        question.disabled = true;
+        item.append(await draftingSection(due, extra.ctx, redraw, { question: true, entry }));
+      });
+      item.append(el("p", null, question));
+    }
   }
   item.append(el("p", null, none()));
   return item;
@@ -226,8 +236,8 @@ async function arrivalsOf(host, due) {
 }
 
 // Draft replies: the participants the mailbox allows, the run panel and Run.
-async function draftingSection(due, ctx, redraw) {
-  const section = el("section", "reply-drafting", el("h3", null, "Draft replies"), fold(STEP_TEXT.drafting));
+async function draftingSection(due, ctx, redraw, opts = {}) {
+  const section = el("section", opts.question ? "question-drafting" : "reply-drafting", el("h3", null, opts.question ? "Draft question" : "Draft replies"), fold(opts.question ? STEP_TEXT.question : STEP_TEXT.drafting));
   const { context, connection, box, products } = ctx;
   try {
     const definition = await kindOf("draft-replies");
@@ -239,7 +249,7 @@ async function draftingSection(due, ctx, redraw) {
     const allowed = (connection.places ?? []).map((each) => each.place);
     const admitted = eligible(participants, { capabilities: definition.needs, places: [{ from: "the mailbox", allowed }] }).eligible;
     const host = products.get(due.product)?.host;
-    const draftable = due.mails.filter((each) => each.mail && !each.noted && !each.draft && replyAddress(each.mail) !== null);
+    const draftable = opts.question ? [opts.entry] : due.mails.filter((each) => each.mail && !each.noted && !each.draft && replyAddress(each.mail) !== null);
     if (draftable.length === 0 || !host) { section.append(el("p", "muted", "No mail of this issue is left to draft.")); return section; }
     if (admitted.length === 0) { section.append(el("p", "reply-no-participant", `No participant that can draft text works at a place this mailbox allows (${allowed.join(", ") || "none"}).`)); return section; }
     const radios = admitted.map((participant) => {
@@ -255,19 +265,20 @@ async function draftingSection(due, ctx, redraw) {
     });
     const person = el("input", "person");
     person.setAttribute("placeholder", "Your name");
+    const point = opts.question ? el("textarea", "question-point") : null;
     const stage = el("div", "reply-stage");
 
     async function refresh() {
       stage.replaceChildren();
       const chosen = radios.find((each) => each.radio.checked === true)?.participant;
       const name = String(person.value ?? "").trim();
-      if (!chosen || !name) { stage.append(el("p", "muted", "Choose a participant and enter your name to see the run panel.")); return; }
+      if (!chosen || !name || (point && String(point.value ?? "").trim() === "")) { stage.append(el("p", "muted", point ? "Write your point, choose a participant and enter your name to see the run panel." : "Choose a participant and enter your name to see the run panel.")); return; }
       try {
         const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
         const now = new Date();
         const id = newJobId(now, new Set(head.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)));
         const agentM = { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" };
-        const params = { due: { ...due, mails: draftable }, host, mailbox: box };
+        const params = { due: { ...due, mails: draftable }, host, mailbox: box, ...(point ? { question: String(point.value).trim() } : {}) };
         const jobContext = { kind: definition, params, product: { address: due.product, snapshot: head, host }, instance: { snapshot: instanceSnapshot, host: instanceHost, checkout: null },
           connect: async () => host, participants, places: { sources: {}, mailbox: allowed }, gates: [], person: name, now, agentM, jobId: id };
         const prepared = await prepareJob("draft-replies", jobContext, { drafter: chosen, reviewers: [] });
@@ -291,7 +302,8 @@ async function draftingSection(due, ctx, redraw) {
       }
     }
     for (const input of [...radios.map((each) => each.radio), person]) input.addEventListener("change", refresh);
-    section.append(el("ul", "reply-participants", ...radios.map((each) => each.item)), el("label", null, "Your name ", person), stage);
+    point?.addEventListener("input", refresh);
+    section.append(...(point ? [el("p", null, el("label", null, "Your point to ask ", point))] : []), el("ul", "reply-participants", ...radios.map((each) => each.item)), el("label", null, "Your name ", person), stage);
   } catch (failure) {
     section.append(el("p", "reply-problem", failed(failure)));
   }
@@ -320,7 +332,7 @@ async function issueOf(out, ctx, params, redraw) {
   const group = GROUPS.find(([, field]) => ctx.due[field].includes(due))[0];
   const host = ctx.products.get(due.product)?.host;
   const { fresh, arrived } = host ? await arrivalsOf(host, due).catch(() => ({ fresh: new Set(), arrived: new Set() })) : { fresh: new Set(), arrived: new Set() };
-  const list = el("ul", "reply-mails", ...due.mails.map((entry) => mailItem(entry, due, ctx.box, host, { group, arrived, fresh, redraw })));
+  const list = el("ul", "reply-mails", ...due.mails.map((entry) => mailItem(entry, due, ctx.box, host, { group, arrived, fresh, redraw, ctx })));
   const controls = [];
   const act = (className, text, run) => {
     const node = button(className, text, async () => {

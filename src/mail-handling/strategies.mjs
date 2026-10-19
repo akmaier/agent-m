@@ -42,16 +42,24 @@ async function mailBatch(context, params) {
  * The recipe `reply-inputs`, for drafting replies. Parameters: `due`, one `Due` of `repliesDue`, and `host`, the host of its
  * product. One part with the issue, the closing pull request or commit, and the release — said not to be known where it is
  * `null`, never found out here —; one part per listed mail that has no reply and is found in the mailbox, with its identifier,
- * subject, date and text, and not its headers.
+ * subject, date and text, and not its headers. With the parameter `question` — the person's point to ask — for an open issue:
+ * the issue (no solution is named), the point, and the one listed mail the question answers, which is the one mail of `due`
+ * found in the mailbox; a blank point, no mail found and more than one are a TypeError.
  */
 async function replyInputs(context, params) {
-  const { due, host } = params;
+  const { due, host, question } = params;
   const issue = (await host.listIssues({ state: "all" })).find((each) => each.number === due.issue);
   const lines = [`Issue #${due.issue}${issue ? `: ${issue.title}` : ""}`];
   if (issue) lines.push("", issue.body);
+  const partOf = ({ id, mail }) => part(`mail ${id}`, [`Mail ${id}`, `Subject: ${mail.subject}`, `Date: ${mail.date}`, "", mail.text].join("\n"));
+  if (question !== undefined) {
+    if (typeof question !== "string" || question.trim() === "") throw new TypeError("reply-inputs: a question needs the person's point to ask.");
+    const found = due.mails.filter((each) => each.mail);
+    if (found.length !== 1) throw new TypeError(`reply-inputs: a question is asked of the one listed mail it answers; the issue gives ${found.length} found in the mailbox.`);
+    return [part("issue", lines.join("\n")), part("question", `The person's point to ask the reporter:\n${question.trim()}`), partOf(found[0])];
+  }
   lines.push("", `Solved by: ${due.closedBy ?? "not known"}`, `Release: ${due.release ?? "not known"}`);
-  const mails = due.mails.filter((each) => each.mail && !each.noted).map(({ id, mail }) =>
-    part(`mail ${id}`, [`Mail ${id}`, `Subject: ${mail.subject}`, `Date: ${mail.date}`, "", mail.text].join("\n")));
+  const mails = due.mails.filter((each) => each.mail && !each.noted).map(partOf);
   return [part("issue", lines.join("\n")), ...mails];
 }
 
