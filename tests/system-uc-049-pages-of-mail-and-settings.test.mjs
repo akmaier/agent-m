@@ -131,7 +131,7 @@ test("alternative 3c: the context names each setting and whether it is stored", 
 // given: the settings pages of a browser whose register lists one participant
 // input: the page of the participants and the page of the endpoint configuration read
 // expect: UC-049 1a says "The participants page and the endpoint configuration say that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser": each of the two pages says that the prompt bar appears then. FINDING: neither page mentions the prompt bar (src/settings-pages/participants.mjs, endpoints.mjs), so this case is red on main until they do
-test("alternative 1a: the participants page and the endpoint configuration say that the prompt bar appears once a participant is reachable", { todo: "FINDING UC049-1a — neither the participants page nor the endpoint configuration says that the prompt bar appears once a participant is configured and reachable — ITM-1128" }, async () => {
+test("alternative 1a: the participants page and the endpoint configuration say that the prompt bar appears once a participant is reachable", async () => {
   for (const route of ["participants", "endpoints"]) {
     const p = await openReplies({ inbox: [rawMail("n1")], fragment: `#${route}`, views: [maintenance, settings], rows: [LOCAL] });
     try {
