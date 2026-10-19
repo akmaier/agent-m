@@ -32,3 +32,14 @@ non-host error in a route and asserts that the page names a fault of the page, n
 - A page's own error is shown as a fault of the page, and a host's failure as `readProblem` gives it today, with tests and
   their counter-proofs.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its stop clause (sprint team1/92, developer-sonnet-a).** No accepted sentence said what a page's own fault
+shows. `readProblem` (MOD-site-frame.md, Interfaces) gave "the host's own message, and the link to store a token" for
+every failure, and MOD-site-frame named no way to tell a host's failure apart. **The draft for akmaier, on `main`:**
+- `readProblem` shows a fault of the page for an error that is no `HostError`, with no link to a token;
+- the frame names MOD-repository-hosts.HostError in its uses;
+- `startPage` replaces a route whose rendering fails with `readProblem`, except a refused token. Today
+  `src/site-frame/index.mjs:307` rethrows it and leaves the route half drawn.
+This item waits for that acceptance. Its tests then include TST-601005 (`tests/site-frame-read-problem.test.mjs:101-105`),
+read against the accepted text.
+

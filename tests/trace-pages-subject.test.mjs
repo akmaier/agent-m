@@ -8,7 +8,7 @@
 // Guards: UC-049; UC-019; UC-020; THE PERSON WHO PROMPTS IS A SOURCE
 // Level: unit
 //
-// This imports the shared small DOM of tests/site-frame.test.mjs unchanged, as the other tests of the views do, and calls the public `trace` Route:
+// This imports the shared small DOM of tests/site-frame-dom.mjs unchanged, as the other tests of the views do, and calls the public `trace` Route:
 // `render(target, context, params)`, then `subject(params, context)` with the same context, as the frame does for the route shown. The Hosts are the
 // test's own; they keep to MOD-repository-hosts' interface (repositoryInfo, readSnapshot), have no write, and the tests run under a `fetch` spy.
 // Where the texts leave a reading open, the test states the one it takes, and the pull request names it:
@@ -21,7 +21,7 @@
 //   - A subject at a released version offers no draft route (`null`): a change is drafted only against the current text.
 // The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 

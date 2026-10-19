@@ -17,7 +17,7 @@
 // system test drives the same public route but does not edit product code or existing tests. Each case states the path it
 // guards before it runs. Counter-proof evidence is recorded in the final report.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -314,7 +314,7 @@ test("TST-375001: UC-017 main flow saves each participant type from the Particip
     { type: "CI agent", fields: { name: "ci-writer", model: "gpt-5", context: "200000", price: "2.00 / 8.00", place: "GitHub hosted runner" },
       workflow: "agent-m.yml", runner: "github-hosted", secret: "MODEL_KEY", model: "gpt-5", place: "GitHub hosted runner",
       capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
-      route: "workflow agent-m.yml on github-hosted secret MODEL_KEY" },
+      route: "ci hosted secret MODEL_KEY" },
     { type: "CLI agent", settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } },
       fields: { name: "codex-local", model: "codex-cli", context: "200000", price: "subscription", place: "this machine" },
       bridge: "laptop", agent: "codex", model: "codex-cli", place: "this machine",
@@ -493,6 +493,7 @@ test("TST-375004: UC-017 alternative 5a names restricted sources and still permi
   await put(one(page, "participant-price"), "2.00 / 8.00");
   await put(one(page, "participant-workflow"), "agent-m.yml");
   await put(one(page, "participant-runner"), "self-hosted", "change");
+  await put(one(page, "participant-runner-label"), "private-lab");
   await put(one(page, "participant-secret-name"), "MODEL_KEY");
   await put(one(page, "participant-place"), "US cloud");
 

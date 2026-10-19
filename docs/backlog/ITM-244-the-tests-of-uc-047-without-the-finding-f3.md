@@ -36,3 +36,9 @@ of UC-047 nor that change (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`).
   failing on it.
 - Only ITM-238's two test files change: `tests/system-uc-047-be-told-what-waits-for-your-acceptance.test.mjs` and
   `tests/release-sprint-07-uc-047-notifications.test.mjs`.
+
+## Built (read on main by po-opus-b, 2026-10-18)
+
+This item is built: commit `b5f1ad1e` ("gates: #206 passed on 0528e37 — ITM-244") is on `main`. No merged pull request names it, because it predates the record
+format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
+of UC-036 to UC-049 found its code and tests on `main`.

@@ -51,7 +51,7 @@ It keeps nothing. It owns the scheme:
 | `ARC` | `ARC-<nnn>` | `ARC-048` |
 | `MOD` | `MOD-<slug>` | `MOD-identifiers` |
 | `TST` | `TST-<nnn>` | `TST-014` |
-| `ITM` | `ITM-<nnn>` | `ITM-202` |
+| `ITM` | `ITM-<nnn>`, three or more digits | `ITM-202` |
 | `RES` | `RES-<slug>` | `RES-alex-cluster` |
 | `JOB` | `JOB-<yyyymmdd>-<hhmm>-<four hexadecimal digits>` | `JOB-20261005-0900-a1b2` |
 

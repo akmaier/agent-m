@@ -34,3 +34,9 @@ module, as MOD-test-pages' file states. Where the route is not loaded, the frame
 - `RouteNotLoaded` leaves the link.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/test-pages/` and the tests that name MOD-test-pages change.
+
+**Noted at ITM-641's red (sprint team1/92, developer-sonnet-a).** A route is named by the first part of its fragment, and
+the rest are its `params` (MOD-site-frame.md:117). So the panel embeds the route `trace` with the params
+`{ key: "audit" }` and the candidate's, not a route named `trace/audit`. The Acceptance is read that way when this item
+starts.
+

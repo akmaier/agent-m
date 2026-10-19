@@ -58,7 +58,7 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 | `POST /v1/jobs/{id}/cancel` | — | `{ confirmed }` — `true` once the agent's process has ended | jobs |
 | `POST /v1/ask` | `{ agent, input }` — a drafting request to an agent the Bridge offers — or `{ endpoint, input }` — a request to a model endpoint, `endpoint` in the endpoint configuration's format — or `{ endpoint, exchange }` — one request of a tool loop the page runs, the messages so far and the tools offered | `{ ask }` | jobs |
 | `GET /v1/ask/{ask}` | — | `{ state: "running" \| "done" \| "failed", text, calls, usage, error }` — `calls` the tool calls an endpoint made in the one exchange of a tool loop the request carried, each `{ id, name, args }`; empty for any other request | jobs |
-| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` takes the endpoint configuration | `{ answer }`; for `endpoint-test`, the endpoint-test answer | jobs |
+| `POST /v1/probes/{kind}` | `{ args }`; `kind` is `agent`, `endpoint-models`, `endpoint-test` or `partitions`; `endpoint-test` and `endpoint-models` take the endpoint configuration; `partitions` takes `{}` | `{ answer }`; for `endpoint-test`, the endpoint-test answer; for `endpoint-models`, `{ models: string[] }` or `{ diagnosis }`; for `partitions`, `{ partitions: { name, state }[] }` | jobs |
 | `POST /v1/mail/{operation}` | `{ connection, args }` — the IMAP connection with its password, for this request only | the operation's answer | mail |
 | `GET /v1/tunnels` | — | `{ tunnels: [{ name, kind, state, reason }] }` | tunnels |
 
@@ -82,8 +82,11 @@ server's or the agent's own message; `paused` (503).
   route of `bridgeApi` to `(request: { params: object, body: object }) -> Promise<object>`; a handler throws an error of
   `bridgeApi` by its code.
 - `serveBridge(config: { host: string, port: number, origin: string, dataFolder: string, paused: () => boolean }, handlers:
-  BridgeHandlers) -> Promise<{ address: string, token: string, close: () -> Promise<void> }>` — starts the server, and
-  returns its address and the pairing token in force, made on the first start, for the Bridge's window. It refuses any
+  BridgeHandlers) -> Promise<{ address: string, token: string, pairedWith: () -> string | null, close: () -> Promise<void>
+  }>` — starts the server, and returns its address and the pairing token in force, made on the first start, for the
+  Bridge's window; `pairedWith()` is the origin of the first request since this start that carried the token in force and
+  came from `origin`, and `null` before one did and again after `pairAnew` (UC-044, pairing). It is kept in memory
+  only. It refuses any
   `host`
   but `127.0.0.1`, `::1` or `localhost` with `BindRefused`, and a port in use with `PortInUse`. It answers a request only
   with the pairing token, whatever its route; it answers cross-origin requests, and the browser's preflight for a request

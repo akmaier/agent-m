@@ -220,6 +220,25 @@ class TestTheJobThatDraftsItems(unittest.TestCase):
         self.assertEqual(again, [["warning", 'the item restates ITM-014 ("Export the thesis as PDF")']])
 
 
+class TestAnItemOfFourDigitsNamesWhatItRealises(unittest.TestCase):
+    """ITM-<nnn> takes three or more digits (MOD-identifiers, Data)."""
+
+    def test_an_item_of_four_digits_with_its_names_has_no_finding(self):
+        path = "docs/backlog/ITM-1000-export-thesis-as-pdf.md"
+        text = edited(TEXT, "id: ITM-014\n", "id: ITM-1000\n")
+        self.assertEqual(problems(path, text, KNOWN), [])
+
+    def test_an_item_of_three_digits_has_still_no_finding(self):
+        path = "docs/backlog/ITM-999-export-thesis-as-pdf.md"
+        text = edited(TEXT, "id: ITM-014\n", "id: ITM-999\n")
+        self.assertEqual(problems(path, text, KNOWN), [])
+
+    def test_counter_proof_an_item_of_two_digits_is_a_finding(self):
+        path = "docs/backlog/ITM-99-export-thesis-as-pdf.md"
+        text = edited(TEXT, "id: ITM-014\n", "id: ITM-99\n")
+        self.assertEqual([f["kind"] for f in problems(path, text, KNOWN)], ["error", "error"])
+
+
 @unittest.skipUnless(any((DOCS / "backlog").glob("ITM-*.md")), "this repository has no backlog items")
 class TestAgentMsOwnBacklog(unittest.TestCase):
     OWN = DOCS / "backlog"

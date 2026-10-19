@@ -5,7 +5,7 @@
 // Run: node --test tests/settings-pages-library-legal-text-version.test.mjs
 //
 // Module: MOD-settings-pages
-// Guards: UC-016; UC-004; A SOURCE VERSION IS NEVER OVERWRITTEN; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; ONE CLICK PER DECISION
+// Guards: UC-016; UC-004; A SOURCE VERSION IS NEVER OVERWRITTEN; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
 // Each test names its input and states its expected result in its own text (given / input / expect) before it runs; no expected value is read from a document, and none from the code. Where the texts leave a reading open,
@@ -13,6 +13,7 @@
 //   - A "fetched" legal text is an entry the page reads as an EU legal text (its `identifier` a CELEX number or an ELI, bare or in an address) with at least one version row; the entry of a legal text with no version waits
 //     for its fetch, and its *Fetch again* is on the list, not on this page.
 //   - The run is started on the repository's default branch with the input `source` holding the entry's identifier (SRC-…), and no other input.
+//   - "Shown before the person presses it" (ITM-951): the folded explanation is in the page's drawing as the route leaves it, and none of its ancestors is hidden; a panel that stays hidden does not show it.
 // The counter-proofs (a planted fault in src/settings-pages/ and the test's failing result) are recorded in the pull request.
 
 import test from "node:test";
@@ -26,6 +27,7 @@ installDocument();
 const { view } = await import("../src/settings-pages/index.mjs");
 const { writeSetting } = await import("../src/browser-store/index.mjs");
 const { connect, parseAddress } = await import("../src/repository-hosts/index.mjs");
+const { explain } = await import("../src/site-frame/index.mjs");
 const library = view.routes.find((candidate) => candidate.name === "library");
 
 const INSTANCE = "akmaier/agent-m";
@@ -79,4 +81,41 @@ test("new version — a fetch run the server refuses is said so, and nothing is 
   const result = one(page.target, "library-version-result").textContent;
   assert.equal(result.startsWith("✗ The fetch workflow could not be started for SRC-ai-act: "), true, result);
   assert.deepEqual(page.world.requests.filter(isWrite), []);
+});
+
+// Whether the element or one of its ancestors is hidden, as a panel kept out of view is.
+const hiddenAbove = (node) => { for (let n = node; n; n = n.parentNode) if (n.hasAttribute?.("hidden") || n.hidden === true) return true; return false; };
+
+// TST-951001 · level: unit · module: MOD-settings-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-016 1
+// given: the entry SRC-ai-act of an EU legal text with an EUR-Lex address and one version (a fetched legal text); the route library/SRC-ai-act rendered, + New version not pressed
+// input: look at the page before any press
+// expect: exactly one folded What is this? of the topic source-new-version stands on the page — a details of class explain that is closed, none of whose ancestors is hidden, whose body is the same rendered text as explain("source-new-version") gives; pressing + New version afterwards leaves exactly that one on the page and still starts exactly one run
+test("new version — of a fetched EU legal text the page shows the folded explanation of + New version before it is pressed", async (t) => {
+  const page = await open(t, "SRC-ai-act", ADDRESS);
+  const wanted = explain("source-new-version").children[1].innerHTML;
+  assert.equal(wanted.length > 0, true, "known positive: the topic has a text");
+  const found = () => byClass(page.target, "explain").filter((node) => node.children[1]?.innerHTML === wanted);
+  assert.equal(found().length, 1);
+  assert.equal(found()[0].hasAttribute("open"), false);
+  assert.equal(hiddenAbove(found()[0]), false);
+  assert.deepEqual(page.dispatched, [], "reading it starts no run");
+  await click(one(page.target, "library-new-version"));
+  assert.equal(found().length, 1);
+  assert.deepEqual(page.dispatched, [{ ref: "main", inputs: { source: "SRC-ai-act" } }]);
+});
+
+// TST-951002 · level: unit · module: MOD-settings-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-016 1
+// given: the same fetched legal text SRC-ai-act
+// input: look at the explanation shown before + New version is pressed
+// expect: its text says what + New version does for such a source: it contains "starts the fetch run for the entry" and "the same text is not recorded again"
+test("new version — the explanation shown for a fetched EU legal text says that + New version starts the fetch run", async (t) => {
+  const page = await open(t, "SRC-ai-act", ADDRESS);
+  const wanted = explain("source-new-version").children[1].innerHTML;
+  const shown = byClass(page.target, "explain").filter((node) => node.children[1]?.innerHTML === wanted);
+  assert.equal(shown.length, 1);
+  const text = shown[0].textContent.replace(/\s+/g, " ");
+  assert.equal(text.includes("starts the fetch run for the entry"), true, text);
+  assert.equal(text.includes("the same text is not recorded again"), true, text);
 });

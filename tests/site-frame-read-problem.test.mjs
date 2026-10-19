@@ -1,7 +1,8 @@
 // MOD-site-frame's readProblem (ITM-601): the problem a failed read of a repository shows on a page, as docs/architecture/MOD-site-frame.md states it:
 // "`readProblem(failure: Error, tokenStored: boolean) -> Element` — the problem a failed read of a repository shows on a page: for `NotFound` while this browser
 // stores no token that reaches it, that the repository is private or does not exist and no token reaches it, with the link to store one (UC-008 1a, UC-020 2a);
-// otherwise the host's own message, and the link to store a token where none is stored."
+// for any other host's failure (`HostError`), the host's own message, and the link to store a token where none is stored; for an error that is no host's failure, a fault of the page
+// itself: that this page could not be drawn, with the error's message, and no link to a token." (ITM-865)
 // Run: node --test tests/site-frame-read-problem.test.mjs
 //
 // Module: MOD-site-frame
@@ -13,6 +14,9 @@
 //   - "the link to store one" is <a class="token-step" href="#add-product">Store a token</a>, the address of the add-product step that the frame's own selector goes to
 //     (fragmentOf("add-product") in routing.mjs), and it stands after one space in the same <p class="problem">.
 //   - "the host's own message" is the failure's `message`, unchanged.
+//   - "a host's failure (`HostError`)" is an instance of MOD-repository-hosts' HostError class; the failures of the cases of a host below are made with it, by their names.
+//   - "that this page could not be drawn, with the error's message" is the one sentence "This page could not be drawn: <message>" in the same <p class="problem">, with no <a> in it, whatever
+//     `tokenStored` says.
 //   - `tokenStored` true means a token that reaches the repository is stored, so no link stands; false means none is stored.
 // Nothing is read from a repository: the function takes no host, and a spy on `fetch` that refuses records that none is called. The counter-proofs (a planted fault in
 // src/site-frame/ and the test's failing result) are recorded in the pull request.
@@ -20,13 +24,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { all, installPage, outside, offline } from "./site-frame-start.d/dom.mjs";
+import { HostError } from "../src/repository-hosts/index.mjs";
 
 installPage({ hostname: "acme.github.io", pathname: "/instance/docs/index.html" });
 offline();
 const { readProblem } = await import("../src/site-frame/index.mjs");
 
 const PRIVATE = "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload.";
-const failure = (name, message) => Object.assign(new Error(message), { name });
+const failure = (name, message) => new HostError(name, {}, message);
 const linksOf = (paragraph) => all(paragraph, "a");
 const classes = (node) => node.className.split(" ").sort().join(" ");
 
@@ -97,9 +102,36 @@ test("readProblem — a failure other than NotFound while no token is stored sho
 // guards: UC-008; UC-020
 // given: an Error whose name is "Error" (a failure that no host raised), with the message "boom", and a token stored
 // input: readProblem(failure, true)
-// expect: the text is exactly "boom"; no link
-test("readProblem — a failure no host raised is shown by its message", () => {
+// expect: one <p> of the class problem whose text is exactly "This page could not be drawn: boom"; no link
+test("readProblem — a failure no host raised is shown as a fault of the page, by its message", () => {
   const paragraph = readProblem(new Error("boom"), true);
-  assert.equal(paragraph.textContent, "boom");
+  assert.equal(paragraph.localName, "p");
+  assert.equal(classes(paragraph), "problem");
+  assert.equal(paragraph.textContent, "This page could not be drawn: boom");
+  assert.equal(linksOf(paragraph).length, 0);
+});
+
+// TST-865001 · level: unit · module: MOD-site-frame
+// guards: UC-008; UC-020
+// given: the same Error("boom"), and no token stored
+// input: readProblem(failure, false)
+// expect: the text is exactly "This page could not be drawn: boom"; no link, and no word "token" in it (the fault is not the person's token; the same call for a host's failure finds the link)
+test("readProblem — a fault of the page names no token even where none is stored", () => {
+  const known = linksOf(readProblem(failure("TokenRefused", "GitHub rejected authentication with your token."), false));
+  assert.equal(known.length, 1, "known positive: the search finds the link for a host's failure where none is stored");
+  const paragraph = readProblem(new Error("boom"), false);
+  assert.equal(paragraph.textContent, "This page could not be drawn: boom");
+  assert.equal(linksOf(paragraph).length, 0);
+  assert.equal(/token/i.test(paragraph.textContent), false);
+});
+
+// TST-865002 · level: unit · module: MOD-site-frame
+// guards: UC-008; UC-020
+// given: a ReferenceError with the message "draw is not defined" (the fault of ITM-861), and no token stored
+// input: readProblem(failure, false)
+// expect: the text is exactly "This page could not be drawn: draw is not defined"; no link
+test("readProblem — a ReferenceError of the page is shown as a fault of the page", () => {
+  const paragraph = readProblem(new ReferenceError("draw is not defined"), false);
+  assert.equal(paragraph.textContent, "This page could not be drawn: draw is not defined");
   assert.equal(linksOf(paragraph).length, 0);
 });

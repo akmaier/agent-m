@@ -44,3 +44,7 @@ shown folded (ITM-349). The participants page and the pages that start a job are
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/settings-pages/` and the tests that name MOD-settings-pages change.
+
+**Read at sprint team1/93 (developer-sonnet-d): built.** Every Acceptance sentence has its code and its test.
+TST-351001 (`tests/settings-pages-settings-regressions.test.mjs`) passes with the file's other tests, on commits
+`1f4c9713` and `8b69d32c`, which are on `main` (team2/51.md:44). It is done.
