@@ -581,7 +581,7 @@ test("TST-418124: the actual CI correction request carries its rejected draft an
 // given: the page of the requirement and a participant able to draft
 // input: an instruction in the bar and Send, with the exchange not yet answered
 // expect: the conversation names the limit of correction rounds ("at most 5") before the first round
-test("TST-418125: the bar names the limit of correction rounds before the first round", { todo: "FINDING UC019-S13 - the bar names the destinations before the exchange (onSend in MOD-prompt-bar's bar.mjs) and the rounds after it (\"Rounds: <n>\"); the limit, which MOD-job-runner's prepareJob fixes for the message (prepared.limit), is shown in no text of the bar. The run panel's \"at most 5\" (src/site-frame/run-panel.mjs) is not part of the bar" }, async () => {
+test("TST-418125: the bar names the limit of correction rounds before the first round", async () => {
   const s = await scenario({ answers: [draft()] }); await onRequirementPage(s);
   await send(s);
   assert.match(statusOf(s).textContent, /at most 5/);
