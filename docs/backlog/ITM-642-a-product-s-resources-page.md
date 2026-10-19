@@ -6,6 +6,7 @@ realises:
   - UC-040
 modules:
   - MOD-settings-pages
+  - MOD-site-frame
 builds_on:
 tests:
   - unit
