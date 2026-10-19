@@ -33,3 +33,10 @@ hands. It is one module text, and no pending draft is on that file (`docs/approv
 
 - Written once the draft is accepted: the view hands `sourceStrategies`, and a test that registers only the test pages' view
   prepares a `propose-tests` job.
+
+## resourceStrategies too (gate of #1089)
+
+MOD-job-catalogue.md:142-143: `write-tests` and `run-tests` name MOD-resource-list's `resource-pins` among their recipes.
+So the view hands `resourceStrategies` as well. The first draft (`e51447bf`) names only `sourceStrategies`, and a second
+draft on the same file adds `MOD-resource-list.resourceStrategies` once it is reviewed. The Acceptance then reads: the view
+hands both, and a test that registers only the test pages' view prepares a `propose-tests` and a `write-tests` job.
