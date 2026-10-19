@@ -191,8 +191,10 @@ identifier, and which register entry an item names is MOD-source-register's to s
   BACKLOG ITEM NAMES THE MODULES IT CHANGES`), or a plan step whose `tests` are not those of its `level` (`A PLAN STEP
   NAMES THE TESTS OF ITS LEVEL`); a module whose `folder` is not named after its identifier, or lies inside another
   module's folder (`A MODULE IS A FOLDER`); a name where an identifier is expected that is the title of a `group` node (`A
-  GROUP CARRIES NO IDENTIFIER`); and, as the warnings they are, the graph's `positions` (`A REFERENCE NAMES THE
-  IDENTIFIER, NOT THE POSITION`).
+  GROUP CARRIES NO IDENTIFIER`); a code file's `imports` edge to a module of which the file's own module names no
+  interface among its `uses`, named at the file and line of the import with the module imported (`A MODULE STATES ITS
+  RESPONSIBILITY AND ITS INTERFACES`), the same imports `moduleRows` lists as a gap; and, as the warnings they are, the
+  graph's `positions` (`A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION`).
 - `tracesTo(graph: Graph, name: string) -> Traces` — for a requirement, the items of its source its node keeps, and every
   use case, decision, module, test and item that names it (`A REQUIREMENT SHOWS WHAT TRACES TO IT`); a module traces to a
   requirement through the tests of it that guard the requirement.
