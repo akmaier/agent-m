@@ -1,7 +1,6 @@
 // strategies.mjs — the recipe `test-selection` of `resultStrategies` (MOD-result-records, Parts: strategies.mjs; Interfaces: resultStrategies), for the kinds `propose-tests`
 // and `write-tests` (UC-026 step 3): the text of each requirement, use case and module the job's parameters select, every existing test that guards any of them with its
-// declaration and code, and the product's external services, each marked paid or free. The recipes `commit-and-levels` and the check and writer of the module's file are other
-// items'; whichever item comes second adds to the set.
+// declaration and code, and the product's external services, each marked paid or free. The check `test-proposals` (ITM-753, ITM-851) and, for the kind `run-tests`, the recipe `commit-and-levels` and the writer `result-record` (ITM-586) are in this file too.
 //
 // Module: MOD-result-records
 //
@@ -12,9 +11,12 @@ import { testDeclarations, isTestFile } from "../test-document/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { paidServices, resourceSchema } from "../resource-list/index.mjs";
+import { defaultSchedule, occasionsOf, scheduleSchema } from "../test-schedule/index.mjs";
+import { appendResult } from "./append.mjs";
 import { resultSchema } from "./read.mjs";
 
 const RESOURCES = "docs/resources.md";
+const SCHEDULE = "docs/tests/schedule.md";
 const listOf = (value) => (Array.isArray(value) ? value : []);
 
 // The text of a selected name: a requirement as the SPEC states it (its name line to the next blank line), a use case or module its whole file; null for a name the graph lacks.
@@ -46,14 +48,22 @@ async function testText(snapshot, node) {
   return lines.slice(declarations[at].line - 1, next - 1).join("\n").trimEnd();
 }
 
-// The product's external services, one line each, marked paid or free.
-async function servicesText(snapshot) {
+// The product's external services, each marked paid or free by MOD-resource-list's paidServices; none where the product has no docs/resources.md.
+async function servicesOf(snapshot) {
   const text = await snapshot.read(RESOURCES);
   if (typeof text !== "string") return [];
   const resources = readRegister(resourceSchema(), RESOURCES, text).rows.map(({ cells: c }) => ({ name: c.Name, kind: c.Kind, address: c.Address,
     paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null }));
-  return paidServices(resources).map((service) => `- ${service.name} (${service.kind}, ${service.address}): ${service.paid ? "paid" : "free"}`);
+  return paidServices(resources);
 }
+const servicesText = async (snapshot) => (await servicesOf(snapshot)).map((service) => `- ${service.name} (${service.kind}, ${service.address}): ${service.paid ? "paid" : "free"}`);
+
+// The product's schedule, or the book's default where it saved none.
+async function scheduleOf(snapshot) {
+  const text = await snapshot.read(SCHEDULE);
+  return typeof text === "string" ? readDocument(scheduleSchema, SCHEDULE, text) : defaultSchedule();
+}
+const COMMIT_OCCASIONS = ["every commit", "pull request"];
 
 /**
  * The recipe test-selection(context, params) -> Part[] — one part, `test-selection`: the text of each requirement, use case and module the parameters `requirements`,
@@ -164,13 +174,15 @@ async function writtenTests(draft, context) {
 
 /**
  * The check test-proposals(draft, context) -> Finding[], for the kind `propose-tests` (the draft's `cases`): an error for a case without an expected result, a model-dependent
- * case (one with `phrasings`) judged on fewer than two runs, and a case that guards nothing; an error for a case not classed `duplicate` that shares a guarded name, its input
+ * case (one with `phrasings`) judged on fewer than two runs, a case that guards nothing, and a case of a level that runs on a commit or pull request that names in `paid` a service the product's resources mark paid (COMMIT TESTS CALL NO PAID SERVICE; the levels from the product's schedule, or the book's default); an error for a case not classed `duplicate` that shares a guarded name, its input
  * and its expected result with an existing test. A draft without `cases` has no finding. It calls no model.
  */
 async function testProposals(draft, context) {
   if (typeof draft?.branch === "string") return writtenTests(draft, context);
   const cases = Array.isArray(draft?.cases) ? draft.cases : [];
   const existing = cases.length ? await existingTests(context.product.snapshot) : [];
+  const paid = cases.some((one) => !blank(one.paid)) ? new Set((await servicesOf(context.product.snapshot)).filter((service) => service.paid).map((service) => service.name)) : new Set();
+  const schedule = paid.size > 0 ? await scheduleOf(context.product.snapshot) : null;
   const findings = [];
   cases.forEach((one, index) => {
     const at = { artifact: one.identifier ?? `case ${index + 1}`, line: index + 1, kind: "error" };
@@ -181,6 +193,10 @@ async function testProposals(draft, context) {
     const guards = Array.isArray(one.guards) ? one.guards : [];
     if (guards.length === 0) findings.push(finding({ ...at, rule: "EVERY ARTIFACT NAMES ITS ORIGIN",
       what: `case ${at.artifact} guards no requirement, use case or module`, fix: "name the identifiers the case guards, or drop the case" }));
+    if (!blank(one.paid) && paid.has(one.paid.trim()) && occasionsOf(one.level, schedule).some((occasion) => COMMIT_OCCASIONS.includes(occasion))) {
+      findings.push(finding({ ...at, rule: "COMMIT TESTS CALL NO PAID SERVICE", what: `case ${at.artifact} of level ${one.level} runs on a commit or pull request and reaches the paid service ${one.paid.trim()}`,
+        fix: "use a recorded or constructed response in place of the service, or give the case a level that runs only nightly or on a release" }));
+    }
     const same = one.class === "duplicate" ? null : existing.find((test) => (test.guards ?? []).some((name) => guards.includes(name))
       && normal(test.input) === normal(one.input) && normal(test.expect) === normal(one.expected));
     if (same) findings.push(finding({ ...at, rule: "TEST GENERATION SEES THE EXISTING TESTS",
@@ -190,5 +206,64 @@ async function testProposals(draft, context) {
   return findings;
 }
 
-// resultStrategies: MOD-job-runner's Partial<Strategies> with the recipe and the check.
-export const resultStrategies = { recipes: { "test-selection": testSelection }, checks: { "test-proposals": testProposals } };
+// ---------------------------------------------------------------- the run of a `run-tests` job (ITM-586)
+
+const OCCASIONS = { commit: "every commit", "pull-request": "pull request", nightly: "nightly", "release-candidate": "release candidate", "on-demand": "on demand" };
+
+class RunError extends Error {
+  constructor(name, message) {
+    super(message);
+    this.name = name;
+  }
+}
+
+// The commit, the occasion and the levels a job runs: the commit of the candidate the job was queued for, else `params.commit`; the occasion `params.occasion`, else the release candidate's for a job with
+// a candidate, else on demand; the levels `params.levels`, else those (not the cross-cutting row `paid`) the schedule ticks for the occasion.
+async function runOf(context) {
+  const params = context.params ?? {};
+  const commit = params.candidate?.commit ?? params.commit;
+  if (typeof commit !== "string" || commit === "") throw new RunError("NoCommit", "the job names no commit to run the tests on");
+  const occasion = Object.hasOwn(OCCASIONS, params.occasion) ? params.occasion : params.candidate ? "release-candidate" : "on-demand";
+  const schedule = await scheduleOf(context.product.snapshot);
+  const levels = Array.isArray(params.levels) ? params.levels
+    : (schedule.sections.find((section) => section.heading === "## Levels")?.rows ?? []).map(({ cells }) => cells.Row)
+      .filter((row) => row !== "paid" && occasionsOf(row, schedule).includes(OCCASIONS[occasion]));
+  return { commit, occasion, levels, command: schedule.fields.command ?? null };
+}
+
+/**
+ * The recipe commit-and-levels(context, params) -> Part[] — one required part: the commit, the levels to run on it and the command the product's schedule names (the tests run with node's own test runner where it names none).
+ */
+async function commitAndLevels(context) {
+  const { commit, levels, command } = await runOf(context);
+  const text = [`The commit: ${commit}`, `The levels to run on it: ${levels.join(", ")}`,
+    `The command: ${command ?? "none named: the tests run with node's own test runner"}`].join("\n");
+  return [{ name: "commit-and-levels", text, sources: [], required: true, artifacts: [] }];
+}
+
+const pad = (number) => String(number).padStart(2, "0");
+const stamp = (now) => `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}`;
+const clock = (now) => `${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}`;
+
+/**
+ * The writer result-record(result, context) -> WriteOutcome — appends the record of the run the job made to the branch test-results of the product, through appendResult: its commit, levels and occasion as the
+ * recipe named them, the job's drafter (else the person) as participant, the context's `now` as date, and the draft's outcomes as the rows of `## Outcomes`. An outcome without a level is refused, `OutcomeWithoutLevel`,
+ * and nothing is committed. Fails as appendResult fails.
+ */
+async function resultRecord(result, context) {
+  const { commit, occasion, levels } = await runOf(context);
+  const outcomes = listOf(result.draft?.outcomes);
+  const stray = outcomes.find((one) => blank(one.level));
+  if (stray) throw new RunError("OutcomeWithoutLevel", `the outcome of ${stray.test} names no level, which the record's row requires`);
+  const participant = result.drafter?.name ?? context.person;
+  const { now } = context;
+  const path = `runs/${commit}/${stamp(now)}-${clock(now)}-${occasion}-${[...crypto.getRandomValues(new Uint8Array(2))].map((byte) => byte.toString(16).padStart(2, "0")).join("")}.md`;
+  const text = ["---", `commit: ${commit}`, "levels:", ...levels.map((level) => `  - ${level}`), `occasion: ${occasion}`, `participant: ${participant}`,
+    `date: ${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`, "---",
+    "## Outcomes", "", "| Test | Level | Outcome | Runs |", "|---|---|---|---|", ...outcomes.map((one) => `| ${one.test} | ${one.level} | ${one.outcome} |  |`), ""].join("\n");
+  const { commit: committed } = await appendResult(context.product.host, readDocument(resultSchema.run, path, text));
+  return { commits: [committed], files: [path], pullRequest: null, shown: null, notes: [] };
+}
+
+// resultStrategies: MOD-job-runner's Partial<Strategies> with the recipes, the check and the writer.
+export const resultStrategies = { recipes: { "test-selection": testSelection, "commit-and-levels": commitAndLevels }, checks: { "test-proposals": testProposals }, writers: { "result-record": resultRecord } };
