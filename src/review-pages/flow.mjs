@@ -20,6 +20,7 @@ import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
+import { storedOnce, fromStored } from "./stored.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { reportSections, splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, changeImpact, graphOnce } from "./sections.mjs";
 
@@ -334,7 +335,7 @@ export function reviewRoute(kind) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
       return;
     }
-    const records = [], graphOf = graphOnce(snapshot), asked = new Map();
+    const records = [], graphOf = graphOnce(snapshot), storedOf = storedOnce(snapshot), asked = new Map();
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
@@ -343,16 +344,17 @@ export function reviewRoute(kind) {
       let withImpact = true;
       if (file.status === "changed") {
         const diff = el("section", "accepted-diff", el("h4", null, "Changed since it was last accepted"));
-        let last = null;
+        let last = null, stored = null;
         try {
-          last = await lastAcceptedText(file.id, host);
+          stored = kind.restsOn ? await fromStored(file, snapshot, host, storedOf) : null;
+          last = stored?.last ?? await lastAcceptedText(file.id, host);
           if (last) diff.append(showDifference(last.text, body, WHOLE));
         } catch (failure) {
           diff.append(el("p", "problem", failure.message));
         }
         section.append(diff, ...renderedFile(file, body, true));
         if (kind.restsOn && last) {
-          const impact = await changeImpact(file, last, body, graphOf);
+          const impact = stored ? { shown: stored.shown } : await changeImpact(file, last, body, graphOf);
           withImpact = !impact.problem;
           section.append(impact.problem ?? impact.shown);
         }
@@ -506,11 +508,12 @@ export function reviewRoute(kind) {
     const blob = snapshot.blob(file.path);
     target.append(el("h2", null, kind.heading(body)), badge(file.status, LABEL[file.status]),
       el("p", "shown", `Text shown: blob ${blob.slice(0, 12)}`), explain(kind.explain.one));
-    let last = null;
+    let last = null, stored = null;
     if (file.status === "changed") {
       const diff = el("section", "accepted-diff", el("h3", null, "Changed since it was last accepted"), explain(kind.explain.changed));
       try {
-        last = await lastAcceptedText(file.id, host);
+        stored = kind.restsOn ? await fromStored(file, snapshot, host, storedOnce(snapshot)) : null;
+        last = stored?.last ?? await lastAcceptedText(file.id, host);
         if (last) diff.append(showDifference(last.text, body, WHOLE));
       } catch (failure) {
         diff.append(el("p", "problem", failure.message));
@@ -534,7 +537,7 @@ export function reviewRoute(kind) {
     const asked = kind.limitations ? reportSections(body) : null;
     if (asked) target.append(...asked.nodes);
     if (kind.restsOn && last) {
-      const impact = await changeImpact(file, last, body, graphOnce(snapshot));
+      const impact = stored ? { shown: stored.shown } : await changeImpact(file, last, body, graphOnce(snapshot));
       if (impact.problem) { target.append(impact.problem); return; }
       target.append(impact.shown);
     }
