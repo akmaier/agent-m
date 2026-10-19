@@ -36,3 +36,11 @@ name the gap, which is then a draft for akmaier (AGENTS.md §6a.6).
   them over a fixture product.
 - moduleRows lists no import of MOD-settings-pages that its uses do not name.
 - It is declared as refactoring: no expected result changes, and CI is green on every commit.
+
+## Built by ITM-1096 (read on sprint/team2/97 by developer-sonnet-f and po-opus-b, 2026-10-20)
+
+This item was written against `main`, which did not hold the sprint yet. ITM-1096 (#1134, `2ab7cc1b` on
+`sprint/team2/97`) already makes the participants page take a product's workflow from `productWorkflow`
+(`src/settings-pages/participants.mjs:13`, `:281`). On that branch, `git grep model-catalogue -- src/settings-pages` finds
+nothing; the same search finds `productWorkflow`, as the known positive. Its two pinning tests pass 22 of 22, and
+system-uc-017 5 of 5. Nothing is left to build.
