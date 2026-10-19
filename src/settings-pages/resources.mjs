@@ -22,7 +22,7 @@
 
 import { saveFile } from "../artifact-edits/index.mjs";
 import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
-import { readSetting, secretValues } from "../browser-store/index.mjs";
+import { readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
@@ -186,6 +186,39 @@ export const route = {
       }
     }
 
+    // The field of a key kept in this browser (secret `browser`): stored as `resource-key:<name>` on the person's click, hidden until shown, and written nowhere else.
+    function keyFieldOf(resource) {
+      const input = el("input", "resource-key-input");
+      input.type = "password";
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      const state = el("p", "resource-key-state");
+      const stateText = () => (keyOf(resource) ? "A key is stored in this browser." : "No key is stored in this browser.");
+      state.textContent = stateText();
+      const save = el("button", "resource-key-save btn", "Save key");
+      save.addEventListener("click", (event) => {
+        if (!event.isTrusted) return;
+        const value = String(input.value ?? "").trim();
+        if (!value) { state.textContent = "Enter the key first."; return; }
+        try {
+          writeSetting(context.store, `resource-key:${resource.name}`, { value, stored: new Date().toISOString() });
+          input.value = "";
+          input.type = "password";
+          state.textContent = stateText();
+        } catch (error) {
+          state.textContent = `✗ ${error?.message ?? error} — the key was not stored.`;
+        }
+      });
+      const show = el("button", "resource-key-show btn", "Show");
+      show.addEventListener("click", () => {
+        const hidden = input.type === "password";
+        if (hidden) { const kept = keyOf(resource); if (kept && !input.value) input.value = kept; }
+        input.type = hidden ? "text" : "password";
+        show.textContent = hidden ? "Hide" : "Show";
+      });
+      return el("div", "resource-key", el("label", null, "Key kept in this browser ", input), " ", save, " ", show, state);
+    }
+
     // The Hub's revision and licence of an identifier, with the key kept in this browser for the entry that names it.
     const hubRevisionOf = async (id) => {
       const named = rowsOf(opened.document).map(resourceOf).find((each) => each.address === id);
@@ -328,6 +361,7 @@ export const route = {
         el("p", "resource-place", `Processing place: ${shown(resource.place)}`),
         el("p", "resource-secret", `Secret: ${secretShown(resource.secret)}`),
         el("ul", "resource-findings", ...resourceFindings([resource]).map((found) => el("li", found.kind, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`))),
+        ...(resource.secret === "browser" ? [keyFieldOf(resource)] : []),
         el("p", null, checkButton, " ", removeButton), out);
       section.setAttribute("data-resource", resource.name);
       return section;
