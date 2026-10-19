@@ -1076,7 +1076,7 @@ newer state as the pin: one click, and one commit of the list as your own.
 A check makes one harmless request to the resource. A repository is checked by reading its current head. A compute resource reached
 by a self-hosted runner is checked by a job on that runner: the run panel above shows which participant does it and what it is sent
 before you press **Run**, and the job's record in the repository shows its result. A runner serves a private repository only. A
-resource reached through a Bridge is checked by a request through the Bridge, which this page does not make yet.
+resource reached through a Bridge is checked by a request through the Bridge its route names: the page asks that Bridge, which lists a cluster's partitions, lists the models an endpoint serves or gets an answer from an agent, and the page shows the answer. That check writes nothing.
 
 ## resource-copy
 
