@@ -10,7 +10,7 @@
 // Guards: A CLEAR IS A REAL CLEAR; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged. The Bridge is a stand-in for fetch that answers as a Bridge does and records every request; the
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged. The Bridge is a stand-in for fetch that answers as a Bridge does and records every request; the
 // instance is a host of this file whose docs/participants.md names the processing places and which records every read and write; the store is a Map-backed localStorage, with
 // the sign-in library's keys as tests/browser-store-mailbox.test.mjs builds them. Passwords and tokens are constructed. Where the texts leave a reading open, the test states the
 // reading it takes, and the pull request names it with its source:
@@ -26,7 +26,7 @@
 //     no read but docs/participants.md, the one the list of places is made from.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";

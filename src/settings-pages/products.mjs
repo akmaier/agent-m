@@ -120,6 +120,17 @@ export function tokenSettingKey(address) {
     : `github-token:${address.path}`;
 }
 
+// The repository a token's key is for, the step back from tokenSettingKey: `github-token` is the instance's, `github-token:<owner>/<repository>`
+// a GitHub product's, `gitlab-token:<server>/<project>` a GitLab project's. null for a key that is no token's, or that names no readable repository.
+export function tokenKeyAddress(key, instanceRepository) {
+  try {
+    if (key === INSTANCE_TOKEN_KEY) return parseAddress(`https://github.com/${instanceRepository}`);
+    if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
+    if (key.startsWith("gitlab-token:")) return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
+  } catch { /* no readable repository */ }
+  return null;
+}
+
 function storedToken(store, key) {
   const t = readSetting(store, key);
   return t ? { token: t.value, tokenName: t.name, expires: t.expires ?? null } : null;

@@ -9,6 +9,7 @@ uses:
   - MOD-site-frame.View
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.instanceOf
+  - MOD-site-frame.menuOf
   - MOD-site-frame.explain
   - MOD-site-frame.notice
   - MOD-site-frame.confirmDecision
@@ -35,6 +36,9 @@ uses:
   - MOD-runtimes.jobLog
   - MOD-runtimes.cancelJob
   - MOD-runtimes.retryJob
+  - MOD-runtimes.jobTrail
+  - MOD-runtimes.revertAfterCancel
+  - MOD-work-plans.startable
   - MOD-prompt-bar.currentJob
   - MOD-source-register.sourceStrategies
 provides:
@@ -59,11 +63,18 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 ## Parts
 
 - `index.mjs` — the interface: `view`.
-- `cards.mjs` — the greeting, a card per product or Agent M's own card, its stage bar and its build.
+- `greeting.mjs` — the greeting: Agent M's name, one sentence on what Agent M is, what to do first, and the folded
+  explanation of the page.
+- `home.mjs` — the route `home`: it draws the cards and what waits for a person, and starts the readings again.
+- `cards.mjs` — a card per product or Agent M's own card, its stage bar, whose stages are links, and its build.
 - `waits.mjs` — what waits for a person.
-- `jobs.mjs` — the list of every job and a job's detail.
+- `reread.mjs` — the readings again: the jobs' states of the cards drawn, and nothing else.
+- `jobs.mjs` — the list of every job and a job's detail. It also gives the parts of reading jobs that the cards share
+  with it: `bridgesOf`, a handle for each Bridge the records of jobs not ended name, and `liveStatesOf`, the live state
+  of each job whose record has not ended; and `sourcesOf`, the sources of the list — the instance's repository, then
+  each product this browser keeps.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `index.html`: named here as the main page, whose place the Pages site fixes; it loads `start.mjs` with this module's view.
+  - `index.html`: named here as the main page, whose place the Pages site fixes; it loads `start.mjs` with this module's view; its greeting is drawn by `greeting.mjs`, and its footer by MOD-site-frame's `footer.mjs`.
   - `src/home/home.mjs`, `src/home/cards.mjs`, `src/home/home.css`: moved into this folder as the route `home` and its parts `cards.mjs` and `waits.mjs`, and removed from `src/home/`.
   - `tests/test_main_page.py`: its header names this module, with MOD-progress-measures and MOD-site-frame for the menu.
 
@@ -71,32 +82,42 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 
 It keeps nothing but the screen. It builds a handle for each Bridge this browser keeps from its settings, so that the
 live states, logs and cancels of jobs on Bridges reach them. While the page is open it reads the jobs' states again at
-an interval the repository servers' rate limits allow, so the build stays current; it stores nothing between readings.
+an interval the repository servers' rate limits allow, so the build stays current, except while its tab is hidden
+(`document.visibilityState` is `hidden`): then it starts no reading, and when `visibilitychange` shows the tab again it
+reads at once each card whose reading fell due meanwhile. A card whose repository this browser keeps no token for is read
+once, when the page is drawn, and never again (UC-046 4b). It stores nothing between readings.
 
 ## Interfaces
 
 - `view: View` — the routes of the main page, `{ routes, strategies: [sourceStrategies] }`, each route with the frame's
   default subject for the prompt bar:
-  - `home` — the greeting with its folded explanation and *Get your own Agent M*, which leads to MOD-settings-pages'
-    `get-your-own` (UC-014 step 1); one card per product this browser keeps, each with its name, its
-    process model, its bar of six stages each filled by its share, the stage it is in marked, a click on a stage leading
-    to that stage's page under `docs/` for the product, and its build — the steps or items in progress, each with the job
-    working on it, its participant, state and elapsed time; without a product, Agent M's own card from the instance
-    repository and *+ Add product*; a card whose repository cannot be read says which and links the token's setting;
+  - `home` — the greeting: Agent M's name, one sentence on what Agent M is — requirements-driven software engineering with
+    people and agents —, and what to do first: review the requirements and the use cases, then add a product. *Review the
+    use cases* leads to the address `menuOf` gives for the entry *Use cases*. The greeting has its folded explanation
+    and *Get your own Agent M*, which leads to MOD-settings-pages' `get-your-own` (UC-014 step 1). Its logo of the
+    Pattern Recognition Lab is the header's, which every page carries. Below it, one card per product this browser keeps,
+    each with its name, its process model, its bar of six stages each filled by its share, the stage it is in marked, and
+    its build — the steps or items in progress, each with the job working on it, its participant, state and elapsed time.
+    Each stage is a link to the address `menuOf` gives, called with the card's product address, for the entry of the same
+    place in the process: the six stages and the first six entries stand in the order of the process, so the nth stage
+    leads to the nth entry. Without a product, Agent M's own card from the instance repository takes their place, with
+    *+ Add product*; its stages call `menuOf` without a product. A card whose repository cannot be read says which and
+    links the token's setting;
     below the cards, what waits for a person across the instance, each item linked to the page where it is decided.
     A card first reads the overview stored for its default branch's head (MOD-progress-measures' `storedOverview`, one
     request). Where there is one, its stage bar and what waits come from it, and only the build is read, with
     `productFacts`' scope `build`. Where there is none, the card reads the scope `all` as before. The stored overview is a
     record of the repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
-    browser.
+    browser. The rows of the build are the same whether the stage bar comes from a stored overview or from the scope `all`.
   - `jobs` — every job of every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
     runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason.
-  - `job` (`params.id`) — one job: its inputs, its commits and pull request, its CI runs, its log while it runs, its
+  - `job` (`params.id`) — one job: its inputs, its commits and pull request and its CI runs (MOD-runtimes' `jobTrail`), its log while it runs, its
     cost — or *unknown* (`NO COST IS GUESSED`); *Cancel* for a queued, running or waiting job, whose end, cancelled,
-    MOD-runtimes' `cancelJob` appends once its runtime confirms; *Retry* for a failed, cancelled or ended job,
-    as a new job, with the same participant or another holder of its role on a route offered for it; for a job waiting
+    MOD-runtimes' `cancelJob` appends once its runtime confirms, and beside a commit written after the cancel, *Revert*
+    (`revertAfterCancel`); *Retry* for a failed, cancelled or ended job whose step or item is still startable
+    (MOD-work-plans' `startable` — otherwise the reasons are shown and nothing is queued, UC-036 7a), as a new job, with the same participant or another holder of its role on a route offered for it; for a job waiting
     at a gate, the gate — what it checks, what to examine, who decides — and, for a person who may decide it, *Pass gate*
     and *Reject* with a reason. *Pass gate* stays unavailable, with the role and its holders named, for a person who does
     not hold the deciding role or did the work the gate checks (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT
@@ -112,7 +133,8 @@ instance repository through their hosts, and the browser's store for the product
 ## Uses
 
 - MOD-site-frame.View — the interface it provides; MOD-site-frame.chosenProduct, MOD-site-frame.instanceOf — the
-  product chosen and the instance; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
+  product chosen and the instance; MOD-site-frame.menuOf — the page of a stage, for a card's product, and the use cases'
+  page, for the greeting; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
   MOD-site-frame.notice — a refused token, a used-up rate limit, a source not reached; MOD-site-frame.confirmDecision —
   cancel, retry and a gate's decision.
 - MOD-browser-store.readSetting — the products this browser keeps, their tokens, the Bridges' settings.
@@ -132,4 +154,5 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
   MOD-runtimes.liveState, MOD-runtimes.jobLog,
   MOD-runtimes.cancelJob, MOD-runtimes.retryJob — live states, logs, cancel and retry at each job's route, the Bridges
-  handed in.
+  handed in; MOD-runtimes.jobTrail, MOD-runtimes.revertAfterCancel — a job's commits, pull request and CI runs, and the
+  revert of what it wrote after its cancel; MOD-work-plans.startable — whether a retried job's step or item may start.

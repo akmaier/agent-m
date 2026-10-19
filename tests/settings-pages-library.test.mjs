@@ -13,7 +13,7 @@
 // Guards: ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged. The instance is a host of this file: its snapshot holds the register's entries, and it records
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged. The instance is a host of this file: its snapshot holds the register's entries, and it records
 // every commit. A named repository is GitHub's REST API answered by a fake of fetch, with MOD-repository-hosts' connect the real, accepted one, as
 // tests/settings-pages-add-product.test.mjs does. The files of a source are constructed. Where the texts leave a reading open, the test states the reading it takes, and the pull
 // request names it with its source:
@@ -28,7 +28,7 @@
 //     its result, naming the file; the page adds no check of its own, and Save is not disabled for it.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

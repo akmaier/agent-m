@@ -10,7 +10,7 @@
 // Guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged. The sign-in is the fake of tests/mail-routes-sign-in.test.mjs: a stand-in for the library's client at
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged. The sign-in is the fake of tests/mail-routes-sign-in.test.mjs: a stand-in for the library's client at
 // globalThis.msal, put there after MOD-mail-routes is loaded, whose loginPopup and acquireTokenSilent answer as each test says and record what they are asked; the mailbox is
 // Microsoft Graph answered by a fake of fetch, which records every request. The store is a Map-backed localStorage. Where the texts leave a reading open, the test states the
 // reading it takes, and the pull request names it with its source:
@@ -25,7 +25,7 @@
 //   - The folders and the processing places are the IMAP route's, shared.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
