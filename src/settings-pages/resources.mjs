@@ -79,6 +79,16 @@ async function openList(host, label) {
   return { snapshot, visibility: info.visibility, text, blob: snapshot.blob(PATH), document: readDocument(resourceSchema(), PATH, text ?? empty) };
 }
 
+// The snapshot of the page after a save: the saved commit, and the list as saved, so that what reads the list from the snapshot (the recipe resource-check, the pins, the jobs and tests that
+// name a resource) reads the saved text and not the one the page opened; every other file is the snapshot's.
+const savedSnapshot = (snapshot, text, outcome) => ({
+  ...snapshot,
+  commit: outcome.commit,
+  paths: snapshot.paths.includes(PATH) ? snapshot.paths : [...snapshot.paths, PATH],
+  blob: (path) => (path === PATH ? outcome.blob : snapshot.blob(path)),
+  read: async (path) => (path === PATH ? text : snapshot.read(path)),
+});
+
 // The head of the repository an address names, on its default branch, with the stored token of its server: the reader readPin is handed.
 async function repositoryHead(store, address) {
   const parsed = parseAddress(address);
@@ -133,7 +143,7 @@ export const route = {
               result.textContent = `${PATH} changed since this page read it; nothing was written. Your edit stays in the form; open the page again to read the newer file.`;
               return;
             }
-            opened = { ...opened, text, blob: outcome.blob, document: readDocument(resourceSchema(), PATH, text), snapshot: { ...opened.snapshot, commit: outcome.commit } };
+            opened = { ...opened, text, blob: outcome.blob, document: readDocument(resourceSchema(), PATH, text), snapshot: savedSnapshot(opened.snapshot, text, outcome) };
             formBox.replaceChildren();
             note.textContent = "";
             draw();
@@ -259,7 +269,7 @@ export const route = {
             move.disabled = false;
             return;
           }
-          opened = { ...opened, text, blob: outcome.blob, document: readDocument(resourceSchema(), PATH, text), snapshot: { ...opened.snapshot, commit: outcome.commit } };
+          opened = { ...opened, text, blob: outcome.blob, document: readDocument(resourceSchema(), PATH, text), snapshot: savedSnapshot(opened.snapshot, text, outcome) };
           draw();
           result.textContent = `✓ The pin of ${resource.name} is now ${state.upstream.value} (commit ${String(outcome.commit).slice(0, 7)}).`;
         } catch (error) {
