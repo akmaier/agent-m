@@ -533,7 +533,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
   // A view is built where its file is on the disk, or where the app hands its address to a route of MOD-review-pages or to the fold
   // of the topic `accepting`, so that its file is gone.
-  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "mail", "arrange"]);
+  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "mail", "replies", "arrange"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
@@ -542,11 +542,12 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   assert.match(fallback, /#use-case\/id=UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
-      assert.ok(["add", "setup", "release", "mail"].includes(v.view), "only the public settings-pages Add and Setup routes, the test pages' route release and the maintenance pages' route mail have no dashboard file");
+      assert.ok(["add", "setup", "release", "mail", "replies"].includes(v.view), "only the public settings-pages Add and Setup routes, the test pages' route release and the maintenance pages' routes mail and replies have no dashboard file");
       const dispatched = fs.readFileSync(APP_FILE, "utf8");
       if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
       else if (v.view === "release") assert.match(dispatched, /testPages\.routes\.find\(\(r\) => r\.name === "release"\)/, "#release dispatches the public route");
       else if (v.view === "mail") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "mail"\)/, "#mail dispatches the maintenance pages' public route");
+      else if (v.view === "replies") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "replies"\)/, "#replies dispatches the maintenance pages' public route");
       else assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "setup"\)/, "#setup dispatches the public route");
       continue;
     }
