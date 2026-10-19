@@ -159,6 +159,11 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         assets: (r.assets?.links ?? []).map((l) => ({ name: l.name, size: null, url: l.direct_asset_url ?? l.url, sha256: null })) };
     },
 
+    // A release is published whole as a draft first on GitHub only; a GitLab server has no draft release. No request is made.
+    async publishRelease() {
+      throw new HostError("NotSupported", { what: "publishing a release" }, `${address.web} is on a GitLab server, which has no draft release to publish whole; publish the release on GitHub.`);
+    },
+
     // The numbers of open and closed issues, from the project's issue statistics ("Retrieve issues statistics for a project":
     // counts.opened and counts.closed). They count issues alone: a merge request is no issue. A public project serves them
     // without a token.

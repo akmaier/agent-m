@@ -151,6 +151,7 @@ function throughClone(repository, folder, rest) {
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
     createTag: rest ? (...a) => rest.createTag(...a) : without("a tag"),
     releaseAssets: rest ? (...a) => rest.releaseAssets(...a) : without("a release's files"),
+    publishRelease: rest ? (...a) => rest.publishRelease(...a) : without("publishing a release"),
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
     setPipelineSchedule: rest ? (...a) => rest.setPipelineSchedule(...a) : without("a pipeline schedule"),
@@ -276,6 +277,22 @@ export function connect(address, credentials = {}) {
     async listReleaseAssets(tag) {
       if (typeof tag !== "string" || !tag.trim()) throw new TypeError("a release is named by its tag, or by latest");
       return adapter.releaseAssets(tag);
+    },
+
+    // publishRelease(tag, { name, notes, files }) -> Release — on GitHub, the release of a tag that stands, created as a draft, each file uploaded to it, then published, so that no release is seen with only
+    // part of its files; the Release carries each file's address and the SHA-256 the server reports. An existing release of the tag is never replaced (A VERSION IS NOT REWRITTEN). On a GitLab server and through a
+    // clone without a token it fails with NotSupported, before any request. Crosses the network; fails with NotFound (the tag does not stand), ReleaseExists { tag }, UploadFailed { file } — the draft is then left
+    // unpublished and nothing is published —, PermissionMissing, TokenRefused, RateLimited, Unreachable.
+    async publishRelease(tag, release) {
+      if (typeof tag !== "string" || !tag.trim()) throw new TypeError("publishRelease names the tag to release");
+      const { name, notes, files } = release ?? {};
+      if (typeof name !== "string" || typeof notes !== "string" || !Array.isArray(files)) throw new TypeError("a release is { name, notes, files }");
+      for (const file of files) {
+        if (typeof file?.name !== "string" || !file.name.trim() || !(file.bytes instanceof Uint8Array) || typeof file.contentType !== "string") {
+          throw new TypeError("a release's file is { name, bytes: Uint8Array, contentType }");
+        }
+      }
+      return adapter.publishRelease(tag, { name, notes, files });
     },
 
     // issueCounts() -> { open, closed } — the numbers of open and closed issues of the repository, pull requests not counted,

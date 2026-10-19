@@ -9,6 +9,7 @@
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
+const UPLOADS = "https://uploads.github.com";
 const API = "https://api.github.com", GRAPHQL = `${API}/graphql`, RAW = "https://raw.githubusercontent.com";
 // GitHub's search of issues and pull requests: an address of the API outside the repository's own, which the token reaches too.
 const SEARCH = `${API}/search/issues`;
@@ -19,6 +20,12 @@ const PAGE = 100, MAX_PAGES = 1000;
 export const BATCH = 100;
 const JSON_ACCEPT = "application/vnd.github+json", RAW_ACCEPT = "application/vnd.github.raw+json";
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
+
+// A release of "Get a release by tag name" / "Update a release" as the Release: each asset with its name, size, browser_download_url and, where GitHub reports a digest "sha256:<hex>", that SHA-256;
+// any other digest, or none, is null.
+const releaseOf = (r) => ({ tag: r.tag_name, name: r.name ?? r.tag_name, published: r.published_at ?? "", notes: r.body ?? "",
+  assets: (r.assets ?? []).map((a) => ({ name: a.name, size: typeof a.size === "number" ? a.size : null, url: a.browser_download_url,
+    sha256: /^sha256:([0-9a-f]{64})$/i.exec(a.digest ?? "")?.[1]?.toLowerCase() ?? null })) });
 
 // A file of "Get a commit" as the change the commit made to it: its status — a copy is an addition, a change of mode a
 // modification —, and for a rename the path it came from. A file the commit left unchanged is no change.
@@ -69,7 +76,9 @@ function base64(bytes) {
 // under; links: the host's WebLinks, whose list of tokens is where a refused token is renewed and a repository added to it.
 export function githubAdapter(address, { token, tokenName }, links) {
   const repo = `${API}/repos/${address.path}`;
-  const gate = { allowed: [repo, SEARCH, GRAPHQL, `${RAW}/${address.path}`], tokenAt: [repo, SEARCH, GRAPHQL], header: "Authorization",
+  // GitHub's upload host takes a release's files, under this repository only; the token reaches it as it reaches the API.
+  const uploads = `${UPLOADS}/repos/${address.path}`;
+  const gate = { allowed: [repo, SEARCH, GRAPHQL, `${RAW}/${address.path}`, uploads], tokenAt: [repo, SEARCH, GRAPHQL, uploads], header: "Authorization",
     value: token ? `Bearer ${token}` : null, token };
   const context = { server: "github", host: "GitHub", web: address.web, authenticated: Boolean(token), tokenName,
     renewal: links.tokens, permission: "Contents", what: address.web };
@@ -192,10 +201,34 @@ export function githubAdapter(address, { token, tokenName }, links) {
     // any other digest, or none, is null. A release that does not exist is NotFound.
     async releaseAssets(tag) {
       const what = `the release ${tag} of ${address.web}`;
-      const r = await read(`${repo}/releases/${tag === "latest" ? "latest" : `tags/${encodeURIComponent(tag)}`}`, { what });
-      return { tag: r.tag_name, name: r.name ?? r.tag_name, published: r.published_at ?? "", notes: r.body ?? "",
-        assets: (r.assets ?? []).map((a) => ({ name: a.name, size: typeof a.size === "number" ? a.size : null, url: a.browser_download_url,
-          sha256: /^sha256:([0-9a-f]{64})$/i.exec(a.digest ?? "")?.[1]?.toLowerCase() ?? null })) };
+      return releaseOf(await read(`${repo}/releases/${tag === "latest" ? "latest" : `tags/${encodeURIComponent(tag)}`}`, { what }));
+    },
+
+    // A release of a tag that stands, published whole: "Get a reference" (the tag must stand: NotFound otherwise), "Get a release by tag name" (a release there is never replaced: ReleaseExists),
+    // "Create a release" with draft: true, "Upload a release asset" for each file to the upload_url of the draft (the file's bytes as the body, its content type, its name in the query), and
+    // "Update a release" with draft: false once every file is up. A file that cannot be uploaded ends the call with UploadFailed { file }, the draft left unpublished; a refused token, a missing
+    // permission and a used-up limit stay what they are.
+    async publishRelease(tag, { name, notes, files }) {
+      await read(`${repo}/git/ref/${tagRef(tag)}`, { what: `the tag ${tag} of ${address.web}` });
+      if (await read(`${repo}/releases/tags/${encodeURIComponent(tag)}`, { on: { 404: () => null } })) {
+        throw new HostError("ReleaseExists", { tag }, `${tag} has a release already — a release is never replaced (A VERSION IS NOT REWRITTEN).`);
+      }
+      const draft = await json(await call("POST", `${repo}/releases`, { body: { tag_name: tag, name, body: notes, draft: true } }), API);
+      const target = String(draft.upload_url).replace(/\{.*$/, "");
+      for (const file of files) {
+        const failed = (reason) => new HostError("UploadFailed", { file: file.name }, `${file.name} could not be uploaded to the draft release of ${tag}: ${reason} The draft is left unpublished.`);
+        let answer;
+        try {
+          answer = await send(`${target}?name=${encodeURIComponent(file.name)}`, { method: "POST", headers: { Accept: JSON_ACCEPT, "Content-Type": file.contentType }, body: file.bytes }, gate);
+        } catch (e) {
+          throw failed(e?.message ?? String(e));
+        }
+        if (!answer.ok) {
+          const refused = await refusal(answer, { ...context, write: true });
+          throw ["TokenRefused", "PermissionMissing", "RateLimited"].includes(refused.name) ? refused : failed(refused.message);
+        }
+      }
+      return releaseOf(await json(await call("PATCH", `${repo}/releases/${draft.id}`, { body: { draft: false } }), API));
     },
 
     // The numbers of open and closed issues, from GitHub's search ("Search issues and pull requests"): one search for each
