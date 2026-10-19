@@ -1,5 +1,5 @@
 // strategies.mjs — the recipes, checks and writers of `workStrategies` (MOD-work-plans, Parts: strategies.mjs; Interfaces: workStrategies). Of it, this file has the recipes
-// `architecture-and-model` (UC-045 step 2) and `sprint-facts` (UC-041 step 2) and the check `sprint-record-checks` (UC-041 1a); the other recipes, checks and writers are not built yet.
+// `architecture-and-model` (UC-045 step 2) and `sprint-facts` (UC-041 step 2), the check `sprint-record-checks` (UC-041 1a) and the writer `sprint-record` (UC-041 6); the other recipes, checks and writers are not built yet.
 //
 // Module: MOD-work-plans
 //
@@ -10,12 +10,14 @@
 import { statuses } from "../approvals/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
+import { provenanceLines } from "../job-runner/index.mjs";
 import { declarationSchema, gateSchema, gateStates, productWorkflow } from "../product-process/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { systemDecisions, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { planFindings } from "./checks.mjs";
+import { closeSprint } from "./saves.mjs";
 import { sprintFacts } from "./facts.mjs";
 import { selectionOf as selectionOfRecord } from "./sprints.mjs";
 import { planOrderSchema, sprintSchema } from "./schemas.mjs";
@@ -98,6 +100,15 @@ function checkedBlobs(records, snapshot) {
  * Each line of the last three names its source; no mail is read.
  */
 async function sprintFactsRecipe(context, params) {
+  const { name, path, recordText, facts, issueLines, jobLines, recordLines } = await sprintInputs(context, params);
+  const part = (partName, text) => ({ name: partName, text, size: 0, sources: [], required: true });
+  return [part(path, recordText), part(`facts of sprint ${name}`, JSON.stringify(facts, null, 2)), part(`issues of sprint ${name}`, issueLines.join("\n")),
+    part(`job records of sprint ${name}`, jobLines.length ? jobLines.join("\n") : "none of the product's job records works on an item of the sprint"),
+    part(`result records of sprint ${name}`, recordLines.length ? recordLines.join("\n") : "no record of the branch test-results names a head commit of the increment")];
+}
+
+// What the recipe sprint-facts reads of the sprint `params.sprint` names, before it makes its parts; the writer sprint-record takes the facts from here, so that the rule stands once.
+async function sprintInputs(context, params) {
   const name = String(params?.sprint ?? "");
   if (!SPRINT_NAME.test(name)) throw failure("UnknownWork", `the job names no sprint: its parameter sprint is "${name}", not <team>/<nn>`, { id: name });
   const { snapshot, host, address } = context.product;
@@ -152,10 +163,7 @@ async function sprintFactsRecipe(context, params) {
   const heads = facts.increment.map((each) => (pullRequests === "unknown" ? null : pullRequests.find((pull) => String(pull.number) === each.pullRequest)?.head)).filter(Boolean);
   const recordLines = unique(heads.flatMap((head) => (results.paths ?? []).filter((each) => each.startsWith(`runs/${head}/`)))).sort().map((each) => `- result record ${each}`);
 
-  const part = (partName, text) => ({ name: partName, text, size: 0, sources: [], required: true });
-  return [part(path, recordText), part(`facts of sprint ${name}`, JSON.stringify(facts, null, 2)), part(`issues of sprint ${name}`, issueLines.join("\n")),
-    part(`job records of sprint ${name}`, jobLines.length ? jobLines.join("\n") : "none of the product's job records works on an item of the sprint"),
-    part(`result records of sprint ${name}`, recordLines.length ? recordLines.join("\n") : "no record of the branch test-results names a head commit of the increment")];
+  return { name, path, recordText, facts, issueLines, jobLines, recordLines };
 }
 
 const DECLARED = "THE PROCESS MODEL IS DECLARED PER PRODUCT";
@@ -270,5 +278,23 @@ function sprintRecordChecks(draft) {
   return found;
 }
 
+/**
+ * The writer sprint-record(result, context) -> Promise<WriteOutcome> — an agent's close of the sprint the draft names, through closeSprint (UC-041 step 6): the draft, `result.draft`, is closeSprint's `close`, which
+ * sprint-record-checks has checked; `facts` are those of the same sprint as the recipe sprint-facts computes them (its own function); `architecture` the module files of the job's snapshot; `head` the snapshot's
+ * commit; `trailers` provenanceLines of the job, the participant's name among them — the closer's. The proposals of the retrospective are written as lines of the sprint's record and nothing else is written.
+ * Commits once, to the product's default branch; the outcome names the commit and the record. Throws what closeSprint throws.
+ */
+async function sprintRecord(result, context) {
+  const { snapshot, host } = context.product;
+  const close = result.draft;
+  const { facts } = await sprintInputs(context, { sprint: close?.sprint });
+  const schemas = artifactSchemas();
+  const architecture = await Promise.all(snapshot.paths.filter((each) => ARCHITECTURE_FILE.test(each) && /\/MOD-/.test(each)).sort()
+    .map(async (each) => readDocument(schemas.module, each, (await snapshot.read(each)) ?? "")));
+  const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId, kind: context.kind.name, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds.length });
+  const { commit, written } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers });
+  return { commits: [commit], files: written, pullRequest: null, shown: null, notes: [] };
+}
+
 /** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model and sprint-facts and the checks plan-checks and sprint-record-checks, the four built so far. */
-export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "sprint-record-checks": sprintRecordChecks } };
+export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "sprint-record-checks": sprintRecordChecks }, writers: { "sprint-record": sprintRecord } };
