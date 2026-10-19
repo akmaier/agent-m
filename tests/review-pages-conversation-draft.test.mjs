@@ -464,6 +464,155 @@ test("draft — a refusal other than two changes gets no advice on how to go on"
   assert.deepEqual(byClass(target, "p", "problem").map((node) => node.textContent), ["RequirementNotFound: the SPEC holds no requirement NO SUCH REQUIREMENT"]);
 });
 
+// ---------------------------------------------------------------- leaving the draft (ITM-671)
+
+// UC-018 7a: "The author leaves the editor with unsaved changes. The dashboard asks before discarding", and MOD-review-pages' edit routes' `leave`, which keeps unsaved changes by the editor's
+// `close` (ITM-603). Readings the module file leaves open, which the pull request names: the route `draft` gives the frame the same `leave` and `unsaved`, over all the editors of the page drawn
+// last; `leave` asks once, for the first editor that holds unsaved changes, and the page stays as it is when the person declines; a page without an editor, or a draft saved or discarded, lets itself be left.
+const QUESTION = "Discard unsaved changes?";
+async function withConfirm(answers, body) {
+  const prior = Object.getOwnPropertyDescriptor(globalThis, "confirm");
+  const asked = [];
+  Object.defineProperty(globalThis, "confirm", { configurable: true, value: (message) => { asked.push(message); return answers.shift(); } });
+  try { await body(asked); } finally { if (prior) Object.defineProperty(globalThis, "confirm", prior); else delete globalThis.confirm; }
+}
+const editFirst = (target, text) => { const area = areaIn(draftBoxes(target)[0]); area.value = text; area.dispatchEvent(new Event("input")); return area; };
+const filesDraft = () => ({ kind: "change-use-case", params: useCaseParams, result: resultOf({ files: [draft7(), draft8()] }, { rounds: [ROUND_ONE] }) });
+
+// TST-067101 · level: component · module: MOD-review-pages
+// guards: UC-018 (7a); UC-019
+// given: the draft of UC-007 and UC-008 drawn, the first editor's text changed to "changed text", and a confirmation that first declines, then accepts
+// input: route.leave() twice
+// expect: leave is a function; the first call returns false and asks "Discard unsaved changes?" once, and the editor is still drawn with "changed text"; the second returns true, asks a second time, and the edited editor is removed (the one never changed is left with the page)
+test("TST-067101 draft: leave asks through the editors' close, keeps the page when the discard is declined and closes it when accepted", async () => {
+  await withConfirm([false, true], async (asked) => {
+    const { route, target } = await showDraft(fakeProduct(), filesDraft());
+    assert.equal(typeof route.leave, "function", "the route gives the frame a leave");
+    assert.equal(draftBoxes(target).length, 2, "known positive: the editors are drawn");
+    const area = editFirst(target, "changed text");
+    assert.equal(route.leave(), false);
+    assert.deepEqual(asked, [QUESTION]);
+    assert.equal(area.value, "changed text");
+    assert.equal(byClass(target, "div", "editor").length, 2, "both editors stay");
+    assert.equal(route.leave(), true);
+    assert.deepEqual(asked, [QUESTION, QUESTION]);
+    assert.equal(byClass(target, "div", "editor").length, 1, "the edited editor is closed; the one never changed is left with the page");
+  });
+});
+
+// TST-067102 · level: component · module: MOD-review-pages
+// guards: UC-018 (7a); UC-019
+// given: the same draft with no editor changed, and a confirmation that would decline
+// input: route.leave() and route.unsaved()
+// expect: leave returns true and asks nothing; unsaved is false; after the first editor is changed it is true, without asking anyone
+test("TST-067102 draft: an unchanged draft lets itself be left without asking, and unsaved passes the editors' through", async () => {
+  await withConfirm([false], async (asked) => {
+    const { route, target } = await showDraft(fakeProduct(), filesDraft());
+    assert.equal(draftBoxes(target).length, 2, "known positive: the editors are drawn");
+    assert.equal(route.unsaved(), false);
+    editFirst(target, "changed text");
+    assert.equal(route.unsaved(), true);
+    assert.deepEqual(asked, []);
+  });
+  await withConfirm([false], async (asked) => {
+    const { route, target } = await showDraft(fakeProduct(), filesDraft());
+    assert.equal(draftBoxes(target).length, 2);
+    assert.equal(route.leave(), true);
+    assert.deepEqual(asked, []);
+  });
+});
+
+// TST-067103 · level: component · module: MOD-review-pages
+// guards: UC-018 (7a); UC-019
+// given: the draft with an edited editor, then Discard pressed; and, in another page, a draft of requirements, which opens no editor; a confirmation that would decline
+// input: route.leave() after Discard, and route.leave() on the requirements' page
+// expect: counter-proof — a draft discarded, and a page without an editor, let themselves be left: true, nothing asked
+test("TST-067103 draft: a discarded draft and a draft without an editor let themselves be left", async () => {
+  await withConfirm([false], async (asked) => {
+    const { route, target } = await showDraft(fakeProduct(), filesDraft());
+    editFirst(target, "changed text");
+    assert.equal(route.unsaved(), true, "known positive: the edit is unsaved");
+    click(byClass(target, "button", "discard")[0]);
+    assert.equal(route.leave(), true);
+    assert.deepEqual(asked, []);
+  });
+  await withConfirm([false], async (asked) => {
+    const draft = { candidates: [{ name: LOAN, rule: "r", source: "Product Owner", passage: "p", class: "new", of: null }] };
+    const { route } = await showDraft(fakeProduct(), { kind: "change-requirements", params: { requirements: [LOAN], instruction: "x" }, result: resultOf(draft, { rounds: [ROUND_ONE] }) });
+    assert.equal(route.leave(), true);
+    assert.deepEqual(asked, []);
+  });
+});
+
+// TST-067104 · level: component · module: MOD-review-pages
+// guards: UC-018 (7a); UC-019
+// given: the draft of UC-007 and UC-008 with an edited editor, and then the route draft drawn again in a target of its own for a subject that has no draft, as the frame does once it was allowed to leave; a confirmation that would decline
+// input: route.leave()
+// expect: counter-proof — the editors of a page drawn earlier are not the route's now: leave returns true and asks nothing
+test("TST-067104 draft: the editors of a page drawn earlier are not asked once the route has drawn another page", async () => {
+  await withConfirm([false], async (asked) => {
+    const first = await showDraft(fakeProduct(), filesDraft());
+    editFirst(first.target, "changed text");
+    assert.equal(first.route.unsaved(), true, "known positive: the edit is unsaved");
+    const second = document.createElement("div");
+    document.body.append(second);
+    await first.route.render(second, first.context, {});
+    assert.equal(first.route.leave(), true);
+    assert.deepEqual(asked, []);
+  });
+});
+
+// TST-067108 · level: component · module: MOD-review-pages
+// guards: UC-018 (7a); UC-019
+// given: the route draft rendered twice for the same draft, the first render ending after the second: the first render's first read is held; the second renders, is drawn and its first editor changed
+// input: route.leave() after both have ended
+// expect: counter-proof — the late render's editors are not the route's: leave asks the newer editor: it returns false and asks once
+test("TST-067108 draft: two renders, the first ending last, leave the newer page as the one leave asks", async () => {
+  await withConfirm([false], async (asked) => {
+    const fake = fakeProduct();
+    const context = contextOf(fake);
+    keepDraft(context, { subject: UC7_KEY, ...filesDraft() });
+    const realRead = context.product.host.readSnapshot.bind(context.product.host);
+    let release = null, held = false;
+    context.product.host = { ...context.product.host, async readSnapshot(ref) {
+      if (!held) { held = true; await new Promise((resolve) => { release = resolve; }); }
+      return realRead(ref);
+    } };
+    const route = routeNamed("draft");
+    const firstTarget = document.createElement("div"), secondTarget = document.createElement("div");
+    document.body.append(firstTarget, secondTarget);
+    const first = route.render(firstTarget, context, { subject: UC7_KEY });
+    for (let at = 0; at < 10; at += 1) await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(held, true, "known positive: the first render waits for its read");
+    await route.render(secondTarget, context, { subject: UC7_KEY });
+    release();
+    await first;
+    assert.equal(draftBoxes(firstTarget).length, 2, "known positive: the late render drew editors of its own");
+    editFirst(secondTarget, "newer text");
+    assert.equal(route.leave(), false);
+    assert.deepEqual(asked, [QUESTION]);
+  });
+});
+
+// TST-067109 · level: component · module: MOD-review-pages
+// guards: UC-018 (7a); UC-019; ONE CLICK PER DECISION
+// given: the draft of UC-007 and UC-008, the first editor's text changed, and Save pressed, which writes both files
+// input: route.unsaved() and route.leave()
+// expect: counter-proof — what was saved is not unsaved: false, and leave returns true and asks nothing
+test("TST-067109 draft: after Save the saved text is not unsaved", async () => {
+  await withConfirm([false], async (asked) => {
+    const fake = fakeProduct();
+    const { route, target } = await showDraft(fake, filesDraft());
+    editFirst(target, `${draft7().text}\nA line the person added.\n`);
+    assert.equal(route.unsaved(), true, "known positive: the change is unsaved");
+    click(buttonsNamed(draftBoxes(target)[0], "Save")[0]);
+    await until(() => byClass(target, "p", "saved").length === 1, "the commit");
+    assert.equal(route.unsaved(), false);
+    assert.equal(route.leave(), true);
+    assert.deepEqual(asked, []);
+  });
+});
+
 // ---------------------------------------------------------------- the kind converse
 
 const NOTES_PATH = "docs/notes.md";
