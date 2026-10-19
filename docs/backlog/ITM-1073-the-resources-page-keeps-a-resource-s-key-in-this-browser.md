@@ -6,6 +6,7 @@ realises:
   - UC-040
 modules:
   - MOD-settings-pages
+  - MOD-browser-store
 builds_on:
   - ITM-997
 tests:
