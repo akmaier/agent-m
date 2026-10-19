@@ -5,7 +5,7 @@
 // Run: node --test tests/agent-processes-login-1002.test.mjs
 
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -70,5 +70,29 @@ test("TST-1002002: nothing asks for a password and no login step is started", as
       "auth list|stdin=[]", "auth status|stdin=[]", "login status|stdin=[]"].sort());
     for (const line of lines) assert.doesNotMatch(line, /password|passwd|secret|token|--key|api[-_]?key/i);
     assert.equal(JSON.stringify(found).toLowerCase().includes("password"), false);
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+});
+
+// TST-1002003
+// level: unit
+// module: MOD-agent-processes
+// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
+// given: Claude installed and logged in, Codex installed and not logged in, OpenCode absent.
+// input: installedAgents().
+// expect: every Agent record carries `login`, a string, the agent's own login step from the register: the logged-in one, the
+// not-logged-in one and the missing one alike; loggedIn stays true, false and null.
+test("TST-1002003: every Agent carries its own login step, whether logged in, not logged in or missing", async () => {
+  const folder = fixture();
+  try {
+    agents(folder, join(folder, "calls"), { claude: true, codex: false, opencode: false });
+    rmSync(join(folder, "opencode"));
+    const found = await withPath(folder, () => installedAgents());
+    assert.deepEqual(found.map(({ name, installed, loggedIn, login }) => ({ name, installed, loggedIn, login })), [
+      { name: "claude", installed: true, loggedIn: true, login: STEP.claude },
+      { name: "codex", installed: true, loggedIn: false, login: STEP.codex },
+      { name: "opencode", installed: false, loggedIn: null, login: STEP.opencode },
+    ]);
+    for (const agent of found) assert.equal(typeof agent.login, "string");
+    assert.equal(existsSync(join(folder, "opencode")), false);
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
