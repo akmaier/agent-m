@@ -141,7 +141,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
   await rest(s);
   s.body = document.body;
   s.target = find(document.body, (node) => node.localName === "main")[0];
-  s.footer = find(document.body, (node) => node.localName === "footer")[0];
+  s.footer = find(document.body, (node) => node.localName === "footer" && node.className === "site-frame-prompt-bar")[0];
   await until(() => byClass(s.footer, "section", "prompt-bar").length === 1, "the prompt bar is drawn");
   return s;
 }
