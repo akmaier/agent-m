@@ -97,7 +97,7 @@ function listOf(jobRows, lives) {
 
 const FILTERS = [["product", "Product"], ["state", "State"], ["participant", "Participant"], ["runs", "Where it runs"]];
 
-// The groups of the list, in the order of the states of MOD-job-ledger's JobState with the jobs that wait at a gate first (UC-036 step 2); `cancelling` is shown within running.
+// The groups of the list, in the order of the states of MOD-job-ledger's JobState with the jobs that wait at a gate first (UC-036 step 2).
 const GROUPS = ["waiting at a gate", "running", "queued", "done", "failed", "cancelled", "ended without record"];
 const place = (row) => (GROUPS.includes(row.state) ? GROUPS.indexOf(row.state) : GROUPS.length);
 
