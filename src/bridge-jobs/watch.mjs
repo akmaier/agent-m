@@ -62,8 +62,8 @@ export function jobLog(id, from = 0) {
 }
 
 /**
- * cancelJob(id) -> Promise<{ confirmed: true }> — stops the agent's process of a running job and answers once the job has ended (its end written as cancelled); a job that has ended already is
- * confirmed as it is; not-found for a job this Bridge did not take.
+ * cancelJob(id) -> Promise<{ confirmed: true }> — stops the agent's process of a running job and answers once the job has ended; the Bridge writes no end for it, the person's page appends the record
+ * of the cancel (a job ended by a quit still gets its cancelled end); a job that has ended already is confirmed as it is; not-found for a job this Bridge did not take.
  */
 export async function cancelJob(id) {
   const entry = live.get(id);
@@ -71,6 +71,7 @@ export async function cancelJob(id) {
     if (!jobsTaken.has(id)) throw failure("not-found", "This Bridge took no such job.");
     return { confirmed: true };
   }
+  entry.cancelledByPage = true;
   entry.controller.abort();
   while (!entry.done && live.has(id)) await new Promise((resolve) => setTimeout(resolve, 5));
   await entry.done?.catch(() => {});
@@ -182,9 +183,14 @@ function createWatcher(config) {
         failed = error;
       }
       await removeClone(working);
-      const end = await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
-      listed.state = end.state;
-      listed.usage = end.usage;
+      if (mine.cancelledByPage && !mine.quit) {
+        // A cancel through the page (POST /v1/jobs/{id}/cancel): the Bridge commits nothing more; the person's page appends the record of the cancel.
+        listed.state = "cancelled";
+      } else {
+        const end = await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
+        listed.state = end.state;
+        listed.usage = end.usage;
+      }
     } finally {
       if (listed?.state === "running") listed.state = "failed";
       if (logged.partial) { logged.lines.push(logged.partial); logged.partial = ""; }
