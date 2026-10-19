@@ -20,7 +20,7 @@ import { decideMail, readNewMail } from "../mail-handling/index.mjs";
 import { personHits } from "../personal-data/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 
-const EXPLAIN = {
+const STEP_TEXT = {
   read: "Read mailbox reads the folders named in the mailbox connection, read-only: nothing is marked as read, moved or flagged. Each mail gets the identifier MAIL- plus sixteen hex digits of the hash of its Message-ID. A mail whose thread an issue lists is attached to that issue at once, with a note, and shown under it. Book: ch. 14, Evolution Processes and Change Identification.",
   list: "These mails are listed with sender, subject and date, in this browser only. A mail an issue already lists, or that you marked not an issue in this browser, is left out. Nothing here is stored anywhere but in the mailbox.",
   review: "Each mail is shown in full beside its proposal. No participant proposed anything, so the proposal is empty: write the neutral title and text yourself. The text is searched, without a model, for the mail's people; a hit is marked and Create issue stays disabled until you have edited it out.",
@@ -124,8 +124,8 @@ function reviewOf({ mail, people }, { products, store, context, onMarked }) {
     el("p", "mail-head", el("span", "mail-sender", who(mail.from)), " · ", el("span", "mail-subject", mail.subject), " · ", el("span", "mail-date", mail.date)),
     el("pre", "mail-text", mail.text),
     el("label", null, "Product ", product), " ", el("label", null, "Kind ", kind),
-    el("p", null, el("label", null, "Title ", title)), el("p", null, el("label", null, "Text ", body)), hitsList, fold(EXPLAIN.review));
-  const decisions = el("section", "mail-step-decide", create, " ", el("label", null, "Issue number ", number), " ", add, " ", none, result, fold(EXPLAIN.decide));
+    el("p", null, el("label", null, "Title ", title)), el("p", null, el("label", null, "Text ", body)), hitsList, fold(STEP_TEXT.review));
+  const decisions = el("section", "mail-step-decide", create, " ", el("label", null, "Issue number ", number), " ", add, " ", none, result, fold(STEP_TEXT.decide));
   const item = el("li", "mail", shown, decisions);
   item.setAttribute("data-mail", mail.id);
   return item;
@@ -167,9 +167,9 @@ async function render(target, context) {
       return el("li", "mail-attached-item", `Mail ${each.id} belongs to the thread of issue `, issue);
     }));
     out.replaceChildren(el("p", "mail-decided", `${found.decided} mail${found.decided === 1 ? " was" : "s were"} left out as decided.`), attached,
-      el("section", "mail-step-list", el("h3", null, "Mails to decide"), list, fold(EXPLAIN.list)));
+      el("section", "mail-step-list", el("h3", null, "Mails to decide"), list, fold(STEP_TEXT.list)));
   });
-  target.replaceChildren(el("h2", null, "Mail"), el("section", "mail-step-read", el("p", null, read), fold(EXPLAIN.read)), out);
+  target.replaceChildren(el("h2", null, "Mail"), el("section", "mail-step-read", el("p", null, read), fold(STEP_TEXT.read)), out);
 }
 
 function subject() {
