@@ -62,16 +62,12 @@ const foreignConfiguration = (server, paths) => server === "github"
   : paths.filter((path) => path === GITLAB_CI);
 
 /**
- * proposeSchedule(host, schedule, context) -> Promise<{ pullRequest, branch }> — one branch from the head that was read, one
- * commit of the schedule file, the generated file and, on GitLab, `.gitlab-ci.yml` with the include entry, and one pull request
- * into the default branch that holds them; it says when a configuration Agent M did not generate stays beside Agent M's. A
- * schedule with an error finding (InvalidSchedule) or an include: that is no list (GitlabCiNotList) writes nothing; the host's
- * failures are passed on.
+ * filesOf(schedule, context, snapshot) -> Promise<{ files: { path, text }[], generated }> — the files a proposal commits: the schedule
+ * file, the generated file and, on GitLab, `.gitlab-ci.yml` with the include entry where it lacks it; `generated` is the result of
+ * ciConfiguration. Throws InvalidSchedule for a schedule with an error finding. Reads the product at the snapshot only.
  */
-export async function proposeSchedule(host, schedule, context) {
-  const { server, instance, instanceCommit, resources, participants, head, trailers = [] } = context;
+export async function filesOf(schedule, { server, instance, instanceCommit, resources, participants }, snapshot) {
   const generated = ciConfiguration(schedule, { server, instance, instanceCommit }, resources, participants);
-  const snapshot = await host.readSnapshot(head);
   const files = [{ path: SCHEDULE_FILE, text: writeDocument(scheduleSchema, schedule) },
     ...Object.entries(generated.files).map(([path, text]) => ({ path, text }))];
   if (generated.include) {
@@ -79,6 +75,19 @@ export async function proposeSchedule(host, schedule, context) {
     const text = withInclude(old ?? "", generated.include.entry);
     if (text !== old) files.push({ path: generated.include.file, text });
   }
+  return { files, generated };
+}
+
+/**
+ * proposeSchedule(host, schedule, context) -> Promise<{ pullRequest, branch }> — one branch from the head that was read, one
+ * commit of the schedule file, the generated file and, on GitLab, `.gitlab-ci.yml` with the include entry, and one pull request
+ * into the default branch that holds them; it says when a configuration Agent M did not generate stays beside Agent M's. A
+ * schedule with an error finding (InvalidSchedule) writes nothing; the host's failures are passed on.
+ */
+export async function proposeSchedule(host, schedule, context) {
+  const { server, head, trailers = [] } = context;
+  const snapshot = await host.readSnapshot(head);
+  const { files, generated } = await filesOf(schedule, context, snapshot);
   const { defaultBranch } = await host.repositoryInfo();
   const branch = `agent-m/schedule-${head.slice(0, 12)}`;
   await host.createBranch(branch, head);

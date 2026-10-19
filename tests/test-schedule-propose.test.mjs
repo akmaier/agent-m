@@ -19,6 +19,7 @@ import { readDocument, writeDocument } from "../src/documents/index.mjs";
 import { participantSchema } from "../src/participant-list/index.mjs";
 import { resourceSchema } from "../src/resource-list/index.mjs";
 import { HostError } from "../src/repository-hosts/index.mjs";
+import { SCHEDULES_PAGE, fakeHost } from "./test-schedule.d/host.mjs";
 
 const { scheduleSchema } = testSchedule;
 const HEAD = "0123456789abcdef0123456789abcdef01234567";
@@ -26,7 +27,6 @@ const INSTANCE_COMMIT = "fedcba9876543210fedcba9876543210fedcba98";
 const GITHUB_FILE = ".github/workflows/agent-m-tests.yml";
 const GITLAB_FILE = ".gitlab/agent-m-tests.yml";
 const SCHEDULE_FILE = "docs/tests/schedule.md";
-const SCHEDULES_PAGE = "https://git.example.org/acme/product/-/pipeline_schedules";
 
 const TABLE_HEAD = "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |\n|---|---|---|---|---|---|---|";
 const DEFAULT_ROWS = {
@@ -46,30 +46,6 @@ const context = (server, extra = {}) => ({
   server, instance: server === "github" ? "acme/agent-m" : "https://git.example.org/acme/agent-m", instanceCommit: INSTANCE_COMMIT,
   resources, participants, head: HEAD, trailers: [], ...extra });
 
-// A host that records its calls. `files` is the product at the head; the pipeline schedules are kept by description, so that a
-// second save of the same description replaces the first, as the real host's setPipelineSchedule does.
-function fakeHost({ server = "github", files = {}, defaultBranch = "trunk", failCommit = null } = {}) {
-  const calls = [], pipelineSchedules = new Map();
-  const record = (name, ...args) => calls.push({ name, args });
-  return {
-    calls, pipelineSchedules,
-    of: (name) => calls.filter((c) => c.name === name),
-    async repositoryInfo() { record("repositoryInfo"); return { defaultBranch, visibility: "private", canWrite: true, archived: false, description: "" }; },
-    async readSnapshot(ref) {
-      record("readSnapshot", ref);
-      return { ref, commit: ref, paths: Object.keys(files), read: async (path) => files[path] ?? null, blob: (path) => (path in files ? "blob" : null) };
-    },
-    async createBranch(name, from) { record("createBranch", name, from); },
-    async commitFiles(change) {
-      record("commitFiles", change);
-      if (failCommit) throw failCommit;
-      return { commit: "c".repeat(40), url: "https://example.org/commit" };
-    },
-    async openPullRequest(request) { record("openPullRequest", request); return { number: 7, url: "https://example.org/pull/7", ...request }; },
-    async setPipelineSchedule(schedule) { record("setPipelineSchedule", schedule); pipelineSchedules.set(schedule.description, schedule); return { id: 1, url: SCHEDULES_PAGE }; },
-    webLinks: () => ({ pipelineSchedules: server === "gitlab" ? SCHEDULES_PAGE : null }),
-  };
-}
 const written = (host) => host.of("commitFiles")[0].args[0];
 const textOfFile = (host, path) => written(host).files.find((f) => f.path === path)?.text;
 
