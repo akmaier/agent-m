@@ -16,12 +16,24 @@
 // Module: MOD-test-pages
 
 import { resultSchema, resultsAt, flakyTests, rateComparison, appendResult } from "../result-records/index.mjs";
-import { scheduleSchema, defaultSchedule, occasionsOf } from "../test-schedule/index.mjs";
+import { scheduleSchema, defaultSchedule, occasionsOf, secretsNeeded } from "../test-schedule/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
+import { kindOf } from "../job-catalogue/index.mjs";
+import { prepareJob } from "../job-runner/index.mjs";
+import { newJobId, listJobs } from "../job-ledger/index.mjs";
+import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
+import { queueJob, routesFor, liveState } from "../runtimes/index.mjs";
+import { resourceSchema } from "../resource-list/index.mjs";
+import { runPanel, readProblem } from "../site-frame/index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
+const PARTICIPANTS_PATH = "docs/participants.md";
+const RESOURCES_PATH = "docs/resources.md";
+const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
+const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
+const RUN_KIND = "run-tests";
 const RESULTS_BRANCH = "test-results";
 const LEVELS = ["unit", "component", "system", "release", "user"];
 const RELEASE_TAG = /^v(\d+)\.(\d+)\.(\d+)$/;
@@ -161,6 +173,149 @@ function checklistOf(host, { declarations, levels, schedule, commit, again }) {
     el("label", null, "Your name ", person), el("ul", null, ...items), result);
 }
 
+// ---------------------------------------------------------------- Run on this commit (ITM-761; UC-028 steps 5 to 7, 5a, 5b)
+//
+// Readings the texts leave open: the levels offered are those the page lists, the preset ones those with no outcome on the commit; the participants are those `eligible` admits for the capabilities of the kind
+// `run-tests`; a participant on the tab's route (a model endpoint) runs no code, so the first other route routesFor offers is the one used; the run panel is drawn once a participant and the person's name are chosen
+// (no identity setting exists, as the route `release` asks for the name directly); the job is queued with the parameters { commit, levels, occasion: "on-demand" }; progress is read on the person's click on
+// Check progress (liveState), with no timer, and a job that has ended redraws the page, so that the new record shows; without a token, the reviewer is sent to the server's page of workflows (webLinks().actions)
+// with the commit and the levels named, since webLinks has no page of one workflow.
+
+const recordRoute = (route) => (route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+const checked = (box) => box.checked === true;
+
+function levelBoxes(levels, preset) {
+  return levels.map((level) => {
+    const box = el("input", "level");
+    box.setAttribute("type", "checkbox");
+    box.value = level.level;
+    box.checked = preset.has(level.level);
+    return box;
+  });
+}
+
+async function progressOf(host, id) {
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  const row = (await listJobs([{ address: snapshot.repository?.web ?? "", snapshot }], new Map())).find((each) => each.record.id === id);
+  if (!row) return { text: "its record is not on the default branch yet", ended: false };
+  if (row.record.end) return { text: `ended, ${row.record.end.state}`, ended: true };
+  const live = await liveState(row.record, { host }, {});
+  if (live.reachable === false) return { text: `its runtime cannot be reached: ${live.reason}`, ended: false };
+  return { text: live.running ? "running" : live.known ? "taken, not running" : "queued", ended: false };
+}
+
+async function prepareRun(state, chosen, levelsChosen, person) {
+  const { host, context, commit, definition, participants, register, head, product, schedule } = state;
+  const now = new Date();
+  const params = { commit, levels: levelsChosen, occasion: "on-demand" };
+  const id = newJobId(now, new Set(head.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)));
+  const agentM = { version: register.commit ?? "unknown", commit: register.commit ?? "unknown" };
+  const jobContext = { kind: definition, params, product: { address: head.repository?.web ?? "", snapshot: head, host }, instance: { snapshot: register, host: context.instance.host, checkout: null },
+    connect: async () => host, participants, places: { sources: {}, mailbox: null }, gates: [], person, now, agentM, jobId: id };
+  const prepared = await prepareJob(RUN_KIND, jobContext, { drafter: chosen, reviewers: [] });
+  const offer = routesFor(chosen, participants, product, []).filter((each) => each.route.kind !== "tab")[0];
+  void schedule;
+  return { prepared, offer, params, id, now, agentM };
+}
+
+async function queueRun(state, chosen, ready, person, out) {
+  const { host, head } = state;
+  const { prepared, offer, params, id, now, agentM } = ready;
+  const record = { id, kind: RUN_KIND, worksOn: [state.commit], participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: person,
+    start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
+    destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
+  await queueJob(host, record, offer.route, head.commit);
+  const progress = el("p", "progress");
+  const check = el("button", "check-progress", "Check progress");
+  check.addEventListener("click", async (event) => {
+    if (event?.isTrusted !== true) return;
+    try {
+      const found = await progressOf(host, id);
+      progress.textContent = `Job ${id}: ${found.text}`;
+      if (found.ended) await state.again();
+    } catch (failure) {
+      progress.textContent = `Job ${id}: ${failure?.message ?? failure}`;
+    }
+  });
+  out.replaceChildren(el("p", "job-queued", `Job ${id} is queued on the route ${record.route}.`), el("p", null, check), progress);
+}
+
+async function openRun(state, section) {
+  const { host, context, commit, levels, schedule } = state;
+  const preset = new Set(levels.filter((level) => level.passed + level.failed + level.flaky === 0).map((level) => level.level));
+  if (!context.product.tokenStored) {
+    const link = el("a", "workflow-page", "Open the server's page of workflows");
+    link.setAttribute("href", host.webLinks().actions);
+    section.replaceChildren(el("p", "no-token", `Without a token Agent M cannot start the run. Open the server's page of workflows and start the tests there on the commit ${commit}, for the levels ${[...preset].join(", ") || "you choose"}. `, link));
+    return;
+  }
+  const form = el("section", "run-on-commit-form");
+  section.replaceChildren(form);
+  try {
+    const definition = await kindOf(RUN_KIND);
+    const info = await context.instance.host.repositoryInfo();
+    const register = await context.instance.host.readSnapshot(info.defaultBranch);
+    const registerText = await register.read(PARTICIPANTS_PATH);
+    const participants = registerText == null ? [] : participantsOf(readDocument(participantSchema(), PARTICIPANTS_PATH, registerText));
+    const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+    const product = { visibility: (await host.repositoryInfo()).visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) };
+    const admitted = eligible(participants, { capabilities: definition.needs }).eligible;
+    Object.assign(state, { definition, participants, register, head, product });
+    if (admitted.length === 0) {
+      const uc = el("a", "uc-017", "UC-017");
+      uc.setAttribute("href", "#use-case/id=UC-017");
+      form.append(el("p", "missing-capability", `No participant can run the levels: none declares ${definition.needs.join(", ")}. Declare it for a participant — `, uc, "."));
+      return;
+    }
+    const boxes = levelBoxes(levels, preset);
+    const radios = admitted.map((participant) => {
+      const radio = el("input", "participant");
+      radio.setAttribute("type", "radio");
+      radio.setAttribute("name", "participant");
+      radio.value = participant.name;
+      return radio;
+    });
+    const person = el("input", "person");
+    person.setAttribute("placeholder", "Your name");
+    const box = el("div", "run-stage");
+    const refresh = async () => {
+      box.replaceChildren();
+      const chosen = admitted.find((participant) => radios.some((radio) => radio.value === participant.name && checked(radio)));
+      const levelsChosen = boxes.filter(checked).map((each) => each.value);
+      const name = (person.value ?? "").trim();
+      if (!chosen || !name) { box.append(el("p", "muted", "Choose a participant and enter your name to see the run panel.")); return; }
+      if (levelsChosen.length === 0) { box.append(el("p", "problem", "Choose at least one level.")); return; }
+      try {
+        const ready = await prepareRun(state, chosen, levelsChosen, name);
+        if (!ready.offer || !ready.offer.available) { box.append(el("p", "problem", ready.offer ? ready.offer.reason : "the participant has no route that runs tests")); return; }
+        const resources = await head.read(RESOURCES_PATH);
+        const needed = resources == null ? [] : secretsNeeded(schedule, readDocument(resourceSchema(), RESOURCES_PATH, resources));
+        const out = el("div", "run-result");
+        box.append(el("p", "where", `The run happens on the route ${recordRoute(ready.offer.route)}, on the commit ${commit}, for the levels ${levelsChosen.join(", ")}.`),
+          el("p", "paid-services", `Paid services it calls: ${[...new Set(needed.map((each) => each.for))].join(", ") || "none"}.`),
+          el("p", "secrets-used", `Secrets it uses, by name: ${needed.map((each) => each.name).join(", ") || "none"}.`),
+          runPanel(ready.prepared, { onRun: async () => { try { await queueRun(state, chosen, ready, name, out); } catch (failure) { out.replaceChildren(el("p", "problem", `${failure.name}: ${failure.message}`)); } } }), out);
+      } catch (failure) {
+        box.append(readProblem(failure, true));
+      }
+    };
+    for (const input of [...boxes, ...radios, person]) input.addEventListener("change", refresh);
+    form.append(el("h3", null, "Run on this commit"), el("ul", "levels", ...boxes.map((each) => el("li", null, el("label", null, each, ` ${each.value}`)))),
+      el("ul", "participants", ...radios.map((each) => el("li", null, el("label", null, each, ` ${each.value}`)))), el("label", null, "Your name ", person), box);
+  } catch (failure) {
+    form.append(readProblem(failure, true));
+  }
+}
+
+function runOnCommit(state) {
+  const section = el("section", "run-section");
+  const open = el("button", "run-on-commit", "Run on this commit");
+  open.addEventListener("click", () => openRun(state, section));
+  section.append(open);
+  return section;
+}
+
 async function detail(target, context, commit) {
   const { host } = context.product;
   const entry = (await host.readHistory(null, { ref: commit, limit: 1, changes: false }))[0];
@@ -205,7 +360,9 @@ async function detail(target, context, commit) {
     .map(([path, document]) => el("p", "uncommitted", `${document.fields.participant}, ${document.fields.date}: uncommitted changes, not counted (${path})`));
   const candidate = tags.some((tag) => tag.commit === commit && RC_TAG.test(tag.name));
   const checklist = candidate ? [checklistOf(host, { declarations, levels, schedule, commit, again: () => detail(target, context, commit) })] : [];
-  target.replaceChildren(head, ...sections, ...uncommitted, ...checklist);
+  const levelsShown = [...levels].sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
+  const run = runOnCommit({ host, context, commit, levels: levelsShown, schedule, again: () => detail(target, context, commit) });
+  target.replaceChildren(head, ...sections, ...uncommitted, ...checklist, run);
 }
 
 async function render(target, context, params = {}) {
