@@ -10,8 +10,10 @@
 // Where the texts leave a reading open, this file states the one it takes:
 //   - The list is read at the head of the default branch of the repository the page is drawn for: the product's, else the instance's. A repository without the file has an empty list under the title
 //     `# Resources of <the repository>`.
-//   - The pin of a repository is its head on the repository's default branch, read through the host of its address with the stored token of its server; the Hub's revision for data and a model and a
-//     Bridge's probe are not built here (ITM-997), and the page says so where they would stand. A repository's licence and maintainer are read by no interface of this page: the person enters them.
+//   - The pin of a repository is its head on the repository's default branch, read through the host of its address with the stored token of its server; the Hub's revision for data and a model is read with
+//     MOD-reuse-facts' hubFacts, with the key kept in this browser under `resource-key:<name>` where the entry's secret is `browser`, and moved as a repository's pin is. A repository's licence and maintainer are read by no interface of this page: the person enters them.
+//   - *Check* through a Bridge asks the Bridge the entry's route names, kept in this browser as `bridge:<name>` (MOD-bridge-client's probe): an endpoint for its served models, with the endpoint configuration
+//     { name, kind: "openai-compatible", baseUrl: its address, model: its pin, key }, compute for its partitions, an agent with the harmless request of the probe `agent` for the agent named like the entry. It writes nothing.
 //   - A check job needs a participant of the instance's register of the type CI agent that MOD-runtimes' routesFor offers the route `ci runner:<label>` for the resource's route; the first one is the
 //     job's drafter. The job's context is built here from what the page has read, as MOD-runtimes' tabContext builds the tab's: the job is queued, not run in the tab.
 //   - The check job works on UC-040: a job's `works_on` holds identifiers, never a resource's name; the resource is the job's parameter `resource`, which MOD-resource-list's recipe reads.
@@ -19,12 +21,14 @@
 //   - *Move*, *Save* and *Run* act on the person's own click only (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK); a click the page itself dispatched writes nothing.
 
 import { saveFile } from "../artifact-edits/index.mjs";
-import { secretValues } from "../browser-store/index.mjs";
+import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
+import { readSetting, secretValues } from "../browser-store/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
+import { hubFacts } from "../reuse-facts/index.mjs";
 import { checkPlan, namedBy, newerState, readPin, resourceFindings, resourceSchema } from "../resource-list/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, schemaForm } from "../site-frame/index.mjs";
@@ -152,11 +156,51 @@ export const route = {
       }
     }
 
+    // ------------------------------------------------------------ a check through the Bridge the route names: one harmless probe, shown, and nothing written
+    const keyOf = (resource) => {
+      if (resource.secret !== "browser") return null;
+      const kept = readSetting(context.store, `resource-key:${resource.name}`);
+      const value = typeof kept === "string" ? kept : kept?.value;
+      return typeof value === "string" && value ? value : null;
+    };
+    async function checkThroughBridge(resource, plan, out) {
+      const said = (mark, text) => out.replaceChildren(el("p", "resource-bridge-answer", `${mark} ${text}`));
+      const kept = readSetting(context.store, `bridge:${plan.bridge}`);
+      if (!kept || typeof kept !== "object") return said("✗", `This browser does not keep Bridge ${plan.bridge}.`);
+      out.replaceChildren(el("p", "resource-working", `Asking the Bridge ${plan.bridge}…`));
+      try {
+        const bridge = bridgeAt(settingsOf({ name: plan.bridge, ...kept }, readSetting(context.store, "jump-host")));
+        if (plan.probe === "partitions") {
+          const { partitions } = await probe(bridge, "partitions", {});
+          return said("✓", `The Bridge ${plan.bridge} lists the partitions: ${partitions.map((each) => `${each.name} (${each.state})`).join(", ")}.`);
+        }
+        if (plan.probe === "answers") {
+          const answer = await probe(bridge, "agent", { agent: resource.name });
+          return said("✓", `The Bridge ${plan.bridge} got an answer from ${resource.name}${answer?.version ? ` (${answer.version})` : ""}.`);
+        }
+        const answer = await probe(bridge, "endpoint-models", { name: resource.name, kind: "openai-compatible", baseUrl: resource.address, model: resource.pin ?? "", key: keyOf(resource) });
+        if (answer?.diagnosis) return said("✗", `The Bridge ${plan.bridge} could not list the models: ${answer.diagnosis.message}`);
+        return said("✓", `The Bridge ${plan.bridge} serves: ${answer.models.join(", ")}.`);
+      } catch (error) {
+        return said("✗", `${error?.message ?? error} — nothing was read.`);
+      }
+    }
+
+    // The Hub's revision and licence of an identifier, with the key kept in this browser for the entry that names it.
+    const hubRevisionOf = async (id) => {
+      const named = rowsOf(opened.document).map(resourceOf).find((each) => each.address === id);
+      // A Hub that does not answer a browser (HubBlocked) is, for readPin, a reader that rejects with a plain Error: it names the Hub and asks for a pasted revision.
+      const facts = await hubFacts(id, named ? keyOf(named) ?? undefined : undefined).catch((error) => { throw error?.name === "HubBlocked" ? new Error(error.message, { cause: error }) : error; });
+      const revision = facts.find((each) => each.what === "revision")?.value;
+      if (!revision) throw new Error(`the Hub gave no revision for ${id}`);
+      return { revision, licence: facts.find((each) => each.what === "licence")?.value ?? null };
+    };
+
     // ------------------------------------------------------------ a repository's pin: the head upstream, a newer state beside the pin, and Move
-    async function checkRepository(resource, out) {
+    async function checkPinned(resource, out) {
       let upstream;
       try {
-        upstream = await readPin(resource, { repositoryHead: (address) => repositoryHead(context.store, address), hubRevision: async () => { throw new Error("the Hub is not read here"); } });
+        upstream = await readPin(resource, { repositoryHead: (address) => repositoryHead(context.store, address), hubRevision: hubRevisionOf });
       } catch (error) {
         out.replaceChildren(el("p", "resource-unreachable", `✗ ${error?.message ?? error} — the pin stays as it is.`));
         return;
@@ -258,11 +302,9 @@ export const route = {
       }
       if (plan.how === "check job on a runner") await checkOnRunner(resource, plan.label, out);
       else if (plan.how === "probe through the Bridge") {
-        out.replaceChildren(el("p", "resource-not-built", `The check of a ${resource.kind} through the Bridge ${plan.bridge} (${plan.probe}) is not built yet; nothing was read.`));
-      } else if (resource.kind === "repository") await checkRepository(resource, out);
-      else if (resource.kind === "data" || resource.kind === "model") {
-        out.replaceChildren(el("p", "resource-not-built", "Reading the Hugging Face Hub is not built yet. Paste the full revision from the Hub's Files and versions page into the list; a branch name such as main is refused."));
-      } else out.replaceChildren(el("p", "resource-own-address", `${resource.name} is called at its own address; there is nothing to read here.`));
+        await checkThroughBridge(resource, plan, out);
+      } else if (resource.kind === "repository" || resource.kind === "data" || resource.kind === "model") await checkPinned(resource, out);
+      else out.replaceChildren(el("p", "resource-own-address", `${resource.name} is called at its own address; there is nothing to read here.`));
     }
 
     // ------------------------------------------------------------ the entries, by kind
