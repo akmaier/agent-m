@@ -97,8 +97,8 @@ async function refusedBranch(host, written, task, baseCommit) {
   const branch = written?.shown?.branch;
   if (typeof branch !== "string" || !branch) return null;
   const pinned = await host.readSnapshot(branch);
-  const history = await host.readHistory(null, { ref: pinned.commit });
-  const before = new Set((await host.readHistory(null, { ref: baseCommit })).map((entry) => entry.commit));
+  const history = await host.readHistory(null, { ref: pinned.commit, changes: false });
+  const before = new Set((await host.readHistory(null, { ref: baseCommit, changes: false })).map((entry) => entry.commit));
   return history.some((entry) => !before.has(entry.commit) && holds(entry.message)) ? { branch, where: "a commit message" } : null;
 }
 
