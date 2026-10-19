@@ -48,6 +48,8 @@ function scripted(responses, calls) { const remaining = [...responses]; return a
 
 const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key" };
 const BRIDGED = { url: "http://127.0.0.1:11434", kind: "openai-compatible", model: "local-model", bridge: "local" };
+// An endpoint stored before Bridges had names: it says it goes through a Bridge and names none.
+const OLD_BRIDGED = { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "local-model", throughBridge: true };
 
 function endpointsRoute() {
   const route = view.routes.find((candidate) => candidate.name === "endpoints");
@@ -351,4 +353,75 @@ test("TST-265016: Settings identifies untested and refused endpoint states", asy
   assert.match(byClass(pending, "settings-endpoint-status")[0].textContent, /not set/i);
   assert.match(byClass(refused, "settings-endpoint-status")[0].textContent, /^Refused\.$/);
   assert.equal(target.textContent.includes("other-secret"), false);
+});
+
+// TST-269007 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO; CONFIGURATION LIVES IN THE BROWSER
+// given: an old bridged value { url, kind, model, throughBridge: true } that names no Bridge, and two Bridges (lab, local) this browser keeps
+// input: the person opens the public endpoints Route for it and presses Save and test without choosing a Bridge
+// expect: no request of any kind is made (no direct call to the model, no call to either Bridge), the stored value is unchanged, and the page asks the person to choose the Bridge
+test("TST-269007: an old bridged value asks for a named Bridge before testing and never falls back to a direct call", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4712", token: "local-token" });
+  globalThis.fetch = scripted([], calls);
+  try {
+    const target = await render(store, { name: "old" });
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(calls.length, 0, "failure node: the direct call that settingFrom/testEndpoint made without a bridge name");
+    assert.deepEqual(readSetting(store, "endpoint:old"), OLD_BRIDGED, "the stored value is left as it was");
+    assert.match(byClass(target, "endpoint-result")[0].textContent, /choose the Bridge/i);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269008 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: the same old bridged value and the same two kept Bridges
+// input: the person chooses the Bridge lab in the Bridge control and presses Save and test
+// expect: the value is saved as { url, kind, model, bridge: "lab" } without throughBridge, before exactly one request, which goes to the Bridge lab's probe address and to nothing else
+test("TST-269008: after the person names a Bridge, the old bridged value is saved in the named form and tested through that Bridge only", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4712", token: "local-token" });
+  const named = { url: OLD_BRIDGED.url, kind: OLD_BRIDGED.kind, model: OLD_BRIDGED.model, bridge: "lab" };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    assert.deepEqual(readSetting(store, "endpoint:old"), named, "failure node: the named form is stored before the request");
+    return new Response(JSON.stringify({ answer: { works: true, model: OLD_BRIDGED.model } }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const target = await render(store, { name: "old" });
+    const bridge = byClass(target, "endpoint-bridge")[0];
+    bridge.value = "lab"; bridge.dispatchEvent(new Event("change"));
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "http://127.0.0.1:4711/v1/probes/endpoint-test");
+    assert.equal(calls[0].init.headers["x-agent-m-bridge-token"], "lab-token");
+    assert.deepEqual(readSetting(store, "endpoint:old"), named);
+    assert.equal(Object.hasOwn(readSetting(store, "endpoint:old"), "throughBridge"), false);
+    assert.match(byClass(target, "endpoint-result")[0].textContent, /working/i);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269009 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: an old bridged value that names no Bridge, and no Bridge kept in this browser
+// input: the person opens the public endpoints Route for it and presses Save and test
+// expect: no request is made, the stored value is unchanged, and the page offers to set up a Bridge
+test("TST-269009: an old bridged value with no Bridge kept offers the Bridge setup and makes no request", async () => {
+  const store = freshStore(), calls = [], navigations = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  globalThis.fetch = scripted([], calls);
+  try {
+    const target = await render(store, { name: "old" }, { navigations });
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(calls.length, 0);
+    assert.deepEqual(readSetting(store, "endpoint:old"), OLD_BRIDGED);
+    const setup = byClass(target, "endpoint-bridge-setup")[0];
+    assert.equal(typeof setup, "object", "a Set up the Bridge control is offered");
+    await click(setup);
+    assert.deepEqual(navigations.map((step) => step.route), ["bridge"], "it leads to the Bridge page");
+  } finally { globalThis.fetch = oldFetch; }
 });
