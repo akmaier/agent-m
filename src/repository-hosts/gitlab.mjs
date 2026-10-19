@@ -6,7 +6,7 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), setPipelineSchedule(schedule), listCiRuns(filter), cancelCiRun(id), jobLogs(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), setPipelineSchedule(schedule), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
@@ -358,6 +358,13 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         if (answer !== null) logs.push({ name: job.name, text: await answer.text() });
       }
       return logs;
+    },
+
+    // The tags the jobs of a pipeline ask for ("List pipeline jobs": each job's `tag_list`), in the order the server lists the jobs and their tags, each once; a pipeline with no tag gives [].
+    async jobLabels(id) {
+      const options = { what: `pipeline ${id} of ${address.web}` };
+      const jobs = await everyPage(`${api}/pipelines/${encodeURIComponent(id)}/jobs`, options, (j) => j.id);
+      return [...new Set(jobs.flatMap((job) => job.tag_list ?? []))];
     },
 
     // The merge requests ("List project merge requests": state opened, closed, merged or all, source_branch, 100 to a page, read page by page).

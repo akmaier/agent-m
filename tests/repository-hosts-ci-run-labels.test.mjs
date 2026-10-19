@@ -112,7 +112,11 @@ test("ciRunLabels — a run the server does not know is NotFound, and the other 
 // expect: the first three throw TypeError ("a CI run is named by its identifier") with no request; the clone throws NotSupported with no request
 test("ciRunLabels — a run is named by its identifier, and a clone without a token is NotSupported", async () => {
   const host = connect(GITHUB, { token: GH_TOKEN });
-  for (const bad of [undefined, "", "  ", 9002]) assert.equal((await failure(serving(() => json(200, {}), () => host.ciRunLabels(bad)))) instanceof TypeError, true, String(bad));
+  for (const bad of [undefined, "", "  ", 9002]) {
+    const { result, requests } = await serving(() => json(200, {}), () => failure(host.ciRunLabels(bad)));
+    assert.equal(result instanceof TypeError, true, String(bad));
+    assert.equal(requests.length, 0, `${String(bad)}: no request`);
+  }
   const { result, requests } = await serving(() => json(200, {}), () => failure(connect(GITHUB, { clone: "/tmp/a-clone" }).ciRunLabels("9002")));
   assert.equal(result?.name, "NotSupported");
   assert.equal(requests.length, 0);
