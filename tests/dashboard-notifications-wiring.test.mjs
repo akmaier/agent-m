@@ -293,3 +293,56 @@ test("ITM-238 F2 fixed: the main page's check also connects the instance with th
     globalThis.fetch = priorFetch;
   }
 });
+
+// TST-863201 · level: component · module: MOD-notifications
+// guards: UC-047; A CLEAR IS A REAL CLEAR
+// given: the main page's environment as above, with notifications switched on and due, the product alice/thesis kept with its own token github_pat_PRODUCT…; a fetch handler that records the authorisation of every request to the product and answers none
+// input: importing src/home/home.mjs fresh and letting its first check run; then the product's token setting is removed, five minutes pass (the stored time of the last check is set back) and the page's one check interval fires
+// expect: the first check sends at least one request to https://api.github.com/repos/alice/thesis, each carrying "Bearer github_pat_PRODUCT0123456789abcdefghij" (the main page's checks reach a kept product through its host); the second check sends at least one, each carrying no authorisation (null), and none anywhere carries the removed token
+test("the main page's checks reach a kept product through its host, and a token removed since is not sent", async () => {
+  const PRODUCT_TOKEN = "github_pat_PRODUCT0123456789abcdefghij", PRODUCT_API = `${API}/repos/alice/thesis`;
+  const sent = [];
+  const spy = (url, init) => { if (url.href.startsWith(PRODUCT_API)) sent.push(init.headers?.Authorization ?? null); return undefined; };
+  const server = await repoServer({ files: {}, handlers: [emptyTags, spy] });
+  const browser = installBrowser();
+  const priorDocument = "document" in globalThis ? globalThis.document : undefined, hadDocument = "document" in globalThis;
+  const priorLocation = "location" in globalThis ? globalThis.location : undefined, hadLocation = "location" in globalThis;
+  const priorLocalStorage = globalThis.localStorage, priorFetch = globalThis.fetch;
+  Object.defineProperty(globalThis, "document", { value: fakeMainPageDom(), configurable: true, writable: true });
+  Object.defineProperty(globalThis, "location", {
+    value: { hostname: "akmaier.github.io", pathname: "/agent-m/", href: "https://akmaier.github.io/agent-m/" },
+    configurable: true, writable: true,
+  });
+  const mem = new Map([
+    [`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) })],
+    [`${PREFIX}products`, JSON.stringify(["https://github.com/alice/thesis"])],
+    [`${PREFIX}github-token:alice/thesis`, JSON.stringify({ value: PRODUCT_TOKEN, name: "Agent M", expires: null, stored: "2026-10-19" })],
+  ]);
+  Object.defineProperty(globalThis, "localStorage", {
+    value: {
+      getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => { mem.set(k, String(v)); }, removeItem: (k) => { mem.delete(k); },
+      get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null,
+    },
+    configurable: true, writable: true,
+  });
+  globalThis.fetch = server.fetch;
+  try {
+    await import(new URL(`../src/home/home.mjs?load=${Date.now()}`, import.meta.url));
+    await settle(server);
+    assert.equal(sent.length > 0 && sent.every((auth) => auth === `Bearer ${PRODUCT_TOKEN}`), true, JSON.stringify(sent));
+
+    mem.delete(`${PREFIX}github-token:alice/thesis`);
+    mem.set(`${PREFIX}notifications`, JSON.stringify({ checked: minutesAgo(6) }));
+    sent.length = 0;
+    browser.calls.setInterval.find((each) => each.ms === 60000).fn();
+    await settle(server);
+    assert.deepEqual(sent.map((auth) => auth), sent.map(() => null), JSON.stringify(sent));
+    assert.equal(sent.length > 0, true, "the second check reached the product");
+  } finally {
+    browser.restore();
+    if (hadDocument) globalThis.document = priorDocument; else delete globalThis.document;
+    if (hadLocation) globalThis.location = priorLocation; else delete globalThis.location;
+    globalThis.localStorage = priorLocalStorage;
+    globalThis.fetch = priorFetch;
+  }
+});
