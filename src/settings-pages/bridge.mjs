@@ -12,6 +12,56 @@ function el(name, className, ...children) {
   return node;
 }
 
+// The system of the browser, from its user agent: the file of the release for it is the installer or the image MOD-bridge-build makes for that platform. The macOS .zip is the updater's, and no person downloads it.
+const BRIDGE_FILE = { windows: /\.exe$/i, macos: /\.dmg$/i, linux: /\.AppImage$/i };
+function systemOf(agent) {
+  const text = String(agent ?? "");
+  if (/Android/i.test(text)) return null;
+  if (/Windows/i.test(text)) return "windows";
+  if (/Macintosh|Mac OS X/i.test(text)) return "macos";
+  if (/X11|Linux/i.test(text)) return "linux";
+  return null;
+}
+const megabytes = (size) => `${(size / 1e6).toFixed(1)} MB`;
+
+// The download of the Bridge (UC-044 steps 1 and 2): the latest release of the instance, the one file of it for this computer's system with its size and the SHA-256 the server reports for it — or, where it reports none,
+// a link to the release's checksum file —, the explanation of the two levels and, folded beside it, why the system may warn. A release that cannot be read is said so; the page stands.
+// The section is drawn at once, with its heading and the explanation of the levels; its file stands in it once the release is read (`done`), so that the rest of the page does not wait for the server.
+function downloadSection(context) {
+  const host = context.instance?.host;
+  if (typeof host?.listReleaseAssets !== "function") return null;
+  const section = el("section", "bridge-download", el("h3", null, "Get the Bridge"), explain("bridge-levels"));
+  return { section, done: offerFile(host, section) };
+}
+
+async function offerFile(host, section) {
+  try {
+    const { assets } = await host.listReleaseAssets("latest");
+    const system = systemOf(globalThis.navigator?.userAgent);
+    const file = system === null ? undefined : assets.find((asset) => BRIDGE_FILE[system].test(asset.name));
+    if (file === undefined) {
+      section.append(el("p", "bridge-no-file", "The release holds no file for this system."));
+    } else {
+      const link = el("a", "bridge-file", file.name);
+      link.setAttribute("href", file.url);
+      section.append(el("p", null, link, ...(file.size === null ? [] : [" ", el("span", "bridge-size", megabytes(file.size))])));
+      if (file.sha256 !== null) {
+        section.append(el("p", null, "SHA-256 ", el("code", "bridge-sha256", file.sha256)));
+      } else {
+        const sums = assets.find((asset) => asset.name === "SHA256SUMS");
+        if (sums !== undefined) {
+          const sumsLink = el("a", "bridge-checksums", "Open the release's checksum file");
+          sumsLink.setAttribute("href", sums.url);
+          section.append(el("p", null, sumsLink));
+        }
+      }
+    }
+  } catch (failure) {
+    section.append(el("p", "bridge-download-problem", `The Bridge's release could not be read: ${failure?.message ?? failure}.`));
+  }
+  section.append(explain("bridge-signed-warning", "Why this warning?"));
+}
+
 function sharedPagesNotice(context) {
   const owner = String(context.instance?.repository ?? "").split("/")[0];
   return `Everything Agent M stores in this browser is stored for the address https://${owner}.github.io — every GitHub Pages site under that same ${owner}.github.io domain can read it.`;
@@ -309,7 +359,9 @@ export const route = {
       } catch (error) { remoteResult.textContent = error.message; }
     });
 
+    const download = downloadSection(context);
     target.replaceChildren(
+      ...(download ? [download.section] : []),
       el("h2", null, "Connect a Bridge"),
       el("p", "notice bridge-shared-origin", sharedPagesNotice(context)),
       el("p", null, "The copied pairing token is sent only to the Bridge address when you choose Pair Bridge."),
@@ -349,5 +401,6 @@ export const route = {
       el("h4", null, "nginx HTTPS proxy configuration"), remoteNginx,
     );
     address.focus();
+    await download?.done;
   },
 };
