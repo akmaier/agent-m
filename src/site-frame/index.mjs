@@ -18,14 +18,14 @@ import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf } from "./menu.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore } from "./routing.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
 export { menuOf } from "./menu.mjs";
-export { chosenProduct } from "./routing.mjs";
+export { chosenProduct, productHostFollowingStore } from "./routing.mjs";
 export { notice } from "./notices.mjs";
 export { confirmDecision } from "./decision.mjs";
 
@@ -375,7 +375,7 @@ async function startSite({ page, views }) {
   await show();
 
   const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
-  watchForAcceptance({ store, instance,
+  watchForAcceptance({ store, instance, productHost: productHostFollowingStore({ store }),
     addressOf: (route, given, forRepository) =>
       addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, given, forRepository) });
   footTakesBarHeight(foot);
