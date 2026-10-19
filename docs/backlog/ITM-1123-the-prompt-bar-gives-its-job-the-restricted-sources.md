@@ -31,3 +31,6 @@ allow, as the job runner's other callers do. First read how MOD-job-runner's `Jo
 - TST-513024 passes and its `todo` is removed. Counter-proof: a source whose licence allows the processing place is
   read.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Passed at its gate (#1167); its merge waits for draft `b6b4ccde`.** The code imports what its module's uses do not
+name yet. The draft adds the uses, and #1167 merges once an approval record names the draft's blob.

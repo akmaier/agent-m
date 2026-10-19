@@ -27,7 +27,9 @@ holds a second copy of the frame's format (AGENTS.md §2, principle 2), and find
 
 ## Not ready: a draft for akmaier
 
-The draft is `a7fa3d01`, on `main` and reviewed. The item is built once an approval record names its blob.
+The draft `a7fa3d01` was reviewed, and was withdrawn in `391cf759` so that the security fix's uses draft `7377eaa2` is
+the only draft on MOD-site-frame.md. It is committed again once akmaier has decided `7377eaa2`; `git show a7fa3d01`
+holds its text.
 
 The draft gives the `ViewContext` the address of a route with its parameters, as `go` would go there. MOD-maintenance-pages'
 links take it from there.

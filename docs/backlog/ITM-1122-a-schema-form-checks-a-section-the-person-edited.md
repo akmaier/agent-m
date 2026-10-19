@@ -42,3 +42,6 @@ edited section is read again by its schema's table before the checks run.
   Counter-proof: the same rows, valid, are saved as typed.
 - The `todo` marks of TST-1041017, TST-1041018 and TST-1041109 pass, and their `todo` is removed.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Passed at its gate (#1166); its merge waits for draft `7377eaa2`.** The code imports what its module's uses do not
+name yet. The draft adds the uses, and #1166 merges once an approval record names the draft's blob.
