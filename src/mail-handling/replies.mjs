@@ -43,6 +43,7 @@ export async function repliesDue(mailbox, products) {
   await noteSentReplies(await mailbox.sent(null), issues);
 
   const result = { toAnswer: [], answerReceived: [], open: [] };
+  const hostFacts = new Map();
   for (const entry of issues) {
     const answered = (id) => entry.notes.some((note) => (note.kind === "reply-sent" || note.kind === "no-reply") && note.subject === id);
     const closed = entry.issue.state === "closed";
@@ -52,9 +53,42 @@ export async function repliesDue(mailbox, products) {
     if (!group) continue;
     const mails = [];
     for (const id of entry.ids) mails.push({ id, mail: await mailbox.find(id), draft: draftsOf.get(id) ?? null, noted: answered(id) });
-    group.push({ product: entry.address, issue: entry.issue.number, closedBy: closedBy(entry), release: null, mails });
+    const by = closedBy(entry);
+    group.push({ product: entry.address, issue: entry.issue.number, closedBy: by, release: closed && by ? await releaseOf(entry.address, entry.host, by, hostFacts) : null, mails });
   }
   return result;
+}
+
+const PULL_ADDRESS = /\/(?:-\/)?(?:pull|merge_requests)\/(\d+)\/?$/;
+const COMMIT_ADDRESS = /\/(?:-\/)?commit\/([0-9a-f]{7,64})\/?$/i;
+
+/** What a product's host tells once for all its issues: its merged pull requests and its tags, read when first needed. */
+function factsOf(address, host, hostFacts) {
+  if (!hostFacts.has(address)) hostFacts.set(address, { pulls: null, tags: null });
+  const facts = hostFacts.get(address);
+  return {
+    pulls: async () => (facts.pulls ??= await host.listPullRequests({ state: "merged" })),
+    tags: async () => (facts.tags ??= await host.listTags()),
+  };
+}
+
+/**
+ * The release that contains what solved an issue: the commit of the address it was closed with — a commit's own, or the head of the
+ * merged pull request — and, of the product's tags that contain it, the earliest (the one whose commit the others contain). null where the
+ * address names no commit, the pull request is not merged, or no tag contains it yet.
+ */
+async function releaseOf(address, host, closedWith, hostFacts) {
+  const facts = factsOf(address, host, hostFacts);
+  let commit = COMMIT_ADDRESS.exec(closedWith)?.[1] ?? null;
+  const number = commit ? null : PULL_ADDRESS.exec(closedWith)?.[1];
+  if (number) commit = (await facts.pulls()).find((pull) => String(pull.number) === number)?.head ?? null;
+  if (!commit) return null;
+  let earliest = null;
+  for (const tag of await facts.tags()) {
+    if (!(await host.containsCommit(tag.name, commit))) continue;
+    if (!earliest || (await host.containsCommit(earliest.name, tag.commit))) earliest = tag;
+  }
+  return earliest?.name ?? null;
 }
 
 /** Labelled waiting-for-reporter, and a mail added after the last question sent. */

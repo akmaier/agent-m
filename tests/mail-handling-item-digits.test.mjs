@@ -19,7 +19,7 @@ const PULL = "https://github.com/example/thesis-tool/pull/31";
 const mailbox = { drafts: async () => [], sent: async () => [], find: async () => null };
 const closedIssue = (number, closing) => ({ number, title: `Issue ${number}`, body: `Export fails.\n\nMails: \`${A.id}\``, labels: [], state: "closed", url: `https://example.invalid/${number}`,
   comments: [{ author: "agent-m", body: closing, date: "2026-10-12T09:00:00Z" }] });
-const dueOf = async (...issues) => (await repliesDue(mailbox, [{ address: "https://github.com/example/thesis-tool", host: { listIssues: async () => issues, commentOnIssue: async () => {} } }])).toAnswer;
+const dueOf = async (...issues) => (await repliesDue(mailbox, [{ address: "https://github.com/example/thesis-tool", host: { listIssues: async () => issues, commentOnIssue: async () => {}, listPullRequests: async () => [], listTags: async () => [], containsCommit: async () => false } }])).toAnswer;
 
 // TST-1093101 · level: unit · module: MOD-mail-handling
 // guards: CLOSING AN ISSUE PREPARES ITS REPLIES; UC-039
