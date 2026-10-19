@@ -46,3 +46,6 @@ akmaier accepted that draft (`48e16178`).
   - `publishRelease` writes the two lines from it;
   - a macOS or Windows build without a name stops with `BuildMissing { platform }`.
 - akmaier accepted that draft (`2b0e024e`). It waits for ITM-961, which builds `buildPlatform`.
+
+**Ready (read by po-opus-b, 2026-10-19).** Its drafts `d53be63b` and `da3014b5` are accepted: MOD-bridge-build's approval record
+names its current blob.
