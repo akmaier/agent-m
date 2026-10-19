@@ -150,5 +150,5 @@ test("TST-1023103 where the branch moved meanwhile, the page says so and nothing
   await trusted(buttonsOf(target, "Revert")[0]);
   await trusted(buttonsOf(dialog(), "Revert the commits")[0]);
   assert.equal(seen.moves, 0);
-  assert.match(byClass(document.body, "job-revert-result")[0].textContent, /moved/i);
+  assert.match(byClass(document.body, "job-revert-result")[0].textContent, /moved meanwhile: nothing was written/i);
 });
