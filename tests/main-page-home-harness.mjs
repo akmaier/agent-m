@@ -160,7 +160,7 @@ function headerOf(init, name) {
 
 /**
  * A fake GitHub serving `repos` ({ "owner/name": { path: text } }), with a spy over it. `bridgeLists` is the job identifier the Bridge lab-pc-4 lists as running (none lists no job); a test may set
- * `net.bridgeLists` later. `net.ciRuns` are the workflow runs (GitHub's answer, one page) that the job workflow's run list gives, none at first.
+ * `net.bridgeLists` later; `net.bridgeUsage` is the usage the Bridge lists for it, and `net.bridgeLog` (async (id, from) -> { lines, next, ended }) answers its log — the Bridge keeps none at first. `net.ciRuns` are the workflow runs (GitHub's answer, one page) that the job workflow's run list gives, none at first.
  * `requests` keeps every request { url, host, authorization }; `server.log` is the fake's own record of what each request read (tests/progress-measures-load.mjs). install() puts the spy in
  * place of `fetch`; restore() puts the earlier one back.
  */
@@ -170,7 +170,7 @@ export function network(repos, { bridgeLists = null } = {}) {
   const real = globalThis.fetch;
   let held = repos, fake = null, spy = null;
   // `overviews` ({ "owner/name": { "<commit>": text } }): the files `<commit>.json` of the branch `overview-cache` each repository holds; none is held at first.
-  const net = { requests, bridgeLists, refusing: null, ciRuns: [], overviews: {},
+  const net = { requests, bridgeLists, bridgeUsage: null, bridgeLog: null, refusing: null, ciRuns: [], overviews: {},
     // the fake's own record of what each request read: those of every state the repositories have been in
     server: { get log() { return servers.flatMap((server) => server.log); } },
     bridgeAsked: () => requests.filter((request) => request.host === "127.0.0.1:4711").length,
@@ -180,7 +180,9 @@ export function network(repos, { bridgeLists = null } = {}) {
       spy = async (input, init) => {
         const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
         requests.push({ url: url.href, host: url.host, authorization: headerOf(init, "authorization") });
-        if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: net.bridgeLists ? [{ id: net.bridgeLists, state: "running", usage: null }] : [] });
+        if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: net.bridgeLists ? [{ id: net.bridgeLists, state: "running", usage: net.bridgeUsage }] : [] });
+        const logOf = url.host === "127.0.0.1:4711" ? /^\/v1\/jobs\/([^/]+)\/log$/.exec(url.pathname) : null;
+        if (logOf) return net.bridgeLog ? json(200, await net.bridgeLog(decodeURIComponent(logOf[1]), Number(url.searchParams.get("from")))) : json(404, { error: "not-found", message: "The Bridge keeps no log." });
         if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
         const overview = url.host === "api.github.com" && url.searchParams.get("ref") === "overview-cache"
           ? /^\/repos\/([^/]+\/[^/]+)\/contents\/([0-9a-f]+)\.json$/.exec(url.pathname) : null;
@@ -243,12 +245,12 @@ export function countReads(store, key) {
   return reads;
 }
 
-/** Draws a route into a new element at the fixed clock, with the timers of `timers` in place of the real ones, and returns the element. */
-export async function draw(route, context) {
+/** Draws a route into a new element at the fixed clock, with the timers of `timers` in place of the real ones, and returns the element. `params` are the route's parameters. */
+export async function draw(route, context, params = {}) {
   const target = document.createElement("div");
   document.body.append(target);
   timers.install();
-  await atNow(() => route.render(target, context, {}));
+  await atNow(() => route.render(target, context, params));
   return target;
 }
 
