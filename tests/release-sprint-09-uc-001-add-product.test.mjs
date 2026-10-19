@@ -13,7 +13,7 @@ const GL = "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool";
 const API = "https://api.github.com";
 const PREFIX = `agent-m:${REPO}:`;
 const PRODUCT_TOKEN = "github_pat_RELEASE0010123456789";
-const GL_TOKEN = "glpat_RELEASE001";
+const GL_TOKEN = "glpat-RELEASE001";
 const textOf = (html) => String(html).replace(/<[^>]*>/g, " ").replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
 const sectionBefore = (html, heading, nextHeading) => {
   const start = html.indexOf(heading);

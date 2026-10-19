@@ -14,7 +14,7 @@ class Storage { constructor(){this.m=new Map();} getItem(k){return this.m.get(k)
 async function render(store){const target=new E();await view.routes.find(r=>r.name==="settings").render(target,{instance:{repository:"release/example"},store,go(){}});return target;}
 async function fire(node,type="click"){node.dispatchEvent(new Event(type));await new Promise(r=>setTimeout(r,10));}
 async function waitFor(check){for(let i=0;i<500;i++){if(check())return;await new Promise(r=>setTimeout(r,10));}assert.ok(check(),"public operation did not settle");}
-const values={"github-token":{value:"github-secret"},"github-token:o/p":{value:"github-product-secret"},"gitlab-token:g/p":{value:"gitlab-secret"},products:["p"],notifications:{on:true},notified:{},"endpoint:e":{url:"https://m",key:"endpoint-secret"},bridge:{address:"https://b",token:"bridge-secret"},"jump-host":{hostname:"j",user:"u",sshPort:22,portRange:[1,2],login:{user:"w",password:"jump-secret"}},"remote-session:r":{port:1,token:"remote-secret"},"last-test:bridge":{at:"x",outcome:"working"}};
+const values={"github-token":{value:"github_pat_secret"},"github-token:o/p":{value:"github_pat_product_secret"},"gitlab-token:g/p":{value:"glpat-secret"},products:["p"],notifications:{on:true},notified:{},"endpoint:e":{url:"https://m",key:"endpoint-secret"},bridge:{address:"https://b",token:"bridge-secret"},"jump-host":{hostname:"j",user:"u",sshPort:22,portRange:[1,2],login:{user:"w",password:"jump-secret"}},"remote-session:r":{port:1,token:"remote-secret"},"last-test:bridge":{at:"x",outcome:"working"}};
 const names=Object.keys(values);
 async function exported(store,passphrase=""){const page=await render(store);byClass(page,"settings-export-passphrase")[0].value=passphrase;const blobs=[],old=globalThis.URL;globalThis.URL={createObjectURL:b=>(blobs.push(b),"blob:release"),revokeObjectURL(){}};try{await fire(byClass(page,"settings-export-download")[0]);await waitFor(()=>blobs.length===1);}finally{globalThis.URL=old;}return {page,text:await blobs[0].text()};}
 // TST-288901
@@ -29,7 +29,7 @@ async function exported(store,passphrase=""){const page=await render(store);byCl
   const raw=new Storage();Object.defineProperty(globalThis,"localStorage",{configurable:true,value:raw});const source=openStore("release/example");for(const [key,value] of Object.entries(values))writeSetting(source,key,value);
   const {page,text:plain}=await exported(source);const notice=byClass(page,"settings-export-notice")[0].textContent;
   for(const label of ["GitHub token","GitLab token","Endpoint","Bridge","Jump host","Remote session"])assert.match(notice,new RegExp(label));
-  for(const secret of ["github-secret","github-product-secret","gitlab-secret","endpoint-secret","bridge-secret","jump-secret","remote-secret"])assert.equal(notice.includes(secret),false);
+  for(const secret of ["github_pat_secret","github_pat_product_secret","glpat-secret","endpoint-secret","bridge-secret","jump-secret","remote-secret"])assert.equal(notice.includes(secret),false);
   assert.deepEqual(JSON.parse(plain).settings,values);
   const destinationRaw=new Storage();Object.defineProperty(globalThis,"localStorage",{configurable:true,value:destinationRaw});const destination=openStore("release/example");
   const kept={products:'["keep-products"]',bridge:'{ "address" : "keep-bridge" }'};for(const [key,rawValue] of Object.entries(kept))destination.storage.setItem(`${destination.prefix}${key}`,rawValue);

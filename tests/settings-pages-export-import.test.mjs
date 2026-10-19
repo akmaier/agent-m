@@ -50,9 +50,9 @@ function settingsRoute() { const route = view.routes.find((candidate) => candida
 async function render(store) { const target = document.createElement("div"); await settingsRoute().render(target, { instance: { repository: "fixture/instance" }, store, go() {} }); return target; }
 
 const SETTINGS = {
-  "github-token": { value: "github-secret" },
-  "github-token:fixture/product": { value: "github-product-secret" },
-  "gitlab-token:gitlab.test/group/project": { value: "gitlab-secret" },
+  "github-token": { value: "github_pat_secret" },
+  "github-token:fixture/product": { value: "github_pat_product_secret" },
+  "gitlab-token:gitlab.test/group/project": { value: "glpat-secret" },
   products: ["https://github.com/fixture/product"],
   notifications: { enabled: true },
   notified: { reports: ["one"] },

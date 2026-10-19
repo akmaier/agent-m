@@ -30,7 +30,8 @@ const TOKEN_NAME = "Agent M · akmaier/agent-m";
 const ACK_KEY = "agent-m:akmaier/agent-m:acknowledged:shared-origin";
 const TOKEN_KEY = "agent-m:akmaier/agent-m:github-token";
 const NOTICE = "Everything Agent M stores in this browser is stored for the address https://akmaier.github.io — every GitHub Pages site under that same akmaier.github.io domain can read it.";
-const NOT_A_TOKEN = "That is not a GitHub token — it starts with github_pat_ and is long.";
+const NO_TOKEN = "Nothing was stored: the token under github-token is refused. That is no token of either server.";
+const GITLAB_TOKEN_LINE = "Nothing was stored: the token under github-token is refused. That is a GitLab token; a GitHub repository is reached with the GitHub token.";
 const NO_DATE = "Enter the date the token expires — GitHub showed it when you created the token.";
 const today = () => new Date().toISOString().slice(0, 10);
 const inDays = (days) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
@@ -214,13 +215,13 @@ test("setup — the ready buttons lead to the main page and to Add a product", a
 // guards: UC-014 step 8; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
 // given: a fresh store, the notice ticked
 // input: paste the text "my password" and press Store and check
-// expect: nothing is stored but the acknowledgement; no request is sent; the check line reads "That is not a GitHub token — it starts with github_pat_ and is long."; the instance is not shown ready
+// expect: nothing is stored but the acknowledgement; no request is sent; the check line reads "Nothing was stored: the token under github-token is refused. That is no token of either server." — connect's refusal, setup keeping no form of a token of its own; the instance is not shown ready
 test("setup — a text that is no GitHub token is refused: nothing is stored, nothing is sent", async () => {
   const page = await open();
   const requests = await storeAs(page, "my password", "2027-01-15", reachable(false));
   assert.deepEqual(storedKeys(), [ACK_KEY]);
   assert.deepEqual(requests, []);
-  assert.equal(field(page.target, "check").textContent, NOT_A_TOKEN);
+  assert.equal(field(page.target, "check").textContent, NO_TOKEN);
   assert.equal(byTag(field(page.target, "done"), "button").length, 0);
 });
 
@@ -300,7 +301,7 @@ test("setup — the module's view holds one route setup, under the entry setting
 // guards: UC-014 step 8; NO SECRET IN THE REPOSITORY; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a store that holds a token with the record of a test of it, and the acknowledgement; the instance is a GitHub repository
 // input: paste a GitLab token (glpat-…) as the instance's token and press Store and check
-// expect: nothing is stored or forgotten — the token and the record of its last test stand as they were — no request leaves the page, and the page shows the line "That is not a GitHub token", which does not hold the pasted token (the form of the token is refused here before connect is reached: the step's own check of the instance's GitHub token). Known positive: a GitHub token pasted the same way is stored
+// expect: nothing is stored or forgotten — the token and the record of its last test stand as they were — no request leaves the page, and the page shows connect's refusal of the other kind of server, "Nothing was stored: the token under github-token is refused. That is a GitLab token; a GitHub repository is reached with the GitHub token.", which does not hold the pasted token. Known positive: a GitHub token pasted the same way is stored
 test("setup — a token of the other kind of server is refused before it is stored, and the last test is kept", async () => {
   const WRONG = "glpat-WRONG0123456789abcdef";
   const OLD = { value: "github_pat_OLD0123456789abcdefghijkl", name: "old", expires: "2026-12-01", stored: "2026-09-01" };
@@ -309,14 +310,30 @@ test("setup — a token of the other kind of server is refused before it is stor
   field(page.target, "token").value = WRONG;
   field(page.target, "expires").value = "2027-01-15";
   const requests = await withServer(reachable(false), () => press(buttonLabelled(page.target, "Store and check")));
-  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(TOKEN_KEY)), OLD, "failure node: setup.mjs stores the pasted token");
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(TOKEN_KEY)), OLD, "failure node: setup.mjs stores the pasted token before connect");
   assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token")), TESTED);
   assert.deepEqual(requests, [], "nothing is sent for a token the page refuses");
   const shown = field(page.target, "check").textContent;
-  assert.equal(shown, NOT_A_TOKEN);
+  assert.equal(shown, GITLAB_TOKEN_LINE);
   assert.equal(shown.includes(WRONG), false, "the line never holds the token");
   assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token").includes(WRONG), false);
   field(page.target, "token").value = KEY;
   await withServer(reachable(false), () => press(buttonLabelled(page.target, "Store and check")));
   assert.equal(JSON.parse(globalThis.localStorage.getItem(TOKEN_KEY)).value, KEY, "known positive: a GitHub token is stored");
+});
+
+// TST-1065002 · level: unit · module: MOD-settings-pages
+// guards: UC-014 step 8; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
+// given: a fresh store, the notice ticked; the instance is a GitHub repository
+// input: paste the text github_pat_x, which begins as a GitHub token does and holds nothing more (setup keeps no length rule of its own), and press Store and check; then paste nothing and press it again
+// expect: github_pat_x is stored as the instance's token and the instance is read with it; with nothing pasted nothing more is stored and no request is sent, and the check line reads "Paste the token first."
+test("setup — a text that begins as a GitHub token does is stored whatever its length, and an empty paste is not a token", async () => {
+  const page = await open({ acknowledged: true });
+  await storeAs(page, "github_pat_x", "2027-01-15", reachable(false));
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(TOKEN_KEY)).value, "github_pat_x");
+  const again = await open({ acknowledged: true });
+  const requests = await storeAs(again, "", "2027-01-15", reachable(false));
+  assert.equal(globalThis.localStorage.getItem(TOKEN_KEY), null);
+  assert.deepEqual(requests, []);
+  assert.equal(field(again.target, "check").textContent, "Paste the token first.");
 });

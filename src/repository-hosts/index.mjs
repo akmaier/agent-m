@@ -188,6 +188,7 @@ export function connect(address, credentials = {}) {
     throw new TypeError(github ? "That is a GitLab token; a GitHub repository is reached with the GitHub token."
       : "That is a GitHub token; a GitLab project is reached with its own project access token.");
   }
+  if (token && !GITHUB_TOKEN.test(token) && !GITLAB_TOKEN.test(token)) throw new TypeError("That is no token of either server.");
   if (!Array.isArray(secrets) || secrets.some((s) => typeof s !== "string")) throw new TypeError("the secrets are a list of texts");
   const links = webLinks(repository, defaultBranch);
   const name = tokenName || (github ? "GitHub token" : `GitLab project token for ${repository.web}`);
