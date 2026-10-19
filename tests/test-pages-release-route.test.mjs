@@ -53,7 +53,7 @@ test("TST-682002 the view release is built in, counted as built and opened by th
 // expect: a view with a file is not built when its file is not named, so TST-682002's "release" is counted by being built in, not by an empty check
 test("TST-682003 counter-proof: a view with a file is built only when its file is named", () => {
   const built = builtViews([]);
-  assert.ok(!built.has("process"), "known positive: process has a file that is not named");
+  assert.ok(!built.has("specification"), "known positive: specification has a file that is not named");
   assert.ok(built.has("release"));
-  assert.ok(!built.has("roles"));
+  assert.ok(!built.has("arrange"));
 });
