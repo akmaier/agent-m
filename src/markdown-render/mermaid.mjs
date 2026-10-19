@@ -4,7 +4,16 @@ import DOMPurify from "./vendor/purify.es.mjs";
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 })[c]);
-let ready = false;
+// The colour scheme of the site (MOD-markdown-render, Interfaces: renderMermaid): dark when the browser prefers a dark scheme and the root element does not carry data-theme="light" — the rule
+// of look.css and lme.css. A diagram is drawn in the library's theme for it, and drawn again, in its own element, when the scheme changes.
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+let preference;
+const watched = new Set();
+let watching = false;
+const themeNow = () => {
+  preference ??= typeof matchMedia === "function" ? matchMedia(DARK_QUERY) : null;
+  return preference?.matches && document.documentElement?.getAttribute("data-theme") !== "light" ? "dark" : "default";
+};
 let loading;
 let libraryScript;
 let stage;
@@ -66,13 +75,11 @@ async function library() {
   return globalThis.mermaid;
 }
 
-async function drawMermaid(source) {
+async function drawMermaid(source, into = null) {
   try {
     const m = await library();
-    if (!ready) {
-      m.initialize({ startOnLoad: false, securityLevel: "strict", htmlLabels: false });
-      ready = true;
-    }
+    const theme = themeNow();
+    m.initialize({ startOnLoad: false, securityLevel: "strict", htmlLabels: false, theme });
     const element = document.createElement("div");
     element.className = "mermaid";
     element.textContent = source;
@@ -96,10 +103,36 @@ async function drawMermaid(source) {
       FORBID_ATTR: ["href", "xlink:href"],
     });
     if (!safeSvg(element)) throw new Error("the diagram contains an external resource");
+    if (into) {
+      into.innerHTML = element.innerHTML;
+      return into;
+    }
+    watch(element, source, theme);
     return element;
   }
   catch (error) {
     return failed(source, error);
+  }
+}
+
+// A drawn diagram is drawn again from its source when the scheme changes, if it stands in the document; the two sources of the scheme are watched once, however many diagrams are drawn.
+function watch(element, source, theme) {
+  watched.add({ ref: new WeakRef(element), source, theme });
+  if (watching) return;
+  watching = true;
+  preference?.addEventListener?.("change", schemeChanged);
+  if (typeof MutationObserver === "function" && document.documentElement) {
+    new MutationObserver(schemeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  }
+}
+function schemeChanged() {
+  const theme = themeNow();
+  for (const entry of watched) {
+    const element = entry.ref.deref();
+    if (!element) { watched.delete(entry); continue; }
+    if (element.isConnected !== true || entry.theme === theme) continue;
+    entry.theme = theme;
+    drawing = drawing.then(() => drawMermaid(entry.source, element)).then(() => undefined, () => undefined);
   }
 }
 
