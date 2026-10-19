@@ -80,6 +80,8 @@ h1, h2, h3, h4 { color: var(--heading); line-height: 1.25; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--fau-blue); border-color: var(--fau-blue); color: #ffffff; }
 .btn.primary:hover { background: var(--fau-dark); }
+/* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
+button, .btn { margin-inline: .35em; }
 
 /* ---- a wide table, and the burn-down chart ---- */
 
