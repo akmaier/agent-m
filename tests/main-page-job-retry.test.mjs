@@ -279,3 +279,30 @@ test("TST-1024005 a job whose product is under its work-in-progress limit is sti
   assert.equal(walk(target, (node) => node.localName === "button" && node.textContent === "Retry").length, 1);
   assert.deepEqual(reasonsOf(target), []);
 });
+
+// TST-1024006 · level: unit · module: MOD-main-page
+// guards: UC-036 (7a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: a failed job that ran in a tab and one whose task travelled with its hand-over, in a product whose facts cannot be read (the instance's repository is refused with an error)
+// input: the route job drawn for each
+// expect: no button Retry and no Open the prompt bar; the page says "Retry could not be prepared" and names the reason the read failed (the failure's own message, not an empty reason); go() is never called; nothing is written
+test("TST-1024006 a tab or hand-over retry whose facts cannot be read says so and names the reason", async () => {
+  const messages = [];
+  for (const [n, options] of [[6, { route: "tab" }], [7, { task: "with the hand-over" }]]) {
+    use(n);
+    const { seen, context } = world(jobIn("failed", options));
+    net.refusing = { how: "error", repository: INSTANCE };
+    const target = await drawJob(context);
+    assert.deepEqual(retryButtons(target), [], `${n}: nothing is offered`);
+    const unreadable = byClass(target, "retry-unreadable")[0];
+    assert.ok(unreadable, `${n}: the page says the retry could not be prepared`);
+    messages.push(unreadable.textContent);
+    assert.deepEqual(context.went, []);
+    assert.deepEqual(seen.trees, []);
+    net.restore();
+    document.body.replaceChildren();
+  }
+  for (const message of messages) {
+    assert.match(message, /^Retry could not be prepared: \S/, message);
+    assert.doesNotMatch(message, /prepared: (undefined|\[object Object\]|)$/, message);
+  }
+});
