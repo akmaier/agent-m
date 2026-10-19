@@ -18,6 +18,8 @@ import { join } from "node:path";
 const ELECTRON = "export default new Proxy({}, { get: (_, name) => globalThis.__agentMEntryElectron?.[name] });";
 // electron-updater, of the Bridge build's packages: its `autoUpdater` is the fake a case puts in globalThis.__agentMUpdater.
 const UPDATER = "export default { get autoUpdater() { return globalThis.__agentMUpdater; } };";
+// node:https, whose `get` a case may put in globalThis.__agentMHttpsGet (the update feed's reading); without one it is the real one.
+const HTTPS = 'import * as real from "node:https"; export const get = (...given) => (globalThis.__agentMHttpsGet ?? real.get)(...given); export default { ...real, get };';
 const DOUBLES = {
   "/src/tunnels/index.mjs": `export const ensureKey = async () => ({ publicKey: "ssh-ed25519 AAAA double", fingerprint: "SHA256:double" });
     export const openTunnels = async () => {}; export const closeTunnels = async () => {}; export const tunnelState = () => [];
@@ -28,6 +30,7 @@ const moduleUrl = (source) => `data:text/javascript,${encodeURIComponent(source)
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === "electron") return { url: moduleUrl(ELECTRON), shortCircuit: true };
+    if (specifier === "node:https" && !context.parentURL?.startsWith("data:")) return { url: moduleUrl(HTTPS), shortCircuit: true };
     if (specifier === "electron-updater") return { url: moduleUrl(UPDATER), shortCircuit: true };
     const resolved = next(specifier, context);
     const double = Object.entries(DOUBLES).find(([tail]) => resolved.url.endsWith(tail));

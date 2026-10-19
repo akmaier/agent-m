@@ -11,7 +11,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPairSync, sign } from "node:crypto";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
+import { Readable } from "node:stream";
 import { join } from "node:path";
 import { unusedPorts } from "./desktop-shell.d/ports.mjs";
 import { bridgeSettings, startEntry, stopEntry, temporary } from "./desktop-shell.d/entry.mjs";
@@ -42,8 +43,14 @@ test("TST-1054008 the app starts its updates with the key it carries, and the wi
     quitAndInstall() { calls.push("quitAndInstall"); },
   };
   const held = new Map([[`${BASE}latest-linux.yml`, FEED], [`${BASE}latest-linux.yml.sig`, signature(FEED)], [`${BASE}${FILE}`, BYTES], [`${BASE}${FILE}.sig`, signature(BYTES)]]);
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => { asked.push(String(url)); return held.has(String(url)) ? new Response(held.get(String(url))) : new Response("not found", { status: 404 }); };
+  // The Bridge reads the feed with node:https' get; the case answers it from the held files.
+  const answer = (found) => (url, callback) => {
+    asked.push(String(url));
+    const response = Object.assign(Readable.from(found(String(url)) ? [held.get(String(url))] : []), { statusCode: found(String(url)) ? 200 : 404, headers: {} });
+    queueMicrotask(() => callback(response));
+    return { on() { return this; } };
+  };
+  globalThis.__agentMHttpsGet = answer((url) => held.has(url));
   const appData = temporary(), resources = temporary(), data = temporary();
   const [port] = await unusedPorts(1);
   saveSettings(join(appData, BUILD.appId), bridgeSettings(port));
@@ -62,17 +69,17 @@ test("TST-1054008 the app starts its updates with the key it carries, and the wi
     assert.ok(!calls.includes("quitAndInstall"));
     await ask("install-update", { confirmed: true });
     assert.equal(calls.filter((call) => call === "quitAndInstall").length, 1);
-  } finally { await stopEntry(started); globalThis.fetch = realFetch; delete globalThis.__agentMUpdater; for (const folder of [appData, resources, data]) rmSync(folder, { recursive: true, force: true }); }
+  } finally { await stopEntry(started); delete globalThis.__agentMHttpsGet; delete globalThis.__agentMUpdater; for (const folder of [appData, resources, data]) rmSync(folder, { recursive: true, force: true }); }
 
   const fromSource = temporary(), sourceData = temporary(), sourceResources = temporary();
   const [sourcePort] = await unusedPorts(1);
   saveSettings(sourceData, bridgeSettings(sourcePort));
   const before = asked.length;
-  globalThis.fetch = async (url) => { asked.push(String(url)); throw new Error("no request is expected"); };
+  globalThis.__agentMHttpsGet = answer(() => false);
   const source = await startEntry({ resources: sourceResources, appData: fromSource, argv: ["--instance=alice/agent-m", "--origin=https://alice.github.io", `--port=${sourcePort}`, `--data-folder=${sourceData}`] });
   try {
     const state = await source.fake.handlers["bridge-state"]({}, "updates");
     assert.equal(state.offer, null);
     assert.equal(asked.length, before, "the feed is not asked for");
-  } finally { await stopEntry(source); globalThis.fetch = realFetch; for (const folder of [fromSource, sourceData, sourceResources]) rmSync(folder, { recursive: true, force: true }); }
+  } finally { await stopEntry(source); delete globalThis.__agentMHttpsGet; for (const folder of [fromSource, sourceData, sourceResources]) rmSync(folder, { recursive: true, force: true }); }
 });

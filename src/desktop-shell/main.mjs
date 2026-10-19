@@ -2,6 +2,7 @@
 import { join, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import electron from "electron";
+import electronUpdater from "electron-updater";
 import { installedAgents } from "../agent-processes/index.mjs";
 import { listJobs, testAccess } from "../bridge-jobs/index.mjs";
 import { readBuild } from "./build.mjs";
@@ -42,15 +43,10 @@ function registerProtocol(electron, instance) {
   });
   return `agent-m://${hostname}${pathname}/desktop-shell/window.html`;
 }
-// The updates of a packaged app: electron-updater's autoUpdater and the key built into the app; null for a start from the source folder, which offers no update, or where
-// electron-updater is not there.
-async function updatesOf(config) {
-  if (!config.updateKey) return null;
-  try {
-    const { autoUpdater } = (await import("electron-updater")).default;
-    return createUpdates({ updater: autoUpdater, key: config.updateKey, version: config.version, instance: config.instance });
-  } catch { return null; }
-}
+// The updates of a packaged app: electron-updater's autoUpdater and the key built into the app; null for a start from the source folder, which offers no update.
+const updatesOf = (config) => (config.updateKey
+  ? createUpdates({ updater: electronUpdater.autoUpdater, key: config.updateKey, version: config.version, instance: config.instance })
+  : null);
 const show = (window) => { if (window.isMinimized()) window.restore(); window.show(); window.focus(); };
 
 export async function start(electron, supplied = {}) {
@@ -65,7 +61,7 @@ export async function start(electron, supplied = {}) {
   const page = registerProtocol(electron, config.instance);
   const stored = loadSettings(config.dataFolder, { port: config.port });
   let bridge = null, paused = stored.paused, quitting = false, startupFailure = null;
-  const updates = await updatesOf(config);
+  const updates = updatesOf(config);
   // The first reading of the update feed, at start; the window's Updates view waits for it, and a feed that fails only says so in its state.
   const firstReading = updates ? updates.start().catch(() => {}) : null;
   const noUpdates = { version: config.version ?? null, offer: null, ready: false, refused: "This build offers no update.", error: null };

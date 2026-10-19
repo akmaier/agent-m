@@ -15,6 +15,7 @@
 // MOD-bridge-build's table: latest-linux.yml, latest-mac.yml, latest.yml.
 
 import { createPublicKey, verify } from "node:crypto";
+import { get } from "node:https";
 import { readFileSync, rmSync } from "node:fs";
 import { basename } from "node:path";
 
@@ -32,11 +33,24 @@ const newer = (a, b) => {
 const notesOf = (notes) => (typeof notes === "string" ? notes : Array.isArray(notes) ? notes.map((each) => each?.note ?? "").filter(Boolean).join("\n\n") : "");
 const reason = (error) => String(error?.message ?? error);
 
-async function fetchBytesFrom(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${response.status} ${url}`);
-  return Buffer.from(await response.arrayBuffer());
-}
+// The bytes at an address, over HTTPS as the Bridge (a Node program) reads them; a release's files lie behind GitHub's redirect.
+const fetchBytesFrom = (url, redirects = 5) => new Promise((resolve, reject) => {
+  get(url, (response) => {
+    const { statusCode, headers } = response;
+    if (statusCode >= 300 && statusCode < 400 && headers.location && redirects > 0) {
+      response.resume();
+      resolve(fetchBytesFrom(new URL(headers.location, url).href, redirects - 1));
+    } else if (statusCode !== 200) {
+      response.resume();
+      reject(new Error(`${statusCode} ${url}`));
+    } else {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => resolve(Buffer.concat(chunks)));
+      response.on("error", reject);
+    }
+  }).on("error", reject);
+});
 
 /**
  * createUpdates({ updater, key, version, instance, platform, fetchBytes?, setInterval? }) -> { state, check, download, install, start } — `updater` is electron-updater's autoUpdater, `key` the publisher's
