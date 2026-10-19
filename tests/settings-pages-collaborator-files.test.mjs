@@ -9,7 +9,7 @@
 //
 // Readings taken, named in the pull request: the files are read from the default branch as it stands after the removal's commit; `docs/collaborators.md` itself is not listed (it is the register of consent, and the
 // rows of the others would name the person's name by a part of it); a file is listed once, in the order of the repository's paths; the list is under the class `settings-collaborator-named-files`, one `li` per path, and
-// where no file names the person the class `settings-collaborator-named-none` says so. Each test states its input and its expected result before it runs (given / input / expect). Nothing reaches the network.
+// the search is namedPersonFindings' (personHits finds a name also by its parts, so a file that writes only "Bea" or "Quimby" is listed); where no file names the person the class `settings-collaborator-named-none` says so. Each test states its input and its expected result before it runs (given / input / expect). Nothing reaches the network.
 // The counter-proofs are in the pull request.
 
 import test from "node:test";
@@ -97,11 +97,11 @@ test("Remove lists exactly the files on the default branch that still name the c
 
 // TST-1043102 · level: unit · module: MOD-settings-pages
 // guards: A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; UC-042
-// given: a writable product whose default branch has docs/clean.md naming Ada Lovelace only and docs/account.md naming the account @bea but not the name
+// given: a writable product whose default branch has docs/clean.md naming Ada Lovelace only and docs/account.md naming another account, @reviewer, and no name
 // input: Remove for Bea Quimby, account @bea
 // expect: no list of files; the line of the class settings-collaborator-named-none says that no file on the default branch still names them; the history note stays in the result line
 test("Remove says so when no file names the collaborator", async () => {
-  const target = await removed({ "docs/clean.md": "Written with Ada Lovelace.\n", "docs/account.md": "Reviewed by @bea.\n" });
+  const target = await removed({ "docs/clean.md": "Written with Ada Lovelace.\n", "docs/account.md": "Reviewed by @reviewer.\n" });
   assert.match(byClass(target, "settings-collaborator-result")[0].textContent, /earlier commits.*history/i);
   assert.equal(byClass(target, "settings-collaborator-named-files").length, 0);
   assert.match(byClass(target, "settings-collaborator-named-none")[0].textContent, /no file.*(names|name)/i);
