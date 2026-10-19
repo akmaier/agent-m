@@ -49,3 +49,11 @@ signature returns `Finding[]` from `(plan, steps, architecture, workflow)`, yet 
 `Promise<Finding[]>`. When it is selected, its modules also take in MOD-site-frame and MOD-prompt-bar, for TST-572002
 and its twin, whose expected `UnknownStrategy` changes once `plan-checks` is registered. TST-610006's stand-in
 `plan-checks` goes.
+
+## Waits for a draft for akmaier (2026-10-19)
+
+Settling its readings found inputs that MOD-work-plans' Uses do not name:
+- `sprint-facts` needs the product's jobs (`listJobs`), the branch `test-results` (`readSnapshot`) and the tests with what they guard
+  (`testDeclarations`);
+- `plan-checks` needs the product's workflow (`workflowOf`, from the declaration, the instance's `catalogue` and its SPEC).
+A draft of MOD-work-plans names them and is under review before it goes to akmaier. The item is ready once it is accepted.
