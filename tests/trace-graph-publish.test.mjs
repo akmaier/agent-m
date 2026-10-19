@@ -28,19 +28,19 @@ const FILES = {
 const snapshot = { commit: COMMIT, paths: Object.keys(FILES), read: async (path) => FILES[path] ?? null, readMany: async () => {}, blob: () => null };
 
 // A fake host holding the branch trace-cache: `held` maps the files it has to their texts. `missing`: the repository has no such branch.
-// `moves`: commitFiles refuses with Moved (the branch moved on since it was read) until the host is told the branch is read again.
+// `moves`: the first commitFiles refuses with Moved (the branch moved on since it was read); the next one is made on a head read again.
 function fakeHost({ held = {}, missing = false, moves = false } = {}) {
   const state = { held: { ...held }, head: HEAD, commits: [], reads: [], moves };
   return { state, host: {
     async readSnapshot(ref) {
       state.reads.push(ref);
       if (ref !== "trace-cache" || missing) throw Object.assign(new Error(`${ref} was not found`), { name: "NotFound" });
-      state.moves = false; // the branch is read at its new head
       return { commit: state.head, paths: Object.keys(state.held), read: async (path) => state.held[path] ?? null, readMany: async () => {}, blob: () => null };
     },
     async commitFiles(change) {
       state.commits.push(change);
-      if (state.moves || change.expectedHead !== state.head) throw Object.assign(new Error("trace-cache has moved on"), { name: "Moved" });
+      if (state.moves) { state.moves = false; throw Object.assign(new Error("trace-cache has moved on"), { name: "Moved" }); } // once: the next read finds the new head
+      if (change.expectedHead !== state.head) throw Object.assign(new Error("trace-cache has moved on"), { name: "Moved" });
       for (const file of change.files) state.held[file.path] = file.text;
       state.head = "2222222222222222222222222222222222222222";
       return { commit: state.head, url: "https://example.test/commit" };
