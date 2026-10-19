@@ -162,3 +162,34 @@ test("TST-290129: CI counter-proof restores acknowledgement readback for TST-290
     assert.notEqual(faultHash, originalHash, "the copied source received the fault");
   } finally { rmSync(temporary, { recursive: true, force: true }); }
 });
+
+// TST-1021004 · level: component · module: MOD-settings-pages
+// guards: UC-042; NO SECRET IN THE REPOSITORY; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: the public Settings GitHub-token row, with a stored GitHub token and the record of its last test, and the shared-origin notice acknowledged
+// input: the person presses Change, pastes a GitLab token (glpat-…) and presses Save; then pastes a GitHub token and presses Save
+// expect: for the GitLab token the stored token and the record of its last test stand as they were, and the row shows a line that names github-token and does not hold the pasted token; known positive: the GitHub token replaces the stored one and the last test is forgotten
+test("TST-1021004: Change refuses a token of the other kind of server before it stores anything", async () => {
+  const WRONG = "glpat-WRONG0123456789abcdef", RIGHT = "github_pat_NEW0123456789abcdefghijkl";
+  const OLD = { value: "github_pat_OLD0123456789abcdefghijkl", name: "GitHub token", expires: "2027-06-01", stored: "2026-09-01" };
+  const TESTED = { at: "2026-09-02T10:00:00.000Z", outcome: "working" };
+  const page = await settings({
+    [key("github-token")]: JSON.stringify(OLD),
+    [key("last-test:github-token")]: JSON.stringify(TESTED),
+    [key("acknowledged:shared-origin")]: JSON.stringify("2026-10-01"),
+  });
+  await press(page.server, controls(page.github, "settings-repository-change")[0]);
+  const secret = controls(page.github, "settings-repository-secret")[0];
+  const save = controls(page.github, "settings-repository-save")[0];
+  const result = controls(page.github, "settings-repository-result")[0];
+  secret.value = WRONG;
+  await press(page.server, save);
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(key("github-token"))), OLD, "failure node: settings.mjs stores the pasted token before connect");
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(key("last-test:github-token"))), TESTED);
+  assert.match(result.textContent, /github-token/);
+  assert.match(result.textContent, /GitLab token/);
+  assert.equal(result.textContent.includes(WRONG), false, "the line never holds the token");
+  secret.value = RIGHT;
+  await press(page.server, save);
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(key("github-token"))).value, RIGHT, "known positive");
+  assert.equal(globalThis.localStorage.getItem(key("last-test:github-token")), null);
+});

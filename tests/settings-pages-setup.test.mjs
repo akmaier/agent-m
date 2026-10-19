@@ -295,3 +295,28 @@ test("setup — the module's view holds one route setup, under the entry setting
   assert.equal(found[0].title, "Finish setting up your instance");
   assert.equal(typeof found[0].render, "function");
 });
+
+// TST-1021001 · level: unit · module: MOD-settings-pages
+// guards: UC-014 step 8; NO SECRET IN THE REPOSITORY; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// given: a store that holds a token with the record of a test of it, and the acknowledgement; the instance is a GitHub repository
+// input: paste a GitLab token (glpat-…) as the instance's token and press Store and check
+// expect: nothing is stored or forgotten — the token and the record of its last test stand as they were — no request leaves the page, and the page shows the line "That is not a GitHub token", which does not hold the pasted token (the form of the token is refused here before connect is reached: the step's own check of the instance's GitHub token). Known positive: a GitHub token pasted the same way is stored
+test("setup — a token of the other kind of server is refused before it is stored, and the last test is kept", async () => {
+  const WRONG = "glpat-WRONG0123456789abcdef";
+  const OLD = { value: "github_pat_OLD0123456789abcdefghijkl", name: "old", expires: "2026-12-01", stored: "2026-09-01" };
+  const TESTED = { at: "2026-09-02T10:00:00.000Z", outcome: "working" };
+  const page = await open({ acknowledged: true, extra: { "github-token": OLD, "last-test:github-token": TESTED } });
+  field(page.target, "token").value = WRONG;
+  field(page.target, "expires").value = "2027-01-15";
+  const requests = await withServer(reachable(false), () => press(buttonLabelled(page.target, "Store and check")));
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem(TOKEN_KEY)), OLD, "failure node: setup.mjs stores the pasted token");
+  assert.deepEqual(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:last-test:github-token")), TESTED);
+  assert.deepEqual(requests, [], "nothing is sent for a token the page refuses");
+  const shown = field(page.target, "check").textContent;
+  assert.equal(shown, NOT_A_TOKEN);
+  assert.equal(shown.includes(WRONG), false, "the line never holds the token");
+  assert.equal(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:github-token").includes(WRONG), false);
+  field(page.target, "token").value = KEY;
+  await withServer(reachable(false), () => press(buttonLabelled(page.target, "Store and check")));
+  assert.equal(JSON.parse(globalThis.localStorage.getItem(TOKEN_KEY)).value, KEY, "known positive: a GitHub token is stored");
+});
