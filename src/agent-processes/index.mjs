@@ -18,8 +18,9 @@ if (findings.length || !register.rows.length) {
   throw new Error(`${OWNER}: agent register is invalid: ${reasons.join("; ")}`);
 }
 
-/** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null,
- *   install: Record<"macos" | "windows" | "linux", string> }} Agent */
+/** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login?: string,
+ *   install: Record<"macos" | "windows" | "linux", string> }} Agent
+ *   `login` is the agent's own login step from its register row; it is set for an installed agent that is not logged in. */
 
 function json(value, column) {
   try { return JSON.parse(value); } catch { throw new Error(`${OWNER}: ${column} in agents.md is not JSON`); }
