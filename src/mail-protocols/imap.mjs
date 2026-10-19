@@ -176,7 +176,7 @@ export function readMails(connection, Flow, since) {
 export function findMail(connection, Flow, id) {
   const { imap, account, password, folders } = connection;
   return withClient(imap, account, password, Flow, async (client) => {
-    for (const folder of folders) {
+    for (const folder of folders.slice(0, 1)) {
       const opened = await open(client, folder, imap);
       if (!opened.exists) continue;
       for (const { uid, envelope } of await fetchAll(client, { uid: true, envelope: true })) {
