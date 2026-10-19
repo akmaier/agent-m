@@ -8,6 +8,7 @@ realises:
 modules:
   - MOD-bridge-build
 builds_on:
+  - ITM-961
 tests:
   - unit
 origin:
@@ -32,3 +33,16 @@ akmaier accepted that draft (`48e16178`).
   `Publisher (Windows): <name>`, and no line for Linux.
 - Where a verifier reads no name, nothing is published. A test checks it, as a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped before its first commit (sprint team1/96, developer-sonnet-d): the accepted text cannot be built as written.**
+- `publishRelease` runs after the three platforms, on one runner. The verifiers of macOS and Windows run only on their
+  own platform's runner (MOD-bridge-build.md:91-95).
+- What travels from each platform's run to `publishRelease` is `platform-build.json`, a `PlatformBuild` (:88-90). It
+  has no publisher.
+- `buildPlatform`, which runs the verifier, is not built (`src/bridge-build/index.mjs:3`; ITM-961).
+- **The draft for akmaier,** written by developer-sonnet-d:
+  - `PlatformBuild` gains `publisher: string | null`, which `buildPlatform` fills from its own verifier, `null` on
+    Linux;
+  - `publishRelease` writes the two lines from it;
+  - a macOS or Windows build without a name stops with `BuildMissing { platform }`.
+- It waits for akmaier's acceptance of that draft, and for ITM-961, which builds `buildPlatform`.
