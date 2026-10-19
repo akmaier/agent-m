@@ -29,13 +29,14 @@ import { CONFLICT, CURRENT_RULE, INSTRUCTION, LOAN, SHELF, SPEC, all, assertProp
 // level: system
 // module: MOD-trace-pages; MOD-site-frame; MOD-prompt-bar
 // guards: UC-019 (steps 1 to 3); THE PAGE NAMES WHERE IT SENDS
-// given: the specification browser of the product at its default branch, the register offering drafter (this machine) and observer (Anthropic, USA)
+// given: the specification browser of the product at its default branch, the register offering drafter (this machine, draft text) and observer (Anthropic, USA, read the repository only)
 // input: unfold Lending, open A LOAN HAS A DUE DATE without naming it in the bar, write the instruction in the bar and press Send with the participant drafter
-// expect: before Send the bar names both participants with their places and nothing has been sent; after it the one request to the endpoint holds the instruction and names exactly A LOAN HAS A DUE DATE under "The requirements to change"
+// expect: before Send the bar names drafter with its place, the only participant that can do the kind, and not observer, and nothing has been sent; after it the one request to the endpoint holds the instruction and names exactly A LOAN HAS A DUE DATE under "The requirements to change"
 test("TST-418001: the prompt bar on the specification browser names where it sends and takes the open requirement as the target", async () => {
   const s = await scenario();
   const bar = barOf(s);
-  assert.deepEqual(all(bar, "option").map((option) => option.textContent), ["drafter — this machine", "observer — Anthropic, USA"]);
+  assert.equal(one(bar, "span", "participant").textContent, "drafter — this machine");
+  assert.equal(all(bar, "option").length, 0, "observer cannot draft text, so there is nothing to choose among");
   await fromTrace(s);
   assert.equal(s.endpointRequests.length, 0, "nothing is sent while a requirement is only open");
   await send(s, INSTRUCTION, { participant: "drafter" });

@@ -124,18 +124,17 @@ test("TST-418104: a follow-up in the bar is sent only on Send, with the draft as
 // module: MOD-prompt-bar; MOD-participant-list; MOD-site-frame
 // guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
 // given: a draft-capable endpoint participant (drafter, this machine) and a read-only one (observer, Anthropic, USA), and a CI agent that the bar does not offer
-// input: open the page of the requirement, read the bar, choose observer and press Send; then choose drafter, Send and Review the draft
-// expect: the selector names drafter and observer with their places and not the CI agent; observer is refused with "lacks the capability \"draft text\"" and nothing is sent; the bar and the draft page each hold a folded "What is this?"
+// input: open the page of the requirement, read the bar, choose drafter, Send and Review the draft
+// expect: the bar names drafter with its place, the only participant that can do the kind, and neither observer nor the CI agent, and there is nothing to choose among; nothing is sent before Send; the bar and the draft page each hold a folded "What is this?"
 test("TST-418105: offered participants, processing places and folded explanations are visible", async () => {
   const s = await scenario();
   await onRequirementPage(s);
-  assert.deepEqual(all(barOf(s), "option").map((option) => option.textContent), ["drafter — this machine", "observer — Anthropic, USA"]);
+  assert.equal(one(barOf(s), "span", "participant").textContent, "drafter — this machine");
+  assert.equal(all(barOf(s), "option").length, 0, "observer cannot draft text, so there is nothing to choose among");
+  assert.equal(s.endpointRequests.length, 0);
   const explanations = () => all(s.body, "details").filter((node) => node.textContent.includes("What is this?"));
   assert.ok(explanations().length >= 2, "the page and the bar explain themselves");
   assert.ok(all(barOf(s), "details").some((node) => node.textContent.includes("What is this?") && !node.open), "the bar's explanation is folded");
-  await send(s, INSTRUCTION, { participant: "observer" });
-  assert.match(statusOf(s).textContent, /observer, the drafter of this job of change-requirements, lacks the capability "draft text"/);
-  assert.equal(s.endpointRequests.length, 0);
   await send(s, INSTRUCTION, { participant: "drafter" });
   await review(s);
   assert.ok(all(s.target, "details").some((node) => node.textContent.includes("What is this?") && !node.open), "the draft page's explanation is folded");
@@ -170,16 +169,16 @@ test("TST-418106: complete SPEC, open queues and the whole original chapter reac
 // level: release
 // module: MOD-prompt-bar; MOD-job-runner
 // guards: UC-019; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
-// given: the complete requirements/chapter context and a participant, drafter, with a one-token capacity; observer holds 200000
+// given: the complete requirements/chapter context and a participant, drafter, with a one-token capacity; observer holds 200000 but cannot draft text, so the bar does not offer it
 // input: the page of the requirement, choose drafter, Send (UC-019 4a)
-// expect: nothing is sent and nothing is written; the bar says "Nothing was sent.", "drafter does not hold this message: its context holds 1 tokens" and "Choose observer, whose context is larger."
+// expect: nothing is sent and nothing is written; the bar says "Nothing was sent.", "drafter does not hold this message: its context holds 1 tokens" and "No offered participant has a larger context."
 test("TST-418107: a too-small context stops without truncation or a send", async () => {
   const s = await scenario({ context: 1 });
   await onRequirementPage(s);
   await send(s, INSTRUCTION, { participant: "drafter" });
   assert.match(statusOf(s).textContent, /^Nothing was sent\./);
   assert.match(statusOf(s).textContent, /drafter does not hold this message: its context holds 1 tokens, the job needs about \d+\./);
-  assert.match(statusOf(s).textContent, /Choose observer, whose context is larger\./);
+  assert.match(statusOf(s).textContent, /No offered participant has a larger context\./);
   assert.equal(s.endpointRequests.length, 0); assert.equal(s.product.writes.length, 0);
 });
 
@@ -616,7 +615,7 @@ const FAULTS = [
   { ids: ["TST-418103"], file: at("src", "review-pages", "candidates.mjs"), from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
   { ids: ["TST-418104", "TST-377007"], file: at("src", "review-pages", "conversation-draft.mjs"), from: 'paramsFor: () => ({ ...draft.params, draft: draft.result })', to: 'paramsFor: () => ({ ...draft.params })' },
   { ids: ["TST-418105", "TST-377004", "TST-418001"], file: at("src", "prompt-bar", "offer.mjs"), from: 'participant.place ?? "no processing place declared"', to: '"no processing place declared"' },
-  { ids: ["TST-418105", "TST-377014"], file: at("src", "job-runner", "prepare.mjs"), from: 'judged(destination, { capabilities: kind.needs }', to: 'judged(destination, { capabilities: [] }' },
+  { ids: ["TST-418105", "TST-418001", "TST-377010"], file: at("src", "prompt-bar", "bar.mjs"), from: 'offered = eligible(reached, { capabilities: kind.needs }).eligible;', to: 'offered = eligible(reached, { capabilities: [] }).eligible;' },
   { ids: ["TST-418106"], file: at("src", "spec-changes", "strategies.mjs"), from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
   { ids: ["TST-418107", "TST-377006"], file: at("src", "prompt-bar", "send.mjs"), from: '...prepared.notFitting.map(', to: '...[].map(' },
   { ids: ["TST-418108"], file: at("src", "job-runner", "builtins.mjs"), from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
@@ -639,7 +638,7 @@ const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 async function counterproofs() {
   const temporary = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-418-fault-"))), copied = join(temporary, "agent-m");
   const tests = ["tests/system-uc-019-change-requirements-by-prompt.test.mjs", "tests/system-uc-019-change-by-prompt.test.mjs", "tests/release-uc-019-change-requirements-by-prompt.test.mjs"];
-  const helpers = ["tests/app-harness.mjs", "tests/review-pages-draft-world.mjs", "tests/review-pages-harness.mjs", "tests/uc-019-prompt-bar-harness.mjs"];
+  const helpers = ["tests/app-harness.mjs", "tests/review-pages-draft-world.mjs", "tests/review-pages-harness.mjs", "tests/markdown-render-dom.mjs", "tests/site-frame-dom.mjs", "tests/uc-019-prompt-bar-harness.mjs"];
   const receipts = [], receiptPath = join(tmpdir(), `agent-m-418-counterproof-${process.pid}.json`);
   try {
     cpSync(join(ROOT, "src"), join(copied, "src"), { recursive: true, filter: (path) => !path.split(/[\\/]/).includes("node_modules") });
