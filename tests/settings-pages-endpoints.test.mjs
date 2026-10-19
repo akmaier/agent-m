@@ -619,3 +619,34 @@ test("TST-269011: the Settings line's Test of a named-Bridge endpoint still goes
     assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4711/v1/probes/endpoint-test"]);
   } finally { globalThis.fetch = oldFetch; }
 });
+
+// ---------------------------------------------------------------- the last test keeps whether the model called the tool (ITM-998)
+
+async function storeAfterTest(answer) {
+  const store = freshStore(), oldFetch = globalThis.fetch;
+  globalThis.fetch = scripted([answer], []);
+  try {
+    const target = await render(store);
+    type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
+    type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
+    await click(byClass(target, "endpoint-test")[0]);
+    return store;
+  } finally { globalThis.fetch = oldFetch; }
+}
+
+// TST-998001 · level: unit · module: MOD-settings-pages
+// guards: UC-003 (step 5); UC-017 (step 3)
+// given: an endpoint tested directly three times: the model calls the probe tool; it answers in text only; the key is refused (401)
+// input: the author fills the endpoints Route and presses Save and test
+// expect: last-test:endpoint:campus holds tools true for the first, tools false for the second, and no `tools` key for the refused test (the test did not reach the model); each keeps its outcome as before
+test("TST-998001: the last test of an endpoint keeps whether the model called the tool, and nothing where the test did not reach it", async () => {
+  const called = readSetting(await storeAfterTest({ status: 200, body: CALLED }), "last-test:endpoint:campus");
+  assert.equal(called.outcome, "working");
+  assert.equal(called.tools, true);
+  const text = readSetting(await storeAfterTest({ status: 200, body: textAnswer("I cannot call tools.") }), "last-test:endpoint:campus");
+  assert.equal(text.outcome, "working");
+  assert.equal(text.tools, false);
+  const refused = readSetting(await storeAfterTest({ status: 401, body: { error: { message: "Invalid API key." } } }), "last-test:endpoint:campus");
+  assert.equal(refused.outcome, "refused");
+  assert.equal(Object.hasOwn(refused, "tools"), false);
+});
