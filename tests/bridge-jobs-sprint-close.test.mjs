@@ -116,7 +116,7 @@ run) printf '%s\\n' "$PWD $*" >> ${calls}; ${gated ? `while [ ! -e ${gate} ]; do
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
   const instance = repository(root, "instance", { "docs/participants.md": PARTICIPANTS, "marker.md": "v1\n" });
   const first = git(instance.seed, "rev-parse", "HEAD");
-  push(instance.seed, { "marker.md": "v2\n", "docs/participants.md": PARTICIPANTS.replace("bridge lab-pc agent opencode", "bridge elsewhere agent opencode") }, "second");
+  push(instance.seed, { "marker.md": "v2\n" }, "second");
   const products = { [PRODUCT_A]: repository(root, "product-a", { "README.md": "A\n", ...productFiles }) };
   const queue = (product, job) => {
     const { path, text } = startRecord({ ...job, agentM: { version: "2026.10.0", commit: first } });
