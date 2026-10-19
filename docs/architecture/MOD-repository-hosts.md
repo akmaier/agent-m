@@ -99,9 +99,10 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `RepositoryAddress` — `{ server: "github" | "gitlab", origin: string, path: string, web: string }`: the server, its
   origin such as `https://gitlab.rrze.fau.de`, the repository's path such as `alice/thesis-tool` or a GitLab group path,
   and the address a person opens (`A PRODUCT IS NAMED BY ITS ADDRESS`).
-- `Credentials` — `{ token?: string, tokenName?: string, clone?: string, secrets?: string[] }`: the token and the name under
-  which the person stored it; in Node, the folder of a local clone to work in; the values of every configured secret, which
-  no commit may contain.
+- `Credentials` — `{ token?: string, tokenName?: string, clone?: string, secrets?: string[], defaultBranch?: string }`: the
+  token and the name under which the person stored it; in Node, the folder of a local clone to work in; the values of every
+  configured secret, which no commit may contain; the repository's default branch as `repositoryInfo` reports it, on which
+  `WebLinks`' `newFile` and `editFile` build their pages — `main` where none is given.
 - `Host` — the object `connect` returns; the functions below, from `readSnapshot` on, are its functions.
 - `Snapshot` — `{ repository: RepositoryAddress, ref: string, commit: string | null, paths: string[], read(path: string) ->
   Promise<string | null>, readMany(paths: string[]) -> Promise<void>, readOn(branch: string, path: string) -> Promise<string | null>, blob(path:
