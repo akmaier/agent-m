@@ -1098,16 +1098,20 @@ const PRODUCT_SETTINGS = [
   ["Resources", "resources", async (snapshot) => countSummary(rowsIn(resourceSchema(), RESOURCE_REGISTER, await snapshot.read(RESOURCE_REGISTER)), "resource")],
 ];
 
+// The topic of MOD-site-frame's explanations behind each line, in the order of the settings above, and behind each section.
+const INSTANCE_TOPICS = ["settings-line-participants", "settings-line-library", "settings-line-models", "settings-line-instance-resources"];
+const PRODUCT_TOPICS = ["settings-line-process", "settings-line-roles", "settings-line-done", "settings-line-schedule", "settings-line-sources", "settings-line-product-resources"];
+
 // One section of lines: each setting is a line with its title, its summary and *Edit*, which opens the route of the setting. `load()` reads the repository's default branch once,
 // when the tab that holds the section is shown, and fills the summaries; a repository that cannot be read leaves each summary saying so.
-function repositorySettings(context, { className, heading, settings, hostOf }) {
-  const lines = settings.map(([title, route]) => {
+function repositorySettings(context, { className, heading, topic, topics, settings, hostOf }) {
+  const lines = settings.map(([title, route], index) => {
     const summary = el("span", "settings-repository-setting-summary", "Not read yet.");
     const edit = el("button", "settings-repository-setting-edit btn", "Edit");
     edit.addEventListener("click", () => context.go(...[route].flat()));
-    return { node: el("p", "settings-repository-setting", el("strong", "settings-repository-setting-title", title), " ", summary, " ", edit), summary };
+    return { node: el("div", "settings-repository-setting", el("strong", "settings-repository-setting-title", title), " ", summary, " ", edit, explain(topics[index])), summary };
   });
-  const node = el("div", `${className} panel`, el("h3", null, heading), ...lines.map((line) => line.node));
+  const node = el("section", `${className} panel`, el("h3", null, heading), explain(topic), ...lines.map((line) => line.node));
   let loaded = false;
   const load = async () => {
     if (loaded) return;
@@ -1216,8 +1220,8 @@ export const route = {
       exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
     const recording = recordingControls(context);
-    const instanceSettings = repositorySettings(inPlace, { className: "settings-instance-settings", heading: "Instance · settings kept in its repository", settings: INSTANCE_SETTINGS, hostOf: () => context.instance.host });
-    const productSettings = context.product && repositorySettings(inPlace, { className: "settings-product-settings", heading: "Product · settings kept in its repository", settings: PRODUCT_SETTINGS, hostOf: () => context.product.host });
+    const instanceSettings = repositorySettings(inPlace, { className: "settings-instance-settings", heading: "Instance · settings kept in its repository", topic: "settings-instance-lines", topics: INSTANCE_TOPICS, settings: INSTANCE_SETTINGS, hostOf: () => context.instance.host });
+    const productSettings = context.product && repositorySettings(inPlace, { className: "settings-product-settings", heading: "Product · settings kept in its repository", topic: "settings-product-lines", topics: PRODUCT_TOPICS, settings: PRODUCT_SETTINGS, hostOf: () => context.product.host });
     const productList = productListControls(target, context);
     const repositories = el("section", "settings-tab-panel",
       el("h3", null, "Repositories · browser credentials and product records"),
