@@ -115,7 +115,7 @@ test("alternative 3c: the context of the settings page never carries a stored to
 // given: the settings page of a browser that stores a GitHub token, an endpoint key and a mailbox connection that signs in to Microsoft 365 (the world of tests/uc-039-world.mjs, route graph, stores the sign-in and no password)
 // input: a message sent on the settings page
 // expect: UC-049 3c says "The context names the settings and whether each is stored": the context says of the GitHub token, of the endpoint key and of the mailbox, by its line's name ("Mailbox sign-in" for Microsoft 365, "Mailbox password" for IMAP), that it is stored. FINDING: the context is the text the page has drawn, which names the settings but nowhere says, per setting, whether it is stored, so this case is red on main until the subject of the settings page gives that
-test("alternative 3c: the context names each setting and whether it is stored", { todo: "FINDING UC049-3c — the context of the settings page is the drawn text; it does not say, per setting, whether it is stored — ITM-1127" }, async () => {
+test("alternative 3c: the context names each setting and whether it is stored", async () => {
   const p = await openReplies({ inbox: [rawMail("n1")], fragment: "#settings", views: [maintenance, settings], rows: [LOCAL, CLOUD] });
   try {
     await waitFor(() => textOf(p.main()).length > 200);
