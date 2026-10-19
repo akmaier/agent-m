@@ -17,16 +17,27 @@ const PIPELINE_DESCRIPTION = "Agent M nightly tests";
 const isBlank = (line) => /^\s*(#.*)?$/.test(line);
 const indentOf = (line) => /^ */.exec(line)[0].length;
 
-const gitlabNotList = (reason) => Object.assign(new Error(`${GITLAB_CI} cannot take the include entry: ${reason}`), { name: "GitlabCiNotList" });
-
 // withInclude(text, entry) -> string — the product's .gitlab-ci.yml with the entry (`- local: <file>`) under include:, where it is
-// missing and no other line touched; `text` itself where the entry is there. An include: written as a string or a map is GitlabCiNotList.
+// missing and no other line touched; `text` itself where the file is named already. An include: written as a string or a map means a
+// list of that one entry, and is rewritten as that list with the entry added after it.
 function withInclude(text, entry) {
+  const file = entry.replace(/^- local:\s*/, "");
   const lines = text === "" ? [] : text.replace(/\n$/, "").split("\n");
   const at = lines.findIndex((line) => /^include:/.test(line));
+  const done = () => `${lines.join("\n")}\n`;
   if (at === -1) return `${[...lines, "include:", `  ${entry}`].join("\n")}\n`;
   const rest = lines[at].slice("include:".length).trim();
-  if (rest !== "" && !rest.startsWith("#")) throw gitlabNotList("its include: is written as a single string or an inline map.");
+  if (rest !== "" && !rest.startsWith("#")) {
+    const unquoted = rest.replace(/^(['"])(.*)\1$/, "$2");
+    if (unquoted === file || new RegExp(`^\\{.*\\blocal:\\s*['"]?${escape(file)}['"]?\\s*[,}]`).test(rest)) return text;
+    if (rest.startsWith("[") && rest.endsWith("]")) {
+      if (rest.includes(file)) return text;
+      lines[at] = `include: ${rest.slice(0, -1).trimEnd()}${rest === "[]" ? "" : ", "}{ local: ${file} }]`;
+      return done();
+    }
+    lines.splice(at, 1, "include:", `  - ${rest}`, `  ${entry}`);
+    return done();
+  }
   let first = null, last = at;
   for (let i = at + 1; i < lines.length; i += 1) {
     if (isBlank(lines[i])) continue;
@@ -34,12 +45,16 @@ function withInclude(text, entry) {
     first ??= i;
     last = i;
   }
-  if (first !== null && !/^\s*-\s/.test(lines[first])) throw gitlabNotList("its include: is a map.");
   const pad = " ".repeat(first === null ? 2 : indentOf(lines[first]));
-  if (lines.slice(at + 1, last + 1).some((line) => line.trim() === entry)) return text;
+  if (first !== null && !/^\s*-\s/.test(lines[first])) {
+    // A map: it is the one entry of a list.
+    if (lines.slice(first, last + 1).some((line) => line.trim().replace(/['"]/g, "") === `local: ${file}`)) return text;
+    for (let i = last; i >= first; i -= 1) if (!isBlank(lines[i])) lines[i] = i === first ? `${pad}- ${lines[i].trimStart()}` : `  ${lines[i]}`;
+  } else if (lines.slice(at + 1, last + 1).some((line) => line.trim() === entry)) return text;
   lines.splice(last + 1, 0, `${pad}${entry}`);
-  return `${lines.join("\n")}\n`;
+  return done();
 }
+const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // The configuration at the head that Agent M did not generate: GitHub workflows other than Agent M's own, GitLab's .gitlab-ci.yml.
 const foreignConfiguration = (server, paths) => server === "github"
