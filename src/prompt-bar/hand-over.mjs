@@ -68,7 +68,7 @@ function teamOf(item, facts, workflow) {
 export async function assess({ handOver, participant, instance, page }) {
   const instanceSnapshot = await defaultSnapshot(instance.host);
   const participants = await readParticipants(instanceSnapshot);
-  const facts = await productFacts(page.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), {}, { scope: "work" });
+  const facts = await productFacts(page.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
   const workflow = facts.workflow === "unknown" ? null : facts.workflow;
   const wip = workflow?.model?.flow?.wip ?? null;
   const reasons = [];

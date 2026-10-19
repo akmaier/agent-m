@@ -70,7 +70,7 @@ async function storedFor(host) {
 // One source's facts — only what the build takes (the scope `build`) where an overview is stored, else everything (the scope `all`) —, with the jobs' rows derived again with the
 // live states of the jobs that have not ended.
 async function factsOf(host, { store, instanceSnapshot, instanceAt }, scope) {
-  const facts = await productFacts(host, instanceSnapshot, instanceAt, new Date(), {}, { scope });
+  const facts = await productFacts(host, instanceSnapshot, instanceAt, new Date(), { scope });
   const lives = await liveStatesOf(facts.jobs, new Map([[facts.address, host]]), bridgesOf(facts.jobs, store));
   return { ...facts, jobs: await listJobs([{ address: facts.address, snapshot: facts.snapshot }], lives) };
 }
