@@ -171,7 +171,10 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   ISSUED IT`). With `clone`, files are read and committed in that clone and pushed with the clone's own credentials, and
   every other function uses the REST adapter where a token is given, or throws `NotSupported`. A token of the other kind
   of server — a GitLab token for a GitHub repository, a GitHub token for a GitLab project, each told by the prefix its
-  own server gives it — is refused with a `TypeError`, whose message never holds the token. No request is made yet.
+  own server gives it — is refused with a `TypeError`, whose message never holds the token. A text that begins with the
+  prefix of neither kind of token is refused the same way, and the message says that it is no token of either server;
+  no token given (`token` absent or `null`) is no such text. `connect` alone holds the forms of a token: a caller that
+  has a pasted text connected stores it only if `connect` accepts it. No request is made yet.
 - `readSnapshot(ref: string) -> Promise<Snapshot>` — the repository at a branch, tag or commit: the commit and its whole
   tree in a fixed number of requests, however many folders it has — two on GitHub, the commit and then its tree —, then
   one per file read, or one per batch of files `readMany` reads. Through a clone, a commit the clone does not hold is first fetched from the clone's origin by its

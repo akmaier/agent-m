@@ -39,3 +39,14 @@ kind, with a `TypeError` whose message never holds the text. `setup` then keeps 
   TST-588009 holds with nothing stored and nothing sent, and `setup.mjs` names no token form.
 - A test checks `connect` with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Its draft for akmaier is on `main`** (written by developer-sonnet-d). developer-sonnet-d counted its cost before, by a
+planted refusal in `connect` run over the node suite against the base:
+- at least 8 tests newly fail, in about 5 files: TST-285 and 287 (`release-sprint-09-uc-001-add-product`,
+  `system-uc-001-add-product`), TST-418120 and 418124 (`release-uc-019-change-requirements-by-prompt`), and TST-669002 and
+  856001 to 856003 (`site-frame-chosen-product`);
+- the release tests among them are changed by a participant who builds none of this item;
+- the Python suite does not change.
+The length rule of `setup.mjs:36` goes, so `github_pat_x` is accepted. TST-588009's and TST-1021001's expected line becomes
+the shared refusal.
+
