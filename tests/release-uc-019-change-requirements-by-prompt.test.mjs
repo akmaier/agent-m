@@ -615,7 +615,7 @@ const FAULTS = [
   { ids: ["TST-418103"], file: at("src", "review-pages", "candidates.mjs"), from: 'entry?.fields.authority ?? "authority not registered"', to: '"authority not registered"' },
   { ids: ["TST-418104", "TST-377007"], file: at("src", "review-pages", "conversation-draft.mjs"), from: 'paramsFor: () => ({ ...draft.params, draft: draft.result })', to: 'paramsFor: () => ({ ...draft.params })' },
   { ids: ["TST-418105", "TST-377004", "TST-418001"], file: at("src", "prompt-bar", "offer.mjs"), from: 'participant.place ?? "no processing place declared"', to: '"no processing place declared"' },
-  { ids: ["TST-418105", "TST-377014"], file: at("src", "job-runner", "prepare.mjs"), from: 'judged(destination, { capabilities: kind.needs }', to: 'judged(destination, { capabilities: [] }' },
+  { ids: ["TST-418105", "TST-418001", "TST-377010"], file: at("src", "prompt-bar", "bar.mjs"), from: 'offered = eligible(reached, { capabilities: kind.needs }).eligible;', to: 'offered = eligible(reached, { capabilities: [] }).eligible;' },
   { ids: ["TST-418106"], file: at("src", "spec-changes", "strategies.mjs"), from: 'for (const queue of await queues(snapshot))', to: 'for (const queue of [])' },
   { ids: ["TST-418107", "TST-377006"], file: at("src", "prompt-bar", "send.mjs"), from: '...prepared.notFitting.map(', to: '...[].map(' },
   { ids: ["TST-418108"], file: at("src", "job-runner", "builtins.mjs"), from: 'if (decided.decidedBy === "rule" &&', to: 'if (false && decided.decidedBy === "rule" &&' },
