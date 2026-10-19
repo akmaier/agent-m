@@ -295,40 +295,6 @@ test("TST-692010 a folder no module names is one gap, besides the gap of each co
   assert.deepEqual(inside.filter(([kind]) => kind === "folder-named-by-no-module" || kind === "code-without-module"), []);
 });
 
-// The release-level tests whose header names no module yet. Their headers change in commits of their own, by a participant who built none of
-// ITM-1017, and each leaves this list when it does; the test below then holds for them too.
-const RELEASE_LEVEL_OPEN = [
-  "tests/dashboard-notifications.test.mjs",
-  "tests/release-itm-286-tunnels-runtime.test.mjs",
-  "tests/release-itm-290-producers.test.mjs",
-  "tests/release-itm-290-public-settings-layout.test.mjs",
-  "tests/release-sprint-01-git-host.test.mjs",
-  "tests/release-sprint-02-a-artifacts.test.mjs",
-  "tests/release-sprint-02-a-git-host.test.mjs",
-  "tests/release-sprint-02-a-review-core.test.mjs",
-  "tests/release-sprint-02-b-process-model.test.mjs",
-  "tests/release-sprint-02-b-work-items.test.mjs",
-  "tests/release-sprint-02-c-artifacts.test.mjs",
-  "tests/release-sprint-02-c-git-host.test.mjs",
-  "tests/release-sprint-02-c-review-core.test.mjs",
-  "tests/release-sprint-02-d-settings-store.test.mjs",
-  "tests/release-sprint-02-d-traceability.test.mjs",
-  "tests/release-uc-011-local-cli-session.test.mjs",
-  "tests/release-uc-017-configure-participants.test.mjs",
-  "tests/test_derivation_classes.py",
-  "tests/test_derivation_context.py",
-  "tests/test_implementation_job.py",
-  "tests/test_job_preconditions.py",
-  "tests/test_mail_password_route.py",
-  "tests/test_mail_routes.py",
-  "tests/test_no_history.py",
-  "tests/test_prompted_source.py",
-  "tests/test_rate_reporting.py",
-  "tests/test_release_sprint_02_c.py",
-  "tests/test_release_sprint_02_d.py",
-  "tests/test_test_battery.py",
-];
-
 // The tests and test helpers whose header names no module of the architecture, as the dashboard lists them: the gaps of its moduleRows
 // that concern a test (no `Module:` line among the first lines, or one that names a module the architecture does not describe).
 function testsNamingNoModule(files) {
@@ -340,12 +306,12 @@ function testsNamingNoModule(files) {
 
 // TST-1017001 · level: unit · module: MOD-trace-graph
 // guards: EVERY CODE FILE BELONGS TO A MODULE
-// given: the files of this repository, read as the dashboard reads them, without the fixture products under tests/fixtures/ (products, not tests of Agent M) and without the release-level tests of RELEASE_LEVEL_OPEN
+// given: the files of this repository, read as the dashboard reads them, without the fixture products under tests/fixtures/ (products, not tests of Agent M)
 // input: the tests and test helpers whose header names no module of the architecture, as the dashboard lists them; and, as a known positive, the same call over the same files with one test, tests/ghost.test.mjs, added whose header names MOD-ghost
 // expect: the first call lists none; the known positive lists exactly [code-names-unknown-module, tests/ghost.test.mjs]
 test("TST-1017001: every test of this repository names a module of the architecture in its header", () => {
   const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean)
-    .filter((path) => !path.startsWith("tests/fixtures/") && !RELEASE_LEVEL_OPEN.includes(path));
+    .filter((path) => !path.startsWith("tests/fixtures/"));
   const files = {};
   for (const path of tracked) { try { files[path] = readFileSync(path, "utf8"); } catch { /* a binary file */ } }
   assert.deepEqual(testsNamingNoModule({ ...files, "tests/ghost.test.mjs": "// Module: MOD-ghost\n" }).filter(([, path]) => path === "tests/ghost.test.mjs"),
