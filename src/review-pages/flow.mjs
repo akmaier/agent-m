@@ -34,6 +34,8 @@ const LABEL = { open: "open", accepted: "accepted", changed: "changed since acce
 const REVIEW_ALL = "all";
 // The id of the page that drafts files of a kind that has a job to draft them: #<route>/id=draft.
 const DRAFT = "draft";
+// The group kind whose arrangement a list links (UC-021): the route `arrange` with the parameter `kind`.
+const ARRANGED = { "use-case": "use-cases", "architecture-decision": "architecture", module: "modules" };
 // The id of the page that shows the approval records of a kind, newest first: #<route>/id=history.
 const HISTORY = "history";
 // The commits of docs/approvals a page of the history reads.
@@ -290,6 +292,7 @@ export function reviewRoute(kind) {
     }
     target.append(...tables);
     if (bar) target.append(bar);
+    if (ARRANGED[kind.kind]) target.append(link(`#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
     target.append(link(`#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
   }
 
