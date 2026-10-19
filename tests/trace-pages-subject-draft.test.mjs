@@ -10,7 +10,7 @@
 // Guards: UC-019; UC-049; THE PERSON WHO PROMPTS IS A SOURCE
 // Level: unit
 //
-// This imports the shared small DOM of tests/site-frame.test.mjs unchanged and calls the public `trace` Route: `render(target, context, params)`, then `subject(params, context)`
+// This imports the shared small DOM of tests/site-frame-dom.mjs unchanged and calls the public `trace` Route: `render(target, context, params)`, then `subject(params, context)`
 // with the same context, as the frame does. The Hosts are the test's own, read-only, and the tests run under a `fetch` spy. Where the texts leave a reading open, the test states the
 // one it takes, and the pull request names it:
 //   - "encoded by `encodeURIComponent`" is read as: the route is `draft/subject=` followed by `encodeURIComponent(subject.key)`, with nothing after it; the address part `subject=<value>`
@@ -21,7 +21,7 @@
 //   - A subject at a released version (kind `converse`) needs no source of the person and does not refuse.
 // The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 

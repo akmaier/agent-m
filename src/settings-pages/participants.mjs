@@ -10,7 +10,7 @@ import { bridgeAt, probe, settingsOf, testBridge } from "../bridge-client/index.
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
-import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { participantSchema, participantsOf, reachedThrough } from "../participant-list/index.mjs";
 import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
@@ -138,6 +138,7 @@ function routeOf(type, state) {
     return label ? `ci runner:${label} secret ${secret}` : "";
   }
   if (BRIDGE_TYPES.has(type)) {
+    if (state.reach === "through") return state.through ? `through ${state.through}` : "";
     const bridge = state.bridge.trim(), agent = state.agent.trim();
     return bridge && agent ? `bridge ${bridge} agent ${agent}` : "";
   }
@@ -383,14 +384,14 @@ export const route = {
     const state = {
       name: "", account: "", endpoint: "", endpointUrl: "", endpointKind: "openai-compatible", endpointModel: "", endpointKey: "",
       inlineEndpoint: false, model: "", context: "", price: "", place: "", workflow: "", runner: "github-hosted", runnerLabel: "", secret: "",
-      bridge: "", agent: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
+      bridge: "", agent: "", reach: "bridge", through: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
     };
 
     function setType(next, values = {}) {
       state.name = ""; state.account = ""; state.endpoint = ""; state.endpointUrl = ""; state.endpointKind = "openai-compatible";
       state.endpointModel = ""; state.endpointKey = ""; state.inlineEndpoint = false; state.model = ""; state.context = "";
       state.price = ""; state.place = ""; state.workflow = ""; state.runner = "github-hosted"; state.runnerLabel = ""; state.secret = ""; state.bridge = "";
-      state.agent = ""; state.capabilities = typePreset(next); state.agentList = null; state.agentListText = ""; state.agentTest = null;
+      state.agent = ""; state.reach = "bridge"; state.through = ""; state.capabilities = typePreset(next); state.agentList = null; state.agentListText = ""; state.agentTest = null;
       state.saveUntested = false;
       if (next === "model endpoint") {
         state.endpoint = firstEndpoint(context.store);
@@ -612,7 +613,20 @@ export const route = {
       return el("div", "participant-agent-list-result", ...children);
     }
 
+    function throughControls() {
+      const starters = participantsOf(participantDocument(opened.text)).filter((each) => each.type === "CLI agent" && each.name !== editing?.name).map((each) => each.name);
+      if (!starters.includes(state.through)) state.through = starters[0] ?? "";
+      const through = el("select", "participant-through", ...starters.map((name) => option(name)));
+      through.value = state.through;
+      through.addEventListener("change", () => { state.through = through.value; buildForm(); routePreview.textContent = routeOf(type.value, state); });
+      return [control("Started by the CLI agent", through)];
+    }
+
     function bridgeControls() {
+      const reach = el("select", "participant-reach", option("bridge", "On a Bridge"), option("through", "Started by another CLI agent (a subagent)"));
+      reach.value = state.reach;
+      reach.addEventListener("change", () => { state.reach = reach.value; rebuild(); });
+      if (state.reach === "through") return [control("How it is reached", reach), ...throughControls()];
       const names = bridgeNames(context.store);
       const bridge = el("select", "participant-bridge", ...(names.length ? names : [""]).map((name) => option(name)));
       bridge.value = state.bridge;
@@ -650,7 +664,7 @@ export const route = {
       saveUntested.addEventListener("click", () => { state.saveUntested = true; buildForm(); });
       const testLine = el("p", null, test);
       if (state.agentTest?.ok === false && !state.saveUntested) testLine.append(" ", saveUntested);
-      return [control("Bridge", bridge), el("p", null, listAgents), agentListView(), control("Agent", agent),
+      return [control("How it is reached", reach), control("Bridge", bridge), el("p", null, listAgents), agentListView(), control("Agent", agent),
         testLine, testResult];
     }
 
@@ -694,6 +708,8 @@ export const route = {
         secret: ci?.secret ?? "",
         bridge: bridge?.[1] ?? "",
         agent: bridge?.[2] ?? "",
+        reach: reachedThrough({ route }) === null ? "bridge" : "through",
+        through: reachedThrough({ route }) ?? "",
       };
     }
 

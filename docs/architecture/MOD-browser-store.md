@@ -78,7 +78,7 @@ instances in one browser never share an entry. Each value is JSON. The settings 
 | `notifications` | `{ checked }` — present while the person has switched the notifications of what waits for acceptance on in this browser (UC-047), absent while they are off; `checked` the date and time of this browser's last check, `null` before the first | no |
 | `notified` | `{ "<repository>": { "<path>": "<blob>" } }` — what was notified: for each repository by the address a person opens, every file that waits there, by its path — a SPEC change entry by its proposal's —, with the blob of the text that was notified | no |
 | `acknowledged:<notice>` | the date a notice was ticked as read, such as the shared-origin notice | no |
-| `last-test:<key>` | `{ at, outcome }` — the last test of a setting | no |
+| `last-test:<key>` | `{ at, outcome, tools? }` — the last test of a setting; for an endpoint's test, `tools` is `true` when the model called the tool it was offered and `false` when it answered in text only (UC-003 step 5), and is left out where the test did not reach the model | no |
 
 A key outside this catalogue is never written: `writeSetting` refuses it, so no key exists that the settings page does
 not show.

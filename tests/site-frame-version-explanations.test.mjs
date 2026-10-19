@@ -60,6 +60,35 @@ test("explain — source-new-version: what a new version is, that none is overwr
   ]) assert.match(text, pattern, `it says ${says}`);
 });
 
+// TST-915001 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; UC-016 (step 1)
+// given: the topic source-new-version
+// input: explain("source-new-version")
+// expect: text saying what a new version records for each kind of source — for documents and standards their files, each with its SHA-256; for a repository no file, the commit the repository stands at when the person saves, with no file of the repository stored; for an EU legal text that was fetched before no file either, the fetch run that + New version starts recording the newer text as a further version
+test("explain — source-new-version: what a new version records for each kind of source (UC-016 step 1)", () => {
+  assert.equal(Boolean(topicText("source-new-version")?.trim()), true, "known positive: the topic is in explanations.md");
+  const text = bodyText("source-new-version");
+  for (const [pattern, says] of [
+    [/Documents and standards: select its files\. Your browser computes each file's SHA-256[^.]*, and the version records the files with their fingerprints/, "documents and standards record their files with their SHA-256"],
+    [/A repository: select no file\. The version records the commit the repository stands at when you save/, "a repository records the commit it stands at when the person saves, with no file selected"],
+    [/No file of the repository is stored/, "no file of the repository is stored"],
+    [/EU legal text that was fetched before: select no file either\. \+ New version starts the fetch run for the entry, which records the newer text it fetches as a further version/, "a fetched EU legal text records the newer text its fetch run brings, with no file selected"],
+  ]) assert.match(text, pattern, `it says ${says}`);
+});
+
+// TST-915002 · level: unit · module: MOD-site-frame
+// guards: EVERY STEP EXPLAINS ITSELF; A SOURCE VERSION IS NEVER OVERWRITTEN; UC-016 (steps 1 and 2, 1a)
+// given: the topic source-new-version, and the route of a repository source: its new version records the commit read and no file, and a commit that an existing version records is refused (UC-016 1a)
+// input: explain("source-new-version"), and for the counter-proof the sentence the topic held before — "Choose + New version, give the version a name that tells it apart, such as the edition or its date, and select its files;"
+// expect: the topic does not tell the person, for every kind of source, to select the version's files — the old sentence is found by the same check, the topic is not — and it says that a commit an existing version already records is refused with nothing recorded
+test("explain — source-new-version: does not tell a repository's new version to select files, and refuses a commit already recorded (UC-016 1a)", () => {
+  const tellsEveryKindToSelectFiles = (text) => /Choose \+ New version[^.;:]*(,|and) select its files/.test(text);
+  assert.equal(tellsEveryKindToSelectFiles("Choose + New version, give the version a name that tells it apart, such as the edition or its date, and select its files; your browser computes each file's SHA-256."), true, "known positive: the old sentence is found by the check");
+  const text = bodyText("source-new-version");
+  assert.equal(tellsEveryKindToSelectFiles(text), false, "the topic no longer tells every kind to select files");
+  assert.match(text, /Files with exactly the same bytes as an existing version, or for a repository a commit that an existing version already records, are refused, and nothing is recorded/, "a commit that an existing version records is refused, and nothing is recorded");
+});
+
 // TST-591403 · level: unit · module: MOD-site-frame
 // guards: UC-016 (steps 4 and 5, 4a)
 // given: the topic source-move

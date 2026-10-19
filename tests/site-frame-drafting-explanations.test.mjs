@@ -16,7 +16,7 @@
 // for them. Each test states its input and its expected result before it runs (given / input / expect); where a test asserts that
 // something is absent, the same check is first shown to find it on a known positive. The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

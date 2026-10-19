@@ -414,8 +414,8 @@ test("productFacts, scope work — a product with a plan has its steps and order
 // guards: UC-049
 // given: the fixture product, whose SPEC.md holds no requirement and which has no branch test-results (readSnapshot("test-results") fails with NotFound) and one tag v2026.1.0; known positive first — the scope work resolves
 // input: productFacts(…) with the scope "all", and with no options (the default, "all"); and with the scope "everything"
-// expect: both of the first resolve; requirements [] (SPEC.md holds none); tags [v2026.1.0 on the commit H1]; results null; graph.commit the snapshot's commit; tests []; info.defaultBranch "main"; modelSince, schedule, ci and resourceNeeds "unknown"; the host is asked once for the repository's information, for the snapshot of "main", for the pull requests, for the snapshot of "test-results" and for the tags; the scope "everything" rejects with a TypeError before the host is called
-test("productFacts — the scope all adds the requirements, graph, tests, results, tags and information; another scope is refused", async () => {
+// expect: both of the first resolve; requirements [] (SPEC.md holds none); tags [v2026.1.0 on the commit H1]; results null; graph "unknown" (the scope builds no trace graph); tests []; info.defaultBranch "main"; modelSince, schedule, ci and resourceNeeds "unknown"; the host is asked once for the repository's information, for the snapshot of "main", for the pull requests, for the snapshot of "test-results" and for the tags; the scope "everything" rejects with a TypeError before the host is called
+test("productFacts — the scope all adds the requirements, tests, results, tags and information; another scope is refused", async () => {
   assert.ok(await work(fixture()));
   for (const options of [{ scope: "all" }, undefined]) {
     const f = fixture();
@@ -423,7 +423,7 @@ test("productFacts — the scope all adds the requirements, graph, tests, result
     assert.deepEqual(facts.requirements, []);
     assert.deepEqual(facts.tags, [{ name: "v2026.1.0", commit: H1 }]);
     assert.equal(facts.results, null);
-    assert.equal(facts.graph.commit, "c".repeat(40));
+    assert.equal(facts.graph, "unknown");
     assert.deepEqual(facts.tests, []);
     assert.equal(facts.info.defaultBranch, "main");
     for (const field of ["modelSince", "schedule", "ci", "resourceNeeds"]) assert.equal(facts[field], "unknown", field);

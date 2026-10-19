@@ -17,7 +17,7 @@
 // system test drives the same public route but does not edit product code or existing tests. Each case states the path it
 // guards before it runs. Counter-proof evidence is recorded in the final report.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";

@@ -66,8 +66,18 @@ function endpointConfig(name, setting) {
   };
 }
 
+// showResult(result, checked) — the outcome of a test in the result paragraph: a working endpoint with whether the model called the tool it was
+// offered (UC-003 step 5, 5a) — *can use tools* or *text only*, the endpoint's message, if it gave one, folded beside *text only* —, or the failure.
+function showResult(result, checked) {
+  if (!checked.works) { result.textContent = resultText(checked); return; }
+  const nodes = [`✓ ${checked.model} is working, ${checked.tools ? "can use tools" : "text only"}.`];
+  if (!checked.tools && checked.toolMessage) {
+    nodes.push(" ", el("details", "endpoint-tool-message", el("summary", null, "The endpoint's message"), checked.toolMessage));
+  }
+  result.replaceChildren(...nodes);
+}
+
 function resultText(result) {
-  if (result.works) return `✓ ${result.model} is working.`;
   const { diagnosis } = result;
   const alternatives = diagnosis.routes.length ? ` Try this job through ${diagnosis.routes.map((route) => route === "ci" ? "CI" : "the Bridge").join(" or ")}.` : "";
   return `✗ ${diagnosis.message}${alternatives}`;
@@ -202,7 +212,7 @@ export const route = {
           try {
             const checked = await probe(bridgeAt(settings), "endpoint-test", endpointConfig(chosenName, stored));
             recordTest(context.store, storeKey, checked);
-            result.textContent = resultText(checked);
+            showResult(result, checked);
           } catch (error) {
             result.textContent = bridgeFailureText(error);
           }
@@ -211,7 +221,7 @@ export const route = {
         result.textContent = "Testing the endpoint…";
         const checked = await testEndpoint(endpointConfig(chosenName, stored));
         recordTest(context.store, storeKey, checked);
-        result.textContent = resultText(checked);
+        showResult(result, checked);
       } finally {
         await context.endpointsChanged?.();
       }

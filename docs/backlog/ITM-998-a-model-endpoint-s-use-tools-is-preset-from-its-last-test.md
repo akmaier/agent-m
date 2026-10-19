@@ -30,9 +30,9 @@ But the last test is stored as `{ at, outcome }` only:
 
 So nothing keeps whether the model called the tool.
 
-**It begins with a draft for akmaier:** MOD-browser-store.md's `last-test:<key>` also keeps `tools` for an endpoint's test.
-The draft is written when no sprint of the other team holds MOD-browser-store. Team 2's sprint 94 holds it today, with
-ITM-952 and ITM-953.
+**Its draft for akmaier is on `main`** (written by developer-sonnet-b): MOD-browser-store.md's `last-test:<key>` also keeps
+`tools` for an endpoint's test. No item of team 2's sprint changes MOD-browser-store, and it uses it. `conflicts` holds this
+item back against team 2's ITM-952 to 954 until they merge.
 
 ## Acceptance
 

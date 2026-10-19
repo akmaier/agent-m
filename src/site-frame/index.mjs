@@ -132,6 +132,10 @@ export function explain(topic, label = "What is this?") {
 export function readProblem(failure, tokenStored) {
   const paragraph = document.createElement("p");
   paragraph.className = "problem";
+  if (!(failure instanceof HostError)) {
+    paragraph.textContent = `This page could not be drawn: ${failure?.message ?? failure}`;
+    return paragraph;
+  }
   paragraph.textContent = failure.name === "NotFound" && !tokenStored
     ? "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload."
     : failure.message;
@@ -327,12 +331,12 @@ async function startSite({ page, views }) {
     }
     shownName = route.name;
     shown = { route, params: route === byName ? params : {}, context, fragment };
+    await readNamedFiles(route, shown.params, context, defaultBranches);
     try {
-      await readNamedFiles(route, shown.params, context, defaultBranches);
       await route.render(target, context, shown.params);
     } catch (failure) {
-      if (failure?.name !== "TokenRefused") throw failure;
-      refusedNotice(failure);
+      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      else target.replaceChildren(readProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
     }
   };
   const browser = globalThis.window ?? globalThis;
@@ -425,7 +429,12 @@ async function startBridge({ page, views }) {
       go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
     const params = route.name === selected.name ? selected.params : {};
     await readNamedFiles(route, params, context, defaultBranches);
-    await route.render(target, context, params);
+    try {
+      await route.render(target, context, params);
+    } catch (failure) {
+      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      else target.replaceChildren(readProblem(failure, readSetting(store, "github-token") !== null));
+    }
   };
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));

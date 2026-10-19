@@ -25,7 +25,7 @@ FIX = Path(__file__).resolve().parent / "fixtures" / "backlog"
 BACKLOG = FIX / "docs" / "backlog"
 LIVES = "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY"
 ID = "EVERY ARTIFACT HAS AN IDENTIFIER"
-ITEM_FILE = re.compile(r"^ITM-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+ITEM_FILE = re.compile(r"^ITM-\d{3,}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 
 
 def read(path: Path) -> str:
@@ -149,6 +149,42 @@ class TestTheBuildOrder(unittest.TestCase):
         self.assertEqual(build_order(backlog), ["ITM-014", "ITM-015", "ITM-016", "ITM-017"])
 
 
+class TestItemsTakeThreeOrMoreDigits(unittest.TestCase):
+    """ITM-<nnn> takes three or more digits; the items are ordered by their number (MOD-identifiers, Data)."""
+
+    def numbered(self, number: int) -> str:
+        return edited(TEXT, "id: ITM-014\n", f"id: ITM-{number}\n")
+
+    def unbuilt(self, number: int) -> str:
+        return edited(self.numbered(number), "depends_on:\n  - ITM-016", "depends_on: []")
+
+    def test_an_item_of_four_digits_is_where_and_what_an_item_must_be(self):
+        item = parse("docs/backlog/ITM-1000-export-thesis-as-pdf.md", self.numbered(1000))
+        self.assertEqual((item["id"], item["problems"]), ("ITM-1000", []))
+
+    def test_an_item_of_three_digits_is_still_read(self):
+        item = parse("docs/backlog/ITM-999-export-thesis-as-pdf.md", self.numbered(999))
+        self.assertEqual((item["id"], item["problems"]), ("ITM-999", []))
+
+    def test_counter_proof_an_item_of_two_digits_is_still_refused(self):
+        found = parse("docs/backlog/ITM-99-export-thesis-as-pdf.md", self.numbered(99))["problems"]
+        self.assertEqual([(f["rule"], f["line"], f["kind"]) for f in found], [(LIVES, 1, "error"), (ID, 2, "error")])
+
+    def test_counter_proof_a_four_digit_file_name_with_another_id_is_a_problem(self):
+        found = parse("docs/backlog/ITM-1000-export-thesis-as-pdf.md", self.numbered(1001))["problems"]
+        self.assertEqual([(f["rule"], f["line"]) for f in found], [(ID, 2)])
+
+    def test_the_build_order_follows_the_number_of_the_items(self):
+        backlog = {f"docs/backlog/ITM-{n}-export-thesis-as-pdf.md": self.unbuilt(n) for n in (1000, 203, 999)}
+        self.assertEqual(build_order(backlog), ["ITM-203", "ITM-999", "ITM-1000"])
+
+    def test_the_build_order_puts_an_item_after_the_four_digit_item_it_builds_on(self):
+        backlog = {f"docs/backlog/ITM-{n}-export-thesis-as-pdf.md": self.unbuilt(n) for n in (1000, 203)}
+        path = "docs/backlog/ITM-203-export-thesis-as-pdf.md"
+        backlog[path] = edited(backlog[path], "depends_on: []", "depends_on:\n  - ITM-1000")
+        self.assertEqual(build_order(backlog), ["ITM-1000", "ITM-203"])
+
+
 @unittest.skipUnless(any((DOCS / "backlog").glob("ITM-*.md")), "this repository has no backlog items")
 class TestAgentMsOwnBacklog(unittest.TestCase):
     """The backlog of this repository: Agent M is the instance's own product (`docs/process.md`)."""
@@ -176,7 +212,7 @@ class TestAgentMsOwnBacklog(unittest.TestCase):
     def test_the_build_order_of_this_repository_lists_every_item_once(self):
         own = files(self.OWN)
         got = js(items_js(self.OWN) + "return workItems.buildOrder(items);")
-        self.assertEqual(sorted(got), sorted(re.match(r"ITM-\d{3}", Path(p).name).group(0) for p in own))
+        self.assertEqual(sorted(got), sorted(re.match(r"ITM-\d{3,}", Path(p).name).group(0) for p in own))
         self.assertEqual(len(got), len(set(got)))
 
 if __name__ == "__main__":
