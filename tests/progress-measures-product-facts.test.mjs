@@ -462,25 +462,27 @@ const COMMIT = "c".repeat(40), OVERVIEW_HEAD = "0".repeat(39) + "1";
 
 // TST-940001 · level: unit · module: MOD-progress-measures
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: the fixture product with a test file; the same product read once with the scope "all" and once with the scope "build"
-// input: productFacts(…, { scope: "build" })
-// expect: the files read are exactly the four backlog items and the job record — no use case, no decision or module file, no SPEC.md, no test file, no declaration, no sprint, no role assignment, no gate
-// record, no queue file; the host is asked repositoryInfo, readSnapshot("main") and listPullRequests, and nothing else (no tags, no test-results, no containsCommit); instanceAt is not asked and the instance is not read.
-// The scope "all" reads the SPEC and the test file too
-test("TST-940001 productFacts, scope build — reads the backlog, the job records and the pull requests, and no use case, decision, test or other file", async () => {
+// given: the fixture product with a test file
+// input: productFacts(…, { scope: "build" }); and, as a known positive, the same product with the scope "all"
+// expect: the product's files read are exactly the four backlog items, the job record, the change queue (its index and decisions files, and the SPEC.md they stand against), the declaration docs/process.md and the gate record —
+// no use case, no decision or module file, no test file, no sprint, no role assignment; the host is asked repositoryInfo, readSnapshot("main") and listPullRequests, and nothing else (no tags, no test-results, no containsCommit);
+// instanceAt is asked once, for the commit the declaration names, and the instance's docs/participants.md is not read. The scope "all" reads the test file too
+test("TST-940001 productFacts, scope build — reads the plan or backlog, the job records, the pull requests, the change queues and the gate records, and no use case, decision, test or other file", async () => {
   const f = fixture({ files: withTests() });
   const facts = await build(f);
-  assert.deepEqual(readPaths(f), ["docs/backlog/ITM-001-store.md", "docs/backlog/ITM-002-pages.md", "docs/backlog/ITM-003-mail.md", "docs/backlog/ITM-004-feed.md",
-    "docs/jobs/JOB-20261014-0900-a1b2.md"]);
+  assert.deepEqual(readPaths(f), ["SPEC.md", "docs/backlog/ITM-001-store.md", "docs/backlog/ITM-002-pages.md", "docs/backlog/ITM-003-mail.md", "docs/backlog/ITM-004-feed.md",
+    "docs/gates/20261014-1000-development-sprint-review-a1b2.md", "docs/jobs/JOB-20261014-0900-a1b2.md", "docs/process.md",
+    "docs/spec-freigaben/2026-03-01_waiting/entscheidungen.md", "docs/spec-freigaben/2026-03-01_waiting/index.md"]);
   assert.deepEqual(f.calls, [["repositoryInfo"], ["readSnapshot", "main"], ["listPullRequests"]]);
-  assert.deepEqual(f.asked, []);
-  assert.deepEqual([...f.instance.reads.keys()], []);
+  assert.deepEqual(f.asked, [MODEL_VERSION]);
+  assert.equal(f.instance.reads.has("docs/participants.md"), false);
   assert.deepEqual(facts.pullRequests.map((p) => p.number), [1, 2]);
   assert.deepEqual(facts.jobs.map((row) => row.record.id), ["JOB-20261014-0900-a1b2"]);
+  assert.deepEqual(facts.gateStates.map((state) => [state.gate, state.state]), [["Development → Sprint Review", "passed"], ["Sprint Retrospective → Sprint Planning", "pending"]]);
 
   const every = fixture({ files: withTests() });
   await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
-  assert.equal(every.product.reads.has(TEST_FILE) && every.product.reads.has("SPEC.md"), true, "known positive: the scope all reads the SPEC and the test file");
+  assert.equal(every.product.reads.has(TEST_FILE), true, "known positive: the scope all reads the test file");
 });
 
 // TST-940002 · level: unit · module: MOD-progress-measures
@@ -503,17 +505,79 @@ test("TST-940002 buildInProgress gives the same list from the facts of the scope
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product
 // input: productFacts(…, { scope: "build" })
-// expect: the same fields as the scope "work" has; info, requirements, tags, results and tests are "unknown", graph "unknown", model and workflow "unknown"; a host that does no server operations gives unknown pull requests, the states that need them unknown (ITM-001, ITM-004), ITM-002 waiting for ITM-001, and no row of the build
+// expect: the same fields as the scope "work" has; info, requirements, tags, results and tests are "unknown", graph "unknown"; the model is scrum (read for the gates); a host that does no server operations gives unknown pull requests, the states that need them unknown (ITM-001, ITM-004), ITM-002 waiting for ITM-001, and no row of the build
 test("TST-940003 productFacts, scope build — the facts it does not read are unknown, and a host without server operations gives unknown pull requests", async () => {
   const facts = await build(fixture());
   assert.deepEqual(Object.keys(facts).sort(), Object.keys(await work(fixture())).sort());
-  for (const field of ["info", "graph", "requirements", "modelSince", "schedule", "ci", "tags", "results", "tests", "resourceNeeds", "model", "workflow"]) {
+  for (const field of ["info", "graph", "requirements", "modelSince", "schedule", "ci", "tags", "results", "tests", "resourceNeeds"]) {
     assert.equal(facts[field], "unknown", field);
   }
+  assert.equal(facts.model.name, "scrum");
   const bare = await build(fixture({ serverOperations: false }));
   assert.equal(bare.pullRequests, "unknown");
   assert.deepEqual(bare.plan.states.map((s) => [s.item, s.state]), [["ITM-001", "unknown"], ["ITM-002", "waiting for an item it builds on"], ["ITM-003", "waiting for acceptance"], ["ITM-004", "unknown"]]);
   assert.deepEqual(measures.buildInProgress(bare), [], "nothing is guessed: ITM-001's state is unknown, so ITM-002 is not listed");
+});
+
+// A product whose one change queue targets the use case UC-001 itself: its entry 01 is open, and ITM-002 (a job queued) realises UC-001.
+function queuedFiles() {
+  const files = withTests();
+  files["docs/spec-freigaben/2026-03-01_waiting/index.md"] = QUEUE_INDEX.replaceAll("`SPEC.md`", `\`${UC1}\``);
+  return files;
+}
+
+// TST-940008 · level: unit · module: MOD-progress-measures
+// guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product in which an open change queue (entry 01, state open) targets UC-001, which ITM-002 realises, and a job of ITM-002 is queued
+// input: productFacts(…, { scope: "build" }) and productFacts(…, { scope: "all" }); buildInProgress of each
+// expect: ITM-002 is "waiting for acceptance" with the reason that UC-001 is still in the queue 2026-03-01_waiting#1, in both; buildInProgress gives [] in both — a step held back by a change queue is not in the build
+test("TST-940008 a step a change queue holds back is not in the build, in the scope build as in the scope all", async () => {
+  const small = await build(fixture({ files: queuedFiles() }));
+  const every = fixture({ files: queuedFiles() });
+  const all = await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" });
+  for (const facts of [small, all]) {
+    const state = facts.plan.states.find((each) => each.item === "ITM-002");
+    assert.equal(state.state, "waiting for acceptance");
+    assert.match(state.reason, /UC-001 is still in docs\/spec-freigaben\/2026-03-01_waiting#1/);
+    assert.deepEqual(measures.buildInProgress(facts), []);
+  }
+  assert.deepEqual(small.plan.states.map((s) => [s.item, s.state]), all.plan.states.map((s) => [s.item, s.state]));
+});
+
+// A product that keeps a plan: ITM-010, realising the accepted UC-001, in the phase Sprint Review, with a job queued for it and no record of the gate "Development → Sprint Review" (its record is not held).
+function gatedFiles() {
+  const files = withTests();
+  for (const path of Object.keys(files)) if (/^docs\/backlog\/ITM-|^docs\/gates\//.test(path)) delete files[path];
+  files["docs/backlog/sprints/team1/01.md"] = sprintRecord(["ITM-010"]);
+  files["docs/plan/ITM-010-store.md"] = item("ITM-010", { realises: ["UC-001"], modules: ["MOD-store"] });
+  files["docs/plan/order.md"] = ["# Order of the plan", "", "## Order", "", "| Step | Phase |", "|---|---|", "| ITM-010 | Sprint Review |", ""].join("\n");
+  files["docs/jobs/JOB-20261014-0900-a1b2.md"] = JOB.replace("ITM-002", "ITM-010");
+  return files;
+}
+
+// TST-940009 · level: unit · module: MOD-progress-measures
+// guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: a product with a plan whose step ITM-010 (UC-001 accepted) is in the phase Sprint Review, a job queued for it, and no record of the gate "Development → Sprint Review", which stands before that phase
+// input: productFacts(…, { scope: "build" }) and productFacts(…, { scope: "all" }); buildInProgress of each
+// expect: ITM-010 is "waiting" in both, the reason naming the gate "Development → Sprint Review", decided by Product Owner; buildInProgress gives [] in both — a step a gate holds back is not in the build; with the gate record present
+// (known positive) ITM-010 is "in progress" in both and buildInProgress lists it
+test("TST-940009 a step a gate holds back is not in the build, in the scope build as in the scope all", async () => {
+  const both = async (files) => {
+    const every = fixture({ files });
+    return [await build(fixture({ files })), await productFacts(every.host, every.instance, every.instanceAt, NOW, {}, { scope: "all" })];
+  };
+  for (const facts of await both(gatedFiles())) {
+    const state = facts.plan.states.find((each) => each.item === "ITM-010");
+    assert.equal(state.state, "waiting");
+    assert.match(state.reason, /Development → Sprint Review, decided by Product Owner/);
+    assert.deepEqual(measures.buildInProgress(facts), []);
+  }
+  const files = gatedFiles();
+  files["docs/gates/20261014-1000-development-sprint-review-a1b2.md"] = productFiles()["docs/gates/20261014-1000-development-sprint-review-a1b2.md"];
+  for (const facts of await both(files)) {
+    assert.equal(facts.plan.states.find((each) => each.item === "ITM-010").state, "in progress");
+    assert.deepEqual(measures.buildInProgress(facts).map((row) => row.item), ["ITM-010"]);
+  }
 });
 
 // An overview branch (a fake of a Snapshot of the branch `overview-cache`): its files by path, readOn counted.
