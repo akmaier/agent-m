@@ -8,7 +8,7 @@
 // texts leave a reading open, this file takes the one it names:
 //   - The address `arrange/<group kind>` is the route `arrange` with the parameter `kind` (`#arrange/kind=use-cases`), since the frame reads the first part of a fragment as a route's name and the others as `key=value`. The group kinds are the file
 //     names requirements, use-cases, architecture, modules and tests.
-//   - The items of a kind are a requirement's name (the SPEC), a use case's, a decision's or a module's identifier (read from the file names under docs/), a test's identifier (its declaration).
+//   - The items of a kind are the nodes of that kind in MOD-trace-graph's graph of the snapshot: a requirement's name, a use case's, a decision's, a module's or a test's identifier.
 //   - The working tree is the group file as read; an item no group names is added to it, at the top level, when a move takes it, so that the file never lists an item the person did not place. A new group is put at the top level or in the group the
 //     person names; a moved item or group goes last into its target. Each move is applied alone, in order, to the tree as it stands: a refused one is listed with its reason and is no pending change.
 //   - On `changed meanwhile` the pending changes are applied again, in order, to the newer file: those that still apply stay pending, the others are named with their reasons.
@@ -16,8 +16,7 @@
 import { fallbackEditLinks, saveGroupFile } from "../artifact-edits/index.mjs";
 import { applyMoves, groupFileText, hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { parseSpec } from "../spec-document/index.mjs";
-import { isTestFile, testDeclarations } from "../test-document/index.mjs";
+import { traceGraph } from "../trace-graph/index.mjs";
 import { button, el, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 
@@ -30,21 +29,13 @@ const KINDS = {
 };
 const pathOf = (kind) => `docs/groups/${kind}.md`;
 
-// The identifiers (a requirement's name for requirements) of the items of a kind in a snapshot, in the order of their paths.
+// The kind of node, in MOD-trace-graph's graph, that the group file of each kind arranges (as MOD-artifact-edits' recipe items-of-kind and the check group-rules read them).
+const NODE_KIND = { requirements: "requirement", "use-cases": "UC", architecture: "ARC", modules: "MOD", tests: "TST" };
+
+// The identifiers (a requirement's name for requirements) of the items of a kind in a snapshot, from the nodes of that kind in MOD-trace-graph's graph, sorted by identifier.
 async function itemsOf(kind, snapshot) {
-  const named = (pattern) => snapshot.paths.flatMap((path) => { const found = pattern.exec(path); return found ? [found[1]] : []; });
-  if (kind === "use-cases") return named(/^docs\/use-cases\/(UC-\d+)-[^/]+\.md$/);
-  if (kind === "architecture") return named(/^docs\/architecture\/(ARC-\d+)-[^/]+\.md$/);
-  if (kind === "modules") return named(/^docs\/architecture\/(MOD-[A-Za-z0-9-]+)\.md$/);
-  if (kind === "requirements") {
-    const spec = await snapshot.read("SPEC.md");
-    return spec === null ? [] : [...parseSpec(spec).requirements.keys()];
-  }
-  const files = snapshot.paths.filter(isTestFile);
-  try { await snapshot.readMany?.(files); } catch { /* read one by one */ }
-  const ids = [];
-  for (const path of files) for (const declaration of testDeclarations(path, (await snapshot.read(path)) ?? "")) if (!ids.includes(declaration.id)) ids.push(declaration.id);
-  return ids;
+  return [...(await traceGraph(snapshot)).nodes.values()].filter((node) => node.kind === NODE_KIND[kind]).map((node) => node.id)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 // ---------------------------------------------------------------- the tree and the moves
