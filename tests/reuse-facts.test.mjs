@@ -4,7 +4,7 @@
 // Run: node --test tests/reuse-facts.test.mjs
 //
 // Module: MOD-reuse-facts
-// Guards: UC-022; DUE DILIGENCE IS FETCHED, NOT RECALLED; A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S; A REUSE DECISION RECORDS ITS DUE DILIGENCE
+// Guards: UC-022; UC-040; DUE DILIGENCE IS FETCHED, NOT RECALLED; A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S; A REUSE DECISION RECORDS ITS DUE DILIGENCE
 // Level: unit
 //
 // Each test states its input and its expected result before it runs (given / input / expect). No test reaches the network:
@@ -13,7 +13,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { registryFacts, licenceVerdict, reuseStrategies } from "../src/reuse-facts/index.mjs";
+import { registryFacts, hubFacts, licenceVerdict, reuseStrategies } from "../src/reuse-facts/index.mjs";
 
 const READ = "2026-10-13";
 const NPM_LEFT_PAD = "https://registry.npmjs.org/left-pad";
@@ -380,4 +380,134 @@ test("MOD-reuse-facts due-diligence step - without LICENSE every candidate is no
   assert.deepEqual(result.findings, []);
   assert.match(result.draft.files[0].text, /No product LICENSE was found; the product's licence decides what it may reuse\./);
   assert.match(result.draft.files[0].text, /\| left-pad \(npm\) - chosen \| MIT \| not checked \|/);
+});
+
+// ---------------------------------------------------------------- hubFacts (ITM-996)
+//
+// MOD-reuse-facts: "`hubFacts(id: string, key?: string) -> Promise<Fact[]>` — a model's or dataset's revision, licence and whether it is gated
+// or private, read from the Hugging Face Hub, across the network, each with its address and date; `key` … is sent only to the Hub's own origin
+// `https://huggingface.co`, in its `Authorization` header, and nowhere else; a Hub that does not answer a browser is named in the failure
+// `HubBlocked { reason }`, and `NotFound { address }` for an unknown identifier." The readings these tests state (the pull request names them):
+//   - The identifier is the Hub's own path: `owner/name` (or a bare `name`) for a model, `datasets/owner/name` for a dataset; the addresses read are
+//     https://huggingface.co/api/models/<id> and https://huggingface.co/api/datasets/<owner/name>.
+//   - The facts are `revision` (the answer's `sha`), `licence` (the card's `license`, else the tag `license:<x>`; no fact where the Hub declares none: a fact
+//     not read is never filled in) and `access` (`public`, `gated (auto)` / `gated (manual)`, or `private`), each with candidate = the identifier,
+//     ecosystem `huggingface`, the address and the date read.
+//   - `NotFound` is the Hub's 404; `HubBlocked` is a call the browser could not make, an answer that is no success (a private resource asked without
+//     its key answers 401) or an answer that is no JSON, its `reason` never holding the key.
+//   - A text that is no Hub identifier is a TypeError, before any request.
+
+const HUB = "https://huggingface.co";
+const SHA = "0123456789abcdef0123456789abcdef01234567";
+const today = () => new Date().toISOString().slice(0, 10);
+
+async function reading(fetch, run) {
+  const before = today();
+  const answer = await usingFetch(fetch, run);
+  return { answer, days: new Set([before, today()]) };
+}
+
+function fakeHub(routes) {
+  const requests = [];
+  return {
+    requests,
+    fetch: async (input, init = {}) => {
+      const href = String(input?.url ?? input);
+      requests.push({ href, authorization: new Headers(init.headers ?? input?.headers ?? {}).get("authorization") });
+      if (!Object.hasOwn(routes, href)) return json(404, { error: "Repository not found" });
+      const answer = routes[href];
+      if (answer instanceof Error) throw answer;
+      if (typeof answer === "number") return json(answer, { error: "refused" });
+      return json(200, answer);
+    },
+  };
+}
+
+// TST-996001 · level: unit · module: MOD-reuse-facts
+// guards: UC-040; DUE DILIGENCE IS FETCHED, NOT RECALLED
+// given: a Hub (a fake of fetch) that holds the model acme/small-model, public, not gated, licence apache-2.0 in its card, at revision 0123…4567
+// input: hubFacts("acme/small-model")
+// expect: exactly three facts, in this order — revision "0123456789abcdef0123456789abcdef01234567", licence "apache-2.0", access "public" —, each with candidate "acme/small-model", ecosystem
+// "huggingface", the address https://huggingface.co/api/models/acme/small-model and the date read (today); one request, to that address, with no Authorization header
+test("TST-996001 hubFacts gives a model's revision, licence and access, each with its address and the date read", async () => {
+  const hub = fakeHub({ [`${HUB}/api/models/acme/small-model`]: { id: "acme/small-model", sha: SHA, private: false, gated: false, cardData: { license: "apache-2.0" }, tags: ["license:apache-2.0"] } });
+  const { answer, days } = await reading(hub.fetch, () => hubFacts("acme/small-model"));
+  assert.deepEqual(answer.map((each) => [each.what, each.value]), [["revision", SHA], ["licence", "apache-2.0"], ["access", "public"]]);
+  for (const each of answer) {
+    assert.deepEqual([each.candidate, each.ecosystem, each.address], ["acme/small-model", "huggingface", `${HUB}/api/models/acme/small-model`]);
+    assert.ok(days.has(each.read), `the date read is today: ${each.read}`);
+  }
+  assert.deepEqual(hub.requests, [{ href: `${HUB}/api/models/acme/small-model`, authorization: null }]);
+});
+
+// TST-996002 · level: unit · module: MOD-reuse-facts
+// guards: UC-040; DUE DILIGENCE IS FETCHED, NOT RECALLED
+// given: a Hub that holds the dataset acme/corpus, gated by manual approval, whose card declares no licence but whose tags hold license:cc-by-4.0; and the dataset acme/unlicensed, public, with neither
+// input: hubFacts("datasets/acme/corpus"); hubFacts("datasets/acme/unlicensed")
+// expect: the first gives revision, licence "cc-by-4.0" (from the tag) and access "gated (manual)", with the address https://huggingface.co/api/datasets/acme/corpus; the second gives revision and access
+// "public" only — no licence fact, since the Hub declared none and none is filled in
+test("TST-996002 hubFacts reads a dataset from the datasets address, the licence from the tag where the card has none, and invents none", async () => {
+  const hub = fakeHub({
+    [`${HUB}/api/datasets/acme/corpus`]: { id: "acme/corpus", sha: SHA, private: false, gated: "manual", tags: ["task:x", "license:cc-by-4.0"] },
+    [`${HUB}/api/datasets/acme/unlicensed`]: { id: "acme/unlicensed", sha: SHA, private: false, gated: false, tags: [] },
+  });
+  const gated = await usingFetch(hub.fetch, () => hubFacts("datasets/acme/corpus"));
+  assert.deepEqual(gated.map((each) => [each.what, each.value, each.address]), [
+    ["revision", SHA, `${HUB}/api/datasets/acme/corpus`], ["licence", "cc-by-4.0", `${HUB}/api/datasets/acme/corpus`], ["access", "gated (manual)", `${HUB}/api/datasets/acme/corpus`]]);
+  const bare = await usingFetch(hub.fetch, () => hubFacts("datasets/acme/unlicensed"));
+  assert.deepEqual(bare.map((each) => [each.what, each.value]), [["revision", SHA], ["access", "public"]]);
+});
+
+// TST-996003 · level: unit · module: MOD-reuse-facts
+// guards: UC-040
+// given: a Hub that holds acme/hidden-model as private, answering with the key
+// input: hubFacts("acme/hidden-model", "hf_secret_key")
+// expect: the access fact reads "private"; the request carries Authorization "Bearer hf_secret_key" and goes to https://huggingface.co only; no fact holds the key
+test("TST-996003 a private resource is read with the key, which goes to the Hub's own origin in Authorization and is in no fact", async () => {
+  const hub = fakeHub({ [`${HUB}/api/models/acme/hidden-model`]: { id: "acme/hidden-model", sha: SHA, private: true, gated: false, cardData: { license: "mit" } } });
+  const facts = await usingFetch(hub.fetch, () => hubFacts("acme/hidden-model", "hf_secret_key"));
+  assert.deepEqual(facts.map((each) => [each.what, each.value]), [["revision", SHA], ["licence", "mit"], ["access", "private"]]);
+  assert.deepEqual(hub.requests, [{ href: `${HUB}/api/models/acme/hidden-model`, authorization: "Bearer hf_secret_key" }]);
+  assert.equal(hub.requests.every((request) => new URL(request.href).origin === HUB), true);
+  assert.equal(JSON.stringify(facts).includes("hf_secret_key"), false);
+});
+
+// TST-996004 · level: unit · module: MOD-reuse-facts
+// guards: UC-040; DUE DILIGENCE IS FETCHED, NOT RECALLED
+// given: a Hub that holds nothing under acme/nothing-here (it answers 404), and a model and a dataset of that name
+// input: hubFacts("acme/nothing-here"); hubFacts("datasets/acme/nothing-here")
+// expect: each rejects with an error named NotFound whose address is the one queried — https://huggingface.co/api/models/acme/nothing-here, https://huggingface.co/api/datasets/acme/nothing-here —; no fact
+test("TST-996004 an identifier the Hub does not know is NotFound with the address queried", async () => {
+  const hub = fakeHub({});
+  await assert.rejects(usingFetch(hub.fetch, () => hubFacts("acme/nothing-here")), { name: "NotFound", address: `${HUB}/api/models/acme/nothing-here` });
+  await assert.rejects(usingFetch(hub.fetch, () => hubFacts("datasets/acme/nothing-here")), { name: "NotFound", address: `${HUB}/api/datasets/acme/nothing-here` });
+});
+
+// TST-996005 · level: unit · module: MOD-reuse-facts
+// guards: UC-040
+// given: a Hub the browser cannot reach (fetch rejects with "Failed to fetch"); a Hub that answers 500; one that answers 401 for a private resource asked without its key; one that answers 200 with text that is no JSON
+// input: hubFacts("acme/blocked") against each; and, with the key "hf_secret_key", against the unreachable one
+// expect: each rejects with an error named HubBlocked whose reason is a text: "Failed to fetch" for the first, containing 500 for the second, containing 401 for the third, naming the invalid JSON for the fourth;
+// the reason of the keyed call holds the failure and not the key
+test("TST-996005 a Hub that does not answer the browser, or answers no success, is HubBlocked with its reason, never with the key", async () => {
+  const href = `${HUB}/api/models/acme/blocked`;
+  await assert.rejects(usingFetch(fakeHub({ [href]: new TypeError("Failed to fetch") }).fetch, () => hubFacts("acme/blocked")), (error) => error.name === "HubBlocked" && error.reason === "Failed to fetch");
+  await assert.rejects(usingFetch(fakeHub({ [href]: 500 }).fetch, () => hubFacts("acme/blocked")), (error) => error.name === "HubBlocked" && /500/.test(error.reason));
+  await assert.rejects(usingFetch(fakeHub({ [href]: 401 }).fetch, () => hubFacts("acme/blocked")), (error) => error.name === "HubBlocked" && /401/.test(error.reason));
+  await assert.rejects(usingFetch(async () => new Response("<html>", { status: 200 }), () => hubFacts("acme/blocked")), (error) => error.name === "HubBlocked" && /JSON/i.test(error.reason));
+  await assert.rejects(usingFetch(fakeHub({ [href]: new TypeError("Failed to fetch") }).fetch, () => hubFacts("acme/blocked", "hf_secret_key")),
+    (error) => error.name === "HubBlocked" && !error.reason.includes("hf_secret_key") && !error.message.includes("hf_secret_key"));
+});
+
+// TST-996006 · level: unit · module: MOD-reuse-facts
+// guards: UC-040
+// given: texts that are no Hub identifier: "", "a/b/c", "../etc", "acme/name?x=1", "datasets/onlyowner/a/b", and a non-text
+// input: hubFacts of each, with a fetch that records every call
+// expect: each rejects with a TypeError, and fetch was never called (nothing is sent for them)
+test("TST-996006 a text that is no Hub identifier is a TypeError before any request", async () => {
+  const hub = fakeHub({});
+  for (const id of ["", "a/b/c", "../etc", "acme/name?x=1", "datasets/onlyowner/a/b", 5, null]) {
+    await assert.rejects(usingFetch(hub.fetch, () => hubFacts(id)), { name: "TypeError" }, String(id));
+  }
+  assert.deepEqual(hub.requests, []);
 });
