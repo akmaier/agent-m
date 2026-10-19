@@ -85,11 +85,12 @@ export function clearEverything(store) {
   removeSignIn(store.storage, signIn);
 }
 
-const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host", "mailbox", MAILBOX_SIGN_IN];
+const LITERAL_SETTING_KEYS = ["github-token", "products", "notifications", "notified", "bridge", "jump-host", "mailbox", "browser", MAILBOX_SIGN_IN];
 
 function settingDescription(key) {
   if (key === "mailbox") return { label: "Mailbox", secret: true, grants: "access to the mailbox", setUpIn: "mailbox" };
   if (key === MAILBOX_SIGN_IN) return { label: "Mailbox sign-in", secret: true, grants: "access to the Microsoft 365 mailbox", setUpIn: "mailbox" };
+  if (key === "browser") return { label: "Browser identifier", secret: false, grants: "this browser's name in the job records its tab takes", setUpIn: "settings" };
   if (key === "github-token") return { label: "GitHub token", secret: true, grants: "access to the instance repository", setUpIn: "settings" };
   if (key === "products") return { label: "Products", secret: false, grants: "the managed product list", setUpIn: "add-product" };
   if (key === "notifications") return { label: "Notifications", secret: false, grants: "acceptance notifications", setUpIn: "notifications" };

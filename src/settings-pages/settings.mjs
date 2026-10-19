@@ -437,6 +437,21 @@ function reconnectHosts(context) {
   if (context.product?.host) context.product.host = reconnect(parseAddress(context.product.address));
 }
 
+// This browser's identifier (MOD-browser-store's key `browser`): an identifier only, so its line shows it and Clear; nothing to test or change.
+function browserIdLine(target, context) {
+  const id = readSetting(context.store, "browser");
+  const shown = typeof id === "string" && id !== "" ? id : null;
+  const clear = el("button", "settings-browser-id-clear btn", "Clear");
+  clear.addEventListener("click", async () => {
+    clearSetting(context.store, "browser");
+    await route.render(target, context, {});
+  });
+  return el("section", "settings-browser-id panel",
+    el("h3", null, "Browser identifier"),
+    el("p", null, shown === null ? "not set" : el("span", "settings-browser-id-value", shown)),
+    ...(shown === null ? [] : [el("p", null, clear)]));
+}
+
 function browserClearControls(context) {
   const clear = el("button", "settings-clear-everything btn", "Clear everything in this browser");
   const acknowledgement = el("input", "settings-clear-ack");
@@ -1217,7 +1232,7 @@ export const route = {
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
-      exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
+      browserIdLine(target, context), exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
     const recording = recordingControls(context);
     const instanceSettings = repositorySettings(inPlace, { className: "settings-instance-settings", heading: "Instance · settings kept in its repository", topic: "settings-instance-lines", topics: INSTANCE_TOPICS, settings: INSTANCE_SETTINGS, hostOf: () => context.instance.host });
