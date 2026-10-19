@@ -8,7 +8,7 @@
 // Level: unit
 //
 // The answer is read by MOD-job-runner's runJob, the reader of an answer; the job is prepared by hand with no checks, recipes or steps, so that only the reading of the answer decides; the driver is a fixture that
-// answers once. Reading taken: "allows the levels" is the enum of the five levels on `level` (sprint 97's text: the answer schemas "require and allow the levels the record and MOD-test-document state"). Nothing reaches the network.
+// answers once. The kind is read as one a person reviews, so that runJob returns the result and calls no writer (the writer is MOD-result-records'). Reading taken: "allows the levels" is the enum of the five levels on `level` (sprint 97's text: the answer schemas "require and allow the levels the record and MOD-test-document state"). Nothing reaches the network.
 // The counter-proofs are in the pull request.
 
 import test from "node:test";
@@ -21,7 +21,7 @@ const DRAFTER = { name: "runner-a", type: "model endpoint", model: "example-mode
 // The answer of the kind with `outcomes`, read by runJob: its result.
 async function read(outcomes) {
   const kind = await kindOf("run-tests");
-  const prepared = { blocking: [], notFitting: [], kind: { ...kind, checks: [], recipes: [], preconditions: [], steps: [] }, parts: [], limit: 1, drafter: DRAFTER };
+  const prepared = { blocking: [], notFitting: [], kind: { ...kind, checks: [], recipes: [], preconditions: [], steps: [], review: "person" }, parts: [], limit: 1, drafter: DRAFTER };
   const driver = { participant: DRAFTER, async send() { return { text: JSON.stringify({ draft: { outcomes }, answers: [] }), usage: null }; } };
   return runJob(prepared, { drafter: driver, reviewers: [] }, { attended: true, context: { kind, params: {}, gates: [], person: "alice", jobId: null } });
 }
