@@ -8,7 +8,7 @@
 // Guards: UC-028; EVERY TEST RUN LEAVES A RESULT RECORD; TEST RESULTS ARE KEPT IN THE REPOSITORY; A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged, as tests/test-pages-schedule.test.mjs does. The product is a host of this file, kept to
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged, as tests/test-pages-schedule.test.mjs does. The product is a host of this file, kept to
 // MOD-repository-hosts' interface (repositoryInfo, readSnapshot, readHistory, listPullRequests, listTags, ciRunLog, webLinks): no request leaves the process, nothing waits.
 // Where the texts leave a reading open, the test states the reading it takes, and the pull request names it:
 //   - The log of a failed test is asked of ciRunLog with the id that ends the record's `run` address, when webLinks().run(id) gives that address back; a record with no such address has its log unavailable.
@@ -17,7 +17,7 @@
 //   - A record is read with readDocument and resultSchema.run: readRegister throws for that schema, which names two tables (## Outcomes and ## Failures).
 // The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 

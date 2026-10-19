@@ -1,9 +1,12 @@
 // ITM-756 — the audit rows of a release: MOD-release-evidence's auditRows, as docs/architecture/MOD-release-evidence.md
-// states it (UC-030 steps 2 and 3; alternative flows 1a, 2a, 2b, 2c).
+// states it (UC-030 steps 2 and 3; alternative flows 1a, 2a, 2b, 2c). ITM-757 — its evidence and its `accepted` argument
+// (TST-757001 to TST-757007), and auditDocument, the document of the audit (UC-030 step 5; TST-757101 to TST-757108, the last
+// section of this file, over an audit written out in the section itself).
 // Run: node --test tests/release-evidence-audit.test.mjs
 //
 // Module: MOD-release-evidence
 // Guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED;
+//         ARTIFACTS ARE MARKDOWN; THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; AN APPROVAL NAMES THE EXACT TEXT;
 //         RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; A SOURCE DECLARES ITS AUTHORITY; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH;
 //         THE TRACEABILITY MATRIX IS DERIVED
 // Level: unit
@@ -18,7 +21,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { auditRows } from "../src/release-evidence/index.mjs";
+import * as evidenceModule from "../src/release-evidence/index.mjs";
+const { auditRows } = evidenceModule;
+// Looked up when it is called, so that a module without auditDocument fails the cases that call it, not the whole file.
+const auditDocument = (...args) => evidenceModule.auditDocument(...args);
 import { writeDocument } from "../src/documents/index.mjs";
 import { approvalSchema } from "../src/approvals/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
@@ -123,13 +129,16 @@ function resultFiles() {
 const GATES = [{ requirement: PROCESS, gate: "Release testing", record: "docs/gates/20261010-release-testing.md" }];
 
 // The call under test, with the parts of the fixture a case changes.
-function audit({ product = {}, head = {}, results = resultFiles(), gates = GATES, instanceSpec = INSTANCE_SPEC, register = registerOf() } = {}) {
+// Who accepted the report and when: the author and date of the commit that added the record, which the caller reads through
+// MOD-repository-hosts' readHistory of the record's path.
+const ACCEPTED = { person: "akmaier", date: "2026-10-12 08:30 UTC" };
+function audit({ product = {}, head = {}, results = resultFiles(), gates = GATES, instanceSpec = INSTANCE_SPEC, register = registerOf(), accepted = ACCEPTED } = {}) {
   const files = { ...productFiles(), ...product };
   for (const [path, text] of Object.entries(files)) if (text === null) delete files[path];
   const headSide = { ...headFiles(), ...head };
   for (const [path, text] of Object.entries(headSide)) if (text === null) delete headSide[path];
   return auditRows(snapshotOf(files, COMMIT), snapshotOf(results, "test-results"), snapshotOf(headSide, HEAD), { tag: TAG, commit: COMMIT },
-    gates, instanceSpec, register);
+    gates, instanceSpec, register, accepted);
 }
 const rowOf = (result, requirement) => result.rows.find((row) => row.requirement === requirement);
 
@@ -224,15 +233,141 @@ test("auditRows — a release test whose author is the implementer by the job le
 // guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
 // given: the fixture, whose default branch holds the report and an approval record naming its blob and two limitations; then the same with the report's text changed after it was accepted; then with no approval record
 // input: auditRows(...).summary
-// expect: accepted true with the two limitations as recorded, in order; accepted false and no limitations for the changed report (UC-030 2a); the same for the missing record
+// expect: accepted true with the two limitations as recorded, in order; accepted false for the changed report (UC-030 2a), and summary.limitations names that no approval record names its current text; the same for the missing record
 test("auditRows — whether the report is accepted, and the limitations of an accepted one", async () => {
   const accepted = (await audit()).summary;
   assert.equal(accepted.accepted, true);
   assert.deepEqual(accepted.limitations, LIMITATIONS);
   const changed = (await audit({ head: { [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } })).summary;
-  assert.deepEqual([changed.accepted, changed.limitations], [false, []]);
+  assert.equal(changed.accepted, false);
+  assert.match(changed.limitations.join("\n"), /approval record/);
   const missing = (await audit({ head: { [RECORD]: null } })).summary;
-  assert.deepEqual([missing.accepted, missing.limitations], [false, []]);
+  assert.equal(missing.accepted, false);
+  assert.match(missing.limitations.join("\n"), /approval record/);
+});
+
+// TST-757001 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; AN APPROVAL NAMES THE EXACT TEXT
+// given: the fixture, whose default branch holds the report and the one approval record that names its blob; the caller passes who accepted and when
+// input: auditRows(..., accepted).evidence
+// expect: the report with its path `docs/tests/releases/v2026.4.0.md` and its blob; the approval records that name it, each with its path and its own blob; the acceptance — the person and date given, and the blob the record names, which is the report's
+// counter-proof: reading the report's blob from `at` (the tagged commit, which holds no report) gives null and fails the first assertion
+test("TST-757001 auditRows — the evidence: the report, the approval records that name it, and who accepted the text", async () => {
+  const { evidence } = await audit();
+  assert.deepEqual(evidence.report, { path: REPORT, blob: gitBlob(REPORT_TEXT) });
+  assert.deepEqual(evidence.records, [{ path: RECORD, blob: gitBlob(approvalOf(LIMITATIONS)) }]);
+  assert.deepEqual(evidence.acceptance, { person: "akmaier", date: "2026-10-12 08:30 UTC", blob: gitBlob(REPORT_TEXT) });
+});
+
+// TST-757002 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture, whose default branch holds no release test report and no record (the result records of the commit are there, so the release is not one before Agent M's)
+// input: auditRows(...)
+// expect: evidence.report null, no records, acceptance null; summary.limitations names the report that is missing, by its path
+test("TST-757002 auditRows — no report on the default branch gives report null and names what is missing", async () => {
+  const result = await audit({ head: { [REPORT]: null, [RECORD]: null } });
+  assert.deepEqual([result.evidence.report, result.evidence.records, result.evidence.acceptance], [null, [], null]);
+  assert.equal(result.summary.limitations.length, 1);
+  assert.ok(result.summary.limitations[0].includes(REPORT));
+});
+
+// TST-757003 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; AN APPROVAL NAMES THE EXACT TEXT
+// given: the fixture with the report and no approval record; then the report's text changed after it was accepted, the old record still there
+// input: auditRows(...).evidence
+// expect: in both cases the report is given with its current blob, acceptance is null, and summary.limitations names the blob that no record names; records: none in the first case, and in the second the old record, which still names the report (the acceptance alone is bound to the current blob)
+test("TST-757003 auditRows — no approval record names the report's current text: acceptance null, and the gap is named", async () => {
+  const missing = await audit({ head: { [RECORD]: null } });
+  const changed = await audit({ head: { [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } });
+  const old = [{ path: RECORD, blob: gitBlob(approvalOf(LIMITATIONS)) }];
+  for (const [result, blob, records] of [[missing, gitBlob(REPORT_TEXT), []], [changed, gitBlob(`${REPORT_TEXT}Changed afterwards.\n`), old]]) {
+    assert.deepEqual(result.evidence.report, { path: REPORT, blob });
+    assert.deepEqual([result.evidence.records, result.evidence.acceptance], [records, null]);
+    assert.ok(result.summary.limitations.some((line) => line.includes(blob)), result.summary.limitations.join("\n"));
+  }
+});
+
+// TST-757004 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture, with the record of the accepted report, beside it an approval record of an earlier release (another tag, another report) and a second record of this release that names the same report with another blob
+// input: auditRows(...).evidence.records
+// expect: the two records that name this report, in the order of their paths; the record of the earlier release is not listed
+test("TST-757004 auditRows — every approval record that names this report is evidence, and no other", async () => {
+  const second = `docs/approvals/release-${TAG}-aaaaaaaaaaaa.md`;
+  const { evidence } = await audit({ head: {
+    "docs/approvals/release-v2026.3.0-bbbbbbbbbbbb.md": approvalOf([]).replace(gitBlob(REPORT_TEXT), "b".repeat(40)).replace(REPORT, "docs/tests/releases/v2026.3.0.md"),
+    [second]: approvalOf(["TST-756104 — flaky"]).replace(gitBlob(REPORT_TEXT), "a".repeat(40)),
+  } });
+  assert.deepEqual(evidence.records.map((record) => record.path), [RECORD, second]);
+});
+
+// TST-757009 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; AN APPROVAL NAMES THE EXACT TEXT
+// given: the fixture whose report was changed after it was accepted: the one record names the report's earlier text
+// input: auditRows(...).evidence
+// expect: records lists that record with its own blob — it names the report — while acceptance is null, since no record names the current text
+// counter-proof: keeping only the records of the current blob gives [] and fails the first assertion
+test("TST-757009 auditRows — a report changed after acceptance still lists the records that name it", async () => {
+  const { evidence } = await audit({ head: { [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } });
+  assert.deepEqual(evidence.records, [{ path: RECORD, blob: gitBlob(approvalOf(LIMITATIONS)) }]);
+  assert.equal(evidence.acceptance, null);
+});
+
+// TST-757005 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture with the record of the accepted report, but the caller gives no author and date (accepted null)
+// input: auditRows(..., null).evidence.acceptance
+// expect: null, and summary.limitations names the record whose commit was not given; the report is still accepted (summary.accepted true) and the recorded limitations are still listed
+test("TST-757005 auditRows — an accepted report whose commit the caller did not give has acceptance null, named", async () => {
+  const result = await audit({ accepted: null });
+  assert.equal(result.evidence.acceptance, null);
+  assert.equal(result.summary.accepted, true);
+  assert.ok(result.summary.limitations.some((line) => line.includes(RECORD)));
+  assert.deepEqual(result.summary.limitations.filter((line) => LIMITATIONS.includes(line)), LIMITATIONS);
+});
+
+// TST-757006 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: a release before Agent M's records (no result record, no report, no record)
+// input: auditRows(...)
+// expect: evidence.report null, no records, acceptance null — and summary.limitations the two "cannot be derived" lines as before, no third
+test("TST-757006 auditRows — a release before Agent M's records has empty evidence and no further limitation", async () => {
+  const old = await audit({ results: {}, head: { [REPORT]: null, [RECORD]: null } });
+  assert.deepEqual([old.evidence.report, old.evidence.records, old.evidence.acceptance], [null, [], null]);
+  assert.equal(old.summary.limitations.length, 2);
+});
+
+// TST-757007 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; ARTIFACTS ARE MARKDOWN; THE PRODUCT REPOSITORY IS SELF-SUFFICIENT
+// given: the audit of the fixture release, as auditRows gives it
+// input: auditDocument(audit, { tag, commit })
+// expect: the document names the tag and the commit, the report's blob, the record's path and blob, the acceptance (person, date, blob), every requirement, and for each source of a row the version's hash and the hash of each of its files
+// counter-proof: an auditDocument that leaves out `evidence`, or the hashes of a source, fails the includes below
+test("TST-757007 auditDocument — the document of the fixture audit holds what a reader needs to check it in the repository", async () => {
+  const result = await audit();
+  const text = auditDocument(result, { tag: TAG, commit: COMMIT });
+  for (const part of [TAG, COMMIT, REPORT, gitBlob(REPORT_TEXT), RECORD, gitBlob(approvalOf(LIMITATIONS)), "akmaier", "2026-10-12 08:30 UTC",
+    ...result.rows.map((row) => row.requirement), versionHash(BOOK_FILES), hex(BOOK_FILES[0][1]), versionHash(IEC_FILES), hex(IEC_FILES[0][1]),
+    ...LIMITATIONS]) {
+    assert.ok(text.includes(part), `the document lacks ${part}`);
+  }
+  assert.ok(!/https?:\/\//.test(text), "no address");
+});
+
+// TST-934005 · level: unit · module: MOD-release-evidence
+// guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture, whose default branch holds the report and the approval record of a green release — the record as acceptAndRelease writes it, with no `limitation` line
+// input: auditRows(...).summary
+// expect: accepted true and no limitations — auditRows is a caller of the record, and a record without the key reads as none
+// counter-proof: with the report's text changed after it was accepted, the same record no longer accepts it (accepted false), so the case does not pass for want of a check
+test("TST-934005 auditRows — the record of a green release, with no limitation line, is an accepted report with no limitations", async () => {
+  const green = writeDocument(approvalSchema, { fields: { kind: "release-report", file: REPORT, blob: gitBlob(REPORT_TEXT) } });
+  assert.equal(green.includes("limitation"), false);
+  const accepted = (await audit({ head: { [RECORD]: green } })).summary;
+  assert.deepEqual([accepted.accepted, accepted.limitations], [true, []]);
+  const changed = (await audit({ head: { [RECORD]: green, [REPORT]: `${REPORT_TEXT}Changed afterwards.\n` } })).summary;
+  assert.equal(changed.accepted, false);
+  assert.match(changed.limitations.join("\n"), /approval record/);
 });
 
 // TST-756009 · level: unit · module: MOD-release-evidence
@@ -272,3 +407,153 @@ test("auditRows — a source is resolved against the register it is given", asyn
   const result = await audit({ register: registerOf([["docs/sources/SRC-vibe-coding.md", BOOK]]) });
   assert.deepEqual(rowOf(result, R1).sources.map((source) => source.id), ["SRC-vibe-coding"]);
 });
+
+// ================================================================== auditDocument (ITM-757)
+// The audit below is a fixture written out in this section, in the shape auditRows gives; its names stand in a block of their own.
+{
+const TAG = "v2026.4.0", COMMIT = "c".repeat(40);
+const REPORT_BLOB = "1234567890abcdef1234567890abcdef12345678", RECORD_BLOB = "fedcba0987654321fedcba0987654321fedcba09";
+const REPORT = `docs/tests/releases/${TAG}.md`, RECORD = `docs/approvals/release-${TAG}-${REPORT_BLOB.slice(0, 12)}.md`;
+const BOOK_VERSION_HASH = "b".repeat(64), BOOK_FILE_HASH = "d".repeat(64), IEC_VERSION_HASH = "e".repeat(64), IEC_FILE_HASH = "f".repeat(64);
+const FIRST = "A FIRST RULE", NO_TEST = "A RULE NO TEST GUARDS", FLAKY = "A RULE WHOSE TEST FAILED", PROCESS = "A PROCESS RULE";
+const LIMITATION = "TST-756104 — flaky on the CI runner";
+
+const AUDIT = {
+  summary: { passing: 1, noTest: 1, notPassed: 1, flaky: 1, worse: 0, byImplementer: 2, accepted: true, limitations: [LIMITATION] },
+  rows: [
+    { requirement: FIRST, constrains: "product",
+      sources: [
+        { id: "SRC-vibe-coding", authority: "advisory", version: "2026-10-05", hashes: [BOOK_VERSION_HASH, BOOK_FILE_HASH] },
+        { id: "SRC-iec-62304", authority: "normative", version: "2015", hashes: [IEC_VERSION_HASH, IEC_FILE_HASH] }],
+      tests: [{ id: "TST-756101", level: "unit", outcome: "passed", counterProof: "docs/tests/counter-proofs/TST-756101.md" },
+        { id: "TST-756102", level: "release", outcome: "8 of 10", counterProof: null }],
+      gates: [] },
+    { requirement: NO_TEST, constrains: "product", sources: [], tests: [], gates: [] },
+    { requirement: FLAKY, constrains: "product", sources: [{ id: "SRC-vibe-coding", authority: "advisory", version: "2026-10-05", hashes: [BOOK_VERSION_HASH] }],
+      tests: [{ id: "TST-756106", level: "unit", outcome: "failed", counterProof: null }], gates: [] },
+    { requirement: PROCESS, constrains: "process", sources: [], tests: [],
+      gates: ["docs/gates/20261010-release-testing.md"] },
+  ],
+  evidence: {
+    report: { path: REPORT, blob: REPORT_BLOB },
+    records: [{ path: RECORD, blob: RECORD_BLOB }],
+    acceptance: { person: "akmaier", date: "2026-10-12 08:30 UTC", blob: REPORT_BLOB },
+  },
+};
+const document = (audit = AUDIT) => auditDocument(audit, { tag: TAG, commit: COMMIT });
+
+// TST-757101 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; ARTIFACTS ARE MARKDOWN
+// given: the fixture audit of the release v2026.4.0 at the commit of forty c's
+// input: auditDocument(audit, { tag, commit })
+// expect: a string of Markdown that begins with a front matter naming the tag and the commit, then a heading, and that names the tag and the full commit SHA
+// counter-proof: a document that names the tag only, or shortens the SHA, fails the includes
+test("TST-757101 auditDocument — one Markdown document naming the release tag and its full commit SHA", () => {
+  const text = document();
+  assert.equal(typeof text, "string");
+  assert.ok(text.startsWith(`---\ntag: ${TAG}\ncommit: ${COMMIT}\n---\n`), text.slice(0, 120));
+  assert.match(text, /^# .*v2026\.4\.0/m);
+  assert.ok(text.endsWith("\n"));
+});
+
+// TST-757102 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture audit, with the summary counts 1, 1, 1, 1, 0 and 2, accepted, and one limitation
+// input: auditDocument(audit, release)
+// expect: the document holds the summary — each of its six counts with its label, whether the report is accepted, and the limitation as recorded
+test("TST-757102 auditDocument — the summary with its counts and limitations", () => {
+  const text = document();
+  const summary = text.slice(text.indexOf("## Summary"), text.indexOf("## Evidence"));
+  assert.ok(summary.length > 0);
+  for (const label of [/passing evidence: 1\b/i, /without a test: 1\b/i, /did not pass: 1\b/i, /flaky test: 1\b/i, /worse than the previous release: 0\b/i,
+    /written by the implementer: 2\b/i, /accepted: yes/i]) assert.match(summary, label);
+  assert.ok(summary.includes(LIMITATION));
+});
+
+// TST-757103 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; A SOURCE DECLARES ITS AUTHORITY; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// given: the fixture audit with four rows — a product requirement with two sources and two tests, one with no test, one with a failed test, a process requirement with a gate record
+// input: auditDocument(audit, release)
+// expect: under `## Requirements`, one section per row in the audit's order; each holds what the requirement constrains; each source with its identifier, authority, version and every hash; each test with its identifier, level, outcome and counter-proof (the path, or none); the gate record of the process requirement
+// counter-proof: a document that lists only the requirements that have tests loses the "no test" row and fails the section count
+test("TST-757103 auditDocument — every row with its sources, tests and gate records", () => {
+  const text = document();
+  const rows = text.slice(text.indexOf("## Requirements")).split(/^### /m).slice(1);
+  assert.deepEqual(rows.map((row) => row.split("\n")[0]), [FIRST, NO_TEST, FLAKY, PROCESS]);
+  const [first, none, failed, process] = rows;
+  assert.match(first, /constrains[^\n]*product/i);
+  for (const part of ["SRC-vibe-coding", "advisory", "2026-10-05", BOOK_VERSION_HASH, BOOK_FILE_HASH, "SRC-iec-62304", "normative", "2015", IEC_VERSION_HASH, IEC_FILE_HASH]) {
+    assert.ok(first.includes(part), `the first row lacks ${part}`);
+  }
+  assert.match(first, /TST-756101[^\n]*unit[^\n]*passed[^\n]*docs\/tests\/counter-proofs\/TST-756101\.md/);
+  assert.match(first, /TST-756102[^\n]*release[^\n]*8 of 10[^\n]*no counter-proof/i);
+  assert.match(none, /no test/i);
+  assert.match(failed, /TST-756106[^\n]*unit[^\n]*failed/);
+  assert.match(process, /constrains[^\n]*process/i);
+  assert.ok(process.includes("docs/gates/20261010-release-testing.md"));
+});
+
+// TST-757104 · level: unit · module: MOD-release-evidence
+// guards: AN APPROVAL NAMES THE EXACT TEXT; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+// given: the fixture audit whose evidence holds the report with its blob, one approval record with its blob, and the acceptance (who, when, the blob of the accepted text)
+// input: auditDocument(audit, release)
+// expect: under `## Evidence`, the report's path and blob; the record's path and blob; the acceptance with the person, the date and the blob of the accepted text
+// counter-proof: a document without the evidence fails every includes
+test("TST-757104 auditDocument — the blob SHAs of the report and the approval records, and the acceptance", () => {
+  const text = document();
+  const evidence = text.slice(text.indexOf("## Evidence"), text.indexOf("## Requirements"));
+  for (const part of [REPORT, REPORT_BLOB, RECORD, RECORD_BLOB, "akmaier", "2026-10-12 08:30 UTC"]) assert.ok(evidence.includes(part), `the evidence lacks ${part}`);
+  assert.match(evidence, /accepted text[^\n]*`?1234567890abcdef1234567890abcdef12345678/i);
+});
+
+// TST-757105 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: an audit of a release whose report has not been accepted: accepted false, no records, acceptance null, the report there, and the limitations naming the missing record
+// input: auditDocument(audit, release)
+// expect: the summary says the report is not accepted, the evidence says no approval record names the report and who accepted is not given, and each row says its evidence is not accepted (UC-030, 2a)
+test("TST-757105 auditDocument — a report that is not accepted is said so at the top and in every row", () => {
+  const text = document({ ...AUDIT,
+    summary: { ...AUDIT.summary, accepted: false, limitations: ["missing: approval record naming blob 1234567890abcdef1234567890abcdef12345678"] },
+    evidence: { report: AUDIT.evidence.report, records: [], acceptance: null } });
+  assert.match(text.slice(text.indexOf("## Summary"), text.indexOf("## Evidence")), /accepted: no/i);
+  assert.match(text.slice(text.indexOf("## Evidence"), text.indexOf("## Requirements")), /not accepted/i);
+  const rows = text.slice(text.indexOf("## Requirements")).split(/^### /m).slice(1);
+  assert.equal(rows.length, 4);
+  for (const row of rows) assert.match(row, /evidence not accepted/i);
+  assert.ok(!document().includes("evidence not accepted"), "the accepted audit says nothing of the kind");
+});
+
+// TST-757106 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: an audit with no report (evidence.report null, no records, acceptance null)
+// input: auditDocument(audit, release)
+// expect: the evidence says there is no release test report on the default branch; the document still holds every row
+test("TST-757106 auditDocument — an audit with no report says so and keeps its rows", () => {
+  const text = document({ ...AUDIT, evidence: { report: null, records: [], acceptance: null } });
+  assert.match(text.slice(text.indexOf("## Evidence"), text.indexOf("## Requirements")), /no release test report/i);
+  assert.equal(text.slice(text.indexOf("## Requirements")).split(/^### /m).length - 1, 4);
+});
+
+// TST-757107 · level: unit · module: MOD-release-evidence
+// guards: THE PRODUCT REPOSITORY IS SELF-SUFFICIENT; ARTIFACTS ARE MARKDOWN
+// given: the fixture audit
+// input: auditDocument(audit, release)
+// expect: the document holds no web address and does not name Agent M's dashboard, so that no statement can be checked only there; every statement names a path, an identifier or a hash of the repository
+// counter-proof: a document that gives each row a link into the dashboard fails the address check
+test("TST-757107 auditDocument — no address of the dashboard is the only way to check a statement", () => {
+  const text = document();
+  assert.ok(!/https?:\/\//i.test(text));
+  assert.ok(!/dashboard|github\.io|#\//i.test(text));
+});
+
+// TST-757108 · level: unit · module: MOD-release-evidence
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture audit and the same audit with its rows in another order
+// input: auditDocument twice
+// expect: the documents differ only in the order of the sections — the first is the audit's own order, so the document is derived from the audit and holds no text of its own about a requirement
+test("TST-757108 auditDocument — the rows stand in the audit's order", () => {
+  const order = (text) => text.slice(text.indexOf("## Requirements")).split(/^### /m).slice(1).map((row) => row.split("\n")[0]);
+  assert.deepEqual(order(document()), AUDIT.rows.map((row) => row.requirement));
+  assert.deepEqual(order(document({ ...AUDIT, rows: [...AUDIT.rows].reverse() })), AUDIT.rows.map((row) => row.requirement).reverse());
+});
+}

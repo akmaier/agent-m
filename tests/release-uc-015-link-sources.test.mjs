@@ -221,7 +221,7 @@ test("release · UC-015 3a: a restricted source is linked with its version and h
 // given: this browser keeps the product https://github.com/alice/thesis-tool; the instance's library is as in TST-639001; the page of the product, at #settings/product=<the product>, headed "Settings" (known positive)
 // input: look on the product's Settings view for the way UC-015 step 1 names, "In the product's view, the author opens Requirement sources"; press it
 // expect: a button or link reading "Requirement sources" stands on the product's view, and pressing it sets the fragment #sources/product=<the product>
-test("release · UC-015 1: the author opens Requirement sources from the product's view", { todo: "FINDING ITM-638 - no view of the product offers Requirement sources: the route `sources` is reached only by its address; ITM-638 builds the way to it (which view is the product's view is read at its start; this test looks on Settings)" }, async (t) => {
+test("release · UC-015 1: the author opens Requirement sources from the product's view", async (t) => {
   const page = await visit(t, `#settings/${PRODUCT_FRAGMENT}`);
   assert.equal(heading(page), "Settings", "known positive: the product's Settings view is drawn");
   const way = [...byTag(page.main(), "button"), ...byTag(page.main(), "a")].find((candidate) => candidate.textContent.trim() === "Requirement sources");

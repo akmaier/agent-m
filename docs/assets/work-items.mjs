@@ -26,13 +26,16 @@ const IDENTIFIER = "EVERY ARTIFACT HAS AN IDENTIFIER";
 const RESTATES = "UC-032";
 
 const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
-const ITEM_PATH = new RegExp(`^docs/backlog/(ITM-\\d{3})-${SLUG}\\.md$`);
-const ITEM_ID = /^ITM-\d{3}$/;
+const ITEM_PATH = new RegExp(`^docs/backlog/(ITM-\\d{3,})-${SLUG}\\.md$`);
+const ITEM_ID = /^ITM-\d{3,}$/;
 const USE_CASE = /^UC-\d{3}$/;
 // A requirement is named by its name in capitals; other identifiers are not names (as MOD-artifacts reads them).
 const isRequirementName = (s) => /[A-Z]/.test(s) && !/[a-z]/.test(s) && !/^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-/.test(s);
 // An issue named by its address: on GitHub …/issues/<n>, on GitLab …/-/issues/<n>.
 const ISSUE = /^https?:\/\/[^\s/]+\/\S+\/issues\/\d+$/;
+
+// Items are ordered by their number, not as text: ITM-203, ITM-999, ITM-1000. Exported for work-items/flow.mjs, like frontMatter.
+export const byNumber = (a, b) => Number(a.slice(4)) - Number(b.slice(4)) || (a < b ? -1 : a > b ? 1 : 0);
 
 const finding = (artifact, line, kind, rule, what, fix) => ({ artifact, line, kind, rule, what, fix });
 
@@ -185,7 +188,7 @@ export function itemProblems(item, known = {}) {
 // once, in the order of their identifiers — the circle is a finding of the item, not of the order (UC-032 step 1).
 export function buildOrder(items) {
   const byId = new Map((items ?? []).filter((i) => i?.id).map((i) => [i.id, i]));
-  const waiting = [...byId.keys()].sort();
+  const waiting = [...byId.keys()].sort(byNumber);
   const placed = [], done = new Set();
   const free = (id) => (byId.get(id).dependsOn ?? []).every((d) => done.has(d) || !byId.has(d));
   for (let next = waiting.find(free); next; next = waiting.find(free)) {

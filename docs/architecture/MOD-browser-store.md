@@ -72,11 +72,13 @@ instances in one browser never share an entry. Each value is JSON. The settings 
 | `jump-host` | `{ hostname, user, sshPort, portRange, httpsAddress?, login? }` (`THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS`) | the login |
 | `mailbox` | the connection's fields as MOD-mail-routes defines them — route, address, folders, allowed places, the client identifier of the app registration, or servers and password | the password |
 | `mailbox-sign-in` | not a key of its own: the keys the Microsoft sign-in library writes for its token cache under its own names (ARC-053), found by the client identifier the `mailbox` entry names and by the library's own key names | yes |
+| `resource-key:<name>` | `{ value, stored }` — the key of the resource `<name>` whose list entry names its secret `browser` (MOD-resource-list), sent only to that resource's own server (UC-040) | the value |
+| `browser` | this browser's identifier, sixteen random hexadecimal digits made at its first use, which a job record names when this browser's tab takes a job (MOD-job-ledger, `## Taken`) | no |
 | `not-an-issue` | the identifiers of mails marked *not an issue* | no |
 | `notifications` | `{ checked }` — present while the person has switched the notifications of what waits for acceptance on in this browser (UC-047), absent while they are off; `checked` the date and time of this browser's last check, `null` before the first | no |
 | `notified` | `{ "<repository>": { "<path>": "<blob>" } }` — what was notified: for each repository by the address a person opens, every file that waits there, by its path — a SPEC change entry by its proposal's —, with the blob of the text that was notified | no |
 | `acknowledged:<notice>` | the date a notice was ticked as read, such as the shared-origin notice | no |
-| `last-test:<key>` | `{ at, outcome }` — the last test of a setting | no |
+| `last-test:<key>` | `{ at, outcome, tools? }` — the last test of a setting; for an endpoint's test, `tools` is `true` when the model called the tool it was offered and `false` when it answered in text only (UC-003 step 5), and is left out where the test did not reach the model | no |
 
 A key outside this catalogue is never written: `writeSetting` refuses it, so no key exists that the settings page does
 not show.

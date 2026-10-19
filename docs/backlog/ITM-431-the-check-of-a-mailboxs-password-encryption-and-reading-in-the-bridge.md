@@ -39,3 +39,9 @@ The cases of reading, finding, threading and sending that name the same check wa
 - Where the code does not do what the requirement says, the test follows the requirement and the disagreement is named
   as a finding.
 - Only the new test file and its data file change.
+
+## Built (read on main by po-opus-b, 2026-10-18)
+
+This item is built: commit `206064c7` ("Team2 sprint52 ITM-431 bridge mail release check") is on `main`. No merged pull request names it, because it predates the record
+format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
+of UC-036 to UC-049 found its code and tests on `main`.

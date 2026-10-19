@@ -154,7 +154,9 @@ uses; the key itself stays on its computer.
   defines; `confirm-send` and `send` carry the single-use confirmation as `bridgeApi` defines it. Crosses the network;
   fails with every `BridgeError` but `AskFailed`, among them `BridgeFailed` with `confirmation-refused`, `no-encryption`,
   `login-refused`, `upstream-failed` — the mail server's own message — or `paused`.
-- `probe(bridge: Bridge, kind: "agent" | "endpoint-models" | "partitions", args: unknown) -> Promise<unknown>` and
+- `probe(bridge: Bridge, kind: "agent", args: unknown) -> Promise<unknown>`, `probe(bridge: Bridge, kind: "endpoint-models",
+  args: bridgeApi's endpoint configuration) -> Promise<{ models: string[] } | { diagnosis }>` (the diagnosis as bridgeApi carries it), `probe(bridge:
+  Bridge, kind: "partitions", args: {}) -> Promise<{ partitions: { name: string, state: string }[] }>` and
   `probe(bridge: Bridge, kind: "endpoint-test", args: bridgeApi's endpoint-test configuration) -> Promise<bridgeApi's
   endpoint-test answer>` — `POST /v1/probes/{kind}` with `{ args }`, resolving with the answer's
   `answer`: an agent answers a harmless request, an endpoint lists its served models, the explicitly chosen local

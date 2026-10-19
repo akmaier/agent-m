@@ -6,6 +6,7 @@ realises:
   - A PAGE LOAD READS THE REPOSITORY IN BATCHES
 modules:
   - MOD-site-frame
+  - MOD-source-register
 builds_on:
   - ITM-833
 tests:
@@ -37,3 +38,9 @@ and after, and changes `readAhead` only if the count falls.
 - At its next start, the frame takes the register's paths from an interface its Uses name, or a draft gives it one. The
   test of MOD-trace-pages then changes in the same sprint, with that module free.
 - load-per-view gains a fixture with the register present (sprint 77's agreement).
+
+**The draft for akmaier is on `main`** (sprint team1/92, written by developer-sonnet-b). MOD-source-register gains
+`registerPaths(paths)`, and MOD-site-frame's live app names the register's entries in its first wave through it, so the
+frame keeps no copy of the register's path pattern (78.md:109-116). The item now also changes MOD-source-register. It
+waits for akmaier's acceptance, and while team 2's sprint 94 holds ITM-934 and ITM-757, it is held back by them.
+

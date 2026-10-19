@@ -10,7 +10,7 @@ import { bridgeAt, probe, settingsOf, testBridge } from "../bridge-client/index.
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
-import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { participantSchema, participantsOf, reachedThrough } from "../participant-list/index.mjs";
 import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
@@ -132,10 +132,13 @@ function routeOf(type, state) {
   if (type === "person") return state.account.trim() ? `account ${state.account.trim()}` : "";
   if (type === "model endpoint") return state.endpoint.trim() ? `endpoint ${state.endpoint.trim()}` : "";
   if (type === "CI agent") {
-    const workflow = state.workflow.trim(), secret = state.secret.trim();
-    return workflow && secret ? `workflow ${workflow} on ${state.runner} secret ${secret}` : "";
+    const secret = state.secret.trim(), label = state.runnerLabel.trim();
+    if (!secret) return "";
+    if (state.runner !== "self-hosted") return `ci hosted secret ${secret}`;
+    return label ? `ci runner:${label} secret ${secret}` : "";
   }
   if (BRIDGE_TYPES.has(type)) {
+    if (state.reach === "through") return state.through ? `through ${state.through}` : "";
     const bridge = state.bridge.trim(), agent = state.agent.trim();
     return bridge && agent ? `bridge ${bridge} agent ${agent}` : "";
   }
@@ -380,15 +383,15 @@ export const route = {
     const productUseBase = productUseBasis(context, opened).catch(() => []);
     const state = {
       name: "", account: "", endpoint: "", endpointUrl: "", endpointKind: "openai-compatible", endpointModel: "", endpointKey: "",
-      inlineEndpoint: false, model: "", context: "", price: "", place: "", workflow: "", runner: "github-hosted", secret: "",
-      bridge: "", agent: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
+      inlineEndpoint: false, model: "", context: "", price: "", place: "", workflow: "", runner: "github-hosted", runnerLabel: "", secret: "",
+      bridge: "", agent: "", reach: "bridge", through: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
     };
 
     function setType(next, values = {}) {
       state.name = ""; state.account = ""; state.endpoint = ""; state.endpointUrl = ""; state.endpointKind = "openai-compatible";
       state.endpointModel = ""; state.endpointKey = ""; state.inlineEndpoint = false; state.model = ""; state.context = "";
-      state.price = ""; state.place = ""; state.workflow = ""; state.runner = "github-hosted"; state.secret = ""; state.bridge = "";
-      state.agent = ""; state.capabilities = typePreset(next); state.agentList = null; state.agentListText = ""; state.agentTest = null;
+      state.price = ""; state.place = ""; state.workflow = ""; state.runner = "github-hosted"; state.runnerLabel = ""; state.secret = ""; state.bridge = "";
+      state.agent = ""; state.reach = "bridge"; state.through = ""; state.capabilities = typePreset(next); state.agentList = null; state.agentListText = ""; state.agentTest = null;
       state.saveUntested = false;
       if (next === "model endpoint") {
         state.endpoint = firstEndpoint(context.store);
@@ -539,6 +542,7 @@ export const route = {
         ? "A self-hosted runner serves private repositories only; on a public repository Agent M refuses a job that would run on it, because outside pull requests could run code on that machine."
         : "A hosted runner runs on the forge's machines and uses a secret by name; no key is stored in the participants register.");
       return [control("Workflow", textInput("participant-workflow", "workflow", "agent-m.yml")), control("Runner", runner),
+        ...(state.runner === "self-hosted" ? [control("Runner label", textInput("participant-runner-label", "runnerLabel", "gpu"))] : []),
         control("Key secret name", textInput("participant-secret-name", "secret", "ACTIONS_SECRET_NAME")), explainRunner,
         explain("ci-agent-runner"), explain("ci-ssh-alternative"), explain("job-workflow")];
     }
@@ -609,7 +613,20 @@ export const route = {
       return el("div", "participant-agent-list-result", ...children);
     }
 
+    function throughControls() {
+      const starters = participantsOf(participantDocument(opened.text)).filter((each) => each.type === "CLI agent" && each.name !== editing?.name).map((each) => each.name);
+      if (!starters.includes(state.through)) state.through = starters[0] ?? "";
+      const through = el("select", "participant-through", ...starters.map((name) => option(name)));
+      through.value = state.through;
+      through.addEventListener("change", () => { state.through = through.value; buildForm(); routePreview.textContent = routeOf(type.value, state); });
+      return [control("Started by the CLI agent", through)];
+    }
+
     function bridgeControls() {
+      const reach = el("select", "participant-reach", option("bridge", "On a Bridge"), option("through", "Started by another CLI agent (a subagent)"));
+      reach.value = state.reach;
+      reach.addEventListener("change", () => { state.reach = reach.value; rebuild(); });
+      if (state.reach === "through") return [control("How it is reached", reach), ...throughControls()];
       const names = bridgeNames(context.store);
       const bridge = el("select", "participant-bridge", ...(names.length ? names : [""]).map((name) => option(name)));
       bridge.value = state.bridge;
@@ -647,7 +664,7 @@ export const route = {
       saveUntested.addEventListener("click", () => { state.saveUntested = true; buildForm(); });
       const testLine = el("p", null, test);
       if (state.agentTest?.ok === false && !state.saveUntested) testLine.append(" ", saveUntested);
-      return [control("Bridge", bridge), el("p", null, listAgents), agentListView(), control("Agent", agent),
+      return [control("How it is reached", reach), control("Bridge", bridge), el("p", null, listAgents), agentListView(), control("Agent", agent),
         testLine, testResult];
     }
 
@@ -668,7 +685,13 @@ export const route = {
 
     function stateFromCells(cells) {
       const route = text(cells.Route);
-      const ci = /^workflow (.*?) on (github-hosted|self-hosted) secret (.*)$/.exec(route);
+      // The schema's form `ci hosted secret <NAME>` / `ci runner:<label> secret <NAME>`, and the form saved earlier,
+      // `workflow <file> on github-hosted|self-hosted secret <NAME>`, whose self-hosted runner names no label: every
+      // self-hosted runner carries the label self-hosted (as settings.mjs's ciRoute reads it).
+      const current = /^ci (?:hosted|runner:(\S+)) secret (\S+)$/.exec(route);
+      const earlier = /^workflow (.*?) on (github-hosted|self-hosted) secret (.*)$/.exec(route);
+      const ci = current ? { workflow: "", runner: current[1] === undefined ? "github-hosted" : "self-hosted", label: current[1] ?? "", secret: current[2] }
+        : earlier ? { workflow: earlier[1], runner: earlier[2], label: earlier[2] === "self-hosted" ? "self-hosted" : "", secret: earlier[3] } : null;
       const bridge = /^bridge (.*?) agent (.*)$/.exec(route);
       return {
         name: text(cells.Name),
@@ -679,11 +702,14 @@ export const route = {
         capabilities: listedValues(cells.Capabilities),
         account: route.startsWith("account ") ? route.slice("account ".length) : "",
         endpoint: route.startsWith("endpoint ") ? route.slice("endpoint ".length) : "",
-        workflow: ci?.[1] ?? "",
-        runner: ci?.[2] ?? "github-hosted",
-        secret: ci?.[3] ?? "",
+        workflow: ci?.workflow ?? "",
+        runner: ci?.runner ?? "github-hosted",
+        runnerLabel: ci?.label ?? "",
+        secret: ci?.secret ?? "",
         bridge: bridge?.[1] ?? "",
         agent: bridge?.[2] ?? "",
+        reach: reachedThrough({ route }) === null ? "bridge" : "through",
+        through: reachedThrough({ route }) ?? "",
       };
     }
 

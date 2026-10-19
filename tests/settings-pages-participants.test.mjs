@@ -8,11 +8,11 @@
 // Guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The route is driven only through MOD-settings-pages' public view. The DOM is the browser stand-in of tests/site-frame.test.mjs,
+// The route is driven only through MOD-settings-pages' public view. The DOM is the browser stand-in of tests/site-frame-dom.mjs,
 // because the route uses MOD-site-frame's schemaForm and folded explanations. The instance host is local to this file: it
 // exposes docs/participants.md and docs/sources/SRC-*.md, and records the one commit saveFile makes.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -293,7 +293,7 @@ test("participants — each participant type is added through the schema form an
     { type: "model endpoint", name: "campus-model", settings: { "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus", key: "endpoint-secret" } },
       fields: { endpoint: "campus", place: "FAU data centre (EU)" }, place: "FAU data centre (EU)", capabilities: ["draft text"], route: "endpoint campus" },
     { type: "CI agent", name: "ci-writer", fields: { model: "gpt-5", workflow: "agent-m.yml", runner: "github-hosted", secret: "MODEL_KEY", place: "GitHub hosted runner" },
-      place: "GitHub hosted runner", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], route: "workflow agent-m.yml on github-hosted secret MODEL_KEY" },
+      place: "GitHub hosted runner", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], route: "ci hosted secret MODEL_KEY" },
     { type: "CLI agent", name: "codex-local", settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } },
       fields: { model: "gpt-5", bridge: "laptop", agent: "codex", place: "this machine" },
       place: "this machine", capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"], route: "bridge laptop agent codex" },
@@ -574,4 +574,171 @@ test("participants — a participant no product uses saves without the product-u
   const dev = committedRows(b).find((row) => row.Name === "dev-b");
   assert.ok(dev);
   assert.equal(dev["Processing place"], "lab machine");
+});
+
+// TST-352005 · level: unit · module: MOD-settings-pages
+// guards: UC-017 step 5; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// given: the public participants Route, an empty register, and a Bridge and an endpoint kept in this browser
+// input: the author chooses each type in turn and has not typed a processing place
+// expect: the place is preset where it can be told — CI agent "GitHub hosted runner", CLI agent "this machine", sandboxed agent
+//   "sandbox" — and is empty for a model endpoint, where Agent M cannot tell, and absent for a person; a preset place is changed by typing
+test("participants — the processing place is preset by type where it can be told, and changeable", async (t) => {
+  const b = browser(t, { settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" },
+    "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus" } } });
+  const page = await b.page();
+  const expected = [["CI agent", "GitHub hosted runner"], ["CLI agent", "this machine"], ["sandboxed agent", "sandbox"], ["model endpoint", ""]];
+  for (const [type, place] of expected) {
+    await addParticipant(page, type);
+    assert.equal(one(page, "participant-place").value, place, `${type}: preset processing place`);
+  }
+  await addParticipant(page, "person");
+  assert.equal(byClass(page, "participant-place").length, 0, "a person has no processing place");
+  await addParticipant(page, "CLI agent");
+  await put(one(page, "participant-place"), "lab machine");
+  assert.equal(one(page, "participant-place").value, "lab machine");
+  assert.match(rowTextOf(page), /\| lab machine \|/);
+});
+
+// TST-352006 · level: unit · module: MOD-settings-pages
+// guards: UC-017 step 3; A PARTICIPANT HAS ONE OF FIVE TYPES; NO SECRET IN THE REPOSITORY
+// given: the public participants Route, an empty register, and the CI-agent form with its runner on the server's machines
+// input: the author chooses the self-hosted runner, types the runner's label gpu and the key's secret name MODEL_KEY, saves; and, on another page, leaves the label empty
+// expect: no runner-label field while the runner is the server's own; with the self-hosted runner a runner-label field, the route
+//   preview "ci runner:gpu secret MODEL_KEY" and, after Save, that route in the committed row; with the label empty Save is withheld
+test("participants — a CI agent's route is written in the schema's form, with the runner's label for a self-hosted runner", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await addParticipant(page, "CI agent");
+  assert.equal(byClass(page, "participant-runner-label").length, 0, "no label field while the runner is the server's own");
+  await put(one(page, "participant-name"), "ci-gpu");
+  await put(one(page, "participant-model"), "gpt-5");
+  await put(one(page, "participant-workflow"), "agent-m.yml");
+  await put(one(page, "participant-secret-name"), "MODEL_KEY");
+  assert.equal(one(page, "participant-route-preview").textContent, "ci hosted secret MODEL_KEY");
+  await put(one(page, "participant-runner"), "self-hosted", "change");
+  assert.equal(one(page, "participant-route-preview").textContent, "", "a self-hosted runner without its label has no route yet");
+  assert.equal(saveOf(one(page, "participants-form-box")).disabled, true, "Save is withheld without the label");
+  await put(one(page, "participant-runner-label"), "gpu");
+  await put(one(page, "participant-place"), "lab machine");
+  assert.equal(one(page, "participant-route-preview").textContent, "ci runner:gpu secret MODEL_KEY");
+  await save(page);
+  assert.equal(b.commits.length, 1);
+  assert.equal(committedRows(b).at(-1).Route, "ci runner:gpu secret MODEL_KEY");
+  assert.doesNotMatch(b.commits[0].files[0].text, /workflow/);
+});
+
+// TST-352007 · level: unit · module: MOD-settings-pages
+// guards: UC-017 step 7a; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: a register with three CI agents: one on the schema's route "ci runner:gpu secret GPU_KEY", and two saved earlier in the form
+//   "workflow agent-m.yml on github-hosted secret OLD_KEY" and "workflow agent-m.yml on self-hosted secret SELF_KEY"
+// input: the author opens Change for each
+// expect: the runner, the runner's label and the secret are read back from the route — gpu / GPU_KEY, the server's own runner / OLD_KEY,
+//   and, for the earlier self-hosted form, the label self-hosted (the label every self-hosted runner has) / SELF_KEY — and the route
+//   preview shows each in the schema's form
+test("participants — Change reads a CI agent's route in the schema's form and in the form saved earlier", async (t) => {
+  const row = (name, route) => `| ${name} | CI agent | gpt-5 | — | — | draft text, read the repository | lab machine | ${route} |`;
+  const register = `${EMPTY_PARTICIPANTS}${[
+    row("ci-gpu", "ci runner:gpu secret GPU_KEY"),
+    row("ci-old", "workflow agent-m.yml on github-hosted secret OLD_KEY"),
+    row("ci-old-self", "workflow agent-m.yml on self-hosted secret SELF_KEY"),
+  ].join("\n")}\n`;
+  const expected = [
+    ["ci-gpu", "self-hosted", "gpu", "GPU_KEY", "ci runner:gpu secret GPU_KEY"],
+    ["ci-old", "github-hosted", undefined, "OLD_KEY", "ci hosted secret OLD_KEY"],
+    ["ci-old-self", "self-hosted", "self-hosted", "SELF_KEY", "ci runner:self-hosted secret SELF_KEY"],
+  ];
+  for (const [name, runner, label, secret, preview] of expected) {
+    const b = browser(t, { files: { [PARTICIPANTS]: register } });
+    const page = await b.page();
+    await click(changeButton(page, name));
+    assert.equal(one(page, "participant-runner").value, runner, `${name}: runner`);
+    if (label === undefined) assert.equal(byClass(page, "participant-runner-label").length, 0, `${name}: no label field`);
+    else assert.equal(one(page, "participant-runner-label").value, label, `${name}: label`);
+    assert.equal(one(page, "participant-secret-name").value, secret, `${name}: secret`);
+    assert.equal(one(page, "participant-route-preview").textContent, preview, `${name}: route`);
+  }
+});
+
+// A subagent is a CLI or sandboxed agent that another CLI agent of the register starts; its route is `through <participant>` (MOD-participant-list, Data: Route; reachedThrough).
+const HEAD = "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|";
+const CAPS = "read the repository, write to the repository, run code and tests";
+const AGENTS_REGISTER = `# Participants of this instance\n\n${HEAD}\n`
+  + `| alice | person | — | — | — | ${CAPS} | — | account github.com/alice |\n`
+  + `| dev-a | CLI agent | codex | 200000 | — | ${CAPS} | this machine | bridge laptop agent codex |\n`
+  + `| dev-c | CLI agent | claude | 200000 | — | ${CAPS} | this machine | bridge laptop agent claude |\n`
+  + `| box | sandboxed agent | codex | 200000 | — | ${CAPS} | sandbox vm | bridge sandbox agent codex |\n`;
+const SUBAGENT_REGISTER = `${AGENTS_REGISTER}| helper | CLI agent | codex | 100000 | — | ${CAPS} | this machine | through dev-a |\n`;
+const optionsOf = (select) => byTag(select, "option").map((option) => option.value);
+
+// TST-999001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: the register lists a person alice, the CLI agents dev-a and dev-c, and the sandboxed agent box; the author adds a CLI agent, and then a sandboxed agent
+// input: for each type: name it helper, see that participant-reach offers bridge and through, choose "through", look at the select participant-through, choose dev-a, enter the model and the place, Save
+// expect: participant-through offers exactly dev-a and dev-c (the CLI agents of the register — not alice, not the sandboxed agent box); the route preview reads "through dev-a"; no Bridge select, no agent field and no Test is shown; Save is available, makes one commit of docs/participants.md only, and the new row has the chosen type and the Route `through dev-a`; the rows already there are unchanged
+test("participants — a CLI or sandboxed agent is saved as a subagent through one of the register's CLI agents", async (t) => {
+  for (const type of ["CLI agent", "sandboxed agent"]) {
+    const b = browser(t, { files: { [PARTICIPANTS]: AGENTS_REGISTER } });
+    const page = await b.page();
+    await addParticipant(page, type);
+    await put(one(page, "participant-name"), "helper");
+    assert.deepEqual(optionsOf(one(page, "participant-reach")), ["bridge", "through"], type);
+    assert.equal(byClass(page, "participant-bridge").length, 1, `${type}: the Bridge is offered while it is reached on a Bridge`);
+    await put(one(page, "participant-reach"), "through", "change");
+    assert.deepEqual(optionsOf(one(page, "participant-through")), ["dev-a", "dev-c"], type);
+    await put(one(page, "participant-through"), "dev-a", "change");
+    await put(one(page, "participant-model"), "codex");
+    await put(one(page, "participant-place"), "this machine");
+    assert.equal(one(page, "participant-route-preview").textContent, "through dev-a", type);
+    for (const gone of ["participant-bridge", "participant-agent", "participant-list-agents", "participant-agent-test"]) assert.equal(byClass(page, gone).length, 0, `${type}: no .${gone}`);
+    await save(page);
+    assert.equal(b.commits.length, 1, `${type}: one commit`);
+    assert.deepEqual(b.commits[0].files.map((file) => file.path), [PARTICIPANTS]);
+    const rows = committedRows(b);
+    assert.deepEqual(rows.slice(0, 4).map((row) => [row.Name, row.Route]), [["alice", "account github.com/alice"], ["dev-a", "bridge laptop agent codex"], ["dev-c", "bridge laptop agent claude"], ["box", "bridge sandbox agent codex"]]);
+    assert.deepEqual([rows[4].Name, rows[4].Type, rows[4].Route], ["helper", type, "through dev-a"]);
+  }
+});
+
+// TST-999002 · level: unit · module: MOD-settings-pages
+// guards: UC-017
+// given: the register holds the subagent helper (a CLI agent, route `through dev-a`) beside alice, dev-a, dev-c and box
+// input: open Change for helper; look at the form; change its processing place to "lab machine"; Save
+// expect: participant-reach reads "through", participant-through reads "dev-a" and offers exactly dev-a and dev-c (not helper itself, not box, not alice); the route preview reads "through dev-a" and the draft row in the form holds `through dev-a`; no Bridge select is shown; Save is available and makes one commit in which helper has the place "lab machine" and the Route `through dev-a`, and the other four rows are as they were
+test("participants — Change keeps a subagent's route through its CLI agent instead of blanking it", async (t) => {
+  const b = browser(t, { files: { [PARTICIPANTS]: SUBAGENT_REGISTER } });
+  const page = await b.page();
+  await click(changeButton(page, "helper"));
+  assert.equal(one(page, "participant-reach").value, "through");
+  assert.equal(one(page, "participant-through").value, "dev-a");
+  assert.deepEqual(optionsOf(one(page, "participant-through")), ["dev-a", "dev-c"]);
+  assert.equal(one(page, "participant-route-preview").textContent, "through dev-a");
+  assert.match(rowTextOf(page), /\| helper \| CLI agent \| codex \| 100000 \| — \| .* \| this machine \| through dev-a \|/);
+  assert.equal(byClass(page, "participant-bridge").length, 0);
+  await put(one(page, "participant-place"), "lab machine");
+  await save(page);
+  assert.equal(b.commits.length, 1);
+  const rows = committedRows(b);
+  assert.deepEqual(rows.map((row) => row.Name), ["alice", "dev-a", "dev-c", "box", "helper"]);
+  const helper = rows.find((row) => row.Name === "helper");
+  assert.deepEqual([helper["Processing place"], helper.Route], ["lab machine", "through dev-a"]);
+  assert.deepEqual(rows.filter((row) => row.Name !== "helper").map((row) => row.Route),
+    ["account github.com/alice", "bridge laptop agent codex", "bridge laptop agent claude", "bridge sandbox agent codex"]);
+});
+
+// TST-999003 · level: unit · module: MOD-settings-pages
+// guards: UC-017
+// given: the same register; dev-a is reached on a Bridge (route `bridge laptop agent codex`), and this browser keeps the Bridge laptop
+// input: open Change for dev-a and look at how it is reached; then choose "through" and look at the choices; then choose "bridge" again
+// expect: participant-reach first reads "bridge" and the Bridge select is shown (a CLI agent that is no subagent is unchanged); after "through" participant-through offers dev-c and helper but not dev-a itself; after "bridge" the Bridge select is back and the route preview reads "bridge laptop agent codex"
+test("participants — a CLI agent reached on a Bridge is offered as a subagent except from itself, and can go back to its Bridge", async (t) => {
+  const b = browser(t, { files: { [PARTICIPANTS]: SUBAGENT_REGISTER }, settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } } });
+  const page = await b.page();
+  await click(changeButton(page, "dev-a"));
+  assert.equal(one(page, "participant-reach").value, "bridge");
+  assert.equal(byClass(page, "participant-bridge").length, 1);
+  await put(one(page, "participant-reach"), "through", "change");
+  assert.deepEqual(optionsOf(one(page, "participant-through")), ["dev-c", "helper"]);
+  await put(one(page, "participant-reach"), "bridge", "change");
+  assert.equal(byClass(page, "participant-bridge").length, 1);
+  assert.equal(one(page, "participant-route-preview").textContent, "bridge laptop agent codex");
 });

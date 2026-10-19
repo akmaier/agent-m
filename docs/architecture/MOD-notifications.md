@@ -12,7 +12,6 @@ uses:
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.parseAddress
-  - MOD-repository-hosts.connect
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.readSnapshot
   - MOD-progress-measures.waitingForAcceptance
@@ -79,19 +78,24 @@ notification's text — what waits and where — is what leads the person on.
 ## Interfaces
 
 - `NotificationState` — `{ on: boolean, permission: "default" | "granted" | "denied", available: "here" | "from the Home
-  Screen" | "no" }`: `on` whether the person has switched notifications on in this browser; `permission` the browser's
-  answer to its question, as `Notification.permission` gives it; `available` whether this browser can show notifications
-  for the dashboard as it is opened — `from the Home Screen` on an iPhone or iPad, whose Safari shows them only for a
-  site opened from the Home Screen (UC-047 1b), `no` where the browser offers a page no notifications or no service
-  worker, as in a private window of some browsers.
-- `watchForAcceptance(page: { store: Store, instance: { repository: string, host: Host }, addressOf: (route: string,
-  params: Record<string, string>, repository: string) -> string }) -> void` — the checks of one page, started by the
-  frame on the main and the review pages with this page's store, the instance as the frame connected it, and the frame's
+  Screen" | "no", notified: number }`: `on` whether the person has switched notifications on in this browser; `permission`
+  the browser's answer to its question, as `Notification.permission` gives it; `available` whether this browser can show
+  notifications for the dashboard as it is opened — `from the Home Screen` on an iPhone or iPad, whose Safari shows them
+  only for a site opened from the Home Screen (UC-047 1b), `no` where the browser offers a page no notifications or no
+  service worker, as in a private window of some browsers; `notified` how many files `notified` holds, over every
+  repository: the files that wait for acceptance and were notified or, at the first check, taken as known — `0` while
+  `on` is false or the key is absent.
+- `watchForAcceptance(page: { store: Store, instance: { repository: string, host: Host }, productHost: (product: string)
+  -> Host, addressOf: (route: string, params: Record<string, string>, repository: string) -> string }) -> void` — the
+  checks of one page, started by the frame on the main and the review pages with this page's store, the instance as the
+  frame connected it, `productHost`, which gives the host of a product by its entry in `products`, and the frame's
   writing of the address of a route of the review pages for a repository — the instance's or a product's address. Every
   minute the page looks whether a check is due — the switch on, the browser's permission granted, and this browser's
   last check five minutes old or older —, so that the pages open in this browser together check every five minutes, and
   a page opened after a pause checks at once (UC-047 2a). A check reads the snapshot of the default branch of the
-  instance and of each product the store keeps — each connected with its own token, which goes only to its own server —,
+  instance and of each product the store keeps — each through `productHost`, whose host, like the instance's, goes
+  through the token and the stored secrets this browser holds at each call, so that a token cleared or replaced since is
+  not used (`A CLEAR IS A REAL CLEAR`), and whose token goes only to its own server —,
   takes from each, with its host, what waits for acceptance with `waitingForAcceptance`, and compares it with
   `notified`: what waits on a blob `notified` does not hold for its path has come to wait — a file changed again among
   it. Of one kind in one repository, up to three are notified one by one and more than three by one notification of
@@ -106,8 +110,8 @@ notification's text — what waits and where — is what leads the person on.
   browser that pauses a page in the background holds its checks until it runs the page again (UC-047 2b). Where the
   browser has dropped the worker's registration, the check registers it again. It throws nothing: a store the browser
   refuses holds no switch, and no check runs.
-- `notificationState(store: Store) -> NotificationState` — the state of this browser, for the settings page; it asks
-  nothing and makes no request.
+- `notificationState(store: Store) -> NotificationState` — the state of this browser, for the settings page, `notified`
+  counted from the key `notified` with `readSetting`; it asks nothing and makes no request.
 - `switchOn(store: Store) -> Promise<NotificationState>` — the person's **Switch on**: asks the browser's permission to
   notify — the only call in Agent M that asks it —; once it is granted, registers the worker from this module's folder
   and stores the switch as on, with no check made yet. When the person or the browser refuses, nothing is registered or
@@ -126,18 +130,18 @@ notification's text — what waits and where — is what leads the person on.
 
 ## Files
 
-It reads and writes, through MOD-browser-store, the keys `notifications` and `notified`, and reads `products` and the
-products' tokens. It reads, through the hosts it connects, the snapshot of the default branch of the instance and of
+It reads and writes, through MOD-browser-store, the keys `notifications` and `notified`, and reads `products`. It
+reads, through the hosts the frame gives it, the snapshot of the default branch of the instance and of
 each product this browser keeps — the files `waitingForAcceptance` reads. It writes no repository file. It registers and
 unregisters its own `worker.mjs` with the browser.
 
 ## Uses
 
-- MOD-browser-store.readSetting — the switch, what was notified, the products this browser keeps and their tokens;
+- MOD-browser-store.readSetting — the switch, what was notified, the products this browser keeps;
   MOD-browser-store.writeSetting — the switch, the time of the last check and what was notified;
   MOD-browser-store.clearSetting — both keys removed on *Switch off*.
-- MOD-repository-hosts.Host, MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — each product's host, with
-  its own token; MOD-repository-hosts.repositoryInfo — each repository's default branch, read once per page;
+- MOD-repository-hosts.Host, MOD-repository-hosts.parseAddress — the hosts the frame gives it and each product's
+  repository path; MOD-repository-hosts.repositoryInfo — each repository's default branch, read once per page;
   MOD-repository-hosts.readSnapshot, MOD-repository-hosts.Snapshot — the default branch at its head, at every check, handed
   to `waitingForAcceptance`.
 - MOD-progress-measures.waitingForAcceptance — what waits for acceptance in a repository, from its snapshot and, through
