@@ -131,7 +131,7 @@ const run = (job, fake, { context = contextOf(), record } = {}) => runtimes.runO
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-010 step 2
 // given: a repository whose default branch is `trunk` (not `main`), with no job workflow; a job's start on the tab's route
 // input: queueJob(host, START, { kind: "tab" }, the head read)
-// expect: one commit, on `trunk`, on the head that was read, holding the one file at the record's path: the start record as MOD-job-ledger's startRecord gives it, with its `## Taken` — `by: tab`, at the job's start — in the same commit; the path and commit returned; no workflow is needed
+// expect: one commit, on `trunk`, on the head that was read, holding the one file at the record's path: the start record as MOD-job-ledger's startRecord gives it, with its `## Taken` — `by: tab <browser>` (MOD-runtimes.md:172), at the job's start — in the same commit; the path and commit returned; no workflow is needed
 test("queueJob — the tab's route commits the job's start and its taking in one commit", async () => {
   const fake = fakeRepository();
   const head = fake.head();
@@ -141,7 +141,7 @@ test("queueJob — the tab's route commits the job's start and its taking in one
   assert.deepEqual([change.branch, change.expectedHead, change.files.map((file) => file.path)], ["trunk", head, [RECORD_PATH]]);
   const { text } = startRecord(START);
   assert.ok(change.files[0].text.startsWith(text.replace(/\n+$/, "")), "the start record as startRecord gives it");
-  assert.match(change.files[0].text, /\n## Taken\n\nat: 2026-10-12 09:30 UTC\nby: tab\n+$/, "with its taking");
+  assert.match(change.files[0].text, /\n## Taken\n\nat: 2026-10-12 09:30 UTC\nby: tab [0-9a-f]{16}\n+$/, "with its taking, by tab and this browser's identifier");
   assert.deepEqual(result, { path: RECORD_PATH, commit: fake.head() });
   const record = await fake.record();
   assert.deepEqual([record.id, record.taken?.by], [START.id, "tab"]);
