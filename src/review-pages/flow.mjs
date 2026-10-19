@@ -177,8 +177,11 @@ export function reviewRoute(kind) {
 
   // The editor of the page drawn last, or null where that page opened none: what the route's `leave` asks.
   let editor = null;
+  // The render that started last: a render that started earlier and ends later draws into a page the frame has already replaced, and its editor is not the route's.
+  let latest = 0;
 
   async function render(target, context, params) {
+    const mine = ++latest;
     editor = null;
     beginSubject(context);
     const where = await readPlace(target, context);
@@ -186,22 +189,23 @@ export function reviewRoute(kind) {
     // After a save the page shows the item again (UC-008 3a, UC-006 3a): drawn anew from the repository, with what the save came to.
     where.shownAgain = (id, message) => redraw(where, { id }, message);
     try {
-      await view(where, params);
+      await view(where, params, () => mine === latest);
       await rememberSubject(where, kind, params);
     } catch (failure) {
       target.append(readProblem(failure, Boolean(where.token)));
     }
   }
 
-  async function view(where, params) {
+  async function view(where, params, current) {
     const { target, snapshot } = where;
-    if (kind.edit) editor = (await showEdit(where, kind, params)) ?? null;
+    const opened = async (made) => { const shown = (await made) ?? null; if (current()) editor = shown; };
+    if (kind.edit) await opened(showEdit(where, kind, params));
     else if (params.edit && params.id && kind.save === "file") {
       const file = files(snapshot).find((candidate) => candidate.id === params.id);
       if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
-      else editor = (await showFileEdit(where, kind, file)) ?? null;
+      else await opened(showFileEdit(where, kind, file));
     }
-    else if (params.edit && params.id && kind.save === "entry") editor = (await showEntryEdit(where, kind, params.id)) ?? null;
+    else if (params.edit && params.id && kind.save === "entry") await opened(showEntryEdit(where, kind, params.id));
     else if (params.id === DRAFT && kind.draft) await showDraft(where, kind);
     else if (params.id === HISTORY) await showHistory(where, params);
     else if (params.id === REVIEW_ALL && service.reviewAll) await showAll(where);
