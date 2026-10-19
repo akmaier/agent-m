@@ -755,7 +755,7 @@ test("decision/draft - an unedited draft lets itself be left without asking", as
 // guards: UC-018 (7a); UC-022; ONE CLICK PER DECISION
 // given: the architecture draft shown after Run, its text changed and Write proposals pressed, which writes it; a confirmation that would decline
 // input: route.leave()
-// expect: counter-proof — what was written is saved: unsaved is false, leave returns true and asks nothing; changed again after the write, it is unsaved once more
+// expect: counter-proof — what was written is saved: unsaved is false; changed again after the write, it is unsaved once more, and back to the written text it is not; leave then returns true and asks nothing
 test("decision/draft - after Write proposals the written text is not unsaved, a later change is", async () => {
   await withConfirm([false], async (asked) => {
     const { target, decision } = await afterRun();
@@ -764,9 +764,40 @@ test("decision/draft - after Write proposals the written text is not unsaved, a 
     click(byClass(target, "button", "write-proposals")[0]);
     await until(() => byClass(target, "p", "written").length === 1, "the write result");
     assert.equal(route.unsaved(), false);
+    const written = decision.value;
+    decision.value += "\nA line after the write.\n";
+    assert.equal(route.unsaved(), true, "a change after the write is unsaved again");
+    decision.value = written;
+    assert.equal(route.unsaved(), false);
     assert.equal(route.leave(), true);
     assert.deepEqual(asked, []);
-    decision.value += "\nA line after the write.\n";
-    assert.equal(route.unsaved(), true);
+  });
+});
+
+// TST-067110 · level: unit · module: MOD-review-pages
+// guards: UC-018 (7a); UC-022
+// given: the architecture draft shown after Run, the decision's text changed, and Check this edit pressed, which draws the checked draft again
+// input: route.unsaved() after the check, and route.leave()
+// expect: counter-proof — the checked draft is the text shown now, not an edit: unsaved is false, and leave returns true and asks nothing
+test("decision/draft - after Check this edit the checked draft is not unsaved", async () => {
+  const checked = architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" });
+  checked.files[0].text = checked.files[0].text.replace("The chosen package is reused.", "The checked draft came back.");
+  endpointsAndRegistries({
+    drafts: [architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" }), checked],
+    registry: { [NPM_MIT]: packageData("MIT") },
+  });
+  await withConfirm([false], async (asked) => {
+    const target = await show(fakeProduct({ ...READY, LICENSE: "MIT License\n" }));
+    await panelFor(target, "drafter-a", "reviewer-b");
+    click(runButtons(target)[0]);
+    await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+    const decision = byClass(target, "textarea", "draft-text").find((box) => box.getAttribute("data-path") === ARC_DRAFT_PATH);
+    decision.value += "\nAn edit of the author.\n";
+    assert.equal(route.unsaved(), true, "known positive: the change is unsaved");
+    click(byClass(target, "button", "check-edit")[0]);
+    await until(() => byClass(target, "p", "checked-edit").length === 1, "the checked edit");
+    assert.equal(route.unsaved(), false);
+    assert.equal(route.leave(), true);
+    assert.deepEqual(asked, []);
   });
 });

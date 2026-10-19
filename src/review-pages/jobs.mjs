@@ -567,12 +567,21 @@ async function presentDerivation(outcome, result, run) {
     const texts = new Map(elementsOf(files, "textarea", "draft-text").map((area) => [area.getAttribute("data-path"), area.value]));
     return { ...current.draft, files: (current.draft?.files ?? []).map((file) => ({ ...file, text: texts.get(file.path) ?? file.text })) };
   };
+  // The text each drafted file is shown with, or was last written with: what an edit is unsaved against (UC-018 7a).
+  let shownTexts = new Map();
+  const textsOfEditors = () => new Map(elementsOf(files, "textarea", "draft-text").map((area) => [area.getAttribute("data-path"), area.value]));
   const showCurrentDraft = () => {
     files.replaceChildren(...(current.draft?.files ?? []).map(draftFileView));
+    shownTexts = textsOfEditors();
   };
   const setStatus = (...nodes) => status.replaceChildren(...nodes);
 
   showCurrentDraft();
+  // The route's `leave` asks through this, as it asks an editor: the same question, and a refusal keeps the page.
+  run.holdEditor?.({
+    unsaved: () => [...textsOfEditors()].some(([path, text]) => text !== shownTexts.get(path)),
+    close() { return !this.unsaved() || confirm("Discard unsaved changes?"); },
+  });
   if (outcome.stoppedBecause === "not checked") shown.append(el("p", "not-checked", "The draft is not checked because a reviewer answer could not be read."));
   if (outcome.rounds?.length) shown.append(roundsSection(outcome.rounds, outcome.stoppedBecause));
   if (outcome.remaining?.length) shown.append(findingsList("left", outcome.remaining));
@@ -600,6 +609,7 @@ async function presentDerivation(outcome, result, run) {
     setStatus();
     try {
       const written = await writeResult(run.prepared, draftFromEditors(), { result: current, context: run.jobContext });
+      shownTexts = textsOfEditors();
       setStatus(el("p", "written", written.files?.length ? `Written: ${written.files.join(", ")}` : "Nothing changed."));
     } catch (failure) {
       write.disabled = false;
