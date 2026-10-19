@@ -2,7 +2,7 @@
 // (tests/artifact_checks.py) on the same files, so that the two readers cannot drift. Deterministic, no network.
 // Run: node --test tests/*.test.mjs — the twin is run with python3, as the CI runner has it.
 //
-// Module: MOD-artifacts
+// Module: MOD-documents
 // Guards: A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION; A USE CASE REALISES NAMED REQUIREMENTS; DIAGRAMS ARE MERMAID IN MARKDOWN; ONE USE CASE, ONE FILE
 // Level: unit
 //

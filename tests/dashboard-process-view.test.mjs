@@ -14,7 +14,7 @@
 // addition: insertAdjacentHTML, which process-view.mjs's own one line after render uses and that small DOM does not
 // otherwise need.
 //
-// Module: MOD-dashboard-app
+// Module: MOD-implementation-pages
 // Guards: UC-002
 // Guards: WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS
 // Level: component

@@ -2,7 +2,7 @@
 // store's own list (ITM-145). Written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md, who implemented none
 // of the strand's items, from the SPEC rules they realise; started on sprint/02 at a22de0a, 2026-10-02.
 //
-// Module: MOD-settings-store
+// Module: MOD-browser-store
 // Guards: ONE GITHUB TOKEN SERVES EVERY FEATURE; AN EXPORT STATES THAT IT CONTAINS SECRETS
 // Level: release
 //

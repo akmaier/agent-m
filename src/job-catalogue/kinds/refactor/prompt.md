@@ -14,3 +14,7 @@ The task, where one is given, is the work asked for, within what the inputs belo
 ## The step, with everything it rests on
 
 {{implementation-inputs}}
+
+## The product's resources, with their pinned states
+
+{{resource-pins}}

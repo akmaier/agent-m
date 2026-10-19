@@ -15,7 +15,7 @@ const FAULTS = {
   "TST-342009": ["src/markdown-render/difference.mjs", 'added: "dadd"', 'added: "dctx"'],
   "TST-343005": ["src/markdown-render/editor.mjs", "difference(against, draft)", "difference(draft, against)"],
 };
-await import("./markdown-render.test.mjs");
+await import("./markdown-render-dom.mjs");
 const { renderArtifact, renderMermaid, showDifference, openEditor } = await import("../src/markdown-render/index.mjs");
 const byTag = (root, tag) => { const out=[]; (function walk(n){ for(const c of n.childNodes ?? []) { if(c.nodeType===1){if(c.localName===tag)out.push(c);walk(c);} } })(root); return out; };
 const byClass = (root, name) => { const out=[]; (function walk(n){ for(const c of n.childNodes ?? []) { if(c.nodeType===1){if(c.className.split(" ").includes(name))out.push(c);walk(c);} } })(root); return out; };

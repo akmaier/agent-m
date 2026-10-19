@@ -1,7 +1,7 @@
 // The review page in the core — which files of one area a review page shows, and which it counts (docs/assets/review-core.mjs
 // reviewPage). Deterministic, no network. Run: node --test tests/*.test.mjs
 //
-// Module: MOD-review-core
+// Module: MOD-approvals
 // Guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-008; UC-022; UC-023
 // Level: unit
 //

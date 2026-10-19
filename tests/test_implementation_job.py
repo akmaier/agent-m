@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-work-plans
 # Guards: AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST; A REFACTORING JOB BEGINS WITHOUT A FAILING TEST; A REFACTORING JOB CHANGES NO EXPECTED RESULT; AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES
 # Level: release
 """SPEC section 13 - the check named tests/test_implementation_job.py.

@@ -121,25 +121,27 @@ export function entrySections(view, others, order, hrefOf) {
 // drawn from the ArchitectureImpact MOD-trace-graph's architectureImpact derives and from the graph it was derived from: each affected module — one that uses an
 // interface the change alters or removes marked as breaking — with the code files in its folder and the tests that exercise it, and what they guard; then the
 // requirements and use cases the file names now and no longer; the backlog items that name an affected module.
+// Without the graph (graph null: a stored list), the code files and the tests of the whole list stand in one line each below the modules.
 export function impactSection(impact, graph) {
   const list = (names) => (names.length ? names.join(", ") : "—");
+  const testsLine = (tests) => (tests.length ? list(tests.map((t) => `${t.id}${t.guards.length ? ` (guards ${t.guards.join(", ")})` : ""}`)) : "none");
   const modules = el("ul", "names");
   for (const each of impact.modules) {
-    const folder = graph.nodes.get(each.id)?.folder ?? null;
-    const prefix = folder === null ? null : folder.endsWith("/") ? folder : `${folder}/`;
-    const code = prefix === null ? [] : impact.codeFiles.filter((path) => path.startsWith(prefix));
-    const exercising = new Set(graph.edges.filter((edge) => edge.via === "exercises" && edge.to === each.id).map((edge) => edge.from));
-    const tests = impact.tests.filter((t) => exercising.has(t.id)).map((t) => `${t.id}${t.guards.length ? ` (guards ${t.guards.join(", ")})` : ""}`);
-    const item = el("li", "module",
-      el("span", "module-head", el("strong", null, each.id), ...(each.breaks ? [" ", el("span", "badge breaks", "breaks")] : []), ` — ${each.why}`),
-      el("p", "small code-files", `Code files — ${code.length ? list(code) : "no code yet"}`),
-      el("p", "small tests", `Tests — ${tests.length ? list(tests) : "none"}`));
+    const item = el("li", "module", el("span", "module-head", el("strong", null, each.id), ...(each.breaks ? [" ", el("span", "badge breaks", "breaks")] : []), ` — ${each.why}`));
+    if (graph !== null) {
+      const folder = graph.nodes.get(each.id)?.folder ?? null;
+      const prefix = folder === null ? null : folder.endsWith("/") ? folder : `${folder}/`;
+      const code = prefix === null ? [] : impact.codeFiles.filter((path) => path.startsWith(prefix));
+      const exercising = new Set(graph.edges.filter((edge) => edge.via === "exercises" && edge.to === each.id).map((edge) => edge.from));
+      item.append(el("p", "small code-files", `Code files — ${code.length ? list(code) : "no code yet"}`), el("p", "small tests", `Tests — ${testsLine(impact.tests.filter((t) => exercising.has(t.id)))}`));
+    }
     item.setAttribute("data-id", each.id);
     modules.append(item);
   }
   if (impact.modules.length === 0) modules.append(el("li", null, "none — no module follows this decision"));
   return el("section", "change-impact", el("h3", null, "Impact of this change"),
     el("p", "small", el("strong", null, "Affected modules")), modules,
+    ...(graph === null ? [el("p", "small code-files", `Code files — ${impact.codeFiles.length ? list(impact.codeFiles) : "no code yet"}`), el("p", "small tests", `Tests — ${testsLine(impact.tests)}`)] : []),
     el("p", "small", el("strong", null, "Requirements and use cases"), ` — newly named: ${list(impact.named.added)} · no longer named: ${list(impact.named.removed)}`),
     el("p", "small", el("strong", null, "Items"), ` — ${list(impact.items)}`));
 }

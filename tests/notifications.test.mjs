@@ -22,7 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { setImmediate as flushAsync } from "node:timers/promises";
-import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { openStore, readSetting, writeSetting, clearSetting } from "../src/browser-store/index.mjs";
 import { notificationState, switchOn, switchOff, watchForAcceptance } from "../src/notifications/index.mjs";
 
 const INSTANCE = "akmaier/agent-m";
@@ -163,6 +163,27 @@ test("switchOn asks the browser's permission only on the call, and a refusal sto
     assert.deepEqual(readSetting(store, "notifications"), { checked: null }, "granted: the switch is stored, no check made yet");
     assert.equal(allowed.on, true);
     assert.equal(allowed.permission, "granted");
+  } finally { browser.restore(); }
+});
+
+// TST-821001 · level: unit · module: MOD-notifications
+// guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE
+// given: a fresh store; the key `notified` holds two files of the instance and one file of a product (3 in all); the browser stood in for
+// input: notificationState(store) with notifications on (the key `notifications` stored); with the key `notifications` absent; with notifications on and the key `notified` absent; and with notifications on and `notified` holding the files of one repository only
+// expect: `notified` is 3 with the switch on; 0 with the switch off, though `notified` holds 3; 0 with the switch on and no `notified`; 2 for the one repository holding two; the call asks the browser's permission 0 times
+test("notificationState counts the files the key `notified` holds over every repository, and 0 while off or without the key", () => {
+  const store = openFreshStore();
+  const browser = installBrowser({ permission: "granted" });
+  try {
+    writeSetting(store, "notified", { [INSTANCE]: { "docs/use-cases/UC-001-a.md": "a".repeat(40), "docs/use-cases/UC-002-b.md": "b".repeat(40) }, "alice/product": { "SPEC.md": "c".repeat(40) } });
+    assert.equal(notificationState(store).notified, 0, "off: nothing is counted, though the key holds 3 files");
+    writeSetting(store, "notifications", { checked: null });
+    assert.equal(notificationState(store).notified, 3, "on: two files of the instance and one of the product");
+    writeSetting(store, "notified", { [INSTANCE]: { "docs/use-cases/UC-001-a.md": "a".repeat(40), "docs/use-cases/UC-002-b.md": "b".repeat(40) } });
+    assert.equal(notificationState(store).notified, 2, "on: one repository holding two files");
+    clearSetting(store, "notified");
+    assert.equal(notificationState(store).notified, 0, "on, without the key");
+    assert.equal(browser.calls.requestPermission, 0, "the state asks nothing");
   } finally { browser.restore(); }
 });
 
@@ -348,4 +369,37 @@ test("a repository that cannot be read is skipped until the next check", async (
       },
     });
   } finally { browser.restore(); }
+});
+
+// TST-863101 · level: unit · module: MOD-notifications
+// guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; A CLEAR IS A REAL CLEAR
+// given: a store that keeps the product https://github.com/alice/thesis; a page given productHost, a function that records the product it is asked for and gives a fake host of that product, and a fetch that records every call and refuses it; a baseline check with one use case waiting in the product
+// input: watchForAcceptance's page; a second check five minutes later at which another use case of the product has come to wait
+// expect: productHost is asked for "https://github.com/alice/thesis" (the entry in `products`); the second check notifies the new use case once, naming alice/thesis; notified holds the product's two files; the module made no fetch of its own (0 calls)
+test("a kept product is read through the host productHost gives, and the module connects none itself", async () => {
+  const store = openFreshStore();
+  writeSetting(store, "notifications", { checked: null });
+  writeSetting(store, "products", ["https://github.com/alice/thesis"]);
+  const browser = installBrowser();
+  const { host } = fakeHost();
+  const product = fakeHost();
+  const { addressOf } = fakeAddressOf();
+  const asked = [], fetched = [];
+  const priorFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => { fetched.push(String(url)); throw new TypeError("offline"); };
+  try {
+    const first = { id: "UC-001", path: "docs/use-cases/UC-001-first.md", blob: sha1("UC-001@1") };
+    const second = { id: "UC-002", path: "docs/use-cases/UC-002-second.md", blob: sha1("UC-002@1") };
+    product.setWaiting([first]);
+    watchForAcceptance({ ...makePage(store, host, addressOf), productHost: (address) => { asked.push(address); return product.host; } });
+    await flushAsync();
+    writeSetting(store, "notifications", { checked: minutesAgo(6) });
+    product.setWaiting([first, second]);
+    browser.tick();
+    await flushAsync();
+    assert.equal(asked.length > 0 && asked.every((address) => address === "https://github.com/alice/thesis"), true, JSON.stringify(asked));
+    assert.deepEqual(browser.shown.map((shown) => [shown.title, shown.body]), [["UC-002 waits for your acceptance", "alice/thesis"]]);
+    assert.deepEqual(readSetting(store, "notified")["alice/thesis"], { [first.path]: first.blob, [second.path]: second.blob });
+    assert.deepEqual(fetched, [], "no request of the module's own");
+  } finally { globalThis.fetch = priorFetch; browser.restore(); }
 });

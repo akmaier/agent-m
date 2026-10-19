@@ -14,6 +14,8 @@
 
 import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
+import { eligible } from "../participant-list/index.mjs";
+import { kindOf } from "../job-catalogue/index.mjs";
 import { offeredAmong, placeOf, readParticipants } from "./offer.mjs";
 import { followJob } from "./follow.mjs";
 import { assess, queue, worksOnOf } from "./hand-over.mjs";
@@ -40,6 +42,13 @@ const button = (className, text) => {
 const linkTo = (address) => {
   const node = el("a", "run", address);
   if (/^https?:\/\//.test(address)) node.setAttribute("href", address);
+  return node;
+};
+
+// The server's page of the repository's secrets (MOD-repository-hosts' webLinks), as a link.
+const secretsLink = (host) => {
+  const node = el("a", "secrets-link", "Secrets of this repository");
+  node.setAttribute("href", host.webLinks().secrets);
   return node;
 };
 
@@ -91,7 +100,7 @@ const said = (failure) => `${failure.name ?? "Error"}: ${failure.message}`;
 export function startPromptBar(target, setup) {
   const { store, instance } = setup;
   const state = { stopped: false, controller: null, follower: null, following: false };
-  let offered = [], recording = false, instanceWeb = null;
+  let reached = [], offered = [], recording = false, instanceWeb = null;
 
   const status = el("section", "status");
   const followed = el("section", "following");
@@ -102,6 +111,7 @@ export function startPromptBar(target, setup) {
   const stop = button("stop", "Stop");
   stop.disabled = true;
   let selector = null;
+  const chooser = el("div", "chooser");
 
   const show = (...nodes) => status.replaceChildren(...nodes);
   const problem = (text) => el("p", "problem", text);
@@ -153,11 +163,12 @@ export function startPromptBar(target, setup) {
     refreshStop();
     const route = view.route ?? "";
     const waiting = view.end !== null || route === "" ? [] : [el("p", "waiting", route.startsWith("bridge ") ? `waiting for the Bridge ${route.slice("bridge ".length)}` : "waiting for GitHub Actions")];
+    const secret = view.missingSecret === null ? [] : [el("p", "missing-secret", `Not run: the secret ${view.missingSecret} is missing. Add it on the server's page of this repository's secrets: `, secretsLink(pageOf().host))];
     const run = view.address === null ? [] : [el("p", "run-address", "Run: ", linkTo(view.address))];
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
-    followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...run,
+    followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
       ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
       ...(view.problem ? [problem(view.problem)] : []));
   }
@@ -175,6 +186,11 @@ export function startPromptBar(target, setup) {
     section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
     const render = (assessment) => {
       const parts = [el("p", "route", assessment.route ? `Route: ${assessment.routeText}` : `Route: not available — ${assessment.routeText}`)];
+      if (assessment.needsWorkflow) {
+        const set = button("settings-link", "Set up the job workflow");
+        set.addEventListener("click", () => setup.go("settings"));
+        parts.push(set);
+      }
       if (assessment.reasons.length) parts.push(el("ul", "start-reasons", ...assessment.reasons.map((each) => el("li", "reason", each))));
       else if (assessment.route) {
         const hand = button("queue", "Hand over");
@@ -253,7 +269,8 @@ export function startPromptBar(target, setup) {
     if (state.controller || state.stopped) return;
     const instruction = input.value.trim();
     if (instruction === "") { show(problem("Write a message first.")); return; }
-    const participant = chosen();
+    const participant = await rejudged();
+    if (participant === null) { show(problem("Nothing was sent. No participant can do this kind of message.")); return; }
     const controller = new AbortController();
     state.controller = controller;
     send.disabled = true;
@@ -275,7 +292,8 @@ export function startPromptBar(target, setup) {
         return;
       }
       const to = ready.prepared.destinations.map((each) => el("li", "destination", `${each.participant.name} — ${each.place || "no processing place declared"}`));
-      show(el("p", "sends", "Sent to:"), el("ul", "destinations", ...to));
+      show(el("p", "sends", "Sent to:"), el("ul", "destinations", ...to),
+        el("p", "limit", `The correction loop runs at most ${ready.prepared.limit} rounds.`));
       const who = ready.person ?? "person";
       if (ready.recording) {
         if (ready.person === null) {
@@ -316,11 +334,22 @@ export function startPromptBar(target, setup) {
     }
   }
 
-  async function draw() {
-    const snapshot = await defaultSnapshot(instance.host);
-    instanceWeb = snapshot.repository.web;
-    offered = offeredAmong(await readParticipants(snapshot), store);
-    if (offered.length === 0 || state.stopped) return;
+  // The participants reached that can do the kind of the subject now (UC-019 2): `eligible` judges them against the `needs` of the kind's
+  // definition. The subject is a getter, so the offer is drawn from it whenever the bar is used: when the bar is drawn, when its input or its
+  // selector takes focus, and on *Send*. Where some are reached and none can, the bar says so, names what the kind needs and links the route
+  // `participants` (UC-019 3a).
+  async function judge() {
+    const kind = await kindOf(setup.subject().kind);
+    if (state.stopped) return;
+    offered = eligible(reached, { capabilities: kind.needs }).eligible;
+    const kept = selector?.value;
+    if (offered.length === 0) {
+      selector = null;
+      const link = button("participants-link", "Set up participants");
+      link.addEventListener("click", () => setup.go("participants"));
+      chooser.replaceChildren(el("p", "none-able", `No participant of this instance can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
+      return;
+    }
     const named = (each) => `${each.name} — ${placeOf(each)}`;
     if (offered.length === 1) {
       selector = el("span", "participant", named(offered[0]));
@@ -331,13 +360,31 @@ export function startPromptBar(target, setup) {
         option.value = each.name;
         selector.append(option);
       }
-      selector.value = offered[0].name;
+      selector.value = offered.some((each) => each.name === kept) ? kept : offered[0].name;
+      selector.addEventListener("focus", () => judge().catch(() => {}));
     }
+    chooser.replaceChildren(selector);
+  }
+
+  // The participant a message goes to: the offer is judged again for the subject now, then the chosen one is taken; null where none can.
+  async function rejudged() {
+    await judge();
+    return offered.length === 0 ? null : chosen();
+  }
+
+  async function draw() {
+    const snapshot = await defaultSnapshot(instance.host);
+    instanceWeb = snapshot.repository.web;
+    reached = offeredAmong(await readParticipants(snapshot), store);
+    if (reached.length === 0 || state.stopped) return;
+    await judge();
+    if (state.stopped) return;
+    input.addEventListener("focus", () => judge().catch(() => {}));
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
     stop.addEventListener("click", () => (state.controller ? state.controller.abort() : state.follower?.cancel()));
     conversation.replaceChildren(...conversationOf(store).map(line));
-    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, selector, conversation, input, el("div", "buttons", send, stop), status, followed);
+    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, chooser, conversation, input, el("div", "buttons", send, stop), status, followed);
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
     bar.setAttribute("style", "position: fixed; bottom: 0; left: 0; right: 0;");

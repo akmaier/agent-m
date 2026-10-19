@@ -10,6 +10,7 @@ resources: product
 preconditions:
 recipes:
   - commit-and-levels
+  - resource-pins
 checks:
 person_decides:
 steps:

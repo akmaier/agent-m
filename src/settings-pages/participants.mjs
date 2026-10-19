@@ -132,8 +132,10 @@ function routeOf(type, state) {
   if (type === "person") return state.account.trim() ? `account ${state.account.trim()}` : "";
   if (type === "model endpoint") return state.endpoint.trim() ? `endpoint ${state.endpoint.trim()}` : "";
   if (type === "CI agent") {
-    const workflow = state.workflow.trim(), secret = state.secret.trim();
-    return workflow && secret ? `workflow ${workflow} on ${state.runner} secret ${secret}` : "";
+    const secret = state.secret.trim(), label = state.runnerLabel.trim();
+    if (!secret) return "";
+    if (state.runner !== "self-hosted") return `ci hosted secret ${secret}`;
+    return label ? `ci runner:${label} secret ${secret}` : "";
   }
   if (BRIDGE_TYPES.has(type)) {
     if (state.reach === "through") return state.through ? `through ${state.through}` : "";
@@ -356,7 +358,7 @@ export const route = {
   name: "participants",
   entry: "settings",
   title: "Participants",
-  async render(target, context) {
+  async render(target, context, params = {}) {
     let opened;
     try { opened = await openedRegister(context.instance.host); } catch (error) {
       target.replaceChildren(el("h2", null, "Participants"), el("p", "participants-unreadable", `The participants register could not be read: ${error?.message ?? error}.`));
@@ -381,19 +383,30 @@ export const route = {
     const productUseBase = productUseBasis(context, opened).catch(() => []);
     const state = {
       name: "", account: "", endpoint: "", endpointUrl: "", endpointKind: "openai-compatible", endpointModel: "", endpointKey: "",
-      inlineEndpoint: false, model: "", context: "", price: "", place: "", workflow: "", runner: "github-hosted", secret: "",
+      inlineEndpoint: false, model: "", context: "", price: "", place: "", runner: "github-hosted", runnerLabel: "", secret: "",
       bridge: "", agent: "", reach: "bridge", through: "", capabilities: [], agentList: null, agentListText: "", agentTest: null, saveUntested: false,
     };
+
+    // A model endpoint's *use tools* is preset from its endpoint's last test (UC-017 step 3): ticked where the model called the tool it was
+    // offered, unticked where it answered in text only; an endpoint never tested, or whose test did not reach the model, changes nothing, and no other capability is touched.
+    let capabilityBoxes = [];
+    function presetTools() {
+      const tested = readSetting(context.store, `last-test:endpoint:${state.endpoint.trim()}`);
+      if (typeof tested?.tools !== "boolean") return;
+      state.capabilities = CAPABILITIES.filter((name) => (name === "use tools" ? tested.tools : state.capabilities.includes(name)));
+      for (const box of capabilityBoxes) box.checked = state.capabilities.includes(box.value);
+    }
 
     function setType(next, values = {}) {
       state.name = ""; state.account = ""; state.endpoint = ""; state.endpointUrl = ""; state.endpointKind = "openai-compatible";
       state.endpointModel = ""; state.endpointKey = ""; state.inlineEndpoint = false; state.model = ""; state.context = "";
-      state.price = ""; state.place = ""; state.workflow = ""; state.runner = "github-hosted"; state.secret = ""; state.bridge = "";
+      state.price = ""; state.place = ""; state.runner = "github-hosted"; state.runnerLabel = ""; state.secret = ""; state.bridge = "";
       state.agent = ""; state.reach = "bridge"; state.through = ""; state.capabilities = typePreset(next); state.agentList = null; state.agentListText = ""; state.agentTest = null;
       state.saveUntested = false;
       if (next === "model endpoint") {
         state.endpoint = firstEndpoint(context.store);
         state.inlineEndpoint = state.endpoint === "";
+        presetTools();
       }
       if (BRIDGE_TYPES.has(next)) state.bridge = bridgeNames(context.store)[0] ?? "";
       if (next === "CI agent") state.place = "GitHub hosted runner";
@@ -458,7 +471,12 @@ export const route = {
     function selectInput(className, key, values) {
       const input = el("select", className, ...values.map((value) => option(value)));
       input.value = state[key];
-      input.addEventListener("change", () => { state[key] = input.value; buildForm(); routePreview.textContent = routeOf(type.value, state); });
+      input.addEventListener("change", () => {
+        state[key] = input.value;
+        if (key === "endpoint") presetTools();
+        buildForm();
+        routePreview.textContent = routeOf(type.value, state);
+      });
       return input;
     }
 
@@ -476,6 +494,7 @@ export const route = {
         });
         return box;
       });
+      capabilityBoxes = inputs;
       return el("fieldset", "participant-capabilities", el("legend", null, "Capabilities"),
         ...inputs.map((box) => el("p", null, el("label", null, box, " ", box.value))), explain("capabilities-and-place"));
     }
@@ -496,7 +515,7 @@ export const route = {
 
     function endpointControls() {
       const names = endpointNames(context.store);
-      if (!names.length) {
+      if (!names.length || state.inlineEndpoint) {
         state.inlineEndpoint = true;
         const name = textInput("participant-endpoint-name", "endpoint", "endpoint name");
         const url = textInput("participant-endpoint-url", "endpointUrl", "http://localhost:11434/v1");
@@ -518,6 +537,8 @@ export const route = {
           try {
             const checked = await testEndpoint(endpointConfig(state));
             recordTest(context.store, endpoint.key, checked);
+            presetTools();
+            buildForm();
             testResult.textContent = endpointTestResultText(checked);
           } catch (error) {
             testResult.textContent = `The endpoint could not be tested: ${error?.message ?? error}.`;
@@ -539,7 +560,8 @@ export const route = {
       const explainRunner = el("p", "participant-runner-explanation", state.runner === "self-hosted"
         ? "A self-hosted runner serves private repositories only; on a public repository Agent M refuses a job that would run on it, because outside pull requests could run code on that machine."
         : "A hosted runner runs on the forge's machines and uses a secret by name; no key is stored in the participants register.");
-      return [control("Workflow", textInput("participant-workflow", "workflow", "agent-m.yml")), control("Runner", runner),
+      return [control("Runner", runner),
+        ...(state.runner === "self-hosted" ? [control("Runner label", textInput("participant-runner-label", "runnerLabel", "gpu"))] : []),
         control("Key secret name", textInput("participant-secret-name", "secret", "ACTIONS_SECRET_NAME")), explainRunner,
         explain("ci-agent-runner"), explain("ci-ssh-alternative"), explain("job-workflow")];
     }
@@ -682,7 +704,13 @@ export const route = {
 
     function stateFromCells(cells) {
       const route = text(cells.Route);
-      const ci = /^workflow (.*?) on (github-hosted|self-hosted) secret (.*)$/.exec(route);
+      // The schema's form `ci hosted secret <NAME>` / `ci runner:<label> secret <NAME>`, and the form saved earlier,
+      // `workflow <file> on github-hosted|self-hosted secret <NAME>`, whose self-hosted runner names no label: every
+      // self-hosted runner carries the label self-hosted (as settings.mjs's ciRoute reads it).
+      const current = /^ci (?:hosted|runner:(\S+)) secret (\S+)$/.exec(route);
+      const earlier = /^workflow (.*?) on (github-hosted|self-hosted) secret (.*)$/.exec(route);
+      const ci = current ? { runner: current[1] === undefined ? "github-hosted" : "self-hosted", label: current[1] ?? "", secret: current[2] }
+        : earlier ? { runner: earlier[2], label: earlier[2] === "self-hosted" ? "self-hosted" : "", secret: earlier[3] } : null;
       const bridge = /^bridge (.*?) agent (.*)$/.exec(route);
       return {
         name: text(cells.Name),
@@ -693,9 +721,9 @@ export const route = {
         capabilities: listedValues(cells.Capabilities),
         account: route.startsWith("account ") ? route.slice("account ".length) : "",
         endpoint: route.startsWith("endpoint ") ? route.slice("endpoint ".length) : "",
-        workflow: ci?.[1] ?? "",
-        runner: ci?.[2] ?? "github-hosted",
-        secret: ci?.[3] ?? "",
+        runner: ci?.runner ?? "github-hosted",
+        runnerLabel: ci?.label ?? "",
+        secret: ci?.secret ?? "",
         bridge: bridge?.[1] ?? "",
         agent: bridge?.[2] ?? "",
         reach: reachedThrough({ route }) === null ? "bridge" : "through",
@@ -728,5 +756,20 @@ export const route = {
 
     panel.append(panelTitle, control("Type", type), fieldsBox, formBox, productUseBox, result);
     target.replaceChildren(el("h2", null, "Participants"), el("p", null, add), panel, list);
+
+    // Opened with the parameters `type` and `address` (a resource's *Add as participant*, UC-040 2a): the form of a new participant of that type, with the address where it belongs —
+    // the kept endpoint that has this address, else the URL of a new one. Without both, or with a type no participant has, the page is as it is without them.
+    if (TYPES.includes(params.type) && typeof params.address === "string" && params.address.trim() !== "") {
+      startAdd();
+      const address = params.address.trim();
+      let values = {};
+      if (params.type === "model endpoint") {
+        const kept = endpointNames(context.store).find((name) => readSetting(context.store, `endpoint:${name}`)?.url === address);
+        values = kept ? { endpoint: kept } : { endpoint: "", endpointUrl: address, inlineEndpoint: true };
+      }
+      type.value = params.type;
+      setType(params.type, values);
+      rebuild();
+    }
   },
 };

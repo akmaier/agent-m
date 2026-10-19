@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-spec-document
 # Guards: ONE STATEMENT PER REQUIREMENT
 # Level: unit
 """SPEC §3 ONE STATEMENT PER REQUIREMENT — a conjunction in the rule field is flagged for review as a

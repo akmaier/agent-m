@@ -492,6 +492,34 @@ Some browsers block the call to the Bridge's local address, `http://127.0.0.1`, 
 to the other route: the Bridge reached over HTTPS through the jump host. Use that route when your browser blocks the local
 address. The same route reaches a machine behind NAT.
 
+## bridge-levels
+
+Agent M runs on two levels. **Level 1** needs nothing installed: jobs run in this browser and in GitHub Actions or GitLab CI on the server's machines, a coding agent signs in with an API key stored as a CI secret and is billed per call, and mail works with Microsoft 365. **Level 2** is this app, the Bridge: jobs also run on this computer and on machines reached through it, a coding agent uses its own login on this computer, so your subscription pays, and mail also works with Gmail and any other IMAP or SMTP server. Level 2 needs the Bridge and the agent's command-line version (Claude Code, Codex or opencode).
+
+## bridge-signed-warning
+
+The Bridge is one file for your system, signed by the publisher of the release. Your system shows the publisher's name when you open it: check that it is the publisher this page names. On Windows, SmartScreen may still warn about a newly signed release until enough people have downloaded it; the file is not changed by that, only not yet known to SmartScreen. If the publisher's name is the one you expect, choose **More info**, then **Run anyway**. If the name differs, do not run the file.
+
+## bridge-install-agent
+
+The window lists the coding agents it supports (Claude Code, Codex and opencode). For an installed one it shows its version and *ready*. For a missing one it shows **How to install**, which opens the vendor's own instructions for your system; install it there, then choose **Check again**. Agent M installs nothing in your name. A local agent uses its own login on this computer, so no key is entered here and your subscription pays. If an agent is installed but not signed in, the window says so and shows the agent's own sign-in step; it never asks for your password.
+
+## bridge-jump-host-key
+
+The jump host is a machine you can reach by SSH, through which a computer behind a firewall (NAT) is reached from elsewhere. Enter its hostname and your user on it. On first use the Bridge creates its own SSH key and shows only the **public key** here. Add that public key to `~/.ssh/authorized_keys` of your user on the jump host, or give it to whoever administers the jump host. The private key never leaves this computer, and Agent M never asks for it.
+
+## bridge-tunnels
+
+A tunnel is a connection the Bridge opens itself, so you type no command. A reverse tunnel carries your computer's Bridge out to the jump host and listens there on the jump host's loopback only, so nobody else on the network can reach it. The Bridge keeps the tunnel open and reconnects after sleep or a change of network. The window shows *tunnel open*, or the reason it is not. A matching forward on your own computer is opened the same way by a Bridge there; without a Bridge there, the dashboard shows the two commands to run.
+
+## bridge-import-export
+
+Instead of typing the jump host, import the settings export from the dashboard. Export and import are on the dashboard's settings page; the file may be locked with a passphrase. If the export names the jump host and this Bridge, with its name and its port on the jump host, the window takes them from it. The export contains secrets, such as the pairing token, so keep it as you would a password and delete it when it is no longer needed. Importing reads the file into the Bridge's window and writes nothing to any repository.
+
+## bridge-updates
+
+When a newer release exists, the Bridge shows it with its release notes. **Update** installs it only after your click, and only if its signature is valid. Nothing is updated behind your back.
+
 ## source-kinds
 
 A source is where rules come from, and the library keeps four kinds of them. An *EU legal text* is a law or regulation of the
@@ -671,6 +699,10 @@ You choose one of the product's linked sources and, if you like, the part of it 
 is linked to the product, never a newer one, and checks the file's hash: the SHA-256, a fingerprint of its exact content, against
 the one recorded when that version was registered. If the hash differs, the content changed since it was registered; nothing is
 sent, Agent M says so, and a new version of the source must be registered first.
+
+## source-selection
+
+Choose which of the product's linked sources the participant works from; the list shows the version the product links, and the part of the source that applies, if the link names one. Under the source stand the files of that version that are stored, all ticked at first; untick any file the participant need not read. A file that was only hashed, whose copy is kept elsewhere, is not offered, because Agent M cannot read it. Nothing is sent until you press *Run*.
 
 ## existing-requirements
 
@@ -854,6 +886,66 @@ This product repository keeps its pseudonymisation setting and collaborator cons
 
 This product repository keeps pseudonymisation and collaborator consent records for everyone who works on it. This browser reads them and writes them only after a person's Save click.
 
+## settings-instance-lines
+
+The instance repository keeps these settings for everyone who works on the instance. Each line shows a short summary read from its file and *Edit*, which opens the page where the setting is changed. Every reader of the instance repository can read them; a change is a commit under the person's account, made only on a click.
+
+## settings-product-lines
+
+The product's repository keeps these settings for everyone who works on the product. Each line shows a short summary read from its file and *Edit*, which opens the page where the setting is changed. Every reader of the product repository can read them; a change is a commit under the person's account, made only on a click.
+
+## settings-line-participants
+
+The instance's list of participants — the people and agents that can work on its products, with their capabilities, processing place and route — is kept in `docs/participants.md` of the instance repository. Every reader of that repository can read it, and it holds no key or token. The summary counts the participants.
+
+## settings-line-library
+
+The instance's source library — the standards, legal texts and documents that products draw requirements from — is kept as one entry per source under `docs/sources/` of the instance repository. Every reader of that repository can read the entries; the content of a restricted source is kept elsewhere. The summary counts the sources.
+
+## settings-line-models
+
+The instance's process models — the book's catalogue and the models adapted for this instance — are kept under `docs/process-models/` of the instance repository. Every reader of that repository can read them. A product declares which one it uses. The summary counts the models.
+
+## settings-line-instance-resources
+
+The instance's own list of resources — what the instance runs on, such as a cluster or a model endpoint — is kept in `docs/resources.md` of the instance repository, independent of any product's list. Every reader of that repository can read it; a secret appears there by name only. The summary counts the resources.
+
+## settings-line-process
+
+The product's declared process model, with its version, is kept in `docs/process.md` of the product repository. It says how the product is developed: the model, its practices and branches. Every reader of that repository can read it. The summary names the declared model.
+
+## settings-line-roles
+
+The product's role assignments — which participant of the instance fills which role, one file per team — are kept under `docs/role-assignments/` of the product repository. Every reader of that repository can read them. The summary names the teams.
+
+## settings-line-done
+
+The product's Definition of Done — the conditions a pull request meets before it is merged, beyond the job rules — is kept in the section *Definition of Done* of `docs/process.md` of the product repository. Every reader of that repository can read it. The summary shows its first sentence.
+
+## settings-line-schedule
+
+The product's test schedule — which levels of tests run on which occasion, and where — is kept in `docs/tests/schedule.md` of the product repository, and the CI configuration is generated from it. Every reader of that repository can read it. The summary says whether the product has saved a schedule; without one, the book's default applies.
+
+## settings-line-sources
+
+The product's links to the instance's source library — the sources, and the version of each, that apply to the product — are kept in `docs/sources.md` of the product repository. Every reader of that repository can read them. The summary counts the linked sources.
+
+## settings-line-product-resources
+
+The product's resources — what it is built with, tested on or calls at runtime, each pinned to the exact state used — are kept in `docs/resources.md` of the product repository. Every reader of that repository can read the list; a secret appears there by name only. The summary counts the resources.
+
+## trace-versions
+
+A version is the product as it stood at one point: *current* is the text on the default branch, and every other choice is a release tag. A release tag is a name such as `v2026.1.0`, put on a commit when a release was cut; it never moves, so the page shows exactly what the product held then. Choosing a tag shows its requirements, use cases, decisions, modules and tests as they read in that release, and nothing can be edited there. The same address always shows the same version.
+
+## trace-statuses
+
+A use case that realises a requirement has a review status, read from the approval records in the repository: *open* — no one has accepted its current text; *accepted* — a person accepted the text that stands now; *changed since acceptance* — it was accepted once and its text has changed since, so it waits for a new acceptance. A status is derived from the files when the page is drawn; nothing stores it, and it blocks nothing.
+
+## trace-gaps
+
+A gap is a place where the trace from a requirement to what realises it breaks: a requirement no use case realises, one no module or no test names, a use case that realises no requirement, or a name in a use case, module or test that matches no requirement. The lists are derived from the version chosen. Gaps are shown and block nothing: a requirement may rightly wait for its use case, and a version may hold no modules or tests yet, which the page then says.
+
 ## trace-none-yet
 
 Here a list reads none yet when the version shown holds no artifact of that kind at all. A list that reads none instead means the version holds such artifacts and none of them names this requirement.
@@ -897,3 +989,167 @@ in which order it is done and where it stops at a gate. This is the route each k
 Every job is the same at its core: a coding participant writes failing tests first, then the code, on a branch, and the pull
 request is merged once the product's Definition of Done holds. In the book *Vibe Coding*: chapter 6 for the plan-driven
 models, chapter 7 for the agile ones.
+
+## sprint-increment
+
+The increment is the set of done items. An item is done when it is merged and its Definition of Done is met; it is shown with its pull request, the requirements it realises and the tests that guard them. An item that does not meet the Definition of Done is not part of the increment, however close it is: it is shown among the items not done, with its state and the reason. If no item is done, the increment is empty and the review says so.
+
+## sprint-feedback
+
+Feedback is what the people who saw the increment say about it. Enter it as one line per point, each either *new backlog item*, *change to an existing item*, or *noted*. A new backlog item and a change to an existing one are written to the backlog when you close the sprint. If no stakeholder took part, the review says so; a review by an agent names where its feedback came from — issues, mails, job records, test results.
+
+## sprint-unfinished-items
+
+An unfinished item is a selected item that is not done. For each one the Product Owner chooses *back to the backlog* or *into the next sprint*. An item that goes back to the backlog is no longer held by the sprint. The done items stay held until the sprint's increment is merged into the default branch, so that no other team changes or uses their modules meanwhile.
+
+## sprint-retrospective
+
+The retrospective is where the team — people and agents — writes down what went well, what did not, and what it will change in how it works. For each change, the entry names where it goes: the process model ([UC-031](#use-case/id=UC-031)), the product's Definition of Done ([UC-002](#use-case/id=UC-002)), a participant's instructions or configuration ([UC-017](#use-case/id=UC-017)), or *team agreement* only. Agent M offers the numbers of the sprint as material, derived and not typed: jobs failed or retried, time items waited for a person, flaky tests, and cost where it is known. *Close sprint* stays disabled until the retrospective has at least one entry. A change that an agent's retrospective recommends is proposed for a person to accept and not applied by the agent.
+
+## run
+
+A run carries out the product's process model over what you select. You select the steps of the implementation plan — or, in Scrum or Kanban, backlog items — set the limits and press *Start run*: one click. Agent M then generates the CI configuration if the product has none, implements the steps in the plan's order or the items after those they build on, writes the tests, and at the end shows the validation of what was built: what each module realises, its code and tests, and every gap. You are asked only where the model gives a gate to a person, or when a limit is reached. Implementation, tests and CI can also be started each on its own, for one critical step: [UC-024](#use-case/id=UC-024), [UC-026](#use-case/id=UC-026) and [UC-027](#use-case/id=UC-027).
+
+## run-jobs-at-once
+
+How many jobs the run may have running at the same time. It is preset to the work-in-progress limit of the product's process model, or to 3 where the model sets none. A job that waits for another job or for a gate does not start before it is done, however high the number is; steps that do not depend on each other run side by side up to it.
+
+## run-cost-limit
+
+The most the run may cost. It is counted only from costs the runtimes report: a job whose runtime reports none adds nothing to the count and is shown with its cost unknown. When the limit is reached the run starts no further job, lets the running ones finish, and says that the cost stopped it. You may raise the limit and press *Continue*, which starts the remaining jobs under the same run.
+
+## run-correction-rounds
+
+How many times a draft may go back to its participant to be corrected before it is shown to you with what is left. It is preset to 5 per draft, and it applies to every job of the run that drafts. When the limit is reached the run starts no further job, lets the running ones finish, and says that the rounds stopped it.
+
+## main-page
+
+This page shows where each product of this instance stands on its way through the process: one bar of six stages, each filled by the share of its work that is accepted or done, and each stage a link to the page where that stage's work is reviewed and done. While this browser manages no product, it shows Agent M itself, on its way to its first release.
+
+Everything is read from the repositories when the page opens; nothing is stored. Your products and your token live only in this browser. The menu above leads through the process in its order.
+
+## resources
+
+A *resource* is something the product is built with or runs on: another repository, data, a model, a computer to run jobs on, an
+endpoint the product calls. Three things look alike and are kept apart. A **resource** is *used* by the product or one of its jobs,
+and is fixed to the exact state the product uses, such as a commit; it is written down here, in `docs/resources.md` of the
+repository. Examples: a private repository of DLLs (`speech-dlls`), `meta-llama/Llama-3.1-8B` on Hugging Face at a fixed
+revision, the SLURM cluster *Alex* at NHR@FAU, a vLLM endpoint that the product queries. A **requirement source** is a rule the
+product must *meet*, such as the EU AI Act or IEC 62304 class B; it is written down in the sources of the product, and a rule
+you meet is registered as in [UC-015](#use-case/id=UC-015). A **participant** *develops* the product, such as a colleague,
+Claude Code on the author's machine or a CI agent; it is in the instance's list of participants, see [UC-017](#use-case/id=UC-017).
+The same endpoint can be two of these: a resource the product queries and, behind a Bridge, a participant that works on the
+product. It is then two entries that share nothing. The instance has resources of its own, in its own list; the two lists never
+inherit from each other. In the book *Vibe Coding*: chapter 6, section 5, on reuse, which "buys dependencies".
+
+## resource-kind
+
+Each resource has one kind, and the kind says what is written down about it. A *repository*, such as the private repository of
+binaries `https://gitlab.rrze.fau.de/lme/speech-dlls`, is pinned to a commit. *Data*, such as a Hugging Face dataset or a folder on
+a group share, and a *model*, such as a Hugging Face model or a checkpoint file, are pinned to a revision or to the SHA-256 of
+every file. A *compute* resource, such as a SLURM cluster or a GPU machine, has no pin: the software on it is pinned in the job's
+own files. An *endpoint*, such as a local vLLM or Ollama server, and an *agent*, an agent service the product delegates to at
+runtime, are pinned to the identifier of the model they serve. Give each resource a name that is unique in the list and its address; the other columns
+follow from the kind, and the form shows what is still missing beside it.
+
+## resource-licence
+
+The licence says under what terms the resource may be used and passed on, and the maintainer says who looks after it: an account,
+an organisation, a collaborator who agreed to be named, or *unknown*. A licence that does not allow redistribution means that only
+the address and the pin are written to the repository; the content stays where it is. An unknown licence counts as restricted until
+someone records it. A rule that a resource's licence puts on the product, such as no commercial use, does not become a requirement
+by standing here; register the licence as a source for that ([UC-004](#use-case/id=UC-004)) and link it to the product
+([UC-015](#use-case/id=UC-015)). A maintainer who is a single person is a risk that the form warns of, a *bus factor* of one: the
+PEAKS speech-evaluation system, book chapter 6 section 5, reused a stack that only its lead developer could maintain end to end,
+and when he left it could be kept running but not extended for years.
+A resource that needs a key names only where the key is held, `ci:<NAME>` for a CI secret or `browser` for a key kept in this
+browser; the key itself is never written to the repository, and a leaked key is like a published credit-card number.
+
+## resource-move
+
+A pin says the exact state the product uses, and it changes only when you change it. When a resource has a newer state upstream, the
+page shows it beside the pin, with the jobs and tests that name the resource, which are listed and not changed. **Move** takes the
+newer state as the pin: one click, and one commit of the list as your own.
+
+## resource-check
+
+A check makes one harmless request to the resource. A repository is checked by reading its current head. A compute resource reached
+by a self-hosted runner is checked by a job on that runner: the run panel above shows which participant does it and what it is sent
+before you press **Run**, and the job's record in the repository shows its result. A runner serves a private repository only. A
+resource reached through a Bridge is checked by a request through the Bridge, which this page does not make yet.
+
+## resource-copy
+
+The instance has resources of its own that a product may use as well, such as a cluster. **Copy from the instance** puts one of them
+into this product's list, where you edit and save it like any other. The copy is not linked to the original: a later change on
+either side leaves the other unchanged.
+
+## job-state-waiting-at-a-gate
+
+The job stopped at a gate of the product's workflow and goes no further until the gate's decider has decided. The decider is a person or an agent holding the deciding role, or a CI check, as the gate names it. Open the job to see what the gate checks and the artifacts to examine; a gate that is yours is passed or rejected there, with one click. A job can also wait at a question for the author. These jobs are listed first.
+
+## job-state-running
+
+The participant is working on the job right now. The runtime that holds the job says so: the browser tab, the GitHub Actions or GitLab CI run, or the Bridge. Open the job to follow its log while it runs, and press **Cancel** to stop it.
+
+## job-state-cancelling
+
+A person asked to stop the job and its runtime has not confirmed yet. It is shown within running until it does; then its end, cancelled, is written. Until then it may still push to its branch.
+
+## job-state-queued
+
+The job was handed to a route and no runtime has picked it up yet. A CI job waits for the workflow run to start, a Bridge job for the Bridge to take it. You can cancel a queued job; nothing has been written for it.
+
+## job-state-done
+
+The job finished. Its result is linked from the job: the commits and the pull request it made, or the draft it returned. A done job stays in the list as the record of what was done.
+
+## job-state-failed
+
+The job ended with an error. The reason and the log are linked from the job. **Retry** starts a new job with a new identifier and the same inputs, with the same participant or another holder of the role; the earlier job stays in the list.
+
+## job-state-cancelled
+
+A person stopped the job. Whatever it pushed before it was stopped stays on its branch, and it writes nothing afterwards. **Retry** starts a new job with the same inputs.
+
+## job-state-ended-without-record
+
+The job was started, but its record has no end and no runtime knows it any more: the tab was closed, or the Bridge was restarted while it ran. Nothing says how it ended. Look at its branch for what it wrote, and retry it if the work is still needed.
+
+## job-runtime-tab
+
+A job in the **browser tab** is a conversation with a model endpoint that this page runs for you. It leaves no record in the repository and ends when you close the tab. It is listed here as this tab's, while it runs.
+
+## job-runtime-ci
+
+A job on **CI** runs on the server's own machines: a GitHub Actions workflow run or a GitLab CI pipeline of the product's job workflow, on a hosted runner or on a self-hosted one with a label. Its state is read from the run, and its log is the run's page on the server. The key it needs is a CI secret of the repository.
+
+## job-runtime-bridge
+
+A job on a **Bridge** runs on a computer of yours, where the Bridge is installed, with a coding agent that is logged in there. This browser keeps each Bridge under its name and asks it for its jobs with its token. If the Bridge does not answer, the job is shown with the reason, and its state stays as the record says.
+
+## implementation-plan
+
+The implementation plan decides how the accepted architecture is assembled into software, before any of it is implemented: the modules of each subsystem in the order of the interfaces they use, then the integration of each subsystem, then the system, each step with the tests of its level. It is the V-model's idea that "whenever you define something on the way down, you should already know how you will check it on the way back up": what the architecture decomposed, the plan integrates again.
+
+| A step for | It implements or integrates | Its tests |
+|---|---|---|
+| a module | the module, as its file describes it | unit tests |
+| a subsystem | the subsystem's modules, as its decision describes their interplay | component tests |
+| the system | the subsystems, as the decision that states the system describes it | system tests, and the release tests of the use cases, written by a participant other than the implementer |
+
+In the reuse-oriented model, a module whose decision adopts a library or a service is configured or adapted in its step rather than developed. In Scrum and Kanban the backlog takes this place. In the book *Vibe Coding*: chapter 6.
+
+## plan-step-states
+
+Each step of the plan shows its state: *waiting* for a step it depends on, *ready*, *in progress* or *done*. No state is stored in the plan: each is derived from the job records and the pull requests.
+
+## plan-draft
+
+*Draft the plan* opens a run panel. The run panel names the drafting participant, where it processes data and what is sent: the architecture, the process model and the existing plan. The click on Run is the decision.
+
+The participant drafts the plan from the bottom up: one step for each module, a module after every module whose interface it uses; then one step for each subsystem's integration; then one step for the system. Each step names the phase of the model it belongs to, and the model's gates stand between the phases. Agent M checks the complete draft: a module, a subsystem or the system without a step, a module ordered before one whose interface it uses, or a step without the tests of its level goes back to the participant as a finding.
+
+## plan-save
+
+*Save plan* is one click: it commits one Markdown file for each step under `docs/plan/`, each an item `ITM-<nnn>-<slug>.md` naming what it implements or integrates and the tests of its level, and the order of the steps in `docs/plan/order.md`. From then on implementation jobs start only for steps of the plan. Nothing is written before the click.

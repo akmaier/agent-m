@@ -9,6 +9,7 @@
 
 import { HostError, send, json, refusal } from "./failures.mjs";
 
+const UPLOADS = "https://uploads.github.com";
 const API = "https://api.github.com", GRAPHQL = `${API}/graphql`, RAW = "https://raw.githubusercontent.com";
 // GitHub's search of issues and pull requests: an address of the API outside the repository's own, which the token reaches too.
 const SEARCH = `${API}/search/issues`;
@@ -19,6 +20,16 @@ const PAGE = 100, MAX_PAGES = 1000;
 export const BATCH = 100;
 const JSON_ACCEPT = "application/vnd.github+json", RAW_ACCEPT = "application/vnd.github.raw+json";
 const encPath = (p) => p.split("/").map(encodeURIComponent).join("/");
+
+// A release of "Get a release by tag name" / "Update a release" as the Release: each asset with its name, size, browser_download_url and, where GitHub reports a digest "sha256:<hex>", that SHA-256;
+// any other digest, or none, is null.
+const releaseOf = (r) => ({ tag: r.tag_name, name: r.name ?? r.tag_name, published: r.published_at ?? "", notes: r.body ?? "",
+  assets: (r.assets ?? []).map((a) => ({ name: a.name, size: typeof a.size === "number" ? a.size : null, url: a.browser_download_url,
+    sha256: /^sha256:([0-9a-f]{64})$/i.exec(a.digest ?? "")?.[1]?.toLowerCase() ?? null })) });
+
+// An issue of "Create an issue" / "List repository issues" as the Issue: its labels are objects with a name (or texts), its comments those given.
+const issueOf = (i, comments = []) => ({ number: i.number, title: i.title, body: i.body ?? "", labels: (i.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)),
+  state: i.state === "closed" ? "closed" : "open", url: i.html_url, comments });
 
 // A file of "Get a commit" as the change the commit made to it: its status — a copy is an addition, a change of mode a
 // modification —, and for a rename the path it came from. A file the commit left unchanged is no change.
@@ -69,7 +80,9 @@ function base64(bytes) {
 // under; links: the host's WebLinks, whose list of tokens is where a refused token is renewed and a repository added to it.
 export function githubAdapter(address, { token, tokenName }, links) {
   const repo = `${API}/repos/${address.path}`;
-  const gate = { allowed: [repo, SEARCH, GRAPHQL, `${RAW}/${address.path}`], tokenAt: [repo, SEARCH, GRAPHQL], header: "Authorization",
+  // GitHub's upload host takes a release's files, under this repository only; the token reaches it as it reaches the API.
+  const uploads = `${UPLOADS}/repos/${address.path}`;
+  const gate = { allowed: [repo, SEARCH, GRAPHQL, `${RAW}/${address.path}`, uploads], tokenAt: [repo, SEARCH, GRAPHQL, uploads], header: "Authorization",
     value: token ? `Bearer ${token}` : null, token };
   const context = { server: "github", host: "GitHub", web: address.web, authenticated: Boolean(token), tokenName,
     renewal: links.tokens, permission: "Contents", what: address.web };
@@ -102,6 +115,23 @@ export function githubAdapter(address, { token, tokenName }, links) {
     const said = await answer.clone().json().catch(() => null);
     if (said?.message === "Git Repository is empty.") return EMPTY;
     throw await refusal(answer, { ...context, write: false, ...more });
+  };
+
+  // The blobs of many objects ("<commit>:<path>") in one request of GitHub's GraphQL API ("repository.object(expression:)" on a Blob; one aliased field for each, a call without connections costing 1 point):
+  // the token alone reaches it. -> an array in the order given: { text, isTruncated } where the object is a blob, null where it is none. A used-up limit is told by the headers of the answer, which GraphQL gives
+  // also on its 200 with the error type RATE_LIMITED.
+  const blobsOf = async (expressions) => {
+    const query = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){${expressions.map((e, i) =>
+      `f${i}:object(expression:${JSON.stringify(e)}){...on Blob{text isTruncated}}`).join(" ")}}}`;
+    const [owner, name] = address.path.split("/");
+    const answer = await call("POST", GRAPHQL, { body: { query, variables: { owner, name } }, write: false, permission: "Contents", what: address.web });
+    const said = await json(answer, API);
+    if ((said?.errors ?? []).some((e) => e?.type === "RATE_LIMITED")) {
+      throw await refusal(new Response(null, { status: 403, headers: { ...Object.fromEntries(answer.headers), "x-ratelimit-remaining": "0" } }),
+        { ...context, write: false });
+    }
+    const found = said?.data?.repository;
+    return expressions.map((_, i) => found?.[`f${i}`] ?? null);
   };
 
   // A branch's reference: read at git/ref/heads/…, moved at git/refs/heads/… ("Get a reference", "Update a reference").
@@ -188,6 +218,40 @@ export function githubAdapter(address, { token, tokenName }, links) {
       return tags;
     },
 
+    // A release and its files ("Get the latest release", "Get a release by tag name"): each asset with its name, size, browser_download_url and, where GitHub reports a digest "sha256:<hex>", that SHA-256;
+    // any other digest, or none, is null. A release that does not exist is NotFound.
+    async releaseAssets(tag) {
+      const what = `the release ${tag} of ${address.web}`;
+      return releaseOf(await read(`${repo}/releases/${tag === "latest" ? "latest" : `tags/${encodeURIComponent(tag)}`}`, { what }));
+    },
+
+    // A release of a tag that stands, published whole: "Get a reference" (the tag must stand: NotFound otherwise), "Get a release by tag name" (a release there is never replaced: ReleaseExists),
+    // "Create a release" with draft: true, "Upload a release asset" for each file to the upload_url of the draft (the file's bytes as the body, its content type, its name in the query), and
+    // "Update a release" with draft: false once every file is up. A file that cannot be uploaded ends the call with UploadFailed { file }, the draft left unpublished; a refused token, a missing
+    // permission and a used-up limit stay what they are.
+    async publishRelease(tag, { name, notes, files }) {
+      await read(`${repo}/git/ref/${tagRef(tag)}`, { what: `the tag ${tag} of ${address.web}` });
+      if (await read(`${repo}/releases/tags/${encodeURIComponent(tag)}`, { on: { 404: () => null } })) {
+        throw new HostError("ReleaseExists", { tag }, `${tag} has a release already — a release is never replaced (A VERSION IS NOT REWRITTEN).`);
+      }
+      const draft = await json(await call("POST", `${repo}/releases`, { body: { tag_name: tag, name, body: notes, draft: true } }), API);
+      const target = String(draft.upload_url).replace(/\{.*$/, "");
+      for (const file of files) {
+        const failed = (reason) => new HostError("UploadFailed", { file: file.name }, `${file.name} could not be uploaded to the draft release of ${tag}: ${reason} The draft is left unpublished.`);
+        let answer;
+        try {
+          answer = await send(`${target}?name=${encodeURIComponent(file.name)}`, { method: "POST", headers: { Accept: JSON_ACCEPT, "Content-Type": file.contentType }, body: file.bytes }, gate);
+        } catch (e) {
+          throw failed(e?.message ?? String(e));
+        }
+        if (!answer.ok) {
+          const refused = await refusal(answer, { ...context, write: true });
+          throw ["TokenRefused", "PermissionMissing", "RateLimited"].includes(refused.name) ? refused : failed(refused.message);
+        }
+      }
+      return releaseOf(await json(await call("PATCH", `${repo}/releases/${draft.id}`, { body: { draft: false } }), API));
+    },
+
     // The numbers of open and closed issues, from GitHub's search ("Search issues and pull requests"): one search for each
     // state, "repo:… is:issue state:…", asking for one result a page, since only its total_count is read — no issue is listed.
     // is:issue leaves out the pull requests, which the search lists with the issues otherwise. The search has a limit of its
@@ -198,6 +262,46 @@ export function githubAdapter(address, { token, tokenName }, links) {
         return (await read(`${SEARCH}?${query}`, { search: true })).total_count;
       };
       return { open: await count("open"), closed: await count("closed") };
+    },
+
+    // The issues of a state and labels ("List repository issues": state, labels as a comma-separated text, per_page 100, page by page), or those a text finds ("Search issues and pull requests" with
+    // repo:, is:issue, state: and label: qualifiers). The issue list holds pull requests too, each with a pull_request key: they are not issues. Each issue that has comments is given them ("List issue comments").
+    async listIssues({ state, labels, search }) {
+      const found = [];
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const items = search
+          ? (await read(`${SEARCH}?${new URLSearchParams({ q: [`repo:${address.path}`, "is:issue", ...(state === "all" ? [] : [`state:${state}`]), ...labels.map((l) => `label:"${l}"`), search].join(" "), per_page: String(PAGE), page: String(page) })}`, { search: true })).items
+          : await read(`${repo}/issues?${new URLSearchParams({ state, per_page: String(PAGE), page: String(page), ...(labels.length ? { labels: labels.join(",") } : {}) })}`);
+        found.push(...items);
+        if (items.length < PAGE) break;
+      }
+      const issues = [];
+      for (const i of found.filter((each) => !each.pull_request)) {
+        const comments = [];
+        for (let page = 1; i.comments > 0 && page <= MAX_PAGES; page++) {
+          const items = await read(`${repo}/issues/${i.number}/comments?per_page=${PAGE}&page=${page}`);
+          comments.push(...items.map((c) => ({ author: c.user?.login ?? "", body: c.body ?? "", date: c.created_at })));
+          if (items.length < PAGE) break;
+        }
+        issues.push(issueOf(i, comments));
+      }
+      return issues;
+    },
+
+    // A comment on an issue ("Create an issue comment").
+    async commentOnIssue(number, body) {
+      await call("POST", `${repo}/issues/${number}/comments`, { body: { body } });
+    },
+
+    // Labels added ("Add labels to an issue") and removed ("Remove a label from an issue", one call each; 404 where the issue does not carry it).
+    async setIssueLabels(number, { add, remove }) {
+      if (add.length) await call("POST", `${repo}/issues/${number}/labels`, { body: { labels: add } });
+      for (const label of remove) await call("DELETE", `${repo}/issues/${number}/labels/${encodeURIComponent(label)}`, { on: { 404: () => null } });
+    },
+
+    // An issue opened or closed ("Update an issue": state).
+    async setIssueState(number, state) {
+      await call("PATCH", `${repo}/issues/${number}`, { body: { state } });
     },
 
     // The commits that changed a path — the repository where the path is null —, newest first, from `ref` (the default branch where
@@ -238,24 +342,34 @@ export function githubAdapter(address, { token, tokenName }, links) {
     // truncated (isTruncated) is left out, and its own readFile reads it. At most BATCH paths. A used-up limit is told by the
     // headers of the answer, which GraphQL gives also on its 200 with the error type RATE_LIMITED.
     readFiles: token ? async (commit, paths) => {
-      const query = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){${paths.map((p, i) =>
-        `f${i}:object(expression:${JSON.stringify(`${commit}:${p}`)}){...on Blob{text isTruncated}}`).join(" ")}}}`;
-      const [owner, name] = address.path.split("/");
-      const answer = await call("POST", GRAPHQL, { body: { query, variables: { owner, name } }, write: false, permission: "Contents", what: address.web });
-      const said = await json(answer, API);
-      if ((said?.errors ?? []).some((e) => e?.type === "RATE_LIMITED")) {
-        throw await refusal(new Response(null, { status: 403, headers: { ...Object.fromEntries(answer.headers), "x-ratelimit-remaining": "0" } }),
-          { ...context, write: false });
-      }
-      const found = said?.data?.repository;
+      const blobs = await blobsOf(paths.map((p) => `${commit}:${p}`));
       const texts = new Map();
-      if (!found) return texts;
       paths.forEach((p, i) => {
-        const blob = found[`f${i}`];
+        const blob = blobs[i];
         if (blob && typeof blob.text === "string" && !blob.isTruncated) texts.set(p, blob.text);
       });
       return texts;
     } : undefined,
+
+    // One file's text at each of many commits -> Map(commit -> text | null), in the order given. With a token, one request of the GraphQL API for each BATCH commits (the same `object(expression:)` query as
+    // readFiles, one aliased field for each commit): a commit whose object is no blob holds no file (null); a file the answer gives as truncated or binary is read by its own readFile. Without a token, one read
+    // of the raw text for each commit, outside the API.
+    async readFileAt(path, commits) {
+      const texts = new Map();
+      if (!token) {
+        for (const commit of commits) texts.set(commit, await this.readFile(commit, path));
+        return texts;
+      }
+      for (let at = 0; at < commits.length; at += BATCH) {
+        const batch = commits.slice(at, at + BATCH);
+        const blobs = await blobsOf(batch.map((commit) => `${commit}:${path}`));
+        for (const [i, commit] of batch.entries()) {
+          const blob = blobs[i];
+          texts.set(commit, !blob ? null : typeof blob.text === "string" && !blob.isTruncated ? blob.text : await this.readFile(commit, path));
+        }
+      }
+      return texts;
+    },
 
     // One commit of all the files on the head that was read: the branch is checked to stand at expectedHead, the tree is built
     // on that commit's tree, the commit's only parent is expectedHead, and the branch is moved to it only as a fast-forward —
@@ -399,6 +513,11 @@ export function githubAdapter(address, { token, tokenName }, links) {
         .map((r) => ({ reviewer: r.user?.login ?? "", verdict: VERDICTS[r.state], commit: r.commit_id, date: r.submitted_at }));
       return { pullRequest: pullOf(pull), baseCommit: pull.base.sha, headCommit: pull.head.sha, commits, files, reviews, checks: await checksOf(pull.head.sha),
         readFile: (commit, path) => this.readFile(commit, path) };
+    },
+
+    // A new issue ("Create an issue": title, body, labels; the answer is the issue).
+    async createIssue({ title, body, labels }) {
+      return issueOf(await json(await call("POST", `${repo}/issues`, { body: { title, body, labels } }), API));
     },
 
     // Creates a branch at a commit ("Create a reference", ref: "refs/heads/<name>"). A branch that stands already — 422

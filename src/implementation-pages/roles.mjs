@@ -14,9 +14,9 @@
 //
 // Module: MOD-implementation-pages
 //
-// The page is written as HTML into the target, and each control is looked up by its own attribute selector. The pull requests
-// are not read — MOD-repository-hosts' listPullRequests is not built —, so for a team's removal every item its sprints
-// selected and did not send back counts as held, never guessed released.
+// The page is written as HTML into the target, and each control is looked up by its own attribute selector. For a team's removal
+// the product's pull requests are read with MOD-repository-hosts' listPullRequests and handed to heldItems; when they cannot be
+// read they are "unknown", and every item its sprints selected and did not send back counts as held, never guessed released.
 
 import { readDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
@@ -258,11 +258,13 @@ export const route = {
         const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
         const records = await Promise.all(head.paths.filter((p) => SPRINT_FILE.test(p)).sort()
           .map(async (p) => readDocument(planSchemas.sprint, p, await head.read(p))));
-        const held = heldItems(records, [], [], "unknown").filter((entry) => entry.team === name);
+        let pullRequests = "unknown";
+        try { pullRequests = await product.host.listPullRequests({ state: "all" }); } catch { /* unread: every selected item counts as held */ }
+        const held = heldItems(records, [], [], pullRequests).filter((entry) => entry.team === name);
         if (held.length) {
           out.innerHTML = `<p class="warn">${h(name)} is not removed: its sprints hold ${h(listed(held.map((x) => `${x.item} (${x.sprint})`)))}.</p>
-            <p class="muted small">An item stays held until a pull request with its change is merged into the default branch. This page
-            does not read the pull requests, so every item a sprint selected and did not send back counts as held.</p>`;
+            <p class="muted small">An item stays held until a pull request with its change is merged into the default branch.${pullRequests === "unknown"
+    ? " The pull requests could not be read, so every item a sprint selected and did not send back counts as held." : ""}</p>`;
           return;
         }
         await product.host.commitFiles({ branch: productInfo.defaultBranch, expectedHead: head.commit,

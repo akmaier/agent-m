@@ -1,3 +1,4 @@
+# Module: MOD-documents
 # Guards: ARTIFACTS ARE MARKDOWN
 # Level: unit
 """SPEC §0 ARTIFACTS ARE MARKDOWN — every artifact Agent M produces is Markdown, with diagrams written as Mermaid inside it.

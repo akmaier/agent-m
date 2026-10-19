@@ -1,7 +1,7 @@
 // MOD-markdown-render — Markdown and Mermaid, rendered safely, edited and compared (docs/architecture/MOD-markdown-render.md):
 // its interface. renderArtifact renders Markdown to sanitised HTML, draws Mermaid through the local library, and presents front
 // matter as a table when asked. renderMermaid draws one Mermaid source and showDifference presents a bounded line difference.
-// openEditor offers the Editor text(), setMarks(), showDraft() and close() interface, including its leaving-unsaved-changes
+// openEditor offers the Editor text(), setMarks(), showDraft(), unsaved() and close() interface, including its leaving-unsaved-changes
 // flow.
 //
 // Module: MOD-markdown-render

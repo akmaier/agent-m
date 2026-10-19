@@ -101,8 +101,26 @@ export function instanceHostFollowingStore({ store, address }) {
     }
     return held;
   };
+  return following(current);
+}
+
+// A host whose every function calls through the connection `current()` gives at that call.
+function following(current) {
   return Object.freeze(Object.fromEntries(Object.entries(current()).map(([name, member]) =>
     [name, typeof member === "function" ? (...given) => current()[name](...given) : member])));
+}
+
+// productHostFollowingStore({ store }) -> (product: string) -> Host — the host of a product by its entry in `products`, handed to
+// MOD-notifications' watchForAcceptance: each call of its functions goes through the connection made with the product's own token and the
+// secrets stored at that moment (the connection the frame's chosenProduct makes), so that a token cleared or replaced since is not
+// used (A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY). One host for each product, however often it is asked for.
+export function productHostFollowingStore({ store }) {
+  const hosts = new Map();
+  return (product) => {
+    const address = parseAddress(product);
+    if (!hosts.has(address.web)) hosts.set(address.web, following(() => hostOf(store, address, readSetting(store, tokenKeyOf(address)))));
+    return hosts.get(address.web);
+  };
 }
 
 // viewAddress(slug) -> the address of a view module: `../<slug>/index.mjs`, relative to the folder of the frame.

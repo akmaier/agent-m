@@ -1,0 +1,64 @@
+# MOD-workflow-entries' entry onReleaseTagged, run on a release tag: the Bridge's file of each platform is built and signed on that platform's runner, and then the
+# files, checksums, signatures and update feed are published as the release of the tag. This file does nothing but run the entry.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { platform: macos, runner: macos-latest }
+          - { platform: windows, runner: windows-latest }
+          - { platform: linux, runner: ubuntu-latest }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build and sign the Bridge for this platform
+        run: node src/workflow-entries/main.mjs onReleaseTagged
+        env:
+          RELEASE_PHASE: build
+          RELEASE_PLATFORM: ${{ matrix.platform }}
+          RELEASE_FOLDER: ${{ runner.temp }}/bridge-${{ matrix.platform }}
+          BRIDGE_MACOS_CERTIFICATE: ${{ secrets.BRIDGE_MACOS_CERTIFICATE }}
+          BRIDGE_MACOS_CERTIFICATE_PASSWORD: ${{ secrets.BRIDGE_MACOS_CERTIFICATE_PASSWORD }}
+          BRIDGE_NOTARY_KEY: ${{ secrets.BRIDGE_NOTARY_KEY }}
+          BRIDGE_NOTARY_KEY_ID: ${{ secrets.BRIDGE_NOTARY_KEY_ID }}
+          BRIDGE_NOTARY_ISSUER: ${{ secrets.BRIDGE_NOTARY_ISSUER }}
+          BRIDGE_WINDOWS_CERTIFICATE: ${{ secrets.BRIDGE_WINDOWS_CERTIFICATE }}
+          BRIDGE_WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.BRIDGE_WINDOWS_CERTIFICATE_PASSWORD }}
+          BRIDGE_UPDATE_KEY: ${{ secrets.BRIDGE_UPDATE_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridge-${{ matrix.platform }}
+          path: ${{ runner.temp }}/bridge-${{ matrix.platform }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/bridge
+      - name: Publish the release of the tag
+        run: node src/workflow-entries/main.mjs onReleaseTagged
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_PHASE: publish
+          RELEASE_FOLDERS: ${{ runner.temp }}/bridge/bridge-macos ${{ runner.temp }}/bridge/bridge-windows ${{ runner.temp }}/bridge/bridge-linux
+          BRIDGE_UPDATE_KEY: ${{ secrets.BRIDGE_UPDATE_KEY }}

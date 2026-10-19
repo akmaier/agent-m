@@ -2,7 +2,7 @@
 // (ITM-145). Written by tester-opus (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of the strand's
 // items, from the SPEC rules and use-case flows they realise; started on sprint/02 at a22de0a, 2026-10-02.
 //
-// Module: MOD-traceability
+// Module: MOD-trace-graph
 // Guards: THE TRACEABILITY MATRIX IS DERIVED; A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN; MODULE GAPS ARE REPORTED, NOT FORBIDDEN; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-020; UC-025
 // Level: release
 //

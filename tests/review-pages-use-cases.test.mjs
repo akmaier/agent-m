@@ -12,7 +12,7 @@
 // Guards: UC-008; STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The module runs in a browser, and node has no DOM: tests/review-pages-harness.mjs brings the one of tests/markdown-render.test.mjs,
+// The module runs in a browser, and node has no DOM: tests/review-pages-harness.mjs takes the one of tests/site-frame-dom.mjs,
 // with which the renderer runs as it is. The repository is a fixture behind a Host of the tests' own, which keeps to
 // MOD-repository-hosts' interface as docs/architecture/MOD-repository-hosts.md states it — one repository in memory with a
 // history of commits, whose default branch is `main`; repositoryInfo, readSnapshot at the branch or at a commit, readHistory of a

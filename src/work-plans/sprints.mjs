@@ -63,24 +63,30 @@ const naming = (pullRequest, id) => {
 };
 const time = (value) => Date.parse(text(value));
 
-// Whether a pull request of the item is merged, into whichever branch.
-const mergedAnywhere = (id, pullRequests) => pullRequests.some((pullRequest) => pullRequest?.state === "merged"
-  && naming(pullRequest, id));
-
 // The default branch a chain of pull requests ends at; a repository whose default branch has another name is decided through
 // `onDefault`.
 const DEFAULT_BRANCH = "main";
 
-function reachesDefaultBranch(branch, after, pullRequests, seen = new Set()) {
+// Whether a chain of merged pull requests that starts at `branch` ends at `target`.
+function reaches(target, branch, after, pullRequests, seen = new Set()) {
   if (!branch) return false;
-  if (branch === DEFAULT_BRANCH) return true;
+  if (branch === target) return true;
   if (seen.has(branch)) return false;
   const nextSeen = new Set(seen);
   nextSeen.add(branch);
   return pullRequests.some((pullRequest) => pullRequest?.state === "merged" && text(pullRequest.branch) === branch
     && time(pullRequest.merged) >= after
-    && reachesDefaultBranch(text(pullRequest.base), time(pullRequest.merged), pullRequests, nextSeen));
+    && reaches(target, text(pullRequest.base), time(pullRequest.merged), pullRequests, nextSeen));
 }
+const reachesDefaultBranch = (branch, after, pullRequests) => reaches(DEFAULT_BRANCH, branch, after, pullRequests);
+
+// Whether a pull request of the item is merged into the sprint's own branch, or into a branch merged on into it: the change of
+// the sprint, not yet in the default branch. A sprint without a branch of its own has none.
+const mergedIntoBranchOf = (id, record, pullRequests) => {
+  const own = text(record?.fields?.branch);
+  return own !== "" && pullRequests.some((pullRequest) => pullRequest?.state === "merged" && naming(pullRequest, id)
+    && reaches(own, text(pullRequest.base), time(pullRequest.merged), pullRequests));
+};
 
 // Whether a merged pull request's chain of pull requests reaches the default branch.
 const reachingChain = (pullRequest, pullRequests) => reachesDefaultBranch(text(pullRequest.base),
@@ -104,7 +110,7 @@ function inDefaultBranch(id, pullRequests, onDefault) {
  * onDefault?: Set<string>) -> Held[] — every item a team's sprint holds, in the order of the sprints and of their selections: from its selection until a
  * pull request with its change is merged into the default branch — through the pull requests that merge its base on, or with
  * its head commit in `onDefault`, the head commits a caller found on the default branch —, or until its sprint's close sends it back to the backlog or
- * on to the next sprint — once the close is recorded, every item none of whose pull requests is merged — (A SPRINT HOLDS ITS
+ * on to the next sprint — once the close is recorded, every item none of whose pull requests is merged into the sprint's own branch — (A SPRINT HOLDS ITS
  * ITEMS UNTIL THEY REACH THE DEFAULT BRANCH). With the pull requests "unknown" — a host that could not read them —, a
  * selected item counts as held. An item the backlog lacks is held with no module.
  * @param {object[]} sprints @param {object[]} items @param {object[]} architecture @param {object[] | "unknown"} pullRequests
@@ -123,7 +129,7 @@ export function heldItems(sprints, items, architecture, pullRequests, onDefault 
     const closed = closedRecord(record);
     for (const item of selectionOf(record)) {
       if (gone.has(item) || (known && inDefaultBranch(item, known, found))) continue;
-      if (known && closed && !mergedAnywhere(item, known)) continue;
+      if (known && closed && !mergedIntoBranchOf(item, record, known)) continue;
       const changes = modulesOf(byId.get(item));
       held.push({ item, sprint: of.name, team: of.team, changes, uses: usedBy(changes, architecture) });
     }

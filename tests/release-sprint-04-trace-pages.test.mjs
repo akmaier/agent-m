@@ -355,11 +355,11 @@ test("ITM-203 · UC-025 step 5 — a used module that has no file is one box mar
 // UC-025 step 5 · DIAGRAMS ARE MERMAID IN MARKDOWN.
 // TST-477016 · level: release · module: MOD-trace-pages
 // guards: UC-025; DIAGRAMS ARE MERMAID IN MARKDOWN
-// given: the page's Mermaid (docs/assets/vendor/mermaid.min.js, 12.0.0) draws "Maximum text size in diagram exceeded" in place of a diagram whose text is longer than its maxTextSize, 50,000 characters unless the page initialises it with another; what it measures is the text the page hands it, trimmed, with a <br> written as <br/>, less any front matter, directive and comment — at most the length measured here
+// given: the page's Mermaid (src/markdown-render/vendor/mermaid.min.js, 12.0.0) draws "Maximum text size in diagram exceeded" in place of a diagram whose text is longer than its maxTextSize, 50,000 characters unless the page initialises it with another; what it measures is the text the page hands it, trimmed, with a <br> written as <br/>, less any front matter, directive and comment — at most the length measured here
 // input: Agent M's own architecture
 // expect: the page hands Mermaid the whole diagram — a box for each of Agent M's modules — in a text no longer than the limit in force, so that Mermaid draws it and not the message
 test("ITM-203 · the page draws Agent M's component diagram without Mermaid's \"Maximum text size in diagram exceeded\"", async (t) => {
-  const bundle = readFileSync(new URL("../docs/assets/vendor/mermaid.min.js", import.meta.url), "utf8");
+  const bundle = readFileSync(new URL("../src/markdown-render/vendor/mermaid.min.js", import.meta.url), "utf8");
   const limit = Number(/\bmaxTextSize:([0-9.e]+)[,}]/.exec(bundle)?.[1]);
   assert.equal(limit, 50000, "precondition: Mermaid's limit is 50,000 characters, as ITM-203 states it");
   assert.ok(bundle.includes("Maximum text size in diagram exceeded"), "precondition: above it, Mermaid draws this message");

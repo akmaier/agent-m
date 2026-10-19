@@ -15,6 +15,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
+import { batchAnswer, atCommit, askedPaths } from "./repository-hosts-batch-fake.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { sourceSchemas } from "../src/source-register/index.mjs";
 import { acceptEntries } from "../src/spec-changes/index.mjs";
@@ -55,13 +56,9 @@ function fakeGitHub() {
     const method = init.method ?? "GET";
     if (url.origin !== "https://api.github.com") return json({ message: "Not Found" }, 404);
     if (url.pathname === "/graphql") {
-      const repository = {};
-      for (const [, alias, expression] of JSON.parse(init.body).query.matchAll(/(\w+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
-        const path = JSON.parse(expression).slice(41);
-        asked.push(path);
-        repository[alias] = FILES[path] === undefined ? null : { text: FILES[path], isTruncated: false };
-      }
-      return json({ data: { rateLimit: { cost: 1, remaining: 4999 }, repository } });
+      const { query } = JSON.parse(init.body);
+      asked.push(...askedPaths(query));
+      return json(batchAnswer(query, { held: atCommit(HEAD, FILES) }));
     }
     if (url.pathname === prefix) return json({ default_branch: "main", visibility: "public", private: false, permissions: { push: true }, archived: false, description: "" });
     if (url.pathname === `${prefix}/commits/main`) return json({ sha: HEAD, commit: { tree: { sha: "t" } } });

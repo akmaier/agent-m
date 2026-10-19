@@ -7,6 +7,8 @@
 // THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED. These functions draw what
 // MOD-progress-measures derives (stageShares, currentStage, buildInProgress) and compute no share, no stage and no state of their own. They read and store nothing.
 
+import { menuOf } from "../site-frame/index.mjs";
+
 export const el = (name, className, ...children) => {
   const node = document.createElement(name);
   if (className) node.className = className;
@@ -24,12 +26,14 @@ export const clock = (seconds) => {
 };
 
 // The bar of six stages: one <li class="stage"> per stage of stageShares, in its order, with its name, its share and its detail; the one `current` names is also <li class="stage is-current">.
-function stageBar(shares, current) {
+function stageBar(shares, current, entries) {
   const bar = el("ol", "stages");
   bar.setAttribute("aria-label", "Progress by stage");
-  for (const { stage, share, detail } of shares) {
-    const item = el("li", `stage${stage === current ? " is-current" : ""}${share === null ? " is-unknown" : ""}`,
-      el("span", "stage-name", stage), " ", el("span", "stage-share", percent(share)), " ", el("span", "stage-detail", detail));
+  for (const [at, { stage, share, detail }] of shares.entries()) {
+    // The six stages and the first six entries of the menu stand in the order of the process: the nth stage leads to the nth entry.
+    const link = el("a", "stage-link", el("span", "stage-name", stage), " ", el("span", "stage-share", percent(share)), " ", el("span", "stage-detail", detail));
+    if (entries[at]?.href) link.setAttribute("href", entries[at].href);
+    const item = el("li", `stage${stage === current ? " is-current" : ""}${share === null ? " is-unknown" : ""}`, link);
     item.setAttribute("data-stage", stage);
     item.setAttribute("style", `--share: ${share ?? 0}`);
     bar.append(item);
@@ -59,13 +63,15 @@ const head = (title, address) => {
 };
 
 /**
- * productCard({ title, address, model, shares, current, build }) -> Element — the card of a product whose facts were read: `model` the name of its process model, or null where it declares none
+ * productCard({ title, address, model, shares, current, build, own }) -> Element — the card of a product whose facts were read: `model` the name of its process model, or null where it declares none
  * (its Implementation stage then says that the process is configured when implementation starts); `shares`, `current` and `build` as MOD-progress-measures' stageShares, currentStage and
  * buildInProgress give them.
  */
-export function productCard({ title, address, model, shares, current, build }) {
+export function productCard({ title, address, model, shares, current, build, own = false }) {
+  // Each stage links to the menu's entry of the same place in the process, for the card's product; Agent M's own card (`own`) has no product.
+  const entries = menuOf("main", [], own ? null : address);
   const card = el("article", "card", head(title, address),
-    el("p", "card-model", model ? `Developed with ${model}` : "Its process is chosen when implementation starts"), stageBar(shares, current));
+    el("p", "card-model", model ? `Developed with ${model}` : "Its process is chosen when implementation starts"), stageBar(shares, current, entries));
   const rows = buildList(build);
   if (rows) card.append(rows);
   card.setAttribute("data-card", address);

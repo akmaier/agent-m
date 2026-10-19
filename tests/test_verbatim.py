@@ -1,4 +1,4 @@
-# Module: MOD-review-core
+# Module: MOD-spec-changes
 # Guards: THE APPROVED TEXT IS TAKEN VERBATIM
 # Level: unit
 """SPEC §9 THE APPROVED TEXT IS TAKEN VERBATIM — characterisation tests of ITM-014 (a refactoring job).
@@ -27,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-import apply_approvals as ap  # noqa: E402
+import spec_apply as ap  # noqa: E402
 from jsrun import js  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "gates"
@@ -52,6 +52,11 @@ def outside(spec: str, proposal: str) -> str:
     """The SPEC with the section from ANCHOR up to NEXT replaced by `proposal` and its one line terminator."""
     body = proposal if proposal.endswith("\n") else proposal + "\n"
     return spec[:spec.index(ANCHOR)] + body + spec[spec.index(NEXT):]
+
+
+def verbatim(spec: str, proposal: str) -> str:
+    """The SPEC with the section from ANCHOR up to NEXT replaced by `proposal`, byte for byte, nothing added (MOD-spec-document's replaceSection)."""
+    return spec[:spec.index(ANCHOR)] + proposal + spec[spec.index(NEXT):]
 
 
 class Product:
@@ -79,7 +84,7 @@ class Product:
         """The dashboard's acceptance commit of entry 01 as shown -> (left out, SPEC it writes or None)."""
         files = {p.relative_to(self.root).as_posix(): p.read_bytes().decode("utf-8") for p in self.root.rglob("*") if p.is_file()}
         item = {"kind": "spec", "queue": Q, "qname": Path(Q).name, "nr": 1, "nn": "01", "proposalPath": PROPOSAL,
-                "proposalBlob": ap.blob_sha(self.proposal), "sectionBlob": ap.blob_sha(self.section), "targetPath": "SPEC.md",
+                "proposalBlob": ap.blob_sha(self.proposal), "sectionBlob": ap.blob_sha(ap.legacy_section_text(ap.legacy_extract_section(self.spec, ANCHOR))), "targetPath": "SPEC.md",
                 "anchor": ANCHOR, "bis": None, "needs": []}
         plan = js(f"const f = {json.dumps(files)};"
                   f"return core.planAcceptance({{ items: [{json.dumps(item)}], now: new Date('2026-10-01T12:00:00Z'),"
@@ -99,7 +104,7 @@ class Verbatim(unittest.TestCase):
                     self.assertEqual(by_dashboard, want, f"dashboard: {label}")
                     rc, report, by_workflow = p.workflow()
                     self.assertEqual(rc, 0, report)
-                    self.assertEqual(by_workflow, want, f"workflow: {label}")
+                    self.assertEqual(by_workflow, verbatim(p.spec, proposal), f"workflow: {label}")
                 finally:
                     p.tmp.cleanup()
 
@@ -113,20 +118,28 @@ class Verbatim(unittest.TestCase):
             self.assertEqual(left_out, [])
             self.assertEqual(by_dashboard, outside(p.spec, proposal))
             rc, report, by_workflow = p.workflow()
-            self.assertIn(by_workflow, (p.spec, outside(p.spec, proposal)), report)
+            self.assertIn(by_workflow, (p.spec, verbatim(p.spec, proposal)), report)
         finally:
             p.tmp.cleanup()
 
     @unittest.expectedFailure
-    def test_blank_lines_at_the_end_of_a_proposal_are_written(self):
-        # FINDING V1: both writers strip the newlines at the end of a proposal and write one (review-core.mjs replaceSection,
-        # `proposal.replace(/\n+$/, "")`; apply_approvals.py, `prop.rstrip("\n")`), so blank lines that end an approved
-        # proposal are not written. Expected: the SPEC holds the proposal byte for byte, its final blank line included.
+    def test_blank_lines_at_the_end_of_a_proposal_are_written_by_the_dashboard(self):
+        # FINDING V1: the dashboard's engine strips the newlines at the end of a proposal and writes one (review-core.mjs replaceSection,
+        # `proposal.replace(/\n+$/, "")`), so blank lines that end an approved proposal are not written. Expected: the SPEC holds the
+        # proposal byte for byte, its final blank line included.
         proposal = VARIANTS["a tab"] + "\n"
         p = Product(proposal)
         try:
-            self.assertEqual(p.dashboard()[1], outside(p.spec, proposal))
-            self.assertEqual(p.workflow()[2], outside(p.spec, proposal))
+            self.assertEqual(p.dashboard()[1], verbatim(p.spec, proposal))
+        finally:
+            p.tmp.cleanup()
+
+    def test_blank_lines_at_the_end_of_a_proposal_are_written_by_the_workflow(self):
+        # The workflow's writer, MOD-spec-changes' applyApproved, takes the proposal byte for byte, its final blank line included.
+        proposal = VARIANTS["a tab"] + "\n"
+        p = Product(proposal)
+        try:
+            self.assertEqual(p.workflow()[2], verbatim(p.spec, proposal))
         finally:
             p.tmp.cleanup()
 

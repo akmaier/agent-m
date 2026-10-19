@@ -40,6 +40,7 @@ export { fetchLegalText, recogniseLegalText } from "./legal-text.mjs";
  */
 
 const OWNER = "MOD-source-register";
+const REGISTER_ENTRY = /^docs\/sources\/SRC-[^/]+\.md$/;
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 
 // One of the module's own files: from the disk in Node, from the module's own address in a browser.
@@ -56,6 +57,16 @@ async function ownFile(url) {
 // The schemas of a register entry and of a product's links file, each loaded once, as the module is loaded.
 const ENTRY = loadSchema(await own(new URL("./source.schema.md", import.meta.url)), OWNER);
 const LINKS = loadSchema(await own(new URL("./links.schema.md", import.meta.url)), OWNER);
+
+/**
+ * registerPaths(paths: string[]) -> string[] — the paths among `paths` that are register entries, `docs/sources/SRC-<slug>.md`,
+ * in their order: a caller that holds a tree's paths names the register's files without a copy of the pattern. No request is made.
+ * @param {string[]} paths
+ * @returns {string[]}
+ */
+export function registerPaths(paths) {
+  return (paths ?? []).filter((path) => REGISTER_ENTRY.test(path));
+}
 
 /**
  * sourceSchemas() -> { entry: Schema, links: Schema } — the schemas of a register entry `docs/sources/SRC-<slug>.md` and of a

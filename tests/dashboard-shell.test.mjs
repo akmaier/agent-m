@@ -188,3 +188,18 @@ test("a view may link a stylesheet of its own beside style.css — once, when it
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// Guards: ARTIFACTS ARE MARKDOWN; NO SERVER
+// given: the live page's app after a page load (so the harness's document is in place), and a text of front matter, an image and a Mermaid block.
+// input: the app's md(text), the Markdown the live page writes into its pages.
+// expect: the front matter as a table of its one key; the image as a link to its address and no <img>; the Mermaid block as a
+//         language-mermaid code block holding its source, escaped — as MOD-markdown-render's renderArtifact draws a text.
+test("the live page renders its Markdown with the renderer — front matter as a table, an image as a link, a Mermaid block as its source", async () => {
+  await openDashboard({ server: await repoServer({ files: FILES }) });
+  const { md } = await import(APP_FILE.href);
+  const html = md("---\ntitle: Burn-down\n---\n![the chart](https://example.org/chart.png)\n\n```mermaid\nflowchart LR\n  A --> B\n```\n");
+  assert.equal(html.includes('<table class="frontmatter"><tbody><tr><th>title</th><td>Burn-down</td></tr></tbody></table>'), true, html);
+  assert.equal(html.includes('<a href="https://example.org/chart.png">the chart</a>'), true, html);
+  assert.equal(html.includes("<img"), false, html);
+  assert.equal(html.includes('<code class="language-mermaid">flowchart LR\n  A --&gt; B</code>'), true, html);
+});

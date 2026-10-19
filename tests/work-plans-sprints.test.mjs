@@ -250,6 +250,43 @@ test("heldItems — a closed sprint keeps an item merged into its own branch hel
     [work, increment(2, "sprint/team1/01", "merged", "2026-10-14T18:00:00Z")])), []);
 });
 
+// TST-1010001 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: team2's sprint 24 with its own branch sprint/team2/24, selecting ITM-001, closed — ## Review, ## Unfinished items, ## Retrospective —, no pull request of it known; and team1's sprint 03, not closed, with its own branch sprint/team1/03, selecting ITM-001 again; a pull request naming ITM-001 merged into sprint/team1/03 on 2026-10-19, after team2's sprint ended
+// input: heldItems(both sprints, the items, the architecture, that pull request)
+// expect: ITM-001 held by team1/03 alone — a merged pull request that does not reach team2's branch is no change of team2's closed sprint
+test("heldItems — a closed sprint holds none of its items that a later pull request into another sprint's branch names", () => {
+  const closed = sprint("team2", "24", { selection: ["ITM-001"], branch: "sprint/team2/24", end: "2026-10-13", appended: [
+    "## Review", "", "The increment is on the default branch.", "",
+    "## Unfinished items", "", "No item is unfinished.", "",
+    "## Retrospective", "", "- change: smaller items.",
+  ] });
+  const running = sprint("team1", "03", { selection: ["ITM-001"], branch: "sprint/team1/03" });
+  const later = pr(949, "ITM-001", "sprint/team1/03", "merged", "2026-10-19T10:00:00Z");
+  assert.deepEqual(heldItems([closed, running], ITEMS, ARCHITECTURE, [later]).map((h) => `${h.sprint} ${h.item}`),
+    ["team1/03 ITM-001"]);
+});
+
+// TST-1010002 · level: unit · module: MOD-work-plans
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// given: counter-proof of the test above — the same closed team2 sprint 24 selecting ITM-001, with a pull request naming ITM-001 merged (a) into sprint/team2/24 itself, (b) into sprint/team2/24-part, which a later pull request merged into sprint/team2/24, (c) into sprint/team2/24 and that branch then merged into main
+// input: heldItems(that sprint, the items, the architecture, the pull requests of each case)
+// expect: (a) and (b) ITM-001 held by team2/24, its change being in the sprint's branch and not in the default branch; (c) nothing held
+test("heldItems — a closed sprint keeps an item held whose pull request reaches its own branch, directly or through a branch merged into it", () => {
+  const closed = sprint("team2", "24", { selection: ["ITM-001"], branch: "sprint/team2/24", end: "2026-10-13", appended: [
+    "## Review", "", "The increment is ITM-001.", "",
+    "## Unfinished items", "", "No item is unfinished.", "",
+    "## Retrospective", "", "- change: smaller items.",
+  ] });
+  const direct = pr(1, "ITM-001", "sprint/team2/24", "merged", "2026-10-13T10:00:00Z");
+  assert.deepEqual(heldIds(heldItems([closed], ITEMS, ARCHITECTURE, [direct])), ["ITM-001"]);
+  const part = pr(2, "ITM-001", "sprint/team2/24-part", "merged", "2026-10-13T10:00:00Z");
+  const partMerged = { ...pr(3, "ITM-000", "sprint/team2/24", "merged", "2026-10-13T11:00:00Z"), branch: "sprint/team2/24-part" };
+  assert.deepEqual(heldIds(heldItems([closed], ITEMS, ARCHITECTURE, [part, partMerged])), ["ITM-001"]);
+  assert.deepEqual(heldIds(heldItems([closed], ITEMS, ARCHITECTURE,
+    [direct, increment(4, "sprint/team2/24", "merged", "2026-10-14T18:00:00Z")])), []);
+});
+
 // TST-473183 · level: unit · module: MOD-work-plans
 // guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
 // given: team1's sprint 01, without a branch of its own, selecting ITM-001, then a new start decision (## Selection) selecting ITM-001 and ITM-003, then its end (## Ended) — not closed: its record holds no ## Review —; ITM-001's pull request into the default branch open, ITM-003 without one

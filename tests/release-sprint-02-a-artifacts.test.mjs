@@ -2,7 +2,7 @@
 // (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of strand A, from the SPEC and the accepted
 // module file alone; started on sprint/02 at 3ba86fb (the merge of ITM-136, the strand's last item), 2026-10-01.
 //
-// Module: MOD-artifacts
+// Module: MOD-documents
 // Guards: AN EDITED FILE KEEPS ITS IDENTIFIER; A FINDING READS LIKE A COMPILER MESSAGE
 // Level: release
 //

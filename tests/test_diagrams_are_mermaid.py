@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-documents
 # Guards: DIAGRAMS ARE MERMAID IN MARKDOWN
 # Level: unit
 """SPEC §4 DIAGRAMS ARE MERMAID IN MARKDOWN — a use case carries its diagram as a fenced Mermaid block in its own

@@ -19,14 +19,17 @@ export const labelOf = (key) => ENTRIES.find(([entry]) => entry === key)?.[1];
 export const linkOf = (page, key) => page === "main" ? `docs/index.html#${key}` : `#${key}`;
 
 /**
- * menuOf(page: "main" | "review", loaded: string[]) -> MenuEntry[] — the eight entries in the order of the process, each
- * { key, label, href: string | null, title }. On the review pages `loaded` names the entries some loaded view serves; the others have
- * href null and a title that says they are not built yet. On the main page every entry links into the review pages, which say there
- * when an entry is not built yet, so `loaded` is not read.
+ * menuOf(page: "main" | "review", loaded: string[], product?: string | null) -> MenuEntry[] — the eight entries in the order of the
+ * process, each { key, label, href: string | null, title }. On the review pages `loaded` names the entries some loaded view serves; the
+ * others have href null and a title that says they are not built yet. On the main page every entry links into the review pages, which
+ * say there when an entry is not built yet, so `loaded` is not read. With `product`, the address of a product this browser keeps, each
+ * href that is not null ends in `/product=` and the address percent-encoded, the form `chosenProduct` reads back; this is the one place
+ * that writes it.
  */
-export function menuOf(page, loaded) {
+export function menuOf(page, loaded, product = null) {
+  const withProduct = (href) => (product ? `${href}/product=${encodeURIComponent(product)}` : href);
   return ENTRIES.map(([key, label]) => {
     const built = page === "main" || loaded.includes(key);
-    return { key, label, href: built ? linkOf(page, key) : null, title: built ? label : `${label} — not built yet` };
+    return { key, label, href: built ? withProduct(linkOf(page, key)) : null, title: built ? label : `${label} — not built yet` };
   });
 }

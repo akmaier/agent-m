@@ -20,15 +20,22 @@ function option(value, label) {
   return node;
 }
 
+// An old value that says it goes through a Bridge and names none (ITM-269): every test of it asks for a named choice first.
+export const namesNoBridge = (setting) => setting?.throughBridge === true && !(typeof setting.bridge === "string" && setting.bridge);
+export const CHOOSE_BRIDGE_DISCLOSURE = "This endpoint was stored as going through a Bridge, and no Bridge is named. Choose the Bridge that reaches it; nothing is sent until you do.";
+export const CHOOSE_BRIDGE_TEXT = "This endpoint was stored for a Bridge without naming it. Choose the Bridge that reaches it before testing; nothing was sent. ";
+
 function endpointKey(name) {
   return name ? `endpoint:${name}` : null;
 }
 
-// recordTest(store, key, checked) -> { at, outcome } — the endpoint's last test, kept beside it as the Settings page shows
-// it on the endpoint's line (A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN): when it ran, and whether the
-// endpoint answered. The form's Save and test and the line's Test record it alike.
+// recordTest(store, key, checked) -> { at, outcome, tools? } — the endpoint's last test, kept beside it as the Settings page shows
+// it on the endpoint's line (A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN): when it ran, whether the
+// endpoint answered and, where the test reached the model, whether the model called the tool it was offered (`tools`, which the
+// participants route presets *use tools* from; left out where the test did not reach the model). The form's Save and test and the
+// line's Test record it alike.
 export function recordTest(store, key, checked) {
-  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused" };
+  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...(checked.works ? { tools: checked.tools === true } : {}) };
   writeSetting(store, `last-test:${key}`, lastTest);
   return lastTest;
 }
@@ -119,6 +126,8 @@ export const route = {
     const loadedSetting = readSetting(context.store, endpointKey(requestedName));
     const knownBridgeNames = bridgeNames(context.store);
     const selectedBridge = typeof loadedSetting?.bridge === "string" ? loadedSetting.bridge : "";
+    // An old value that says it goes through a Bridge and names none asks for a named choice before it is tested.
+    let awaitingChoice = namesNoBridge(loadedSetting);
     const options = selectedBridge && !knownBridgeNames.includes(selectedBridge)
       ? [...knownBridgeNames, selectedBridge] : knownBridgeNames;
     const name = el("input", "endpoint-name");
@@ -129,6 +138,7 @@ export const route = {
     const model = el("input", "endpoint-model");
     const key = el("input", "endpoint-key");
     const bridge = el("select", "endpoint-bridge",
+      ...(awaitingChoice ? [option("", "Choose a Bridge")] : []),
       option("", "Direct browser request"),
       ...options.map((name) => option(name, name)));
     const show = el("button", "endpoint-show btn small", "Show");
@@ -139,6 +149,10 @@ export const route = {
     const fields = { name, url, kind, model, key, bridge };
 
     const discloseDestination = () => {
+      if (awaitingChoice) {
+        disclosure.textContent = CHOOSE_BRIDGE_DISCLOSURE;
+        return;
+      }
       let configuredBridge = null;
       try { configuredBridge = bridgeSettings(context.store, bridge.value); } catch { configuredBridge = null; }
       disclosure.textContent = bridge.value
@@ -161,12 +175,18 @@ export const route = {
 
     applySetting(fields, requestedName, loadedSetting);
     discloseDestination();
-    bridge.addEventListener("change", discloseDestination);
+    bridge.addEventListener("change", () => { awaitingChoice = false; discloseDestination(); });
 
     test.addEventListener("click", async () => {
       const chosenName = name.value.trim();
       if (!chosenName || !url.value.trim() || !model.value.trim()) {
         result.textContent = "Enter an endpoint name, URL and model first.";
+        return;
+      }
+      if (awaitingChoice) {
+        const setup = el("button", "endpoint-bridge-setup btn", "Set up the Bridge");
+        setup.addEventListener("click", () => context.go("bridge", {}));
+        result.replaceChildren(CHOOSE_BRIDGE_TEXT, setup);
         return;
       }
       const stored = settingFrom(fields);
@@ -210,6 +230,7 @@ export const route = {
     });
 
     clear.addEventListener("click", async () => {
+      awaitingChoice = false;
       const chosenName = name.value.trim();
       if (chosenName) {
         clearSetting(context.store, endpointKey(chosenName));

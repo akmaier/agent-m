@@ -1,6 +1,6 @@
 // MOD-reuse-facts - the due-diligence facts of a reuse candidate, read from package registries and source repositories
 // (docs/architecture/MOD-reuse-facts.md). registryFacts and licenceVerdict read package facts and licence compatibility;
-// reuseStrategies adds those facts to drafted architecture decisions. hubFacts comes with a later backlog item.
+// reuseStrategies adds those facts to drafted architecture decisions; hubFacts reads a model's or dataset's facts from the Hugging Face Hub; repositoryFacts reads a resource repository's licence file, last commit and committers.
 //
 // Module: MOD-reuse-facts
 
@@ -26,7 +26,8 @@ const LICENCES = parseLicences(await own(LICENCES_FILE));
 /**
  * @typedef {{ name: string, ecosystem: "npm" | "pypi" | "crates" | "maven", repository: string | null }} Candidate
  * @typedef {{ candidate: string, ecosystem: string, what: "exists" | "licence" | "first release" | "latest release" |
- *   "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption", value: string, address: string,
+ *   "releases" | "open issues" | "closed issues" | "issues filed at" | "adoption" | "revision" | "access" |
+ *   "licence file" | "last commit" | "committers in the last year", value: string, address: string,
  *   read: string }} Fact
  * @typedef {{ candidate: Candidate, facts: Fact[], licence: "compatible" | "not known to be compatible" | "not checked",
  *   found: boolean, blocked: string | null }} DueDiligence
@@ -326,10 +327,121 @@ export async function registryFacts(candidate, productLicence, options = {}) {
   };
 }
 
-export async function hubFacts() {
-  const error = new Error("hubFacts is not part of ITM-435");
-  error.name = "NotBuilt";
-  throw error;
+// The Hub's own origin, as registries.md writes it in front of /api/: the only one a Hub key is sent to (MOD-reuse-facts, Interfaces: hubFacts).
+const HUB_ORIGIN = REGISTRIES.get("huggingface-model").package.split("/api/")[0];
+// A Hub identifier is the Hub's own path: `owner/name` or a bare `name` for a model, `datasets/owner/name` or `datasets/name` for a dataset.
+const HUB_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function hubFailure(name, properties, message) {
+  return Object.assign(new Error(message), { name }, properties);
+}
+
+function hubAddress(id) {
+  const wanted = "owner/name for a model, datasets/owner/name for a dataset";
+  if (typeof id !== "string") throw new TypeError(`hubFacts needs a Hub identifier: ${wanted}`);
+  const parts = id.split("/");
+  const dataset = parts[0] === "datasets";
+  const path = dataset ? parts.slice(1) : parts;
+  if (path.length < 1 || path.length > 2 || !path.every((part) => HUB_SEGMENT.test(part))) {
+    throw new TypeError(`hubFacts needs a Hub identifier: ${wanted}, not "${id}"`);
+  }
+  const registry = REGISTRIES.get(dataset ? "huggingface-dataset" : "huggingface-model");
+  return registry.package.replaceAll("{name}", path.map(encodeURIComponent).join("/"));
+}
+
+const hubLicence = (data) => {
+  const fromTag = (Array.isArray(data?.tags) ? data.tags : []).find((tag) => /^license:/.test(String(tag)));
+  return normalLicence(data?.cardData?.license ?? (fromTag ? String(fromTag).slice("license:".length) : null));
+};
+
+/**
+ * hubFacts(id, key?) -> Promise<Fact[]> — a model's or dataset's revision, licence and access (public, gated, private) read from the Hugging Face
+ * Hub at the addresses of registries.md, each fact with its address and the date. `key` goes only to the Hub's own origin, in Authorization.
+ * Rejects with HubBlocked { reason } where the Hub does not answer or answers no success, and NotFound { address } for an unknown identifier;
+ * a TypeError for a text that is no Hub identifier, before any request.
+ * @param {string} id
+ * @param {string} [key]
+ * @returns {Promise<Fact[]>}
+ */
+export async function hubFacts(id, key) {
+  const address = hubAddress(id);
+  const read = TODAY();
+  const fetcher = globalThis.fetch;
+  if (typeof fetcher !== "function") throw new TypeError("hubFacts needs fetch to read the Hugging Face Hub");
+  const headers = key && address.startsWith(`${HUB_ORIGIN}/`) ? { Authorization: `Bearer ${key}` } : {};
+  let answer;
+  try {
+    answer = await fetcher(address, { headers });
+  } catch (error) {
+    throw hubFailure("HubBlocked", { reason: String(error?.message ?? error) }, `The Hugging Face Hub could not be read at ${address}.`);
+  }
+  if (answer.status === 404) throw hubFailure("NotFound", { address }, `The Hugging Face Hub knows nothing at ${address}.`);
+  if (!answer.ok) {
+    const reason = `${answer.status} ${answer.statusText ?? ""}`.trim();
+    throw hubFailure("HubBlocked", { reason }, `The Hugging Face Hub answered ${reason} at ${address}.`);
+  }
+  let data;
+  try {
+    data = await answer.json();
+  } catch (error) {
+    throw hubFailure("HubBlocked", { reason: `invalid JSON: ${String(error?.message ?? error)}` }, `The Hugging Face Hub answered no JSON at ${address}.`);
+  }
+  const candidate = { name: id, ecosystem: "huggingface" };
+  const licence = hubLicence(data);
+  const access = data?.private === true ? "private" : typeof data?.gated === "string" ? `gated (${data.gated})` : data?.gated === true ? "gated" : "public";
+  return [
+    ...(typeof data?.sha === "string" && data.sha ? [fact(candidate, "revision", data.sha, address, read)] : []),
+    ...(licence ? [fact(candidate, "licence", licence, address, read)] : []),
+    fact(candidate, "access", access, address, read),
+  ];
+}
+
+// ---------------------------------------------------------------- a resource repository
+
+// The licence file of a repository: LICENSE, LICENCE or COPYING at the root, with or without an extension.
+const LICENCE_FILE = /^(?:LICEN[CS]E|COPYING)(?:\.[A-Za-z0-9]+)?$/i;
+// The licences a licence file's title names, by the identifier licences.md uses.
+const LICENCE_TITLES = [[/\bMIT License\b/i, "MIT"], [/\bApache License\b[\s\S]{0,80}\bVersion 2\.0\b/i, "Apache-2.0"], [/\bBSD 2-Clause\b/i, "BSD-2-Clause"],
+  [/\bBSD 3-Clause\b/i, "BSD-3-Clause"], [/\bISC License\b/i, "ISC"]];
+const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * repositoryFacts(host, productLicence, options?) -> Promise<{ facts: Fact[], licence }> — what a resource repository says about itself, through the host its caller connected: the licence file at
+ * the default branch's head (readSnapshot), the date of the last commit and the number of distinct authors of the commits of the last year (readHistory with changes: false, newest first, read until
+ * a commit older than a year), each with its address and date; the licence the file's text names against `productLicence` by licenceVerdict. A repository without a licence file gives the fact
+ * `licence file` with the value `none`. Fails as the host fails. `options.now` is the day it is read, as registryFacts takes it.
+ * @param {object} host MOD-repository-hosts' Host
+ * @param {string | null} productLicence
+ * @param {{ now?: (() => string | Date) | string | Date }} [options]
+ */
+export async function repositoryFacts(host, productLicence, options = {}) {
+  const now = options.now instanceof Date ? options.now : new Date(typeof options.now === "function" ? options.now() : options.now ?? Date.now());
+  const read = asDate(now);
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  const web = snapshot.repository.web;
+  const candidate = { name: snapshot.repository.path, ecosystem: "repository" };
+  const file = snapshot.paths.find((path) => !path.includes("/") && LICENCE_FILE.test(path)) ?? null;
+  const text = file === null ? null : await snapshot.read(file);
+
+  const since = now.getTime() - YEAR_MS;
+  let limit = 100, history;
+  for (;;) {
+    history = await host.readHistory(null, { ref: defaultBranch, limit, changes: false });
+    if (history.length < limit || history.some((entry) => Date.parse(entry.date) < since)) break;
+    limit *= 2;
+  }
+  const lastYear = history.filter((entry) => Date.parse(entry.date) >= since);
+  const committers = new Set(lastYear.map((entry) => entry.author.account ?? entry.author.name));
+  const detected = text === null ? null : LICENCE_TITLES.find(([title]) => title.test(text))?.[1] ?? null;
+  return {
+    facts: [
+      fact(candidate, "licence file", file ?? "none", file === null ? web : `${web}/blob/${defaultBranch}/${file}`, read),
+      ...(history[0] ? [fact(candidate, "last commit", dateOnly(history[0].date), `${web}/commit/${history[0].commit}`, read)] : []),
+      fact(candidate, "committers in the last year", committers.size, `${web}/commits/${defaultBranch}`, read),
+    ],
+    licence: licenceVerdict(detected, productLicence),
+  };
 }
 
 // ---------------------------------------------------------------- due-diligence step

@@ -15,7 +15,7 @@ const PRODUCT_TOKEN = "github_pat_PRODUCT0010123456789abcdef";
 const GL_ORIGIN = "https://gitlab.rrze.fau.de";
 const GL_PROJECT = "fau-ai-taskforce/tools/thesis-tool";
 const GL_WEB = `${GL_ORIGIN}/${GL_PROJECT}`;
-const GL_TOKEN = "glpat_product_001";
+const GL_TOKEN = "glpat-product-001";
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 function gitlabProject({ accessLevel = 40 } = {}) {

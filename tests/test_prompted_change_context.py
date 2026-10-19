@@ -1,4 +1,4 @@
-# Module: system
+# Module: MOD-spec-changes
 # Guards: A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; A CI AGENT'S DRAFT ENTERS AS OPEN
 # Level: system
 """SPEC sections 11 and 12 - the check named tests/test_prompted_change_context.py.

@@ -1,7 +1,7 @@
 // The browser store (docs/assets/settings-store.mjs) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-settings-store
+// Module: MOD-browser-store
 // Guards: THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A CLEAR IS A REAL CLEAR; UC-042
 // Level: unit
 //

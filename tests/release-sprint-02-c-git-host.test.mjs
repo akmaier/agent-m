@@ -2,7 +2,7 @@
 // tester-opus (claude-opus-5-5), the Release tester of docs/process.md, who implemented none of the strand's items, from the SPEC
 // rules and the use-case step they realise; started on sprint/02 at a7b4b9f, 2026-10-01.
 //
-// Module: MOD-git-host
+// Module: MOD-repository-hosts
 // Guards: GITLAB PRODUCTS ARE SUPPORTED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
 // Level: release
 //

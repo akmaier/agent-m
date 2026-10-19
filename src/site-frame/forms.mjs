@@ -66,7 +66,8 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
   const given = opened ?? { kind: schema.schema, path: schema.path, id: null, title: null, fields: {}, sections: [],
     appended: [], body: "" };
   const keys = Object.keys(schema.frontMatter ?? {});
-  const headings = (schema.sections ?? []).map((spec) => spec.heading).filter((heading) => heading !== undefined);
+  // A section under the title has no heading of its own: the document's title line stands for it.
+  const headings = (schema.sections ?? []).map((spec) => (spec.underTitle ? given.sections[0]?.heading : spec.heading)).filter((heading) => heading !== undefined);
   const values = { ...given.fields }; // each key as its field holds it, undefined where the field is left empty
   const edits = new Map(); // the text of each section the person changed, by its heading
   // The lines between the front matter and the first section, the title among them, as the document given holds them.

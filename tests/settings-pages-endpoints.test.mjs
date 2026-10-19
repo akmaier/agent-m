@@ -48,6 +48,8 @@ function scripted(responses, calls) { const remaining = [...responses]; return a
 
 const ENDPOINT = { url: "https://models.example.test/v1", kind: "openai-compatible", model: "tiny-model", key: "secret-key" };
 const BRIDGED = { url: "http://127.0.0.1:11434", kind: "openai-compatible", model: "local-model", bridge: "local" };
+// An endpoint stored before Bridges had names: it says it goes through a Bridge and names none.
+const OLD_BRIDGED = { url: "http://127.0.0.1:11434/v1", kind: "openai-compatible", model: "local-model", throughBridge: true };
 
 function endpointsRoute() {
   const route = view.routes.find((candidate) => candidate.name === "endpoints");
@@ -493,8 +495,8 @@ test("TST-512007: through a Bridge, text only shows the endpoint's message folde
 // guards: UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: a constructed text-only answer
 // input: the author tests the endpoint "campus" on the endpoints Route
-// expect: the last test kept beside the endpoint is exactly { at, outcome: "working" } with at an ISO date and no other field (the stored format of last-test is unchanged)
-test("TST-512008: showing the answer about tools leaves the stored last test as { at, outcome }", async () => {
+// expect: the last test kept beside the endpoint is exactly { at, outcome: "working", tools: false } with at an ISO date and no other field (MOD-browser-store: `last-test:<key>` is { at, outcome, tools? })
+test("TST-512008: showing the answer about tools keeps the stored last test as { at, outcome, tools }", async () => {
   const store = freshStore(), oldFetch = globalThis.fetch;
   globalThis.fetch = scripted([{ status: 200, body: textAnswer("plain") }], []);
   try {
@@ -503,7 +505,149 @@ test("TST-512008: showing the answer about tools leaves the stored last test as 
     type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
     await click(byClass(target, "endpoint-test")[0]);
     const recorded = readSetting(store, "last-test:endpoint:campus");
-    assert.deepEqual(Object.keys(recorded).sort(), ["at", "outcome"]);
+    assert.deepEqual(Object.keys(recorded).sort(), ["at", "outcome", "tools"]);
+    assert.equal(recorded.tools, false);
     assert.equal(recorded.outcome, "working");
   } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269007 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO; CONFIGURATION LIVES IN THE BROWSER
+// given: an old bridged value { url, kind, model, throughBridge: true } that names no Bridge, and two Bridges (lab, local) this browser keeps
+// input: the person opens the public endpoints Route for it and presses Save and test without choosing a Bridge
+// expect: no request of any kind is made (no direct call to the model, no call to either Bridge), the stored value is unchanged, and the page asks the person to choose the Bridge
+test("TST-269007: an old bridged value asks for a named Bridge before testing and never falls back to a direct call", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4712", token: "local-token" });
+  globalThis.fetch = scripted([], calls);
+  try {
+    const target = await render(store, { name: "old" });
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(calls.length, 0, "failure node: the direct call that settingFrom/testEndpoint made without a bridge name");
+    assert.deepEqual(readSetting(store, "endpoint:old"), OLD_BRIDGED, "the stored value is left as it was");
+    assert.match(byClass(target, "endpoint-result")[0].textContent, /choose the Bridge/i);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269008 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: the same old bridged value and the same two kept Bridges
+// input: the person chooses the Bridge lab in the Bridge control and presses Save and test
+// expect: the value is saved as { url, kind, model, bridge: "lab" } without throughBridge, before exactly one request, which goes to the Bridge lab's probe address and to nothing else
+test("TST-269008: after the person names a Bridge, the old bridged value is saved in the named form and tested through that Bridge only", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  writeSetting(store, "bridge:local", { address: "http://127.0.0.1:4712", token: "local-token" });
+  const named = { url: OLD_BRIDGED.url, kind: OLD_BRIDGED.kind, model: OLD_BRIDGED.model, bridge: "lab" };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    assert.deepEqual(readSetting(store, "endpoint:old"), named, "failure node: the named form is stored before the request");
+    return new Response(JSON.stringify({ answer: { works: true, model: OLD_BRIDGED.model } }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const target = await render(store, { name: "old" });
+    const bridge = byClass(target, "endpoint-bridge")[0];
+    bridge.value = "lab"; bridge.dispatchEvent(new Event("change"));
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, "http://127.0.0.1:4711/v1/probes/endpoint-test");
+    assert.equal(calls[0].init.headers["x-agent-m-bridge-token"], "lab-token");
+    assert.deepEqual(readSetting(store, "endpoint:old"), named);
+    assert.equal(Object.hasOwn(readSetting(store, "endpoint:old"), "throughBridge"), false);
+    assert.match(byClass(target, "endpoint-result")[0].textContent, /working/i);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269009 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
+// given: an old bridged value that names no Bridge, and no Bridge kept in this browser
+// input: the person opens the public endpoints Route for it and presses Save and test
+// expect: no request is made, the stored value is unchanged, and the page offers to set up a Bridge
+test("TST-269009: an old bridged value with no Bridge kept offers the Bridge setup and makes no request", async () => {
+  const store = freshStore(), calls = [], navigations = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  globalThis.fetch = scripted([], calls);
+  try {
+    const target = await render(store, { name: "old" }, { navigations });
+    await click(byClass(target, "endpoint-test")[0]);
+    assert.equal(calls.length, 0);
+    assert.deepEqual(readSetting(store, "endpoint:old"), OLD_BRIDGED);
+    const setup = byClass(target, "endpoint-bridge-setup")[0];
+    assert.equal(typeof setup, "object", "a Set up the Bridge control is offered");
+    await click(setup);
+    assert.deepEqual(navigations.map((step) => step.route), ["bridge"], "it leads to the Bridge page");
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269010 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO; THE PAGE NAMES WHERE IT SENDS
+// given: the Settings page lists an old bridged value { url, kind, model, throughBridge: true } that names no Bridge
+// input: the person reads the line's disclosure, then presses the line's Test
+// expect: the disclosure does not claim a request to the model's address; Test makes no request of any kind, records no test, leaves the stored value unchanged, and asks the person to choose the Bridge
+test("TST-269010: the Settings line's Test of an old bridged value asks for a named Bridge and never calls the model directly", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:old", OLD_BRIDGED);
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  globalThis.fetch = scripted([], calls);
+  try {
+    const target = await renderSettings(store);
+    const line = byClass(target, "settings-endpoint")[0];
+    assert.equal(byClass(line, "settings-endpoint-disclosure")[0].textContent.includes(OLD_BRIDGED.url), false, "no request to the model's address is announced");
+    await click(byClass(line, "settings-endpoint-test")[0]);
+    assert.equal(calls.length, 0, "failure node: settings.mjs falls to testEndpoint when setting.bridge is absent");
+    assert.equal(readSetting(store, "last-test:endpoint:old"), null);
+    assert.deepEqual(readSetting(store, "endpoint:old"), OLD_BRIDGED);
+    assert.match(byClass(line, "settings-endpoint-result")[0].textContent, /choose the Bridge/i);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// TST-269011 · level: unit · module: MOD-settings-pages
+// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER
+// given: the Settings page lists an endpoint that names the kept Bridge lab
+// input: the person presses the line's Test
+// expect: exactly one request, to lab's probe address, and none to the model
+test("TST-269011: the Settings line's Test of a named-Bridge endpoint still goes through that Bridge only", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:named", { url: OLD_BRIDGED.url, kind: OLD_BRIDGED.kind, model: OLD_BRIDGED.model, bridge: "lab" });
+  writeSetting(store, "bridge:lab", { address: "http://127.0.0.1:4711", token: "lab-token" });
+  globalThis.fetch = async (url, init = {}) => { calls.push({ url: String(url), init }); return new Response(JSON.stringify({ answer: { works: true, model: OLD_BRIDGED.model } }), { status: 200, headers: { "Content-Type": "application/json" } }); };
+  try {
+    const target = await renderSettings(store);
+    await click(byClass(target, "settings-endpoint-test")[0]);
+    assert.deepEqual(calls.map((call) => call.url), ["http://127.0.0.1:4711/v1/probes/endpoint-test"]);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// ---------------------------------------------------------------- the last test keeps whether the model called the tool (ITM-998)
+
+async function storeAfterTest(answer) {
+  const store = freshStore(), oldFetch = globalThis.fetch;
+  globalThis.fetch = scripted([answer], []);
+  try {
+    const target = await render(store);
+    type(byClass(target, "endpoint-name")[0], "campus"); type(byClass(target, "endpoint-url")[0], ENDPOINT.url);
+    type(byClass(target, "endpoint-model")[0], ENDPOINT.model);
+    await click(byClass(target, "endpoint-test")[0]);
+    return store;
+  } finally { globalThis.fetch = oldFetch; }
+}
+
+// TST-998001 · level: unit · module: MOD-settings-pages
+// guards: UC-003 (step 5); UC-017 (step 3)
+// given: an endpoint tested directly three times: the model calls the probe tool; it answers in text only; the key is refused (401)
+// input: the author fills the endpoints Route and presses Save and test
+// expect: last-test:endpoint:campus holds tools true for the first, tools false for the second, and no `tools` key for the refused test (the test did not reach the model); each keeps its outcome as before
+test("TST-998001: the last test of an endpoint keeps whether the model called the tool, and nothing where the test did not reach it", async () => {
+  const called = readSetting(await storeAfterTest({ status: 200, body: CALLED }), "last-test:endpoint:campus");
+  assert.equal(called.outcome, "working");
+  assert.equal(called.tools, true);
+  const text = readSetting(await storeAfterTest({ status: 200, body: textAnswer("I cannot call tools.") }), "last-test:endpoint:campus");
+  assert.equal(text.outcome, "working");
+  assert.equal(text.tools, false);
+  const refused = readSetting(await storeAfterTest({ status: 401, body: { error: { message: "Invalid API key." } } }), "last-test:endpoint:campus");
+  assert.equal(refused.outcome, "refused");
+  assert.equal(Object.hasOwn(refused, "tools"), false);
 });

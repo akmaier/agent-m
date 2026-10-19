@@ -210,3 +210,26 @@ test("TST-261009: request logs exclude endpoint-test secrets", async (t) => {
   assert.equal(lines.join("\n").includes(CONFIG.key), false);
   assert.equal(lines.join("\n").includes(bridge.token), false);
 });
+
+// TST-960201 · level: unit · module: MOD-bridge-http
+// guards: UC-040; THE LOCAL BRIDGE REQUIRES A TOKEN
+// given: a paired Bridge whose handlers answer the probes endpoint-models and partitions
+// input: each probe without the token, with an empty token, and with the paired token
+// expect: 401 without and with an empty token, and neither handler runs; with the token each handler runs once and its answer is returned as { answer }
+test("TST-960201: the probes endpoint-models and partitions are refused without the Bridge's token and answered with it", async (t) => {
+  let models = 0, partitions = 0;
+  const bridge = await running(t, { jobs: {
+    "POST /v1/probes/endpoint-models": async () => { models += 1; return { answer: { models: ["served-a"] } }; },
+    "POST /v1/probes/partitions": async () => { partitions += 1; return { answer: { partitions: [{ name: "debug", state: "up" }] } }; },
+  } });
+  for (const [kind, body] of [["endpoint-models", { args: CONFIG }], ["partitions", { args: {} }]]) {
+    assert.equal((await request(bridge, `/v1/probes/${kind}`, { token: "", body })).status, 401, `${kind}: empty token`);
+    assert.equal((await fetch(`${bridge.address}/v1/probes/${kind}`, { method: "POST", headers: { Origin: ORIGIN, "Content-Type": "application/json" }, body: JSON.stringify(body) })).status, 401, `${kind}: no token`);
+  }
+  assert.deepEqual([models, partitions], [0, 0]);
+  const listed = await request(bridge, "/v1/probes/endpoint-models", { body: { args: CONFIG } });
+  assert.deepEqual(await listed.json(), { answer: { models: ["served-a"] } });
+  const parted = await request(bridge, "/v1/probes/partitions", { body: { args: {} } });
+  assert.deepEqual(await parted.json(), { answer: { partitions: [{ name: "debug", state: "up" }] } });
+  assert.deepEqual([models, partitions], [1, 1]);
+});

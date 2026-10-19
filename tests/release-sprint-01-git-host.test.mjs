@@ -2,7 +2,7 @@
 // Release tester of docs/process.md, who implemented nothing of the increment, from the SPEC rules alone; started on sprint/02 at
 // ef4f619 (main at 385f5cf plus records only), 2026-10-01.
 //
-// Module: MOD-git-host
+// Module: MOD-repository-hosts
 // Guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // Level: release
 //

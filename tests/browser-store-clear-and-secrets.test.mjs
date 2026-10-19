@@ -1,3 +1,4 @@
+// Module: MOD-browser-store
 // MOD-browser-store — instance clearing and the values that must not enter a repository.
 
 import test from "node:test";

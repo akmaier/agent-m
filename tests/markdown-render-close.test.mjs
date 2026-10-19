@@ -72,3 +72,44 @@ test("TST-603011 close of an editor never changed returns true without asking", 
     assert.equal(editorsIn(target), 0);
   });
 });
+
+// TST-672001 · level: unit · module: MOD-markdown-render
+// guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD
+// given: an editor opened on "current\n", and a confirmation that would decline and records what it is asked
+// input: editor.unsaved() as opened; after the text is changed to "changed\n"; after it is changed back to "current\n"
+// expect: false, true, false; the confirmation is asked nothing at any call, and the editor stays drawn throughout
+test("TST-672001 unsaved says whether the text holds unsaved changes, without asking and without closing", async () => {
+  await withConfirm([false], async (asked) => {
+    const target = document.createElement("div");
+    const editor = openEditor(target, "current\n", { marks: () => [], save: async () => ({ kind: "saved", link: "https://example.org/commit/1" }) });
+    assert.equal(typeof editor.unsaved, "function", "the Editor says whether it holds unsaved changes");
+    assert.equal(editor.unsaved(), false);
+    type(areaIn(target), "changed\n");
+    assert.equal(editor.unsaved(), true);
+    type(areaIn(target), "current\n");
+    assert.equal(editor.unsaved(), false);
+    assert.deepEqual(asked, []);
+    assert.equal(editorsIn(target), 1);
+  });
+});
+
+// TST-672002 · level: unit · module: MOD-markdown-render
+// guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD
+// given: an editor opened on "current\n" whose text a person changed to "changed\n" and saved (the caller's save answers "saved"), and then changed to "changed again\n"
+// input: editor.unsaved() after the save; after the further change; then editor.close() with a confirmation that declines
+// expect: false after the save, true after the further change, and close() asks "Discard unsaved changes?" exactly when unsaved() is true (once here) and returns false
+test("TST-672002 unsaved follows the last saved text, the same rule close asks by", async () => {
+  await withConfirm([false], async (asked) => {
+    const target = document.createElement("div");
+    const editor = openEditor(target, "current\n", { marks: () => [], save: async () => ({ kind: "saved", link: "https://example.org/commit/1" }) });
+    type(areaIn(target), "changed\n");
+    assert.equal(editor.unsaved(), true);
+    find(target, (node) => node.localName === "button")[0].dispatchEvent(new Event("click"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(editor.unsaved(), false);
+    type(areaIn(target), "changed again\n");
+    assert.equal(editor.unsaved(), true);
+    assert.equal(editor.close(), false);
+    assert.deepEqual(asked, ["Discard unsaved changes?"]);
+  });
+});

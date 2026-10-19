@@ -16,6 +16,7 @@ recipes:
   - draft
   - test-selection
   - chapters-for-tests
+  - resource-pins
 checks:
   - test-declarations
   - test-proposals

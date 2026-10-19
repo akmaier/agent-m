@@ -1,3 +1,4 @@
+// Module: MOD-repository-hosts
 // MOD-repository-hosts' listPullRequests and pullRequestFacts (ITM-296), as the accepted text of docs/architecture/MOD-repository-hosts.md states them: "listPullRequests(filter:
 // { state?: "open" | "merged" | "closed" | "all", branch?: string }) -> Promise<PullRequest[]> — crosses the network; fails as `readSnapshot`"; "pullRequestFacts(number) ->
 // Promise<PullRequestFacts> — the commits of a pull request in order, the files each changed, the CI result of each commit, and the texts of changed files on both sides", with

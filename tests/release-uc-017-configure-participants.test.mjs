@@ -2,7 +2,7 @@
 // covered by executable evidence, and that the self-hosted runner public-product refusal is exercised through routesFor.
 // Run: node --test tests/release-uc-017-configure-participants.test.mjs
 //
-// Module: system
+// Module: MOD-settings-pages
 // Guards: UC-017
 // Level: release
 //

@@ -57,14 +57,14 @@ const VIEW = { strategies: [], routes: [
 ] };
 
 // Starts the review page of acme/instance on the route `setup`, with the stored settings given, the fetch recording every request.
-async function start({ settings = {} } = {}) {
+async function start({ settings = {}, intervals = null } = {}) {
   asked.length = 0;
   seen.contexts.length = 0;
   seen.finished.length = 0;
   onSetup = () => {};
   const fixture = installPage({ ...REVIEW, hash: "#setup" });
   globalThis.fetch = async (url, init) => { asked.push({ url: String(url), authorization: init?.headers?.Authorization ?? null }); throw new TypeError("offline"); };
-  globalThis.setInterval = () => 1;
+  globalThis.setInterval = (fn, ms) => { intervals?.push({ fn, ms }); return 1; };
   const store = openStore("acme/instance");
   for (const [key, value] of Object.entries(settings)) writeSetting(store, key, value);
   await startPage({ page: "review", views: [VIEW] });
@@ -177,4 +177,101 @@ test("TST-869006 without a stored token the instance host is the instance's, sen
   assert.deepEqual([typeof instance.host.repositoryInfo, typeof instance.host.commitFiles], ["function", "function"]);
   assert.deepEqual(requests, [{ url: INSTANCE_API, authorization: null }]);
   assert.deepEqual(outside.reached, []);
+});
+
+// ---------------------------------------------------------------- the notification checks' host of a product (ITM-863)
+//
+// The frame hands MOD-notifications' watchForAcceptance `productHost`, which connects a product's host as the frame connects the
+// instance's: through the token and the secrets stored at each call. The browser's Notification is "granted" for these cases, and the
+// page's one check interval is captured so that a case fires it itself; the fetch of the fixture refuses every request and records it.
+
+const PRODUCT = "alice/thesis", PRODUCT_ADDRESS = `https://github.com/${PRODUCT}`, PRODUCT_API = `https://api.github.com/repos/${PRODUCT}`;
+const PRODUCT_TOKEN = "github_pat_PRODUCT0123456789abcdefghij", PRODUCT_NEXT = "github_pat_PRODUCTNEXT123456789abcdefg";
+const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
+const toProduct = (request) => request.url.startsWith(PRODUCT_API);
+
+// Starts the review page with notifications on and due, the product alice/thesis kept with `token` (or none); -> the page, and
+// tick(): makes a check due again, fires the page's interval, -> the product's requests since; restore(): puts Notification back.
+async function startChecking({ token = PRODUCT_TOKEN } = {}) {
+  const prior = Object.getOwnPropertyDescriptor(globalThis, "Notification");
+  Object.defineProperty(globalThis, "Notification", { configurable: true, writable: true, value: { permission: "granted", requestPermission: async () => "granted" } });
+  const intervals = [];
+  const settings = { products: [PRODUCT_ADDRESS], notifications: { checked: null }, ...(token ? { [`github-token:${PRODUCT}`]: { ...stored(token), name: "Agent M" } } : {}) };
+  const page = await start({ settings, intervals });
+  await until(() => asked.some(toProduct));
+  const tick = async () => {
+    writeSetting(page.store, "notifications", { checked: minutesAgo(6) });
+    const interval = intervals.find((each) => each.ms === 60000);
+    assert.ok(interval, "the frame started the checks of the page, which register their one interval");
+    asked.length = 0;
+    interval.fn();
+    await until(() => asked.some(toProduct));
+    return asked.filter(toProduct);
+  };
+  const restore = () => { if (prior) Object.defineProperty(globalThis, "Notification", prior); else delete globalThis.Notification; };
+  return { page, tick, restore };
+}
+
+// TST-863001 · level: unit · module: MOD-site-frame
+// guards: A CLEAR IS A REAL CLEAR
+// given: the review page of acme/instance with notifications on and due, in a browser that keeps the product alice/thesis and its own token github_pat_PRODUCT…
+// input: the page starts, and its first check runs
+// expect: every request of the check to https://api.github.com/repos/alice/thesis carries "Bearer github_pat_PRODUCT0123456789abcdefghij", and there is at least one (the known positive of the cases below)
+test("TST-863001 the notification check of a kept product carries the product's own token", async () => {
+  const { restore } = await startChecking();
+  try {
+    const sent = asked.filter(toProduct);
+    assert.equal(sent.length > 0 && sent.every((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), true, JSON.stringify(sent));
+  } finally { restore(); }
+});
+
+// TST-863002 · level: unit · module: MOD-site-frame
+// guards: A CLEAR IS A REAL CLEAR
+// given: the same page, whose first check has run with the product's token
+// input: the product's token setting is cleared (clearSetting, as the Clear of the Settings line does); five minutes pass; the page's check interval fires
+// expect: the second check sends at least one request to the product, each carrying no authorisation (null), and none anywhere carries the cleared token
+test("TST-863002 a product's token cleared since the page started is not sent by the next notification check", async () => {
+  const { page, tick, restore } = await startChecking();
+  try {
+    clearSetting(page.store, `github-token:${PRODUCT}`);
+    const sent = await tick();
+    assert.deepEqual(sent.map((request) => request.authorization), sent.map(() => null), JSON.stringify(sent));
+    assert.equal(asked.some((request) => request.authorization === `Bearer ${PRODUCT_TOKEN}`), false);
+  } finally { restore(); }
+});
+
+// TST-863003 · level: unit · module: MOD-site-frame
+// guards: A CLEAR IS A REAL CLEAR
+// given: the same page, whose first check has run with the product's token
+// input: the product's token is replaced by github_pat_PRODUCTNEXT…; five minutes pass; the page's check interval fires
+// expect: every request of the second check to the product carries "Bearer github_pat_PRODUCTNEXT123456789abcdefg", and there is at least one
+test("TST-863003 a product's token replaced since the page started is the one the next notification check sends", async () => {
+  const { page, tick, restore } = await startChecking();
+  try {
+    writeSetting(page.store, `github-token:${PRODUCT}`, { ...stored(PRODUCT_NEXT), name: "Agent M" });
+    const sent = await tick();
+    assert.deepEqual(sent.map((request) => request.authorization), sent.map(() => `Bearer ${PRODUCT_NEXT}`), JSON.stringify(sent));
+  } finally { restore(); }
+});
+
+// TST-863004 · level: unit · module: MOD-site-frame
+// guards: NO SECRET IN THE REPOSITORY
+// given: a store that keeps the product alice/thesis and the Bridge token bridge-token-AT-START-…; the host the frame gives for that product (productHostFollowingStore of the frame's routing)
+// input: the host is asked to commit notes.md that holds the Bridge token; then, after the Bridge token bridge-token-STORED-LATER-… is stored, notes.md that holds it; then a notes.md that holds none
+// expect: the first two commits fail with a HostError named SecretRefused and send no request; the third is sent once, to https://api.github.com/repos/alice/thesis (the known positive)
+test("TST-863004 the product host the frame gives refuses a commit that holds a stored secret, one stored later too", async () => {
+  installPage({ ...REVIEW, hash: "" });
+  asked.length = 0;
+  globalThis.fetch = async (url, init) => { asked.push({ url: String(url), authorization: init?.headers?.Authorization ?? null }); throw new TypeError("offline"); };
+  const store = openStore("acme/instance");
+  writeSetting(store, "products", [PRODUCT_ADDRESS]);
+  writeSetting(store, "bridge:b0", { token: BRIDGE_AT_START });
+  const { productHostFollowingStore } = await import("../src/site-frame/routing.mjs");
+  const host = productHostFollowingStore({ store })(PRODUCT_ADDRESS);
+  await assert.rejects(commit(host, `bridge ${BRIDGE_AT_START}`), { name: "SecretRefused" });
+  writeSetting(store, "bridge:b1", { token: BRIDGE_LATER });
+  await assert.rejects(commit(host, `bridge ${BRIDGE_LATER}`), { name: "SecretRefused" });
+  assert.deepEqual(asked, []);
+  await commit(host, "nothing secret").catch(() => {});
+  assert.deepEqual(asked.map(toProduct), [true]);
 });

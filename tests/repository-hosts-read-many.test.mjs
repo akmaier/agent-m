@@ -24,6 +24,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
+import { batchAnswer, atCommit } from "./repository-hosts-batch-fake.mjs";
 
 const TOKEN = "github_pat_BOBreadMANY0123456789abcdef";
 const ADDRESS = parseAddress("https://github.com/bob/reader");
@@ -59,16 +60,7 @@ function fakeGitHub(held, { graphql = null, special = {} } = {}) {
     const prefix = "/repos/bob/reader";
     if (url.origin === "https://api.github.com" && url.pathname === "/graphql") {
       if (graphql) { const own = graphql(body, headers); if (own) return own; }
-      const repository = {};
-      for (const [, alias, expression] of body.query.matchAll(/(\w+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
-        const [commit, path] = [JSON.parse(expression).slice(0, 40), JSON.parse(expression).slice(41)];
-        const text = commit === COMMIT ? held[path] : undefined;
-        if (text === undefined || special[path] === "absent") repository[alias] = null;
-        else if (special[path] === "binary") repository[alias] = { text: null, isTruncated: false, isBinary: true, byteSize: 3 };
-        else if (special[path] === "truncated") repository[alias] = { text: text.slice(0, 5), isTruncated: true, isBinary: false, byteSize: 600000 };
-        else repository[alias] = { text, isTruncated: false, isBinary: false, byteSize: Buffer.byteLength(text) };
-      }
-      return json(200, { data: { rateLimit: { cost: 1, remaining: 4999 }, repository } });
+      return json(200, batchAnswer(body.query, { held: atCommit(COMMIT, held), special }));
     }
     if (url.pathname === `${prefix}/commits/main`) return json(200, { sha: COMMIT, commit: { tree: { sha: "t" } } });
     if (url.pathname === `${prefix}/git/trees/${COMMIT}`) {

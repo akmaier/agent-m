@@ -120,6 +120,26 @@ export function tokenSettingKey(address) {
     : `github-token:${address.path}`;
 }
 
+// The repository a token's key is for, the step back from tokenSettingKey: `github-token` is the instance's, `github-token:<owner>/<repository>`
+// a GitHub product's, `gitlab-token:<server>/<project>` a GitLab project's. null for a key that is no token's, or that names no readable repository.
+export function tokenKeyAddress(key, instanceRepository) {
+  try {
+    if (key === INSTANCE_TOKEN_KEY) return parseAddress(`https://github.com/${instanceRepository}`);
+    if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
+    if (key.startsWith("gitlab-token:")) return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
+  } catch { /* no readable repository */ }
+  return null;
+}
+
+// The refusal of a token pasted for a setting (MOD-settings-pages, *A pasted token*): the token is connected, with the options the frame's own connection
+// passes, to the repository its key names before anything is stored. -> the line that names the setting — `connect`'s message never holds the token —
+// or null when `connect` accepts it, or when the key names no readable repository (`address` null), which has no host to refuse it.
+export function tokenRefusal(store, address, key, value, tokenName) {
+  if (!address) return null;
+  try { connect(address, { token: value, tokenName, secrets: secretValues(store) }); return null; }
+  catch (error) { return `the token under ${key} is refused. ${error.message}`; }
+}
+
 function storedToken(store, key) {
   const t = readSetting(store, key);
   return t ? { token: t.value, tokenName: t.name, expires: t.expires ?? null } : null;
@@ -233,6 +253,8 @@ function githubStepABody(context, address, out, afterCheck) {
     const value = token.value.trim(), expiresOn = expires.value;
     if (!value || !expiresOn) { err.textContent = "Paste the token and its expiry date first."; return; }
     const tokenName = productTokenName(address.path);
+    const refused = tokenRefusal(context.store, address, tokenSettingKey(address), value, tokenName);
+    if (refused) { err.textContent = `Nothing was stored: ${refused}`; return; }
     writeSetting(context.store, tokenSettingKey(address), { value, name: tokenName, expires: expiresOn, stored: today() });
     context.tokenStored?.();
     err.textContent = "";
@@ -325,6 +347,8 @@ function gitlabStepBBody(context, address, afterCheck) {
     const value = token.value.trim(), expiresOn = expires.value;
     if (!value || !expiresOn) { out.textContent = "Paste the token and its expiry date first."; return; }
     const tokenName = "Agent M";
+    const refused = tokenRefusal(context.store, address, key, value, tokenName);
+    if (refused) { out.textContent = `Nothing was stored: ${refused}`; return; }
     writeSetting(context.store, key, { value, name: tokenName, expires: expiresOn, stored: today() });
     context.tokenStored?.();
     out.replaceChildren();

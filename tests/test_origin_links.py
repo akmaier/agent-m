@@ -1,4 +1,4 @@
-# Module: MOD-artifacts
+# Module: MOD-identifiers
 # Guards: EVERY ARTIFACT NAMES ITS ORIGIN
 # Level: unit
 """SPEC §1 EVERY ARTIFACT NAMES ITS ORIGIN — a use case names the requirements it realises, an architecture

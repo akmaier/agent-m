@@ -220,6 +220,22 @@ export async function testEndpoint(config) {
   }
 }
 
+// listModels(config) -> { models } | { diagnosis } — the identifiers of the models the endpoint serves, by GET <baseUrl>/models with the key where the
+// configuration has one; config.model is not read. One request, nothing stored; a failure is the diagnosis testEndpoint gives.
+export async function listModels(config) {
+  const where = typeof window === "undefined" ? "node" : "browser";
+  const headers = config.kind === "anthropic"
+    ? { "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", ...(config.key === null ? {} : { "x-api-key": config.key }) }
+    : (config.key === null ? {} : { Authorization: `Bearer ${config.key}` });
+  try {
+    const response = await endpointResponse(config, { url: endpointUrl(config.baseUrl, "/models"), init: { method: "GET", headers } }, where);
+    if (response.ok) return { models: ((await response.json())?.data ?? []).map((model) => model?.id).filter((id) => typeof id === "string") };
+    return { diagnosis: diagnoseEndpoint({ status: response.status, message: await responseMessage(response) }, config, where) };
+  } catch (error) {
+    return { diagnosis: error.diagnosis ?? diagnoseEndpoint(error, config, where) };
+  }
+}
+
 async function endpointResponse(config, { url, init }, where) {
   try {
     return await fetch(url, init);

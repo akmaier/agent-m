@@ -1,7 +1,7 @@
 // The pull requests of a product (docs/assets/git-host/pull-requests.mjs) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
-// Module: MOD-git-host
+// Module: MOD-repository-hosts
 // Guards: GITLAB PRODUCTS ARE SUPPORTED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-032
 // Level: component
 //
