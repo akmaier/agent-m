@@ -1,7 +1,8 @@
 // Generating tests, up to the proposal (ITM-763) — MOD-test-pages' route `generate`, UC-026 steps 1 to 4, 3a and 4a: the requirements, use cases and modules of the product with the levels
 // whose tests already guard each, the uncovered combinations preselected; the levels chosen, each with a folded explanation that names the book's chapter; the participants that fill the
 // test-writing role, the implementer left out for the level release and named; the run panel of the kind propose-tests, whose Run queues one job of that kind; a selection that does not fit the
-// participant's context sends nothing. The proposal a run returns, its review and Write tests are ITM-764 and are not tested here.
+// participant's context sends nothing. ITM-764 adds the rest, UC-026 steps 5 to 8, 5a, 6a, 8b and 1a: the cases of the proposal read from its job's record, grouped beside the existing tests, removed, edited and
+// reclassified, and Write tests, which queues one job of the kind write-tests with the cases as the person left them (TST-764001 and following).
 // Run: node --test tests/test-pages-generate.test.mjs
 //
 // Module: MOD-test-pages
@@ -25,14 +26,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { startRecord } from "../src/job-ledger/index.mjs";
+import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
+import { finding } from "../src/text-tools/index.mjs";
 import { approvalSchema } from "../src/approvals/index.mjs";
 import { writeDocument } from "../src/documents/index.mjs";
 
 const { view } = await import("../src/test-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { sourceStrategies } = await import("../src/source-register/index.mjs");
-[...view.strategies, sourceStrategies].forEach((strategies, at) => registerStrategies(`tests/test-pages-generate.test.mjs#${at}`, strategies));
+const { resourceStrategies } = await import("../src/resource-list/index.mjs");
+[...view.strategies, sourceStrategies, resourceStrategies].forEach((strategies, at) => registerStrategies(`tests/test-pages-generate.test.mjs#${at}`, strategies));
 const route = view.routes.find((candidate) => candidate.name === "generate");
 
 // ---------------------------------------------------------------- the product
@@ -314,4 +317,146 @@ test("generate — a selection that names an unaccepted use case is refused by t
   assert.equal(runButtons(target).length, 0);
   assert.deepEqual(fake.writes(), []);
   assert.deepEqual(sent, []);
+});
+
+// ================================================================== ITM-764: the proposal, its review and Write tests
+
+const ENDED = { at: new Date("2026-10-18T10:00:00Z"), state: "done", results: ["waits for a person"], usage: null, cost: { known: false, usage: null }, reason: null, log: null };
+const caseOf = (identifier, level, guards, over = {}) => ({ identifier, level, guards, precondition: "a product", input: `input of ${identifier}`, expected: `expected of ${identifier}`, class: "new", ...over });
+const PROPOSED = { id: "JOB-20261018-0900-aaaa", kind: "propose-tests", worksOn: ["RULE TWO", "UC-002", "MOD-a"], participant: "ci-writer", model: "model-x", route: "ci hosted", run: null, retries: null,
+  startedBy: "alice", start: new Date("2026-10-18T09:00:00Z"), agentM: { version: "2026.10.0", commit: "abc1234" }, inputs: [], limit: 5, destinations: [],
+  params: { requirements: ["RULE TWO"], useCases: ["UC-002"], modules: ["MOD-a"], levels: ["unit", "system", "release", "user"] } };
+const FLAG = finding({ artifact: "the proposal", line: 1, kind: "warning", rule: "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS", what: "TST-7003 states no concrete expected result", fix: "state it" });
+const roundsOf = (...counts) => counts.map((count, at) => ({ number: at + 1, findings: count ? [FLAG] : [], answers: [] }));
+// A product that holds the ended job of the kind propose-tests with these cases and rounds, and the accepted use case UC-002.
+function proposed(cases, rounds = roundsOf(1, 1), extra = {}) {
+  const record = appendToRecord(startRecord(PROPOSED).text, { part: "end", ...ENDED, draft: { cases }, rounds });
+  return { ...accepted, [`docs/jobs/${PROPOSED.id}.md`]: record, ...extra };
+}
+const CASES = [caseOf("TST-7001", "unit", ["MOD-a"]), caseOf("TST-7002", "system", ["UC-002"]), caseOf("TST-5", "unit", ["RULE TWO"], { class: "extends", of: "TST-5" }),
+  caseOf("TST-7003", "release", ["RULE TWO"], { paid: "the model endpoint" }), caseOf("TST-7004", "user", ["RULE TWO"]), caseOf("TST-7005", "unit", ["MOD-a"], { class: "duplicate", of: "TST-5" })];
+const caseNode = (target, id) => find(target, (node) => node.localName === "li" && node.getAttribute("data-case") === id)[0];
+const fieldOfCase = (target, id, className) => byClass(caseNode(target, id), "textarea", className)[0];
+const selectOfCase = (target, id, className) => byClass(caseNode(target, id), "select", className)[0];
+const writeButton = (target) => byClass(target, "button", "write")[0];
+async function readProposal(fake, { register } = {}) {
+  const target = await show(fake, register ? { register } : {});
+  click(byClass(target, "button", "read")[0]);
+  await until(() => byClass(target, "section", "proposal")[0].childNodes.length > 0, "the proposal");
+  await settle();
+  return target;
+}
+const parametersOf = (text) => JSON.parse(/## Parameters\n+```json\n([\s\S]*?)\n```/.exec(text)[1]);
+
+// TST-764001 · level: unit · module: MOD-test-pages
+// guards: UC-026 (5, 7, 5a, 1a); WHAT A PERSON DECIDES IS NOT SENT BACK; THE ROUNDS ARE COUNTED AND SHOWN; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
+// given: an ended job of the kind propose-tests whose record holds six cases — unit, system, an extension of the existing test TST-5, a release case that needs a paid call, a user case and a duplicate — and two rounds, the last with one flag left
+// input: the route generate drawn, then Read the proposal pressed
+// expect: the cases grouped by level in the order of the levels and by what they guard; TST-5 beside the existing test TST-5 with its expected result; the release case marked for the nightly run, the user case marked manual with the reason that no counter-proof is taken; "Correction rounds: 2" and the flag; nothing written
+test("generate — the proposal is read from the job's record, grouped by level and by what it guards, beside the existing tests, with the rounds and the flags", async () => {
+  const fake = fakeProduct(proposed(CASES));
+  const target = await readProposal(fake);
+  const groups = byClass(target, "section", "case-group").map((node) => [node.getAttribute("data-level"), node.getAttribute("data-guards")]);
+  assert.deepEqual(groups, [["unit", "MOD-a"], ["unit", "RULE TWO"], ["system", "UC-002"], ["release", "RULE TWO"], ["user", "RULE TWO"]]);
+  assert.deepEqual(byClass(find(target, (node) => node.getAttribute?.("data-guards") === "MOD-a")[0], "li", "case").map((node) => node.getAttribute("data-case")), ["TST-7001", "TST-7005"]);
+  assert.match(byClass(caseNode(target, "TST-5"), "div", "existing")[0].textContent, /Existing TST-5 \(unit\), expects: e/);
+  assert.match(byClass(caseNode(target, "TST-7001"), "div", "existing")[0].textContent, /No existing test/);
+  assert.match(byClass(caseNode(target, "TST-7003"), "span", "nightly")[0].textContent, /paid call.*nightly or release run only/);
+  assert.match(byClass(caseNode(target, "TST-7004"), "span", "manual")[0].textContent, /no counter-proof is taken/);
+  assert.equal(byClass(caseNode(target, "TST-7001"), "span", "nightly").length, 0);
+  assert.match(byClass(target, "p", "rounds")[0].textContent, /Correction rounds: 2/);
+  assert.match(byClass(target, "li", "flag")[0].textContent, /TST-7003 states no concrete expected result/);
+  assert.equal(fieldOfCase(target, "TST-7001", "case-expected").value, "expected of TST-7001");
+  assert.deepEqual(fake.writes(), [], "reading writes nothing");
+});
+
+// TST-764002 · level: unit · module: MOD-test-pages
+// guards: UC-026 (7, 8); WHAT A PERSON DECIDES IS NOT SENT BACK; ONE CLICK PER DECISION; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
+// given: the proposal of the previous test; the person edits the expected result of TST-7001, reclassifies TST-7002 to the level release and removes the duplicate TST-7005
+// input: Write tests pressed once
+// expect: one commit of one record of the kind write-tests, for the participant of the proposal on the route ci hosted, whose parameters hold the selection and levels of the proposal, the route, and five cases as the person left them, in the order of the panel: the edited expected result, the new level, no TST-7005
+test("generate — Write tests queues one job of the kind write-tests with the cases as the person left them", async () => {
+  const fake = fakeProduct(proposed(CASES));
+  const target = await readProposal(fake);
+  fieldOfCase(target, "TST-7001", "case-expected").value = "returns 4";
+  selectOfCase(target, "TST-7002", "case-level").value = "release";
+  click(byClass(caseNode(target, "TST-7005"), "button", "remove")[0]);
+  assert.deepEqual(fake.writes(), [], "nothing written before the click");
+  click(writeButton(target));
+  await settle();
+  await until(() => byClass(target, "p", "queued").length === 1, "the queued job");
+  await settle();
+  assert.equal(fake.writes().length, 1, "one commit for one click");
+  const [file] = fake.writes()[0].files;
+  assert.match(file.path, /^docs\/jobs\/JOB-[^/]+\.md$/);
+  assert.match(file.text, /kind: write-tests/);
+  assert.match(file.text, /participant: ci-writer/);
+  assert.match(file.text, /route: ci hosted/);
+  const params = parametersOf(file.text);
+  assert.deepEqual([params.requirements, params.useCases, params.modules, params.levels, params.route], [["RULE TWO"], ["UC-002"], ["MOD-a"], ["unit", "system", "release", "user"], "ci hosted"]);
+  const handed = new Map(params.draft.cases.map((one) => [one.identifier, one]));
+  assert.deepEqual([...handed.keys()].sort(), ["TST-5", "TST-7001", "TST-7002", "TST-7003", "TST-7004"]);
+  assert.equal(handed.get("TST-7001").expected, "returns 4");
+  assert.equal(handed.get("TST-7002").level, "release");
+  assert.equal(handed.get("TST-5").of, "TST-5", "what the person did not change is handed over as it was");
+});
+
+// TST-764003 · level: unit · module: MOD-test-pages
+// guards: UC-026 (6a); ONE CLICK PER DECISION
+// given: a proposal in which every case is a duplicate of an existing test
+// input: the route generate drawn, Read the proposal pressed; then, for a proposal of two new cases, both reclassified as duplicates and Write tests pressed
+// expect: the page says every case is a duplicate, offers no Write tests and queues nothing; in the second case the press names that nothing is written and queues nothing
+test("generate — when every case is a duplicate the page says so and writes nothing", async () => {
+  const duplicates = [caseOf("TST-5", "unit", ["RULE TWO"], { class: "duplicate", of: "TST-5" }), caseOf("TST-6", "component", ["RULE TWO"], { class: "duplicate", of: "TST-6" })];
+  const fake = fakeProduct(proposed(duplicates));
+  const target = await readProposal(fake);
+  assert.equal(byClass(target, "p", "all-duplicates").length, 1);
+  assert.match(byClass(target, "p", "all-duplicates")[0].textContent, /Nothing is written/);
+  assert.equal(writeButton(target), undefined, "no Write tests");
+  assert.deepEqual(fake.writes(), []);
+  const second = fakeProduct(proposed([caseOf("TST-7001", "unit", ["MOD-a"]), caseOf("TST-7002", "system", ["UC-002"])]));
+  const again = await readProposal(second);
+  for (const id of ["TST-7001", "TST-7002"]) selectOfCase(again, id, "case-class").value = "duplicate";
+  click(writeButton(again));
+  await settle();
+  assert.match(byClass(again, "p", "all-duplicates")[0].textContent, /Nothing is written/);
+  assert.deepEqual(second.writes(), []);
+});
+
+// TST-764004 · level: unit · module: MOD-test-pages
+// guards: UC-026 (8b); A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
+// given: the proposal, and the end record of a job of the kind write-tests whose report lists TST-7001 in notWritten because it stays green with the fault planted
+// input: Read the proposal pressed
+// expect: TST-7001 is shown again among the cases, with the reason and the words sharpen or drop; the other cases carry no such mark
+test("generate — a test the participant reports green with its fault is shown again for the person to sharpen or drop", async () => {
+  const written = { ...PROPOSED, id: "JOB-20261018-1100-bbbb", kind: "write-tests" };
+  const record = appendToRecord(startRecord(written).text, { part: "end", ...ENDED, draft: { notWritten: [{ identifier: "TST-7001", reason: "it stays green with the fault planted" }] }, rounds: [] });
+  const fake = fakeProduct(proposed(CASES, roundsOf(0), { [`docs/jobs/${written.id}.md`]: record }));
+  const target = await readProposal(fake);
+  const marks = byClass(caseNode(target, "TST-7001"), "span", "not-written");
+  assert.equal(marks.length, 1);
+  assert.match(marks[0].textContent, /it stays green with the fault planted — sharpen it or drop it/);
+  assert.equal(byClass(caseNode(target, "TST-7002"), "span", "not-written").length, 0);
+});
+
+// TST-764005 · level: unit · module: MOD-test-pages
+// guards: UC-026 (5)
+// given: a product whose jobs hold no propose-tests job with cases
+// input: Read the proposal pressed
+// expect: the page says that no proposal is recorded yet and offers no Write tests
+test("generate — without an ended proposal the page says none is recorded", async () => {
+  const target = await readProposal(fakeProduct(accepted));
+  assert.match(byClass(target, "p", "no-proposal")[0].textContent, /No proposal is recorded yet/);
+  assert.equal(writeButton(target), undefined);
+});
+
+// TST-764006 · level: unit · module: MOD-test-pages
+// guards: UC-026 (8)
+// given: the view of the module
+// input: its strategies, as the frame registers them
+// expect: they hold the writer branch-and-pull-request that the kind write-tests names
+test("view — hands the frame the writer the kind write-tests uses", () => {
+  const names = (category) => view.strategies.flatMap((strategies) => Object.keys(strategies[category] ?? {}));
+  assert.ok(names("writers").includes("branch-and-pull-request"));
+  assert.ok(names("checks").includes("test-proposals"));
 });

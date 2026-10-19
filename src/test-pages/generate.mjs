@@ -3,7 +3,9 @@
 // participants that fill the test-writing role, the implementer left out for the level `release` and said so (4a); the run panel of the kind `propose-tests`, whose *Run* queues one job of that kind; a
 // selection whose existing tests do not fit the participant's context sends nothing and offers a smaller one (3a).
 //
-// Not part of this item: the proposal a run returns, its review and *Write tests* (ITM-764). A run is queued here on the participant's first available route and is not followed.
+// ITM-764 adds the rest (UC-026 steps 5 to 8, 5a, 6a, 8b, 1a): the cases of the proposal, read from the end record of the job through listJobs — for a job on CI or a Bridge, and for an attended one that
+// wrote its record —, grouped by level and by what they guard, each beside the existing tests of the same identifier, with the flags the rounds left and their number; the person removes, edits or
+// reclassifies cases; *Write tests* queues one job of the kind `write-tests` with the cases as the person left them.
 //
 // Readings the texts leave open, each named in the pull request:
 //   - a combination is a name and a level that fits its kind (UC-026's table): a requirement is checked at `release` and `user`, a use case at `system`, a module at `unit` and `component`; a combination is
@@ -11,7 +13,13 @@
 //   - a name is preselected when one of its combinations is uncovered, a level when one of the preselected names has it uncovered;
 //   - the implementer of what a selection checks is the participant of a job of kind `implement` whose `worksOn` names a selected name, or an item or use case that names a selected requirement;
 //   - the page asks for the person's own name, as the release panel does, since no setting holds an identity;
-//   - the run is queued on the first route routesFor offers the participant, and nothing is run in the tab.
+//   - the run is queued on the first route routesFor offers the participant, and nothing is run in the tab;
+//   - the proposal is read from the end record's `draft` of the job queued from this page, else of the newest job of kind `propose-tests` that has one; the flags the rounds left are the findings of the last
+//     round, their number the rounds of the record;
+//   - a case is edited in its precondition, input and expected result, reclassified in its level and its class; a case is a duplicate by its class, and the cases are handed over as they stand, duplicates among them
+//     unless the person removes them, and none when every one is a duplicate (6a);
+//   - a case that carries a `paid` call is marked for the nightly or release run (5a); a test the report of the last `write-tests` job lists in `notWritten` is shown again beside its reason (8b);
+//   - *Write tests* queues the job for the participant of the proposal, with the selection and levels of the proposal's record, the cases as `draft`, and the route as `route`, which the recipe `resource-pins` reads.
 //
 // ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: nothing is written or sent while the page is drawn or the run panel shown; Run, the panel's own
 // button, is the one click that queues the job.
@@ -27,6 +35,8 @@ import { prepareJob } from "../job-runner/index.mjs";
 import { listJobs, newJobId } from "../job-ledger/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, readProblem } from "../site-frame/index.mjs";
+import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
+import { readRegister } from "../documents/index.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -85,7 +95,7 @@ async function loadProduct(host) {
       const covered = new Set(guardingTests(graph, node.id).map((id) => levelOf.get(id)).filter(Boolean));
       return { id: node.id, kind: node.kind, covered: LEVELS.filter((level) => covered.has(level)), uncovered: FITTING[node.kind].filter((level) => !covered.has(level)) };
     });
-  return { info, snapshot, graph, names };
+  return { info, snapshot, graph, names, declarations };
 }
 
 // The participants of the instance's register that can do what the kind needs.
@@ -155,7 +165,9 @@ async function render(target, context, params = {}) {
 
   const person = el("input", "person");
   person.placeholder = "Your name";
+  let queuedId = null;
   const participantsBox = el("section", "writers");
+  const proposalBox = el("section", "proposal");
   const stage = el("section", "stage");
   const selection = () => ({
     names: inputsOf(list, "name").filter((box) => box.checked).map((box) => product.names.find((each) => each.id === box.value)),
@@ -233,6 +245,7 @@ async function render(target, context, params = {}) {
             retries: null, startedBy: person.value.trim(), start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
             destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: taParams };
           await queueJob(host, record, offer.route, product.snapshot.commit);
+          queuedId = id;
           result.append(el("p", "queued", `Job ${id} is queued on the route ${recordRoute(offer.route)}.`));
         } catch (failure) {
           queued = false;
@@ -249,12 +262,130 @@ async function render(target, context, params = {}) {
     stage.append(result);
   }
 
+  // ---------------------------------------------------------------- the proposal (UC-026 steps 5 to 8)
+
+  async function loadProposal() {
+    proposalBox.replaceChildren();
+    let rows, snapshot;
+    try {
+      snapshot = await host.readSnapshot(product.info.defaultBranch);
+      rows = await listJobs([{ address: snapshot.repository?.web ?? context.product.address, snapshot }], new Map());
+    } catch (failure) {
+      proposalBox.append(readProblem(failure, Boolean(context.product.tokenStored)));
+      return;
+    }
+    const proposed = rows.filter((row) => row.record.kind === "propose-tests" && Array.isArray(row.record.end?.draft?.cases));
+    const row = proposed.find((each) => each.record.id === queuedId) ?? proposed[0];
+    if (!row) {
+      proposalBox.append(el("p", "no-proposal", "No proposal is recorded yet: the job has not ended, or has handed back no cases."));
+      return;
+    }
+    const unwritten = rows.filter((each) => each.record.kind === "write-tests" && Array.isArray(each.record.end?.draft?.notWritten)).flatMap((each) => each.record.end.draft.notWritten);
+    paintCases(row.record, unwritten, snapshot);
+  }
+
+  function selectOf(className, values, chosen) {
+    const node = el("select", className, ...values.map((value) => { const option = el("option", null, value); option.value = value; if (value === chosen) option.setAttribute("selected", ""); return option; }));
+    node.value = chosen;
+    return node;
+  }
+  const fieldOf = (className, value) => { const node = el("textarea", className); node.value = value ?? ""; return node; };
+
+  function paintCases(record, unwritten, snapshot) {
+    const cases = record.end.draft.cases;
+    const left = (record.end.rounds ?? []).at(-1)?.findings ?? [];
+    const summary = el("p", "rounds", `Correction rounds: ${(record.end.rounds ?? []).length}`);
+    const flags = el("ul", "flags", ...left.map((found) => el("li", "flag", `${found.rule ? `${found.rule}: ` : ""}${found.what ?? String(found)}`)));
+    const reasons = new Map(unwritten.map((each) => [each.identifier, each.reason ?? each.why ?? ""]));
+    const groups = new Map();
+    for (const one of cases) {
+      const key = `${one.level}\u0000${(one.guards ?? []).join(", ")}`;
+      if (!groups.has(key)) groups.set(key, { level: one.level, guards: (one.guards ?? []).join(", "), cases: [] });
+      groups.get(key).cases.push(one);
+    }
+    const sections = [];
+    for (const group of [...groups.values()].sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level) || a.guards.localeCompare(b.guards))) {
+      const items = group.cases.map((one) => caseItem(one, reasons));
+      const section = el("section", "case-group", el("h4", null, `${group.level} — guards ${group.guards || "nothing"}`), el("ul", null, ...items));
+      section.setAttribute("data-level", group.level);
+      section.setAttribute("data-guards", group.guards);
+      sections.push(section);
+    }
+    const holder = el("div", "cases", ...sections);
+    const outcome = el("section", "write-result");
+    const write = button("btn write", "Write tests", () => writeTests(record, holder, outcome, snapshot));
+    proposalBox.replaceChildren(summary, flags, holder, ...(allDuplicates(holder) ? [] : [write]), outcome);
+    if (allDuplicates(holder)) proposalBox.append(el("p", "all-duplicates", "Every proposed case is a duplicate of an existing test. Nothing is written."));
+  }
+
+  function caseItem(one, reasons) {
+    const existing = product.declarations.filter((declaration) => declaration.id === one.identifier);
+    const beside = existing.length
+      ? existing.map((declaration) => el("div", "existing", `Existing ${declaration.id} (${declaration.level}), expects: ${declaration.expect ?? ""}`))
+      : [el("div", "existing", "No existing test has this identifier.")];
+    const marks = [];
+    if (one.paid) marks.push(el("span", "nightly", `needs a paid call (${one.paid}): proposed for the nightly or release run only`));
+    if (one.level === "user") marks.push(el("span", "manual", "manual test instructions: no code is written and no counter-proof is taken, since a person carries the test out and enters the outcome (UC-028)"));
+    if (reasons.has(one.identifier)) marks.push(el("span", "not-written", `not written: ${reasons.get(one.identifier)} — sharpen it or drop it`));
+    const item = el("li", "case", el("span", "id", one.identifier), " ",
+      selectOf("case-level", LEVELS, one.level), selectOf("case-class", ["new", "extends", "duplicate"], one.class), one.of ? el("span", "of", ` of ${one.of}`) : "", " ",
+      ...marks, ...beside, el("label", null, "Precondition ", fieldOf("case-precondition", one.precondition)), el("label", null, "Input ", fieldOf("case-input", one.input)),
+      el("label", null, "Expected ", fieldOf("case-expected", one.expected)));
+    item.setAttribute("data-case", one.identifier);
+    const original = structuredClone(one);
+    item.caseOf = () => ({ ...original, level: byClass(item, "case-level").value, class: byClass(item, "case-class").value, precondition: byClass(item, "case-precondition").value,
+      input: byClass(item, "case-input").value, expected: byClass(item, "case-expected").value });
+    const remove = button("btn remove", "Remove", () => { item.parentNode.removeChild(item); });
+    item.append(remove);
+    return item;
+  }
+  const byClass = (root, className) => walk(root).find((node) => node.className.split(" ").includes(className));
+  const itemsOf = (holder) => walk(holder).filter((node) => node.localName === "li" && node.className.split(" ").includes("case"));
+  const allDuplicates = (holder) => { const items = itemsOf(holder); return items.length > 0 && items.every((item) => item.caseOf().class === "duplicate"); };
+
+  async function writeTests(record, holder, outcome, snapshot) {
+    outcome.replaceChildren();
+    const items = itemsOf(holder);
+    const cases = items.map((item) => item.caseOf());
+    if (!cases.length || cases.every((one) => one.class === "duplicate")) {
+      outcome.append(el("p", "all-duplicates", cases.length ? "Every case is a duplicate of an existing test. Nothing is written." : "No case is left. Nothing is written."));
+      return;
+    }
+    const writer = register.writers.find((each) => each.name === record.participant);
+    if (!writer) { outcome.append(el("p", "problem", `${record.participant} is not among the participants that write tests.`)); return; }
+    const kind = await kindOf("write-tests");
+    const text = await snapshot.read("docs/resources.md");
+    const needs = typeof text === "string" ? reachableBy(readRegister(resourceSchema(), "docs/resources.md", text).rows.map((each) => ({ name: each.cells.Name, route: each.cells.Route }))) : [];
+    const offer = routesFor(writer, register.participants, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) }, needs)[0];
+    const params = { requirements: record.params?.requirements ?? [], useCases: record.params?.useCases ?? [], modules: record.params?.modules ?? [], levels: record.params?.levels ?? [],
+      route: offer ? recordRoute(offer.route) : null, draft: { cases } };
+    const now = new Date();
+    const id = newJobId(now, new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)));
+    const agentM = { version: register.instanceSnapshot.commit ?? "unknown", commit: register.instanceSnapshot.commit ?? "unknown" };
+    const person = record.startedBy;
+    try {
+      const prepared = await prepareJob("write-tests", { kind, params, product: { address: snapshot.repository?.web ?? context.product.address, snapshot, host },
+        instance: { snapshot: register.instanceSnapshot, host: context.instance.host, checkout: null }, connect: async () => host, participants: register.participants,
+        places: { sources: {}, mailbox: null }, gates: [], person, now, agentM, jobId: id }, { drafter: writer, reviewers: [] });
+      if (prepared.blocking.length) throw Object.assign(new Error(prepared.blocking.map((found) => `${found.what} — ${found.fix}`).join("; ")), { name: "Blocked" });
+      if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
+      const written = { id, kind: "write-tests", worksOn: record.worksOn, participant: writer.name, model: writer.model, route: recordRoute(offer.route), run: null, retries: null,
+        startedBy: person, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
+        destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
+      await queueJob(host, written, offer.route, snapshot.commit);
+      outcome.append(el("p", "queued", `Job ${id} of the kind write-tests is queued on the route ${recordRoute(offer.route)} with ${cases.length} cases.`));
+    } catch (failure) {
+      outcome.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
+    }
+  }
+
   for (const box of [...inputsOf(list, "name"), ...inputsOf(levels, "level")]) box.addEventListener("change", () => showParticipants());
   const show = button("btn prepare", "Show the run panel", showPanel);
+  const read = button("btn read", "Read the proposal", () => loadProposal());
   await showParticipants();
   target.replaceChildren(el("h2", null, "Generate tests"), explain("release-test-levels"),
     el("section", "to-test", el("h3", null, "What can be tested"), list), el("section", "chosen-levels", el("h3", null, "Levels"), levels),
-    participantsBox, el("label", null, "Your name ", person), show, stage);
+    participantsBox, el("label", null, "Your name ", person), show, stage, el("h3", null, "The proposal"), read, proposalBox);
   stage.replaceChildren();
 }
 
