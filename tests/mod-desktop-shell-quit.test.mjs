@@ -44,14 +44,14 @@ async function windowOver(jobs) {
   const browser = new EventTarget();
   Object.defineProperty(globalThis, "location", { configurable: true, value: { hash: "#pairing" } });
   Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
-  const calls = { quit: 0, asked: [] };
+  const calls = { quit: 0, asked: [], onQuitRequested: null };
   browser.bridge = {
     async state(action) {
       calls.asked.push(action);
       if (action === "running-jobs") return { jobs };
       return { address: "http://127.0.0.1:4711", token: "fixture-token", paused: false };
     },
-    async copy() {}, async quit() { calls.quit += 1; },
+    async copy() {}, async quit() { calls.quit += 1; }, onQuitRequested(callback) { calls.onQuitRequested = callback; },
   };
   await import(`../src/desktop-shell/window.mjs?quit=${Date.now()}`);
   await settle();
@@ -97,4 +97,23 @@ test("Quit with no job running quits at once", async () => {
   await settle();
   assert.equal(calls.quit, 1);
   assert.equal(decision(document), undefined);
+});
+
+// TST-1055106 · level: unit · module: MOD-desktop-shell
+// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// given: the production window over a Bridge with two jobs running, and the main process's request to quit — what the tray's Quit sends (TST-1055105) — delivered through the preload's onQuitRequested
+// input: the request; then the confirmation Quit of the decision it shows
+// expect: the window registered a handler; the request shows the same decision, naming both job identifiers, and quits nothing; the confirmation quits once
+test("the main process's request to quit shows the same decision and quits on its confirmation", async () => {
+  const { document, calls } = await windowOver(JOBS);
+  assert.equal(typeof calls.onQuitRequested, "function", "the window registered a handler for the request");
+  calls.onQuitRequested();
+  await settle();
+  const shown = decision(document);
+  assert.ok(shown, "a decision is shown");
+  for (const job of JOBS) assert.ok(shown.textContent.includes(job.id), `it names ${job.id}`);
+  assert.equal(calls.quit, 0);
+  buttons(shown, "Quit")[0].dispatchEvent(new Event("click"));
+  await settle();
+  assert.equal(calls.quit, 1);
 });
